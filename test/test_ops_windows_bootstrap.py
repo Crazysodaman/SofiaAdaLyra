@@ -247,3 +247,21 @@ def test_install_rejects_wrong_node_receipt(tmp_path: Path):
     )
     with pytest.raises(RuntimeError, match="node identity"):
         installer.install(_candidate(), _package(wheel))
+
+
+def test_artemis_canary_staged_tls_key_is_protected_before_operator_start():
+    """Static contract; Windows ACL/SMB behavior still needs live acceptance."""
+    project = Path(__file__).resolve().parents[1]
+    script = (project / "Setup-SofiaFleetArtemis.ps1").read_text(
+        encoding="utf-8",
+    )
+    assert '"/inheritance:r" "/grant:r"' in script
+    assert '"*S-1-5-18:F" "*S-1-5-32-544:F"' in script
+    assert "Cannot restrict temporary controller TLS key ACL" in script
+    assert "Cannot restrict Artemis staged TLS private-key ACL" in script
+    assert "Transferred Artemis TLS private-key hash differs" in script
+    assert 'Remove-Item -LiteralPath $bundleKey -Force -ErrorAction Stop' in script
+    assert "Get-FileHash -LiteralPath $remoteKey -Algorithm SHA256" in script
+    assert '-RemoteAddress $ControllerIp' in script
+    assert '-Profile Private' in script
+    assert '-RemoteAddress LocalSubnet' not in script
