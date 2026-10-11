@@ -31,13 +31,18 @@ def main(argv:list[str]|None=None)->int:
             state=store.current()
         else:
             approval_id = None
+            expected_updated_at = None
             if args.state == "off":
                 if not args.credential_id:
                     raise PermissionError("operator resume requires --credential-id")
                 from sofia.safe.owner_browser import authorize_exact_action
+                expected_updated_at = store.current().updated_at.isoformat()
                 approval = authorize_exact_action(
                     path, capability="operator.stop.resume",
-                    parameters={"active": False, "reason": args.reason.strip()},
+                    parameters={
+                        "active": False, "reason": args.reason.strip(),
+                        "expected_updated_at": expected_updated_at,
+                    },
                     credential_id=args.credential_id,
                     expires_seconds=90,
                 )
@@ -47,6 +52,7 @@ def main(argv:list[str]|None=None)->int:
                 updated_by="Sparks",
                 reason=args.reason,
                 approval_id=approval_id,
+                expected_updated_at=expected_updated_at,
             )
         print(
             f"operator_stop={'on' if state.active else 'off'} "
