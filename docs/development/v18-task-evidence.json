@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "d727d4673ac3a2dbd87ca49e096c205779e24097",
+  "reviewed_main_sha": "25556108fa82ddd753b5b7adbcab07864af215f9",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1: Future Artemis dedicated VM Sofia chosen headless Linux, Debian Stable recommended, Arch remains candidate. Production systemd canonical application launcher + hardened unit renderer committed with [skip ci]; regression tests authored unexecuted. No host/deploy/failover/grants; all impacted CA design/deployment tasks remain partial. Preserve other workstreams' current evidence.",
+  "notice": "WS1 owner decision 2026-10-11: Debian 13 Stable (Trixie), minimal headless VM Sofia on Artemis; Venus remains single DB writer and future approved GPU inference worker. Production runtime systemd source and Debian guest admission checks committed on main with [skip ci], regressions authored but not run. No host install, DB migration, service start, fleet grant or CI; unresolved fencing/host validation remains. Other workstream entries preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -271,13 +271,16 @@
         "f7a1476e877cb7ed02caf4f0d5538afc97a99b48",
         "fd8ef2be29443bbc9a66fca05e747aac6e204583",
         "e29ab5efa2455c7c93aaa5945440cc1618a02ecd",
-        "483457c0fb12b51241056ad5ad58d4a61a9f3b58"
+        "483457c0fb12b51241056ad5ad58d4a61a9f3b58",
+        "41cc92a3fe39f89f8f63d6074a048c74e029c290",
+        "1ff96baf4fc30e2f76ba4b87c8fa46fefaecbe3f",
+        "5c3374a2ba6ac53b1ba1f957a00e62c6b958e717"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "d727d4673ac3a2dbd87ca49e096c205779e24097",
-        "depth": "headless_linux_runtime_source_and_operator_choice",
-        "interpretation": "Owner specifies future Sofia VM on Artemis will run headless Linux, distribution choice between Debian and Arch not yet final. Recommended Debian Stable but left OS undecided. Existing production SofiaApplication now has distro-neutral systemd runtime service entrypoint, signed external state-home pointer prerequisite, existing canonical SQLite requirement, strict non-root service, headless graceful SIGTERM shutdown and hardened unit renderer. Source and tests authored but NOT run. The privileged fencing/promotion broker, verified restore, OS/network/credential acceptance and running service evidence remain open. Venus continues as active only writer."
+        "at_sha": "25556108fa82ddd753b5b7adbcab07864af215f9",
+        "depth": "owner_confirmed_debian_13_runtime_platform_and_preflight",
+        "interpretation": "Owner explicitly selected Debian for the future dedicated headless Hyper-V VM Sofia on Artemis; Debian 13 Stable Trixie is current release. Canonical systemd runtime checks Debian os-release ID, major version and codename at ExecStartPre and again inside real application startup before touching state, using the existing signed-home pointer and non-root service. Regression tests authored not executed. Venus remains sole current writer, no VM provisioned/migrated and independent fencing/failover/live acceptance not implemented. The distro decision is resolved but full design/deployment CA remains partial."
       }
     },
     {
@@ -422,13 +425,16 @@
         "f7a1476e877cb7ed02caf4f0d5538afc97a99b48",
         "fd8ef2be29443bbc9a66fca05e747aac6e204583",
         "e29ab5efa2455c7c93aaa5945440cc1618a02ecd",
-        "483457c0fb12b51241056ad5ad58d4a61a9f3b58"
+        "483457c0fb12b51241056ad5ad58d4a61a9f3b58",
+        "41cc92a3fe39f89f8f63d6074a048c74e029c290",
+        "1ff96baf4fc30e2f76ba4b87c8fa46fefaecbe3f",
+        "5c3374a2ba6ac53b1ba1f957a00e62c6b958e717"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "d727d4673ac3a2dbd87ca49e096c205779e24097",
-        "depth": "headless_linux_runtime_source_and_operator_choice",
-        "interpretation": "Owner specifies future Sofia VM on Artemis will run headless Linux, distribution choice between Debian and Arch not yet final. Recommended Debian Stable but left OS undecided. Existing production SofiaApplication now has distro-neutral systemd runtime service entrypoint, signed external state-home pointer prerequisite, existing canonical SQLite requirement, strict non-root service, headless graceful SIGTERM shutdown and hardened unit renderer. Source and tests authored but NOT run. The privileged fencing/promotion broker, verified restore, OS/network/credential acceptance and running service evidence remain open. Venus continues as active only writer."
+        "at_sha": "25556108fa82ddd753b5b7adbcab07864af215f9",
+        "depth": "owner_confirmed_debian_13_runtime_platform_and_preflight",
+        "interpretation": "Owner explicitly selected Debian for the future dedicated headless Hyper-V VM Sofia on Artemis; Debian 13 Stable Trixie is current release. Canonical systemd runtime checks Debian os-release ID, major version and codename at ExecStartPre and again inside real application startup before touching state, using the existing signed-home pointer and non-root service. Regression tests authored not executed. Venus remains sole current writer, no VM provisioned/migrated and independent fencing/failover/live acceptance not implemented. The distro decision is resolved but full design/deployment CA remains partial."
       }
     },
     {
@@ -717,13 +723,16 @@
         "f7a1476e877cb7ed02caf4f0d5538afc97a99b48",
         "fd8ef2be29443bbc9a66fca05e747aac6e204583",
         "e29ab5efa2455c7c93aaa5945440cc1618a02ecd",
-        "483457c0fb12b51241056ad5ad58d4a61a9f3b58"
+        "483457c0fb12b51241056ad5ad58d4a61a9f3b58",
+        "41cc92a3fe39f89f8f63d6074a048c74e029c290",
+        "1ff96baf4fc30e2f76ba4b87c8fa46fefaecbe3f",
+        "5c3374a2ba6ac53b1ba1f957a00e62c6b958e717"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "d727d4673ac3a2dbd87ca49e096c205779e24097",
-        "depth": "headless_linux_runtime_source_and_operator_choice",
-        "interpretation": "Owner specifies future Sofia VM on Artemis will run headless Linux, distribution choice between Debian and Arch not yet final. Recommended Debian Stable but left OS undecided. Existing production SofiaApplication now has distro-neutral systemd runtime service entrypoint, signed external state-home pointer prerequisite, existing canonical SQLite requirement, strict non-root service, headless graceful SIGTERM shutdown and hardened unit renderer. Source and tests authored but NOT run. The privileged fencing/promotion broker, verified restore, OS/network/credential acceptance and running service evidence remain open. Venus continues as active only writer."
+        "at_sha": "25556108fa82ddd753b5b7adbcab07864af215f9",
+        "depth": "owner_confirmed_debian_13_runtime_platform_and_preflight",
+        "interpretation": "Owner explicitly selected Debian for the future dedicated headless Hyper-V VM Sofia on Artemis; Debian 13 Stable Trixie is current release. Canonical systemd runtime checks Debian os-release ID, major version and codename at ExecStartPre and again inside real application startup before touching state, using the existing signed-home pointer and non-root service. Regression tests authored not executed. Venus remains sole current writer, no VM provisioned/migrated and independent fencing/failover/live acceptance not implemented. The distro decision is resolved but full design/deployment CA remains partial."
       }
     },
     {
@@ -842,13 +851,16 @@
         "f7a1476e877cb7ed02caf4f0d5538afc97a99b48",
         "fd8ef2be29443bbc9a66fca05e747aac6e204583",
         "e29ab5efa2455c7c93aaa5945440cc1618a02ecd",
-        "483457c0fb12b51241056ad5ad58d4a61a9f3b58"
+        "483457c0fb12b51241056ad5ad58d4a61a9f3b58",
+        "41cc92a3fe39f89f8f63d6074a048c74e029c290",
+        "1ff96baf4fc30e2f76ba4b87c8fa46fefaecbe3f",
+        "5c3374a2ba6ac53b1ba1f957a00e62c6b958e717"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "d727d4673ac3a2dbd87ca49e096c205779e24097",
-        "depth": "headless_linux_runtime_source_and_operator_choice",
-        "interpretation": "Owner specifies future Sofia VM on Artemis will run headless Linux, distribution choice between Debian and Arch not yet final. Recommended Debian Stable but left OS undecided. Existing production SofiaApplication now has distro-neutral systemd runtime service entrypoint, signed external state-home pointer prerequisite, existing canonical SQLite requirement, strict non-root service, headless graceful SIGTERM shutdown and hardened unit renderer. Source and tests authored but NOT run. The privileged fencing/promotion broker, verified restore, OS/network/credential acceptance and running service evidence remain open. Venus continues as active only writer."
+        "at_sha": "25556108fa82ddd753b5b7adbcab07864af215f9",
+        "depth": "owner_confirmed_debian_13_runtime_platform_and_preflight",
+        "interpretation": "Owner explicitly selected Debian for the future dedicated headless Hyper-V VM Sofia on Artemis; Debian 13 Stable Trixie is current release. Canonical systemd runtime checks Debian os-release ID, major version and codename at ExecStartPre and again inside real application startup before touching state, using the existing signed-home pointer and non-root service. Regression tests authored not executed. Venus remains sole current writer, no VM provisioned/migrated and independent fencing/failover/live acceptance not implemented. The distro decision is resolved but full design/deployment CA remains partial."
       }
     },
     {
@@ -887,13 +899,16 @@
         "f7a1476e877cb7ed02caf4f0d5538afc97a99b48",
         "fd8ef2be29443bbc9a66fca05e747aac6e204583",
         "e29ab5efa2455c7c93aaa5945440cc1618a02ecd",
-        "483457c0fb12b51241056ad5ad58d4a61a9f3b58"
+        "483457c0fb12b51241056ad5ad58d4a61a9f3b58",
+        "41cc92a3fe39f89f8f63d6074a048c74e029c290",
+        "1ff96baf4fc30e2f76ba4b87c8fa46fefaecbe3f",
+        "5c3374a2ba6ac53b1ba1f957a00e62c6b958e717"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "d727d4673ac3a2dbd87ca49e096c205779e24097",
-        "depth": "headless_linux_runtime_source_and_operator_choice",
-        "interpretation": "Owner specifies future Sofia VM on Artemis will run headless Linux, distribution choice between Debian and Arch not yet final. Recommended Debian Stable but left OS undecided. Existing production SofiaApplication now has distro-neutral systemd runtime service entrypoint, signed external state-home pointer prerequisite, existing canonical SQLite requirement, strict non-root service, headless graceful SIGTERM shutdown and hardened unit renderer. Source and tests authored but NOT run. The privileged fencing/promotion broker, verified restore, OS/network/credential acceptance and running service evidence remain open. Venus continues as active only writer."
+        "at_sha": "25556108fa82ddd753b5b7adbcab07864af215f9",
+        "depth": "owner_confirmed_debian_13_runtime_platform_and_preflight",
+        "interpretation": "Owner explicitly selected Debian for the future dedicated headless Hyper-V VM Sofia on Artemis; Debian 13 Stable Trixie is current release. Canonical systemd runtime checks Debian os-release ID, major version and codename at ExecStartPre and again inside real application startup before touching state, using the existing signed-home pointer and non-root service. Regression tests authored not executed. Venus remains sole current writer, no VM provisioned/migrated and independent fencing/failover/live acceptance not implemented. The distro decision is resolved but full design/deployment CA remains partial."
       }
     },
     {
