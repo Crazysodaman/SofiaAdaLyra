@@ -168,6 +168,7 @@ def install_approved_configured_model(
         or not isinstance(host_id, str) or not host_id.strip()
         or len(host_id) > 200
         or not isinstance(approval_id, str) or not approval_id.strip()
+        or len(approval_id) > 300
     ):
         raise ValueError("exact model, local host, and owner approval required")
     canonical_path = Path(path)
@@ -214,8 +215,33 @@ def install_approved_configured_model(
         )
         return True
 
-    return manager.install(
-        selected,
-        operator_approval_ref=approval_id,
-        verify_operator_approval=consume_exact_approval,
-    )
+    from sofia.safe.audit import AuditChain
+
+    def record_outcome(event_type: str, reason: str) -> None:
+        AuditChain(canonical_path).append(
+            actor_id="system:owner-model-installer",
+            event_type=event_type,
+            event_id=f"cognition-model-install:{approval_id}",
+            occurred_at=datetime.now(timezone.utc),
+            payload={
+                "approval_id": approval_id,
+                "role": role,
+                "model": expected_model,
+                "host_id": host_id,
+                "result": reason,
+            },
+        )
+
+    try:
+        status = manager.install(
+            selected,
+            operator_approval_ref=approval_id,
+            verify_operator_approval=consume_exact_approval,
+        )
+    except Exception as exc:
+        # A failed pull may have written partial Ollama assets; the exact
+        # operator approval is never replayed, and outcome remains auditable.
+        record_outcome("cognition.model.install.failed", type(exc).__name__)
+        raise
+    record_outcome("cognition.model.install.observed", status.state.value)
+    return status
