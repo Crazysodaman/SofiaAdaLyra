@@ -189,3 +189,61 @@ def test_procedure_catalog_refuses_fabricated_job_and_source_receipt(tmp_path):
         assert catalog.available_for_project(project) == ()
     finally:
         life.close()
+
+
+def test_verified_procedure_quarantined_when_original_bytes_change(tmp_path):
+    """A past pair of successes cannot mask current loss of source evidence."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, first_evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        first_job, _receipt = _original_authorized_completion(
+            life, first, first_evidence, now,
+        )
+        second_start = now + timedelta(minutes=1)
+        second, second_evidence = _second_same_capability_project(
+            life, first, second_start,
+        )
+        second_job, _receipt = _original_authorized_completion(
+            life, second, second_evidence, second_start,
+        )
+        assert life._reconcile_procedure_catalog(
+            now=second_start + timedelta(seconds=7),
+        ) == 2
+        assert len(life.procedures.available_for_project(first)) == 1
+        original = life.goal_dependency_view(
+            now=second_start + timedelta(seconds=8),
+        )
+        assert all(item["verified_procedures"] for item in original)
+        artifact_id = str(first_job.result["artifact_id"])
+        original_path, _media = life.creative_explorer.verified_preview(
+            artifact_id,
+            owner_principal_id="sofia",
+            audience_id="local:text",
+        )
+        original_path.write_text(
+            "These bytes are not the original independently verified work.",
+            encoding="utf-8",
+        )
+        # Diagnostics should fail closed even before the mutation-free audit
+        # gets a chance to record its quarantine decision.
+        after = life.goal_dependency_view(
+            now=second_start + timedelta(seconds=9),
+        )
+        assert not any(row["verified_procedures"] for row in after)
+        assert life._audit_procedure_sources(
+            now=second_start + timedelta(seconds=10),
+        ) == 1
+        assert life._audit_procedure_sources(
+            now=second_start + timedelta(seconds=11),
+        ) == 0
+        assert life.procedures.available_for_project(second) == ()
+        assert life.work_store.get(first_job.job_id).status is WorkStatus.COMPLETED
+        assert life.work_store.get(second_job.job_id).status is WorkStatus.COMPLETED
+        # Quarantine changes only the reliability of remembered procedure
+        # knowledge, not historic LIFE/GOALS/RUN or file contents.
+        assert life._project(first.project_id).status is ProjectStatus.COMPLETED
+        assert life._project(second.project_id).status is ProjectStatus.COMPLETED
+    finally:
+        life.close()
