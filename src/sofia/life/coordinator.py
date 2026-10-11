@@ -43,6 +43,7 @@ from .model import (
 from .idea_agent import ProjectIdeaAgent
 from .draft_agent import ProjectDraftAgent, ProjectDraftGenerationError
 from .store import LifeStore, ProjectWorkPending
+from .procedures import LifeProcedureCatalog
 
 
 SOFIA_PROJECT_OWNER = "sofia:self"
@@ -70,6 +71,7 @@ class SelfDirectedLifeCoordinator:
             raise TypeError("canonical GoalService and CapabilityGateway required")
         self.path = Path(state_path)
         self.store = LifeStore(self.path)
+        self.procedures = LifeProcedureCatalog(self.path)
         self.operator_stop = OperatorStopStore(self.path)
         self.goals, self.gateway = goals, gateway
         self.creative_store, self.creative_explorer = creative_store, creative_explorer
@@ -1738,6 +1740,13 @@ class SelfDirectedLifeCoordinator:
                 "goal_status": "unknown" if goal is None else goal.status.value,
                 "parent_goal_id": None if goal is None else goal.parent_goal_id,
                 "priority": project.priority,
+                "verified_procedures": (
+                    tuple(item.procedure_id for item in
+                        self.procedures.available_for_project(project))
+                    if project.scope is ProjectScope.PERSONAL_PRIVATE
+                    and project.goal_id is not None
+                    else ()
+                ),
                 "resource_budget": {
                     "daily_seconds": budget.daily_seconds,
                     "storage_bytes": budget.storage_bytes,
@@ -3233,6 +3242,98 @@ class SelfDirectedLifeCoordinator:
             settled += 1
         return settled
 
+    def _reconcile_procedure_catalog(
+        self, *, now: datetime, limit: int = 64,
+    ) -> int:
+        """Replay actual checked LIFE/GOALS/RUN completions into skill history.
+
+        Project Forge already validates the original goal and artifact.
+        This recovery view independently repeats those source checks, then
+        records only metadata in canonical sofia.db. No new work is
+        scheduled, and the procedure cannot execute a capability.
+        """
+        if self.operator_stop.current().active:
+            return 0
+        aware(now, "procedure reconciliation time")
+        if type(limit) is not int or not 1 <= limit <= 128:
+            raise ValueError("bounded procedure reconciliation limit required")
+        completed = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+            statuses=(ProjectStatus.COMPLETED,),
+        )
+        inserted = 0
+        for project in completed[:limit]:
+            if (
+                project.scope is not ProjectScope.PERSONAL_PRIVATE
+                or self.procedures.has_source_project(project.project_id)
+                or not self._current_verified_objective_completion(
+                    project, now=now,
+                )
+            ):
+                continue
+            reviews = self.store.evaluations(project.project_id)
+            for job_id in self.store.jobs(project.project_id):
+                job = self.work_store.get(job_id)
+                if job.status is not WorkStatus.COMPLETED:
+                    continue
+                result = job.result if isinstance(job.result, dict) else {}
+                artifact_id = result.get("artifact_id")
+                revision = result.get("revision")
+                receipt_ref = result.get("evidence_ref")
+                if (
+                    not isinstance(artifact_id, str)
+                    or type(revision) is not int
+                    or not isinstance(receipt_ref, str)
+                    or (artifact_id, revision)
+                    not in self.store.artifacts(project.project_id)
+                    or not self._confirmed_artifact_run_receipt(
+                        project, artifact_id=artifact_id,
+                        revision=revision, evidence_ref=receipt_ref,
+                        now=now,
+                    )
+                ):
+                    continue
+                candidate = next((
+                    evaluation for evaluation in reviews
+                    if (
+                        evaluation.artifact_id == artifact_id
+                        and evaluation.artifact_revision == revision
+                        and evaluation.technical_outcome is TechnicalOutcome.VALID
+                        and receipt_ref in evaluation.evidence_refs
+                        and set(evaluation.objective_results) ==
+                        set(project.brief.objectives)
+                        and all(
+                            value is True
+                            for value in evaluation.objective_results.values()
+                        )
+                    )
+                ), None)
+                if candidate is None:
+                    continue
+                try:
+                    report = self.inspect_artifact_objectives(
+                        project.project_id, artifact_id=artifact_id,
+                    )
+                except (LookupError, PermissionError, OSError, ValueError):
+                    continue
+                except RuntimeError as exc:
+                    if "failed preview integrity check" not in str(exc):
+                        raise
+                    continue
+                if (
+                    report.revision != revision
+                    or not report.eligible_for_independent_completion
+                ):
+                    continue
+                self.procedures.record_verified_attempt(
+                    project=project, job_id=job_id,
+                    original_run_evidence_ref=receipt_ref, now=now,
+                )
+                inserted += 1
+                break
+        return inserted
+
     def tick(
         self, *, now: datetime, busy: bool = False,
         resource_pressure: float = 0.0,
@@ -3262,6 +3363,10 @@ class SelfDirectedLifeCoordinator:
                 "retired_interest_projects_settled": retired_settled,
                 "review_queue": self.pending_work_review(limit=16),
             }
+        # Reconcile verified original creative procedures from settled RUN
+        # history before optional work. This is descriptive learning only,
+        # with no grant, executor, extra scheduler or model wake.
+        procedure_receipts = self._reconcile_procedure_catalog(now=now)
         # Completion verification is a settlement of an ALREADY STARTED
         # canonical RUN job, not permission to spend new creation budget.
         # A finished artifact must not be orphaned forever merely because
