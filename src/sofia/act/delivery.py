@@ -500,6 +500,38 @@ class ActOutbox:
             content=bound.content,
         )
 
+    def release_claim_before_send(
+        self, claim: DeliveryClaim, *, decision: Decision, at: datetime,
+    ) -> None:
+        """Release an unsent host-vetoed claim without burning retry budget.
+
+        Only the delivery runner invokes this path before any transport call.
+        Never use it for exceptions or uncertain effects after sending.
+        """
+        if not isinstance(claim, DeliveryClaim):
+            raise TypeError("DeliveryClaim required")
+        if not isinstance(decision, Decision) or decision is Decision.ELIGIBLE_FOR_AUTHORIZATION:
+            raise ValueError("a denying outreach decision is required")
+        when = _utc(at)
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            deleted = db.execute(
+                """DELETE FROM act_delivery_attempts
+                WHERE attempt_id=? AND message_id=? AND status='claimed'""",
+                (claim.attempt_id, claim.message_id),
+            )
+            if deleted.rowcount != 1:
+                raise RuntimeError("pre-send ACT claim could not be safely released")
+            record_outreach_trace(
+                db,
+                notice_id=claim.message_id,
+                stage="deferred",
+                reason=decision.value,
+                recorded_at=when,
+                channel=claim.channel,
+                destination=claim.destination,
+            )
+
     def finish(
         self,
         claim: DeliveryClaim,
@@ -628,6 +660,7 @@ class ActDeliveryRunner:
         policy: Policy,
         now: datetime,
         busy: bool = False,
+        pre_send_decision: Callable[[], Decision] | None = None,
     ) -> DeliveryRunResult:
         claimed = self.outbox.claim(
             message_id=message_id,
@@ -641,6 +674,17 @@ class ActDeliveryRunner:
             return DeliveryRunResult(claimed, None)
 
         payload = self.outbox.payload(claimed.claim)
+        if pre_send_decision is not None:
+            if not callable(pre_send_decision):
+                raise TypeError("pre_send_decision must be callable")
+            decision = pre_send_decision()
+            if not isinstance(decision, Decision):
+                raise TypeError("pre_send_decision must return Decision")
+            if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                self.outbox.release_claim_before_send(
+                    claimed.claim, decision=decision, at=now,
+                )
+                return DeliveryRunResult(ClaimResult("policy_blocked", decision), None)
         try:
             result = self.sender(payload)
             if not isinstance(result, SendResult):
