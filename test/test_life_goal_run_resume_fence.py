@@ -377,3 +377,55 @@ def test_one_use_creative_grant_claims_only_matching_original_running_job(
         assert life.store.artifacts(project.project_id) == ()
     finally:
         life.close()
+
+
+def test_overdue_active_goal_cannot_admit_new_optional_artifact(tmp_path):
+    """An ACTIVE status does not override the original GOALS deadline."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        goal = _goal(goals, project)
+        assert goal.expires_at is not None
+        overdue = goal.expires_at + timedelta(seconds=1)
+        with pytest.raises(PermissionError, match="expired"):
+            life.schedule_artifact(
+                project.project_id, artifact_kind=ArtifactKind.TEXT,
+                title="No late private creative work",
+                specification={"content": "The goal's deadline already passed."},
+                evidence_ref=evidence, now=overdue,
+            )
+        assert life.store.jobs(project.project_id) == ()
+        assert life.store.artifacts(project.project_id) == ()
+        assert _goal(goals, project).status is GoalStatus.ACTIVE
+    finally:
+        life.close()
+
+
+def test_expired_active_goal_cannot_resume_goals_derived_life_pause(tmp_path):
+    """Delayed canonical expiry cannot resurrect an old optional project."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        goal = _goal(goals, project)
+        _transition_goal(
+            goals, goal, GoalStatus.ACTIVE, GoalStatus.PAUSED,
+            now + timedelta(seconds=3), evidence,
+        )
+        assert life.tick(now=now + timedelta(seconds=4), busy=True)[
+            "goal_lifecycle_projects_settled"
+        ] == 1
+        paused = _goal(goals, project)
+        _transition_goal(
+            goals, paused, GoalStatus.PAUSED, GoalStatus.ACTIVE,
+            now + timedelta(seconds=5), evidence,
+        )
+        original_expiry = _goal(goals, project).expires_at
+        assert original_expiry is not None
+        outcome = life.tick(
+            now=original_expiry + timedelta(seconds=1), busy=True,
+        )
+        assert outcome["goal_lifecycle_projects_settled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert life.store.jobs(project.project_id) == ()
+    finally:
+        life.close()
