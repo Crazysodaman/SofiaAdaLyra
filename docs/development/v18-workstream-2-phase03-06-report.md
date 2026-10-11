@@ -168,6 +168,37 @@ Commits:
 CA relevance: CA-4107, CA-4109, CA-5303, CA-6306, CA-6312.
 This is partial proof of those requirements, **not** whole-task acceptance.
 
+### Promoted-memory candidate store loss/replacement fencing (Phase 06)
+
+Production route: `composition.root` constructs
+`DurableMemoryCandidateStore(configuration.state_path)` →
+`MemorySystem.recall_relevant` →
+`retrieve_promoted` →
+`DurableMemoryCandidateStore.list_ids/status/get` →
+reviewed `memory_candidate` plus original `memory_candidate_source` →
+scoped cognitive context in `runtime.response`.
+Operator review, promote, revoke, and source imports use the same store.
+
+The store kept an unguarded, long-lived sqlite3 handle; after OS-level
+replacement/deletion the old handle could still access orphaned state,
+and `open()` could recreate missing state. The owner now pins
+`CanonicalSQLiteGuard` on initialization, validates canonical identity
+before every store operation, and reconnects only via guarded SQLite
+mode=rw after shutdown. Existing isolated test/import first-creation
+behavior is preserved for compatibility; production composition already
+supplies a canonical state path. This **does not** replace the broader
+physical writer-host lease or finish migration design.
+
+Commits:
+- `694f8b56a9c41b4bd7fea85f0d178bb04199523b` production store guard.
+- `55b28b6c5850d894a8d8040174dc060e51e8308d` restart/replacement
+  regression contracts, Windows-safe test selection, **not executed**.
+
+CA relevance: CA-5201, CA-6101, CA-6306, CA-4204, CA-4206,
+CA-5603. These are focused implementation evidence, not whole-task acceptance.
+Further policy work must forbid accidental first-create outside the authorized
+first-install/import flow.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
