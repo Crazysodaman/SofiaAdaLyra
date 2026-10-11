@@ -170,3 +170,120 @@ def test_atomic_run_admission_rejects_original_life_revision_change(
         assert life.work_store.open_count() == 0
     finally:
         life.close()
+
+
+def test_queued_creative_job_refuses_stale_life_revision_after_resume(tmp_path):
+    """Queued work from before an original LIFE pause never silently restarts."""
+    from test.test_life_project_forge import wait_for_job
+
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Queued draft from prior LIFE revision",
+            specification={"content": "No longer authorized after a pause."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        before = dict(job.payload)
+        assert before["project_revision"] == project.revision
+        life.pause(
+            project.project_id,
+            reason="Original optional work intentionally paused.",
+            evidence_refs=(evidence,), now=now + timedelta(seconds=4),
+        )
+        resumed = life.resume(
+            project.project_id,
+            reason="Later work can be newly reviewed.",
+            evidence_refs=(evidence,), now=now + timedelta(seconds=5),
+        )
+        assert resumed.revision > before["project_revision"]
+        assert _goal(goals, project).status is GoalStatus.ACTIVE
+        life.manager.tick(now=now + timedelta(seconds=6))
+        settled = wait_for_job(life, job.job_id)
+        assert settled.status is WorkStatus.BLOCKED
+        assert "original_authority_changed" in settled.reason
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_queued_creative_job_refuses_stale_goals_revision_without_life_tick(
+    tmp_path,
+):
+    """Even fast GOALS pause/resume before LIFE polling invalidates queued work."""
+    from test.test_life_project_forge import wait_for_job
+
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Queued draft from prior GOALS revision",
+            specification={"content": "GOALS authority has changed."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        original_goal = _goal(goals, project)
+        paused = _transition_goal(
+            goals, original_goal, GoalStatus.ACTIVE, GoalStatus.PAUSED,
+            now + timedelta(seconds=4), evidence,
+        )
+        _transition_goal(
+            goals, paused, GoalStatus.PAUSED, GoalStatus.ACTIVE,
+            now + timedelta(seconds=5), evidence,
+        )
+        assert life._project(project.project_id).revision == project.revision
+        assert _goal(goals, project).revision > job.payload["goal_revision"]
+        life.manager.tick(now=now + timedelta(seconds=6))
+        settled = wait_for_job(life, job.job_id)
+        assert settled.status is WorkStatus.BLOCKED
+        assert "original_authority_changed" in settled.reason
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_background_draft_handles_atomic_project_revision_race_without_crash(
+    tmp_path, monkeypatch,
+):
+    """A lost LIFE admission CAS is deferred, never retried as a fresh effect."""
+    from test.test_life_autonomous_followthrough import typed_active_project
+    from sofia.cognition.model import CognitiveResponse
+    import json
+
+    life, _goals, now = infrastructure(tmp_path)
+    project = typed_active_project(
+        life, now, objectives=("text_contains:Foxfire",),
+    )
+    try:
+        submit = life.manager.submit
+
+        def change_revision_at_atomic_enqueue(**kwargs):
+            life.pause(
+                project.project_id, reason="Source changed before RUN admit.",
+                evidence_refs=(), now=now + timedelta(seconds=4),
+            )
+            life.resume(
+                project.project_id, reason="Source changed again before RUN admit.",
+                evidence_refs=(), now=now + timedelta(seconds=5),
+            )
+            return submit(**kwargs)
+
+        monkeypatch.setattr(
+            life.manager, "submit", change_revision_at_atomic_enqueue,
+        )
+        result = life.tick(
+            now=now + timedelta(seconds=6),
+            generate=lambda request: CognitiveResponse(
+                content=json.dumps({
+                    "content": "Foxfire is a verified word in this newly drafted "
+                               "creative text, but source revision changed."
+                }),
+            ),
+        )
+        assert result["scheduled"] == 0
+        assert result["follow_through"] == "authority_changed_during_draft"
+        assert life.store.jobs(project.project_id) == ()
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
