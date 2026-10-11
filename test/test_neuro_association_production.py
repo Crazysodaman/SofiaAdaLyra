@@ -6,6 +6,8 @@ import sqlite3
 
 import pytest
 
+pytestmark = pytest.mark.pkg_mem
+
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.memory.originals import SourceMessage
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
