@@ -40,7 +40,7 @@ class TrainingLabPlan:
     created_at:datetime
     expires_at:datetime
     owner_review_receipt:str
-    network_mode:str="offline_private"
+    network_mode:str="internal_host_guest_no_lan"
     guest_admin:str="sofia-admin"
     guest_worker:str="sofia-worker"
     guest_ssh_enabled:bool=False
@@ -70,7 +70,7 @@ class TrainingLabPlan:
         if not self.owner_review_receipt.startswith("owner-ui:"):
             raise PermissionError("independent lab plan review required")
         if (
-            self.network_mode!="offline_private" or self.guest_admin!="sofia-admin"
+            self.network_mode!="internal_host_guest_no_lan" or self.guest_admin!="sofia-admin"
             or self.guest_worker!="sofia-worker"
             or self.allowed_dataset_origin!="owner_reviewed_public_only"
             or self.guest_ssh_enabled or self.guest_root_execution
