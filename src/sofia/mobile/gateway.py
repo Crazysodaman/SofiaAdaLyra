@@ -185,6 +185,10 @@ class MobileCompanionGateway:
         if not isinstance(message, str) or not message.strip() or len(message) > 12_000:
             raise ValueError("mobile message must be 1..12000 characters")
         with self._lock:
+            if private_mode and not self.permissions.private_adult_authority().private_chat:
+                # Evaluate durable SAFE authority immediately before chat
+                # dispatch, not before waiting on another device's turn.
+                raise PermissionError("private mobile chat requires the host private-chat grant")
             conversation = self._conversation(device, private_mode=private_mode)
             principal = self._principal(device, private_mode=private_mode)
             response = conversation.respond(

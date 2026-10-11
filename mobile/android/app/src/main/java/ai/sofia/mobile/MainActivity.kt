@@ -109,22 +109,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadMainHistory(reset: Boolean = true) {
         if (busy) return
-        if (reset) {
-            mainHistory.clear()
-            historyCursor = null
-            historyHasMore = false
-        } else if (!historyHasMore) return
+        if (!reset && !historyHasMore) return
+        val cursor = if (reset) null else historyCursor
         historyOpen = true
         launchRequest {
-            val result = api.mainPage(historyCursor)
+            val result = withContext(Dispatchers.IO) {
+                api.mainPage(cursor)
+            }
+            // Compose state is owned by the UI dispatcher, never IO.
             val array = result.getJSONArray("messages")
             val loaded = (0 until array.length()).map { index ->
                 val item = array.getJSONObject(index)
                 val speaker = if (item.getString("role") == "user") "You" else "Sofía"
                 ChatLine(speaker, item.getString("content"))
             }
-            if (reset) mainHistory.addAll(loaded)
-            else mainHistory.addAll(0, loaded)
+            if (reset) {
+                mainHistory.clear()
+                mainHistory.addAll(loaded)
+            } else mainHistory.addAll(0, loaded)
             historyCursor = result.optJSONObject("next_before")
             historyHasMore = result.optBoolean("has_more", false)
         }
@@ -139,26 +141,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         status = if (adult) "Connected · private adult chat enabled" else "Connected · private adult chat disabled on host"
     }
 
-    fun refresh() = launchRequest { applyState(api.state()) }
+    fun refresh() = launchRequest {
+        val result = withContext(Dispatchers.IO) { api.state() }
+        applyState(result)
+    }
 
     fun send() {
         val text = draft.trim()
         if (text.isEmpty() || busy) return
         draft = ""
-        messages += ChatLine("You", text)
+        val pending = ChatLine("You", text)
+        val index = messages.size
+        messages += pending
         launchRequest {
-            val result = api.chat(text)
-            messages += ChatLine("Sofía", result.getString("response"))
-            applyState(result)
+            try {
+                val result = withContext(Dispatchers.IO) { api.chat(text) }
+                messages += ChatLine("Sofía", result.getString("response"))
+                applyState(result)
+            } catch (failure: Exception) {
+                // A timeout does NOT mean the host did not receive the
+                // message. Do not blindly replay an uncertain send.
+                if (index < messages.size && messages[index] == pending) {
+                    messages.removeAt(index)
+                }
+                draft = text
+                status = "Delivery unconfirmed; check Main history before resending"
+            }
         }
     }
 
-    private fun launchRequest(block: () -> Unit) {
+    private fun launchRequest(block: suspend () -> Unit) {
+        if (busy) return
         busy = true
         viewModelScope.launch {
-            runCatching { withContext(Dispatchers.IO) { block() } }
-                .onFailure { status = it.message ?: it.javaClass.simpleName }
-            busy = false
+            try {
+                block()
+            } catch (failure: Exception) {
+                status = failure.message ?: failure.javaClass.simpleName
+            } finally {
+                busy = false
+            }
         }
     }
 }

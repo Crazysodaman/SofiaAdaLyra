@@ -242,3 +242,63 @@ def test_non_loopback_server_requires_tls():
         assert "requires TLS" in str(exc)
     else:
         raise AssertionError("non-loopback plaintext binding was accepted")
+
+
+def test_private_mobile_chat_requires_a_fresh_host_grant(tmp_path):
+    app, gateway = _gateway(tmp_path)
+    PermissionStore(tmp_path / "state.db").set_private_adult_authority(
+        private_chat=False,
+        adult_chat=False, adult_avatar=False, adult_external_delivery=False,
+    )
+    import pytest
+
+    with pytest.raises(PermissionError, match="host private-chat grant"):
+        gateway.chat(
+            device_id="android-owner",
+            message="Private text must not reach the model",
+            private_mode=True,
+        )
+    assert app.conversation.calls == []
+
+    # Standard owner chat remains functional despite revoked private grant.
+    gateway.chat(
+        device_id="android-owner", message="Standard conversation",
+        private_mode=False,
+    )
+    assert len(app.conversation.calls) == 1
+
+
+def test_private_mobile_http_denied_as_403_without_exposing_message(tmp_path):
+    app, gateway = _gateway(tmp_path)
+    PermissionStore(tmp_path / "state.db").set_private_adult_authority(
+        private_chat=False,
+        adult_chat=False, adult_avatar=False, adult_external_delivery=False,
+    )
+    token = "a" * 40
+    server = MobileCompanionServer(
+        gateway,
+        token=token,
+        configuration=MobileServerConfiguration(port=0),
+    )
+    server.start()
+    host, port = server.address
+    try:
+        request = HTTPConnection(host, port, timeout=5)
+        request.request(
+            "POST", "/v1/mobile/chat",
+            body=json.dumps({
+                "device_id": "android-owner",
+                "message": "Never dispatch this private text",
+                "private_mode": True,
+            }),
+            headers={"Authorization": f"Bearer {token}",
+                     "Content-Type": "application/json"},
+        )
+        answer = request.getresponse()
+        content = json.loads(answer.read())
+        request.close()
+        assert answer.status == 403
+        assert content == {"error": "forbidden"}
+        assert app.conversation.calls == []
+    finally:
+        server.close()
