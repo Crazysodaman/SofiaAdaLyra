@@ -179,3 +179,49 @@ def test_stage_cannot_authorize_a_different_vm_or_unrecognized_policy(tmp_path):
     from sofia.ops.workshop_network import guest_network_contract
     assert guest_network_contract()["nat_enabled"] is False
     assert len(network_policy_digest())==64
+
+
+def test_original_vm_network_can_be_inspected_without_internal_switch_existing():
+    commands=[]
+    payload={
+        "VmId":str(VM),"Name":"Hephaestus","State":"Off","Generation":2,
+        "NicCount":1,
+        "OriginalSwitchNames":["Sofia-Hephaestus-Private"],
+        "OriginalSwitchTypes":["Private"],
+        "TargetExists":False,"TargetType":"",
+        "OtherVmNames":[],"NatPrefixes":[],"AddressCollision":False,
+        "IcsSharingEnabled":False,
+        "ObservedAtUtc":NOW.isoformat(),"HostChangePerformed":False,
+    }
+    provider=HyperVAdapter(runner=lambda statement:(
+        commands.append(statement) or json.dumps(payload)
+    ))
+    observed=provider.workshop_internal_stage_preflight()
+    assert observed["OriginalSwitchNames"]==["Sofia-Hephaestus-Private"]
+    assert observed["TargetExists"] is False
+    assert observed["HostChangePerformed"] is False
+    assert len(commands)==1
+    for expected in (
+        "Get-VM -Name 'Hephaestus'",
+        "Get-VMNetworkAdapter",
+        "Get-VMSwitch","Get-NetNat","Get-NetIPAddress",
+        "HNetCfg.HNetShare",
+    ):
+        assert expected in commands[0]
+    for prohibited in (
+        "New-VMSwitch","Connect-VMNetworkAdapter",
+        "Set-NetIPInterface","New-NetIPAddress","Start-VM",
+    ):
+        assert prohibited not in commands[0]
+
+
+def test_host_original_network_preflight_cannot_forge_stage_success():
+    provider=HyperVAdapter(runner=lambda _cmd:json.dumps({
+        "Name":"Hephaestus","VmId":str(VM),
+        "HostChangePerformed":True,
+    }))
+    with pytest.raises(Exception,match="read-only"):
+        provider.workshop_internal_stage_preflight()
+    assert remote_operation_is_read_only(
+        "workshop.inspect","network_stage_preflight",
+    ) is True
