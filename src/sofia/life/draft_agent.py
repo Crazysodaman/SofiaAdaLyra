@@ -13,6 +13,7 @@ from sofia.cognition.model import (
 )
 from sofia.creative.model import ArtifactKind
 from .model import LifeProject
+from .procedures import LifeProcedureCatalog, ProcedureRecord
 
 
 class ProjectDraftGenerationError(RuntimeError):
@@ -28,6 +29,7 @@ class ProjectDraftAgent:
     def draft(
         self, project: LifeProject, kind: ArtifactKind,
         *, feedback: str | None = None,
+        verified_precedents: tuple[ProcedureRecord, ...] = (),
     ) -> dict[str, object]:
         if not isinstance(project, LifeProject):
             raise TypeError("canonical LIFE project required")
@@ -51,7 +53,39 @@ class ProjectDraftAgent:
             or len(feedback) > 600
         ):
             raise ValueError("bounded independent revision feedback required")
+        # Only host-verified, compatible, twice-reproduced procedures may
+        # be cited. They provide no permission, run instructions or old
+        # creative bytes. The caller must also validate original receipts
+        # are still current before supplying these read-only records.
+        if (
+            not isinstance(verified_precedents, tuple)
+            or len(verified_precedents) > 2
+        ):
+            raise ValueError("bounded tuple of verified precedents required")
+        for precedent in verified_precedents:
+            if (
+                not isinstance(precedent, ProcedureRecord)
+                or precedent.status != "verified"
+                or precedent.verified_projects < 2
+                or precedent.owner_principal_id != project.owner_principal_id
+                or precedent.audience_id != project.audience_id
+                or precedent.environment != LifeProcedureCatalog.local_environment()
+                or precedent.source_objectives != project.brief.objectives
+                or precedent.required_tools != project.brief.required_tools
+                or precedent.exact_capabilities != project.brief.permission_requirements
+            ):
+                raise ValueError("precedent lacks exact current source compatibility")
         brief = json.dumps({
+            "verified_precedents_non_authoritative": tuple(
+                {
+                    "procedure_id": precedent.procedure_id,
+                    "reproduced_source_projects": precedent.verified_projects,
+                    "source_objectives": precedent.source_objectives,
+                    "read_only_preconditions": precedent.preconditions,
+                    "reproduce_original_work": False,
+                }
+                for precedent in verified_precedents
+            ),
             "name": project.name,
             "description": project.description,
             "objectives": project.brief.objectives,
