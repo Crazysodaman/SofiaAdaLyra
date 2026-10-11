@@ -92,3 +92,48 @@ The rendered unit now uses **`Type=notify` with `NotifyAccess=main`**. Sofía se
 - **Exact source and destination Fleet host IDs / addresses:** must be discovered and approved, not guessed or put into code as hardcoded network addresses.
 
 No live host changes or permission grants are authorized by this document.
+
+## Debian canonical client endpoint source checkpoint (2026-10-11)
+
+Source commits: `fbc2fed` (production), `152d044` (deferred regression).
+
+The headless Debian `sofia.run.systemd_runtime` service now reads the
+**existing** `SOFIA_MOBILE_ENABLED` configuration after starting the single
+canonical `SofiaApplication`. When explicitly enabled, it starts the existing
+TLS-protected, per-device bearer-verified `MobileCompanionServer` and
+`MobileCompanionGateway` **on the authoritative guest**, using a bounded
+command queue to ensure authenticated requests are dispatched on the
+application's canonical owner thread. Systemd READY is published only after
+the endpoint binds; a bind failure prevents READY. Shutdown closes the
+endpoint before shutting down the application. No second state owner or
+mobile credential authority was created.
+
+This is a complete source-level hosting integration for the **existing
+mobile protocol**; it is not a Windows desktop/tray remote protocol. The
+current Windows `ui.desktop_application.create_desktop_application` still
+requires local `sofia.db`, and `ui.tray_agent.TrayAgentApplication`
+still reads local state and instantiates `DesktopServiceController(remote=None)`.
+**Do not cut over** `sofia.db` while these client boundaries remain local.
+The existing mobile protocol binds conversation audiences to enrolled
+devices; it must not be silently repurposed into the desktop's canonical
+Main or a privileged service-control authority.
+
+The next code owners are:
+- **Sofia VM:** separately scoped authenticated Windows desktop Main protocol
+  including durable request-id/reconciliation, private audience validation,
+  read-only status, and approval-safe service operations. No raw SQLite,
+  arbitrary tool RPC, or broad bearer privileges.
+- **Venus:** thin-client selector, locally encrypted drafts/settings only,
+  chat and history via authoritative VM, voice/avatar presentation sourced
+  from verified remote decisions, local GPU and Game Mode controls, and
+  tray service commands routed only through signed/approved remote Fleet
+  controls. Closing the UI never stops the guest service.
+- **Migration broker:** independent privileged old-writer fence and epoch
+  proof, complete verified backup and erasure-journal reconciliation, guest
+  local staged restore, per-host/device PKI verification, owner-supervised
+  pointer activation, rollback/fail-forward procedure and live dual-writer
+  rejection drills.
+
+No tests, VM provisioning, certificate enrollment, live services, network
+ports, database pointers or production host settings were changed in this
+source checkpoint. Owner-deferred tests are authored, not executed.
