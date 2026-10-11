@@ -111,6 +111,8 @@ class OriginalRetrievalRequest:
             raise ValueError("message_ids must contain nonempty strings")
         if type(self.budget_characters) is not int or self.budget_characters < 0:
             raise ValueError("budget_characters must be a nonnegative integer")
+        if len(self.message_ids) > 128 or any(len(item) > 256 for item in self.message_ids):
+            raise ValueError("no more than 128 bounded original IDs may be requested")
 
 
 class ConversationOriginalRetriever:
@@ -129,10 +131,43 @@ class ConversationOriginalRetriever:
         if self._store.get_session(request.session_id) is None:
             raise LookupError("authorized conversation session does not exist")
 
-        originals = self._store.list_messages(request.session_id)
-        return project_originals(
-            session_id=request.session_id,
-            originals=originals,
-            requested_ids=request.message_ids,
-            budget_characters=request.budget_characters,
+        # Fetch only exact requested rows through the canonical session
+        # store's indexed query. We cannot enumerate a shortened result
+        # because SourceMessage.position must still mean its REAL position
+        # in the original chronological transcript.
+        rows = self._store.exact_originals(
+            request.session_id, message_ids=request.message_ids,
+        )
+        by_id = {}
+        for original, position in rows:
+            if original.session_id != request.session_id:
+                raise PermissionError("retrieval crossed source session")
+            if original.created_at.tzinfo is None or original.created_at.utcoffset() is None:
+                raise ValueError("original timestamp lacks a trusted zone")
+            by_id[original.id] = SourceMessage(
+                message_id=original.id, session_id=original.session_id,
+                role=original.role.value, content=original.content,
+                created_at=original.created_at.astimezone(timezone.utc),
+                position=position,
+            )
+        selected: list[SourceMessage] = []
+        omitted: list[str] = []
+        missing: list[str] = []
+        seen: set[str] = set()
+        remaining = request.budget_characters
+        for identifier in request.message_ids:
+            if identifier in seen:
+                continue
+            seen.add(identifier)
+            item = by_id.get(identifier)
+            if item is None:
+                missing.append(identifier)
+            elif len(item.content) > remaining:
+                omitted.append(identifier)
+            else:
+                selected.append(item)
+                remaining -= len(item.content)
+        return RetrievalProjection(
+            tuple(selected), tuple(omitted), tuple(missing),
+            request.budget_characters,
         )

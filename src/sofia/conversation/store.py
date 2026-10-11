@@ -265,6 +265,53 @@ class ConversationStore:
             for row in rows
         )
 
+    def exact_originals(
+        self, session_id: str, *, message_ids: tuple[str, ...],
+    ) -> tuple[tuple[ConversationMessage, int], ...]:
+        """Retrieve only requested session originals, plus true time-order positions.
+
+        This never materializes a full transcript in Python. The correlated
+        index-backed COUNT preserves zero-based (created_at,id) positions,
+        including tied timestamps, without placing entire content in memory.
+        Session authorization is established by the calling owner service.
+        """
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ValueError("nonempty authorized session ID required")
+        if not isinstance(message_ids, tuple) or len(message_ids) > 128:
+            raise ValueError("at most 128 exact message IDs required")
+        if any(
+            not isinstance(item, str) or not 1 <= len(item) <= 256
+            for item in message_ids
+        ):
+            raise ValueError("bounded exact message IDs required")
+        identifiers = tuple(dict.fromkeys(message_ids))
+        if not identifiers:
+            return ()
+        markers = ",".join("?" for _ in identifiers)
+        statement = (
+            "SELECT m.id,m.session_id,m.role,m.content,m.created_at,"
+            "(SELECT COUNT(*) FROM conversation_messages AS preceding "
+            "WHERE preceding.session_id=m.session_id AND "
+            "(preceding.created_at<m.created_at OR "
+            "(preceding.created_at=m.created_at AND preceding.id<m.id))) "
+            "AS chronological_position "
+            "FROM conversation_messages AS m "
+            "WHERE m.session_id=? AND m.id IN (" + markers + ") "
+            "ORDER BY m.created_at ASC,m.id ASC"
+        )
+        with self._lock:
+            rows = self._require_connection().execute(
+                statement, (session_id, *identifiers),
+            ).fetchall()
+        return tuple((
+            ConversationMessage(
+                id=row[0], session_id=row[1],
+                role=ConversationRole(row[2]), content=row[3],
+                created_at=datetime.fromisoformat(row[4]),
+            ),
+            int(row[5]),
+        ) for row in rows)
+
     def recent_messages(
         self, session_id: str, *, limit: int = 24
     ) -> tuple[ConversationMessage, ...]:

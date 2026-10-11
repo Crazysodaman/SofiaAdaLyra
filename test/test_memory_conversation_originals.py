@@ -83,3 +83,59 @@ def test_unknown_session_fails_closed(tmp_path):
 def test_message_ids_must_be_immutable_tuple(ids):
     with pytest.raises((TypeError, ValueError)):
         OriginalRetrievalRequest("session", ids, 10)
+
+
+def test_exact_originals_do_not_materialize_complete_session(tmp_path, monkeypatch):
+    store = ConversationStore(tmp_path / "memory.db")
+    session = store.create_session()
+    original = [save(store, session.id, f"historical original {number}")
+                for number in range(160)]
+    # A hot-path regression must fail if code falls back to loading 160
+    # messages into Python rather than just the selected two.
+    def prohibited_full_materialization(*args, **kwargs):
+        raise AssertionError("full-session materialization is forbidden")
+
+    monkeypatch.setattr(store, "list_messages", prohibited_full_materialization)
+    result = ConversationOriginalRetriever(store).retrieve(
+        OriginalRetrievalRequest(
+            session.id, (original[125].id, original[9].id, original[125].id),
+            200,
+        )
+    )
+    assert [item.message_id for item in result.selected] == [
+        original[125].id, original[9].id,
+    ]
+    assert [item.position for item in result.selected] == [125, 9]
+    assert result.missing_ids == ()
+    store.close()
+
+
+def test_exact_retrieval_timestamp_ties_have_stable_original_positions(tmp_path):
+    store = ConversationStore(tmp_path / "memory.db")
+    session = store.create_session()
+    tied = datetime(2026, 10, 11, 8, tzinfo=timezone.utc)
+    for identifier in ("b", "c", "a"):
+        store.save(ConversationMessage(
+            id=identifier, session_id=session.id,
+            role=ConversationRole.USER, content=identifier,
+            created_at=tied,
+        ))
+    result = ConversationOriginalRetriever(store).retrieve(
+        OriginalRetrievalRequest(session.id, ("c", "a", "b"), 100)
+    )
+    assert [item.position for item in result.selected] == [2, 0, 1]
+    store.close()
+
+
+def test_exact_source_query_rejects_unbounded_id_batches(tmp_path):
+    store = ConversationStore(tmp_path / "memory.db")
+    session = store.create_session()
+    with pytest.raises(ValueError, match="128"):
+        ConversationOriginalRetriever(store).retrieve(
+            OriginalRetrievalRequest(
+                session.id, tuple(f"source-{number}" for number in range(129)),
+                100,
+            )
+        )
+    assert store.exact_originals(session.id, message_ids=()) == ()
+    store.close()
