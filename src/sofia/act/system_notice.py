@@ -353,6 +353,33 @@ class SystemNoticeQueue:
                 destination=payload.destination,
             )
 
+    def _suppress_owner_declined_claim(
+        self, *, payload: DeliveryPayload, at: datetime,
+    ) -> None:
+        """Permanently close an unsent notice after explicit owner rejection."""
+        with closing(self._connect()) as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                changed = db.execute(
+                    """UPDATE act_system_notice
+                       SET status='failed',
+                           attempt_count=attempt_count-1,
+                           receipt_id=NULL,
+                           error_type='OwnerDeclinedProject',
+                           finished_at=?
+                       WHERE notice_id=? AND status='outcome_unknown'
+                         AND error_type='DeliveryInProgress'
+                         AND attempt_count > 0""",
+                    (at.isoformat(), payload.message_id),
+                )
+                if changed.rowcount != 1:
+                    raise RuntimeError("owner-declined ACT claim cannot be suppressed")
+                record_outreach_trace(
+                    db, notice_id=payload.message_id, stage="suppressed",
+                    reason=Decision.USER_DECLINED.value, recorded_at=at,
+                    channel=payload.channel, destination=payload.destination,
+                )
+
     def deliver_one(
         self,
         *,
@@ -536,6 +563,11 @@ class SystemNoticeQueue:
                     raise TypeError("pre_send_payload_decision must return Decision")
             except Exception:
                 decision = Decision.AUTHORIZATION_UNAVAILABLE
+            if decision is Decision.USER_DECLINED:
+                self._suppress_owner_declined_claim(
+                    payload=payload, at=moment,
+                )
+                return None
             if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
                 self._release_claim_before_send(
                     payload=payload, reason=decision.value, at=moment,
