@@ -7,6 +7,8 @@ import sqlite3
 
 import pytest
 
+from test.owner_auth_fixture import resume_with_signed_owner_proof
+
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
@@ -31,6 +33,8 @@ def test_removed_state_fails_closed_on_stop_read_and_update(tmp_path):
     with pytest.raises(FileNotFoundError):
         store.current()
     with pytest.raises(FileNotFoundError):
+        store.set(active=True, updated_by="Sparks", reason="no ghost canonical state")
+    with pytest.raises(PermissionError, match="authenticated approval"):
         store.set(active=False, updated_by="Sparks", reason="do not restore authority")
     assert not path.exists()
 
@@ -70,10 +74,7 @@ def test_stop_resume_writes_tamper_evident_audit_in_same_transaction(tmp_path):
         active=True, updated_by="Sparks",
         reason="owner stop", at=timestamp,
     )
-    stop.set(
-        active=False, updated_by="Sparks",
-        reason="owner resume", at=timestamp,
-    )
+    resume_with_signed_owner_proof(stop, reason="owner resume", now=timestamp)
     with closing(sqlite3.connect(path)) as db:
         events = db.execute(
             "SELECT event_type, payload_json FROM safe_audit_event "
