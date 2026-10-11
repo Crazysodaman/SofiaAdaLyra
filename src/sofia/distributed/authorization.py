@@ -24,6 +24,7 @@ REMOTE_MUTATION_HOST_CAPABILITIES = {
     ("vm.manage", "start"): "remote.vm.start",
     ("vm.manage", "stop"): "remote.vm.stop",
     ("workshop.bootstrap", "start"): "workshop.guest.bootstrap",
+    ("workshop.network", "stage"): "workshop.network.create",
     ("llm.manage", "pull"): "remote.ollama.pull",
     ("llm.manage", "load"): "remote.ollama.load",
     ("llm.manage", "unload"): "remote.ollama.unload",
