@@ -1114,9 +1114,16 @@ class MobileCompanionGateway:
                 "notification": None,
                 "blocked_reason": "private_mode_required",
             }
+        admitted = self._dispatch_epoch.get()
+        if admitted is not None and admitted[0] != device:
+            raise MobileCredentialRevoked(
+                "notification claim device differs from authenticated bearer"
+            )
         notification = self.notifications.claim_next(
             device_id=device,
             now=datetime.now(timezone.utc),
+            generation=None if admitted is None else admitted[1],
+            credential_sha256=None if admitted is None else admitted[2],
         )
         if notification is None:
             return {"notification": None}
@@ -1155,10 +1162,17 @@ class MobileCompanionGateway:
         internal_id = self.notifications.resolve_delivery_handle(
             notification_id
         )
+        admitted = self._dispatch_epoch.get()
+        if admitted is not None and admitted[0] != device:
+            raise MobileCredentialRevoked(
+                "notification ACK device differs from authenticated bearer"
+            )
         self.notifications.acknowledge(
             internal_id,
             device_id=device,
             now=datetime.now(timezone.utc),
+            generation=None if admitted is None else admitted[1],
+            credential_sha256=None if admitted is None else admitted[2],
         )
         return {"acknowledged": True}
 
