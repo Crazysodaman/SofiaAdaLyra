@@ -104,3 +104,40 @@ def test_malformed_duplicate_circuit_channels_fall_back_to_baseline():
     assert after.selection_method == "salience-v1"
     assert after.focus.key == "diagnostic:a"
     assert runtime.last_competition_error == "ValueError"
+
+
+def test_new_user_subject_wins_over_higher_aged_nonconversational_signal():
+    runtime = NeuroRuntime()
+    previous = NeuralSignal(
+        source="old-ongoing-goal", kind="goal",
+        value=1.0, confidence=1.0, novelty=1.0, urgency=1.0,
+        observed_at=NOW, ttl_seconds=600.0,
+    )
+    runtime.observe_signal(previous)
+    redirected = runtime.observe_turn(
+        content="Correction: switch to troubleshooting the NAS instead.",
+        created_at=NOW + timedelta(seconds=1),
+        channel="desktop",
+        turn=None,
+    )
+    assert redirected.focus is not None
+    assert redirected.focus.kind == "foreground"
+    assert any(
+        activation.key == "goal:old-ongoing-goal"
+        for activation in redirected.secondary
+    )
+    assert "current-turn precedence" in redirected.selection_reason
+
+    switched_again = runtime.observe_turn(
+        content="New topic: hexapod foot kinematics.",
+        created_at=NOW + timedelta(seconds=2),
+        channel="discord",
+        turn=None,
+    )
+    assert switched_again.focus is not None
+    assert switched_again.focus.kind == "foreground"
+    assert "conversation:discord" in switched_again.focus.key
+    assert all(
+        activation.key != redirected.focus.key
+        for activation in switched_again.secondary
+    )
