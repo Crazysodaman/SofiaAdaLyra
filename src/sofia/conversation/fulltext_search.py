@@ -17,6 +17,15 @@ from sofia.conversation.model import ConversationMessage, ConversationRole
 
 
 @dataclass(frozen=True, slots=True)
+class OfflineIndexAuthorization:
+    """Opaque external control-plane authorization context, not its own proof."""
+    canonical_state_path: Path
+    writer_host_id: str
+    writer_fence_ref: str
+    operator_approval_ref: str
+
+
+@dataclass(frozen=True, slots=True)
 class ConversationSearchStatus:
     ready: bool
     row_count: int
@@ -55,15 +64,31 @@ class ConversationFullTextSearch:
                 int(row["indexed_source_count"]) if row is not None else 0,
             )
 
-    def rebuild_offline(self, *, independently_authorized: bool) -> ConversationSearchStatus:
-        """Exclusive SQLite maintenance: potentially expensive on decades of data.
+    def rebuild_offline(
+        self, *, authorization: OfflineIndexAuthorization,
+        independently_verify_fenced_approval,
+    ) -> ConversationSearchStatus:
+        """Exclusive indexed maintenance under externally verified fencing.
 
-        Must run on the single fenced writer during an approved maintenance
-        window. Does not delete or rewrite source messages. A failed rebuild
-        rolls back its readiness marker and index in the same transaction.
+        The model cannot self-authorize this by passing a boolean; the
+        privileged host controller must verify a signed human approval and
+        exclusive writer fencing before any heavy index rebuild starts.
+        No source conversation rows are rewritten.
         """
-        if independently_authorized is not True:
-            raise PermissionError("index rebuild needs reviewed maintenance approval")
+        if not isinstance(authorization, OfflineIndexAuthorization):
+            raise TypeError("typed offline maintenance approval required")
+        if authorization.canonical_state_path != self.path:
+            raise PermissionError("approval is for another state database")
+        if any(not isinstance(value, str) or not value.strip() for value in (
+            authorization.writer_host_id,
+            authorization.writer_fence_ref,
+            authorization.operator_approval_ref,
+        )):
+            raise ValueError("signed approval and fenced writer IDs required")
+        if not callable(independently_verify_fenced_approval) or (
+            independently_verify_fenced_approval(authorization) is not True
+        ):
+            raise PermissionError("privileged operator/fencing proof was rejected")
         with closing(self._connect()) as db:
             db.execute("BEGIN IMMEDIATE")
             try:
