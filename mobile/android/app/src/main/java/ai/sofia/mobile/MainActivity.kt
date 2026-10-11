@@ -283,6 +283,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else mainHistory.addAll(0, loaded)
             historyCursor = result.optJSONObject("next_before")
             historyHasMore = result.optBoolean("has_more", false)
+            // Only an actually displayed newest page may advance the local
+            // device's canonical last-seen marker. Paging older must not
+            // regress it, and legacy rows without a sequence stay unmarked.
+            if (reset && array.length() > 0) {
+                val newest = array.getJSONObject(array.length() - 1)
+                if (
+                    !newest.isNull("canonical_sequence") &&
+                    newest.optLong("canonical_sequence", -1L) > 0L &&
+                    newest.optInt("turn_position", -1) in 0..1
+                ) {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            api.acknowledgeMainSeen(newest)
+                        }
+                    } catch (_: Exception) {
+                        status = "Main history shown; device read receipt not synced."
+                    }
+                }
+            }
         }
     }
 
