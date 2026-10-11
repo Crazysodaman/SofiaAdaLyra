@@ -100,3 +100,21 @@ def test_workspace_reset_does_not_mutate_underlying_neuro_facts():
 def test_workspace_rejects_unbounded_lifetime(ttl):
     with pytest.raises(ValueError,match="lifetime"):
         NeuroSharedWorkspace(ttl_seconds=ttl)
+
+
+def test_newer_workspace_must_not_look_like_it_was_read_from_old_turn(tmp_path):
+    store=NeuroObservabilityStore(tmp_path/"sofia.db")
+    neuro=NeuroRuntime(observability=store)
+    previous=neuro.observe_signal(_signal("original"))
+    neuro.observe_signal(_signal("newer",offset=1))
+    assert neuro.read_workspace(
+        consumer="conversation",at=NOW+timedelta(seconds=1),
+        expected_snapshot=previous,
+    ) is None
+    assert store.workspace_consumption()==()
+    current=neuro.last_snapshot
+    assert neuro.read_workspace(
+        consumer="conversation",at=NOW+timedelta(seconds=1),
+        expected_snapshot=current,
+    ) is not None
+    assert store.workspace_consumption()[0]["observed_reads"]==1
