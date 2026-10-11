@@ -13,6 +13,19 @@ from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.social.model import PrincipalContext
 
 
+def _storage_timestamp(value: datetime) -> str:
+    """Canonical new aware timestamps; preserve legacy naive fixtures.
+
+    Existing historical rows are not rewritten by this code. A separate
+    reviewed offline repair is required for old mixed-offset keysets.
+    """
+    return (
+        value.astimezone(timezone.utc).isoformat()
+        if value.tzinfo is not None and value.utcoffset() is not None
+        else value.isoformat()
+    )
+
+
 class ConversationStore:
     """
     SQLite-backed persistent conversation storage.
@@ -173,7 +186,7 @@ class ConversationStore:
                         message.session_id,
                         message.role.value,
                         message.content,
-                        message.created_at.isoformat(),
+                        _storage_timestamp(message.created_at),
                     ),
                 )
                 stored = connection.execute(
@@ -183,11 +196,32 @@ class ConversationStore:
                 ).fetchone()
                 expected = (
                     message.session_id, message.role.value,
-                    message.content, message.created_at.isoformat(),
+                    message.content,
                 )
-                if stored is None or tuple(stored) != expected:
+                if stored is None or tuple(stored[:3]) != expected:
                     raise ValueError(
                         "conversation message ID already names different immutable bytes"
+                    )
+                # Original event times can carry another valid timezone
+                # representation of the SAME instant. This is idempotent,
+                # but never permits the ID to name another event time.
+                source_time = datetime.fromisoformat(stored[3])
+                requested_time = message.created_at
+                if (
+                    source_time.tzinfo is not None
+                    and source_time.utcoffset() is not None
+                    and requested_time.tzinfo is not None
+                    and requested_time.utcoffset() is not None
+                ):
+                    same_timestamp = (
+                        source_time.astimezone(timezone.utc)
+                        == requested_time.astimezone(timezone.utc)
+                    )
+                else:
+                    same_timestamp = stored[3] == requested_time.isoformat()
+                if not same_timestamp:
+                    raise ValueError(
+                        "conversation message ID already names a different timestamp"
                     )
 
                 connection.execute(
@@ -195,12 +229,12 @@ class ConversationStore:
                     UPDATE conversation_sessions
                     SET updated_at = ?
                     WHERE id = ?
-                    AND updated_at < ?
+                    AND julianday(updated_at) < julianday(?)
                     """,
                     (
-                        message.created_at.isoformat(),
+                        _storage_timestamp(message.created_at),
                         message.session_id,
-                        message.created_at.isoformat(),
+                        _storage_timestamp(message.created_at),
                     ),
                 )
 
