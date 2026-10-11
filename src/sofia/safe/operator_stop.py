@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+from uuid import uuid4
 
+from sofia.safe.audit import AuditChain
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
@@ -35,6 +37,9 @@ class OperatorStopStore:
     def __init__(self,state_path:Path|str)->None:
         self.path=Path(state_path)
         self._guard=CanonicalSQLiteGuard(self.path)
+        # Reuse SAFE's append-only hash chain; do not create a competing
+        # operator-history ledger or rely on the overwritten current row.
+        self.audit = AuditChain(self.path)
         with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
@@ -101,6 +106,11 @@ class OperatorStopStore:
             raise ValueError("at must be timezone-aware")
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            previous = db.execute(
+                "SELECT active FROM safe_operator_stop WHERE singleton=1"
+            ).fetchone()
+            if previous is None:
+                raise RuntimeError("operator stop row missing; cannot audit transition")
             changed = db.execute("""
                 UPDATE safe_operator_stop
                 SET active=?,updated_at=?,updated_by=?,reason=?
@@ -113,5 +123,20 @@ class OperatorStopStore:
             ))
             if changed.rowcount != 1:
                 raise RuntimeError("operator stop row missing; refusal to imply a successful stop")
+            self.audit.append_in_transaction(
+                db,
+                actor_id=updated_by,
+                event_type=(
+                    "operator.stop.activated"
+                    if active else "operator.stop.cleared"
+                ),
+                payload={
+                    "previously_active": bool(previous[0]),
+                    "active": active,
+                    "reason": reason.strip(),
+                },
+                occurred_at=moment,
+                event_id=f"operator-stop:{uuid4()}",
+            )
             db.commit()
         return self.current()
