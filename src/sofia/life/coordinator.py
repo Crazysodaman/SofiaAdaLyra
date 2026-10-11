@@ -1020,6 +1020,160 @@ class SelfDirectedLifeCoordinator:
             objectives=project.brief.objectives,
         )
 
+    def project_causal_trace(
+        self, project_id: str, *, now: datetime, limit: int = 48,
+    ) -> dict[str, object]:
+        """Trace original private LIFE intention to RUN, review and memory.
+
+        This is an audit projection, not a retrieved synthetic narrative.
+        Inaccessible or revoked evidence never contributes original text
+        to the returned trace; absence is reported UNKNOWN, not erasure.
+        """
+        aware(now, "causal trace time")
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("causal trace limit must be 1..100")
+        project = self._project(project_id)
+        principal = local_sparks_principal()
+        def observed_refs(refs: tuple[str, ...]) -> tuple[str, ...]:
+            verified = []
+            for ref in refs:
+                original = self.evidence_index.lookup(ref)
+                if (
+                    original is None
+                    or original.principal_id != principal.principal_id
+                    or original.audience != project.audience_id
+                    or original.observed_at > now
+                ):
+                    continue
+                verified.append(ref)
+            return tuple(verified)
+
+        events = self.store.events(
+            project.project_id,
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=project.audience_id,
+        )
+        jobs = tuple(
+            self.work_store.get(job_id)
+            for job_id in self.store.jobs(project.project_id)
+        )
+        evaluations = self.store.evaluations(project.project_id)
+        experiences = self.store.project_experiences(
+            project.project_id, audience_id=project.audience_id, limit=limit,
+        )
+        outcomes = self.store.run_outcome_observations(
+            project.project_id, limit=limit,
+        )
+        scoped_goals = self.goals.list_visible(principal)
+        goal = next((
+            item for item in scoped_goals
+            if item.id == project.goal_id
+            and item.origin is GoalOrigin.SELF
+            and item.owner_principal_id == SOFIA_GOAL_OWNER_ID
+            and item.scope_audience == project.audience_id
+        ), None)
+        intent = []
+        for event in events[-limit:]:
+            originals = observed_refs(event.evidence_refs)
+            valid = len(originals) == len(event.evidence_refs)
+            intent.append({
+                "event_id": event.event_id,
+                "from_status": (
+                    None if event.from_status is None
+                    else event.from_status.value
+                ),
+                "to_status": event.to_status.value,
+                "decision": event.decision if valid else "unknown",
+                "reason": event.reason if valid else None,
+                "source_state": "observed" if valid else "unknown",
+                "source_evidence_refs": originals,
+                "occurred_at": event.occurred_at.isoformat(),
+            })
+        actions = []
+        for job in jobs[-limit:]:
+            result = job.result if isinstance(job.result, dict) else {}
+            receipt_ref = result.get("evidence_ref")
+            source = (
+                observed_refs((receipt_ref,))
+                if isinstance(receipt_ref, str) else ()
+            )
+            actions.append({
+                "job_id": job.job_id,
+                "kind": job.kind,
+                "status": job.status.value,
+                "source_evidence_refs": source,
+                "source_state": "observed" if source else "unknown",
+                "artifact_id": result.get("artifact_id") if source else None,
+                "updated_at": job.updated_at.isoformat(),
+                "uncertain_effect": job.status is WorkStatus.UNCERTAIN,
+            })
+        critiques = []
+        for evaluation in evaluations[-limit:]:
+            refs = observed_refs(evaluation.evidence_refs)
+            valid = len(refs) == len(evaluation.evidence_refs)
+            critiques.append({
+                "evaluation_id": evaluation.evaluation_id,
+                "artifact_id": evaluation.artifact_id if valid else None,
+                "revision": evaluation.artifact_revision if valid else None,
+                "technical_recorded": (
+                    evaluation.technical_outcome.value if valid else "unknown"
+                ),
+                "personal_recorded": (
+                    evaluation.personal_judgment.value if valid else "unknown"
+                ),
+                "source_state": (
+                    "recorded_not_reverified" if valid else "unknown"
+                ),
+                "source_evidence_refs": refs,
+                "evaluated_at": evaluation.evaluated_at.isoformat(),
+            })
+        episodes = []
+        for experience in reversed(experiences):
+            refs = observed_refs(experience.evidence_refs)
+            valid = len(refs) == len(experience.evidence_refs)
+            episodes.append({
+                "experience_id": experience.experience_id,
+                "kind": experience.kind if valid else "unknown",
+                "summary": experience.summary if valid else None,
+                "source_state": "observed" if valid else "unknown",
+                "source_evidence_refs": refs,
+                "occurred_at": experience.occurred_at.isoformat(),
+                "linked_evaluation_id": (
+                    experience.metadata.get("interest_learning", {}).get(
+                        "evaluation_id"
+                    )
+                    if valid and isinstance(
+                        experience.metadata.get("interest_learning"), dict
+                    ) else None
+                ),
+            })
+        return {
+            "as_of": now.astimezone(timezone.utc).isoformat(),
+            "project_id": project.project_id,
+            "audience_id": project.audience_id,
+            "goal_id": project.goal_id,
+            "goal_state": "unknown" if goal is None else goal.status.value,
+            "goal_revision": None if goal is None else goal.revision,
+            "project_status": project.status.value,
+            "intention_events": tuple(intent),
+            "run_actions": tuple(actions),
+            "run_event_observations": tuple({
+                "run_event_id": item.run_event_id,
+                "job_id": item.job_id,
+                "status": item.status,
+                "occurred_at": item.run_at.isoformat(),
+            } for item in outcomes),
+            "artifact_evaluations": tuple(critiques),
+            "experiences": tuple(episodes),
+            "truncated": (
+                len(events) > limit
+                or len(jobs) > limit
+                or len(evaluations) > limit
+                or len(experiences) >= limit
+            ),
+            "authority": "read_only_canonical_source_trace",
+        }
+
     def portfolio_index(
         self, *, limit: int = 24,
     ) -> tuple[dict[str, object], ...]:
