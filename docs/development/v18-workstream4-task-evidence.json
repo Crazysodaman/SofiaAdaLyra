@@ -23,7 +23,9 @@
     "57945a2bace1210e3cbdf66b3a0cd680c76527bd",
     "bf1e265cec8b6d70563ad1e8746e7037f65900c8",
     "38706ecb3ca0b4176e8d9e1b35e3200200f1efc3",
-    "7d938160f34f5aa07f293dd730ee827528f3edf5"
+    "7d938160f34f5aa07f293dd730ee827528f3edf5",
+    "df10d915d725c7fe7cc23ac14d6ba306f30565fe",
+    "43f1e8b5020efe8bdedd0f8ad78597cac15fd669"
   ],
   "tasks": [
     {
@@ -1610,7 +1612,7 @@
       "master_line": 1147,
       "global_ledger_before": "unassessed",
       "source_review": "partially_implemented_unverified",
-      "finding": "Bounded competition algorithm version/explanation now emitted in production; owner NEURO toggle durably saved in canonical RuntimeUserSettings and read on foreground/background refresh; tests authored but unexecuted. Per-turn benchmark/reset UI and independent verification remain open.",
+      "finding": "Algorithm version, winner/salience-margin/current-turn-precedence metadata and canonical owner toggle now reach one production NEURO attention path and diagnostic store. Tests written/unexecuted. Algorithm parameter control, independent ablation and host acceptance remain open.",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false
