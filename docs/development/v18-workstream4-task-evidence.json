@@ -39,7 +39,8 @@
     "2026-10-11 W4 Phase16: owner-reviewed scientific positive outcomes now require preregistered sample floor, negative/null measured findings require observations, and complete canonical outcome counts by type include old adverse/refuted/null records beyond the last 128 recent examples. Test source authored and bootstrap fixture corrected, no study or test run. CA-806/812 remain code-path candidates, zero accepted.",
     "2026-10-11 Workstream4 continuation3: Production SAFE explicitly classifies five screen scopes as protected or never-self-authorized, but NO actual OS picker, screen backend or pixel proof exists. Vision frame receipt idempotency now binds all canonical principal/audience/device/target metadata and validates frame evidence shape. Authoritative source-to-sink Phase12 audit added; CA-6202/6205 partial, CA-6206/7/8 still partial. Deferred tests authored, no tests or actual captures.",
     "2026-10-11 Workstream4 continuation3: EVOLVE public JSONL source intake now rejects path-component symlinks and Windows junctions, UNC locations, mid-inspection file identity/size/mtime drift and stream expansion beyond size bounds; license class/provenance claims must agree and blank content rejected. This is not independently verified source copyright or a live model trainer. CA-6703 remains code candidate without test proof.",
-    "2026-10-11 Workstream4 continuation3: Global optional RUN budget reserve/settle now requires an existing transaction and validates typed timestamps, while preserving the current coordinator's BEGIN IMMEDIATE protection. This is not a measured resource usage benchmark. No tests/CI/host actions."
+    "2026-10-11 Workstream4 continuation3: Global optional RUN budget reserve/settle now requires an existing transaction and validates typed timestamps, while preserving the current coordinator's BEGIN IMMEDIATE protection. This is not a measured resource usage benchmark. No tests/CI/host actions.",
+    "2026-10-11 WS4 Phase11 CA-6604: current Ollama candidate review now requires observed local inventory timestamp no older than 15 min and not from the future. Older snapshot retained read-only, never presented as CURRENT candidate. Deferred regression source authored, no model pull/switch/test."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -287,7 +288,9 @@
     "488c7c0ec530d61abf73b53c64968de289fdeb20",
     "3817cc30cb78ce0debaacc6dbaae878cac8122b6",
     "8bd18a9c40a7f5ac645b66ec79f1d22f10f4d796",
-    "cc1e78ec444d2a66f0ecba1d0a2a1cbee7da3e9c"
+    "cc1e78ec444d2a66f0ecba1d0a2a1cbee7da3e9c",
+    "c1cb3852f1d8232d037b6e2a06731b40113f5127",
+    "c4e395d7e2ad8b0b6a77b1523cdcb84e1982ca49"
   ],
   "tasks": [
     {
@@ -743,7 +746,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "One production RUN background coordinator now schedules a bounded loopback-only read-only Ollama /tags-/version-/show survey at 6h intervals, skips gaming/busy/DND, prioritizes configured model metadata within budget, atomically writes one observed host inventory to canonical sofia.db, surfaces unconfigured installed candidates for human independent review in Settings, never downloads, accepts licenses, exports prompts or switches roles. Regression tests authored, not executed."
+      "finding": "One production RUN background coordinator now schedules a bounded loopback-only read-only Ollama /tags-/version-/show survey at 6h intervals, skips gaming/busy/DND, prioritizes configured model metadata within budget, atomically writes one observed host inventory to canonical sofia.db, surfaces unconfigured installed candidates for human independent review in Settings, never downloads, accepts licenses, exports prompts or switches roles. Regression tests authored, not executed. Addition: ModelInventoryStore.candidate_review filters invalid, future and older-than-15-minute installed-model observation timestamps before candidate review; historical rows remain only diagnostic. Source src/sofia/cognition/model_inventory.py, unexecuted test/test_model_inventory_production.py. No automatic installation, provider switch or benchmark."
     },
     {
       "id": "CA-6605",
