@@ -808,6 +808,11 @@ class SelfDirectedLifeCoordinator:
                         continue  # independently reviewed, no outstanding decision
                 elif job.status is WorkStatus.UNCERTAIN:
                     disposition = "uncertain_no_automatic_retry"
+                elif job.status is WorkStatus.WAITING_APPROVAL:
+                    # A pending SAFE decision is not running or completed.
+                    # It needs visibility and operator authority, not a
+                    # speculative retry or another optional LIFE project.
+                    disposition = "awaiting_separate_operator_approval"
                 elif job.status in {WorkStatus.FAILED, WorkStatus.CANCELLED, WorkStatus.BLOCKED}:
                     disposition = "needs_failure_or_blocked_review"
                 else:
