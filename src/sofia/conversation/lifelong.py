@@ -764,6 +764,31 @@ class LifelongThreadStore:
             ).fetchall()
         return tuple(self._decode(row) for row in rows)
 
+    def source_free_project_visible(
+        self, *, principal: PrincipalContext, thread_id: str,
+    ) -> bool:
+        """Allow an empty read-only view only for a never-linked project.
+
+        The creation stamp is not sufficient for a formerly populated
+        project: once an original was linked, future source withdrawal
+        must not re-expose old titles or suggest the content never existed.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if not isinstance(thread_id, str) or not 8 <= len(thread_id) <= 128:
+            raise ValueError("bounded project thread ID required")
+        with closing(self._connect()) as db:
+            return db.execute(
+                "SELECT 1 FROM lifelong_thread AS t WHERE t.thread_id=? "
+                "AND t.owner_principal_id=? AND t.kind='project' "
+                "AND t.project_audience_id=? AND t.project_audience_kind=? "
+                "AND t.has_linked_source=0 "
+                "AND NOT EXISTS(SELECT 1 FROM lifelong_thread_event AS e "
+                "WHERE e.thread_id=t.thread_id)",
+                (thread_id, principal.principal_id, principal.audience_id,
+                 principal.audience_kind.value),
+            ).fetchone() is not None
+
     @staticmethod
     def _authorize_project_edit(
         db: sqlite3.Connection, *, principal: PrincipalContext, thread_id: str,
