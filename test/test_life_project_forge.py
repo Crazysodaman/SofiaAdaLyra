@@ -1907,3 +1907,80 @@ def test_life_run_deadline_respects_remaining_utc_daily_budget(tmp_path):
         assert life.store.artifacts(project.project_id) == ()
     finally:
         life.close()
+
+
+def test_duplicate_original_life_objectives_fail_closed_at_admission(tmp_path):
+    """One copied objective cannot masquerade as two separate milestones."""
+    _life, _goals, now = infrastructure(tmp_path)
+    try:
+        with pytest.raises(ValueError, match="objectives must be distinct"):
+            ProjectIdea(
+                "idea:duplicate-original-criteria", "A duplicated plan",
+                "A project with the same validation requirement twice.",
+                "interest:original",
+                ("text_contains:Foxfire", " TEXT_CONTAINS:FOXFIRE "),
+                (), "text", ("goal-evidence:original",), 0.8, 0.8, now,
+            )
+    finally:
+        _life.close()
+
+
+def test_legacy_duplicate_life_objectives_cannot_complete_or_grant_milestones(
+    tmp_path,
+):
+    """Old ambiguous project records remain readable but never auto-successful."""
+    from dataclasses import replace
+    import sqlite3
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Legacy project artifact",
+            specification={"content": (
+                "Foxfire text is a real project artifact, but its later "
+                "legacy objectives are contradictory duplicates."
+            )},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        life.manager.tick(now=now + timedelta(seconds=3))
+        completed = wait_for_job(life, job.job_id)
+        assert completed.status is WorkStatus.COMPLETED
+        ambiguous = replace(
+            project.brief,
+            objectives=("text_contains:Foxfire", "text_contains:Foxfire"),
+        )
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE life_project SET brief_json=? WHERE project_id=?",
+                (life.store._brief(ambiguous), project.project_id),
+            )
+        with pytest.raises(ValueError, match="ambiguous"):
+            life.evaluate_artifact(
+                project.project_id,
+                artifact_id=str(completed.result["artifact_id"]),
+                technical_outcome=TechnicalOutcome.VALID,
+                personal_judgment=PersonalJudgment.UNKNOWN,
+                objective_results={"text_contains:Foxfire": True},
+                reason="The original stored brief is ambiguous.",
+                evidence_refs=(str(completed.result["evidence_ref"]),),
+                preserve_for_research=False,
+                now=now + timedelta(seconds=4),
+            )
+        with pytest.raises(ValueError, match="ambiguous"):
+            life.complete(
+                project.project_id,
+                reason="Cannot complete a corrupted objective set.",
+                now=now + timedelta(seconds=5),
+            )
+        assert any(
+            item["project_id"] == project.project_id
+            and item["disposition"] == "ambiguous_original_objectives_require_review"
+            for item in life.pending_work_review()
+        )
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+    finally:
+        life.close()
