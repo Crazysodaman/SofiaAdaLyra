@@ -160,3 +160,89 @@ def test_local_review_candidate_is_listed_without_exposing_foreign_scope(tmp_pat
     finally:
         candidates.close()
         conversations.close()
+
+
+def test_promoted_reviewed_fact_ceases_recall_after_source_deletion(tmp_path):
+    from sofia.memory.system import MemorySystem
+
+    state, conversations, candidates, session, source, review, pending = _setup(
+        tmp_path,
+    )
+    try:
+        principal = local_sparks_principal()
+        review.promote(pending.candidate_id, approved_by=principal)
+        assert candidates.status(pending.candidate_id) is CandidateStatus.PROMOTED
+        assert candidates.is_recall_eligible(pending.candidate_id) is True
+        assert [
+            item.id for item in MemorySystem(candidates).recall_relevant(
+                "Gaia servos", principal=principal,
+            )
+        ] == [str(pending.candidate_id)]
+
+        with sqlite3.connect(state) as db:
+            db.execute(
+                "DELETE FROM conversation_messages WHERE id=?", (source.id,),
+            )
+        assert candidates.status(pending.candidate_id) is CandidateStatus.PROMOTED
+        assert candidates.is_recall_eligible(pending.candidate_id) is False
+        assert MemorySystem(candidates).recall_relevant(
+            "Gaia servos", principal=principal,
+        ) == ()
+        assert tuple(candidates.iter_promoted_summaries(
+            principal_id=principal.principal_id,
+            audience_id=principal.audience_id,
+        )) == ()
+        # Recorded original review survives for later operator diagnosis.
+        assert candidates.get(pending.candidate_id).sources[0].message_id == source.id
+    finally:
+        candidates.close()
+        conversations.close()
+
+
+def test_original_audience_withdrawal_stops_later_approved_recall(tmp_path):
+    from sofia.memory.system import MemorySystem
+
+    state, conversations, candidates, session, source, review, pending = _setup(
+        tmp_path,
+    )
+    try:
+        principal = local_sparks_principal()
+        review.promote(pending.candidate_id, approved_by=principal)
+        with sqlite3.connect(state) as db:
+            db.execute(
+                "UPDATE social_session_principal SET audience_id=? "
+                "WHERE session_id=?",
+                ("mobile:private:changed-epoch", session.id),
+            )
+        assert candidates.is_recall_eligible(pending.candidate_id) is False
+        assert MemorySystem(candidates).recall_relevant(
+            "Gaia servos", principal=principal,
+        ) == ()
+        assert candidates.status(pending.candidate_id) is CandidateStatus.PROMOTED
+    finally:
+        candidates.close()
+        conversations.close()
+
+
+def test_legacy_unattested_candidate_is_not_silently_deleted_by_migration(tmp_path):
+    from sofia.memory.originals import SourceMessage
+    from sofia.memory.provenance import MemoryCandidate
+
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = DurableMemoryCandidateStore(state)
+    pending = MemoryCandidate(
+        candidate_id=uuid4(), content="legacy owner memory",
+        sources=(SourceMessage(
+            "older-source-id", "older-session", "user", "legacy",
+            NOW, 0,
+        ),),
+        created_at=NOW, principal_id=local_sparks_principal().principal_id,
+        audience_id=None,
+    )
+    try:
+        store.propose(pending)
+        store.promote(pending.candidate_id)
+        assert store.status(pending.candidate_id) is CandidateStatus.PROMOTED
+        assert store.is_recall_eligible(pending.candidate_id) is True
+    finally:
+        store.close()
