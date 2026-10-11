@@ -11,7 +11,8 @@
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
-    "57da4138f1e9545ad96067ce78d50fb12d8bd1dc"
+    "57da4138f1e9545ad96067ce78d50fb12d8bd1dc",
+    "b7fcec5b4a0edc9bd347d5d26821458a3862fb22"
   ],
   "tasks": [
     {
@@ -1527,7 +1528,7 @@
       "master_line": 1140,
       "global_ledger_before": "unassessed",
       "source_review": "code_path_integrated_unverified",
-      "finding": "Invalid neural activations/competition return to deterministic baseline. Focused tests authored, not executed.",
+      "finding": "Invalid and unexpected engineered circuit failures now fall back to deterministic salience; regression unexecuted (b7fcec5).",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false
