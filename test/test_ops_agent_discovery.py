@@ -30,9 +30,10 @@ class FakeResponse:
 
     def __init__(self, payload):
         self.payload = payload
+        self.length = None
 
-    def read(self):
-        return self.payload
+    def read(self, amt=None):
+        return self.payload if amt is None else self.payload[:amt]
 
 
 class FakeConnection:
@@ -517,3 +518,66 @@ def test_discovery_rejects_different_server_key_on_capability_request(
 
     assert source.discover() == ()
     assert len(created) == 2
+
+
+def test_mtls_discovery_refuses_oversized_chunked_identity(monkeypatch):
+    """An authenticated peer cannot make discovery read unlimited identity data."""
+    class OversizedIdentityConnection(FakeConnection):
+        def getresponse(self):
+            if self.path == "/v1/identity":
+                return FakeResponse(
+                    b'{"node_id":"11111111-2222-3333-4444-555555555555",'
+                    b'"name":"Artemis","protocol_version":"1.0"}'
+                    + b" " * discovery_module.MAX_DISCOVERY_BODY_BYTES
+                )
+            pytest.fail("Oversized identity must not reach capabilities endpoint")
+
+    source = _source(monkeypatch)
+    monkeypatch.setattr(
+        discovery_module, "HTTPSConnection", OversizedIdentityConnection,
+    )
+    assert source.discover() == ()
+
+
+def test_mtls_discovery_refuses_oversized_declared_capabilities(monkeypatch):
+    """Reject a known-excessive Content-Length without reading the response."""
+    class OversizedResponse(FakeResponse):
+        def __init__(self):
+            super().__init__(b"")
+            self.length = discovery_module.MAX_DISCOVERY_BODY_BYTES + 1
+
+        def read(self, amt=None):
+            pytest.fail("Known oversized response must not be read")
+
+    class OversizedCapabilitiesConnection(FakeConnection):
+        def getresponse(self):
+            if self.path == "/v1/capabilities":
+                return OversizedResponse()
+            return super().getresponse()
+
+    source = _source(monkeypatch)
+    monkeypatch.setattr(
+        discovery_module, "HTTPSConnection", OversizedCapabilitiesConnection,
+    )
+    assert source.discover() == ()
+
+
+def test_mtls_discovery_requests_bounded_bytes_from_both_endpoints(monkeypatch):
+    """Successful discovery must never issue a read-all on either endpoint."""
+    requested = []
+
+    class TrackingResponse(FakeResponse):
+        def read(self, amt=None):
+            requested.append(amt)
+            return super().read(amt)
+
+    class TrackingConnection(FakeConnection):
+        def getresponse(self):
+            response = super().getresponse()
+            return TrackingResponse(response.payload)
+
+    source = _source(monkeypatch)
+    monkeypatch.setattr(discovery_module, "HTTPSConnection", TrackingConnection)
+
+    assert len(source.discover()) == 1
+    assert requested == [discovery_module.MAX_DISCOVERY_BODY_BYTES + 1] * 2
