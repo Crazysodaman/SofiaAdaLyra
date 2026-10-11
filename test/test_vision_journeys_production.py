@@ -2,6 +2,7 @@
 from datetime import datetime,timedelta,timezone
 import sqlite3
 import pytest
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.vision.journeys import (
     ScreenJourney,ScreenJourneyReceiptStore,
     propose_owner_screen_journey,journey_policy,
@@ -77,7 +78,7 @@ def test_bounded_receipt_only_after_adapter_reports_correct_window_and_bytes(tmp
     assert evidence.semantic_content_verified is False
     assert evidence.authorized_action is False
     assert evidence.pixel_content_persisted is False
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     store=ScreenJourneyReceiptStore(state)
     store.record(evidence)
     store.record(evidence)
@@ -106,7 +107,7 @@ def test_bounded_watch_can_store_multiple_digests_but_no_pixels(tmp_path):
         actual_os_picker_selected_target_id=watch.permit.target_id,
         confirmed_interactive_os_picker=True,
     )
-    store=ScreenJourneyReceiptStore(tmp_path/"sofia.db")
+    store=ScreenJourneyReceiptStore(bootstrap_canonical_sqlite(tmp_path/"sofia.db"))
     store.record(first)
     store.record(second)
     assert len(store.status(principal_id="person:sparks",audience_id="local:text")["observations"])==2
