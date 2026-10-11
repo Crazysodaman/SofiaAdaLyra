@@ -78,12 +78,12 @@ _SENSITIVE_AUTO_MEMORY = re.compile(
 # Do not turn explicit roleplay/hypothetical framing into automatic MEM
 # candidates that later require the user to hunt down and revoke.
 _FICTIONAL_AUTO_MEMORY = re.compile(
-    r"^\\s*(?:in\\s+(?:this|our|the)\\s+(?:roleplay|fictional\\s+story|"
-    r"story|simulation|game)\\b|as\\s+(?:my|a|the)\\s+"
-    r"(?:character|npc|role)\\b|pretend\\s+(?:that\\s+)?|"
-    r"hypothetically\\b|for\\s+(?:this|the)\\s+fictional\\s+scenario\\b)|"
-    r"\\b(?:in\\s+(?:this|our)\\s+(?:roleplay|fictional\\s+story)|"
-    r"as\\s+my\\s+character|for\\s+(?:this|the)\\s+story)\\b",
+    r"^\s*(?:in\s+(?:this|our|the)\s+(?:roleplay|fictional\s+story|"
+    r"story|simulation|game)\b|as\s+(?:my|a|the)\s+"
+    r"(?:character|npc|role)\b|pretend\s+(?:that\s+)?|"
+    r"hypothetically\b|for\s+(?:this|the)\s+fictional\s+scenario\b)|"
+    r"\b(?:in\s+(?:this|our)\s+(?:roleplay|fictional\s+story)|"
+    r"as\s+my\s+character|for\s+(?:this|the)\s+story)\b",
     re.IGNORECASE,
 )
 
