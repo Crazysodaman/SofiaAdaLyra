@@ -141,6 +141,30 @@ class SettingsSections:
                 else "Local machine identity unverified; inventory denied."
             ),
         )
+        # The same observed, local API license text is reviewable in Settings,
+        # without licensing acceptance, model pulls or network/cloud routing.
+        selected_license_model = tk.StringVar(
+            root, value=runtime.cognitive_primary_model,
+        )
+        ttk.Label(
+            frames["Models"],
+            text="License review: exact observed model name",
+        ).pack(anchor="w", pady=(4, 2))
+        ttk.Entry(
+            frames["Models"],
+            textvariable=selected_license_model,
+        ).pack(fill="x")
+        self.viewer(
+            frames["Models"],
+            "Observed license text (read only; no acceptance implied)",
+            lambda: (
+                inventory_store.license_text(
+                    host_id=host_id,
+                    model=selected_license_model.get(),
+                ) if host_id is not None
+                else "Local host identity unverified; license lookup denied."
+            ),
+        )
         inventory_responses = Queue()
         inventory_busy = {"active": False}
 
