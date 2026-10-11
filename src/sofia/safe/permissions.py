@@ -694,10 +694,31 @@ class PermissionStore:
         *,
         revoked_at: datetime | None = None,
     ) -> StandingPermissionGrant:
+        # A proof must match the *current* grant fields. Linking some
+        # unrelated signed approval is insufficient to confer authority.
+        scope = json.loads(row["scope_json"])
+        proof = row["proof_fingerprint"] if "proof_fingerprint" in row.keys() else None
+        authenticated = False
+        if proof:
+            from sofia.safe.execution_approval import execution_fingerprint
+            try:
+                expected = execution_fingerprint(
+                    "safe.permission.standing.grant",
+                    standing_grant_parameters(
+                        row["capability"], scope=scope, grant_id=row["grant_id"],
+                        expires_at=(
+                            None if row["expires_at"] is None
+                            else datetime.fromisoformat(row["expires_at"])
+                        ),
+                    ),
+                )
+                authenticated = proof == expected
+            except (TypeError, ValueError):
+                authenticated = False
         return StandingPermissionGrant(
             grant_id=row["grant_id"],
             capability=row["capability"],
-            scope=json.loads(row["scope_json"]),
+            scope=scope,
             granted_by=row["granted_by"],
             granted_at=datetime.fromisoformat(row["granted_at"]),
             expires_at=(
@@ -712,10 +733,7 @@ class PermissionStore:
                     else datetime.fromisoformat(row["revoked_at"])
                 )
             ),
-            owner_authenticated=(
-                bool(row["owner_authenticated"])
-                if "owner_authenticated" in row.keys() else False
-            ),
+            owner_authenticated=authenticated,
         )
 
     def grants(self, *, active_only: bool = False) -> tuple[StandingPermissionGrant, ...]:
@@ -724,12 +742,14 @@ class PermissionStore:
                 """
                 SELECT g.grant_id,g.capability,g.scope_json,g.granted_by,
                        g.granted_at,g.expires_at,g.revoked_at,
-                       EXISTS(
-                         SELECT 1
+                       (
+                         SELECT ap.request_fingerprint
                          FROM safe_permission_owner_auth_binding b
                          JOIN safe_execution_approval ap
                            ON ap.approval_id=b.approval_id
                            AND ap.consumed_at IS NOT NULL
+                           AND ap.capability='safe.permission.private_authority.change'
+                           AND ap.capability='safe.permission.standing.grant'
                          JOIN safe_execution_owner_auth_binding auth
                            ON auth.approval_id=ap.approval_id
                          JOIN safe_owner_challenge ch
@@ -740,7 +760,8 @@ class PermissionStore:
                          WHERE b.grant_id=g.grant_id
                            AND ch.consumed_at IS NOT NULL
                            AND credential.revoked_at IS NULL
-                       ) AS owner_authenticated
+                         LIMIT 1
+                       ) AS proof_fingerprint
                 FROM safe_permission_grant g
                 ORDER BY g.granted_at,g.grant_id
                 """
@@ -773,8 +794,9 @@ class PermissionStore:
                 """
                 SELECT p.private_chat,p.adult_chat,p.adult_avatar,
                        p.adult_external_delivery,p.updated_by,p.updated_at,
-                       EXISTS(
-                         SELECT 1 FROM safe_private_authority_auth_binding b
+                       (
+                         SELECT ap.request_fingerprint
+                         FROM safe_private_authority_auth_binding b
                          JOIN safe_execution_approval ap
                            ON ap.approval_id=b.approval_id
                            AND ap.consumed_at IS NOT NULL
@@ -788,7 +810,8 @@ class PermissionStore:
                          WHERE b.singleton=p.singleton
                            AND ch.consumed_at IS NOT NULL
                            AND credential.revoked_at IS NULL
-                       ) AS owner_authenticated
+                         LIMIT 1
+                       ) AS proof_fingerprint
                 FROM safe_private_adult_authority p
                 WHERE p.singleton=1
                 """
@@ -798,7 +821,19 @@ class PermissionStore:
         # Preserve privacy restrictions from historical records, but do not
         # honor unverified historical expansion of adult authority. A revoked
         # authorizing FIDO2 key immediately restores the restrictive view.
-        trusted = bool(row["owner_authenticated"])
+        from sofia.safe.execution_approval import execution_fingerprint
+        exact = private_authority_parameters(
+            private_chat=bool(row["private_chat"]),
+            adult_chat=bool(row["adult_chat"]),
+            adult_avatar=bool(row["adult_avatar"]),
+            adult_external_delivery=bool(row["adult_external_delivery"]),
+        )
+        trusted = (
+            row["proof_fingerprint"] is not None
+            and row["proof_fingerprint"] == execution_fingerprint(
+                "safe.permission.private_authority.change", exact,
+            )
+        )
         return AdultPrivateAuthority(
             private_chat=bool(row["private_chat"]),
             adult_chat=trusted and bool(row["adult_chat"]),
