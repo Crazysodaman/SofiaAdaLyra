@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.verify import gate
+from sofia.verify import gate, source_provenance
 
 
 def test_installed_package_provenance_rejects_checkout_import(tmp_path, monkeypatch):
@@ -64,3 +64,49 @@ def test_release_pytest_marker_flag_is_isolated_from_developer_runs():
     assert "SOFIA_VERIFY_INSTALLED_ONLY" in inspect.getsource(
         package_selection.collect_package_selection
     )
+
+
+def test_release_provenance_requires_identical_installed_python_modules(tmp_path):
+    archive = tmp_path / "archive"
+    staged = archive / "src" / "sofia"
+    installed = tmp_path / "wheel-venv" / "site-packages" / "sofia"
+    sources = {
+        "__init__.py": "# Sofía entrypoint\\n",
+        "safe/permissions.py": "PERMISSION_LEVEL = 5\\n",
+    }
+    for relative, code in sources.items():
+        for root in (staged, installed):
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(code, encoding="utf-8")
+
+    report = source_provenance._prove_installed_python_matches_archive(
+        archive, installed,
+    )
+    assert report["installed_python_module_count"] == 2
+    assert len(report["installed_python_source_sha256"]) == 64
+
+    (installed / "safe/permissions.py").write_text(
+        "PERMISSION_LEVEL = 1\\n", encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="code differs"):
+        source_provenance._prove_installed_python_matches_archive(archive, installed)
+
+
+def test_release_provenance_refuses_missing_or_extra_wheel_modules(tmp_path):
+    archive = tmp_path / "archive"
+    staged = archive / "src" / "sofia"
+    installed = tmp_path / "site-packages" / "sofia"
+    staged.mkdir(parents=True)
+    installed.mkdir(parents=True)
+    for root in (staged, installed):
+        (root / "__init__.py").write_text("# module\\n", encoding="utf-8")
+
+    (installed / "unexpected.py").write_text("pass\\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="membership differs"):
+        source_provenance._prove_installed_python_matches_archive(archive, installed)
+
+    (installed / "unexpected.py").unlink()
+    (staged / "required.py").write_text("pass\\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="membership differs"):
+        source_provenance._prove_installed_python_matches_archive(archive, installed)
