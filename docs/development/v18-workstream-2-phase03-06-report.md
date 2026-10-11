@@ -577,6 +577,42 @@ CA-4109 and CA-5304. The user still needs actual Android device tests
 and host/network outage acceptance. The cache is local and cannot prove
 current host state or override later host revocation while disconnected.
 
+### Current coding integration checkpoint: SQLite open, Android offline grants, portable backup paths, memory corrections
+
+The current source workstream has four additional production routes:
+
+1. `CanonicalSQLiteGuard.connect`: identity pinned at owner construction,
+   verified before `sqlite3.connect`, **reverified after** the actual OS
+   SQLite open, newly acquired handle closed on replacement before returning.
+   Commits: `98d8f1349ef6593652612d2107636de9e667c004`,
+   `66b49eef10a62e95f2e77a314ca284c60b831b31` (deferred test).
+2. `MainViewModel.loadMainHistory`: network-only failure classifier
+   permits an encrypted, pairing-bound, read-only cached Main page solely for
+   DNS/connectivity/timeouts; HTTP 401/403, TLS trust failures, malformed and
+   oversized replies fail closed rather than revealing a cached transcript.
+   Commits: `bb36b63fbf3714969ac224aa4e335fb975087551`,
+   `c7f5b9efe0dac8f617091f9a1d0907d8c1904e85`.
+3. `BackupEntry` and `BackupManifest`: portable archive names reject
+   Windows trailing dot/space aliases, control characters, and casefolded
+   collisions across otherwise distinct source filenames. Restore and
+   create use these same model validators. Commits:
+   `d7c69fd763ae71d6b1fd9a867a5f0137f260f875`,
+   `154688663aaf749a8a9bdad419e07f24c7a6d6b5`.
+4. `ConversationService` persisted user source → existing
+   `ConversationLearningCoordinator` now identifies bounded, explicit
+   first-person corrections → `MemoryReviewService.propose` (PROPOSED only)
+   → tray `Memory` correction linkage → separate owner-reviewed promotion
+   → one SQLite transaction revokes old fact and promotes replacement. Neither
+   conversational suggestions nor repeated source events self-promote.
+   Commits: `7df3777afe764028de20fa37027b4a4d2537753a`,
+   `681d3275e298bd2a28e47cbc616f0add2e5ef6e7`.
+
+**Source-only.** All regression tests are authored but deliberately
+**unexecuted**; no CI, Android build, live host deployment or database
+migration has been performed. These are focused implementation slices, not
+full task-ID or phase acceptance. Owner choice of physical canonical
+writer and future live restore/failback remains intentionally unresolved.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
