@@ -207,6 +207,138 @@ class HyperVAdapter:
             raise HyperVError("untrusted Hyper-V installer status payload")
         return status
 
+    def stage_hephaestus_internal_link(self, *, vm_id: str) -> dict[str, Any]:
+        """One reviewed host mutation: existing OFF VM to isolated Internal link.
+
+        This never starts an installer, enables forwarding/NAT/ICS, uses a
+        physical NIC or modifies another VM. Operation belongs to a SEPARATE
+        one-use owner Level-4 authorization on Artemis.
+        """
+        from uuid import UUID
+        exact_id=str(UUID(vm_id))
+        quote=self._ps
+        script=(
+            "$ErrorActionPreference='Stop'; "
+            "$vm=Get-VM -Name 'Hephaestus' -ErrorAction Stop; "
+            "if([string]$vm.Id -ne "+quote(exact_id)+") "
+            "{throw 'VM_GUID_MISMATCH'}; "
+            "if([string]$vm.State -ne 'Off' -or "
+            "[int]$vm.Generation -ne 2) {throw 'EXISTING_OFF_GEN2_REQUIRED'}; "
+            "$nic=@(Get-VMNetworkAdapter -VMName 'Hephaestus' -ErrorAction Stop); "
+            "if($nic.Count -ne 1) {throw 'EXACT_ONE_GUEST_NIC_REQUIRED'}; "
+            "$old=[string]$nic[0].SwitchName; "
+            "if($old -ne '' -and $old -cne 'Sofia-Hephaestus-Private' "
+            "-and $old -cne 'Sofia-Hephaestus-Internal') "
+            "{throw 'UNAPPROVED_ORIGINAL_SWITCH'}; "
+            "if($old -ceq 'Sofia-Hephaestus-Private') { "
+            "$prior=Get-VMSwitch -Name $old -ErrorAction Stop; "
+            "if([string]$prior.SwitchType -ne 'Private') "
+            "{throw 'OLD_NETWORK_NOT_PRIVATE'} }; "
+            "$others=@(Get-VMNetworkAdapter -All -ErrorAction Stop "
+            "| Where-Object {$_.SwitchName -ceq 'Sofia-Hephaestus-Internal' "
+            "-and $_.VMName -cne 'Hephaestus'}); "
+            "if($others.Count -ne 0) {throw 'TARGET_SWITCH_HAS_OTHER_GUESTS'}; "
+            "$target=Get-VMSwitch -Name 'Sofia-Hephaestus-Internal' "
+            "-ErrorAction SilentlyContinue; "
+            "if($null -ne $target -and [string]$target.SwitchType -ne 'Internal') "
+            "{throw 'TARGET_SWITCH_TYPE_COLLISION'}; "
+            "$conflicts=@(Get-NetIPAddress -AddressFamily IPv4 "
+            "-ErrorAction Stop | Where-Object {"
+            "$_.IPAddress -eq '172.30.250.1' "
+            "-and $_.InterfaceAlias -cne "
+            "'vEthernet (Sofia-Hephaestus-Internal)'}); "
+            "if($conflicts.Count -ne 0) {throw 'STATIC_IP_COLLISION'}; "
+            "$nats=@(Get-NetNat -ErrorAction Stop); "
+            "foreach($nat in $nats) { "
+            "$cidr=[string]$nat.InternalIPInterfaceAddressPrefix; "
+            "if(-not $cidr) {throw 'NAT_PREFIX_MISSING'}; "
+            "$parts=$cidr.Split('/'); "
+            "if($parts.Count -ne 2) {throw 'NAT_PREFIX_INVALID'}; "
+            "$ip=[System.Net.IPAddress]::Parse($parts[0]); "
+            "if($ip.AddressFamily -eq "
+            "[System.Net.Sockets.AddressFamily]::InterNetwork) { "
+            "$octets=$ip.GetAddressBytes(); "
+            "$v=([uint64]$octets[0] -shl 24) -bor "
+            "([uint64]$octets[1] -shl 16) -bor "
+            "([uint64]$octets[2] -shl 8) -bor [uint64]$octets[3]; "
+            "$mask=[int]$parts[1]; "
+            "if($mask -lt 0 -or $mask -gt 32) "
+            "{throw 'NAT_MASK_INVALID'}; "
+            "if(($v -shr (32-$mask)) -eq "
+            "([uint64]0xAC1EFA00 -shr (32-$mask))) "
+            "{throw 'NAT_OVERLAPS_GUEST_SUBNET'} } }; "
+            "$ics=New-Object -ComObject HNetCfg.HNetShare -ErrorAction Stop; "
+            "foreach($c in @($ics.EnumEveryConnection())) { "
+            "$conf=$ics.INetSharingConfigurationForINetConnection($c); "
+            "if([bool]$conf.SharingEnabled) "
+            "{throw 'EXISTING_ICS_SHARING_ACTIVE'} }; "
+            "$alias='vEthernet (Sofia-Hephaestus-Internal)'; "
+            "if($null -eq $target) { "
+            "New-VMSwitch -Name 'Sofia-Hephaestus-Internal' "
+            "-SwitchType Internal -ErrorAction Stop | Out-Null }; "
+            "$adapter=Get-NetAdapter -Name $alias -ErrorAction Stop; "
+            "$existing=@(Get-NetIPAddress -InterfaceAlias $alias "
+            "-AddressFamily IPv4 -ErrorAction Stop); "
+            "if($existing.Count -gt 0 -and "
+            "($existing.Count -ne 1 -or "
+            "[string]$existing[0].IPAddress -ne '172.30.250.1' -or "
+            "[int]$existing[0].PrefixLength -ne 30)) "
+            "{throw 'UNREVIEWED_HOST_IP_ON_INTERNAL_SWITCH'}; "
+            "Set-NetIPInterface -InterfaceAlias $alias -AddressFamily IPv4 "
+            "-Forwarding Disabled -Dhcp Disabled -ErrorAction Stop; "
+            "Set-NetIPInterface -InterfaceAlias $alias -AddressFamily IPv6 "
+            "-Forwarding Disabled -ErrorAction Stop; "
+            "if($existing.Count -eq 0) { "
+            "New-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 "
+            "-IPAddress '172.30.250.1' -PrefixLength 30 "
+            "-ErrorAction Stop | Out-Null }; "
+            "$dns=@(Get-DnsClientServerAddress -InterfaceAlias $alias "
+            "-ErrorAction Stop | ForEach-Object {$_.ServerAddresses} "
+            "| Where-Object {$_}); "
+            "if($dns.Count -ne 0) {throw 'HOST_DNS_NOT_EMPTY'}; "
+            "$gateways=@(Get-NetRoute -InterfaceAlias $alias "
+            "-ErrorAction Stop | Where-Object {"
+            "$_.DestinationPrefix -in @('0.0.0.0/0','::/0')}); "
+            "if($gateways.Count -ne 0) {throw 'HOST_GATEWAY_NOT_EMPTY'}; "
+            "if($old -cne 'Sofia-Hephaestus-Internal') { "
+            "Connect-VMNetworkAdapter -VMName 'Hephaestus' "
+            "-SwitchName 'Sofia-Hephaestus-Internal' "
+            "-ErrorAction Stop }; "
+            "$final=Get-VMNetworkAdapter -VMName 'Hephaestus' "
+            "-ErrorAction Stop; "
+            "if([string]$final.SwitchName -cne "
+            "'Sofia-Hephaestus-Internal') {throw 'NIC_NOT_CONNECTED_TO_TARGET'}; "
+            "[pscustomobject]@{VmId=[string]$vm.Id; "
+            "VmState=[string]$vm.State; "
+            "SwitchName=[string]$final.SwitchName; "
+            "SwitchType='Internal'; "
+            "HostIPv4='172.30.250.1/30'; GuestIPv4='172.30.250.2/30'; "
+            "GuestConfigured=$false; NatEnabled=$false; "
+            "Outcome='host_internal_link_staged'; "
+            "ObservedAtUtc=[DateTime]::UtcNow.ToString('o')} "
+            "| ConvertTo-Json -Compress -Depth 3"
+        )
+        raw=(
+            self._powershell(script,timeout_seconds=120)
+            if self._default_runner else self._runner(script)
+        )
+        try:
+            received=json.loads(raw)
+        except (TypeError,ValueError) as exc:
+            raise HyperVError("Hyper-V Internal network outcome uncertain") from exc
+        if (
+            not isinstance(received,dict)
+            or received.get("VmId","").lower()!=exact_id.lower()
+            or received.get("Outcome")!="host_internal_link_staged"
+            or received.get("SwitchName")!="Sofia-Hephaestus-Internal"
+            or received.get("SwitchType")!="Internal"
+            or received.get("HostIPv4")!="172.30.250.1/30"
+            or received.get("GuestConfigured") is not False
+            or received.get("NatEnabled") is not False
+        ):
+            raise HyperVError("Hyper-V network staging result is not a guest isolation proof")
+        return received
+
     def bootstrap_existing_hephaestus(
         self, *, vm_id: str, os_disk_path: str,
         iso_path: str, iso_sha256: str,
