@@ -4,6 +4,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 from uuid import uuid4
 import json
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 from sofia.config.user_settings import RuntimeUserSettingsStore
 from sofia.evolve.training_sources import (
@@ -52,7 +53,7 @@ def test_training_modes_distinguish_prompt_adapters_and_scratch_with_no_self_dep
 
 
 def test_genuine_public_dataset_review_never_records_raw_samples_or_authorizes_job(tmp_path):
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).load()
     rows=tmp_path/"owner_public.jsonl"
     corpus(rows,"gaia")
@@ -117,7 +118,7 @@ def test_source_scanner_blocks_raw_private_and_secret_patterns(tmp_path,bad_row)
 
 
 def test_adaptation_requires_independent_heldout_and_reverifies_bytes(tmp_path):
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).load()
     store=TrainingDatasetStore(state)
     train=tmp_path/"train.jsonl"
@@ -152,7 +153,7 @@ def test_no_training_job_is_created_by_a_dataset_admission():
 
 
 def test_owner_revocation_prevents_future_lora_use_of_previously_reviewed_source(tmp_path):
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).load()
     store=TrainingDatasetStore(state)
     source=tmp_path/"public_training.jsonl"
@@ -196,7 +197,7 @@ def test_owner_revocation_prevents_future_lora_use_of_previously_reviewed_source
 
 
 def test_training_data_revocation_requires_verified_review_and_exact_owner_receipt(tmp_path):
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).load()
     store=TrainingDatasetStore(state)
     with pytest.raises(LookupError,match="unknown training dataset"):
