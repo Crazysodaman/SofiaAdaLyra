@@ -17,8 +17,9 @@ def spec() -> runtime.SystemdRuntimeSpec:
     )
 
 
-def test_debian_and_arch_share_one_real_systemd_application_unit():
+def test_approved_debian_13_runtime_has_separate_os_preflight_and_canonical_service():
     unit = runtime.render_unit(spec())
+    assert "ExecStartPre=/opt/sofia/.venv/bin/python -m sofia.run.systemd_runtime verify-guest" in unit
     assert "ExecStart=/opt/sofia/.venv/bin/python -m sofia.run.systemd_runtime" in unit
     assert "ExecStart=" not in unit.replace(
         "ExecStart=/opt/sofia/.venv/bin/python -m sofia.run.systemd_runtime", ""
@@ -128,6 +129,7 @@ def test_runtime_uses_existing_application_and_always_shuts_down(
             actions.append(("shutdown", state))
 
     monkeypatch.setattr(bootstrap, "SofiaApplication", Application)
+    monkeypatch.setattr(runtime, "require_debian_guest", lambda: None)
     runtime.run_headless(stop_event=stop)
     assert actions == [
         ("state_checked", state),
@@ -148,3 +150,49 @@ def test_headless_entrypoint_can_render_unit_without_host_side_effects(capsys):
     assert result == 0
     assert "[Service]" in out
     assert "systemctl " not in out
+
+
+def test_debian_13_trixie_guest_is_accepted_without_starting_service(
+    tmp_path, monkeypatch,
+):
+    monkeypatch.setattr(runtime, "sys", SimpleNamespace(platform="linux"))
+    release = tmp_path / "os-release"
+    release.write_text(
+        'PRETTY_NAME="Debian GNU/Linux 13 (trixie)"\\n'
+        'ID=debian\\nVERSION_ID="13"\\nVERSION_CODENAME=trixie\\n',
+        encoding="utf-8",
+    )
+    runtime.require_debian_guest(os_release_path=release)
+
+
+@pytest.mark.parametrize("contents", [
+    'ID=arch\\nBUILD_ID=rolling\\n',
+    'ID=ubuntu\\nID_LIKE=debian\\nVERSION_ID="24.04"\\n',
+    'ID=debian\\nVERSION_ID="12"\\nVERSION_CODENAME=bookworm\\n',
+    'ID=debian\\nVERSION_ID="14"\\nVERSION_CODENAME=forky\\n',
+    'ID=debian\\nVERSION_ID="13"\\nVERSION_CODENAME=bookworm\\n',
+    'ID=debian\\n',
+])
+def test_debian_guest_rejects_unapproved_distros_and_major_versions(
+    tmp_path, monkeypatch, contents,
+):
+    monkeypatch.setattr(runtime, "sys", SimpleNamespace(platform="linux"))
+    release = tmp_path / "os-release"
+    release.write_text(contents, encoding="utf-8")
+    with pytest.raises(RuntimeError, match="requires reviewed Debian 13"):
+        runtime.require_debian_guest(os_release_path=release)
+
+
+def test_debian_guest_refuses_missing_release_metadata(tmp_path, monkeypatch):
+    monkeypatch.setattr(runtime, "sys", SimpleNamespace(platform="linux"))
+    with pytest.raises(FileNotFoundError):
+        runtime.require_debian_guest(os_release_path=tmp_path / "not-provisioned")
+
+
+def test_unit_guest_preflight_is_read_only_and_does_not_start_canonical_runtime(
+    monkeypatch,
+):
+    seen = []
+    monkeypatch.setattr(runtime, "require_debian_guest", lambda: seen.append("guest"))
+    assert runtime.main(["verify-guest"]) == 0
+    assert seen == ["guest"]
