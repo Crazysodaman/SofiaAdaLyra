@@ -278,6 +278,8 @@ class ConversationService(ConversationMatrixMixin):
         self._current_conversation_retrieval_refs: tuple[str, ...] = ()
         self._last_pre_response_error: str | None = None
         self._last_post_persistence_errors: tuple[str, ...] = ()
+        self._reply_model_origin_store = None
+        self._last_reply_model_origin_error: str | None = None
 
     @property
     def session(self) -> ConversationSession | None:
@@ -892,6 +894,11 @@ class ConversationService(ConversationMatrixMixin):
     def last_post_persistence_errors(self) -> tuple[str, ...]:
         """Return non-fatal continuity-hook failures from the latest user turn."""
         return self._last_post_persistence_errors
+
+    @property
+    def last_reply_model_origin_error(self) -> str | None:
+        """Non-fatal metadata failure, never a fabricated model receipt."""
+        return self._last_reply_model_origin_error
 
     @property
     def last_turn_receipt(self) -> dict[str, object] | None:
@@ -1537,6 +1544,33 @@ class ConversationService(ConversationMatrixMixin):
             None if social is None else social.get(assistant_message.session_id)
         )
         self._link_main_lifelong_message(assistant_message, bound_principal)
+
+        # The assistant reply has been durably saved. Journal its exact host-
+        # observed routed model/role/host steps against THAT message ID, not
+        # merely the preceding user turn. This metadata never affects the
+        # reply, authority, retained Main thread or memory eligibility.
+        try:
+            from sofia.cognition.reply_origin import ReplyModelOriginStore
+            origin_store = self._reply_model_origin_store
+            if origin_store is None:
+                origin_store = ReplyModelOriginStore(
+                    self._conversation_store.database_path,
+                )
+                self._reply_model_origin_store = origin_store
+            origin_store.record(
+                assistant_message_id=assistant_message.id,
+                session_id=assistant_message.session_id,
+                execution=getattr(self, "_current_cognition_execution", None),
+                principal=bound_principal,
+                at=assistant_message.created_at,
+            )
+            self._last_reply_model_origin_error = None
+        except Exception as exc:
+            self._last_reply_model_origin_error = type(exc).__name__
+            _LOG.exception(
+                "Optional per-reply model provenance unavailable; "
+                "original conversation message remains authoritative"
+            )
 
         self._session = (
             self._conversation_store.get_session(
