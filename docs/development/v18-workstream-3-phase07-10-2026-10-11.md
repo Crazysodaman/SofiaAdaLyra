@@ -241,3 +241,19 @@ The user expressly deferred tests and CI; never treat these commits as accepted 
 - Manual read-only source review confirmed the new coordinator receipt helper is wired into `_settle_personal_project`, `_settle_verified_milestones` and `complete`; `tick` invokes terminal outcome reconciliation; the revised review queue is returned through the existing runtime telemetry. **No syntax, test, CI, integration, model or host runtime was executed.**
 
 These changes advance selected Phase 09 requirements, notably CA-102, CA-105, CA-106, CA-110, CA-112, CA-113, CA-2402 and CA-3501, but they do not establish full task-level coding completion or acceptance. Workstream 1 must decide global ledger status after the remaining source and test gates. Phase 07 shared MEM storage was deliberately not modified while Workstream 2 owns it.
+
+## Continued LIFE objective and experience authenticity checkpoint
+
+These are **source-coded slices, not test/live acceptance**. The authoring source is the existing production `SelfDirectedLifeCoordinator`, rather than a new scheduler, database or evaluator role.
+
+- `665e7a49`, `a6e4d6f9`: `evaluate_artifact` keeps `PersonalJudgment.UNKNOWN` as explicit abstention: technically validated artifacts no longer mint or revise a subjective preference. Original verified evaluation and experience records still persist.
+- `c27084a5`: unexecuted regression checks that an unknown personal judgment neither creates nor overwrites a `PreferenceRegistry` entry and preserves idempotent evaluation and experience history.
+- `50fb4833`: all `evaluate_artifact` technical outcomes now require the **actual byte-backed closed original objective report**, not only claimed VALID outcomes. INVALID, INCONCLUSIVE and VALID must match exact source PASS/FAIL/UNKNOWN observations; a false reported failure cannot justify automated revision cost.
+- `dda85aff`: unexecuted parameterized regressions challenge fabricated PASS/FAIL/INCONCLUSIVE results and accept a real independently verified FAIL.
+- `bfbe881b`: `learn_from_experiences` now refuses unlinked evaluations, missing/mismatched historical CreativeStore revisions, absent original successful linked RUN receipts, tampered source bytes, and stored objective/technical contradictions before changing durable interests. Exact principal, audience, time and original evaluation references remain in force. This is read-only source verification before the existing transactional LifeStore interest update, not a duplicate learning store.
+- `6d5b0e26`: existing learning regressions now construct real Project Forge/RUN outcomes instead of artificial evaluations for positive-interest cases; no fake artifact success is embedded in the test fixtures.
+- `b8914105`: an additional unexecuted regression confirms that a forged evaluation row plus a valid but unrelated evidence ID cannot promote invented interest history.
+
+### Outstanding on this slice
+
+Source changes are unexecuted and therefore not production-accepted. Production-hardened subjective personal judgment receipts, correction/revocation propagation into already-learned interests, cross-restart conflicts, and approved operator review UI still require implementation and eventual host verification. The global 700-ID status ledger remains under Workstream 1 ownership.
