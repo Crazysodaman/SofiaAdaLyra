@@ -225,3 +225,82 @@ def test_production_host_guard_denies_non_windows_and_unattended(monkeypatch):
     monkeypatch.setattr(owner_enroll_browser.os, "name", "posix", raising=False)
     with pytest.raises(PermissionError, match="Windows on Venus"):
         owner_enroll_browser.require_venus_interactive_windows()
+
+
+def test_revoke_requires_fido2_proof_and_keeps_at_least_one_security_key(
+    tmp_path, monkeypatch,
+):
+    from sofia.safe import owner_enroll_browser
+    from sofia.safe.execution_approval import (
+        ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
+    )
+    from test.owner_auth_fixture import record_verified_owner_approval
+    from cryptography.hazmat.primitives import serialization
+
+    monkeypatch.setattr(
+        owner_enroll_browser, "require_venus_interactive_windows",
+        lambda: "S-1-5-21-TEST-OWNER",
+    )
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    verifier = OwnerWebAuthnVerifier(state, rp_id="localhost", origin=ORIGIN)
+    _, platform = registered_data()
+    platform_id, der, count = parse_registration(**platform)
+    persist_enrollment(
+        verifier, credential_id=platform_id, public_key_der=der,
+        count=count, kind="platform", first=True,
+        authorizing_event_id=None,
+        registration_challenge_digest=sha256(b"first").hexdigest(), at=NOW,
+    )
+    signer = ec.generate_private_key(ec.SECP256R1())
+    signer_der = signer.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    one = b64(b"external-fido2-primary")
+    two = b64(b"external-fido2-backup")
+    with sqlite3.connect(state) as db:
+        for credential in (one, two):
+            db.execute(
+                "INSERT INTO safe_owner_credential "
+                "(credential_id,public_key_der,credential_kind,sign_count,enrolled_at) "
+                "VALUES(?,?,?,?,?)",
+                (credential, signer_der, "security_key", 0, NOW.isoformat()),
+            )
+    with pytest.raises(PermissionError, match="last active security"):
+        # First remove backup in a properly authorized operation, then
+        # refuse to remove the surviving primary key.
+        from sofia.safe.owner_registration import revoke_enrollment
+        target = one
+        approver = ExecutionApprovalVerifier(state)
+        params = {"credential_id": target}
+        approval = ExecutionApproval(
+            approval_id="remove-owner-fido2-backup",
+            capability="owner.credentials.revoke",
+            request_fingerprint=execution_fingerprint(
+                "owner.credentials.revoke", params,
+            ),
+            approved_by="Sparks", approved_at=NOW + timedelta(seconds=2),
+            expires_at=NOW + timedelta(minutes=5),
+        )
+        record_verified_owner_approval(approver, approval)
+        revoke_enrollment(
+            verifier, credential_id=target,
+            approval_id=approval.approval_id, now=NOW + timedelta(seconds=3),
+        )
+        assert "security_key" in [r["credential_kind"] for r in
+            verifier._db().execute(
+                "SELECT credential_kind FROM safe_owner_credential WHERE revoked_at IS NULL"
+            ).fetchall()]
+        # A bogus approval cannot bypass the final active key guard.
+        revoke_enrollment(
+            verifier, credential_id=two, approval_id="not-an-approval",
+            now=NOW + timedelta(seconds=4),
+        )
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT revoked_at FROM safe_owner_credential WHERE credential_id=?",
+            (one,),
+        ).fetchone()[0] is not None
+        assert db.execute(
+            "SELECT revoked_at FROM safe_owner_credential WHERE credential_id=?",
+            (two,),
+        ).fetchone()[0] is None
