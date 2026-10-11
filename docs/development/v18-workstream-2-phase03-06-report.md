@@ -352,6 +352,31 @@ CA relevance: CA-304, CA-306, CA-4206, CA-4207, CA-6312,
 CA-5603. These remain partial evidence until full source-to-sink
 acceptance and deferred tests run.
 
+### Bounded Android HTTP ingress during offline/reconnect storms (Phase 04/05)
+
+Production route: Android HTTPS request → `MobileCompanionServer`
+(`_MobileHTTPServer` admission) → per-connection bounded socket read →
+verified device bearer → `MobileCompanionGateway.dispatch_authenticated` →
+canonical source receipts/operations. Previously, each accepted TCP
+connection created another daemon request thread without a concurrency
+limit or read timeout. Slow or malicious clients could consume unlimited
+threads without producing authenticated work, starving the companion.
+
+The server now admits at most **16** simultaneous request-handler threads,
+maintains a socket accept backlog of 16 and sets a 15-second per-socket
+read/write timeout. Over-capacity connections are closed before dispatch;
+worker permits are reclaimed even when request handling raises.
+No caller changes, database relocation, or host exposure were introduced.
+
+Commits:
+- `6628c2cb41cb2b3b7742a288581f7003652ceab3` source.
+- `09d6020ebe7e67dad2257fac7a368660494d08cc` deferred
+  saturation/permission recovery regression.
+
+CA relevance: CA-6306, CA-6312, CA-4111, CA-5306. Tests and CI
+**not run**. TLS handshake accept behavior, connection liveness and
+end-to-end load measurement remain separate acceptance work.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
