@@ -40,6 +40,8 @@ pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_run, pytest.mark.pkg_interac
 
 def infrastructure(tmp_path, *, authorized=True, share_callback=None):
     path = tmp_path / "sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(path)
     plane = SQLiteStatePlane(path)
     goals = GoalService(
         GoalStore(plane), evidence_verifier=GoalEvidenceIndex(path),
