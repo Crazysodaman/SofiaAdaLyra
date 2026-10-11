@@ -1191,6 +1191,53 @@ class SelfDirectedLifeCoordinator:
                 next_action, next_reason = (
                     "review", "Source history needs a guarded new-work decision."
                 )
+            # This is a deterministic review projection, not a second
+            # clock, action queue or persisted state machine. The key
+            # changes only when original source decisions change.
+            reviewed = (
+                next((
+                    evaluation for evaluation in reversed(reviews)
+                    if latest is not None
+                    and isinstance(latest.result, dict)
+                    and evaluation.artifact_id == latest.result.get("artifact_id")
+                    and evaluation.artifact_revision == latest.result.get("revision")
+                ), None)
+            )
+            awaiting_verification = (
+                latest is not None
+                and latest.status is WorkStatus.COMPLETED
+                and reviewed is None
+            )
+            due_source = (
+                latest.updated_at if latest is not None
+                and next_action in {"verify", "review", "ask"}
+                else project.updated_at
+                if next_action == "explore" else None
+            )
+            next_milestone = (
+                open_milestones[0] if open_milestones else None
+            )
+            due_key_inputs = {
+                "project_id": project.project_id,
+                "project_revision": project.revision,
+                "goal_revision": None if goal is None else goal.revision,
+                "run_job_id": None if latest is None else latest.job_id,
+                "run_status": None if latest is None else latest.status.value,
+                "evaluation_id": None if reviewed is None else reviewed.evaluation_id,
+                "next_milestone_id": (
+                    None if next_milestone is None
+                    else next_milestone["milestone_id"]
+                ),
+                "next_milestone_status": (
+                    None if next_milestone is None else next_milestone["status"]
+                ),
+                "next_action": next_action,
+            }
+            review_decision_key = "life-review:" + sha256(
+                json.dumps(
+                    due_key_inputs, sort_keys=True, separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()[:32]
             view.append({
                 "project_id": project.project_id,
                 "project_revision": project.revision,
@@ -1225,6 +1272,26 @@ class SelfDirectedLifeCoordinator:
                 "next_action_source_job_id": None if latest is None else latest.job_id,
                 "next_action_review_id": (
                     None if latest_review is None else latest_review.evaluation_id
+                ),
+                "review_decision_key": review_decision_key,
+                "review_due_at": (
+                    None if due_source is None else due_source.isoformat()
+                ),
+                "awaiting_verification": awaiting_verification,
+                "next_milestone_id": (
+                    None if next_milestone is None
+                    else next_milestone["milestone_id"]
+                ),
+                # The milestone's original updated_at is when it became
+                # actionable, not an invented deadline. No automatic
+                # scheduling is authorized by this view.
+                "next_milestone_actionable_since": (
+                    None if next_milestone is None
+                    else next(
+                        m.updated_at.isoformat()
+                        for m in milestone_rows
+                        if m.milestone_id == next_milestone["milestone_id"]
+                    )
                 ),
                 # New-work eligibility is narrower than a lack of SAFE
                 # blockers: COMPLETED but unverified work still needs
