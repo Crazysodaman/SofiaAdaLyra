@@ -313,3 +313,105 @@ def start_owner_approved_installer(
             at=datetime.now(timezone.utc),
         )
     return store.inspect(plan_id=handoff.plan_id)
+
+
+
+def inspect_existing_vm_installer(
+    *,
+    state_path:Path|str,
+    remote_service:RemoteFleetToolService,
+    plan_id:str,
+    now:datetime,
+)->dict:
+    """Observe actual Artemis host state after boot, without a guest agent.
+
+    Host integration services alone are not proof of a completed Debian OS,
+    configured worker, valid guest identity or successful offline installer.
+    """
+    if not isinstance(remote_service,RemoteFleetToolService):
+        raise TypeError("pinned Fleet service required")
+    if not isinstance(now,datetime) or now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("timezone-aware inspection required")
+    path=Path(state_path)
+    store=WorkshopInstallerBootStore(path)
+    receipt=store.inspect(plan_id=plan_id)
+    if receipt is None:
+        raise PermissionError("installer has not been initiated for this handoff")
+    node=receipt.artemis_node_id
+    answer=remote_service.invoke(
+        node,"workshop.inspect","installer_status",{},
+    )
+    if (
+        not isinstance(answer,dict)
+        or answer.get("node_id")!=node
+        or answer.get("outcome")!="reported_success"
+        or not isinstance(answer.get("message"),str)
+        or len(answer["message"])>16_384
+        or not isinstance(answer.get("request_id"),str)
+    ):
+        raise RuntimeError("Artemis installer status could not be observed")
+    observed=json.loads(answer["message"])
+    if (
+        not isinstance(observed,dict)
+        or observed.get("Name")!="Hephaestus"
+        or observed.get("VmId")!=receipt.exact_vm_id
+        or observed.get("OsInstalled") is not None
+        or observed.get("FleetEnrolled") is not None
+        or not isinstance(observed.get("State"),str)
+        or not isinstance(observed.get("ObservedAtUtc"),str)
+    ):
+        raise PermissionError("host status VM identity or evidence boundary changed")
+    moment=datetime.fromisoformat(
+        observed["ObservedAtUtc"].replace("Z","+00:00")
+    )
+    if (
+        moment.tzinfo is None or moment.utcoffset() is None
+        or not timedelta(0)<=now-moment<=timedelta(minutes=3)
+    ):
+        raise PermissionError("stale or future host status observation")
+    # Store the actual host report in canonical state, bounded and separated
+    # from any claim that the guest has finished installing.
+    guard=CanonicalSQLiteGuard(path)
+    with closing(guard.connect(timeout=10)) as db,db:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS ops_workshop_installer_observation("
+            "request_id TEXT PRIMARY KEY, plan_id TEXT NOT NULL,"
+            "host_report_json TEXT NOT NULL, observed_at TEXT NOT NULL)"
+        )
+        raw=json.dumps(
+            {
+                "source":"artemis_authenticated_hyperv_host",
+                "vm_id":observed["VmId"],
+                "state":observed["State"],
+                "mounted_media":observed.get("Media"),
+                "integration_services":observed.get("Services"),
+                "boot_order":observed.get("BootOrder"),
+                "os_installed":"UNKNOWN",
+                "guest_identity":"UNKNOWN",
+                "fleet_enrolled":"UNKNOWN",
+            },separators=(",", ":"),sort_keys=True,
+        )
+        if len(raw)>12_000:
+            raise ValueError("host observation too large")
+        db.execute(
+            "INSERT INTO ops_workshop_installer_observation VALUES(?,?,?,?)",
+            (answer["request_id"],plan_id,raw,moment.astimezone(timezone.utc).isoformat()),
+        )
+        db.execute(
+            "DELETE FROM ops_workshop_installer_observation WHERE "
+            "request_id NOT IN (SELECT request_id FROM "
+            "ops_workshop_installer_observation ORDER BY observed_at DESC,"
+            "request_id DESC LIMIT 32)"
+        )
+    return {
+        "plan_id":plan_id,
+        "vm_id":observed["VmId"],
+        "host_power_state":observed["State"],
+        "mounted_installer_media":observed.get("Media"),
+        "integration_services_observed":observed.get("Services"),
+        "firmware_boot_order":observed.get("BootOrder"),
+        "os_installed":"UNKNOWN",
+        "guest_authenticated":"UNKNOWN",
+        "fleet_enrolled":"UNKNOWN",
+        "fleet_receipt":answer["request_id"],
+    }
