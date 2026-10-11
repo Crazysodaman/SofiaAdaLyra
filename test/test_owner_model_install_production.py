@@ -146,3 +146,20 @@ def test_cannot_claim_remote_host_approval_on_local_machine(tmp_path, monkeypatc
     with pytest.raises(PermissionError, match="this local machine"):
         attempt(state, receipt, host="artemis-remote")
     assert backend.pulls == []
+
+
+def test_already_installed_model_does_not_consume_grant_or_fabricate_install_receipt(
+    tmp_path, monkeypatch,
+):
+    state, backend = setup(tmp_path, monkeypatch)
+    backend.installed.add(MODEL)
+    receipt = approve(state)
+    existing = attempt(state, receipt)
+    assert existing.state.value == "unloaded"
+    assert backend.pulls == []
+    assert ExecutionApprovalVerifier(state).matches_unconsumed(
+        approval_id=receipt,
+        capability="cognition.model.install",
+        parameters={"role": "primary", "model": MODEL, "host_id": HOST},
+        now=datetime.now(timezone.utc),
+    )
