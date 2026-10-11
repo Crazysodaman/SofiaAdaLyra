@@ -39,6 +39,7 @@ def _stage(
     proof, tmp_path, monkeypatch, *,
     manifest_source="Venus", approve=True,
     fail_restore=False, omit_identity=False,
+    revoke_before_publish=False,
 ):
     engine = BackupEngine(BackupCipher(b"k" * 32))
     calls = []
@@ -85,10 +86,20 @@ def _stage(
         "sofia.ops.state_mobility._filesystem_kind",
         lambda _path: "local",
     )
+    authorization_checks = 0
+
+    def verify_fence(received):
+        nonlocal authorization_checks
+        authorization_checks += 1
+        return (
+            approve
+            and received is proof
+            and (not revoke_before_publish or authorization_checks == 1)
+        )
+
     output = stage_verified_state_home(
         proof=proof,
-        independently_verify_authorization=lambda received:
-            approve and received is proof,
+        independently_verify_authorization=verify_fence,
         backup_engine=engine,
         encrypted_backup_root=tmp_path / "backups",
         failure_domain="separate-offline-fixture",
@@ -171,3 +182,16 @@ def test_existing_even_empty_destination_is_not_replaced(tmp_path, monkeypatch):
     assert sentinel.read_bytes() == b"keep-existing-directory"
     assert not (proof.destination_root / "sofia.db").exists()
     assert not list(tmp_path.glob(".artemis-staged.restore-*"))
+
+
+def test_relocation_rechecks_live_fence_after_restore_before_publication(
+    tmp_path, monkeypatch,
+):
+    """Stale early approval must not publish after the broker revokes it."""
+    proof = _plan(tmp_path)
+    with pytest.raises(PermissionError, match="withdrawn before publishing"):
+        _stage(proof, tmp_path, monkeypatch, revoke_before_publish=True)
+
+    assert not proof.destination_root.exists()
+    assert not list(tmp_path.glob(".artemis-staged.restore-*"))
+    assert proof.source_state_path.read_bytes() == b"isolated-original-fixture"
