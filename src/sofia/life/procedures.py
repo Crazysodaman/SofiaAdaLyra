@@ -93,6 +93,12 @@ class LifeProcedureCatalog:
                 );
                 CREATE INDEX IF NOT EXISTS life_procedure_unique_projects
                 ON life_procedure_proof(procedure_id,project_id);
+                CREATE TABLE IF NOT EXISTS life_procedure_scan_cursor (
+                    owner_principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    last_project_id TEXT NOT NULL,
+                    PRIMARY KEY(owner_principal_id,audience_id)
+                );
             """)
 
     def _connect(self) -> sqlite3.Connection:
@@ -341,6 +347,60 @@ class LifeProcedureCatalog:
                 (key,),
             ).fetchone()
             return self._decode(row, int(count))
+
+    def next_completed_source_page(
+        self, *, owner_principal_id: str, audience_id: str, limit: int = 64,
+    ) -> tuple[str, ...]:
+        """Durably rotate through bounded original LIFE completions.
+
+        A static first-N slice starves later completed projects forever when
+        earlier candidates are invalid or already indexed. The scan cursor is
+        canonical SQLite metadata, not a new scheduler or execution queue.
+        Reserve a page before checking external artifacts; a crash may delay
+        work until the next wrap but cannot mint a false verified procedure.
+        """
+        if (
+            not isinstance(owner_principal_id, str) or not owner_principal_id.strip()
+            or not isinstance(audience_id, str) or not audience_id.strip()
+            or type(limit) is not int or not 1 <= limit <= 128
+        ):
+            raise ValueError("scoped bounded procedure reconciliation required")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            current = db.execute(
+                "SELECT last_project_id FROM life_procedure_scan_cursor "
+                "WHERE owner_principal_id=? AND audience_id=?",
+                (owner_principal_id, audience_id),
+            ).fetchone()
+            last_project_id = current[0] if current else ""
+            parameters = (
+                owner_principal_id, audience_id,
+                ProjectStatus.COMPLETED.value, ProjectScope.PERSONAL_PRIVATE.value,
+            )
+            query = (
+                "SELECT project_id FROM life_project "
+                "WHERE owner_principal_id=? AND audience_id=? "
+                "AND status=? AND scope=?"
+            )
+            rows = db.execute(
+                query + " AND project_id>? ORDER BY project_id LIMIT ?",
+                parameters + (last_project_id, limit),
+            ).fetchall()
+            if not rows and last_project_id:
+                rows = db.execute(
+                    query + " ORDER BY project_id LIMIT ?",
+                    parameters + (limit,),
+                ).fetchall()
+            if not rows:
+                return ()
+            db.execute(
+                "INSERT INTO life_procedure_scan_cursor "
+                "(owner_principal_id,audience_id,last_project_id) "
+                "VALUES(?,?,?) ON CONFLICT(owner_principal_id,audience_id) "
+                "DO UPDATE SET last_project_id=excluded.last_project_id",
+                (owner_principal_id, audience_id, rows[-1][0]),
+            )
+            return tuple(row[0] for row in rows)
 
     def has_source_project(self, project_id: str) -> bool:
         """Fast idempotency check before replaying expensive source validation."""

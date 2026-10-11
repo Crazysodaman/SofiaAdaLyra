@@ -3357,15 +3357,24 @@ class SelfDirectedLifeCoordinator:
         aware(now, "procedure reconciliation time")
         if type(limit) is not int or not 1 <= limit <= 128:
             raise ValueError("bounded procedure reconciliation limit required")
-        completed = self.store.list_scope(
+        candidates = self.procedures.next_completed_source_page(
             owner_principal_id=SOFIA_PROJECT_OWNER,
-            audience_id=LOCAL_AUDIENCE,
-            statuses=(ProjectStatus.COMPLETED,),
+            audience_id=LOCAL_AUDIENCE, limit=limit,
         )
         inserted = 0
-        for project in completed[:limit]:
+        for project_id in candidates:
+            # A project may have been archived or moved since page selection.
+            # Recheck the canonical identity and status before reading proof.
+            try:
+                project = self.store.get(
+                    project_id, owner_principal_id=SOFIA_PROJECT_OWNER,
+                    audience_id=LOCAL_AUDIENCE,
+                )
+            except KeyError:
+                continue
             if (
-                project.scope is not ProjectScope.PERSONAL_PRIVATE
+                project.status is not ProjectStatus.COMPLETED
+                or project.scope is not ProjectScope.PERSONAL_PRIVATE
                 or self.procedures.has_source_project(project.project_id)
                 or not self._current_verified_objective_completion(
                     project, now=now,

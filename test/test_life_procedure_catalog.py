@@ -375,3 +375,88 @@ def test_catalog_writer_rejects_stale_bytes_even_when_original_run_was_completed
         ) == 0
     finally:
         life.close()
+
+
+def test_procedure_recovery_rotates_past_invalid_source_after_restart(tmp_path):
+    """A bad early completion cannot permanently starve later valid work."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, first_evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        first_job, _ = _original_authorized_completion(
+            life, first, first_evidence, now,
+        )
+        later = now + timedelta(minutes=1)
+        second, second_evidence = _second_same_capability_project(
+            life, first, later,
+        )
+        second_job, _ = _original_authorized_completion(
+            life, second, second_evidence, later,
+        )
+        ordered = sorted(
+            ((first, first_job), (second, second_job)),
+            key=lambda item: item[0].project_id,
+        )
+        invalid_project, invalid_job = ordered[0]
+        valid_project, _ = ordered[1]
+        original, _mime = life.creative_explorer.verified_preview(
+            str(invalid_job.result["artifact_id"]),
+            owner_principal_id="sofia", audience_id="local:text",
+        )
+        original.write_text(
+            "This is not the source independently validated by the RUN receipt.",
+            encoding="utf-8",
+        )
+
+        assert life._reconcile_procedure_catalog(
+            now=later + timedelta(seconds=8), limit=1,
+        ) == 0
+        assert life.procedures.has_source_project(invalid_project.project_id) is False
+
+        # Recreate the catalog as on application restart: the scan checkpoint
+        # belongs to canonical SQLite, not ephemeral coordinator memory.
+        life.procedures = LifeProcedureCatalog(life.path)
+        assert life._reconcile_procedure_catalog(
+            now=later + timedelta(seconds=9), limit=1,
+        ) == 1
+        assert life.procedures.has_source_project(valid_project.project_id)
+        assert not life.procedures.has_source_project(invalid_project.project_id)
+        assert life._reconcile_procedure_catalog(
+            now=later + timedelta(seconds=10), limit=1,
+        ) == 0
+        assert life.store.jobs(valid_project.project_id)
+    finally:
+        life.close()
+
+
+def test_procedure_page_is_bounded_and_source_scoped(tmp_path):
+    """No write of catalog proof or RUN action occurs from paging alone."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, project, evidence, now)
+        catalog = life.procedures
+        assert catalog.next_completed_source_page(
+            owner_principal_id="sofia:self",
+            audience_id="local:text", limit=1,
+        ) == (project.project_id,)
+        assert LifeProcedureCatalog(life.path).next_completed_source_page(
+            owner_principal_id="some-other-principal",
+            audience_id="local:text", limit=1,
+        ) == ()
+        assert LifeProcedureCatalog(life.path).next_completed_source_page(
+            owner_principal_id="sofia:self",
+            audience_id="another-audience", limit=1,
+        ) == ()
+        assert catalog.has_source_project(project.project_id) is False
+        assert len(life.store.jobs(project.project_id)) == 1
+        with pytest.raises(ValueError, match="scoped bounded"):
+            catalog.next_completed_source_page(
+                owner_principal_id="sofia:self",
+                audience_id="local:text", limit=0,
+            )
+    finally:
+        life.close()

@@ -521,3 +521,12 @@ On `main` with `[skip ci]`. Source-authored integration regressions were added b
 - `bfd7a241`, `de0804bc`, `d572963e`: Even a future direct caller of `LifeProcedureCatalog.record_verified_attempt` must pass actual current creative revision, artifact digest and typed objective validation **inside** the catalog write path, not merely cite historic successful RUN/evaluation labels. Unexecuted source regression corrupts bytes after verified RUN and confirms the catalog cannot promote them; test import dependency corrected.
 
 Original CA task ledger coverage for all 175 assigned IDs remains incomplete and not approved as done. No executed tests, deployment, host or physical/virtual robot actions, Discord sends, migration, backup rotation, or model inference occurred.
+
+
+## Phase 10: crash-durable bounded source-scan fairness (2026-10-11)
+
+- **Original IDs affected:** CA-1402 (reproducibility proof ingestion), CA-1405 (reconciliation of stale and unindexed learning). **Neither full V18 requirement is declared coding-complete.**
+- **Source failure:** the real LIFE tick previously sliced `list_scope(COMPLETED)[:64]` before eliminating already-recorded or invalid completions. When the first 64 stayed in that state, newer completed original projects could never enter the verified procedure catalog, even after restarts.
+- **Production correction:** `LifeProcedureCatalog.next_completed_source_page` rotates an indexed, owner/audience/scoped, finite project-ID page using a cursor committed to canonical `sofia.db`; `SelfDirectedLifeCoordinator._reconcile_procedure_catalog` re-fetches current original projects and continues to independently verify RUN/GOALS receipts, exact creative bytes and typed objectives. Paging does not create jobs, approve tools, self-authorize, or accept an LLM's reported success. Cursor advancement before external validation permits harmless delayed replay after a crash, never proof forgery. Empty scans and invalid pages remain bounded.
+- **Deferred regression:** `test/test_life_procedure_catalog.py` exercises a corrupted first completed original, a valid later one, cursor continuity through a fresh catalog instance, scope isolation and no independent RUN effects. **Tests, CI, builds, model calls and live hosts were not executed.**
+- **Still missing:** procedure performance/outcome regression under changing host environments, independently authorized re-verification/rollback after quarantine, full phase-specific evidence matrix and user-run tests. The global ledger remains owned by Workstream 1.
