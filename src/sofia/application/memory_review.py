@@ -94,5 +94,16 @@ class MemoryReviewService:
         self._require_sparks_reviewer(approved_by)
         self._candidates.revoke(candidate_id)
 
+    def link_correction(
+        self, replacement_id: UUID, superseded_id: UUID, *,
+        approved_by: PrincipalContext,
+    ) -> None:
+        """Stage source-linked correction; approval to promote stays separate."""
+        self._require_sparks_reviewer(approved_by)
+        self._candidates.link_correction(replacement_id, superseded_id)
+
+    def correction_link(self, candidate_id: UUID) -> tuple[UUID, UUID] | None:
+        return self._candidates.correction_link(candidate_id)
+
     def status(self, candidate_id: UUID) -> CandidateStatus | None:
         return self._candidates.status(candidate_id)
