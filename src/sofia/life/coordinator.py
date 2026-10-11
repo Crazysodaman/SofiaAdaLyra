@@ -1196,37 +1196,93 @@ class SelfDirectedLifeCoordinator:
         projects = self.store.list_scope(
             owner_principal_id=SOFIA_PROJECT_OWNER,
             audience_id=LOCAL_AUDIENCE,
-            statuses=(ProjectStatus.COMPLETED,),
+            statuses=(ProjectStatus.COMPLETED, ProjectStatus.ACTIVE, ProjectStatus.PAUSED),
         )
         proposed: list[dict[str, object]] = []
         for project in projects:
             if project.scope is not ProjectScope.PERSONAL_PRIVATE:
                 continue
-            events = self.store.events(
-                project.project_id,
-                owner_principal_id=SOFIA_PROJECT_OWNER,
-                audience_id=project.audience_id,
-            )
-            if not events or events[-1].to_status is not ProjectStatus.COMPLETED:
-                continue
-            completed = events[-1]
-            if (
-                completed.decision != "complete"
-                or completed.occurred_at > now
-                or not timedelta(0) <= now - completed.occurred_at < timedelta(hours=2)
-                or not completed.evidence_refs
-            ):
-                continue
-            # The original goal receipt/evidence and current artifact must
-            # still validate. A stale historical COMPLETED label is not
-            # sufficient grounds for excited outreach.
+            reviews = self.store.evaluations(project.project_id)
             if any(
-                self.evidence_index.lookup(ref) is None
-                for ref in completed.evidence_refs
+                review.personal_judgment is PersonalJudgment.DISLIKE
+                for review in reviews[-1:]
             ):
                 continue
-            if not self._current_verified_objective_completion(
-                project, now=now,
+            moment_id: str
+            occurred_at: datetime
+            evidence_refs: tuple[str, ...]
+            kind: str
+            if project.status is ProjectStatus.COMPLETED:
+                events = self.store.events(
+                    project.project_id,
+                    owner_principal_id=SOFIA_PROJECT_OWNER,
+                    audience_id=project.audience_id,
+                )
+                if (
+                    not events
+                    or events[-1].to_status is not ProjectStatus.COMPLETED
+                    or events[-1].decision != "complete"
+                    or not events[-1].evidence_refs
+                    or any(
+                        self.evidence_index.lookup(ref) is None
+                        for ref in events[-1].evidence_refs
+                    )
+                    or not self._current_verified_objective_completion(
+                        project, now=now,
+                    )
+                ):
+                    continue
+                moment_id = events[-1].event_id
+                occurred_at = events[-1].occurred_at
+                evidence_refs = events[-1].evidence_refs
+                kind = "verified_completion"
+            else:
+                # A real draft can be worth talking about before the
+                # original goals are complete. Verification here means
+                # source bytes + original completed RUN, NOT objective PASS.
+                # That distinction is carried through into the wording.
+                if not reviews:
+                    continue
+                review = reviews[-1]
+                actual = self.creative_store.latest(
+                    review.artifact_id, SOFIA_CREATIVE_OWNER,
+                    project.audience_id,
+                )
+                if (
+                    actual is None
+                    or actual.project_id != project.project_id
+                    or actual.revision != review.artifact_revision
+                    or (review.artifact_id, review.artifact_revision)
+                    not in self.store.artifacts(project.project_id)
+                    or not any(
+                        self._confirmed_artifact_run_receipt(
+                            project, artifact_id=review.artifact_id,
+                            revision=review.artifact_revision,
+                            evidence_ref=ref, now=now,
+                        )
+                        for ref in review.evidence_refs
+                    )
+                ):
+                    continue
+                try:
+                    self.creative_explorer.verified_preview(
+                        review.artifact_id,
+                        owner_principal_id=SOFIA_CREATIVE_OWNER,
+                        audience_id=project.audience_id,
+                    )
+                except (LookupError, OSError, PermissionError, ValueError):
+                    continue
+                except RuntimeError as exc:
+                    if "failed preview integrity check" not in str(exc):
+                        raise
+                    continue
+                moment_id = review.evaluation_id
+                occurred_at = review.evaluated_at
+                evidence_refs = review.evidence_refs
+                kind = "reviewed_draft"
+            if (
+                occurred_at > now
+                or not timedelta(0) <= now - occurred_at < timedelta(hours=2)
             ):
                 continue
             interest = self.store.interest_by_id(
@@ -1240,19 +1296,14 @@ class SelfDirectedLifeCoordinator:
             ):
                 # A legitimate choice not to announce an achievement.
                 continue
-            reviews = self.store.evaluations(project.project_id)
-            if any(
-                review.personal_judgment is PersonalJudgment.DISLIKE
-                for review in reviews[-1:]
-            ):
-                continue
             proposed.append({
-                "event_id": completed.event_id,
+                "event_id": moment_id,
                 "project_id": project.project_id,
                 "title": project.name,
-                "verified_at": completed.occurred_at,
-                "expires_at": completed.occurred_at + timedelta(hours=2),
-                "source_evidence_refs": completed.evidence_refs,
+                "verified_at": occurred_at,
+                "expires_at": occurred_at + timedelta(hours=2),
+                "source_evidence_refs": evidence_refs,
+                "moment_kind": kind,
                 "interest_id": interest.interest_id,
                 "salience": round(min(
                     0.90, 0.40 + interest.strength * interest.confidence * 0.4
