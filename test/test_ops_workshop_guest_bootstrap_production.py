@@ -273,3 +273,96 @@ def test_replayed_or_missing_owner_approval_cannot_boot(tmp_path):
         )
     assert not any(c[2]=="start" for c in calls)
     assert WorkshopInstallerBootStore(state).inspect(plan_id=plan.plan_id) is None
+
+
+
+def test_host_side_installer_status_is_observed_without_claiming_debian_installed():
+    from sofia.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
+    commands=[]
+    result={
+        "VmId":str(VM),"Name":"Hephaestus","Generation":2,
+        "State":"Running","Media":[ISO],
+        "Services":[{"Name":"Heartbeat","Enabled":True,"PrimaryStatus":"OK"}],
+        "BootOrder":["DVDDrive","HardDiskDrive"],
+        "ObservedAtUtc":datetime.now(timezone.utc).isoformat(),
+        "OsInstalled":None,"FleetEnrolled":None,
+    }
+    adapter=HyperVAdapter(runner=lambda command:(
+        commands.append(command) or json.dumps(result)
+    ))
+    observed=adapter.workshop_installer_status()
+    assert observed["OsInstalled"] is None
+    assert observed["FleetEnrolled"] is None
+    assert observed["State"]=="Running"
+    assert len(commands)==1
+    assert "Get-VMIntegrationService" in commands[0]
+    for forbidden in ("Set-VMDvdDrive","New-VM ","Start-VM ","Set-VMFirmware"):
+        assert forbidden not in commands[0]
+
+
+def test_postboot_observation_preserves_unknown_guest_os_and_private_receipt(tmp_path):
+    from sofia.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
+    state,plan,approval,at,_=reviewed_state(tmp_path)
+    service,calls=fake_service(state,at)
+    receipt=start_owner_approved_installer(
+        state_path=state,remote_service=service,
+        plan_id=plan.plan_id,approval_id=approval.approval_id,
+        now=at+timedelta(seconds=1),
+    )
+    assert receipt.status=="INSTALLER_BOOT_STARTED"
+    timestamp=datetime.now(timezone.utc)
+    def read_only_inspection(node,capability,operation,parameters):
+        assert capability=="workshop.inspect" and operation=="installer_status"
+        assert parameters=={}
+        return {
+            "node_id":str(NODE),"outcome":"reported_success",
+            "request_id":str(uuid4()),
+            "message":json.dumps({
+                "Name":"Hephaestus","VmId":str(VM),
+                "State":"Running","Media":[ISO],
+                "Services":[{"Name":"Heartbeat","Enabled":False}],
+                "BootOrder":["DVDDrive","HardDiskDrive"],
+                "ObservedAtUtc":timestamp.isoformat(),
+                "OsInstalled":None,"FleetEnrolled":None,
+            }),
+        }
+    service.invoke=read_only_inspection
+    observed=inspect_existing_vm_installer(
+        state_path=state,remote_service=service,
+        plan_id=plan.plan_id,now=timestamp+timedelta(seconds=1),
+    )
+    assert observed["host_power_state"]=="Running"
+    assert observed["os_installed"]=="UNKNOWN"
+    assert observed["guest_authenticated"]=="UNKNOWN"
+    assert observed["fleet_enrolled"]=="UNKNOWN"
+    import sqlite3
+    with sqlite3.connect(state) as db:
+        row=db.execute(
+            "SELECT host_report_json FROM ops_workshop_installer_observation"
+        ).fetchone()
+    assert "UNKNOWN" in row[0]
+
+
+def test_wrong_host_or_guest_vm_cannot_fake_installer_completion(tmp_path):
+    from sofia.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
+    state,plan,approval,at,_=reviewed_state(tmp_path)
+    service,_=fake_service(state,at)
+    start_owner_approved_installer(
+        state_path=state,remote_service=service,
+        plan_id=plan.plan_id,approval_id=approval.approval_id,
+        now=at+timedelta(seconds=1),
+    )
+    service.invoke=lambda *_a,**_kw:{
+        "node_id":str(NODE),"outcome":"reported_success",
+        "request_id":str(uuid4()),
+        "message":json.dumps({
+            "Name":"Hephaestus","VmId":str(uuid4()),"State":"Running",
+            "ObservedAtUtc":datetime.now(timezone.utc).isoformat(),
+            "OsInstalled":True,"FleetEnrolled":True,
+        }),
+    }
+    with pytest.raises(PermissionError,match="VM identity"):
+        inspect_existing_vm_installer(
+            state_path=state,remote_service=service,
+            plan_id=plan.plan_id,now=datetime.now(timezone.utc),
+        )
