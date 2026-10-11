@@ -75,9 +75,16 @@ jobs:
           $distA = Join-Path $env:RUNNER_TEMP "sofia-dist-a"
           $distB = Join-Path $env:RUNNER_TEMP "sofia-dist-b"
           New-Item -ItemType Directory -Force $distA,$distB | Out-Null
-          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-build-isolation --no-deps --wheel-dir "$distA" "$env:SOFIA_RELEASE_SOURCE"
+          # setuptools may write build metadata into source directories.
+          # Build from two disposable copies; retain the exact Git HEAD stage
+          # unmodified for post-install provenance verification.
+          $sourceA = Join-Path $env:RUNNER_TEMP "sofia-source-build-a"
+          $sourceB = Join-Path $env:RUNNER_TEMP "sofia-source-build-b"
+          python -c "import os,pathlib,shutil;root=pathlib.Path(os.environ['SOFIA_RELEASE_SOURCE']);temp=pathlib.Path(os.environ['RUNNER_TEMP']);shutil.copytree(root,temp/'sofia-source-build-a');shutil.copytree(root,temp/'sofia-source-build-b')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-build-isolation --no-deps --wheel-dir "$distB" "$env:SOFIA_RELEASE_SOURCE"
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-build-isolation --no-deps --wheel-dir "$distA" "$sourceA"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-build-isolation --no-deps --wheel-dir "$distB" "$sourceB"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $WheelA = Get-ChildItem -LiteralPath $distA -Filter *.whl -File | Select-Object -First 1
           $WheelB = Get-ChildItem -LiteralPath $distB -Filter *.whl -File | Select-Object -First 1
