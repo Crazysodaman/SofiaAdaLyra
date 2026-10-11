@@ -20,9 +20,9 @@ def spec() -> runtime.SystemdRuntimeSpec:
 def test_approved_debian_13_runtime_has_separate_os_preflight_and_canonical_service():
     unit = runtime.render_unit(spec())
     assert "ExecStartPre=/opt/sofia/.venv/bin/python -m sofia.run.systemd_runtime verify-guest" in unit
-    assert "ExecStart=/opt/sofia/.venv/bin/python -m sofia.run.systemd_runtime" in unit
+    assert "ExecStart=/opt/sofia/.venv/bin/python -m sofia.run.systemd_release_launcher" in unit
     assert "ExecStart=" not in unit.replace(
-        "ExecStart=/opt/sofia/.venv/bin/python -m sofia.run.systemd_runtime", ""
+        "ExecStart=/opt/sofia/.venv/bin/python -m sofia.run.systemd_release_launcher", ""
     )
     assert "EnvironmentFile=/etc/sofia/production.env" in unit
     assert "SOFIA_RUNTIME_MODE=production" in unit
