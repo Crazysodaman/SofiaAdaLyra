@@ -3250,6 +3250,51 @@ strategy or successful clean-machine restore.
 No tests/CI, data migrations, filesystem restores
 or live host operations executed.
 
+
+
+### Phase 03 item 88: Relocation preflight agrees with atomic absent-destination stage
+
+The real `inspect_state_relocation` preflight
+previously allowed an **existing empty**
+destination directory, classifying it as
+eligible for operator review. Yet the
+`stage_verified_state_home` production
+publisher intentionally rejects **any**
+already existing destination, including
+empty operator-owned directories, to
+preserve atomic `RENAME_NOREPLACE`
+and avoid clobbering another home.
+That inconsistency could mislead the
+storage-location UI or an operator
+attempting an approved migration.
+
+Production `src/sofia/ops/state_mobility.py`
+now reports
+`destination_must_be_absent_for_atomic_stage`
+whenever the target already exists
+or is a symlink. An absent and otherwise
+eligible path is still **review-only**:
+the privileged host fence, authenticated
+backup and external owner approval
+remain mandatory. No destination
+is removed, created, renamed or
+activated by the preflight.
+
+- Production `d4965e8e968e0e15faa65e5877b6cf7b8c697af2`
+  (`[skip ci]`).
+- Deferred pre-existing empty/occupied
+  directory and file regressions
+  `test/test_state_relocation_local_preflight.py`
+  `2f40bfc2b7e2c54e6a82442e20977598b235b4e5`
+  (`[skip ci]`).
+
+Original CA relevance: CA-6807,
+CA-6810, CA-6812. This does not
+grant host writer authority, assert
+a successful relocation or trigger
+a real filesystem operation.
+No tests/CI executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
