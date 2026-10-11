@@ -813,6 +813,8 @@ class SelfDirectedLifeCoordinator:
                 blockers.append("foreground_or_resource_priority")
             if goal is None or goal.status is not GoalStatus.ACTIVE:
                 blockers.append("canonical_goal_not_active")
+            elif goal.expires_at is None or now >= goal.expires_at:
+                blockers.append("canonical_goal_expired")
             if project.scope is not ProjectScope.PERSONAL_PRIVATE:
                 blockers.append("not_optional_private_work")
             if interest is None or interest.status is not InterestStatus.ACTIVE:
@@ -1608,6 +1610,8 @@ class SelfDirectedLifeCoordinator:
                 constraints.append("canonical_goal_unobserved")
             elif goal.status is not GoalStatus.ACTIVE:
                 constraints.append("goal_not_active")
+            elif goal.expires_at is None or now >= goal.expires_at:
+                constraints.append("goal_expired")
             if float(usage["wall_seconds"]) >= budget.daily_seconds:
                 constraints.append("daily_time_budget_exhausted")
             if int(usage["storage_bytes"]) >= budget.storage_bytes:
@@ -1654,6 +1658,11 @@ class SelfDirectedLifeCoordinator:
             elif goal.status is not GoalStatus.ACTIVE:
                 next_action, next_reason = (
                     "rest", "The original goal does not authorize new work."
+                )
+            elif goal.expires_at is None or now >= goal.expires_at:
+                next_action, next_reason = (
+                    "rest", "The original GOALS deadline has passed; "
+                            "separate GOALS expiry reconciliation is pending."
                 )
             elif project.status is not ProjectStatus.ACTIVE:
                 next_action, next_reason = (
@@ -3237,7 +3246,7 @@ class SelfDirectedLifeCoordinator:
                 GoalStatus.PAUSED, GoalStatus.BLOCKED,
                 GoalStatus.COMPLETED, GoalStatus.SUPERSEDED,
                 GoalStatus.CANDIDATE,
-            }
+            } or (goal.expires_at is not None and now >= goal.expires_at)
             if not terminal and not must_pause:
                 continue
             jobs = tuple(
@@ -3262,8 +3271,13 @@ class SelfDirectedLifeCoordinator:
                 kind="goal-lifecycle-reconciliation",
                 source="life:canonical-goals",
                 assertion=(
-                    f"Canonical scoped goal {goal.id} is {status.value}; "
-                    f"optional LIFE project cannot claim ongoing approval."
+                    f"Canonical scoped goal {goal.id} is {status.value}"
+                    + (
+                        " but its original expiry is past due;"
+                        if goal.expires_at is not None and now >= goal.expires_at
+                        else ";"
+                    )
+                    + " optional LIFE project cannot claim ongoing approval."
                 ),
                 now=now,
                 payload={
