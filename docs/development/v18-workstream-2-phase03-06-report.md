@@ -1298,6 +1298,36 @@ projection, source hash/tombstone epochs and end-to-end acceptance
 remain open. No test/CI run, operator review action or live
 conversation/memory modified.
 
+### Phase 03 item 44: Atomic absence-only publication for Debian Sofia VM staging
+
+The item-41 whole-home staging flow has an additional final filesystem
+race gate: `_publish_new_home_without_replacing`. On planned Linux
+Debian runtime, it invokes the real kernel `renameat2` with
+`RENAME_NOREPLACE` (and handles `EEXIST` as a firm failure), rather
+than calling plain `os.rename` that can replace a concurrently created
+empty destination directory on Unix. On Windows, native `os.rename`
+refuses existing destination folders. Unrecognized platforms or Linux
+libcs without the required operation **fail closed** rather than
+downgrading to replacement semantics. Both the staged source and
+destination ancestry reject symlink/junction redirection immediately
+before publication.
+
+This still does not authorize activating Artemis or prove external writer
+fencing, witness epoch and signed bootstrap pointer continuity. The
+trusted host broker, old-writer shutdown and separate cutover approval
+remain requirements. The directory name is no-replace atomic only on
+supported platforms, not protected against a hostile process with
+permission to mutate the content of the temporary directory before
+publication.
+
+Production commits:
+`5def6b6052aa328cc1bbb5995d913baf01ae9820`,
+`230cf4c04b542bee915c824090a47b73ec728738`.
+Deferred Linux race-error, empty/existing target and valid publication
+contracts: `b654f739ac878e9a3f88b136b7b918ba982bebd9`.
+Original task relevance CA-3704, CA-5202, CA-5204, CA-6101,
+CA-6311, CA-6404. No tests/CI or host operation.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
