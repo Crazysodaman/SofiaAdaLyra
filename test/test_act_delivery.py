@@ -445,3 +445,29 @@ def test_fresh_stop_releases_unsent_interact_claim_without_burning_attempt(state
     assert allowed.send_result.outcome is DeliveryOutcome.DELIVERED
     assert len(sent) == 1
     assert queue_status(state, "m1") == "delivered"
+
+
+def test_interact_owner_authorization_lookup_failure_releases_unsent_attempt(state):
+    outbox = ActOutbox(state)
+    bind(outbox)
+    sent = []
+
+    def unavailable():
+        raise OSError("operator authority read unavailable")
+
+    result = ActDeliveryRunner(
+        outbox, lambda payload: sent.append(payload),
+    ).deliver(
+        message_id="m1", attempt_id="temporary-owner-outage",
+        policy=enabled_policy(), now=T0, pre_send_decision=unavailable,
+    )
+    assert result.claim_result.status == "policy_blocked"
+    assert result.claim_result.outreach_decision is Decision.AUTHORIZATION_UNAVAILABLE
+    assert result.send_result is None
+    assert not sent
+    assert queue_status(state, "m1") == "queued"
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM act_delivery_attempts "
+            "WHERE message_id='m1'"
+        ).fetchone()[0] == 0
