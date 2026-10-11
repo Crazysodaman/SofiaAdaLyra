@@ -160,3 +160,48 @@ def test_tray_status_reports_arbitrary_dual_model_roles_without_name_logic():
         menu[TrayCommand.LLM_UNLOAD_MODEL]
         == "Unload 2 configured models"
     )
+
+
+def test_desktop_control_store_refuses_replaced_canonical_database(tmp_path):
+    import pytest
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    path = _state(tmp_path)
+    store = DesktopControlSettingsStore(path)
+    store.save(DesktopControlSettings(game_mode=GameMode.ON), at=NOW)
+    prior = tmp_path / "original.db"
+    path.rename(prior)
+    with pytest.raises(CanonicalStateUnavailable, match="unavailable"):
+        store.load()
+    assert not path.exists()
+
+    with sqlite3.connect(path):
+        pass
+    with pytest.raises(CanonicalStateUnavailable, match="replaced"):
+        store.load()
+    with pytest.raises(CanonicalStateUnavailable, match="replaced"):
+        store.request_tray_exit()
+    with sqlite3.connect(path) as connection:
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE name='ui_tray_exit'"
+        ).fetchone() is None
+
+
+def test_desktop_control_store_never_bootstraps_or_follows_redirected_state(tmp_path):
+    import pytest
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    missing = tmp_path / "state" / "sofia.db"
+    with pytest.raises(CanonicalStateUnavailable):
+        DesktopControlSettingsStore(missing)
+    assert not missing.exists()
+    assert not missing.parent.exists()
+
+    canonical = _state(tmp_path)
+    redirected = tmp_path / "alias.db"
+    try:
+        redirected.symlink_to(canonical)
+    except (OSError, NotImplementedError):
+        pytest.skip("Host does not permit symlink creation")
+    with pytest.raises(CanonicalStateUnavailable, match="symbolic link"):
+        DesktopControlSettingsStore(redirected)
