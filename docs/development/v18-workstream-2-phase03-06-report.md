@@ -790,6 +790,35 @@ Deferred source-erasure/revocation regression:
 CA relevance: CA-4107, CA-4109, CA-4208, CA-5303, CA-5304, CA-6304.
 No change to physical writer election, host deployment or original sources.
 
+### Phase 06 reviewed time-bounded memory validity
+
+Production: `DurableMemoryCandidateStore` adds canonical
+`memory_candidate_validity` plus append-only `memory_candidate_validity_event`,
+with the owner's approved expiry in timezone-aware UTC. Reviewer selection is
+exposed in the real tray Memory panel with explicit fact/source display,
+timezone input, required review reason, and an independent confirmation.
+`MemoryReviewService.set_expiration` is available for authenticated
+non-tray operator surfaces and requires owner review.
+
+On recall, the bounded source-scope SQL candidate iterator excludes approved
+past deadlines. `project_promoted_memories` and
+`MemorySystem._recall_promoted` also recheck current canonical
+`is_recall_eligible` at their final projection boundaries, so a newly
+expired fact cannot slip through a previously assembled shortlist.
+No inferred expiration, autonomous deletion, removal of original sources,
+status alteration or unapproved memory promotion occurs. Reviewer-cleared
+expiration preserves the full prior review event history.
+
+Commits: `81321dbb085bbb9138b443e5b024ed644be8d905` canonical store,
+`c5fdcd779d87d5f275029cf8af25f6e6665eeb4f` shortlist,
+`e027da878e180ff2afb191cacd87661d293e4f47` final context,
+`67bc7afaa860a0ff99db76d774205a311ff7ad6d` application owner,
+`b9caa5141ad3f4288418a156994fc0ca036b2ef8` actual tray UI,
+`94aa990c5d83ed12ab0897c34701ffb906d24d8c` deferred regression
+contracts. **No tests or live host changes**. Other temporal requirements,
+including conflict arbitration and future scheduling, remain separate CA
+acceptance slices.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
@@ -808,7 +837,7 @@ No change to physical writer election, host deployment or original sources.
 
 ## Hard boundaries
 
-- Canonical single-writer host **UNDECIDED**. Requires owner's selection.
+- Canonical writer TODAY: **Venus**. FUTURE approved target: **Artemis** only after separately verified, operator-authorized migration. No cutover authorized.
 - No live database move, restore, failover promotion or host cutover without
   explicit operator approval.
 - Mobile devices require distinct independently authenticated credentials.
