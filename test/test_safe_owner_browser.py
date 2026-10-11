@@ -25,7 +25,12 @@ def _b64(raw):
     return urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
 
-def test_browser_request_shows_exact_action_and_uses_signed_passkey(tmp_path):
+def test_browser_request_shows_exact_action_and_uses_signed_passkey(tmp_path, monkeypatch):
+    from sofia.safe import owner_browser
+    monkeypatch.setattr(
+        owner_browser, "require_owner_windows_account",
+        lambda state_path: "S-1-5-21-TEST-OWNER",
+    )
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     key = ec.generate_private_key(ec.SECP256R1())
     credential = _b64(uuid4().bytes)
@@ -92,7 +97,12 @@ def test_browser_request_shows_exact_action_and_uses_signed_passkey(tmp_path):
     )
 
 
-def test_browser_cannot_bootstrap_an_unknown_owner_credential(tmp_path):
+def test_browser_cannot_bootstrap_an_unknown_owner_credential(tmp_path, monkeypatch):
+    from sofia.safe import owner_browser
+    monkeypatch.setattr(
+        owner_browser, "require_owner_windows_account",
+        lambda state_path: "S-1-5-21-TEST-OWNER",
+    )
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     opened = []
     with pytest.raises(PermissionError, match="enrolled"):
@@ -103,3 +113,19 @@ def test_browser_cannot_bootstrap_an_unknown_owner_credential(tmp_path):
             open_browser=lambda url: opened.append(url),
         )
     assert opened == []
+
+
+def test_browser_denies_wrong_windows_owner_before_any_challenge(tmp_path, monkeypatch):
+    from sofia.safe import owner_browser
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    monkeypatch.setattr(
+        owner_browser, "require_owner_windows_account",
+        lambda state_path: (_ for _ in ()).throw(PermissionError("wrong Windows SID")),
+    )
+    with pytest.raises(PermissionError, match="Windows SID"):
+        authorize_exact_action(
+            state, capability="fleet.enroll",
+            parameters={"host_id":"Artemis"},
+            credential_id=_b64(b"allegedly-enrolled"),
+            open_browser=lambda url: (_ for _ in ()).throw(AssertionError("unexpected browser")),
+        )
