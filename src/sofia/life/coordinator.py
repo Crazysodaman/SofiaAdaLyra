@@ -1260,7 +1260,7 @@ class SelfDirectedLifeCoordinator:
                 PersonalJudgment.DISLIKE: PreferenceDisposition.DISLIKE,
                 PersonalJudgment.MIXED: PreferenceDisposition.UNKNOWN,
                 PersonalJudgment.INDIFFERENT: PreferenceDisposition.INDIFFERENT,
-                }[personal_judgment]
+            }[personal_judgment]
             current = self.preferences.current(
                 subject=PreferenceSubject.SOFIA, category="creation",
                 target_id=artifact_id, context="project", audience_id=project.audience_id,
@@ -1273,7 +1273,7 @@ class SelfDirectedLifeCoordinator:
                 evidence_ref=evidence_refs[0], audience_id=project.audience_id,
                 expected_revision=None if current is None else current.revision, now=now,
             )
-            self._experience(
+        self._experience(
             project=project, kind="artifact_evaluated",
             summary=(
                 f"Evaluated {artifact_id}: technically {technical_outcome.value}; "
