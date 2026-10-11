@@ -34,6 +34,8 @@ class ModelInventoryObservation:
     advertised_capabilities: tuple[str, ...] = ()
     license_sha256: str | None = None
     license_excerpt: str | None = None
+    license_terms: str | None = None
+    license_truncated: bool = False
     details_error: str | None = None
 
     def __post_init__(self):
@@ -133,6 +135,8 @@ def collect_local_model_inventory(
         context_limit = None
         license_digest = None
         license_excerpt = None
+        license_terms = None
+        license_truncated = False
         detail_error = None
         if entry is not None:
             try:
@@ -168,6 +172,8 @@ def collect_local_model_inventory(
                 if license_text:
                     license_digest = sha256(license_text.encode("utf-8")).hexdigest()
                     license_excerpt = license_text[:240]
+                    license_terms = license_text[:65_536]
+                    license_truncated = len(license_text) > 65_536
                 show_details = shown.get("details")
                 if quant is None and isinstance(show_details, Mapping):
                     quant = _string(show_details.get("quantization_level"), limit=120)
@@ -185,6 +191,8 @@ def collect_local_model_inventory(
             advertised_capabilities=caps,
             license_sha256=license_digest,
             license_excerpt=license_excerpt,
+            license_terms=license_terms,
+            license_truncated=license_truncated,
             details_error=detail_error,
         ))
     return tuple(result)
@@ -274,3 +282,31 @@ class ModelInventoryStore:
                 f"  Observed: {item['observed_at']}",
             ))
         return "\n".join(lines)
+
+
+    def license_text(self, *, host_id: str, model: str) -> str:
+        """Observed terms for an exact model, never an accepted-license grant."""
+        if not isinstance(host_id, str) or not host_id.strip():
+            raise ValueError("observed host ID is required")
+        if not isinstance(model, str) or not model.strip():
+            return "Enter the exact observed model name first."
+        with closing(self._guard.connect(timeout=10)) as db:
+            row = db.execute(
+                "SELECT snapshot_json FROM cognition_model_inventory "
+                "WHERE host_id=? AND model=?",
+                (host_id, model.strip()),
+            ).fetchone()
+        if row is None:
+            return "No observed license for this exact host/model. Refresh inventory first."
+        observed = json.loads(row[0])
+        text = observed.get("license_terms")
+        if not text:
+            return "The local Ollama /show API did not report license terms. No license acceptance is inferred."
+        header = (
+            "READ ONLY: Model license terms are not accepted by discovery.\n"
+            f"Model: {observed['model']} | Host: {host_id}\n"
+            f"SHA-256: {observed.get('license_sha256') or 'unknown'}\n"
+        )
+        if observed.get("license_truncated"):
+            header += "CAUTION: Terms exceed the bounded 65,536-character capture. Inspect the original full license before approval.\n"
+        return header + "\n" + text
