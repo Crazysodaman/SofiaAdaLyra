@@ -26,7 +26,8 @@
     "2026-10-11: CA-6701 and CA-6704 methods and private-data-denying public JSONL review source-coded into actual EVOLVE Settings and read-only OPS; no training/CI/tests, independent license validation and revocation policy unfinished.",
     "2026-10-11: CA-2101 global optional resources are conservative SQLite reservation credits, not observed GPU/token measurements; actual host resource baselines and seven-day soak remain separate verification tasks. No tests/CI or live host changes.",
     "2026-10-11: CA-6703 training-source revocation closure coded, owner-only EVOLVE dataset rights and future LoRA admission integrated. No private memory training supported, no independent validation of external licenses claimed, no tests/CI or training run.",
-    "2026-10-11: Phase 12 four visual consent journeys designed/wired through owner Safety UI and metadata-only genuine-frame path. No OS capture adapter installed; UI explicitly says NOT OBSERVED. No tests/CI/host actions."
+    "2026-10-11: Phase 12 four visual consent journeys designed/wired through owner Safety UI and metadata-only genuine-frame path. No OS capture adapter installed; UI explicitly says NOT OBSERVED. No tests/CI/host actions.",
+    "2026-10-11: CA-6702 reviewed Hephaestus training-lab resource/separation design wired to EVOLVE Settings and actual read-only OPS, no training execution path or existing guest OS. Host GPU worker choice awaits separate authorization."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -233,7 +234,13 @@
     "a2c4ad37e366a8829b31a7a3bcc4bd8d28017856",
     "6be0e56d63cc21fe794073abc759da20abb22867",
     "5c9c35a3b7c32861d19459beb07f91a04c886e45",
-    "e14dc1448a77d4ffa5775b294b80b8f5ead6714d"
+    "e14dc1448a77d4ffa5775b294b80b8f5ead6714d",
+    "669cc4c9dfb8af0dcf6683ac0a19c4dab436c4a5",
+    "a3287558dfe609ca6c1268e2bb03390e6ff83ab0",
+    "a738fc786cfb7a2c953f78cd02030e92defbf3ef",
+    "9d88d152c76e2a1a02a644042c819ee7f5727aad",
+    "7dd6504412cc0eed23617c416fab47de549afa44",
+    "64592722a4d2012d7df7e8e683c954856c9781d8"
   ],
   "tasks": [
     {
@@ -1784,11 +1791,12 @@
       "phase": "14",
       "master_line": 1110,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Actual EVOLVE owner training-lab plan now binds exact enrolled Artemis Fleet host and existing Hephaestus Hyper-V VM IDs, independently reviewed train+heldout data digests, fixed seed, offline/private network, no root/SSH/secrets or canonical DB access, 2-8GiB RAM, 1-4 CPU, bounded scratch disk, hard wall/GPU/VRAM and financial caps, 30min plan lease and separate hypothetical Venus GPU source. Owner EVOLVE Settings creates immutable canonical reviewed plan; model reads only real read-only OPS blocker status. No OS exists and no GPU worker or trainer is installed, so every plan remains non-executable and cannot promote weights; source regressions authored not run."
     },
     {
       "id": "CA-6703",
