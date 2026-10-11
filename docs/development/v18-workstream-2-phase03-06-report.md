@@ -2133,6 +2133,48 @@ make these complete or accepted original V18 tasks. Remaining
 Phase 06 tasks must each be traced to runtime composition and
 effect/receipt/persistence before the user-led test campaign.
 
+
+
+### Phase 06 item 65: Exact current-audience SQL recall fallback
+
+Audited the actual `ConversationService._build_request()` path for
+`HistoryPolicy.RETRIEVE_SPECIFIC`: an existing, optional FTS5 index
+already rechecked the source's `social_session_principal` binding,
+but an absent/unready index or no FTS matches fell through to
+`ConversationStore.search_messages(session_id,...)`. That SQL fallback
+had only a supplied session ID as an authority marker, even if the
+current social binding had been removed or changed while a delayed
+turn was running.
+
+Production `src/sofia/conversation/store.py` now requires an actual
+typed `authorized_principal` and joins the canonical original
+`social_session_principal` record with `conversation_messages`
+**in the same SQL statement** before returning any matching source
+text. SQL compares original `principal_id`, exact `audience_id`
+and `audience_kind`, together with the original session ID.
+The live `ConversationService` now obtains the current binding
+once for both the optional FTS lookup and SQL fallback and declines
+unbound historical recall rather than silently downgrading to a
+session-ID-only search. Ordinary bounded recent-context behavior
+and original conversation retention are unchanged.
+
+- Production store guard `65e801fa556df6e072e6cb7dcfc404a2911688c7`
+  (`[skip ci]`).
+- Live cognition fallback composition
+  `d71df32f637f832d94c71a1175040dac9cfe51e4`
+  (`[skip ci]`).
+- Deferred exact-original SQLite regressions
+  `test/test_ws2_memory_scoped_recall_fallback.py`
+  `854e0a9cf31963e1169a051689ec105edec37e95`
+  (`[skip ci]`).
+
+Original CA relevance: CA-4206, CA-5001, CA-5002,
+CA-5006, CA-5603, CA-5604, CA-5803.
+This is audience-safe retrieval fallback, **not** a guarantee
+of full cross-thread/autobiographical recall or semantic
+truth from historical conversation excerpts. Tests/CI unrun,
+no production conversations or host changes.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
