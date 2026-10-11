@@ -3545,6 +3545,9 @@ class SelfDirectedLifeCoordinator:
         """
         if len(set(project_ids)) < 2:
             return False
+        version = self.procedures.procedure_version(procedure_id)
+        if version is None:
+            return False
         proofs = self.procedures.proof_receipts_for_procedure(procedure_id)
         if (
             not proofs
@@ -3555,7 +3558,9 @@ class SelfDirectedLifeCoordinator:
         for project_id, job_id, evidence_ref in proofs:
             try:
                 original = self._project(project_id)
-                definition, _environment = LifeProcedureCatalog._definition(original)
+                definition, _environment = LifeProcedureCatalog._definition(
+                    original, version=version,
+                )
                 job = self.work_store.get(job_id)
             except (LookupError, KeyError, PermissionError, ValueError):
                 return False
