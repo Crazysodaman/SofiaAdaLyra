@@ -17,7 +17,8 @@
     "2026-10-11: Phase 15 CA-704/705/711 production-wired and source-regression-authored. Coarse-grain owner reset is the rollback-to-baseline path; no biological synapse model, live bench, tests or CI executed.",
     "2026-10-11: Phase 16 falsifiable research study preregistration and negative/adverse result registry source-coded in canonical state and owner Settings. No study/data collection was actually performed; tests/CI deferred.",
     "2026-10-11: CA-808 bounded one-NEURO workspace published and consumed by real chat/personality paths; bounded read receipts, expiry and snapshot identity guarded. No functional scientific result or test execution claimed.",
-    "2026-10-11: Artemis hypervisor confirmed by operator as Hyper-V. Phase 13 SAFE levels fixed in real policy; no actual host inventory, VM provisioning or testing executed."
+    "2026-10-11: Artemis hypervisor confirmed by operator as Hyper-V. Phase 13 SAFE levels fixed in real policy; no actual host inventory, VM provisioning or testing executed.",
+    "2026-10-11: Operator selected Microsoft Hyper-V on Artemis. W4 implemented SAFE Level-4 separation, typed Hyper-V Hephaestus planning, read-only mTLS host and bounded offline image observation, owner Fleet preview and read-only model OPS status; tests and host actions deferred."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -120,7 +121,29 @@
     "159d012c9f741ff29bb0bf8e4b6647899f183a94",
     "bdaa4e6059e2f3f8a2e8a0d53403bd2a3302c98c",
     "b4f6b4614f0f29beed62ecc62cc7ea3e5f3bd030",
-    "05be4f0d6c41b51858e8af51f7bbde97b5408d3d"
+    "05be4f0d6c41b51858e8af51f7bbde97b5408d3d",
+    "7a0638e3a3b58b71ef1a9b2b7abf13ed6652dcb9",
+    "decde1f9641e929b96de1b47f5f5853d36cf5698",
+    "7e5e91e79402015804a2e1f785004182220d3d30",
+    "d4c682843ab95fb84859b4880ef36ff499609051",
+    "95b886f619e951c244201f1c08a587b1ee8bae9d",
+    "f0a6f7dc0ea90235aa1f3675cc80e77b21351239",
+    "fced6985867fb24b155ca32b84324876e52cd570",
+    "d727d4673ac3a2dbd87ca49e096c205779e24097",
+    "36aba54652ada4cc591ac0abf526a651c9e4319d",
+    "bdeeacf2656c2d88c7390066f7c69ee3f4840c8d",
+    "99d7efa740a8130bc9fdd74407323bead5352b03",
+    "9751a98f978940a55aa6df1d851cbdf91613418e",
+    "53f46907e519920f33bd442a124ad4d93d406b38",
+    "417e96fe6262824e6b0c7d4767be17335056b67d",
+    "4d81fc01ed22fc7939ece68031d9800bb1d863b2",
+    "994c50d9afd6f89909bfb52f02bbfa2d458049aa",
+    "326bcd03a5f5156cfccf618bf34a9175876946c1",
+    "61f1b2a207db02cb657a9a4bf1d8f2be01433bc6",
+    "d2eb69819a2757de1c2a459d1afb10a4f2ce8f5e",
+    "b60c111469c301ac51abd22da4b3a21f537c819b",
+    "1a16f65a7615bd0e38b760913de32c03dfda21bc",
+    "db305620d82d3d4962ad0b8d3a188c1ebb87c704"
   ],
   "tasks": [
     {
@@ -938,11 +961,12 @@
       "phase": "13",
       "master_line": 1020,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Read-only Hyper-V host capacity/switch/VM query and pinned mTLS Fleet remote interface are coded for Artemis, but no actual Artemis measurement or reserve acceptance observed; real CPU/RAM/disk and competing VM headroom remain unknown until owner verification."
     },
     {
       "id": "CA-2802",
@@ -1202,33 +1226,36 @@
       "phase": "13",
       "master_line": 1047,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Read-only Hyper-V host capacity/switch/VM query and pinned mTLS Fleet remote interface are coded for Artemis, but no actual Artemis measurement or reserve acceptance observed; real CPU/RAM/disk and competing VM headroom remain unknown until owner verification."
     },
     {
       "id": "CA-2902",
       "phase": "13",
       "master_line": 1048,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Typed immutable Hyper-V Hephaestus plan now includes cryptographically enrolled Artemis Fleet node UUID, observed Windows/Hyper-V build, exact guest name, approved VM root, SHA-256 pinned local Debian installer, dedicated private switch, Gen-2 firmware, provisional 2 vCPU/4 GiB/60 GiB quotas, 15-minute TTL and plan-owned-only cleanup boundary. Manifest SHA-256 is deterministic; owner UI prepares plan from read-only mTLS host evidence. Regression tests authored, unexecuted."
     },
     {
       "id": "CA-2903",
       "phase": "13",
       "master_line": 1049,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Real Artemis agent publishes static read-only Hyper-V host CPU/RAM/disk/VM/switch facts and independently root-scoped media SHA-256 over pinned mTLS. Owner Fleet Settings previews resource/isolation/image blockers without provisioning; canonical bounded plan evidence is available via actual read-only OPS cognitive tool ops.workshop.preview. Unknown host/image/version/expiry/name collision denies admission and may_provision always false absent distinct Level-4 executor. Regression tests authored, not run."
     },
     {
       "id": "CA-2904",
