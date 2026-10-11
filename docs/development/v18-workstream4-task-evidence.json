@@ -52,7 +52,8 @@
     "2026-10-11 Workstream4 Phase11 owner clarified prospective GPU host as owner-reported RTX 3060 8GB VRAM with 32GB RAM, hostname/OS unconfirmed. No enrollment, scans, inference or live settings change. Hardened Fleet OPS placement to reject missing required RAM/GPU/VRAM headroom and stale/future telemetry when clock provided, and real fleet cognitive engine supplies current clock; deferred synthetic 8GiB/32GiB hardware test and route tests authored. CA-3209/6609 still partial, phase order remains 11.",
     "2026-10-11 Workstream4 Phase11 owner confirmed Windows OS for third GPU PC (owner-reported RTX3060 8GB VRAM, 32GB RAM; hostname and model install unknown). This is NOT verified Fleet hardware, no enrollment, no live machine access and no model-fit acceptance.",
     "2026-10-11 Workstream4 Phase11 source audit: OPS placement penalizes absent/stale automatic game activity instead of treating old NORMAL as current; Windows telemetry now observes NVIDIA GPU percent/used-and-total per-card VRAM via bounded read-only nvidia-smi when available and refuses malformed/missing values. Deferred synthetic tests written, none executed.",
-    "2026-10-11 Workstream4 Phase11 follow-up: Windows nvidia-smi generic GPU capacity now rejects multi-GPU hosts until inference has independently pinned model-to-GPU identity. Never advertise one card's free memory as guaranteed inference capacity on an unspecified device. Source-only tests authored, no execution, live worker or hardware assertions."
+    "2026-10-11 Workstream4 Phase11 follow-up: Windows nvidia-smi generic GPU capacity now rejects multi-GPU hosts until inference has independently pinned model-to-GPU identity. Never advertise one card's free memory as guaranteed inference capacity on an unspecified device. Source-only tests authored, no execution, live worker or hardware assertions.",
+    "2026-10-11 Workstream4 Phase11 sequential audit of model benchmark and optimization source paths: existing deterministic verify harness and external ModelTrialEvidence gates are partial source coverage, not measured live model acceptance. New benchmark admission validation rejects zero p95 latency and peak RAM as incomplete evidence (CPU-only zero VRAM valid). Six 11-phase items source-reviewed/classified partial, no code accepted or tests/CI run."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -355,7 +356,9 @@
     "bef63120f4375abfa96b9a012cd15fb2804089d4",
     "27d2faa55d1fb1f87b3f31aa73b040a107878df3",
     "dd31bc2542b377699b207054a780ad117c313b57",
-    "add823ddaefe306bfed202e9a28cd3a25cf0e57c"
+    "add823ddaefe306bfed202e9a28cd3a25cf0e57c",
+    "992d2559011c90ad0664f97421e176c757c30607",
+    "320a067a72ec12b84b83d970ab959d6faf6672f1"
   ],
   "tasks": [
     {
@@ -604,11 +607,12 @@
       "phase": "11",
       "master_line": 925,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Source audit finds opt-in content-free cognition/performance.py counters (CPU, peak RSS where supported, LLM calls, cache, SQLite, concurrency) and verify/cognition_v2_baseline.py local deterministic control-path fixture. The roadmap's independent accuracy, fidelity, permission, restart, energy and live latency scorecard is NOT implemented/verified. Partial instrumentation only."
     },
     {
       "id": "CA-3903",
@@ -648,11 +652,12 @@
       "phase": "11",
       "master_line": 929,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Deterministic verify/cognition_v2_baseline.py can run fixed app/control-path scenarios with identical inputs but has no full independent optional-subsystem ablation matrix, NEURO on/off quality oracle, measured research value or all safety acceptance reports. Source-only harness partial, no test execution."
     },
     {
       "id": "CA-3907",
@@ -703,22 +708,24 @@
       "phase": "11",
       "master_line": 937,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Source audit finds deterministic timing, process CPU and limited platform RSS / database metrics in verify/cognition_v2_baseline.py; it explicitly disclaims real LLM/GPU/token/model-residency data, so required cold/warm Venus/Artemis/Windows GPU host p50/p95 and VRAM/power measurements are absent. Partial harness only."
     },
     {
       "id": "CA-4402",
       "phase": "11",
       "master_line": 938,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Source audit finds opt-in content-free counters (process CPU, RSS where supported, LLM calls, SQLite, cache) in cognition/performance.py; no independently measured hotspot attribution distinguishing Python, I/O, GPU kernels and lock contention yet. Source partial."
     },
     {
       "id": "CA-4403",
@@ -828,11 +835,12 @@
       "phase": "11",
       "master_line": 951,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Source review confirms verify/cognition_v2_baseline.py already provides a deterministic application control-path comparison with explicit null tokens/GPU/models and git revision when obtainable. It DOES NOT execute live Ollama or independently evaluate personality, exact-model QA, tool refusals and multi-turn response quality. No accepted model benchmark yet; Phase11 model trial tests deferred."
     },
     {
       "id": "CA-6606",
@@ -851,11 +859,12 @@
       "phase": "11",
       "master_line": 953,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Source review of src/sofia/cognition/model_admission.py confirms same immutable fixture digest, code revision, reviewer, minimum scored cases, zero candidate safety violations, no false-action claims, configured resource ceilings and measured improvement gate. Added rejection of impossible zero p95 latency or zero peak RAM; VRAM=0 remains valid for CPU-only. Reviewer string is NOT cryptographic proof of independent human judgment; no benchmark executed, no installation/switch approval. Deferred test/test_ws4_model_admission_positive_metrics.py."
     },
     {
       "id": "CA-6608",
