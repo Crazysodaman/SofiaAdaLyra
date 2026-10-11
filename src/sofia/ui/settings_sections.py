@@ -797,6 +797,78 @@ class SettingsSections:
                 root.after(350,poll_boot)
 
         root.after(350,poll_boot)
+
+        from sofia.ops.workshop_guest_bootstrap import (
+            inspect_existing_vm_installer,
+        )
+        installer_observation_queue=Queue()
+        installer_observation_busy={"active":False}
+
+        def inspect_hephaestus_after_boot():
+            if installer_observation_busy["active"]:
+                return
+            plan_id=handoff_text.get("last_plan_id")
+            if not plan_id:
+                raise PermissionError(
+                    "select and review the exact Hephaestus handoff first"
+                )
+            installer_observation_busy["active"]=True
+            observe_boot_button.configure(state="disabled")
+
+            def observe_worker():
+                service=None
+                try:
+                    service=create_configured_remote_fleet_service(config.state_path)
+                    if service is None:
+                        raise PermissionError("pinned Artemis Fleet service unavailable")
+                    host=inspect_existing_vm_installer(
+                        state_path=config.state_path,
+                        remote_service=service,
+                        plan_id=plan_id,
+                        now=datetime.now(timezone.utc),
+                    )
+                    installer_observation_queue.put((
+                        "ok",json.dumps(host,indent=2,default=str),
+                    ))
+                except Exception as exc:
+                    installer_observation_queue.put((
+                        "error",f"{type(exc).__name__}: {exc}",
+                    ))
+                finally:
+                    if service is not None:
+                        service.close()
+            Thread(
+                target=observe_worker,
+                name="sofia-hephaestus-postboot-readonly-observation",
+                daemon=False,
+            ).start()
+
+        observe_boot_button=ttk.Button(
+            frames["Fleet"],
+            text="Inspect Hephaestus installer and VM status (read only)",
+            command=self.guarded(inspect_hephaestus_after_boot),
+        )
+        observe_boot_button.pack(anchor="w",pady=(4,8))
+
+        def poll_installer_observation():
+            try:
+                kind,detail=installer_observation_queue.get_nowait()
+            except Empty:
+                pass
+            else:
+                installer_observation_busy["active"]=False
+                observe_boot_button.configure(state="normal")
+                handoff_text["value"]=detail
+                handoff_view.refresh()
+                if kind=="error":
+                    self.messagebox.showerror(
+                        "Installer state inspection unavailable",
+                        detail,parent=root,
+                    )
+            if root.winfo_exists():
+                root.after(350,poll_installer_observation)
+
+        root.after(350,poll_installer_observation)
         self.identity_panel(frames["Sofía"])
         self.avatar_panel(frames["Avatar"])
         from .wardrobe_panel import WardrobePanel, current_mood
