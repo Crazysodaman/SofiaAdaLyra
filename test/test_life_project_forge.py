@@ -3221,6 +3221,13 @@ def test_phase09_active_project_retains_source_and_goal_authority(tmp_path):
         signals = life.motivation_signals(now=at, busy=False, resource_pressure=0.0)
         selected = next((item for item in signals if item.project_id == project.project_id), None)
         assert selected is not None
+        from sofia.goals.service import audience_scope
+        goal = next(item for item in goals.list_visible(local_sparks_principal())
+                    if item.id == project.goal_id)
+        assert project.audience_id == "local:text"
+        assert goal.scope_audience == audience_scope(local_sparks_principal())
+        assert goal.scope_audience != project.audience_id
+        assert goal.scope_principal_id == local_sparks_principal().principal_id
         assert selected.eligible, (
             f"initial LIFE source/GOALS state cannot schedule: {selected.reason}; "
             f"goal_id={project.goal_id}; evidence={evidence}"
