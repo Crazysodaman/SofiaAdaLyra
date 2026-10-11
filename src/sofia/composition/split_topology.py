@@ -54,6 +54,7 @@ def validate_split_inference_runtime(
     local_host_id: str | None,
     remote_inference_client,
     deployment: SplitInferenceDeployment | None,
+    require_transport: bool = True,
 ) -> None:
     """Reject any future split runtime that could silently fall back locally.
 
@@ -75,8 +76,10 @@ def validate_split_inference_runtime(
         raise PermissionError("Artemis inference must target exactly approved Venus host")
     if deployment.runtime_host_id in fleet.allowed_host_ids:
         raise PermissionError("Artemis cannot select itself for GPU inference")
-    if remote_inference_client is None or not callable(
-        getattr(remote_inference_client, "infer", None)
+    if require_transport and (
+        remote_inference_client is None or not callable(
+            getattr(remote_inference_client, "infer", None)
+        )
     ):
         raise ValueError("pinned-mTLS authenticated remote inference client required")
     if configuration.routing is not None and configuration.routing.enabled:
