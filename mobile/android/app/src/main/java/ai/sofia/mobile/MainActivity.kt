@@ -559,13 +559,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         val requestId = prior?.requestId ?: UUID.randomUUID().toString()
-        try {
-            // An interrupted app cannot change the identity or body of a
-            // request that might have been accepted by the canonical host.
-            secure.reserveOutbound(config, text, requestId)
+        val retained = try {
+            // Dispatch the EXACT encrypted journal entry, never reconstruct
+            // its authority from a separately reloaded token or privacy mode.
+            val reserved = secure.reserveOutbound(config, text, requestId)
             // The host-facing journal is now the authoritative local copy.
             // Do not keep a second old offline draft after moving to outbox.
             secure.clearOfflineDraft()
+            reserved
         } catch (failure: Exception) {
             status = failure.message ?: "Unable to persist outgoing request"
             return
@@ -580,7 +581,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         launchRequest {
             try {
                 val result = withContext(Dispatchers.IO) {
-                    api.chat(text, requestId)
+                    api.chat(retained)
                 }
                 // Response is only considered complete after the durable
                 // local request journal is acknowledged.
