@@ -16,7 +16,7 @@ from uuid import uuid4
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from sofia.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier
+from sofia.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint
 from sofia.safe.owner_webauthn import OwnerWebAuthnVerifier
 
 
@@ -118,9 +118,7 @@ def _signed_permission_approval(
     moment = now or datetime.now(timezone.utc)
     approval = ExecutionApproval(
         approval_id=str(uuid4()), capability=operation,
-        request_fingerprint=__import__(
-            "sofia.safe.execution_approval", fromlist=["execution_fingerprint"]
-        ).execution_fingerprint(operation, exact),
+        request_fingerprint=execution_fingerprint(operation, exact),
         approved_by="Sparks", approved_at=moment,
         expires_at=moment + timedelta(minutes=5),
     )
