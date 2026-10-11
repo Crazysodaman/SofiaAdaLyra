@@ -154,6 +154,22 @@ class LinuxDesktop:
             raise PermissionError("OS did not return a bounded PNG capture")
         return frame
 
+    def _check_x11_click_target(self, action) -> None:
+        """X11 coordinate bounds plus actual pointer-window hit-test."""
+        raw = self.runner(("xdotool", "getwindowgeometry", "--shell",
+                           str(action.window_handle))).decode("ascii", "strict")
+        fields = {}
+        for line in raw.splitlines():
+            if "=" in line:
+                key, value = line.split("=", 1)
+                if key in {"X", "Y", "WIDTH", "HEIGHT"}:
+                    fields[key] = int(value)
+        if set(fields) != {"X", "Y", "WIDTH", "HEIGHT"}:
+            raise PermissionError("X11 target geometry not verifiable")
+        if not (fields["X"] <= action.x < fields["X"] + fields["WIDTH"]
+                and fields["Y"] <= action.y < fields["Y"] + fields["HEIGHT"]):
+            raise PermissionError("click outside approved X11 window")
+
     def execute(self, action, recheck) -> None:
         """At most one approved operation, with fresh focus and STOP checks."""
         recheck()
@@ -185,9 +201,18 @@ class LinuxDesktop:
             else:
                 # X11 XTEST affects the active pointer/desktop; check focus
                 # before moving, and independently again before click.
+                self._check_x11_click_target(action)
                 self.runner(("xdotool", "mousemove", "--sync", str(action.x),
                              str(action.y)))
                 recheck()
+                # Ensure the cursor is actually over the approved window;
+                # a sibling, launcher, or overlay must not receive the click.
+                pointer = self.runner(("xdotool", "getmouselocation", "--shell")
+                                      ).decode("ascii", "strict")
+                line = next((item for item in pointer.splitlines()
+                             if item.startswith("WINDOW=")), "")
+                if line != f"WINDOW={action.window_handle}":
+                    raise PermissionError("X11 pointer no longer covers selected window")
                 self.runner(("xdotool", "click", "1"))
 
 
