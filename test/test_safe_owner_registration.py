@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
@@ -286,10 +287,13 @@ def test_revoke_requires_fido2_proof_and_keeps_at_least_one_security_key(
             verifier, credential_id=target,
             approval_id=approval.approval_id, now=NOW + timedelta(seconds=3),
         )
-        assert "security_key" in [r["credential_kind"] for r in
-            verifier._db().execute(
-                "SELECT credential_kind FROM safe_owner_credential WHERE revoked_at IS NULL"
-            ).fetchall()]
+        with closing(verifier._db()) as connection:
+            assert "security_key" in [
+                row["credential_kind"] for row in connection.execute(
+                    "SELECT credential_kind FROM safe_owner_credential "
+                    "WHERE revoked_at IS NULL"
+                ).fetchall()
+            ]
         # A bogus approval cannot bypass the final active key guard.
         revoke_enrollment(
             verifier, credential_id=two, approval_id="not-an-approval",
