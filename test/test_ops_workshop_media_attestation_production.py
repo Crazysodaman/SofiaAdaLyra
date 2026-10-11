@@ -47,6 +47,9 @@ def _restrict_owner_test_folder(path):
         str(path), win32security.DACL_SECURITY_INFORMATION,
     )
     sd.SetSecurityDescriptorDacl(1, acl, 0)
+    sd.SetSecurityDescriptorControl(
+        win32security.SE_DACL_PROTECTED, win32security.SE_DACL_PROTECTED,
+    )
     win32security.SetFileSecurity(
         str(path), win32security.DACL_SECURITY_INFORMATION, sd,
     )
@@ -176,6 +179,9 @@ def test_generation_requires_private_owner_key_dir(tmp_path,monkeypatch):
             str(folder), win32security.DACL_SECURITY_INFORMATION,
         )
         sd.SetSecurityDescriptorDacl(1, acl, 0)
+        sd.SetSecurityDescriptorControl(
+            win32security.SE_DACL_PROTECTED, win32security.SE_DACL_PROTECTED,
+        )
         win32security.SetFileSecurity(
             str(folder), win32security.DACL_SECURITY_INFORMATION, sd,
         )
