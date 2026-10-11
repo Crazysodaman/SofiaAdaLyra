@@ -153,23 +153,22 @@ class ExpandedConversationService(InteractiveConversationService):
         *,
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
+        source_event_id: str | None = None,
     ):
         if isinstance(content, str):
             text = content.strip()
             if ('?' not in text and '"' not in text and '`' not in text and
                     not re.search(r"\b(?:not|never|don't|if|would|could|should)\b", text, re.I)
                     and _ACTION_COMPOUND.search(text)):
-                return (
-                    self._guarded_reply(
-                        content, _COMPOSITE_ACTION, channel=channel
-                    )
-                    if principal is None
-                    else self._guarded_reply(
+                return self._respond_ordered_special(
+                    content, principal=principal, channel=channel,
+                    source_event_id=source_event_id,
+                    handler=lambda bound: self._guarded_reply(
                         content,
                         _COMPOSITE_ACTION,
-                        principal=principal,
+                        principal=bound,
                         channel=channel,
-                    )
+                    ),
                 )
             if self._session is not None:
                 config = getattr(self._runtime, 'configuration', None)
@@ -178,38 +177,37 @@ class ExpandedConversationService(InteractiveConversationService):
                         content, message_id='preflight', session_id=self._session.id,
                         occurred_at=datetime.now(timezone.utc))
                     if action is not None and InteractionLedger(config.state_path).stopped(self._session.id):
-                        return (
-                            self._guarded_reply(
-                                content, _STOPPED_ACTION, channel=channel
-                            )
-                            if principal is None
-                            else self._guarded_reply(
+                        return self._respond_ordered_special(
+                            content, principal=principal, channel=channel,
+                            source_event_id=source_event_id,
+                            handler=lambda bound: self._guarded_reply(
                                 content,
                                 _STOPPED_ACTION,
-                                principal=principal,
+                                principal=bound,
                                 channel=channel,
-                            )
+                            ),
                         )
                     if context is not None and context.blocked:
-                        return (
-                            self._guarded_reply(
-                                content, _BOUNDARY_ACTION, channel=channel
-                            )
-                            if principal is None
-                            else self._guarded_reply(
+                        return self._respond_ordered_special(
+                            content, principal=principal, channel=channel,
+                            source_event_id=source_event_id,
+                            handler=lambda bound: self._guarded_reply(
                                 content,
                                 _BOUNDARY_ACTION,
-                                principal=principal,
+                                principal=bound,
                                 channel=channel,
-                            )
+                            ),
                         )
         return (
-            super().respond(content, channel=channel)
+            super().respond(
+                content, channel=channel, source_event_id=source_event_id,
+            )
             if principal is None
             else super().respond(
                 content,
                 principal=principal,
                 channel=channel,
+                source_event_id=source_event_id,
             )
         )
 

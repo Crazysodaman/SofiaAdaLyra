@@ -459,7 +459,12 @@ class MobileCompanionGateway:
                 response = conversation.respond(
                     content, principal=principal,
                     channel=("mobile-private" if private_mode else "mobile-standard"),
+                    source_event_id=(
+                        f"mobile:{device}:{generation}:{request_id}"
+                    ),
                 )
+                canonical = getattr(conversation, "last_turn_receipt", None)
+                canonical = canonical if isinstance(canonical, dict) else {}
                 result = self._state_payload(
                     conversation, response=response.content,
                     principal=principal, private_mode=private_mode,
@@ -471,6 +476,7 @@ class MobileCompanionGateway:
                     "credential_generation": generation,
                     "server_received_at": now,
                     "canonical_sequence": sequence,
+                    "main_sequence": canonical.get("canonical_sequence"),
                     "logical_status": "completed",
                 }
                 encoded = json.dumps(result, ensure_ascii=False, sort_keys=True)
@@ -530,19 +536,32 @@ class MobileCompanionGateway:
             raise ValueError("Main page limit must be 1..50")
         cursor = None
         if before is not None:
-            if not isinstance(before, dict) or set(before) != {
+            if not isinstance(before, dict) or set(before) not in ({
                 "linked_at", "message_id",
-            }:
+            }, {
+                "canonical_sequence", "turn_position", "message_id",
+            }):
                 raise ValueError("Main cursor schema is invalid")
-            raw_time, raw_id = before["linked_at"], before["message_id"]
-            if not isinstance(raw_time, str) or not isinstance(raw_id, str):
-                raise TypeError("Main cursor fields must be strings")
-            if not 1 <= len(raw_time) <= 64 or not 1 <= len(raw_id) <= 160:
-                raise ValueError("Main cursor fields exceed bounds")
-            timestamp = datetime.fromisoformat(raw_time)
-            if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-                raise ValueError("Main cursor timestamp must be timezone-aware")
-            cursor = (timestamp, raw_id)
+            raw_id = before["message_id"]
+            if not isinstance(raw_id, str) or not 1 <= len(raw_id) <= 160:
+                raise ValueError("Main cursor message ID is invalid")
+            if "canonical_sequence" in before:
+                sequence, position = (
+                    before["canonical_sequence"], before["turn_position"]
+                )
+                if type(sequence) is not int or sequence < 1:
+                    raise ValueError("Main canonical sequence is invalid")
+                if type(position) is not int or position not in {0, 1}:
+                    raise ValueError("Main turn position is invalid")
+                cursor = (sequence, position, raw_id)
+            else:
+                raw_time = before["linked_at"]
+                if not isinstance(raw_time, str) or not 1 <= len(raw_time) <= 64:
+                    raise ValueError("Main legacy cursor timestamp is invalid")
+                timestamp = datetime.fromisoformat(raw_time)
+                if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+                    raise ValueError("Main cursor timestamp must be timezone-aware")
+                cursor = (timestamp, raw_id)
 
         principal = self._principal(device, private_mode=private_mode)
         if private_mode and not self.permissions.private_adult_authority().private_chat:
@@ -558,6 +577,8 @@ class MobileCompanionGateway:
                 "content": item.message.content,
                 "created_at": item.message.created_at.isoformat(),
                 "linked_at": item.linked_at.isoformat(),
+                "canonical_sequence": item.canonical_sequence,
+                "turn_position": item.turn_position,
             }
             for item in page
         ]
@@ -565,10 +586,18 @@ class MobileCompanionGateway:
         return {
             "messages": messages,
             "next_before": (
-                None if first is None else {
-                    "linked_at": first.linked_at.isoformat(),
-                    "message_id": first.message.id,
-                }
+                None if first is None else (
+                    {
+                        "canonical_sequence": first.canonical_sequence,
+                        "turn_position": first.turn_position,
+                        "message_id": first.message.id,
+                    }
+                    if first.canonical_sequence is not None
+                    else {
+                        "linked_at": first.linked_at.isoformat(),
+                        "message_id": first.message.id,
+                    }
+                )
             ),
             "has_more": len(page) == limit,
             "audience_id": principal.audience_id,

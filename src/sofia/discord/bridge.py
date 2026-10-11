@@ -33,6 +33,7 @@ class ConversationResponder(Protocol):
         *,
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
+        source_event_id: str | None = None,
     ): ...
 
 
@@ -160,11 +161,18 @@ class DiscordConversationBridge:
             supports_channel = (
                 "channel" in parameters or accepts_kwargs
             )
+            supports_source_event = (
+                "source_event_id" in parameters or accepts_kwargs
+            )
             kwargs = {}
             if supports_principal:
                 kwargs["principal"] = discord_sparks_principal(channel_id)
             if supports_channel:
                 kwargs["channel"] = "discord"
+            if supports_source_event:
+                kwargs["source_event_id"] = (
+                    f"discord:{bot_user_id}:{channel_id}:{message_id}"
+                )
             response = responder(inbound.content, **kwargs)
             content = getattr(response, "content", None)
             if not isinstance(content, str) or not content.strip():

@@ -141,6 +141,7 @@ class OwnerDirectToolService:
         parameters: dict[str, Any],
         *,
         principal: PrincipalContext | None = None,
+        request_id: str | None = None,
     ) -> DirectToolOutcome:
         selected_principal = self._principal if principal is None else principal
         if (
@@ -161,10 +162,16 @@ class OwnerDirectToolService:
         if binding is None:
             raise KeyError(f"unknown tool: {tool_name}")
         validate_tool_parameters(parameters, binding.definition.parameters)
+        if request_id is not None and (
+            not isinstance(request_id, str) or not request_id.strip()
+            or len(request_id) > 160
+        ):
+            raise ValueError("request_id must be bounded nonempty text")
+        stable_request = request_id.strip() if request_id is not None else str(uuid4())
         call = CognitiveToolCall(
             name=tool_name,
             arguments=dict(parameters),
-            call_id=f"owner-direct:{uuid4()}",
+            call_id=f"owner-direct:{stable_request}",
         )
         result = self._dispatcher.dispatch(call, principal=selected_principal)
         formatted = self._dispatcher.format_result(call, result)
@@ -174,5 +181,6 @@ class OwnerDirectToolService:
             formatted_result=formatted,
             principal=selected_principal,
             channel="desktop",
+            source_event_id=f"desktop-tool:{stable_request}",
         )
         return DirectToolOutcome(action_content, result, response)

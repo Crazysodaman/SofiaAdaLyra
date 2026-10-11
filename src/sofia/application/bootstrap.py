@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
 from threading import RLock
+from uuid import uuid4
 
 from sofia.avatar.clothing_action import ClothingActionService
 from sofia.avatar.generated_decision import GeneratedGarmentDecisionService
@@ -210,9 +211,10 @@ class SofiaApplication:
             state_plane=self._runtime.state_plane,
         )
         self._model_lock = RLock()
-        # Background state mutation keeps one application lock. Each
-        # conversation receives its own turn lock below, while routed Primary
-        # and Secondary workers synchronize independently inside cognition.
+        self._conversation_runtime_id = f"conversation-runtime:{uuid4().hex}"
+        # One application lock serializes mutable conversation/runtime state
+        # across desktop, Discord and mobile. Routed Primary/Secondary model
+        # workers may still parallelize inside one coordinated cognition turn.
         self._conversation_activity = ConversationActivityGroup()
         self._tts: TextToSpeechService = (
             create_tts_service_from_environment(
@@ -277,7 +279,9 @@ class SofiaApplication:
         self._conversation_service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime,
             conversation_store=conversation_store,
+            model_lock=self._model_lock,
             activity_group=self._conversation_activity,
+            conversation_runtime_id=self._conversation_runtime_id,
         )
         self._conversation_service.set_evolution_service(self._evolution)
         candidate_store = self._runtime.memory_system.candidate_store
@@ -767,7 +771,9 @@ class SofiaApplication:
         service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime,
             conversation_store=conversation_store,
+            model_lock=self._model_lock,
             activity_group=self._conversation_activity,
+            conversation_runtime_id=self._conversation_runtime_id,
         )
         service.set_learning_coordinator(
             self._conversation_learning

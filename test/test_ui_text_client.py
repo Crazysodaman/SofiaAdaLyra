@@ -11,6 +11,7 @@ from sofia.conversation.model import (
 )
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
+from sofia.social.principals import local_sparks_principal
 
 
 class FakeConversation:
@@ -206,4 +207,28 @@ def test_desktop_client_propagates_channel_when_responder_supports_it(
     ui.send("desktop hello")
 
     assert conversation.channel == "desktop"
+    drafts.close()
+
+
+def test_desktop_client_propagates_stable_authenticated_source_event(tmp_path):
+    class OrderedConversation(FakeConversation):
+        def __init__(self):
+            super().__init__()
+            self.source_event_id = None
+
+        def respond(
+            self, content, *, principal=None, channel="conversation",
+            source_event_id=None,
+        ):
+            self.source_event_id = source_event_id
+            return super().respond(content)
+
+    conversation = OrderedConversation()
+    drafts = UIDraftStore(tmp_path / "sofia.db")
+    ui = UITextClient(
+        conversation=conversation, drafts=drafts, client_id="desktop",
+        principal=local_sparks_principal(),
+    )
+    ui.send("stable retry", request_id="client-request-42")
+    assert conversation.source_event_id == "desktop:desktop:client-request-42"
     drafts.close()

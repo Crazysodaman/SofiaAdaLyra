@@ -149,8 +149,12 @@ class EmotionalConversationService(ConversationService):
         *,
         model_lock=None,
         activity_group: ConversationActivityGroup | None = None,
+        conversation_runtime_id: str | None = None,
     ) -> None:
-        super().__init__(runtime=runtime, conversation_store=conversation_store)
+        super().__init__(
+            runtime=runtime, conversation_store=conversation_store,
+            conversation_runtime_id=conversation_runtime_id,
+        )
         self._emotional_journal: EmotionalJournal | None = None
         self._reflection_journal: ReflectionJournal | None = None
         self._clarification_journal: ClarificationJournal | None = None
@@ -341,6 +345,7 @@ class EmotionalConversationService(ConversationService):
         *,
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
+        source_event_id: str | None = None,
     ):
         """Serialize user inference against application-owned idle inference."""
         started = monotonic()
@@ -357,13 +362,17 @@ class EmotionalConversationService(ConversationService):
                         response = super().respond(
                             content,
                             channel=channel,
+                            source_event_id=source_event_id,
                         )
                     else:
                         response = super().respond(
                             content,
                             principal=principal,
                             channel=channel,
+                            source_event_id=source_event_id,
                         )
+                    if self._last_turn_replayed:
+                        return response
                     self._persist_pending_emotion_appraisal()
                     self._persist_pending_user_affect()
                     self._record_expression_decision(
@@ -393,6 +402,34 @@ class EmotionalConversationService(ConversationService):
                             process_cpu_ms=metrics.process_cpu_ms,
                             peak_rss_bytes=metrics.peak_rss_bytes,
                         )
+        finally:
+            self._last_user_activity = monotonic()
+            self._active_user_requests -= 1
+
+    def respond_to_owner_tool_result(
+        self, *, action_content: str, formatted_result: str,
+        principal: PrincipalContext, channel: str = "desktop",
+        source_event_id: str | None = None,
+    ):
+        """Serialize trusted host-tool narration with every other live turn."""
+        self._active_user_requests += 1
+        activity = getattr(self, "_activity_group", None)
+        try:
+            foreground = (
+                activity.foreground() if activity is not None else nullcontext()
+            )
+            with foreground, self._model_lock:
+                response = super().respond_to_owner_tool_result(
+                    action_content=action_content,
+                    formatted_result=formatted_result,
+                    principal=principal, channel=channel,
+                    source_event_id=source_event_id,
+                )
+                if not self._last_turn_replayed:
+                    self._record_expression_decision(
+                        response=response, principal=principal,
+                    )
+                return response
         finally:
             self._last_user_activity = monotonic()
             self._active_user_requests -= 1

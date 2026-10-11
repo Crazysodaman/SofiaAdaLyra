@@ -16,6 +16,7 @@ import re
 import sqlite3
 from uuid import uuid4
 
+from sofia.cognition.model import CognitiveResponse, CognitiveToolCall
 from sofia.social.model import PrincipalContext
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
@@ -40,6 +41,8 @@ class ThreadEvent:
     source_audience_id: str
     created_at: datetime
     visibility: str
+    canonical_sequence: int | None = None
+    turn_position: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +73,30 @@ class LifelongMessage:
     message: ConversationMessage
     audience_id: str
     linked_at: datetime
+    canonical_sequence: int | None = None
+    turn_position: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalTurnAdmission:
+    event_id: str
+    canonical_sequence: int
+    status: str
+    user_message_id: str
+    assistant_message_id: str
+    response: CognitiveResponse | None = None
+
+
+class CanonicalTurnConflict(RuntimeError):
+    """A stable source event was replayed with different authenticated bytes."""
+
+
+class CanonicalTurnPending(RuntimeError):
+    """A matching canonical turn is still owned by an active runtime."""
+
+
+class CanonicalTurnUncertain(RuntimeError):
+    """A prior turn may have executed and must not be replayed automatically."""
 
 
 class LifelongThreadStore:
@@ -104,6 +131,31 @@ class LifelongThreadStore:
                 );
                 CREATE INDEX IF NOT EXISTS lifelong_thread_event_order
                     ON lifelong_thread_event(thread_id,linked_at,source_message_id);
+                CREATE TABLE IF NOT EXISTS canonical_conversation_turn (
+                    event_id TEXT PRIMARY KEY,
+                    owner_principal_id TEXT NOT NULL,
+                    source_audience_id TEXT NOT NULL,
+                    source_audience_kind TEXT NOT NULL,
+                    source_channel TEXT NOT NULL,
+                    source_session_id TEXT NOT NULL,
+                    request_digest TEXT NOT NULL,
+                    canonical_sequence INTEGER NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN (
+                        'processing','completed','interrupted','uncertain'
+                    )),
+                    runtime_id TEXT NOT NULL,
+                    user_message_id TEXT NOT NULL UNIQUE,
+                    assistant_message_id TEXT NOT NULL UNIQUE,
+                    response_json TEXT,
+                    received_at TEXT NOT NULL,
+                    settled_at TEXT,
+                    UNIQUE(owner_principal_id,canonical_sequence)
+                );
+                CREATE INDEX IF NOT EXISTS canonical_turn_scope
+                    ON canonical_conversation_turn(
+                        owner_principal_id,source_audience_id,
+                        canonical_sequence
+                    );
                 CREATE TABLE IF NOT EXISTS lifelong_historical_import (
                     review_ref TEXT PRIMARY KEY,
                     thread_id TEXT NOT NULL,
@@ -127,6 +179,27 @@ class LifelongThreadStore:
                 );
                 """
             )
+            columns = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(lifelong_thread_event)"
+                )
+            }
+            if "canonical_sequence" not in columns:
+                db.execute(
+                    "ALTER TABLE lifelong_thread_event "
+                    "ADD COLUMN canonical_sequence INTEGER"
+                )
+            if "turn_position" not in columns:
+                db.execute(
+                    "ALTER TABLE lifelong_thread_event "
+                    "ADD COLUMN turn_position INTEGER"
+                )
+            db.execute(
+                """CREATE INDEX IF NOT EXISTS lifelong_thread_canonical_order
+                ON lifelong_thread_event(
+                    thread_id,canonical_sequence,turn_position,source_message_id
+                )"""
+            )
 
     def _connect(self) -> sqlite3.Connection:
         # A lost Main database must never be resurrected by a later page
@@ -136,6 +209,263 @@ class LifelongThreadStore:
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA busy_timeout=10000")
         return db
+
+    @staticmethod
+    def _turn_response(document: str | None) -> CognitiveResponse | None:
+        if document is None:
+            return None
+        value = json.loads(document)
+        return CognitiveResponse(
+            content=value["content"],
+            tool_calls=tuple(CognitiveToolCall(
+                item["name"], item["arguments"], item.get("call_id"),
+            ) for item in value.get("tool_calls", ())),
+            evidence_refs=tuple(value.get("evidence_refs", ())),
+        )
+
+    @classmethod
+    def _turn_admission(cls, row: sqlite3.Row) -> CanonicalTurnAdmission:
+        return CanonicalTurnAdmission(
+            row["event_id"], int(row["canonical_sequence"]), row["status"],
+            row["user_message_id"], row["assistant_message_id"],
+            cls._turn_response(row["response_json"]),
+        )
+
+    def recover_interrupted_turns(self, *, runtime_id: str, now: datetime) -> int:
+        """Fence unfinished claims from earlier application lifetimes."""
+        if not isinstance(runtime_id, str) or not runtime_id.strip():
+            raise ValueError("runtime_id required")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("recovery time must be timezone-aware")
+        with closing(self._connect()) as db, db:
+            changed = db.execute(
+                """UPDATE canonical_conversation_turn
+                SET status='interrupted',settled_at=?
+                WHERE status='processing' AND runtime_id<>?""",
+                (now.astimezone(timezone.utc).isoformat(), runtime_id),
+            )
+        return changed.rowcount
+
+    def admit_turn(
+        self, *, event_id: str, principal: PrincipalContext,
+        session_id: str, channel: str, content: str,
+        runtime_id: str, now: datetime,
+    ) -> CanonicalTurnAdmission:
+        """Durably order and deduplicate one authenticated source submission."""
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        values = (event_id, session_id, channel, runtime_id)
+        if any(not isinstance(value, str) or not value.strip() for value in values):
+            raise ValueError("turn identity fields must be nonempty strings")
+        if len(event_id) > 256 or len(session_id) > 256 or len(channel) > 64:
+            raise ValueError("turn identity fields exceed bounds")
+        if not isinstance(content, str) or not content.strip() or len(content) > 12000:
+            raise ValueError("turn content must be bounded nonempty text")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("turn receipt time must be timezone-aware")
+        digest = sha256(json.dumps((
+            principal.principal_id, principal.audience_id,
+            principal.audience_kind.value, session_id, channel, content,
+        ), ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            binding = db.execute(
+                """SELECT principal_id,audience_id,audience_kind
+                FROM social_session_principal WHERE session_id=?""",
+                (session_id,),
+            ).fetchone()
+            if binding is None or tuple(binding) != (
+                principal.principal_id, principal.audience_id,
+                principal.audience_kind.value,
+            ):
+                raise PermissionError("turn session is not bound to authenticated source")
+            existing = db.execute(
+                "SELECT * FROM canonical_conversation_turn WHERE event_id=?",
+                (event_id,),
+            ).fetchone()
+            if existing is not None:
+                if existing["request_digest"] != digest:
+                    raise CanonicalTurnConflict(
+                        "source event ID was reused across content or authority scope"
+                    )
+                admission = self._turn_admission(existing)
+                if admission.status == "processing":
+                    raise CanonicalTurnPending("canonical turn is already processing")
+                if admission.status in {"interrupted", "uncertain"}:
+                    raise CanonicalTurnUncertain(
+                        "prior canonical turn outcome is uncertain; replay denied"
+                    )
+                return admission
+            sequence = int(db.execute(
+                """SELECT COALESCE(MAX(canonical_sequence),0)+1
+                FROM canonical_conversation_turn WHERE owner_principal_id=?""",
+                (principal.principal_id,),
+            ).fetchone()[0])
+            user_id = f"message:user:{uuid4().hex}"
+            assistant_id = f"message:assistant:{uuid4().hex}"
+            stamp = now.astimezone(timezone.utc).isoformat()
+            db.execute(
+                """INSERT INTO canonical_conversation_turn(
+                event_id,owner_principal_id,source_audience_id,
+                source_audience_kind,source_channel,source_session_id,
+                request_digest,canonical_sequence,status,runtime_id,
+                user_message_id,assistant_message_id,response_json,
+                received_at,settled_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)""",
+                (
+                    event_id, principal.principal_id, principal.audience_id,
+                    principal.audience_kind.value, channel, session_id,
+                    digest, sequence, "processing", runtime_id,
+                    user_id, assistant_id, None, stamp,
+                ),
+            )
+            row = db.execute(
+                "SELECT * FROM canonical_conversation_turn WHERE event_id=?",
+                (event_id,),
+            ).fetchone()
+            return self._turn_admission(row)
+
+    def settle_turn(
+        self, *, admission: CanonicalTurnAdmission,
+        principal: PrincipalContext, response: CognitiveResponse,
+        now: datetime,
+    ) -> None:
+        """Commit a response only when both exact canonical messages exist."""
+        document = json.dumps({
+            "content": response.content,
+            "tool_calls": [
+                {"name": item.name, "arguments": item.arguments,
+                 "call_id": item.call_id}
+                for item in response.tool_calls
+            ],
+            "evidence_refs": response.evidence_refs,
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        if len(document.encode("utf-8")) > 256 * 1024:
+            raise ValueError("canonical turn response exceeds durable bound")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            turn = db.execute(
+                "SELECT * FROM canonical_conversation_turn WHERE event_id=?",
+                (admission.event_id,),
+            ).fetchone()
+            if turn is None or (
+                turn["status"] != "processing"
+                or int(turn["canonical_sequence"]) != admission.canonical_sequence
+                or turn["user_message_id"] != admission.user_message_id
+                or turn["assistant_message_id"] != admission.assistant_message_id
+            ):
+                raise CanonicalTurnUncertain(
+                    "canonical turn admission no longer matches its durable claim"
+                )
+            source_session = turn["source_session_id"]
+            messages = db.execute(
+                """SELECT id,role,content FROM conversation_messages
+                WHERE session_id=? AND id IN (?,?)""",
+                (source_session, admission.user_message_id,
+                 admission.assistant_message_id),
+            ).fetchall()
+            by_id = {row["id"]: row for row in messages}
+            if (
+                by_id.get(admission.user_message_id) is None
+                or by_id[admission.user_message_id]["role"] != "user"
+                or by_id.get(admission.assistant_message_id) is None
+                or by_id[admission.assistant_message_id]["role"] != "assistant"
+                or by_id[admission.assistant_message_id]["content"] != response.content
+            ):
+                raise CanonicalTurnUncertain(
+                    "canonical source/response messages are missing or inconsistent"
+                )
+            binding = db.execute(
+                """SELECT principal_id,audience_id,audience_kind
+                FROM social_session_principal WHERE session_id=?""",
+                (source_session,),
+            ).fetchone()
+            if binding is None or tuple(binding) != (
+                principal.principal_id, principal.audience_id,
+                principal.audience_kind.value,
+            ):
+                raise CanonicalTurnUncertain(
+                    "source audience changed before canonical settlement"
+                )
+            thread = db.execute(
+                """SELECT thread_id FROM lifelong_thread
+                WHERE owner_principal_id=? AND kind='main'""",
+                (principal.principal_id,),
+            ).fetchone()
+            if thread is None:
+                thread_id = f"thread:{uuid4().hex}"
+                db.execute(
+                    "INSERT INTO lifelong_thread VALUES(?,?,?,?,?)",
+                    (
+                        thread_id, principal.principal_id, "main", "Main",
+                        now.astimezone(timezone.utc).isoformat(),
+                    ),
+                )
+            else:
+                thread_id = thread["thread_id"]
+            for message_id, position in (
+                (admission.user_message_id, 0),
+                (admission.assistant_message_id, 1),
+            ):
+                existing_link = db.execute(
+                    """SELECT source_session_id,source_audience_id,visibility,
+                    canonical_sequence,turn_position
+                    FROM lifelong_thread_event
+                    WHERE thread_id=? AND source_message_id=?""",
+                    (thread_id, message_id),
+                ).fetchone()
+                expected_link = (
+                    source_session, principal.audience_id, "source_audience",
+                    admission.canonical_sequence, position,
+                )
+                if existing_link is None:
+                    db.execute(
+                        """INSERT INTO lifelong_thread_event(
+                        thread_id,source_message_id,source_session_id,
+                        source_audience_id,visibility,linked_at,
+                        canonical_sequence,turn_position
+                        ) VALUES(?,?,?,?,?,?,?,?)""",
+                        (
+                            thread_id, message_id, source_session,
+                            principal.audience_id, "source_audience",
+                            now.astimezone(timezone.utc).isoformat(),
+                            admission.canonical_sequence, position,
+                        ),
+                    )
+                elif tuple(existing_link) != expected_link:
+                    raise CanonicalTurnUncertain(
+                        "Main source link conflicts with canonical turn order"
+                    )
+            changed = db.execute(
+                """UPDATE canonical_conversation_turn
+                SET status='completed',response_json=?,settled_at=?
+                WHERE event_id=? AND owner_principal_id=?
+                AND source_audience_id=? AND source_audience_kind=?
+                AND status='processing'
+                AND user_message_id=? AND assistant_message_id=?""",
+                (
+                    document, now.astimezone(timezone.utc).isoformat(),
+                    admission.event_id, principal.principal_id,
+                    principal.audience_id, principal.audience_kind.value,
+                    admission.user_message_id, admission.assistant_message_id,
+                ),
+            )
+            if changed.rowcount != 1:
+                raise CanonicalTurnUncertain("canonical turn changed before settlement")
+
+    def mark_turn_uncertain(
+        self, *, admission: CanonicalTurnAdmission,
+        interrupted: bool, now: datetime,
+    ) -> None:
+        with closing(self._connect()) as db, db:
+            db.execute(
+                """UPDATE canonical_conversation_turn SET status=?,settled_at=?
+                WHERE event_id=? AND status='processing'""",
+                (
+                    "interrupted" if interrupted else "uncertain",
+                    now.astimezone(timezone.utc).isoformat(), admission.event_id,
+                ),
+            )
 
     @staticmethod
     def _decode(row: sqlite3.Row) -> LifelongThread:
@@ -243,11 +573,29 @@ class LifelongThreadStore:
                 ):
                     raise PermissionError("conflicting thread event replay")
                 return
+            ordered = db.execute(
+                """SELECT canonical_sequence,user_message_id,assistant_message_id
+                FROM canonical_conversation_turn
+                WHERE user_message_id=? OR assistant_message_id=?""",
+                (source_message_id, source_message_id),
+            ).fetchone()
+            canonical_sequence = None if ordered is None else int(
+                ordered["canonical_sequence"]
+            )
+            turn_position = (
+                None if ordered is None else
+                0 if ordered["user_message_id"] == source_message_id else 1
+            )
             db.execute(
-                "INSERT INTO lifelong_thread_event VALUES(?,?,?,?,?,?)",
+                """INSERT INTO lifelong_thread_event(
+                thread_id,source_message_id,source_session_id,
+                source_audience_id,visibility,linked_at,
+                canonical_sequence,turn_position
+                ) VALUES(?,?,?,?,?,?,?,?)""",
                 (thread_id, source_message_id, row["session_id"],
                  row["audience_id"], visibility,
-                 datetime.now(timezone.utc).isoformat()),
+                 datetime.now(timezone.utc).isoformat(),
+                 canonical_sequence, turn_position),
             )
 
     def preview_historical_import(
@@ -405,7 +753,11 @@ class LifelongThreadStore:
                             raise PermissionError("existing source link conflicts with review")
                         continue
                     db.execute(
-                        "INSERT INTO lifelong_thread_event VALUES(?,?,?,?,?,?)",
+                        """INSERT INTO lifelong_thread_event(
+                        thread_id,source_message_id,source_session_id,
+                        source_audience_id,visibility,linked_at,
+                        canonical_sequence,turn_position
+                        ) VALUES(?,?,?,?,?,?,NULL,NULL)""",
                         (thread_id, identifier, session_id,
                          principal.audience_id, "source_audience", stamp),
                     )
@@ -534,7 +886,8 @@ class LifelongThreadStore:
             # different audience kind or another principal must not surface.
             rows = db.execute(
                 "SELECT e.source_message_id,e.source_session_id,"
-                "e.source_audience_id,e.visibility,e.linked_at "
+                "e.source_audience_id,e.visibility,e.linked_at,"
+                "e.canonical_sequence,e.turn_position "
                 "FROM lifelong_thread_event AS e "
                 "JOIN conversation_messages AS m "
                 "ON m.id=e.source_message_id AND m.session_id=e.source_session_id "
@@ -543,14 +896,16 @@ class LifelongThreadStore:
                 "AND e.visibility='source_audience' "
                 "AND s.principal_id=? AND s.audience_id=? "
                 "AND s.audience_kind=? "
-                "ORDER BY e.linked_at DESC,e.source_message_id DESC LIMIT ?",
+                "ORDER BY CASE WHEN e.canonical_sequence IS NULL THEN 0 ELSE 1 END DESC,"
+                "e.canonical_sequence DESC,e.turn_position DESC,"
+                "e.linked_at DESC,e.source_message_id DESC LIMIT ?",
                 (thread_id, principal.audience_id, principal.principal_id,
                  principal.audience_id, principal.audience_kind.value, limit),
             ).fetchall()
         return tuple(
             ThreadEvent(r["source_message_id"], r["source_session_id"],
                         r["source_audience_id"], datetime.fromisoformat(r["linked_at"]),
-                        r["visibility"])
+                        r["visibility"], r["canonical_sequence"], r["turn_position"])
             for r in reversed(rows)
         )
 
@@ -587,7 +942,9 @@ class LifelongThreadStore:
                 "WHERE e.thread_id=? AND e.visibility='source_audience' "
                 "AND e.source_audience_id=? AND s.principal_id=? "
                 "AND s.audience_id=? AND s.audience_kind=? "
-                "ORDER BY m.created_at DESC,m.id DESC LIMIT ?",
+                "ORDER BY CASE WHEN e.canonical_sequence IS NULL THEN 0 ELSE 1 END DESC,"
+                "e.canonical_sequence DESC,e.turn_position DESC,"
+                "m.created_at DESC,m.id DESC LIMIT ?",
                 (thread_id, principal.audience_id, principal.principal_id,
                  principal.audience_id, principal.audience_kind.value, limit),
             ).fetchall()
@@ -601,7 +958,7 @@ class LifelongThreadStore:
 
     def visible_message_page(
         self, *, thread_id: str, principal: PrincipalContext,
-        before: tuple[datetime, str] | None = None,
+        before: tuple[datetime, str] | tuple[int, int, str] | None = None,
         limit: int = 50,
     ) -> tuple[LifelongMessage, ...]:
         """Page original messages in a single principal AND audience scope.
@@ -619,15 +976,21 @@ class LifelongThreadStore:
             raise ValueError("thread ID required")
         if type(limit) is not int or not 1 <= limit <= 200:
             raise ValueError("page limit must be between 1 and 200")
-        if before is not None and (
-            not isinstance(before, tuple) or len(before) != 2
-            or not isinstance(before[0], datetime)
-            or before[0].tzinfo is None
-            or before[0].utcoffset() is None
-            or not isinstance(before[1], str)
-            or not before[1].strip()
-        ):
-            raise ValueError("before cursor requires aware timestamp and message ID")
+        legacy_cursor = (
+            isinstance(before, tuple) and len(before) == 2
+            and isinstance(before[0], datetime)
+            and before[0].tzinfo is not None
+            and before[0].utcoffset() is not None
+            and isinstance(before[1], str) and bool(before[1].strip())
+        )
+        canonical_cursor = (
+            isinstance(before, tuple) and len(before) == 3
+            and type(before[0]) is int and before[0] > 0
+            and type(before[1]) is int and before[1] in {0, 1}
+            and isinstance(before[2], str) and bool(before[2].strip())
+        )
+        if before is not None and not (legacy_cursor or canonical_cursor):
+            raise ValueError("before cursor requires canonical order or legacy timestamp")
         filters = (
             "e.thread_id=? AND e.source_audience_id=? "
             "AND e.visibility='source_audience' "
@@ -638,10 +1001,21 @@ class LifelongThreadStore:
             thread_id, principal.audience_id, principal.principal_id,
             principal.audience_id, principal.audience_kind.value,
         ]
-        if before is not None:
+        if canonical_cursor:
+            filters += (
+                " AND (e.canonical_sequence IS NULL "
+                "OR e.canonical_sequence < ? "
+                "OR (e.canonical_sequence = ? AND e.turn_position < ?) "
+                "OR (e.canonical_sequence = ? AND e.turn_position = ? "
+                "AND e.source_message_id < ?))"
+            )
+            args.extend((before[0], before[0], before[1],
+                         before[0], before[1], before[2]))
+        elif legacy_cursor:
             cursor = before[0].astimezone(timezone.utc).isoformat()
             filters += (
-                " AND (e.linked_at < ? OR "
+                " AND e.canonical_sequence IS NULL "
+                "AND (e.linked_at < ? OR "
                 "(e.linked_at = ? AND e.source_message_id < ?))"
             )
             args.extend((cursor, cursor, before[1]))
@@ -655,13 +1029,16 @@ class LifelongThreadStore:
                 raise PermissionError("lifelong thread is not owned by this principal")
             rows = db.execute(
                 "SELECT e.source_message_id,e.source_audience_id,e.linked_at,"
+                "e.canonical_sequence,e.turn_position,"
                 "m.session_id,m.role,m.content,m.created_at "
                 "FROM lifelong_thread_event e "
                 "JOIN conversation_messages m "
                 "ON m.id=e.source_message_id AND m.session_id=e.source_session_id "
                 "JOIN social_session_principal s ON s.session_id=m.session_id "
-                "WHERE " + filters + " ORDER BY e.linked_at DESC,"
-                "e.source_message_id DESC LIMIT ?",
+                "WHERE " + filters + " ORDER BY "
+                "CASE WHEN e.canonical_sequence IS NULL THEN 0 ELSE 1 END DESC,"
+                "e.canonical_sequence DESC,e.turn_position DESC,"
+                "e.linked_at DESC,e.source_message_id DESC LIMIT ?",
                 tuple(args),
             ).fetchall()
         # A page bound by row count alone can still exhaust a small
@@ -687,6 +1064,8 @@ class LifelongThreadStore:
                 ),
                 audience_id=row["source_audience_id"],
                 linked_at=datetime.fromisoformat(row["linked_at"]),
+                canonical_sequence=row["canonical_sequence"],
+                turn_position=row["turn_position"],
             )
             for row in reversed(rows)
         )

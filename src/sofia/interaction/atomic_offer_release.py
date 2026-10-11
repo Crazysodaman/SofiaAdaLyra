@@ -42,7 +42,8 @@ _BLOCKED_REPLIES = {
 
 def commit_guarded_offer_reply(*, state_path: str | Path, session_id: str,
                                user_message_id: str, user_content: str,
-                               result: GuardedOfferResult) -> str:
+                               result: GuardedOfferResult,
+                               assistant_message_id: str | None = None) -> str:
     """Recheck policy under a write lock and save exactly one assistant reply.
 
     The saved USER record is independently matched by ID, session, role and
@@ -57,6 +58,11 @@ def commit_guarded_offer_reply(*, state_path: str | Path, session_id: str,
             or (user_content != OFFER and not question)
             or not isinstance(result, GuardedOfferResult)):
         raise ValueError('Exact saved offer and canonical host identifiers are required.')
+    if assistant_message_id is not None and (
+        not isinstance(assistant_message_id, str)
+        or _ID.fullmatch(assistant_message_id) is None
+    ):
+        raise ValueError('Canonical assistant message identifier is invalid.')
     if result.status not in ('responded', *_BLOCKED_REPLIES):
         raise ValueError('Unknown guarded offer status.')
     if result.status == 'responded' and (
@@ -105,7 +111,8 @@ def commit_guarded_offer_reply(*, state_path: str | Path, session_id: str,
             db.execute('INSERT INTO conversation_messages '
                        '(id, session_id, role, content, created_at) '
                        'VALUES (?, ?, ?, ?, ?)',
-                       (str(uuid4()), session_id, 'assistant', content, now))
+                       (assistant_message_id or str(uuid4()),
+                        session_id, 'assistant', content, now))
             db.execute('UPDATE conversation_sessions SET updated_at=? '
                        'WHERE id=? AND updated_at<?', (now, session_id, now))
         return content

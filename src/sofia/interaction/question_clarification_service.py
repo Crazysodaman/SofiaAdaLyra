@@ -40,9 +40,11 @@ def respond_reviewed_hug_question(
     try:
         with service._model_lock:
             session_id = service._session.id
+            admission = getattr(service, "_current_turn_admission", None)
             path = Path(service._runtime.configuration.state_path)
             user = ConversationMessage(
-                id=str(uuid4()), session_id=session_id, role=ConversationRole.USER,
+                id=(str(uuid4()) if admission is None else admission.user_message_id),
+                session_id=session_id, role=ConversationRole.USER,
                 content=content, created_at=datetime.now(timezone.utc),
             )
             service._conversation_store.save(user)
@@ -73,7 +75,16 @@ def respond_reviewed_hug_question(
             reply = commit_guarded_offer_reply(
                 state_path=path, session_id=session_id,
                 user_message_id=user.id, user_content=user.content, result=result,
+                assistant_message_id=(
+                    None if admission is None else admission.assistant_message_id
+                ),
             )
+            if admission is not None:
+                service._link_main_lifelong_message(ConversationMessage(
+                    id=admission.assistant_message_id, session_id=session_id,
+                    role=ConversationRole.ASSISTANT, content=reply,
+                    created_at=datetime.now(timezone.utc),
+                ), principal)
             updated = service._conversation_store.get_session(session_id)
             if updated is None:
                 raise RuntimeError('Conversation session vanished after reply persistence.')

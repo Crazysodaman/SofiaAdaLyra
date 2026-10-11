@@ -224,11 +224,16 @@ def test_bridge_passes_discord_channel_when_supported(tmp_path) -> None:
         def __init__(self):
             self.principal = None
             self.channel = None
+            self.source_event_id = None
 
-        def respond(self, content, *, principal=None, channel="conversation"):
+        def respond(
+            self, content, *, principal=None, channel="conversation",
+            source_event_id=None,
+        ):
             assert content == "Hello from Discord"
             self.principal = principal
             self.channel = channel
+            self.source_event_id = source_event_id
             return FakeResponse("Sofía reply")
 
     conversation = ChannelAwareConversation()
@@ -248,3 +253,4 @@ def test_bridge_passes_discord_channel_when_supported(tmp_path) -> None:
     assert conversation.channel == "discord"
     assert conversation.principal is not None
     assert conversation.principal.audience_id == f"discord:dm:{CHANNEL}"
+    assert conversation.source_event_id == f"discord:{BOT}:{CHANNEL}:{MESSAGE}"

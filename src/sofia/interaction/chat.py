@@ -476,8 +476,10 @@ class InteractiveConversationService(EmotionalConversationService):
         try:
             with self._model_lock:
                 session_id = self._session.id
+                admission = getattr(self, "_current_turn_admission", None)
                 user = ConversationMessage(
-                    id=str(uuid4()), session_id=session_id, role=ConversationRole.USER,
+                    id=(str(uuid4()) if admission is None else admission.user_message_id),
+                    session_id=session_id, role=ConversationRole.USER,
                     content=clean, created_at=datetime.now(timezone.utc),
                 )
                 self._conversation_store.save(user)
@@ -517,7 +519,11 @@ class InteractiveConversationService(EmotionalConversationService):
                     CognitiveResponse(content=reply)
                 )
                 self._conversation_store.save(ConversationMessage(
-                    id=str(uuid4()), session_id=session_id, role=ConversationRole.ASSISTANT,
+                    id=(
+                        str(uuid4())
+                        if admission is None else admission.assistant_message_id
+                    ),
+                    session_id=session_id, role=ConversationRole.ASSISTANT,
                     content=response.content, created_at=datetime.now(timezone.utc),
                 ))
                 session = self._conversation_store.get_session(session_id)
@@ -535,32 +541,35 @@ class InteractiveConversationService(EmotionalConversationService):
         *,
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
+        source_event_id: str | None = None,
     ) -> CognitiveResponse:
         """Route enforceable actions before model inference or tool orchestration."""
 
         def guarded(reply: str, **kwargs):
-            if principal is None:
-                return self._guarded_reply(
-                    content,
-                    reply,
-                    channel=channel,
-                    **kwargs,
-                )
-            return self._guarded_reply(
+            return self._respond_ordered_special(
                 content,
-                reply,
                 principal=principal,
                 channel=channel,
-                **kwargs,
+                source_event_id=source_event_id,
+                handler=lambda bound: self._guarded_reply(
+                    content,
+                    reply,
+                    principal=bound,
+                    channel=channel,
+                    **kwargs,
+                ),
             )
 
         if not isinstance(content, str):
             if principal is None:
-                return super().respond(content, channel=channel)
+                return super().respond(
+                    content, channel=channel, source_event_id=source_event_id,
+                )
             return super().respond(
                 content,
                 principal=principal,
                 channel=channel,
+                source_event_id=source_event_id,
             )
 
         if _TOUCH_SCOPE_QUERY.fullmatch(content.strip()):
@@ -601,11 +610,14 @@ class InteractiveConversationService(EmotionalConversationService):
                 )
 
         if principal is None:
-            return super().respond(content, channel=channel)
+            return super().respond(
+                content, channel=channel, source_event_id=source_event_id,
+            )
         return super().respond(
             content,
             principal=principal,
             channel=channel,
+            source_event_id=source_event_id,
         )
 
     def _should_record_legacy_affection(self, user) -> bool:

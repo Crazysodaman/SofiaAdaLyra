@@ -165,11 +165,7 @@ class ConversationStore:
                         created_at
                     )
                     VALUES (?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                        session_id = excluded.session_id,
-                        role = excluded.role,
-                        content = excluded.content,
-                        created_at = excluded.created_at
+                    ON CONFLICT(id) DO NOTHING
                     """,
                     (
                         message.id,
@@ -179,6 +175,19 @@ class ConversationStore:
                         message.created_at.isoformat(),
                     ),
                 )
+                stored = connection.execute(
+                    """SELECT session_id,role,content,created_at
+                    FROM conversation_messages WHERE id=?""",
+                    (message.id,),
+                ).fetchone()
+                expected = (
+                    message.session_id, message.role.value,
+                    message.content, message.created_at.isoformat(),
+                )
+                if stored is None or tuple(stored) != expected:
+                    raise ValueError(
+                        "conversation message ID already names different immutable bytes"
+                    )
 
                 connection.execute(
                     """

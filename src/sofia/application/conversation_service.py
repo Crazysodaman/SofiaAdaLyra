@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 import logging
 import re
@@ -18,6 +19,9 @@ from sofia.conversation.model import (
     ConversationSession,
 )
 from sofia.conversation.store import ConversationStore
+from sofia.conversation.lifelong import (
+    CanonicalTurnAdmission, LifelongThreadStore,
+)
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
@@ -194,6 +198,8 @@ class ConversationService(ConversationMatrixMixin):
         self,
         runtime: SofiaRuntime,
         conversation_store: ConversationStore,
+        *,
+        conversation_runtime_id: str | None = None,
     ) -> None:
         if not isinstance(runtime, SofiaRuntime):
             raise TypeError(
@@ -214,6 +220,24 @@ class ConversationService(ConversationMatrixMixin):
         self._social_store = SocialSessionStore(
             runtime.configuration.state_path
         )
+        self._lifelong_thread_store = LifelongThreadStore(
+            runtime.configuration.state_path
+        )
+        if conversation_runtime_id is not None and (
+            not isinstance(conversation_runtime_id, str)
+            or not conversation_runtime_id.strip()
+        ):
+            raise ValueError("conversation_runtime_id must be nonempty")
+        self._conversation_runtime_id = (
+            conversation_runtime_id or f"conversation-runtime:{uuid4().hex}"
+        )
+        self._lifelong_thread_store.recover_interrupted_turns(
+            runtime_id=self._conversation_runtime_id,
+            now=datetime.now(timezone.utc),
+        )
+        self._current_turn_admission: CanonicalTurnAdmission | None = None
+        self._last_turn_replayed = False
+        self._last_turn_receipt: dict[str, object] | None = None
         self._relationship_store = RelationshipStore(
             runtime.configuration.state_path,
             state_plane=runtime.state_plane,
@@ -869,7 +893,98 @@ class ConversationService(ConversationMatrixMixin):
         """Return non-fatal continuity-hook failures from the latest user turn."""
         return self._last_post_persistence_errors
 
+    @property
+    def last_turn_receipt(self) -> dict[str, object] | None:
+        """Return non-authoritative delivery metadata for the settled call."""
+        return (
+            None if self._last_turn_receipt is None
+            else dict(self._last_turn_receipt)
+        )
+
     def respond(
+        self,
+        content: str,
+        *,
+        principal: PrincipalContext | None = None,
+        channel: str = "conversation",
+        source_event_id: str | None = None,
+    ) -> CognitiveResponse:
+        """Execute one authenticated source event at most once.
+
+        The canonical claim is below every transport. A completed retry
+        returns the stored response; an interrupted or uncertain turn never
+        calls the model or capabilities again.
+        """
+        if self._session is None:
+            raise RuntimeError(
+                "ConversationService must be started before responding."
+            )
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("ConversationService content must be nonempty text.")
+        if principal is not None and not isinstance(principal, PrincipalContext):
+            raise TypeError("ConversationService principal must be authenticated")
+        if not isinstance(channel, str) or not channel.strip():
+            raise ValueError("ConversationService channel must be nonempty")
+        if source_event_id is not None and principal is None:
+            raise PermissionError("stable source events require an authenticated principal")
+
+        self._last_turn_replayed = False
+        self._last_turn_receipt = None
+        admission = None
+        normalized = content.strip()
+        normalized_channel = channel.strip().casefold()
+        if principal is not None:
+            principal = self._bind_principal(principal)
+            event_id = (
+                f"host:{uuid4().hex}"
+                if source_event_id is None else source_event_id
+            )
+            admission = self._lifelong_thread_store.admit_turn(
+                event_id=event_id, principal=principal,
+                session_id=self._session.id, channel=normalized_channel,
+                content=normalized, runtime_id=self._conversation_runtime_id,
+                now=datetime.now(timezone.utc),
+            )
+            if admission.status == "completed":
+                if admission.response is None:
+                    raise RuntimeError("completed canonical turn has no response")
+                self._last_turn_replayed = True
+                self._last_turn_receipt = {
+                    "event_id": admission.event_id,
+                    "canonical_sequence": admission.canonical_sequence,
+                    "status": admission.status,
+                    "replayed": True,
+                }
+                return admission.response
+            self._current_turn_admission = admission
+        try:
+            response = self._respond_once(
+                normalized, principal=principal, channel=normalized_channel,
+            )
+            if admission is not None:
+                self._lifelong_thread_store.settle_turn(
+                    admission=admission, principal=principal,
+                    response=response, now=datetime.now(timezone.utc),
+                )
+                self._last_turn_receipt = {
+                    "event_id": admission.event_id,
+                    "canonical_sequence": admission.canonical_sequence,
+                    "status": "completed",
+                    "replayed": False,
+                }
+            return response
+        except BaseException as exc:
+            if admission is not None:
+                self._lifelong_thread_store.mark_turn_uncertain(
+                    admission=admission,
+                    interrupted=isinstance(exc, (KeyboardInterrupt, SystemExit)),
+                    now=datetime.now(timezone.utc),
+                )
+            raise
+        finally:
+            self._current_turn_admission = None
+
+    def _respond_once(
         self,
         content: str,
         *,
@@ -929,7 +1044,11 @@ class ConversationService(ConversationMatrixMixin):
                 )
 
         user_message = ConversationMessage(
-            id=str(uuid4()),
+            id=(
+                str(uuid4())
+                if self._current_turn_admission is None
+                else self._current_turn_admission.user_message_id
+            ),
             session_id=self._session.id,
             role=ConversationRole.USER,
             content=content,
@@ -1199,6 +1318,126 @@ class ConversationService(ConversationMatrixMixin):
         formatted_result: str,
         principal: PrincipalContext,
         channel: str = "desktop",
+        source_event_id: str | None = None,
+    ) -> CognitiveResponse:
+        """Order a host-executed result without granting model tool authority."""
+        if self._session is None:
+            raise RuntimeError("ConversationService must be started before responding.")
+        principal = self._bind_principal(principal)
+        event_id = source_event_id or f"host-tool:{uuid4().hex}"
+        digest_content = (
+            action_content.strip() + "\nresult-sha256:" +
+            sha256(formatted_result.strip().encode("utf-8")).hexdigest()
+        )
+        admission = self._lifelong_thread_store.admit_turn(
+            event_id=event_id, principal=principal,
+            session_id=self._session.id, channel=channel.strip().casefold(),
+            content=digest_content, runtime_id=self._conversation_runtime_id,
+            now=datetime.now(timezone.utc),
+        )
+        if admission.status == "completed":
+            if admission.response is None:
+                raise RuntimeError("completed canonical tool-result turn has no response")
+            self._last_turn_replayed = True
+            self._last_turn_receipt = {
+                "event_id": admission.event_id,
+                "canonical_sequence": admission.canonical_sequence,
+                "status": admission.status,
+                "replayed": True,
+            }
+            return admission.response
+        self._last_turn_replayed = False
+        self._last_turn_receipt = None
+        self._current_turn_admission = admission
+        try:
+            response = self._respond_to_owner_tool_result_once(
+                action_content=action_content, formatted_result=formatted_result,
+                principal=principal, channel=channel,
+            )
+            self._lifelong_thread_store.settle_turn(
+                admission=admission, principal=principal, response=response,
+                now=datetime.now(timezone.utc),
+            )
+            self._last_turn_receipt = {
+                "event_id": admission.event_id,
+                "canonical_sequence": admission.canonical_sequence,
+                "status": "completed",
+                "replayed": False,
+            }
+            return response
+        except BaseException as exc:
+            self._lifelong_thread_store.mark_turn_uncertain(
+                admission=admission,
+                interrupted=isinstance(exc, (KeyboardInterrupt, SystemExit)),
+                now=datetime.now(timezone.utc),
+            )
+            raise
+        finally:
+            self._current_turn_admission = None
+
+    def _respond_ordered_special(
+        self, content: str, *, principal: PrincipalContext | None,
+        channel: str, source_event_id: str | None, handler,
+    ) -> CognitiveResponse:
+        """Give a guarded deterministic route the same canonical turn owner."""
+        if self._session is None:
+            raise RuntimeError("ConversationService must be started before responding.")
+        if principal is None:
+            if source_event_id is not None:
+                raise PermissionError("stable source events require authentication")
+            return handler(None)
+        principal = self._bind_principal(principal)
+        admission = self._lifelong_thread_store.admit_turn(
+            event_id=source_event_id or f"host:{uuid4().hex}",
+            principal=principal, session_id=self._session.id,
+            channel=channel.strip().casefold(), content=content.strip(),
+            runtime_id=self._conversation_runtime_id,
+            now=datetime.now(timezone.utc),
+        )
+        if admission.status == "completed":
+            if admission.response is None:
+                raise RuntimeError("completed guarded turn has no response")
+            self._last_turn_replayed = True
+            self._last_turn_receipt = {
+                "event_id": admission.event_id,
+                "canonical_sequence": admission.canonical_sequence,
+                "status": admission.status,
+                "replayed": True,
+            }
+            return admission.response
+        self._current_turn_admission = admission
+        self._last_turn_replayed = False
+        self._last_turn_receipt = None
+        try:
+            response = handler(principal)
+            self._lifelong_thread_store.settle_turn(
+                admission=admission, principal=principal, response=response,
+                now=datetime.now(timezone.utc),
+            )
+            self._last_turn_receipt = {
+                "event_id": admission.event_id,
+                "canonical_sequence": admission.canonical_sequence,
+                "status": "completed",
+                "replayed": False,
+            }
+            return response
+        except BaseException as exc:
+            self._lifelong_thread_store.mark_turn_uncertain(
+                admission=admission,
+                interrupted=isinstance(exc, (KeyboardInterrupt, SystemExit)),
+                now=datetime.now(timezone.utc),
+            )
+            raise
+        finally:
+            self._current_turn_admission = None
+
+    def _respond_to_owner_tool_result_once(
+        self,
+        *,
+        action_content: str,
+        formatted_result: str,
+        principal: PrincipalContext,
+        channel: str = "desktop",
     ) -> CognitiveResponse:
         """Persist an owner-selected tool action and let Sofía answer its result.
 
@@ -1220,7 +1459,11 @@ class ConversationService(ConversationMatrixMixin):
             raise ValueError("channel must be nonempty")
         principal = self._bind_principal(principal)
         user_message = ConversationMessage(
-            id=str(uuid4()),
+            id=(
+                str(uuid4())
+                if self._current_turn_admission is None
+                else self._current_turn_admission.user_message_id
+            ),
             session_id=self._session.id,
             role=ConversationRole.USER,
             content=action_content.strip(),
@@ -1277,7 +1520,11 @@ class ConversationService(ConversationMatrixMixin):
         """Save a settled reply and reload the same canonical session."""
         coordinated = self._current_coordinated_turn
         assistant_message = ConversationMessage(
-            id=str(uuid4()),
+            id=(
+                str(uuid4())
+                if self._current_turn_admission is None
+                else self._current_turn_admission.assistant_message_id
+            ),
             session_id=self._session.id,
             role=ConversationRole.ASSISTANT,
             content=response.content,
@@ -1331,7 +1578,7 @@ class ConversationService(ConversationMatrixMixin):
 
     def main_thread_page(
         self, *, principal: PrincipalContext,
-        before: tuple[datetime, str] | None = None,
+        before: tuple[datetime, str] | tuple[int, int, str] | None = None,
         limit: int = 50,
     ):
         """Return an authenticated audience-scoped page of canonical Main.

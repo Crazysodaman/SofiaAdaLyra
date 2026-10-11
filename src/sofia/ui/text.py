@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import inspect
 from datetime import datetime
 from typing import Protocol
+from uuid import uuid4
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.ui.drafts import UIDraft, UIDraftStore
@@ -28,6 +29,7 @@ class ConversationPort(Protocol):
         *,
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
+        source_event_id: str | None = None,
     ): ...
 
 
@@ -129,7 +131,7 @@ class UITextClient:
             session_id=self.session_id,
         )
 
-    def send(self, content: str | None = None):
+    def send(self, content: str | None = None, *, request_id: str | None = None):
         """Send explicit text through the canonical conversation path.
 
         If content is omitted, the currently persisted draft is sent. Draft
@@ -144,6 +146,11 @@ class UITextClient:
             raise TypeError("content must be a string")
         if not content.strip():
             raise ValueError("content must not be blank")
+        if request_id is not None and (
+            not isinstance(request_id, str) or not request_id.strip()
+            or len(request_id) > 160
+        ):
+            raise ValueError("request_id must be bounded nonempty text")
 
         responder = self._conversation.respond
         parameters = inspect.signature(responder).parameters
@@ -160,6 +167,11 @@ class UITextClient:
             kwargs["principal"] = self._principal
         if "channel" in parameters or accepts_kwargs:
             kwargs["channel"] = self._channel
+        if self._principal is not None and (
+            "source_event_id" in parameters or accepts_kwargs
+        ):
+            stable = request_id.strip() if request_id is not None else uuid4().hex
+            kwargs["source_event_id"] = f"desktop:{self._client_id}:{stable}"
         response = responder(content, **kwargs)
         self.clear_draft()
         return response
