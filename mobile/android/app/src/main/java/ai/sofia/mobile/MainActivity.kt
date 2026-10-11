@@ -169,6 +169,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Explicit check only: never infer that a missing receipt means unsent. */
+    fun reconcileUnconfirmed() {
+        if (busy) return
+        val retained = try {
+            secure.pendingOutbound()
+        } catch (_: Exception) {
+            status = "Encrypted outbox unreadable; explicit owner recovery required."
+            return
+        }
+        if (retained == null) {
+            status = "There is no unresolved send to reconcile."
+            return
+        }
+        if (!retained.matches(config)) {
+            status = "Unresolved send belongs to another pairing/privacy mode."
+            return
+        }
+        launchRequest {
+            val result = withContext(Dispatchers.IO) {
+                api.deliveryStatus(retained)
+            }
+            when (result.getString("status")) {
+                "completed" -> {
+                    val confirmed = result.getJSONObject("result")
+                    // The API independently checked the original canonical
+                    // completion receipt, exact pairing and presentation.
+                    // Clear the durable journal BEFORE claiming recovery.
+                    secure.confirmOutbound(retained.requestId)
+                    pendingText = null
+                    pendingRequestId = null
+                    pendingPrivateMode = null
+                    if (draft == retained.text) draft = ""
+                    val userLine = ChatLine("You", retained.text)
+                    val replyLine = ChatLine(
+                        "Sofía", confirmed.getString("response"),
+                    )
+                    if (messages.takeLast(2) != listOf(userLine, replyLine)) {
+                        messages += userLine
+                        messages += replyLine
+                    }
+                    status = "Earlier canonical delivery confirmed. No message resent."
+                }
+                "processing" -> {
+                    status = "Original request is still processing. Nothing was resent."
+                }
+                "uncertain" -> {
+                    status = "Host cannot prove the original delivery. " +
+                        "Review canonical Main before any owner-initiated action."
+                }
+                "not_found" -> {
+                    status = "No matching host receipt for this pairing. " +
+                        "Absence does not prove a send never executed."
+                }
+                else -> {
+                    status = "Unrecognized delivery state; encrypted outbox retained."
+                }
+            }
+        }
+    }
+
     fun discardUnconfirmed() {
         if (busy) return
         try {
@@ -829,6 +889,12 @@ private fun SofiaScreen(model: MainViewModel) {
                             "before retrying the same message or discarding it.",
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    Button(
+                        onClick = model::reconcileUnconfirmed,
+                        enabled = !model.busy,
+                    ) {
+                        Text("Check original delivery receipt (no resend)")
+                    }
                     Button(
                         onClick = model::discardUnconfirmed, enabled = !model.busy,
                         modifier = Modifier.fillMaxWidth(),
