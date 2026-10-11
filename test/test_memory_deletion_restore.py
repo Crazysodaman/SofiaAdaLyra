@@ -250,3 +250,39 @@ def test_memory_runtime_fails_closed_when_erasures_configured_without_key(
             "SELECT content FROM memory_candidate WHERE candidate_id=?",
             (str(CANDIDATE),),
         ).fetchone()[0] == "PRIVATE-REMOVED-SUMMARY"
+
+
+def test_new_erasure_during_staged_restore_aborts_publication(
+    tmp_path, monkeypatch,
+):
+    """Restore may not publish a snapshot checked against an older journal head."""
+    state, ledger, engine = _prepare(tmp_path)
+    backup, _ = engine.create(
+        state_path=state, destination_root=tmp_path / "backups",
+        source_host_id="venus", failure_domain="offline",
+        now=NOW,
+    )
+    _erase(ledger)
+
+    def journal_changes_during_restore(_path):
+        ledger.request(
+            candidate_id=UUID("bbbbbbbb-2222-4222-8222-222222222222"),
+            principal_id="person:sparks", audience_id="local:text",
+            authority_ref="operator:independent-second-delete",
+            at=NOW,
+            approve=lambda *_: True,
+        )
+
+    monkeypatch.setattr(
+        "sofia.ops.backup.verify_production_component_schemas",
+        journal_changes_during_restore,
+    )
+    target = tmp_path / "not-published" / "sofia.db"
+    with pytest.raises(BackupError, match="changed during restore"):
+        engine.restore(
+            backup_dir=backup, target_state_path=target,
+            verifier="operator", erasure_journal=ledger.path,
+            now=NOW,
+        )
+    assert not target.exists()
+    assert len(ledger.entries()) == 2
