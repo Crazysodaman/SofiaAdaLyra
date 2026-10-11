@@ -704,7 +704,7 @@ class SelfDirectedLifeCoordinator:
                 statuses=(ProjectStatus.ACTIVE,),
             )
             for candidate in candidates:
-                usage = self.store.usage(candidate.project_id, now.date())
+                usage = self.store.usage(candidate.project_id, now.astimezone(timezone.utc).date())
                 if (
                     float(usage["wall_seconds"]) >= candidate.brief.resource_budget.daily_seconds
                     or int(usage["storage_bytes"]) >= candidate.brief.resource_budget.storage_bytes
@@ -1126,9 +1126,18 @@ class SelfDirectedLifeCoordinator:
         )
         if len(encoded_specification.encode("utf-8")) > 64_000:
             raise ValueError("creative specification exceeds bounded RUN payload")
-        usage = self.store.usage(project.project_id, now.date())
-        if int(usage["storage_bytes"]) >= project.brief.resource_budget.storage_bytes:
+        usage = self.store.usage(
+            project.project_id, now.astimezone(timezone.utc).date(),
+        )
+        budget = project.brief.resource_budget
+        if int(usage["storage_bytes"]) >= budget.storage_bytes:
             raise RuntimeError("project storage budget is exhausted")
+        remaining_seconds = budget.daily_seconds - float(usage["wall_seconds"])
+        if remaining_seconds < 1:
+            raise RuntimeError("project daily work-time budget is exhausted")
+        # The RUN deadline is a bounded admission deadline, not a substitute
+        # for OS isolation or an enforced process CPU/memory quota.
+        admitted_seconds = min(1800, remaining_seconds)
         goal = next(item for item in self.goals.list_visible(local_sparks_principal()) if item.id == project.goal_id)
         action = self.goals.propose_action(
             goal=goal, capability_name="creative.artifact.create",
@@ -1152,7 +1161,7 @@ class SelfDirectedLifeCoordinator:
             resource_cost=max(1, min(100, project.brief.resource_budget.cpu_percent)),
             risk="isolated_change",
             completion_condition="A real managed artifact is created and hash-verified.",
-            now=now, deadline=now + timedelta(minutes=30),
+            now=now, deadline=now + timedelta(seconds=admitted_seconds),
             after_enqueue=lambda db, candidate: self.store.provision_artifact_job(
                 db, project_id=project.project_id, job_id=candidate.job_id,
                 request_id=str(parameters["request_id"]), artifact_id=artifact_key,
@@ -2209,7 +2218,7 @@ class SelfDirectedLifeCoordinator:
                     job.status is WorkStatus.COMPLETED for job in linked_jobs
                 ):
                     continue
-                usage = self.store.usage(candidate.project_id, now.date())
+                usage = self.store.usage(candidate.project_id, now.astimezone(timezone.utc).date())
                 within_budget = (
                     float(usage["wall_seconds"])
                     < candidate.brief.resource_budget.daily_seconds
