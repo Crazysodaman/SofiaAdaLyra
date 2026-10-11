@@ -591,6 +591,37 @@ class LifeStore:
             datetime.fromisoformat(row["recorded_at"]), json.loads(row["metadata_json"]),
         ) for row in rows)
 
+    def project_experiences(
+        self, project_id: str, *, audience_id: str, limit: int = 64,
+    ) -> tuple[ExperienceRecord, ...]:
+        """Page source-linked episodes for one original authorized project.
+
+        Private scope is mandatory. No raw transcript scan, shadow memory,
+        or cross-audience projection is permitted.
+        """
+        if (
+            not isinstance(project_id, str) or not project_id.strip()
+            or not isinstance(audience_id, str) or not audience_id.strip()
+        ):
+            raise ValueError("project and audience scope required")
+        if type(limit) is not int or not 1 <= limit <= 500:
+            raise ValueError("project experience limit must be in 1..500")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                """SELECT * FROM life_experience
+                   WHERE project_id=? AND audience_id=?
+                   ORDER BY occurred_at DESC,experience_id DESC LIMIT ?""",
+                (project_id, audience_id, limit),
+            ).fetchall()
+        return tuple(ExperienceRecord(
+            row["experience_id"], row["project_id"], row["kind"],
+            row["summary"], tuple(json.loads(row["evidence_refs_json"])),
+            row["audience_id"], bool(row["private"]),
+            datetime.fromisoformat(row["occurred_at"]),
+            datetime.fromisoformat(row["recorded_at"]),
+            json.loads(row["metadata_json"]),
+        ) for row in rows)
+
     def pending_interest_experiences(self, *, limit: int = 16) -> tuple[ExperienceRecord, ...]:
         """Return a bounded internal queue without projecting content across audiences."""
         if not 1 <= limit <= 64:
