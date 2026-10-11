@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "d6d6f13f9999fdec7bce742302559598f84be72f",
+  "reviewed_main_sha": "59137b5835f1a1d79652a0440e245d7554274064",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 Phase02 operator stop transitions now audited atomically through existing SAFE hash chain; source and regressions committed [skip ci], tests deferred. CA-1102/1907/6507 remain partial; other workstreams' evidence retained.",
+  "notice": "Workstream 1: canonical LIFE/ACT UI snapshot, atomic SAFE stop audit, protected SQLite owners, and fail-closed ACT post-claim authorization outage source committed [skip ci]. All tests deferred. Other workstream task records/statuses preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1795,7 +1795,8 @@
         "src/sofia/application/act_service.py",
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
-        "test/test_act_runtime_wiring.py"
+        "test/test_act_runtime_wiring.py",
+        "src/sofia/act/outreach.py"
       ],
       "evidence_commits": [
         "2ec9ca1d87eb4ea70b45eb8d9f0a723564e87d30",
@@ -1803,13 +1804,18 @@
         "a3f6383babc160842beac1ba80e95621134ac062",
         "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
         "8503f42a90ade16cd767e497c5a047b26b918d1d",
-        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f",
+        "0b558aa0b80caa64e3b8d5b70062944fb523a4fa",
+        "ea319410e0942d64e1587b81fdee94488b58f1e8",
+        "73434f93619f1557ddddf824c8e999c3b11d0241",
+        "ec6bb304db62d630b26d8d6835bcece74e188a8c",
+        "62ada59108356658ab8c8f9bab2d818921bec21f"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
-        "depth": "production_pre_send_reevaluation_and_durable_release",
-        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
+        "at_sha": "59137b5835f1a1d79652a0440e245d7554274064",
+        "depth": "ACT_post_claim_authority_failure_source_and_regression",
+        "interpretation": "The production ACT SystemNoticeQueue and ActDeliveryRunner now treat a post-claim fresh permission check failure or bad decision type as explicit authorization_unavailable, release the unsent claim, restore retry budget, and refuse sender invocation. Source and regressions committed; tests unrun. Full item remains partial pending broader authority validation and external host evidence."
       }
     },
     {
@@ -1914,7 +1920,8 @@
         "src/sofia/application/act_service.py",
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
-        "test/test_act_runtime_wiring.py"
+        "test/test_act_runtime_wiring.py",
+        "src/sofia/act/outreach.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -1938,7 +1945,12 @@
         "a3f6383babc160842beac1ba80e95621134ac062",
         "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
         "8503f42a90ade16cd767e497c5a047b26b918d1d",
-        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f",
+        "0b558aa0b80caa64e3b8d5b70062944fb523a4fa",
+        "ea319410e0942d64e1587b81fdee94488b58f1e8",
+        "73434f93619f1557ddddf824c8e999c3b11d0241",
+        "ec6bb304db62d630b26d8d6835bcece74e188a8c",
+        "62ada59108356658ab8c8f9bab2d818921bec21f"
       ],
       "accepted": false,
       "coding_update": {
@@ -1947,9 +1959,9 @@
         "acceptance": "deferred"
       },
       "audit_observation": {
-        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
-        "depth": "production_pre_send_reevaluation_and_durable_release",
-        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
+        "at_sha": "59137b5835f1a1d79652a0440e245d7554274064",
+        "depth": "ACT_post_claim_authority_failure_source_and_regression",
+        "interpretation": "The production ACT SystemNoticeQueue and ActDeliveryRunner now treat a post-claim fresh permission check failure or bad decision type as explicit authorization_unavailable, release the unsent claim, restore retry budget, and refuse sender invocation. Source and regressions committed; tests unrun. Full item remains partial pending broader authority validation and external host evidence."
       },
       "operator_authentication_blocker": {
         "at_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
@@ -2026,7 +2038,8 @@
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
         "src/sofia/safe/audit.py",
-        "test/test_safe_operator_stop_state_loss.py"
+        "test/test_safe_operator_stop_state_loss.py",
+        "src/sofia/act/outreach.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -2058,13 +2071,18 @@
         "05df436675c5b4c0651d1b19aa39cbd283a9908f",
         "9a8c8364855f79af47d2711652b0c8801028ea9e",
         "896ed561c956fbea101ce25051d2e5966e60b33e",
-        "d6d6f13f9999fdec7bce742302559598f84be72f"
+        "d6d6f13f9999fdec7bce742302559598f84be72f",
+        "0b558aa0b80caa64e3b8d5b70062944fb523a4fa",
+        "ea319410e0942d64e1587b81fdee94488b58f1e8",
+        "73434f93619f1557ddddf824c8e999c3b11d0241",
+        "ec6bb304db62d630b26d8d6835bcece74e188a8c",
+        "62ada59108356658ab8c8f9bab2d818921bec21f"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "d6d6f13f9999fdec7bce742302559598f84be72f",
-        "depth": "production_atomic_operator_stop_and_audit_boundary",
-        "interpretation": "OperatorStopStore.set now writes operator stop/resume state and hash-chained SAFE audit event in the same SQLite transaction; audit failure rolls back the control update, preserving absence of a false receipt. Regression authored but not run. Human OS authentication, multi-host stop propagation and in-flight external cancellation remain open."
+        "at_sha": "59137b5835f1a1d79652a0440e245d7554274064",
+        "depth": "ACT_post_claim_authority_failure_source_and_regression",
+        "interpretation": "The production ACT SystemNoticeQueue and ActDeliveryRunner now treat a post-claim fresh permission check failure or bad decision type as explicit authorization_unavailable, release the unsent claim, restore retry budget, and refuse sender invocation. Source and regressions committed; tests unrun. Full item remains partial pending broader authority validation and external host evidence."
       }
     },
     {
@@ -2142,7 +2160,8 @@
         "src/sofia/act/system_notice.py",
         "src/sofia/act/delivery.py",
         "test/test_act_system_notice.py",
-        "test/test_act_delivery.py"
+        "test/test_act_delivery.py",
+        "src/sofia/act/outreach.py"
       ],
       "evidence_commits": [
         "c65ea31e9dc4e81f85f85b1d89efa459e87c1413",
@@ -2156,13 +2175,18 @@
         "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
         "8503f42a90ade16cd767e497c5a047b26b918d1d",
         "05df436675c5b4c0651d1b19aa39cbd283a9908f",
-        "9a8c8364855f79af47d2711652b0c8801028ea9e"
+        "9a8c8364855f79af47d2711652b0c8801028ea9e",
+        "0b558aa0b80caa64e3b8d5b70062944fb523a4fa",
+        "ea319410e0942d64e1587b81fdee94488b58f1e8",
+        "73434f93619f1557ddddf824c8e999c3b11d0241",
+        "ec6bb304db62d630b26d8d6835bcece74e188a8c",
+        "62ada59108356658ab8c8f9bab2d818921bec21f"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
-        "depth": "production_pre_send_reevaluation_and_durable_release",
-        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
+        "at_sha": "59137b5835f1a1d79652a0440e245d7554274064",
+        "depth": "ACT_post_claim_authority_failure_source_and_regression",
+        "interpretation": "The production ACT SystemNoticeQueue and ActDeliveryRunner now treat a post-claim fresh permission check failure or bad decision type as explicit authorization_unavailable, release the unsent claim, restore retry budget, and refuse sender invocation. Source and regressions committed; tests unrun. Full item remains partial pending broader authority validation and external host evidence."
       }
     },
     {
