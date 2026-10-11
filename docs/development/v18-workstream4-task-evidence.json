@@ -34,7 +34,8 @@
     "2026-10-11 continuation 2 follow-up: Hyper-V stage source now independently re-reads the original Hephaestus VM identity/Off Gen2 state, exact one guest vNIC, and Internal switch type after potential host mutation, before reporting stage success. Failure/timeout remains UNCERTAIN; no live Artemis operation or tests run.",
     "2026-10-11 Workstream4 further audit: Phase12 existing UI screen requests/receipts had audience-only history visibility, no principal partition and inclusive exact-expiry permits. Production receipts now record principal, filter principal+audience, quarantine pre-migration unscoped rows and reject frames exactly at consent expiry. Existing UI consumes the scoped path and focused regressions were authored. No OS picker/capture adapter, no screen observation, tests/CI or host changes. Original 6206/6207/6208 remain partial, not code ready.",
     "2026-10-11 Workstream4 Phase14 source audit: production assess_registered_adaptation now independently checks train versus held-out instruction overlap including case/Unicode/whitespace normalization, rereads exact dataset SHA-256 and checks that rights have not been revoked. Canonical training review refuses re-recording permanently revoked digests. Deferred targeted tests authored; no training, host actions, tests or CI. CA-6703 stays coded candidate/test pending; CA-6706/6708 partial.",
-    "2026-10-11 WS4 NEURO memory-derived state audit: canonical neuro_association_* tables already cleaned revoked and deleted candidates; new installed SQLite trigger also erases prior association weights and teaching receipts when promoted memory content, principal or audience changes in place. Focused regression source authored, not run. CA-705/711 remain prior code-ready candidates with tests pending, no new accepted task."
+    "2026-10-11 WS4 NEURO memory-derived state audit: canonical neuro_association_* tables already cleaned revoked and deleted candidates; new installed SQLite trigger also erases prior association weights and teaching receipts when promoted memory content, principal or audience changes in place. Focused regression source authored, not run. CA-705/711 remain prior code-ready candidates with tests pending, no new accepted task.",
+    "2026-10-11 W4 Phase11 CA-6608 source hardening: model promotion now uses the existing RuntimeUserSettingsStore pinned CanonicalSQLiteGuard for each transaction, denies another role transition while any previous promotion remains applying/uncertain, and refuses replaying historical accepted receipts if current canonical settings no longer match the accepted model mapping. Focused regressions authored, no tests/CI or live model changes. CA-6608 remains partial: no independent host broker/role drain/provider health acceptance yet."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -267,7 +268,9 @@
     "fc79c33569814a2e02345451f4fd4c7ebb65ccbd",
     "0a15e190b5e39b0906d2fab63ea269218d6cc203",
     "265527c07e76813faaa8febd1dccd759f7bf0a7a",
-    "417d6af852f30d70e221c33c17012830c737973e"
+    "417d6af852f30d70e221c33c17012830c737973e",
+    "256e2bc9f1103b36a1ebf3dd99fb754e220d4baa",
+    "0ec29038da9cb7394bba9827cf5450479e321214"
   ],
   "tasks": [
     {
@@ -764,7 +767,7 @@
       "master_line": 954,
       "global_ledger_before": "partial_wiring",
       "source_review": "partially_implemented_unverified",
-      "finding": "Existing governed role promotion transaction now verifies exact durable row transition counts for accepted, uncertain and rolled-back status before reporting success. Concurrent ledger tampering returns uncertainty instead of fabricated acceptance. Regression tests written, unexecuted; trusted host broker and live traffic acceptance still missing.",
+      "finding": "Existing governed role promotion transaction now verifies exact durable row transition counts for accepted, uncertain and rolled-back status before reporting success. Concurrent ledger tampering returns uncertainty instead of fabricated acceptance. Regression tests written, unexecuted; trusted host broker and live traffic acceptance still missing. Follow-up on actual promote_prepared_model_role() protects pinned canonical SQLite identity, prevents a second promotion while any previous transition is applying/uncertain, and refuses superseded accepted-receipt replay if model mapping differs. Source src/sofia/cognition/model_switch_plan.py, tests test/test_cognition_model_promotion_transaction.py authored not run. Still missing active owner-approved provider broker, in-flight draining/health integration and verified rollback.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
