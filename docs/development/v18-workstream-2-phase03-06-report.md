@@ -2535,6 +2535,44 @@ repair of preexisting corrupt FTS blocks or proof of
 10-million-event query cost. No real rebuild, test, CI,
 database mutation or live model invocation executed.
 
+
+
+### Phase 06 item 74: Reject stale source timestamps before ranking promoted memory
+
+Canonical `DurableMemoryCandidateStore.is_recall_eligible` already
+rechecked the exact original source's role, content, audience
+and real event timestamp after retrieval. However its earlier
+`iter_promoted_summaries` keyset source guard checked only
+session, content, role and source audience. A promoted candidate
+whose original timestamp was altered could therefore consume
+a limited relevance-ranking slot before failing the later
+validation, crowding out other eligible memories.
+
+Production `src/sofia/memory/provenance_store.py` now
+excludes a source-reviewed candidate from the **SQL keyset
+summary scan** if its stored source timestamp or original
+source timestamp cannot be parsed by SQLite or if their
+UTC-normalized Julian instants differ. This retains the
+existing final Python `datetime`-precision check for
+sub-millisecond differences, and does not turn timestamps
+or unreviewed summary text into authentication grants.
+No historical source timestamp or durable candidate is
+silently rewritten; stale review remains available for
+operator diagnosis, not automatically promoted.
+
+- Production `b3ec125b257e4949f9617faaa508bd7402d02d12`
+  (`[skip ci]`).
+- Deferred canonical SQLite regression
+  `test/test_ws2_memory_original_timestamp_prefilter.py`,
+  `c2560b64fa4d71e4bf73d78b9341c5edffb139d7`
+  (`[skip ci]`).
+
+Original CA relevance: CA-4204, CA-5001, CA-5604,
+CA-5805, CA-5901, CA-5907. Original task statuses
+remain unaccepted. This is preliminary candidate filtering,
+not full bitemporal claim truth or an alternative memory store.
+No tests/CI, live source rewrites or model invocations.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
