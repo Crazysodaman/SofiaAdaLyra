@@ -2395,6 +2395,43 @@ this feature neither rewrites old timestamps nor
 claims authoritative import acceptance.
 No tests, CI, live import or host operations executed.
 
+
+
+### Phase 05 item 71: Fresh independent operator approval before Main import or rollback
+
+The real `LifelongThreadStore.apply_historical_import` and
+`rollback_historical_import` already required an external
+independent owner review over an exact digest of source/session,
+audience, requested message IDs and decision. However each method
+verified it **only before** opening its SQLite write transaction.
+An approval could be revoked during source enumeration or between
+the review and the actual history-link insertion/deletion.
+
+The canonical writer now makes one final independent review check
+**inside the same `BEGIN IMMEDIATE` transaction** after current
+original audience/source verification and before creating the
+new import receipt, new Main links or rolling back selected links.
+A stale/revoked review raises `PermissionError` and rolls back
+without source deletion or partial Main publication. Repeated
+identical already-decided imports keep their existing
+idempotent receipt contract. No new review authority is minted
+from a model message.
+
+- Production `src/sofia/conversation/lifelong.py`
+  `3102d60c5760c6d49735d8d434571df6dbbd1149`
+  (`[skip ci]`).
+- Deferred revoked-mid-operation approval coverage
+  `test/test_ws2_historical_review_revocation.py`,
+  `7657c9da9fc6ceb8414915977b22f1b0edf9a690`
+  (`[skip ci]`).
+
+Original CA relevance: CA-5502, CA-5503, CA-5505,
+CA-5506, CA-6306, CA-6311.
+The independent external verifier remains the authority source;
+this does not introduce a privileged host fencing broker,
+license live host migration or certify one-use grant behavior.
+No tests/CI, import, rollback or live owner approval performed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
