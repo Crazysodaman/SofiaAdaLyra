@@ -254,3 +254,79 @@ def test_host_pinned_media_mismatch_blocks_workshop_creation():
     )
     assert result.review.review_eligible is False
     assert "image digest differs" in ";".join(result.review.blockers)
+
+
+def test_production_fleet_manifest_exposes_only_readonly_host_and_media_inspection():
+    from sofia.distributed.authorization import remote_operation_is_read_only
+    assert remote_operation_is_read_only("workshop.inspect","host")
+    assert remote_operation_is_read_only("workshop.inspect","media")
+    assert not remote_operation_is_read_only("workshop.vm","provision")
+    assert not remote_operation_is_read_only("workshop.vm","quarantine")
+
+
+def test_canonical_preview_is_model_readable_but_never_an_action_grant(tmp_path):
+    from sofia.config.user_settings import RuntimeUserSettingsStore
+    from sofia.ops.workshop_provision import (
+        WorkshopPreflight, WorkshopRemotePreview, WorkshopPreviewStore,
+    )
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).load()
+    now=datetime.now(timezone.utc)
+    drafted=plan(
+        created_at=now,expires_at=now+timedelta(minutes=15),
+    )
+    observed_host=replace(observed(),observed_at=now)
+    decision=inspect_workshop_plan(drafted,observed_host,at=now)
+    preview=WorkshopRemotePreview(
+        drafted,observed_host,decision,str(uuid4()),
+    )
+    cache=WorkshopPreviewStore(state)
+    assert cache.read_model_brief()["status"]=="unobserved"
+    cache.record(preview)
+    cache.record(preview)
+    brief=WorkshopPreviewStore(state).read_model_brief()
+    assert brief["status"]=="observed_read_only"
+    assert brief["vm"]=="Hephaestus"
+    assert brief["hypervisor"]=="Hyper-V"
+    assert brief["observed_host_free_memory_mb"]==32768
+    assert brief["may_provision"] is False
+    assert brief["plan_fingerprint_sha256"]==drafted.fingerprint_sha256
+    assert "installer image hash" in "; ".join(brief["blockers"]) or brief["review_eligible"]
+    assert brief["notes"].startswith("Not a SAFE grant")
+    with pytest.raises(PermissionError,match="cannot be rewritten"):
+        cache.record(replace(preview,fleet_request_id=str(uuid4())))
+
+
+def test_ops_tool_uses_approved_canonical_preview_only():
+    from sofia.ops.capability import OpsCapabilitySet, create_ops_tool_bindings
+    from sofia.safe.permissions import PermissionLevel,capability_permission_policy
+
+    assert capability_permission_policy("ops.workshop.preview").level is PermissionLevel.OBSERVE_READ
+    capabilities=OpsCapabilitySet(service=object()).capabilities()
+    assert any(item.name=="ops.workshop.preview" for item in capabilities)
+    bindings=create_ops_tool_bindings()
+    assert any(
+        item.capability_name=="ops.workshop.preview"
+        for item in bindings
+    )
+    assert not any(
+        item.capability_name=="workshop.vm.provision"
+        for item in bindings
+    )
+
+
+def test_host_capacity_unknown_and_unverified_image_are_not_successful_preflight():
+    incomplete=host_data()
+    incomplete["FreeMemoryMB"]=None
+    incomplete["LogicalProcessors"]=None
+    incomplete["Drives"]=[]
+    obs=observed_hyperv_host(
+        payload=incomplete,authenticated_fleet_host_id=NODE,
+        vm_root=r"D:\SofiaLab\Hephaestus",
+    )
+    review=inspect_workshop_plan(plan(),obs,at=NOW)
+    assert not review.review_eligible
+    assert not review.may_provision
+    messages=";".join(review.blockers)
+    assert "unknown/insufficient" in messages
+    assert "hash" in messages
