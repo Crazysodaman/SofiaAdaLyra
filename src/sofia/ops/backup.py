@@ -31,6 +31,7 @@ from sofia.identity.model import IdentityBootstrapMode
 from sofia.identity.store import IdentityStore
 from sofia.ops.recovery import BackupEvidence, RestoreVerification
 from sofia.state.component_schema import verify_production_component_schemas
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.constitution.store import (
     ConstitutionStore,
@@ -212,11 +213,16 @@ class BackupEngine:
         self.cipher = cipher
 
     @staticmethod
-    def _sqlite_snapshot(source: Path, target: Path) -> None:
-        if not source.is_file():
-            raise FileNotFoundError("canonical state database does not exist")
+    def _sqlite_snapshot(
+        source: Path, target: Path, *, guard: CanonicalSQLiteGuard | None = None,
+    ) -> None:
+        # A mode=rw/default connection can silently create a new database after
+        # source loss. Preserve the existing writer identity across the backup.
+        source_guard = guard if guard is not None else CanonicalSQLiteGuard(source)
+        if source_guard.canonical_path != source.absolute():
+            raise BackupError("backup source does not match pinned canonical state")
         with (
-            closing(sqlite3.connect(source)) as src,
+            closing(source_guard.connect(timeout=10)) as src,
             closing(sqlite3.connect(target)) as dst,
         ):
             src.backup(dst)
@@ -259,6 +265,7 @@ class BackupEngine:
     ) -> tuple[Path, BackupEvidence]:
         if not isinstance(state_path, Path) or not state_path.is_file():
             raise FileNotFoundError("existing canonical state database required")
+        source_guard = CanonicalSQLiteGuard(state_path)
         if not isinstance(destination_root, Path):
             raise TypeError("destination_root must be a Path")
         if not source_host_id.strip() or not failure_domain.strip():
@@ -282,7 +289,7 @@ class BackupEngine:
             payload_dir = staging / "payload"
             payload_dir.mkdir()
             snapshot = staging / "sofia.db.snapshot"
-            self._sqlite_snapshot(state_path, snapshot)
+            self._sqlite_snapshot(state_path, snapshot, guard=source_guard)
 
             entries: list[BackupEntry] = []
             for index, (logical, source) in enumerate(
