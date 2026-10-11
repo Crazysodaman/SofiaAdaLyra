@@ -307,12 +307,23 @@ def start_owner_approved_installer(
                 isinstance(received,dict)
                 and received.get("Outcome")=="installer_boot_started"
                 and received.get("VmId")==str(handoff.hyperv_vm_id)
+                and received.get("Name")=="Hephaestus"
+                and received.get("State")=="Running"
                 and received.get("MediaSha256")==handoff.installer_sha256
                 and received.get("OsInstalled") is False
                 and received.get("FleetEnrolled") is False
+                and isinstance(received.get("ObservedAtUtc"),str)
             ):
-                status="INSTALLER_BOOT_STARTED"
-                state=received.get("State")
+                observed_at=datetime.fromisoformat(
+                    received["ObservedAtUtc"].replace("Z","+00:00")
+                )
+                if (
+                    observed_at.tzinfo is not None
+                    and observed_at.utcoffset() is not None
+                    and timedelta(0)<=now-observed_at<=timedelta(minutes=3)
+                ):
+                    status="INSTALLER_BOOT_STARTED"
+                    state="Running"
     except Exception:
         # After an installer boot request begins, transport errors can hide
         # a real host effect. Preserve UNCERTAIN, NEVER automatically retry.
