@@ -512,9 +512,14 @@ class SystemNoticeQueue:
         # invoked. The application rechecks owner stop/mute from canonical
         # storage here, AFTER claim but BEFORE a sender can create an effect.
         if pre_send_decision is not None:
-            decision = pre_send_decision()
-            if not isinstance(decision, Decision):
-                raise TypeError("pre_send_decision must return Decision")
+            try:
+                decision = pre_send_decision()
+                if not isinstance(decision, Decision):
+                    raise TypeError("pre_send_decision must return Decision")
+            except Exception:
+                # No transport has been invoked. Unknown or unreadable owner
+                # authority is a refusal, not an uncertain external effect.
+                decision = Decision.AUTHORIZATION_UNAVAILABLE
             if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
                 self._release_claim_before_send(
                     payload=payload, reason=decision.value, at=moment,
