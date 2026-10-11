@@ -1964,6 +1964,52 @@ an atomic HTTP byte-send plus credential-revocation transaction,
 revocation of already rendered content or an accepted full Phase 04.
 Tests/CI and live phone/host pairing or database operations unrun.
 
+
+
+### Phase 04 item 61: Exact original bearer epoch fences mobile notice claim and ACK
+
+Audited the actual owner-authenticated Android notification route:
+`/v1/mobile/notifications/claim` → `MobileCompanionGateway` →
+`MobileNotificationStore.claim_next` (durably marks claimed) and
+`/v1/mobile/notifications/ack` →
+`MobileNotificationStore.acknowledge` (marks displayed and can
+complete an ACT outreach receipt). The dispatch-level bearer check
+and item-60 final recheck were not sufficient for a state-changing
+operation, because an operator could revoke/rotate the paired bearer
+just before the notification's SQLite transaction yet the old
+request could still durably claim/ack a notice.
+
+Production `src/sofia/mobile/notifications.py` now accepts an
+exact, optional original authenticated `generation` +
+`credential_sha256` pair, and validates both against the live
+`mobile_device_credential` row **inside the same `BEGIN IMMEDIATE`
+transaction** that claims or acknowledges the notification.
+Incomplete/incorrect credential-epoch pairs fail closed; trusted
+in-process callers that pass neither retain their previously
+separate host authority. The real authenticated gateway now passes
+the original request-scoped epoch and fingerprint directly from
+item 60's verified context to both live notification operations.
+An invalid old bearer cannot commit a newly claimed or displayed
+state or falsely settle the associated ACT recipient receipt.
+Existing duplicate-ACK and redacted-preview behavior is retained.
+
+- Production transaction gate:
+  `f039aa3132bc356e9203ff9cb152b7a62ebc2252` (`[skip ci]`).
+- Real gateway composition:
+  `4db268c39368d44f8458c52718536a3ade1ec013` (`[skip ci]`).
+- Deferred synthetic canonical database regressions:
+  `test/test_ws2_mobile_notification_epoch_fence.py`,
+  `b78f059b2175a88228cc9820bccec4ddc89bb176`
+  (`[skip ci]`): rotation before claim, rotation before ACK,
+  and original-bearer success.
+
+Original CA relevance: CA-4103, CA-4104, CA-4109,
+CA-5303, CA-5304, CA-6302, CA-6304, CA-6311.
+This is a credential-fenced delivery transaction, **not**
+cross-host failover or a guarantee that previously displayed phone
+content can be retracted after revocation. Tests and CI unrun;
+no actual notification, mobile pairing or live host changed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
