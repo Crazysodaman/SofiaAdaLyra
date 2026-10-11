@@ -47,3 +47,16 @@ def test_saturated_mobile_server_refuses_new_work_then_recovers(tmp_path):
         for _ in range(acquired):
             slots.release()
         server.close()
+
+
+def test_close_before_start_never_waits_for_unstarted_serve_forever(tmp_path):
+    """Guest endpoint bind/start failure must not deadlock systemd shutdown."""
+    _, gateway = _gateway(tmp_path)
+    server = MobileCompanionServer(
+        gateway, credentials=gateway.credentials,
+        configuration=MobileServerConfiguration(port=0),
+    )
+    # HTTPServer.shutdown() hangs if serve_forever() was never started.
+    # This used to be called unconditionally from MobileCompanionServer.close.
+    server.close()
+    assert server._thread is None
