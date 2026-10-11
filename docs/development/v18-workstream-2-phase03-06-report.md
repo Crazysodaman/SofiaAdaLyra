@@ -1653,6 +1653,38 @@ Published candidate remains inactive. Original CA tasks not marked complete.
 Tests/CI deliberately unrun; no actual deletion, restore, migration, host
 state, certificate or network changed.
 
+
+
+### Phase 03 item 53: Crash-durable and unredirected signed pending pointer
+
+The real offline `prepare_pending_state_pointer` artifact previously
+fsynced the new `*.pending.json` bytes but not the containing directory.
+On Linux, a crash can lose a newly created pathname despite an apparently
+successful file fsync. The pending artifact also resolved its parent before
+enforcing unredirected original path spelling; a symlink or Windows junction
+could redirect the operator-owned pointer output location.
+
+Production `src/sofia/ops/state_promotion.py` now reuses the existing
+state-home pointer path guard to reject redirected pending path/ancestors
+before exclusive publication. On Linux it fsyncs the parent directory only
+after the signed file is durably closed. A post-write parent fsync failure
+raises typed `PendingHomePointerUncertain`, leaving the existing signed
+bytes intact for independent operator inspection and never attempting
+an overwrite. The code still **does not activate** a pointer, promote a
+writer epoch or move canonical `sofia.db`.
+
+Production `002eaab8a4746eef73f39f6c6b90a2fe196a0c4e`
+(`[skip ci]`); deferred no-live-host regression coverage
+`test/test_ws2_pending_home_pointer_durability.py` at
+`0807dd8a220d8a478d2138426fa5bc8d2efc5be8` (`[skip ci]`),
+including successful parent sync, uncertain post-write failure retained
+for owner reconciliation and redirected trust parent refusal.
+
+Original CA relevance: CA-3704, CA-5202, CA-5204, CA-6101,
+CA-6311, CA-6807. This is one **operator handoff artifact** slice,
+not global writer fencing or original-task completion. Tests/CI unrun;
+no actual host, service, migration, key or active pointer changed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
