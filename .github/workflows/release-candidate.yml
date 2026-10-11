@@ -58,7 +58,7 @@ jobs:
         shell: pwsh
         run: |
           python -m venv .releasevenv
-          .\.releasevenv\Scripts\python.exe -m pip install --upgrade pip
+          # Keep the interpreter-bundled pip; do not fetch an unpinned toolchain.
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock.windows-py312.txt
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt
           .\.releasevenv\Scripts\python.exe -m pip install --no-deps "$env:SOFIA_RELEASE_SOURCE"
