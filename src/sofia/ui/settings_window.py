@@ -1431,7 +1431,12 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 values=(host["host_id"], node, endpoint, state_text),
             )
 
+    fleet_feedback = Queue()
+    fleet_busy = {"active": False}
+
     def approve_fleet_candidate() -> None:
+        if fleet_busy["active"]:
+            return
         selected = fleet_tree.selection()
         if len(selected) != 1:
             messagebox.showinfo(
@@ -1477,28 +1482,44 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         ):
             return
         try:
-            now = datetime.now(timezone.utc)
-            approval = ExecutionApproval(
-                approval_id=str(uuid4()),
-                capability="fleet.enroll",
-                request_fingerprint=execution_fingerprint(
-                    "fleet.enroll",
-                    exact,
-                ),
-                approved_by="Sparks",
-                approved_at=now,
-                expires_at=now + timedelta(minutes=15),
+            from sofia.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.safe.owner_browser import authorize_exact_action
+
+            credential_id = select_security_key_for_settings(
+                config.state_path, parent=root,
             )
-            execution_approvals.record(approval)
-            result = fleet_ops.enroll_candidate({
-                **exact,
-                "approval_id": approval.approval_id,
-            })
-            refresh_fleet_candidates()
-            status.set(
-                f"Fleet candidate {result['host_id']} enrolled with exact "
-                "one-time Sparks approval."
-            )
+            fleet_busy["active"] = True
+            fleet_button.configure(state="disabled")
+            status.set("Waiting for FIDO2 approval to enroll Fleet candidate " + host_id)
+
+            def enroll_in_worker() -> None:
+                try:
+                    approval = authorize_exact_action(
+                        config.state_path,
+                        capability="fleet.enroll", parameters=exact,
+                        credential_id=credential_id, expires_seconds=120,
+                    )
+                    # Rebuild the Fleet service after authentication on this
+                    # worker; the original GUI service may own thread-bound
+                    # SQLite connections. SAFE rechecks the exact key/endpoint.
+                    service = OpsToolService(config.state_path)
+                    result = service.enroll_candidate({
+                        **exact, "approval_id": approval.approval_id,
+                    })
+                    fleet_feedback.put((
+                        "success", f"Fleet candidate {result['host_id']} enrolled "
+                        "with one-use cryptographically authenticated approval."
+                    ))
+                except Exception as exc:
+                    fleet_feedback.put(
+                        ("error", f"{type(exc).__name__}: {exc}")
+                    )
+
+            Thread(
+                target=enroll_in_worker,
+                name="sofia-approved-fleet-enrollment",
+                daemon=False,
+            ).start()
         except Exception as exc:
             messagebox.showerror(
                 "Fleet enrollment failed",
@@ -1508,17 +1529,37 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
 
     fleet_buttons = ttk.Frame(fleet_frame)
     fleet_buttons.pack(fill="x")
-    ttk.Button(
+    fleet_button = ttk.Button(
         fleet_buttons,
         text="Approve & enroll selected",
         command=approve_fleet_candidate,
-    ).pack(side="left")
+    )
+    fleet_button.pack(side="left")
     ttk.Button(
         fleet_buttons,
         text="Refresh candidates",
         command=refresh_fleet_candidates,
     ).pack(side="left", padx=(6, 0))
     refresh_fleet_candidates()
+
+    def poll_fleet_receipt() -> None:
+        try:
+            outcome, detail = fleet_feedback.get_nowait()
+        except Empty:
+            pass
+        else:
+            fleet_busy["active"] = False
+            fleet_button.configure(state="normal")
+            status.set(detail)
+            if outcome == "success":
+                refresh_fleet_candidates()
+                messagebox.showinfo("Fleet enrollment verified", detail, parent=root)
+            else:
+                messagebox.showerror("Fleet enrollment denied", detail, parent=root)
+        if root.winfo_exists():
+            root.after(250, poll_fleet_receipt)
+
+    root.after(250, poll_fleet_receipt)
 
     ttk.Checkbutton(frames["General"], text="Keep the tray running when chat closes", variable=close_to_tray).pack(anchor="w", pady=8)
     for label, variable in (("Sofía runtime service name", runtime_service), ("LLM service name", llm_service)):
