@@ -165,6 +165,7 @@ _READ_ONLY = frozenset({
     "remote.hardware.inspect",
     "remote.vm.list",
     "remote.vm.get",
+    "remote.vm.sofia.inspect",
     "remote.container.list",
     "remote.container.get",
     "remote.container.stats",
