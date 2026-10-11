@@ -331,7 +331,7 @@ class LifelongThreadStore:
             principal.audience_id, principal.audience_kind.value,
         ]
         if before is not None:
-            cursor = before[0].isoformat()
+            cursor = before[0].astimezone(timezone.utc).isoformat()
             filters += (
                 " AND (e.linked_at < ? OR "
                 "(e.linked_at = ? AND e.source_message_id < ?))"
@@ -356,6 +356,17 @@ class LifelongThreadStore:
                 "e.source_message_id DESC LIMIT ?",
                 tuple(args),
             ).fetchall()
+        # A page bound by row count alone can still exhaust a small
+        # desktop/mobile client's RAM if one source message is enormous.
+        # Reject oversized pages; never silently truncate canonical history.
+        total_text_bytes = sum(
+            len(row["content"].encode("utf-8")) for row in rows
+        )
+        if total_text_bytes > 256 * 1024:
+            raise ValueError(
+                "lifelong page exceeds the 256-KiB display budget; "
+                "retry with a smaller limit"
+            )
         return tuple(
             LifelongMessage(
                 thread_id=thread_id,
