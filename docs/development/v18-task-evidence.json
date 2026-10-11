@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "bb85d08430596d76888eb05be8b08ad1d0ad6da2",
+  "reviewed_main_sha": "0a036177f72a91d40fb585a7edbc256785aa4956",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 Phase00-02: SAFE generic approval, scoped grant, integration/DEV stop, and release wheel source-byte proof source committed. All affected CA tasks remain partial unless separately accepted; no tests/CI/live host changes. Preserve other workstreams' evidence.",
+  "notice": "WS1: source-bound SAFE generic preflight, grant scope, revocation, integration/DEV stops, authority-refusal disposition and installed-wheel provenance code committed; phase 00/01/02 tasks remain unaccepted without tests/live evidence. Other workstream records preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1715,7 +1715,9 @@
         "src/sofia/composition/authorization.py",
         "test/test_permission_runtime_wiring.py",
         "test/test_safe_permissions.py",
-        "src/sofia/integrations/capabilities.py"
+        "src/sofia/integrations/capabilities.py",
+        "src/sofia/capability/system.py",
+        "test/test_capability_system.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -1730,7 +1732,9 @@
         "31a5adbd9db044dfe0b69aad96b5b4baa12b7e67",
         "5bd2f3fc6716ce67e639099889c1047a152065a1",
         "b7513bf43a8944e2f3387c8c22f5f324f9b69beb",
-        "e14e44a5073277536d48ab245b17e078ae8cf363"
+        "e14e44a5073277536d48ab245b17e078ae8cf363",
+        "cf5f1467231465da5dad9e69ef03a9799c2ee842",
+        "7821a7c381d3567d5ea84da74c0fa6657b46d05b"
       ],
       "accepted": false,
       "coding_update": {
@@ -1739,9 +1743,9 @@
         "acceptance": "deferred"
       },
       "audit_observation": {
-        "at_sha": "49d644d135e0fbce55806c377480a65b9668fc54",
-        "depth": "production_integration_mutation_boundary",
-        "interpretation": "New source verifies generic exact approval, typed bounded standing grants, operator-stop recheck and standing grant revalidation immediately before local integration side effects. Tests authored but not run. Not universal cross-subsystem coverage or in-flight cancellation; task remains partial."
+        "at_sha": "0a036177f72a91d40fb585a7edbc256785aa4956",
+        "depth": "production_authorization_result_and_effect_boundary",
+        "interpretation": "Pre-handler PermissionError is reported as UNAUTHORIZED; handler errors remain FAILED because effects may have occurred. Earlier generic approval/standing scope/revocation checks retained. Source and regression authored, tests deferred. Full task remains partial."
       }
     },
     {
@@ -1774,7 +1778,9 @@
         "src/sofia/integrations/capabilities.py",
         "src/sofia/safe/operator_stop.py",
         "test/test_permission_runtime_wiring.py",
-        "src/sofia/dev/capability.py"
+        "src/sofia/dev/capability.py",
+        "src/sofia/capability/system.py",
+        "test/test_capability_system.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -1782,13 +1788,15 @@
         "b7513bf43a8944e2f3387c8c22f5f324f9b69beb",
         "e14e44a5073277536d48ab245b17e078ae8cf363",
         "80b1d7d236c9144c9a488a6b621910b82abb2136",
-        "bb85d08430596d76888eb05be8b08ad1d0ad6da2"
+        "bb85d08430596d76888eb05be8b08ad1d0ad6da2",
+        "cf5f1467231465da5dad9e69ef03a9799c2ee842",
+        "7821a7c381d3567d5ea84da74c0fa6657b46d05b"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "bb85d08430596d76888eb05be8b08ad1d0ad6da2",
-        "depth": "runtime_integration_and_dev_execution_boundary",
-        "interpretation": "Direct integration and DEV operations check canonical durable operator stop at local effect boundaries; generic standing-scope revocation is rechecked before effect. Tests authored, not executed. Other domains and in-flight external cancellation remain open."
+        "at_sha": "0a036177f72a91d40fb585a7edbc256785aa4956",
+        "depth": "production_authorization_result_and_effect_boundary",
+        "interpretation": "Pre-handler PermissionError is reported as UNAUTHORIZED; handler errors remain FAILED because effects may have occurred. Earlier generic approval/standing scope/revocation checks retained. Source and regression authored, tests deferred. Full task remains partial."
       }
     },
     {
