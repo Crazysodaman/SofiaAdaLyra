@@ -462,38 +462,43 @@ class BackupEngine:
             staging = Path(temp_dir)
             payload_dir = staging / "payload"
             payload_dir.mkdir()
-            snapshot = staging / "sofia.db.snapshot"
-            self._sqlite_snapshot(state_path, snapshot, guard=source_guard)
-
             entries: list[BackupEntry] = []
-            for index, (logical, source) in enumerate(
-                self._collect_files(state_path, snapshot)
-            ):
-                _reject_redirected_backup_input(source)
-                plaintext = source.read_bytes()
-                digest = sha256(plaintext).hexdigest()
-                payload_name = f"{index:04d}.bin"
-                aad = f"{backup_id}:{logical}".encode("utf-8")
-                nonce, encrypted = self.cipher.encrypt(plaintext, aad=aad)
-                (payload_dir / payload_name).write_bytes(encrypted)
-                entries.append(
-                    BackupEntry(
-                        logical_path=logical,
-                        payload_name=payload_name,
-                        sha256=digest,
-                        size=len(plaintext),
-                        nonce_b64=b64encode(nonce).decode("ascii"),
+            with tempfile.TemporaryDirectory(
+                prefix=".sofia-cleartext-snapshot-", dir=state_path.parent,
+            ) as offline_snapshot_dir:
+                snapshot = Path(offline_snapshot_dir) / "sofia.db.snapshot"
+                self._sqlite_snapshot(state_path, snapshot, guard=source_guard)
+                for index, (logical, source) in enumerate(
+                    self._collect_files(state_path, snapshot)
+                ):
+                    _reject_redirected_backup_input(source)
+                    plaintext = source.read_bytes()
+                    digest = sha256(plaintext).hexdigest()
+                    payload_name = f"{index:04d}.bin"
+                    aad = f"{backup_id}:{logical}".encode("utf-8")
+                    nonce, encrypted = self.cipher.encrypt(plaintext, aad=aad)
+                    (payload_dir / payload_name).write_bytes(encrypted)
+                    entries.append(
+                        BackupEntry(
+                            logical_path=logical,
+                            payload_name=payload_name,
+                            sha256=digest,
+                            size=len(plaintext),
+                            nonce_b64=b64encode(nonce).decode("ascii"),
+                        )
                     )
-                )
-                if logical == "sofia.db":
-                    # The SQLite online backup is temporary cleartext input,
-                    # not a member of the published encrypted archive. Remove
-                    # it as soon as its authenticated ciphertext exists.
-                    snapshot.unlink()
-
-            if snapshot.exists() or snapshot.is_symlink():
+                    if logical == "sofia.db":
+                        # The SQLite online backup is temporary cleartext input,
+                        # not a member of the published encrypted archive. Remove
+                        # it as soon as its authenticated ciphertext exists.
+                        snapshot.unlink()
+                if snapshot.exists() or snapshot.is_symlink():
+                    raise BackupError(
+                        "plaintext SQLite snapshot cannot enter encrypted archive"
+                    )
+            if (staging / "sofia.db.snapshot").exists():
                 raise BackupError(
-                    "plaintext SQLite snapshot cannot enter encrypted archive"
+                    "plaintext SQLite snapshot was left in backup staging root"
                 )
             manifest = BackupManifest(
                 backup_id=backup_id,
