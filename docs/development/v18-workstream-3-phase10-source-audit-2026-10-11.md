@@ -387,3 +387,9 @@ Production `LifeProcedureCatalog.record_verified_attempt` now requires a current
 ## 2026-10-11 production follow-up: first-writer-only skill quarantine
 
 The existing `LifeProcedureCatalog.quarantine` now atomically transitions VERIFIED→QUARANTINED exactly once, preserving the first reason and timestamp. Repeated audits or competing coordinators cannot rewrite that evidence or report a second invalidation, and never-verified candidates are rejected. `SelfDirectedLifeCoordinator._audit_procedure_sources` counts only actually changed rows. Partial original IDs CA-1405/1407/2408; production `d47f868f`, `f41b2774`; tests authored `b909eb65`, unexecuted. There is **no new reinstatement authority**: owner approval/new revision semantics remain a separate design issue rather than a silent automatic recovery.
+
+## 2026-10-11 follow-up: locked original RUN/evaluation skill proof fence
+
+- **CA-1402/1405/1407/2407/2408, partial.** `LifeProcedureCatalog.record_verified_attempt` originally verified canonical RUN/GOALS/evaluation/creative bytes prior to its SQLite lock, allowing source state to be revised between validation and catalog proof insertion.
+- **Production `4006ce3`:** bounded final source check within existing `BEGIN IMMEDIATE` validates original LIFE identity/completion, RUN job and result, original operation receipt/source chronology, link and independent typed evaluation *before* catalog/proof writes. This is descriptive knowledge only; no new skill privileges or automatic reinstatement. Validation of external asset bytes remains a separate source check.
+- **Deferred regression `6601863`:** after the already valid creative bytes pass verification, a fixture revokes original receipt or downgrades RUN job; no procedure catalog/proof row may be written. Authored only, no tests or CI run.
