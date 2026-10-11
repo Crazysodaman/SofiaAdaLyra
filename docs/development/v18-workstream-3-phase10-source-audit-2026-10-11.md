@@ -12,7 +12,36 @@
 
 | CA ID | Existing ledger classification | Key source pointer | Primary unresolved clause |
 |---|---|---|---|
+|---|---|---|---|
 | **CA-1001** | unassessed | src/sofia/application/conversation_learning.py | end-to-end event adapter missing or unproven |
+| **CA-1002** | unassessed | src/sofia/application/background_runtime.py | requires full router trace and deferred tests |
+| **CA-1003** | unassessed | src/sofia/environment/service.py | cross-caller context proof outstanding |
+| **CA-1004** | partial_wiring | src/sofia/environment/home_assistant.py | read-only event bridge and write permission matrix open |
+| **CA-1005** | unassessed | src/sofia/ops/placement.py | source identity, freshness and admission integration open |
+| **CA-1006** | partial_wiring | src/sofia/integrations/capabilities.py | source-to-user/project wiring pending |
+| **CA-1007** | unassessed | src/sofia/application/background_runtime.py | active production route, remaining delivery/channel proof |
+| **CA-1008** | unassessed | src/sofia/neuro/sensory.py | safety/observation wiring missing or unproven |
+| **CA-1009** | unassessed | src/sofia/integrations/jmri.py | read-only source bridge and separate motion/power classification needed |
+| **CA-1010** | unassessed | src/sofia/creative/world_bridge.py | simulated receipts and personal creative loop open |
+| **CA-1011** | unassessed | src/sofia/application/expression_runtime.py | render proof and offline fallback tests outstanding |
+| **CA-1012** | unassessed | src/sofia/integrations/capabilities.py | optional per-provider design/activation not assumed |
+| **CA-1401** | partial_wiring | src/sofia/life/procedures.py | catalog source connected, complete clauses pending |
+| **CA-1402** | unassessed | src/sofia/life/procedures.py | reproducible source proof code present, verification deferred |
+| **CA-1403** | unassessed | src/sofia/life/coordinator.py | safe typed lookup wired; semantic matching remaining |
+| **CA-1404** | unassessed | src/sofia/life/procedures.py | confirmed missing host/tool-version attempt compatibility |
+| **CA-1405** | unassessed | src/sofia/life/procedures.py | quarantine wired; revision/rollback policy missing |
+| **CA-1406** | unassessed | test/test_life_procedure_catalog.py | deferred restart and original-replay proof |
+| **CA-1407** | unassessed | src/sofia/life/draft_agent.py | no-bypass verification gate remains |
+| **CA-2601** | unassessed | src/sofia/integrations/capabilities.py | source registry incomplete |
+| **CA-2602** | unassessed | src/sofia/application/presence.py | one-at-a-time opt-in original event bridge pending |
+| **CA-2603** | unassessed | src/sofia/ops/fleet.py | Venus/Artemis matrix deferred |
+| **CA-2604** | unassessed | src/sofia/neuro/sensory.py | optional, owner activation and virtual proof first |
+| **CA-2605** | unassessed | src/sofia/integrations/jmri.py | optional observation-only adapter integration |
+| **CA-2606** | unassessed | src/sofia/ops/placement.py | confirmed eligibility integration gap |
+| **CA-2607** | unassessed | src/sofia/integrations/capabilities.py | optional provider-by-provider gate |
+| **CA-2608** | unassessed | src/sofia/integrations/capabilities.py | source boundary present, full permission acceptance deferred |
+
+## Original wording and source checks
 
 <details><summary>CA-1001 original requirement and observed source evidence</summary>
 
@@ -25,8 +54,6 @@
 **Not concluded:** end-to-end event adapter missing or unproven. No tests were run.
 
 </details>
-|---|---|---|
-| **CA-1002** | unassessed | src/sofia/application/background_runtime.py | requires full router trace and deferred tests |
 
 <details><summary>CA-1002 original requirement and observed source evidence</summary>
 
@@ -39,8 +66,6 @@
 **Not concluded:** requires full router trace and deferred tests. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1003** | unassessed | src/sofia/environment/service.py | cross-caller context proof outstanding |
 
 <details><summary>CA-1003 original requirement and observed source evidence</summary>
 
@@ -53,8 +78,6 @@
 **Not concluded:** cross-caller context proof outstanding. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1004** | partial_wiring | src/sofia/environment/home_assistant.py | read-only event bridge and write permission matrix open |
 
 <details><summary>CA-1004 original requirement and observed source evidence</summary>
 
@@ -67,8 +90,6 @@
 **Not concluded:** read-only event bridge and write permission matrix open. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1005** | unassessed | src/sofia/ops/placement.py | source identity, freshness and admission integration open |
 
 <details><summary>CA-1005 original requirement and observed source evidence</summary>
 
@@ -81,8 +102,6 @@
 **Not concluded:** source identity, freshness and admission integration open. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1006** | partial_wiring | src/sofia/integrations/capabilities.py | source-to-user/project wiring pending |
 
 <details><summary>CA-1006 original requirement and observed source evidence</summary>
 
@@ -95,8 +114,6 @@
 **Not concluded:** source-to-user/project wiring pending. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1007** | unassessed | src/sofia/application/background_runtime.py | active production route, remaining delivery/channel proof |
 
 <details><summary>CA-1007 original requirement and observed source evidence</summary>
 
@@ -109,8 +126,6 @@
 **Not concluded:** active production route, remaining delivery/channel proof. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1008** | unassessed | src/sofia/neuro/sensory.py | safety/observation wiring missing or unproven |
 
 <details><summary>CA-1008 original requirement and observed source evidence</summary>
 
@@ -123,8 +138,6 @@
 **Not concluded:** safety/observation wiring missing or unproven. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1009** | unassessed | src/sofia/integrations/jmri.py | read-only source bridge and separate motion/power classification needed |
 
 <details><summary>CA-1009 original requirement and observed source evidence</summary>
 
@@ -137,8 +150,6 @@
 **Not concluded:** read-only source bridge and separate motion/power classification needed. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1010** | unassessed | src/sofia/creative/world_bridge.py | simulated receipts and personal creative loop open |
 
 <details><summary>CA-1010 original requirement and observed source evidence</summary>
 
@@ -151,8 +162,6 @@
 **Not concluded:** simulated receipts and personal creative loop open. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1011** | unassessed | src/sofia/application/expression_runtime.py | render proof and offline fallback tests outstanding |
 
 <details><summary>CA-1011 original requirement and observed source evidence</summary>
 
@@ -165,8 +174,6 @@
 **Not concluded:** render proof and offline fallback tests outstanding. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1012** | unassessed | src/sofia/integrations/capabilities.py | optional per-provider design/activation not assumed |
 
 <details><summary>CA-1012 original requirement and observed source evidence</summary>
 
@@ -179,8 +186,6 @@
 **Not concluded:** optional per-provider design/activation not assumed. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1401** | partial_wiring | src/sofia/life/procedures.py | catalog source connected, complete clauses pending |
 
 <details><summary>CA-1401 original requirement and observed source evidence</summary>
 
@@ -193,8 +198,6 @@
 **Not concluded:** catalog source connected, complete clauses pending. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1402** | unassessed | src/sofia/life/procedures.py | reproducible source proof code present, verification deferred |
 
 <details><summary>CA-1402 original requirement and observed source evidence</summary>
 
@@ -207,8 +210,6 @@
 **Not concluded:** reproducible source proof code present, verification deferred. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1403** | unassessed | src/sofia/life/coordinator.py | safe typed lookup wired; semantic matching remaining |
 
 <details><summary>CA-1403 original requirement and observed source evidence</summary>
 
@@ -221,8 +222,6 @@
 **Not concluded:** safe typed lookup wired; semantic matching remaining. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1404** | unassessed | src/sofia/life/procedures.py | confirmed missing host/tool-version attempt compatibility |
 
 <details><summary>CA-1404 original requirement and observed source evidence</summary>
 
@@ -235,8 +234,6 @@
 **Not concluded:** confirmed missing host/tool-version attempt compatibility. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1405** | unassessed | src/sofia/life/procedures.py | quarantine wired; revision/rollback policy missing |
 
 <details><summary>CA-1405 original requirement and observed source evidence</summary>
 
@@ -249,8 +246,6 @@
 **Not concluded:** quarantine wired; revision/rollback policy missing. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1406** | unassessed | test/test_life_procedure_catalog.py | deferred restart and original-replay proof |
 
 <details><summary>CA-1406 original requirement and observed source evidence</summary>
 
@@ -263,8 +258,6 @@
 **Not concluded:** deferred restart and original-replay proof. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-1407** | unassessed | src/sofia/life/draft_agent.py | no-bypass verification gate remains |
 
 <details><summary>CA-1407 original requirement and observed source evidence</summary>
 
@@ -277,8 +270,6 @@
 **Not concluded:** no-bypass verification gate remains. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-2601** | unassessed | src/sofia/integrations/capabilities.py | source registry incomplete |
 
 <details><summary>CA-2601 original requirement and observed source evidence</summary>
 
@@ -291,8 +282,6 @@
 **Not concluded:** source registry incomplete. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-2602** | unassessed | src/sofia/application/presence.py | one-at-a-time opt-in original event bridge pending |
 
 <details><summary>CA-2602 original requirement and observed source evidence</summary>
 
@@ -305,8 +294,6 @@
 **Not concluded:** one-at-a-time opt-in original event bridge pending. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-2603** | unassessed | src/sofia/ops/fleet.py | Venus/Artemis matrix deferred |
 
 <details><summary>CA-2603 original requirement and observed source evidence</summary>
 
@@ -319,8 +306,6 @@
 **Not concluded:** Venus/Artemis matrix deferred. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-2604** | unassessed | src/sofia/neuro/sensory.py | optional, owner activation and virtual proof first |
 
 <details><summary>CA-2604 original requirement and observed source evidence</summary>
 
@@ -333,8 +318,6 @@
 **Not concluded:** optional, owner activation and virtual proof first. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-2605** | unassessed | src/sofia/integrations/jmri.py | optional observation-only adapter integration |
 
 <details><summary>CA-2605 original requirement and observed source evidence</summary>
 
@@ -347,8 +330,6 @@
 **Not concluded:** optional observation-only adapter integration. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-2606** | unassessed | src/sofia/ops/placement.py | confirmed eligibility integration gap |
 
 <details><summary>CA-2606 original requirement and observed source evidence</summary>
 
@@ -361,8 +342,6 @@
 **Not concluded:** confirmed eligibility integration gap. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-2607** | unassessed | src/sofia/integrations/capabilities.py | optional provider-by-provider gate |
 
 <details><summary>CA-2607 original requirement and observed source evidence</summary>
 
@@ -375,8 +354,6 @@
 **Not concluded:** optional provider-by-provider gate. No tests were run.
 
 </details>
-|---|---|---|---|
-| **CA-2608** | unassessed | src/sofia/integrations/capabilities.py | source boundary present, full permission acceptance deferred |
 
 <details><summary>CA-2608 original requirement and observed source evidence</summary>
 
