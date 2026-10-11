@@ -196,6 +196,14 @@ class LifelongThreadStore:
             for name in ("project_audience_id", "project_audience_kind"):
                 if name not in thread_columns:
                     db.execute("ALTER TABLE lifelong_thread ADD COLUMN " + name + " TEXT")
+            if "has_linked_source" not in thread_columns:
+                # A legacy source-free project has no creator-audience
+                # evidence; fail closed rather than resurrect titles whose
+                # links were removed earlier.
+                db.execute(
+                    "ALTER TABLE lifelong_thread ADD COLUMN "
+                    "has_linked_source INTEGER NOT NULL DEFAULT 1"
+                )
             if "canonical_sequence" not in columns:
                 db.execute(
                     "ALTER TABLE lifelong_thread_event "
@@ -648,8 +656,8 @@ class LifelongThreadStore:
                 db.execute(
                     "INSERT INTO lifelong_thread("
                     "thread_id,owner_principal_id,kind,name,created_at,"
-                    "project_audience_id,project_audience_kind) "
-                    "VALUES(?,?,?,?,?,?,?)",
+                    "project_audience_id,project_audience_kind,has_linked_source) "
+                    "VALUES(?,?,?,?,?,?,?,0)",
                     (identifier, owner.principal_id, kind, name, when,
                      owner.audience_id, owner.audience_kind.value),
                 )
@@ -730,6 +738,7 @@ class LifelongThreadStore:
                 + "AND ("
                 "t.kind='main' OR (t.kind='project' AND ("
                 "(t.project_audience_id=? AND t.project_audience_kind=? "
+                "AND t.has_linked_source=0 "
                 "AND NOT EXISTS (SELECT 1 FROM lifelong_thread_event AS e0 "
                 "WHERE e0.thread_id=t.thread_id)) OR EXISTS ("
                 "SELECT 1 FROM lifelong_thread_event AS e "
@@ -779,6 +788,7 @@ class LifelongThreadStore:
             "AND s.principal_id=? AND s.audience_id=? "
             "AND s.audience_kind=?) OR "
             "(project_audience_id=? AND project_audience_kind=? "
+            "AND has_linked_source=0 "
             "AND NOT EXISTS (SELECT 1 FROM lifelong_thread_event AS e0 "
             "WHERE e0.thread_id=lifelong_thread.thread_id)))",
             (thread_id, principal.principal_id, principal.audience_id,
@@ -930,6 +940,15 @@ class LifelongThreadStore:
                  datetime.now(timezone.utc).isoformat(),
                  canonical_sequence, turn_position),
             )
+            if thread["kind"] == "project":
+                # Durable even if all event links are subsequently removed.
+                # A formerly populated thread must not be reinterpreted as
+                # a never-used project and leak its old title on a new device.
+                db.execute(
+                    "UPDATE lifelong_thread SET has_linked_source=1 "
+                    "WHERE thread_id=? AND kind='project'",
+                    (thread_id,),
+                )
 
     def preview_historical_import(
         self, *, principal: PrincipalContext, session_id: str,
