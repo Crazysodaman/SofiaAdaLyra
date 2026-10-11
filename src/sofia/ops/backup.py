@@ -43,6 +43,15 @@ class BackupError(RuntimeError):
     pass
 
 
+def _reject_redirected_restore_path(path: Path) -> None:
+    """No restored files may follow symlinks or Windows junctions."""
+    for component in (path, *path.parents):
+        if component.is_symlink() or getattr(component, "is_junction", lambda: False)():
+            raise BackupError(
+                "restore destination includes a symbolic link or junction"
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class BackupEntry:
     logical_path: str
@@ -404,6 +413,15 @@ class BackupEngine:
         if not isinstance(target_state_path, Path):
             raise TypeError("target_state_path must be a Path")
         target_root = target_state_path.parent
+        # Authenticate destination locality and every archived target
+        # before staging any file, including protected identity assets.
+        _reject_redirected_restore_path(target_state_path)
+        for entry in manifest.entries:
+            dest = (
+                target_state_path if entry.logical_path == "sofia.db"
+                else target_root / entry.logical_path
+            )
+            _reject_redirected_restore_path(dest)
         target_root.mkdir(parents=True, exist_ok=True)
         if target_state_path.exists() and not replace_existing:
             raise BackupError(
@@ -471,7 +489,9 @@ class BackupEngine:
                     if logical.as_posix() == "sofia.db"
                     else target_root / logical
                 )
+                _reject_redirected_restore_path(destination)
                 destination.parent.mkdir(parents=True, exist_ok=True)
+                _reject_redirected_restore_path(destination)
                 temp_target = destination.with_name(
                     f".{destination.name}.restore"
                 )
