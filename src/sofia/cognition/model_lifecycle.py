@@ -384,7 +384,16 @@ class ModelLifecycleManager:
     def install(
         self,
         role: CognitiveModelRole,
+        *,
+        operator_approval_ref: str | None = None,
+        verify_operator_approval: Callable[[str, CognitiveModelRole, str], bool] | None = None,
     ) -> ModelLifecycleStatus:
+        """Install only with an externally verified owner receipt, never autonomously.
+
+        Existing installed models can be inspected without authorizing a pull.
+        Trusted SAFE/host controls must bind the receipt to this exact role and
+        model. This method does not create, grant, or mint owner approval.
+        """
         provider = self.provider_for(role)
         if provider.provider != self.managed_provider:
             raise ModelLifecycleError(
@@ -403,6 +412,18 @@ class ModelLifecycleManager:
                         if model in running
                         else ModelResidency.UNLOADED
                     ),
+                )
+            if (
+                not isinstance(operator_approval_ref, str)
+                or not operator_approval_ref.strip()
+                or len(operator_approval_ref) > 300
+                or not callable(verify_operator_approval)
+                or verify_operator_approval(
+                    operator_approval_ref, role, model
+                ) is not True
+            ):
+                raise PermissionError(
+                    "explicit independently verified exact-model installation approval required"
                 )
             self._transient[model] = ModelResidency.LOADING
             try:
@@ -428,15 +449,13 @@ class ModelLifecycleManager:
             )
 
     def install_missing(self) -> tuple[str, ...]:
-        if not self.policy.auto_install_missing:
-            return ()
-        installed_names: list[str] = []
-        for role in self.configured_roles:
-            status = self.status(role)
-            if status.state is not ModelResidency.UNAVAILABLE:
-                continue
-            installed_names.append(self.install(role).model)
-        return tuple(installed_names)
+        """Compatibility method only: never pull models using a standing flag.
+
+        Legacy saved auto-install settings and environment overrides have no
+        authority to install any model. A separately approved explicit
+        install(role, approval_ref, trusted_verifier) is required instead.
+        """
+        return ()
 
     def ensure_available(
         self,
