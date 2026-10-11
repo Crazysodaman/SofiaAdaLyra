@@ -459,7 +459,11 @@ class NeuroRuntime:
 
             remembered = tuple(observed)
             self._remember_signals_unlocked(remembered)
-            snapshot = self._snapshot_unlocked(now=now, stimulus=True)
+            snapshot = self._snapshot_unlocked(
+                now=now,
+                stimulus=True,
+                prioritize_current_turn=True,
+            )
             self._record_unlocked(snapshot, signals=remembered)
             return snapshot
 
@@ -483,11 +487,30 @@ class NeuroRuntime:
         *,
         now: datetime,
         stimulus: bool,
+        prioritize_current_turn: bool = False,
     ) -> NeuroStateSnapshot:
         activations = self._network.activations(now=now)
+        # A just-received, trusted foreground turn is an explicit subject
+        # change. Historic goals/faults remain eligible secondary context, but
+        # cannot steal the conversational foreground during this observation.
+        # Subsequent external observations follow normal urgency/salience.
+        if prioritize_current_turn:
+            foreground = next(
+                (item for item in activations if item.kind == "foreground"),
+                None,
+            )
+            if foreground is not None:
+                activations = (foreground,) + tuple(
+                    item for item in activations if item.key != foreground.key
+                )
         ranked = activations
         selection_method = "salience-v1"
-        selection_reason = "deterministic observed-signal ranking"
+        selection_reason = (
+            "explicit current-turn foreground priority"
+            if prioritize_current_turn and activations
+            and activations[0].kind == "foreground"
+            else "deterministic observed-signal ranking"
+        )
         # Run the small engineered competition on the SAME eligible, TTL-
         # filtered salience set. It cannot supply facts, tools, or candidates.
         # A new subject from the current Matrix turn always takes precedence.
