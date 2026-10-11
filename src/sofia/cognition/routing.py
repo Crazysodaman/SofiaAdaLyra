@@ -285,9 +285,13 @@ class RoutingCognitiveEngine(CognitiveEngine):
         CognitiveRoute.OPEN: 4,
         CognitiveRoute.VERIFY: 5,
     }
-    _REPLAY_SAFE_TOOL_VERBS = frozenset({
-        "catalog", "check", "find", "get", "inspect", "list", "query",
-        "read", "search", "show", "status",
+    # Exact tool names from the host-owned read-only CognitiveToolBinding
+    # catalog in sofia.cognition.tools. Prefixes like "get_" or "inspect_"
+    # are NOT proof of a read-only effect, even if the model says so.
+    _REPLAY_SAFE_TOOL_NAMES = frozenset({
+        "inspect_file", "inspect_directory", "search_code",
+        "inspect_codebase", "inspect_processes", "inspect_system",
+        "inspect_network", "inspect_hardware", "inspect_services",
     })
 
     def __init__(
@@ -459,15 +463,15 @@ class RoutingCognitiveEngine(CognitiveEngine):
 
     @classmethod
     def _tool_request_is_replay_safe(cls, request: CognitiveRequest) -> bool:
-        """Allow engine fallback only for visibly read-only tool definitions."""
-        if not request.tools:
-            return False
-        for tool in request.tools:
-            name = tool.name.casefold().replace(".", "_")
-            verb = name.split("_", 1)[0]
-            if verb not in cls._REPLAY_SAFE_TOOL_VERBS:
-                return False
-        return True
+        """Retry only exact host-owned, source-reviewed read-only tool names.
+
+        This is intentionally narrower than SAFE grant classification. It
+        does not authorize a tool, and never assumes a previously attempted
+        action may be replayed from its English name.
+        """
+        return bool(request.tools) and all(
+            tool.name in cls._REPLAY_SAFE_TOOL_NAMES for tool in request.tools
+        )
 
     @staticmethod
     def _request_allows_parallelism(request: CognitiveRequest) -> bool:
