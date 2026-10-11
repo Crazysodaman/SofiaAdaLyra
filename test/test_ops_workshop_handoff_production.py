@@ -226,6 +226,9 @@ def test_canonical_handoff_store_is_read_only_and_does_not_confer_authority(tmp_
     }
     now=datetime.now(timezone.utc)
     updated=vm_json(ObservedAtUtc=now.isoformat())
+    # Internal-switch isolation is independently time-stamped. Refresh BOTH
+    # receipts before claiming the handoff is eligible for owner review.
+    updated["NetworkIsolation"]["ObservedAtUtc"]=now.isoformat()
     def refreshed(node,cap,op,parameters):
         return {
             "node_id":str(NODE),"outcome":"reported_success",
