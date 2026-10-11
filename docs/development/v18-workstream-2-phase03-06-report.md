@@ -140,6 +140,34 @@ CA relevance: CA-6303, CA-6304, CA-6306, CA-4109, CA-5303.
 This is a focused production fix, not completion of any whole task ID.
 Device/host acceptance and offline stress are still pending.
 
+### Android Main conversation paging by serialized byte budget (Phase 05)
+
+Production route: authenticated Android Main-page request →
+`MobileCompanionServer.do_POST` →
+`MobileCompanionGateway.dispatch_authenticated` →
+`MobileCompanionGateway.main_history` →
+`SofiaApplication.main_thread_page` →
+`LifelongThreadStore.visible_message_page` →
+SQLite audience-filtered keyset history →
+bounded JSON response → `SofiaApi.mainPage`.
+
+The canonical pager rejects >256-KiB pages and Android also imposes a
+256-KB response reader limit. Fixed-count pages containing many valid large
+turns previously errored instead of allowing the owner to page through older
+messages. The gateway now halves the requested page width when the canonical
+owner reports its known byte-budget error or when JSON serialization exceeds
+a 192-KB conservative envelope. It preserves the identical cursor and
+audience principal, never truncates an original message, and computes the
+`has_more` marker from the effective page width.
+
+Commits:
+- `262d3cc5c0ecfa3c7f4e38a681fcb546ddbb38b6` production.
+- `66052e3fb288dc7228751492675dc600754cecc7` original-message
+  and strict audience isolation regression, authored, not executed.
+
+CA relevance: CA-4107, CA-4109, CA-5303, CA-6306, CA-6312.
+This is partial proof of those requirements, **not** whole-task acceptance.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
