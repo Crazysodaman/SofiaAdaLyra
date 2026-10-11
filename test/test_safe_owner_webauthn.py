@@ -174,3 +174,83 @@ def test_unenrolled_credential_cannot_request_a_challenge(tmp_path):
             credential_id=b64(b"not-enrolled"),
             action_fingerprint=FINGERPRINT, now=NOW,
         )
+
+
+def test_protected_approval_requires_one_fresh_owner_security_key_proof(tmp_path):
+    from uuid import uuid4
+    from sofia.safe.execution_approval import (
+        ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
+    )
+
+    state, verifier, key, credential = setup(tmp_path)
+    approver = ExecutionApprovalVerifier(state)
+    exact = {"host_id": "Artemis", "node_id": "trusted-exact-node"}
+    fingerprint = execution_fingerprint("fleet.enroll", exact)
+
+    def approval(when):
+        return ExecutionApproval(
+            approval_id=str(uuid4()),
+            capability="fleet.enroll", request_fingerprint=fingerprint,
+            approved_by="Sparks", approved_at=when,
+            expires_at=when + timedelta(minutes=5),
+        )
+
+    with pytest.raises(PermissionError, match="FIDO2"):
+        approver.record(approval(NOW + timedelta(seconds=1)))
+    challenge = verifier.issue(
+        credential_id=credential, action_fingerprint=fingerprint, now=NOW,
+    )
+    proof = verifier.verify(
+        challenge=challenge["challenge"], credential_id=credential,
+        action_fingerprint=fingerprint, security_key_required=True,
+        now=NOW + timedelta(seconds=1), **sign(key, challenge["challenge"]),
+    )
+    authenticated = approval(NOW + timedelta(seconds=2))
+    approver.record(
+        authenticated,
+        authentication_event_id=proof["authentication_event_id"],
+    )
+    assert approver.matches_unconsumed(
+        approval_id=authenticated.approval_id,
+        capability="fleet.enroll", parameters=exact,
+        now=NOW + timedelta(seconds=3),
+    )
+    with pytest.raises(PermissionError, match="already bound"):
+        approver.record(
+            approval(NOW + timedelta(seconds=3)),
+            authentication_event_id=proof["authentication_event_id"],
+        )
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM safe_execution_approval"
+        ).fetchone()[0] == 1
+
+
+def test_platform_hello_proof_cannot_be_upgraded_to_protected_fido2(tmp_path):
+    from uuid import uuid4
+    from sofia.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier
+
+    state, verifier, key, credential = setup(tmp_path, kind="platform")
+    proof_fp = "a" * 64
+    challenge = verifier.issue(
+        credential_id=credential, action_fingerprint=proof_fp, now=NOW,
+    )
+    proof = verifier.verify(
+        challenge=challenge["challenge"], credential_id=credential,
+        action_fingerprint=proof_fp, security_key_required=False,
+        now=NOW + timedelta(seconds=1), **sign(key, challenge["challenge"]),
+    )
+    approval = ExecutionApproval(
+        approval_id=str(uuid4()), capability="fleet.enroll",
+        request_fingerprint=proof_fp, approved_by="Sparks",
+        approved_at=NOW + timedelta(seconds=2),
+        expires_at=NOW + timedelta(minutes=5),
+    )
+    with pytest.raises(PermissionError, match="security key"):
+        ExecutionApprovalVerifier(state).record(
+            approval, authentication_event_id=proof["authentication_event_id"],
+        )
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM safe_execution_approval"
+        ).fetchone()[0] == 0
