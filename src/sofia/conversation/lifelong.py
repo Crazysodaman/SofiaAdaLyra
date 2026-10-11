@@ -743,7 +743,7 @@ class LifelongThreadStore:
                 "AND e.source_audience_id=? "
                 "AND s.principal_id=? AND s.audience_id=? "
                 "AND s.audience_kind=?"
-                "))) "
+                ")))) "
                 "ORDER BY CASE t.kind WHEN 'main' THEN 0 ELSE 1 END,"
                 "t.created_at DESC,t.thread_id LIMIT ?",
                 (
