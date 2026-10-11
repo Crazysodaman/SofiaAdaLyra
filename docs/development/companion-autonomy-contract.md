@@ -194,3 +194,26 @@ LifeProject.status + original RUN status + original GoalStatus
 **Idempotency/replay and correction requirement:** Reusing a previously consumed SAFE approval, executing the same external mutation after `UNCERTAIN`, or remapping stale material host observations to a new plan is forbidden. Explicit `ProjectEvent` evidence refs, RUN job IDs and event IDs must be preserved for reconciliation; corrections update the owning source/review record, not the prior event's claimed success.
 
 **Partial source audit status:** This source review confirms multiple existing decision branches and a versioned *design contract*, not all required restart/dedupe/correction/failure-injection tests or every external effect predicate. CA-3104 and CA-1202 remain **partial** until source-by-source acceptance proves all branches. The technical outcome `VALID` is not proof that the *original personal objective* was fulfilled without independent evidence.
+
+
+## CA-3101: ownership/consumer/error-state audit, 2026-10-11
+
+The project already has a **static, non-executing ownership inventory** in `src/sofia/verify/architecture_inventory.py:OWNERS`. Its listed owners include application, turn kernel, conversation, social, memory review, emotion, relationship, GOALS, LIFE, RUN, SAFE, ACT, NEURO, WORLD, Fleet, state, backup, release and VERIFY. The authoritative writer/consumer/failure table near the beginning of this document maps the same concern families to their storage and readers; its three source-to-sink paths show the user turn, independent LIFE work and fenced recovery.
+
+**Missing proof:** the AST inventory is a *source-existence tool*, not evidence that actual `SofiaApplication` production bootstrap reaches every component, all relevant data writers use one canonical `sofia.db`, failed/superseded snapshots are retained correctly or every Fleet effect enforces permission. Source-only findings cannot be promoted to a complete caller-by-caller ABI audit. The design requirement for component ownership is **partially source-wired**, pending review of actual inventory output, error-state traces, retention policy and tests.
+
+## CA-1203: existing context-window controls and unimplemented budgets
+
+A real prompt-context budget spans different owners; no one component has authority to truncate canonical originals.
+
+| Existing control | Production owner | Observed behavior | Remaining gap |
+| --- | --- | --- | --- |
+| Provider route budget | `src/sofia/cognition/budgets.py:model_token_budget` | Validated route hints target 2,048 fast, 4,096 standard, 8,192 deep/open or 16,384 verify context tokens; configured limits clamp allocations; output tokens also bounded | Actual provider token accounting and cross-model budget acceptance not measured in this work |
+| History message count | `src/sofia/cognition/matrix/context_plan.py:MatrixContextPlanner` | History limit for NONE/LAST_TURN/TOPIC_WINDOW/BOUNDED_RECENT/RETRIEVE_SPECIFIC = 1/3/8/12/1 | Counts are not token or character limits; long single source message can still dominate |
+| Per-turn domain eligibility | `TurnMatrix.domains` / `ContextPlan.included_domains` via `conversation_matrix.py` | Domains excluded at `MatrixRelevance.NONE`; user turn retained; history filtered to current policy | Provenance/freshness for every optional payload, audience transfer and cumulative size not yet individually proved |
+| Independent optional work | `application/optional_budget.py:OptionalAutonomyBudget` | Canonical daily quota reservations protect background work; separate from interactive prompt window | Reservations are conservative estimates, **not actual CPU/GPU/tokens measurements** |
+| Memory/evidence | Matrix `EvidenceRecord.source_ref`, MEMORY candidate/retrieval stores | Source-ref provenance can be exposed without importing all raw text into one prompt | Dedicated per-class caps for episodic retrieval, broadcasts, affect/style, current project and factual evidence still require code and tests |
+
+**Non-negotiable selection order:** active user intent, identity and protected policy, relevant current source/evidence and permission receipts first; bounded relevant dialogue and independently promoted memory second; optional LIFE/project/affect/wardrobe and other presentation/context last. Low-confidence, stale, unrelated or wrong-audience materials must be rejected at their source/admission boundary rather than silently truncated into apparently true statements. Retrieved references do **not** authorize tools.
+
+**Source acceptance:** existing controls support a **partial** context window solution, not the requested complete explicit per-class measured prompt budget. Any new source-specific budget must preserve canonical transcripts outside the window and report what was excluded for size, relevance, freshness or audience. Focused and full acceptance remain unrun.
