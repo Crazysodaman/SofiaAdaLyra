@@ -500,6 +500,146 @@ class SettingsSections:
         self.sql_panel(frames["ACT"], "Outreach decision and delivery trace", "act_outreach_trace")
         self.sql_panel(frames["ACT"], "Presence initiative opportunities", "presence_initiative_opportunity")
         self.sql_panel(frames["ACT"], "Evidence-backed world observations", "presence_world_observation")
+        # An explicit tray action is genuine owner feedback; absence of a
+        # response is not disinterest. This uses the same Presence decision
+        # owner as ACT, and a decline blocks future unsolicited invitations
+        # about the named private project across Desktop/Discord.
+        from sofia.application.act_service import SofiaActService
+        from sofia.application.presence import PresenceInitiativeEngine
+
+        life_feedback_frame = ttk.LabelFrame(
+            frames["ACT"], text="Personal project conversation preferences",
+            padding=10,
+        )
+        life_feedback_frame.pack(fill="x", pady=7)
+        ttk.Label(
+            life_feedback_frame,
+            text=(
+                "Choose a real recent Sofía project invitation. A decline "
+                "stops future optional updates about that project, "
+                "but does not delete the project or restrict Sofía's work."
+            ),
+            wraplength=650,
+        ).pack(anchor="w")
+        selected_life_update = tk.StringVar(root, value="")
+        life_update_options = {}
+        life_update_selector = ttk.Combobox(
+            life_feedback_frame, textvariable=selected_life_update,
+            state="readonly",
+        )
+        life_update_selector.pack(fill="x", pady=(6, 5))
+
+        def latest_life_update_opportunities():
+            with closing(self._canonical_state.connect(timeout=10)) as db:
+                db.row_factory = sqlite3.Row
+                present = db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' "
+                    "AND name='presence_initiative_opportunity'"
+                ).fetchone()
+                if present is None:
+                    return ()
+                rows = db.execute(
+                    """SELECT o.event_id, o.recipient_id, o.status,
+                              o.created_at, w.audience_id, w.value_json
+                       FROM presence_initiative_opportunity AS o
+                       JOIN presence_world_observation AS w
+                         ON w.observation_id=o.observation_id
+                       WHERE o.event_id LIKE 'life-update:%'
+                         AND o.trigger_kind='task_completed'
+                         AND o.status='queued' AND o.recipient_id=?
+                         AND w.audience_id='local:text'
+                       ORDER BY o.created_at DESC,o.event_id DESC LIMIT 64""",
+                    (local_sparks_principal().principal_id,),
+                ).fetchall()
+            parsed = []
+            seen = set()
+            for row in rows:
+                try:
+                    value = json.loads(row["value_json"])
+                except (ValueError, TypeError):
+                    continue
+                if not isinstance(value, dict):
+                    continue
+                project_id = value.get("project_id")
+                if (
+                    not isinstance(project_id, str)
+                    or not project_id or len(project_id) > 160
+                    or project_id in seen
+                ):
+                    continue
+                seen.add(project_id)
+                parsed.append((
+                    project_id, row["event_id"], row["created_at"],
+                ))
+            return tuple(parsed)
+
+        def refresh_life_update_preferences():
+            life_update_options.clear()
+            options = latest_life_update_opportunities()
+            for project_id, event_id, when in options:
+                label = f"{when}: {project_id[:72]}"
+                life_update_options[label] = (project_id, event_id)
+            labels = tuple(life_update_options)
+            life_update_selector.configure(values=labels)
+            if selected_life_update.get() not in life_update_options:
+                selected_life_update.set(labels[0] if labels else "")
+
+        def save_life_update_feedback(feedback):
+            chosen = life_update_options.get(selected_life_update.get())
+            if chosen is None:
+                raise ValueError("select a recorded personal-project invitation")
+            project_id, original_event_id = chosen
+            principal = local_sparks_principal()
+            notice = (
+                "Do not send me more unsolicited personal project updates "
+                "about this project. Sofía may continue working privately."
+                if feedback == "declined"
+                else "I welcome project updates about this particular project."
+            )
+            if not self.messagebox.askyesno(
+                "Review Sofía's project outreach?",
+                f"Project: {project_id}\n\n{notice}",
+                parent=root,
+            ):
+                return
+            owner = PresenceInitiativeEngine(
+                state_path=config.state_path,
+                act_service=SofiaActService(config.state_path),
+            )
+            owner.record_owner_life_update_feedback(
+                principal=principal,
+                project_id=project_id,
+                original_event_id=original_event_id,
+                feedback=feedback,
+                at=datetime.now(timezone.utc),
+            )
+            self.messagebox.showinfo(
+                "Project feedback recorded",
+                "Your explicit preference was stored in the canonical "
+                "Presence history; silence was not counted as a decline.",
+                parent=root,
+            )
+            refresh_life_update_preferences()
+
+        actions = ttk.Frame(life_feedback_frame)
+        actions.pack(fill="x")
+        ttk.Button(
+            actions, text="Refresh invitations",
+            command=self.guarded(refresh_life_update_preferences),
+        ).pack(side="left", padx=(0, 6))
+        ttk.Button(
+            actions, text="Don't suggest this project again",
+            command=self.guarded(
+                lambda: save_life_update_feedback("declined")
+            ),
+        ).pack(side="left", padx=(0, 6))
+        ttk.Button(
+            actions, text="I welcome this project",
+            command=self.guarded(
+                lambda: save_life_update_feedback("welcomed")
+            ),
+        ).pack(side="left")
+        refresh_life_update_preferences()
         self.group(frames["Fleet"], "fleet_cognition", "Cognitive placement", runtime.fleet_cognition or config.fleet_cognition)
         self.group(frames["Fleet"], "fleet_bootstrap", "Agent provisioning", runtime.fleet_bootstrap or config.fleet_bootstrap)
         ttk.Label(frames["Fleet"], text="Host IDs, targets and scopes are comma-separated. Discovery does not enroll hosts; provisioning requires the existing reviewed authority, package digest and signer.", wraplength=660).pack(anchor="w", pady=8)
