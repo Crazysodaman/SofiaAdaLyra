@@ -92,3 +92,22 @@ The debug APK is written to
 HTTPS endpoint and the matching token, then choose the sensor categories you
 want to share. Android shows a persistent notification while the companion
 connection is active.
+
+## Lifelong Main history (current production source path)
+
+The Android client provides a **Main history** view with an **Older** page
+action. History comes from the existing canonical conversation store through
+`POST /v1/mobile/main/page`, protected by the normal mobile bearer token.
+
+Request body: `{"device_id":"android-...","private_mode":false,"before":null,"limit":30}`.
+On subsequent pages, pass `next_before` from the previous response as
+`before`. Results contain source message ID, role, content, original and
+thread-link timestamps, `has_more`, and the caller's audience kind.
+
+**Important:** Private Main history requires the separate host private-chat
+grant, not merely the phone toggle. Denied private reads return HTTP 403.
+This is an audience-scoped projection, not a general
+cross-channel transcript. Private-mode and standard-mode sessions are distinct,
+and switching modes clears onscreen messages/drafts/history. A former private
+conversation never automatically appears in the standard Main view. Main
+retrieval cannot grant actions, touch Fleet, or deliver protected content.

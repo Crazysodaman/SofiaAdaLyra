@@ -60,6 +60,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var gesture by mutableStateOf("still")
     var busy by mutableStateOf(false)
     val messages = mutableStateListOf<ChatLine>()
+    val mainHistory = mutableStateListOf<ChatLine>()
+    var historyOpen by mutableStateOf(false)
+        private set
+    var historyHasMore by mutableStateOf(false)
+        private set
+    private var historyCursor: JSONObject? = null
 
     init {
         receivePending()
@@ -76,6 +82,52 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         secure.save(next)
         config = secure.load()
         status = "Settings saved"
+    }
+
+    fun setPrivateMode(next: CompanionSettings) {
+        // Do not permit a pending private HTTP response to populate standard UI.
+        if (busy) {
+            status = "Finish the current request before changing privacy mode"
+            return
+        }
+        if (next.privateMode != config.privateMode) {
+            // The previous mode's transcript must not remain on a shared screen.
+            messages.clear()
+            mainHistory.clear()
+            historyCursor = null
+            historyOpen = false
+            historyHasMore = false
+            draft = ""
+            mood = "settled"
+            gesture = "still"
+        }
+        save(next)
+        status = "Privacy mode changed; refresh host state"
+    }
+
+    fun showChat() { historyOpen = false }
+
+    fun loadMainHistory(reset: Boolean = true) {
+        if (busy) return
+        if (reset) {
+            mainHistory.clear()
+            historyCursor = null
+            historyHasMore = false
+        } else if (!historyHasMore) return
+        historyOpen = true
+        launchRequest {
+            val result = api.mainPage(historyCursor)
+            val array = result.getJSONArray("messages")
+            val loaded = (0 until array.length()).map { index ->
+                val item = array.getJSONObject(index)
+                val speaker = if (item.getString("role") == "user") "You" else "Sofía"
+                ChatLine(speaker, item.getString("content"))
+            }
+            if (reset) mainHistory.addAll(loaded)
+            else mainHistory.addAll(0, loaded)
+            historyCursor = result.optJSONObject("next_before")
+            historyHasMore = result.optBoolean("has_more", false)
+        }
     }
 
     private fun applyState(json: JSONObject) {
@@ -188,8 +240,8 @@ private fun SofiaScreen(model: MainViewModel) {
                 token, { token = it }, label = { Text("Pairing token") },
                 visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(),
             )
-            Toggle("Private mode", model.config.privateMode) {
-                model.save(model.config.copy(baseUrl = url, token = token, privateMode = it))
+            Toggle("Private mode", model.config.privateMode, enabled = !model.busy) {
+                model.setPrivateMode(model.config.copy(baseUrl = url, token = token, privateMode = it))
             }
             Toggle("Allow proactive notifications", model.config.proactiveNotifications) { enabled ->
                 val next = model.config.copy(
@@ -276,8 +328,19 @@ private fun SofiaScreen(model: MainViewModel) {
                 }) { Text("Save & connect") }
             }
 
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = model::showChat, enabled = !model.busy) { Text("Chat") }
+                Button(onClick = { model.loadMainHistory() }, enabled = !model.busy) {
+                    Text("Main history")
+                }
+                if (model.historyOpen && model.historyHasMore) {
+                    Button(onClick = { model.loadMainHistory(false) }, enabled = !model.busy) {
+                        Text("Older")
+                    }
+                }
+            }
             LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(model.messages) { line ->
+                items(if (model.historyOpen) model.mainHistory else model.messages) { line ->
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(10.dp)) {
                             Text(line.speaker, style = MaterialTheme.typography.labelMedium)
@@ -286,12 +349,14 @@ private fun SofiaScreen(model: MainViewModel) {
                     }
                 }
             }
-            OutlinedTextField(
-                model.draft, { model.draft = it }, label = { Text("Message Sofía") },
-                modifier = Modifier.fillMaxWidth(), enabled = !model.busy,
-            )
-            Button(onClick = model::send, enabled = !model.busy, modifier = Modifier.fillMaxWidth()) {
-                Text(if (model.busy) "Waiting…" else "Send")
+            if (!model.historyOpen) {
+                OutlinedTextField(
+                    model.draft, { model.draft = it }, label = { Text("Message Sofía") },
+                    modifier = Modifier.fillMaxWidth(), enabled = !model.busy,
+                )
+                Button(onClick = model::send, enabled = !model.busy, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (model.busy) "Waiting…" else "Send")
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -303,9 +368,12 @@ private fun SofiaScreen(model: MainViewModel) {
 }
 
 @Composable
-private fun Toggle(label: String, checked: Boolean, change: (Boolean) -> Unit) {
+private fun Toggle(
+    label: String, checked: Boolean, enabled: Boolean = true,
+    change: (Boolean) -> Unit,
+) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label)
-        Switch(checked = checked, onCheckedChange = change)
+        Switch(checked = checked, onCheckedChange = change, enabled = enabled)
     }
 }

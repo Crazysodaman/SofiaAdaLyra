@@ -1,6 +1,7 @@
 """Owner-authenticated mobile chat and sensor application boundary."""
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
@@ -10,6 +11,7 @@ import sqlite3
 
 from sofia.safe.permissions import PermissionStore
 from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.social.store import SocialSessionStore
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 
@@ -37,18 +39,31 @@ class MobileCompanionGateway:
         )
         self._conversations = {}
         self._lock = RLock()
+        self._social_sessions = SocialSessionStore(self.state_path)
         environment = getattr(self.application.runtime, "environment_service", None)
         if environment is not None and not any(
             provider.name == MobileSensorProvider.name
             for provider in environment.providers
         ):
             environment.register_provider(MobileSensorProvider(self.sensors))
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
+            # Keep the old single-mode table for verified, read-only migration.
+            # A device may have a distinct PRIVATE and SHARED conversation.
             db.execute("""
                 CREATE TABLE IF NOT EXISTS mobile_conversation_binding (
                     device_id TEXT PRIMARY KEY,
                     session_id TEXT NOT NULL UNIQUE,
                     updated_at TEXT NOT NULL
+                )
+            """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS mobile_conversation_binding_v2 (
+                    device_id TEXT NOT NULL,
+                    presentation_mode TEXT NOT NULL
+                        CHECK(presentation_mode IN ('private','standard')),
+                    session_id TEXT NOT NULL UNIQUE,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(device_id,presentation_mode)
                 )
             """)
 
@@ -76,35 +91,72 @@ class MobileCompanionGateway:
             "received_at": received.isoformat(),
         }
 
-    def _conversation(self, device_id: str):
-        existing = self._conversations.get(device_id)
+    def _conversation(self, device_id: str, *, private_mode: bool):
+        """Resume only the session belonging to the exact device AND audience.
+
+        Legacy device-only sessions migrate if their CURRENT authenticated
+        social binding matches the requested mode. An ambiguous or foreign
+        legacy session is never reused for private conversation.
+        """
+        mode = "private" if private_mode else "standard"
+        principal = self._principal(device_id, private_mode=private_mode)
+        key = (device_id, mode)
+        existing = self._conversations.get(key)
         if existing is not None:
             return existing
-        with self._connect() as db:
+        with closing(self._connect()) as db:
             row = db.execute(
-                "SELECT session_id FROM mobile_conversation_binding WHERE device_id=?",
-                (device_id,),
+                "SELECT session_id FROM mobile_conversation_binding_v2 "
+                "WHERE device_id=? AND presentation_mode=?",
+                key,
             ).fetchone()
-        session_id = None if row is None else row[0]
+            if row is not None:
+                session_id = row[0]
+                current = self._social_sessions.get(session_id)
+                if current is not None and (
+                    current.principal_id != principal.principal_id
+                    or current.audience_id != principal.audience_id
+                    or current.audience_kind is not principal.audience_kind
+                ):
+                    raise PermissionError(
+                        "stored mobile session changed its authenticated audience"
+                    )
+            else:
+                legacy = db.execute(
+                    "SELECT session_id FROM mobile_conversation_binding WHERE device_id=?",
+                    (device_id,),
+                ).fetchone()
+                candidate = None if legacy is None else legacy[0]
+                bound = None if candidate is None else self._social_sessions.get(candidate)
+                session_id = candidate if (
+                    bound is not None
+                    and bound.principal_id == principal.principal_id
+                    and bound.audience_id == principal.audience_id
+                    and bound.audience_kind is principal.audience_kind
+                ) else None
+
         try:
             conversation = self.application.open_channel_conversation(
                 session_id=session_id
             )
-        except KeyError:
+        except (KeyError, ValueError):
+            if row is not None:
+                # Broken or deleted bound sessions are not silently replaced.
+                raise
             conversation = self.application.open_channel_conversation()
         actual_session = conversation.session_id
-        if actual_session is None:
+        if not isinstance(actual_session, str) or not actual_session:
             raise RuntimeError("mobile conversation did not start")
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute(
-                """
-                INSERT INTO mobile_conversation_binding(device_id,session_id,updated_at)
-                VALUES(?,?,?) ON CONFLICT(device_id) DO UPDATE SET
-                    session_id=excluded.session_id, updated_at=excluded.updated_at
-                """,
-                (device_id, actual_session, datetime.now(timezone.utc).isoformat()),
+                "INSERT INTO mobile_conversation_binding_v2 "
+                "(device_id,presentation_mode,session_id,updated_at) "
+                "VALUES(?,?,?,?) "
+                "ON CONFLICT(device_id,presentation_mode) DO UPDATE SET "
+                "session_id=excluded.session_id,updated_at=excluded.updated_at",
+                (device_id, mode, actual_session, datetime.now(timezone.utc).isoformat()),
             )
-        self._conversations[device_id] = conversation
+        self._conversations[key] = conversation
         return conversation
 
     @staticmethod
@@ -133,7 +185,7 @@ class MobileCompanionGateway:
         if not isinstance(message, str) or not message.strip() or len(message) > 12_000:
             raise ValueError("mobile message must be 1..12000 characters")
         with self._lock:
-            conversation = self._conversation(device)
+            conversation = self._conversation(device, private_mode=private_mode)
             principal = self._principal(device, private_mode=private_mode)
             response = conversation.respond(
                 message.strip(),
@@ -155,11 +207,71 @@ class MobileCompanionGateway:
             raise TypeError("private_mode must be a bool")
         with self._lock:
             return self._state_payload(
-                self._conversation(device),
+                self._conversation(device, private_mode=private_mode),
                 response=None,
                 principal=self._principal(device, private_mode=private_mode),
                 private_mode=private_mode,
             )
+
+    def main_history(
+        self, *, device_id: object, private_mode: object = False,
+        before: object = None, limit: object = 30,
+    ) -> dict[str, object]:
+        """Authenticated read of canonical Main, never cross-audience disclosure.
+
+        Cursor is the linked timestamp and original source message ID.
+        The phone cannot supply a principal or select another source audience.
+        """
+        device = self._device(device_id)
+        if type(private_mode) is not bool:
+            raise TypeError("private_mode must be a bool")
+        if type(limit) is not int or not 1 <= limit <= 50:
+            raise ValueError("Main page limit must be 1..50")
+        cursor = None
+        if before is not None:
+            if not isinstance(before, dict) or set(before) != {
+                "linked_at", "message_id",
+            }:
+                raise ValueError("Main cursor schema is invalid")
+            raw_time, raw_id = before["linked_at"], before["message_id"]
+            if not isinstance(raw_time, str) or not isinstance(raw_id, str):
+                raise TypeError("Main cursor fields must be strings")
+            if not 1 <= len(raw_time) <= 64 or not 1 <= len(raw_id) <= 160:
+                raise ValueError("Main cursor fields exceed bounds")
+            timestamp = datetime.fromisoformat(raw_time)
+            if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+                raise ValueError("Main cursor timestamp must be timezone-aware")
+            cursor = (timestamp, raw_id)
+
+        principal = self._principal(device, private_mode=private_mode)
+        if private_mode and not self.permissions.private_adult_authority().private_chat:
+            raise PermissionError("private Main history requires the host private-chat grant")
+        with self._lock:
+            page = self.application.main_thread_page(
+                principal=principal, before=cursor, limit=limit,
+            )
+        messages = [
+            {
+                "id": item.message.id,
+                "role": item.message.role.value,
+                "content": item.message.content,
+                "created_at": item.message.created_at.isoformat(),
+                "linked_at": item.linked_at.isoformat(),
+            }
+            for item in page
+        ]
+        first = page[0] if page else None
+        return {
+            "messages": messages,
+            "next_before": (
+                None if first is None else {
+                    "linked_at": first.linked_at.isoformat(),
+                    "message_id": first.message.id,
+                }
+            ),
+            "has_more": len(page) == limit,
+            "audience_kind": principal.audience_kind.value,
+        }
 
     def claim_notification(
         self, *, device_id: object, private_mode: object = False

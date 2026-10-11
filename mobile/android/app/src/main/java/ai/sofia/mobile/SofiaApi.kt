@@ -48,6 +48,16 @@ class SofiaApi(private val settings: SecureSettings) {
             .put("private_mode", config.privateMode))
     }
 
+    fun mainPage(before: JSONObject? = null, limit: Int = 30): JSONObject {
+        val config = settings.load()
+        val body = JSONObject()
+            .put("device_id", settings.deviceId)
+            .put("private_mode", config.privateMode)
+            .put("before", before ?: JSONObject.NULL)
+            .put("limit", limit)
+        return post("/v1/mobile/main/page", body)
+    }
+
     fun sensors(payload: JSONObject): JSONObject = post("/v1/mobile/sensors", payload)
 
     fun claimNotification(): ProactiveNotification? {

@@ -24,6 +24,7 @@ class MobileGatewayProtocol(Protocol):
     def ingest_sensors(self, payload: object) -> dict[str, object]: ...
     def chat(self, **kwargs: object) -> dict[str, object]: ...
     def state(self, **kwargs: object) -> dict[str, object]: ...
+    def main_history(self, **kwargs: object) -> dict[str, object]: ...
     def claim_notification(self, **kwargs: object) -> dict[str, object]: ...
     def acknowledge_notification(self, **kwargs: object) -> dict[str, object]: ...
 
@@ -59,8 +60,8 @@ class MobileCompanionServer:
         configuration: MobileServerConfiguration = MobileServerConfiguration(),
     ) -> None:
         for method in (
-            "ingest_sensors", "chat", "state", "claim_notification",
-            "acknowledge_notification",
+            "ingest_sensors", "chat", "state", "main_history",
+            "claim_notification", "acknowledge_notification",
         ):
             if not callable(getattr(gateway, method, None)):
                 raise TypeError("gateway must implement the mobile gateway protocol")
@@ -140,6 +141,17 @@ class MobileCompanionServer:
                             device_id=payload["device_id"],
                             private_mode=payload["private_mode"],
                         )
+                    elif self.path == "/v1/mobile/main/page":
+                        if set(payload) != {
+                            "device_id", "private_mode", "before", "limit"
+                        }:
+                            raise ValueError("Main page payload fields are invalid")
+                        result = outer.gateway.main_history(
+                            device_id=payload["device_id"],
+                            private_mode=payload["private_mode"],
+                            before=payload["before"],
+                            limit=payload["limit"],
+                        )
                     elif self.path == "/v1/mobile/notifications/claim":
                         if set(payload) != {"device_id", "private_mode"}:
                             raise ValueError("notification claim fields are invalid")
@@ -157,6 +169,11 @@ class MobileCompanionServer:
                     else:
                         self._send(404, {"error": "not_found"})
                         return
+                except PermissionError:
+                    # Private-history grants and source audience checks are
+                    # host-owned. Never turn a policy denial into HTTP 500.
+                    self._send(403, {"error": "forbidden"})
+                    return
                 except (TypeError, ValueError, KeyError, json.JSONDecodeError):
                     self._send(400, {"error": "invalid_request"})
                     return
