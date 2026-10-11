@@ -491,7 +491,9 @@ class NeuroRuntime:
                 values = dict(result.activations)
                 if (
                     set(values) != keys
+                    or len(result.activations) != len(keys)
                     or result.winner not in keys
+                    or result.winner != result.activations[0][0]
                     or not all(math.isfinite(v) and 0 <= v <= 1
                                for v in values.values())
                 ):
@@ -501,6 +503,7 @@ class NeuroRuntime:
                               if item.key == result.winner)
                 # Current-turn focus and clearly stronger deterministic
                 # priorities cannot be displaced by recurrence.
+                selected = primary
                 if (
                     primary.kind not in _TURN_SIGNAL_KINDS
                     and winner.score >= primary.score - 0.04
@@ -508,10 +511,20 @@ class NeuroRuntime:
                     ranked = (winner,) + tuple(
                         item for item in activations if item.key != winner.key
                     )
+                    selected = winner
                 selection_method = self._competition.ALGORITHM_VERSION
+                # Machine-safe source IDs and bounded scores only. The circuit
+                # never supplies an untrusted explanation or observational fact.
+                if primary.kind in _TURN_SIGNAL_KINDS:
+                    rule = "current-turn precedence"
+                elif selected is primary and winner.key != primary.key:
+                    rule = "deterministic salience margin"
+                else:
+                    rule = "bounded circuit selection"
                 selection_reason = (
-                    "bounded eligible-signal competition; explicit turn "
-                    "and salience margins retain precedence"
+                    f"{rule}: selected={selected.key}, "
+                    f"baseline={primary.key} ({primary.score:.3f}), "
+                    f"circuit={winner.key} ({values[winner.key]:.3f})"
                 )
                 self._last_competition_error = None
             except Exception as exc:
