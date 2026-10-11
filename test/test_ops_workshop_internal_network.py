@@ -116,7 +116,7 @@ def test_host_inspection_never_converts_internal_switch_into_network_permission(
     for value in (
         "Get-NetIPAddress","Get-NetIPInterface","Get-NetNat",
         "Get-NetRoute","Get-DnsClientServerAddress",
-        "HNetCfg.HNetShare","Get-VMNetworkAdapter -All",
+        "HNetCfg.HNetShare","Get-VM -ErrorAction Stop",
     ):
         assert value in command
     for forbidden in ("New-VMSwitch","Connect-VMNetworkAdapter","Set-NetIPAddress"):
