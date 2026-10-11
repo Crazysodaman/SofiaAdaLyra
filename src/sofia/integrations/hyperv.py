@@ -32,6 +32,73 @@ class HyperVAdapter:
         cmd=f"Stop-VM -Name {self._ps(name)} -ErrorAction Stop"
         if force: cmd+=" -TurnOff"
         self._runner(cmd+" | Out-Null")
+    def workshop_host(self) -> dict[str, Any]:
+        """Host-only read-only Hyper-V capacity and topology observation.
+
+        It cannot create a VM, install an OS, make a switch, change a disk
+        or access the canonical Sofía guest. Output remains untrusted until
+        the Fleet mTLS node identity and observation freshness are checked.
+        """
+        command = (
+            "$ErrorActionPreference='Stop'; "
+            "$hostInfo=Get-VMHost -ErrorAction Stop; "
+            "$os=Get-CimInstance Win32_OperatingSystem -ErrorAction Stop; "
+            "$cpu=@(Get-CimInstance Win32_Processor -ErrorAction Stop | "
+            "Measure-Object -Property NumberOfLogicalProcessors -Sum); "
+            "$logical=[int]$cpu[0].Sum; "
+            "$drives=@(Get-CimInstance Win32_LogicalDisk -Filter "
+            "\"DriveType=3\" -ErrorAction Stop | ForEach-Object { "
+            "[pscustomobject]@{Drive=[string]$_.DeviceID; "
+            "FreeBytes=[long]$_.FreeSpace}}); "
+            "$machines=@(Get-VM -ErrorAction Stop | ForEach-Object { "
+            "[pscustomobject]@{Name=[string]$_.Name; "
+            "State=[string]$_.State; "
+            "AssignedBytes=[long]$_.MemoryAssigned}}); "
+            "$switches=@(Get-VMSwitch -ErrorAction Stop | ForEach-Object { "
+            "[pscustomobject]@{Name=[string]$_.Name; "
+            "SwitchType=[string]$_.SwitchType}}); "
+            "[pscustomobject]@{ "
+            "Platform='Hyper-V'; "
+            "HypervisorAvailable=($null -ne $hostInfo); "
+            "WindowsHostVersion=[string]$os.Version; "
+            "LogicalProcessors=$logical; "
+            "FreeMemoryMB=[int][math]::Floor("
+            "[double]$os.FreePhysicalMemory/1024); "
+            "TotalMemoryMB=[int][math]::Floor("
+            "[double]$os.TotalVisibleMemorySize/1024); "
+            "Drives=$drives; Machines=$machines; Switches=$switches "
+            "} | ConvertTo-Json -Depth 5 -Compress"
+        )
+        raw = self._runner(command)
+        try:
+            result = json.loads(raw)
+        except (ValueError, TypeError) as exc:
+            raise HyperVError("unparseable read-only Hyper-V host data") from exc
+        if (
+            not isinstance(result, dict)
+            or result.get("Platform") != "Hyper-V"
+            or result.get("HypervisorAvailable") is not True
+            or not isinstance(result.get("WindowsHostVersion"), str)
+        ):
+            raise HyperVError("Hyper-V host presence could not be verified")
+        return result
+
+    def workshop_image_sha256(self, image_path: str) -> str:
+        """Hash an exactly reviewed local image path, without loading it."""
+        from sofia.ops.workshop_provision import _path
+        verified_path = str(_path(image_path))
+        # A fixed cmdlet and a quoted local path, never arbitrary scripts.
+        command = (
+            "Get-FileHash -LiteralPath " + self._ps(verified_path)
+            + " -Algorithm SHA256 -ErrorAction Stop "
+            "| Select-Object -ExpandProperty Hash"
+        )
+        result = self._runner(command).strip().lower()
+        import re
+        if re.fullmatch(r"[0-9a-f]{64}", result) is None:
+            raise HyperVError("image hash not observed or not SHA-256")
+        return result
+
     @staticmethod
     def _reject_canonical_runtime_management(name: str) -> None:
         # This shared adapter serves both local and remote Fleet VM tools.
