@@ -32,6 +32,7 @@ from sofia.safe.execution_approval import (
     execution_fingerprint,
 )
 from sofia.safe.secret_store import ProtectedSecretStore
+from sofia.safe.operator_stop import OperatorStopStore
 from sofia.safe.permissions import (
     PermissionStore,
     capability_permission_policy,
@@ -173,6 +174,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     secrets = ProtectedSecretStore.for_state_path(config.state_path)
     permission_store = PermissionStore(config.state_path)
     execution_approvals = ExecutionApprovalVerifier(config.state_path)
+    operator_stop_store = OperatorStopStore(config.state_path)
     private_authority = permission_store.private_adult_authority()
     activity = HostActivityStore(config.state_path)
     current = store.enforce_canonical_local_chat(
@@ -997,6 +999,72 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         ),
         wraplength=720,
     ).pack(anchor="w", pady=(0, 8))
+
+    stop_frame = ttk.LabelFrame(
+        permissions, text="Operator stop for optional autonomy", padding=8,
+    )
+    stop_frame.pack(anchor="w", fill="x", pady=(0, 10))
+    stop_state_label = tk.StringVar(value="Checking canonical stop state")
+
+    def refresh_operator_stop() -> None:
+        current = operator_stop_store.current()
+        stop_state_label.set(
+            ("PAUSED" if current.active else "RUNNING")
+            + f" | {current.reason} | {current.updated_at.isoformat()}"
+        )
+
+    def change_operator_stop(*, active: bool) -> None:
+        operation = "PAUSE" if active else "RESUME"
+        if not active and not messagebox.askyesno(
+            "Resume optional autonomy?",
+            "Resume optional LIFE work and approved ACT deliveries? "
+            "Previously authorized side effects still require their own "
+            "normal permission checks.",
+            parent=root,
+        ):
+            return
+        try:
+            operator_stop_store.set(
+                active=active, updated_by="Sparks",
+                reason=(
+                    "operator paused optional autonomy in Settings"
+                    if active else "operator resumed optional autonomy in Settings"
+                ),
+            )
+            refresh_operator_stop()
+            status.set(f"Operator stop: {operation.lower()} recorded in canonical state.")
+        except Exception as exc:
+            messagebox.showerror(
+                "Operator stop unchanged", f"{type(exc).__name__}: {exc}",
+                parent=root,
+            )
+
+    ttk.Label(
+        stop_frame, textvariable=stop_state_label, wraplength=680,
+    ).pack(anchor="w", pady=(0, 6))
+    stop_buttons = ttk.Frame(stop_frame)
+    stop_buttons.pack(fill="x")
+    ttk.Button(
+        stop_buttons, text="Pause optional work",
+        command=lambda: change_operator_stop(active=True),
+    ).pack(side="left")
+    ttk.Button(
+        stop_buttons, text="Resume optional work",
+        command=lambda: change_operator_stop(active=False),
+    ).pack(side="left", padx=(6, 0))
+    ttk.Button(
+        stop_buttons, text="Refresh state", command=refresh_operator_stop,
+    ).pack(side="left", padx=(6, 0))
+    ttk.Label(
+        stop_frame,
+        text=(
+            "Keeps chat available. LIFE, ACT and covered mutation handlers "
+            "read the same durable stop. This is not a substitute for "
+            "authenticated device ownership or cancellation of an in-flight remote effect."
+        ),
+        wraplength=680,
+    ).pack(anchor="w", pady=(6, 0))
+    refresh_operator_stop()
 
     levels_frame = ttk.LabelFrame(
         permissions,
