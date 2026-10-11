@@ -442,6 +442,40 @@ class LifeProcedureCatalog:
                 ).fetchone()[0]),
             ) for row in rows)
 
+    def source_projects_for_compatible_precedent(
+        self, *, procedure: ProcedureRecord, project: LifeProject,
+        limit: int = 64,
+    ) -> tuple[str, ...]:
+        """Exact compatible proof sources, never a global newest-N gate."""
+        if type(limit) is not int or not 2 <= limit <= 128:
+            raise ValueError("bounded original procedure source lookup required")
+        key, environment = self._definition(project)
+        if (
+            not isinstance(procedure, ProcedureRecord)
+            or procedure.procedure_id != key or procedure.status != "verified"
+            or procedure.owner_principal_id != project.owner_principal_id
+            or procedure.audience_id != project.audience_id
+            or procedure.environment != environment
+        ):
+            return ()
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT status FROM life_procedure_catalog "
+                "WHERE procedure_id=? AND owner_principal_id=? "
+                "AND audience_id=? AND environment=?",
+                (key, project.owner_principal_id, project.audience_id, environment),
+            ).fetchone()
+            if row is None or row[0] != "verified":
+                return ()
+            originals = db.execute(
+                "SELECT DISTINCT project_id FROM life_procedure_proof "
+                "WHERE procedure_id=? ORDER BY project_id LIMIT ?",
+                (key, limit + 1),
+            ).fetchall()
+        if len(originals) > limit:
+            return ()
+        return tuple(item[0] for item in originals)
+
     def verified_proof_projects(
         self, *, limit: int = 16,
     ) -> tuple[tuple[str, tuple[str, ...]], ...]:
