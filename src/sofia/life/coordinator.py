@@ -1201,28 +1201,48 @@ class SelfDirectedLifeCoordinator:
             or (artifact_id, revision.revision) not in self.store.artifacts(project_id)
         ):
             raise PermissionError("artifact is not linked to this project")
-        if technical_outcome is TechnicalOutcome.VALID:
-            # An LLM-supplied dict of True values is *not* an independent
-            # evaluation. Every original objective must be checked against
-            # immutable artifact bytes by the closed deterministic registry.
-            from .validation import inspect_objective_artifact, ObjectiveDisposition
-            objective_report = inspect_objective_artifact(
-                revision=revision, path=path, objectives=project.brief.objectives,
+        # Every technical assertion must match the independently inspected
+        # ORIGINAL objectives, not merely claims of success. In particular
+        # a generator or a reviewer cannot invent a FAIL to trigger more RUN
+        # work, nor claim INCONCLUSIVE when a typed predicate already failed.
+        from .validation import inspect_objective_artifact, ObjectiveDisposition
+        objective_report = inspect_objective_artifact(
+            revision=revision, path=path, objectives=project.brief.objectives,
+        )
+        if (
+            objective_report.revision != revision.revision
+            or objective_report.integrity is not ObjectiveDisposition.PASS
+        ):
+            raise ValueError("artifact byte integrity must pass before critique")
+        independently_observed = {
+            item.objective: (
+                True if item.disposition is ObjectiveDisposition.PASS
+                else False if item.disposition is ObjectiveDisposition.FAIL
+                else None
             )
-            if set(objective_results) != set(project.brief.objectives):
-                raise ValueError("VALID critique must cover every original project objective")
-            if not objective_report.eligible_for_independent_completion:
-                raise ValueError(
-                    "independent objective checks failed or abstained; "
-                    "self-reported model success cannot count as VERIFIED"
-                )
-            if any(
-                result is not True for result in objective_results.values()
-            ) or any(
-                finding.disposition is not ObjectiveDisposition.PASS
-                for finding in objective_report.findings
-            ):
-                raise ValueError("technical validity requires independent objective PASS")
+            for item in objective_report.findings
+        }
+        if (
+            set(objective_results) != set(project.brief.objectives)
+            or dict(objective_results) != independently_observed
+        ):
+            raise ValueError(
+                "critique results must match independently checked "
+                "original artifact objectives"
+            )
+        if objective_report.eligible_for_independent_completion:
+            observed_outcome = TechnicalOutcome.VALID
+        elif any(
+            finding.disposition is ObjectiveDisposition.FAIL
+            for finding in objective_report.findings
+        ):
+            observed_outcome = TechnicalOutcome.INVALID
+        else:
+            observed_outcome = TechnicalOutcome.INCONCLUSIVE
+        if technical_outcome is not observed_outcome:
+            raise ValueError(
+                "technical critique conflicts with independent objective checks"
+            )
         # Repeated ticks/restarts must not promote the same artifact revision
         # into multiple independent judgments or memory/preference updates.
         # A changed judgment requires an explicit reviewed correction path.
