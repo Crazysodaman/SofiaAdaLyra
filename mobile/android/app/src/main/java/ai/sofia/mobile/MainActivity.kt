@@ -67,7 +67,9 @@ internal fun isOfflineNetworkFailure(error: Throwable): Boolean =
         error is SocketException
 
 data class ChatLine(val speaker: String, val text: String)
-data class ProjectThreadChoice(val threadId: String, val name: String)
+data class ProjectThreadChoice(
+    val threadId: String, val name: String, val archived: Boolean = false,
+)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val secure = SecureSettings(application)
@@ -87,6 +89,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val messages = mutableStateListOf<ChatLine>()
     val mainHistory = mutableStateListOf<ChatLine>()
     val projectThreads = mutableStateListOf<ProjectThreadChoice>()
+    var includeArchivedProjects by mutableStateOf(false)
+        private set
     var selectedProjectId by mutableStateOf<String?>(null)
         private set
     var selectedProjectName by mutableStateOf<String?>(null)
@@ -456,8 +460,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun listVisibleProjects() {
         if (busy) return
+        val includeArchived = includeArchivedProjects
         launchRequest {
-            val result = withContext(Dispatchers.IO) { api.visibleThreads() }
+            val result = withContext(Dispatchers.IO) {
+                api.visibleThreads(includeArchived = includeArchived)
+            }
+            require(result.optBoolean("include_archived", false) == includeArchived) {
+                "Server did not honor requested archive visibility"
+            }
             val records = result.getJSONArray("threads")
             val visible = (0 until records.length()).mapNotNull { index ->
                 val item = records.getJSONObject(index)
@@ -465,16 +475,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     ProjectThreadChoice(
                         threadId = item.getString("thread_id"),
                         name = item.getString("name"),
+                        archived = item.optBoolean("archived", false),
                     )
             }
             projectThreads.clear()
             projectThreads.addAll(visible)
             status = if (visible.isEmpty()) {
-                "No project thread has visible source messages for this audience."
+                "No authorized projects in this audience."
             } else {
-                "Select a project to browse its authorized originals, read-only."
+                "Choose a project to browse its original history, read-only."
             }
         }
+    }
+
+    fun toggleArchivedProjects() {
+        if (busy) return
+        includeArchivedProjects = !includeArchivedProjects
+        selectedProjectId = null
+        selectedProjectName = null
+        historyOpen = false
+        historyHasMore = false
+        historyCursor = null
+        mainHistory.clear()
+        listVisibleProjects()
     }
 
     fun openProjectThread(
@@ -828,6 +851,14 @@ private fun SofiaScreen(model: MainViewModel) {
                     }
                 }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = model::toggleArchivedProjects,
+                    enabled = !model.busy,
+                ) {
+                    Text(if (model.includeArchivedProjects) "Hide archived" else "Include archived")
+                }
+            }
             if (model.projectThreads.isNotEmpty()) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(model.projectThreads) { project ->
@@ -838,7 +869,12 @@ private fun SofiaScreen(model: MainViewModel) {
                                 )
                             },
                             enabled = !model.busy,
-                        ) { Text(project.name) }
+                        ) {
+                            Text(
+                                if (project.archived) "${project.name} (archived)"
+                                else project.name,
+                            )
+                        }
                     }
                 }
             }
