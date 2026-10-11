@@ -494,3 +494,30 @@ Outstanding design dependency for Phase 07: explicit user policy for physical de
 - `9f1911cd`, `f72fb76a`, `0f30f852`, `d786f0e9`, `383b04c5`: Final queued-notice authority check is now wired into ACT **after claim and before sender invocation**, with exact original project/recipient feedback state read from canonical Presence data. `Decision.USER_DECLINED` is distinct from global mute. An unsent declined notice becomes terminal `failed/OwnerDeclinedProject` with truthful suppressed trace and **zero real delivery attempts**; it never calls Desktop or Discord sender. This closes a deliberate user decline after model choice/queueing. Deferred regression covers no sender effects, no retries and no false acknowledgement.
 
 All production source changes are committed on `main` with `[skip ci]`; test **source** is committed but not executed, and no host, transport, model or hardware side effect was performed. The 175 original CA task IDs are still not globally reconciled as coding complete. The operator-stored two-snapshot-per-target policy remains unchanged.
+
+## Further Phase 07/08/10 production hardening: response to keep coding
+
+On `main` with `[skip ci]`. Source-authored integration regressions were added but **no tests/CI/hosts/network/model calls were executed**.
+
+### Phase 07: verified Option B restoration
+
+- `da3ed9ac`, `df2e4b28`: Canonical exact-ID memory erasure now clears reviewed `memory_candidate_source_review` foreign-key attestations and derived `neuro_association_weight`/event receipts as well as source text, validity, correction and candidate rows. Regression fixtures include both real-looking review and NEURO derived rows; no model can resurrect an orphaned candidate by a different role.
+- `e5a1e1c9`, `9e5c16e7`: New `MemoryDeletionLedger.verify_applied` reads original signed journal and actual target SQLite state after erasure replay, rejects any surviving deleted original/derived rows and absent/conflicting local deletion guard, and is required in the real staged encrypted restore **before** publication.
+- `530b598f`: Offline `python -m sofia.memory.deletion_cli ... verify-applied` provides the same authenticated read-only audit without mutating owner memory.
+- `04573855`, `c22a28fa`: Deferred regressions surfaced an edge case: if a primary candidate was already absent, replay previously skipped orphaned copied-source rows. That path now always cleans dependent data even when the primary ID is gone; primary deletion count remains idempotent. Tampered guard and orphaned source rows fail verification.
+- The journal still does not claim deletion of source conversation originals, remote files, other independently generated candidate UUIDs, or external copies, and signed-journal rollback freshness still requires independent storage/witness policy.
+
+### Phase 08: real owner feedback and delivery authority
+
+- `6fbf3eb2`, `2c46387e`: Canonical Presence stores explicit owner-only, project-specific welcome or decline from a genuine previously queued personal LIFE event. Production LIFE bridge selects a non-declined eligible project before calling the model, rechecks after cognition, and never interprets no-response as rejection.
+- `aaab0329`, `0e94acfe`: `SofiaApplication` exposes the authenticated owner feedback API, and real Desktop ACT settings present reviewed owner controls to welcome/decline recent source-linked private project invitations.
+- `0ae7fc70`, `284b1a44`, `71182105`: Reversible human decisions are appended to canonical feedback history and projected as latest preference; conflicting anonymous model text or foreign audience cannot change them. Repeated identical feedback does not create duplicates.
+- `9f1911cd`, `f72fb76a`, `0f30f852`, `d786f0e9`, `383b04c5`: A declined project is rechecked at ACT's **post-claim pre-transport** stage using the exact original LIFE project, recipient and audience. A stale queued notice is terminally suppressed with `OwnerDeclinedProject`, no sender invocation, no fake recipient ACK and no retry. This reuses original ACT queue and trace, not a new sender.
+- Only a separately authenticated real owner UI/channel invocation can record these preferences. Delivery accepted does not imply read/heard.
+
+### Phase 10: actual guarded procedure reuse and writer integrity
+
+- `e56a4eae`, `6360151a`, `ed49953d`: LIVE LIFE text/story draft and revision callbacks now receive, when applicable, a maximum of two non-executable `ProcedureRecord` precedents with exact owner/audience, current OS/Python environment, original typed goals and capability requirements. The catalog must be VERIFIED from two independent projects AND all source projects must still pass current independent objective and source receipt verification. Model output remains untrusted and Project Forge/SAFE/RUN still own effects.
+- `bfd7a241`, `de0804bc`, `d572963e`: Even a future direct caller of `LifeProcedureCatalog.record_verified_attempt` must pass actual current creative revision, artifact digest and typed objective validation **inside** the catalog write path, not merely cite historic successful RUN/evaluation labels. Unexecuted source regression corrupts bytes after verified RUN and confirms the catalog cannot promote them; test import dependency corrected.
+
+Original CA task ledger coverage for all 175 assigned IDs remains incomplete and not approved as done. No executed tests, deployment, host or physical/virtual robot actions, Discord sends, migration, backup rotation, or model inference occurred.
