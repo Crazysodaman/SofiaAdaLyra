@@ -170,3 +170,40 @@ def test_heartbeat_failure_is_diagnostic_not_scheduler_failure():
         healthy=False,
     )
     assert coordinator.last_heartbeat_error is None
+
+
+def test_operator_pause_prevents_all_optional_background_dispatch(tmp_path):
+    """Central scheduler must not wake reflection, LIFE, ACT or Fleet on PAUSE."""
+    from types import SimpleNamespace
+
+    from sofia.safe.operator_stop import OperatorStopStore
+
+    state = tmp_path / "sofia.db"
+    coordinator = ApplicationBackgroundCoordinator.__new__(
+        ApplicationBackgroundCoordinator
+    )
+    coordinator.budget = BackgroundBudget(state)
+    coordinator.idle_seconds = 1
+    coordinator.service = SimpleNamespace(
+        ready_for_idle_reflection=lambda **kwargs: pytest.fail(
+            "PAUSE must precede even idle reflection readiness"
+        ),
+    )
+    coordinator._tasks = {
+        "independent_life": lambda now: pytest.fail("LIFE ran while paused"),
+        "fleet_discovery": lambda now: pytest.fail("Fleet ran while paused"),
+    }
+    coordinator._act_delivery = lambda now: pytest.fail("ACT ran while paused")
+
+    OperatorStopStore(state).set(
+        active=True,
+        updated_by="Sparks",
+        reason="emergency operator pause",
+        at=NOW,
+    )
+
+    assert coordinator.run_once(now=NOW + timedelta(minutes=1)) == "operator_stopped"
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM application_background_claims"
+        ).fetchone()[0] == 0
