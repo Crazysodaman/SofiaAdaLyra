@@ -607,17 +607,19 @@ class PermissionStore:
                 "standing permission requires fresh FIDO2 owner approval"
             )
         from sofia.safe.execution_approval import ExecutionApprovalVerifier
-        ExecutionApprovalVerifier(self.path).consume(
-            approval_id=approval_id,
-            capability="safe.permission.standing.grant",
-            parameters=standing_grant_parameters(
-                capability, scope=normalized_scope, grant_id=identifier,
-                expires_at=expires_at,
-            ),
-            now=moment,
-        )
+        verifier = ExecutionApprovalVerifier(self.path)
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            verifier.consume(
+                approval_id=approval_id,
+                capability="safe.permission.standing.grant",
+                parameters=standing_grant_parameters(
+                    capability, scope=normalized_scope, grant_id=identifier,
+                    expires_at=expires_at,
+                ),
+                now=moment,
+                _transaction_db=db,
+            )
             db.execute(
                 """
                 INSERT INTO safe_permission_grant (
@@ -680,14 +682,16 @@ class PermissionStore:
                 "standing permission revocation requires fresh FIDO2 owner approval"
             )
         from sofia.safe.execution_approval import ExecutionApprovalVerifier
-        ExecutionApprovalVerifier(self.path).consume(
-            approval_id=approval_id,
-            capability="safe.permission.standing.revoke",
-            parameters={"grant_id": grant_id},
-            now=moment,
-        )
+        verifier = ExecutionApprovalVerifier(self.path)
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            verifier.consume(
+                approval_id=approval_id,
+                capability="safe.permission.standing.revoke",
+                parameters={"grant_id": grant_id},
+                now=moment,
+                _transaction_db=db,
+            )
             row = db.execute(
                 """
                 SELECT grant_id,capability,scope_json,granted_by,granted_at,
@@ -902,18 +906,20 @@ class PermissionStore:
                 "private/Level-5 authority change requires fresh FIDO2 owner approval"
             )
         from sofia.safe.execution_approval import ExecutionApprovalVerifier
-        ExecutionApprovalVerifier(self.path).consume(
-            approval_id=approval_id,
-            capability="safe.permission.private_authority.change",
-            parameters=private_authority_parameters(
-                private_chat=private_chat, adult_chat=adult_chat,
-                adult_avatar=adult_avatar,
-                adult_external_delivery=adult_external_delivery,
-            ),
-            now=moment,
-        )
+        verifier = ExecutionApprovalVerifier(self.path)
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            verifier.consume(
+                approval_id=approval_id,
+                capability="safe.permission.private_authority.change",
+                parameters=private_authority_parameters(
+                    private_chat=private_chat, adult_chat=adult_chat,
+                    adult_avatar=adult_avatar,
+                    adult_external_delivery=adult_external_delivery,
+                ),
+                now=moment,
+                _transaction_db=db,
+            )
             db.execute(
                 """
                 UPDATE safe_private_adult_authority
