@@ -744,7 +744,20 @@ class LifelongThreadStore:
                 "SELECT t.* FROM lifelong_thread AS t "
                 "WHERE t.owner_principal_id=? "
                 + ("" if include_archived else "AND t.archived_at IS NULL ")
-                + "AND ("
+                + "AND (t.kind='main' OR t.project_audience_id IS NULL "
+                "OR (t.project_audience_id=? AND t.project_audience_kind=?)) "
+                "AND (t.kind='main' OR NOT EXISTS ("
+                "SELECT 1 FROM lifelong_thread_event AS x "
+                "LEFT JOIN conversation_messages AS xm "
+                "ON xm.id=x.source_message_id AND xm.session_id=x.source_session_id "
+                "LEFT JOIN social_session_principal AS xs "
+                "ON xs.session_id=xm.session_id "
+                "WHERE x.thread_id=t.thread_id AND ("
+                "x.visibility!='source_audience' OR x.source_audience_id!=? "
+                "OR xm.id IS NULL OR xs.principal_id IS NULL "
+                "OR xs.principal_id!=? OR xs.audience_id!=? "
+                "OR xs.audience_kind!=?))) "
+                "AND ("
                 "t.kind='main' OR (t.kind='project' AND ("
                 "(t.project_audience_id=? AND t.project_audience_kind=? "
                 "AND t.has_linked_source=0 "
@@ -766,6 +779,9 @@ class LifelongThreadStore:
                 "t.created_at DESC,t.thread_id LIMIT ?",
                 (
                     owner.principal_id,
+                    owner.audience_id, owner.audience_kind.value,
+                    owner.audience_id, owner.principal_id, owner.audience_id,
+                    owner.audience_kind.value,
                     owner.audience_id, owner.audience_kind.value,
                     owner.audience_id, owner.principal_id, owner.audience_id,
                     owner.audience_kind.value, limit,
