@@ -26,7 +26,7 @@ from sofia.act.outreach import Policy
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
-CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 8
+CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 9
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +115,7 @@ class RuntimeUserSettings:
     cognitive_model_idle_unload_seconds: int = 1800
     cognitive_model_keep_alive: str = "10m"
     cognitive_model_residency_mode: str = "resource_aware"
+    neuro_competition_enabled: bool = True
 
     discord_enabled: bool = False
     discord_owner_user_id: int | None = None
@@ -225,6 +226,7 @@ class RuntimeUserSettings:
             "cognitive_verify_enabled",
             "cognitive_model_auto_manage",
             "cognitive_model_auto_install",
+            "neuro_competition_enabled",
         ):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be boolean")
@@ -579,6 +581,8 @@ class RuntimeUserSettingsStore:
             data["voice_muted"] = False
             data["voice_output_name"] = None
             data["voice_input_device"] = None
+        if version < 9:
+            data["neuro_competition_enabled"] = True
         data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
         data["fleet_discovery_targets"] = tuple(
             data.get("fleet_discovery_targets", ())
