@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "3c9d61c4b5c008bcdc7f1b3fd45a752e855545f8",
+  "reviewed_main_sha": "d6d6f13f9999fdec7bce742302559598f84be72f",
   "audit_date_utc": "2026-10-11",
-  "notice": "Workstream 1 Phase02 CA-1101/1107: canonical LIFE/NEURO/ACT status snapshot wired to existing Settings, regressions not run. Other source-protection tasks remain partial. Preserve other workstreams' ledger evidence.",
+  "notice": "WS1 Phase02 operator stop transitions now audited atomically through existing SAFE hash chain; source and regressions committed [skip ci], tests deferred. CA-1102/1907/6507 remain partial; other workstreams' evidence retained.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1728,7 +1728,10 @@
         "src/sofia/act/system_notice.py",
         "src/sofia/act/delivery.py",
         "test/test_act_system_notice.py",
-        "test/test_act_delivery.py"
+        "test/test_act_delivery.py",
+        "src/sofia/safe/operator_stop.py",
+        "src/sofia/safe/audit.py",
+        "test/test_safe_operator_stop_state_loss.py"
       ],
       "evidence_commits": [
         "481438c6c0bd402647712ae2bcdc98182b780341",
@@ -1749,13 +1752,15 @@
         "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
         "8503f42a90ade16cd767e497c5a047b26b918d1d",
         "05df436675c5b4c0651d1b19aa39cbd283a9908f",
-        "9a8c8364855f79af47d2711652b0c8801028ea9e"
+        "9a8c8364855f79af47d2711652b0c8801028ea9e",
+        "896ed561c956fbea101ce25051d2e5966e60b33e",
+        "d6d6f13f9999fdec7bce742302559598f84be72f"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
-        "depth": "production_pre_send_reevaluation_and_durable_release",
-        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
+        "at_sha": "d6d6f13f9999fdec7bce742302559598f84be72f",
+        "depth": "production_atomic_operator_stop_and_audit_boundary",
+        "interpretation": "OperatorStopStore.set now writes operator stop/resume state and hash-chained SAFE audit event in the same SQLite transaction; audit failure rolls back the control update, preserving absence of a false receipt. Regression authored but not run. Human OS authentication, multi-host stop propagation and in-flight external cancellation remain open."
       }
     },
     {
@@ -2019,7 +2024,9 @@
         "src/sofia/act/system_notice.py",
         "src/sofia/act/delivery.py",
         "test/test_act_system_notice.py",
-        "test/test_act_delivery.py"
+        "test/test_act_delivery.py",
+        "src/sofia/safe/audit.py",
+        "test/test_safe_operator_stop_state_loss.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -2049,13 +2056,15 @@
         "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
         "8503f42a90ade16cd767e497c5a047b26b918d1d",
         "05df436675c5b4c0651d1b19aa39cbd283a9908f",
-        "9a8c8364855f79af47d2711652b0c8801028ea9e"
+        "9a8c8364855f79af47d2711652b0c8801028ea9e",
+        "896ed561c956fbea101ce25051d2e5966e60b33e",
+        "d6d6f13f9999fdec7bce742302559598f84be72f"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
-        "depth": "production_pre_send_reevaluation_and_durable_release",
-        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
+        "at_sha": "d6d6f13f9999fdec7bce742302559598f84be72f",
+        "depth": "production_atomic_operator_stop_and_audit_boundary",
+        "interpretation": "OperatorStopStore.set now writes operator stop/resume state and hash-chained SAFE audit event in the same SQLite transaction; audit failure rolls back the control update, preserving absence of a false receipt. Regression authored but not run. Human OS authentication, multi-host stop propagation and in-flight external cancellation remain open."
       }
     },
     {
@@ -2254,7 +2263,9 @@
         "test/test_life_project_forge.py",
         "src/sofia/ui/settings_window.py",
         "src/sofia/application/act_service.py",
-        "test/test_act_runtime_wiring.py"
+        "test/test_act_runtime_wiring.py",
+        "src/sofia/safe/audit.py",
+        "test/test_safe_operator_stop_state_loss.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -2272,13 +2283,15 @@
         "5dc4fdd850dde05590d675801bea5c8f2121bc5d",
         "5a5886d547da4a42a584df5dddbe895fc3db6bd0",
         "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
-        "5c3420e27bcd73f8693b1889478daa4da579a1bd"
+        "5c3420e27bcd73f8693b1889478daa4da579a1bd",
+        "896ed561c956fbea101ce25051d2e5966e60b33e",
+        "d6d6f13f9999fdec7bce742302559598f84be72f"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
-        "depth": "operator_stop_and_outreach_runtime_source",
-        "interpretation": "LIFE optional project tick/schedule/worker/idea generation, ACT reflection admission and dynamic delivery mute, and Settings pause/mute UI all check canonical owner state. Test source committed unrun. Domain blocking, authenticated operator identity, in-flight cancellation and complete multi-domain override remain open."
+        "at_sha": "d6d6f13f9999fdec7bce742302559598f84be72f",
+        "depth": "production_atomic_operator_stop_and_audit_boundary",
+        "interpretation": "OperatorStopStore.set now writes operator stop/resume state and hash-chained SAFE audit event in the same SQLite transaction; audit failure rolls back the control update, preserving absence of a false receipt. Regression authored but not run. Human OS authentication, multi-host stop propagation and in-flight external cancellation remain open."
       }
     },
     {
