@@ -1037,20 +1037,73 @@ class LifeStore:
         self, request_id: str, project_id: str, artifact_id: str,
         request_digest: str,
     ) -> bool:
+        """One-use grant CAS bound to its *current original* running RUN job.
+
+        This is the last SQLite writer boundary before the creative executor.
+        A previously eligible queued job must not claim its authorization
+        after LIFE pause/resume or an unlinked/changed RUN source. Both the
+        project revision and the one-use status are checked under the same
+        BEGIN IMMEDIATE writer lock; no new permission store is introduced.
+        """
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            candidate = db.execute(
+                """SELECT auth.request_id,project.revision,project.goal_id
+                   FROM life_artifact_authorization AS auth
+                   JOIN life_project AS project
+                     ON project.project_id=auth.project_id
+                   WHERE auth.request_id=? AND auth.project_id=?
+                     AND auth.artifact_id=? AND auth.request_digest=?
+                     AND auth.status='authorized' AND project.status='active'
+                     AND project.goal_id IS NOT NULL""",
+                (request_id, project_id, artifact_id, request_digest),
+            ).fetchone()
+            if candidate is None:
+                return False
+            # The canonical RUN job is the only admission authority for
+            # this creative request. A job that is not actually RUNNING,
+            # has a different original project revision, or cites another
+            # request ID cannot inherit the original one-use grant.
+            source_jobs = db.execute(
+                """SELECT job.payload_json
+                   FROM life_project_job AS association
+                   JOIN autonomous_work_job AS job
+                     ON job.job_id=association.job_id
+                   WHERE association.project_id=?
+                     AND job.kind='life-create-artifact'
+                     AND job.status='running'
+                   ORDER BY job.created_at,job.job_id LIMIT 65""",
+                (project_id,),
+            ).fetchall()
+            if len(source_jobs) > 64:
+                return False
+            matching = 0
+            for source in source_jobs:
+                try:
+                    original = json.loads(source["payload_json"])
+                    parameters = original["parameters"]
+                except (ValueError, TypeError, KeyError):
+                    continue
+                if (
+                    type(original.get("project_revision")) is int
+                    and original["project_revision"] == int(candidate["revision"])
+                    and original.get("project_id") == project_id
+                    and original.get("goal_id") == candidate["goal_id"]
+                    and isinstance(parameters, dict)
+                    and parameters.get("request_id") == request_id
+                    and parameters.get("artifact_id") == artifact_id
+                    and parameters.get("project_id") == project_id
+                ):
+                    matching += 1
+            if matching != 1:
+                return False
             changed = db.execute(
                 """UPDATE life_artifact_authorization SET status='claimed'
-                WHERE request_id=? AND project_id=? AND artifact_id=?
-                  AND request_digest=? AND status='authorized'
-                  AND EXISTS (
-                    SELECT 1 FROM life_project AS project
-                    WHERE project.project_id=life_artifact_authorization.project_id
-                      AND project.status='active'
-                      AND project.goal_id IS NOT NULL
-                  )""",
+                   WHERE request_id=? AND project_id=? AND artifact_id=?
+                     AND request_digest=? AND status='authorized'""",
                 (request_id, project_id, artifact_id, request_digest),
             )
-        return changed.rowcount == 1
+            return changed.rowcount == 1
 
     def finish_artifact_authorization(self, request_id: str, successful: bool) -> None:
         with closing(self._connect()) as db, db:
