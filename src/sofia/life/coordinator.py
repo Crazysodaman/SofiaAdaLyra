@@ -2199,7 +2199,24 @@ class SelfDirectedLifeCoordinator:
         # The RUN deadline is a bounded admission deadline, not a substitute
         # for OS isolation or an enforced process CPU/memory quota.
         admitted_seconds = min(1800, remaining_seconds)
-        goal = next(item for item in self.goals.list_visible(local_sparks_principal()) if item.id == project.goal_id)
+        goal = next((
+            item for item in self.goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        ), None)
+        # GOALS expiration may be past due before its separate coordinator
+        # runs the expiry sweep. ACTIVE is not perpetual authority, and
+        # optional LIFE must not spend or enqueue against an expired goal.
+        if (
+            goal is None
+            or goal.origin is not GoalOrigin.SELF
+            or goal.owner_principal_id != SOFIA_GOAL_OWNER_ID
+            or goal.scope_audience != project.audience_id
+            or goal.status is not GoalStatus.ACTIVE
+            or goal.expires_at is None or now >= goal.expires_at
+        ):
+            raise PermissionError(
+                "original scoped GOALS authority is missing, inactive or expired"
+            )
         action = self.goals.propose_action(
             goal=goal, capability_name="creative.artifact.create",
             parameters=parameters, requested_scope=project.project_id,
@@ -3160,6 +3177,7 @@ class SelfDirectedLifeCoordinator:
             if (
                 status is GoalStatus.ACTIVE
                 and project.status is ProjectStatus.PAUSED
+                and (goal.expires_at is None or now < goal.expires_at)
             ):
                 events = self.store.events(
                     project.project_id,
