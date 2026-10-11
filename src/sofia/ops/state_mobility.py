@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 import shutil
+import sqlite3
+from contextlib import closing
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +129,9 @@ class StateCandidate:
     database_size: int
     protected_identity_present: bool
     is_configured_path: bool
+    sqlite_header_valid: bool = False
+    expected_schema_present: bool = False
+    identity_matches_configured_home: bool | None = None
 
 
 def discover_local_state_candidates(
@@ -162,6 +167,12 @@ def discover_local_state_candidates(
     if any(not isinstance(root, Path) for root in extra_roots):
         raise TypeError("extra roots must be paths")
     guessed_roots.extend(extra_roots)
+    configured_identity = configured_path.absolute().parent / "protected/identity.json"
+    canonical_identity_digest: bytes | None = None
+    if configured_identity.is_file() and not configured_identity.is_symlink():
+        from hashlib import sha256
+        # Private identities are compared only, never returned or logged.
+        canonical_identity_digest = sha256(configured_identity.read_bytes()).digest()
     seen: set[Path] = set()
     results: list[StateCandidate] = []
     for root in guessed_roots[:max_roots]:
@@ -172,11 +183,44 @@ def discover_local_state_candidates(
         database = directory / "sofia.db"
         if not database.is_file() or database.is_symlink():
             continue
+        with database.open("rb") as handle:
+            has_sqlite_header = handle.read(16) == b"SQLite format 3\\x00"
+        has_schema = False
+        if has_sqlite_header:
+            # Query-only URI prevents accidental DB creation or state edits.
+            # A matching schema remains merely a candidate, not authority.
+            try:
+                with closing(sqlite3.connect(
+                    database.as_uri() + "?mode=ro", uri=True, timeout=2,
+                )) as connection:
+                    connection.execute("PRAGMA query_only=ON")
+                    tables = {name for (name,) in connection.execute(
+                        "SELECT name FROM sqlite_master "
+                        "WHERE type='table' AND name IN "
+                        "('conversation_sessions','conversation_messages',"
+                        "'social_session_principal')"
+                    ).fetchall()}
+                    has_schema = {
+                        "conversation_sessions", "conversation_messages",
+                        "social_session_principal",
+                    }.issubset(tables)
+            except (sqlite3.Error, OSError):
+                # Corrupt, locked or incompatible copies never become trusted.
+                has_schema = False
+        identity = directory / "protected/identity.json"
+        identity_exists = identity.is_file() and not identity.is_symlink()
+        same_identity: bool | None = None
+        if identity_exists and canonical_identity_digest is not None:
+            from hashlib import sha256
+            same_identity = sha256(identity.read_bytes()).digest() == canonical_identity_digest
         results.append(StateCandidate(
             state_path=database,
             database_size=database.stat().st_size,
-            protected_identity_present=(directory / "protected/identity.json").is_file(),
+            protected_identity_present=identity_exists,
             is_configured_path=database == configured_path.absolute(),
+            sqlite_header_valid=has_sqlite_header,
+            expected_schema_present=has_schema,
+            identity_matches_configured_home=same_identity,
         ))
     return tuple(results)
 
@@ -188,6 +232,9 @@ def describe_state_candidates(configured_path: Path) -> str:
     return "\n".join(
         f"{item.state_path} | {item.database_size:,} bytes | "
         f"protected identity: {item.protected_identity_present} | "
+        f"SQLite header: {item.sqlite_header_valid} | "
+        f"expected schema: {item.expected_schema_present} | "
+        f"identity matches current: {item.identity_matches_configured_home} | "
         f"configured: {item.is_configured_path}"
         for item in candidates
     ) + "\nThese are unverified candidates, not alternate canonical databases."
