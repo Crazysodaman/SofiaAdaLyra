@@ -42,6 +42,7 @@ jobs:
       - name: Source-level unit and deterministic integration gates
         run: >
           pytest -q
+          test/test_life_project_forge.py::test_phase09_active_project_retains_source_and_goal_authority
           test/test_vision_desktop_control.py
           test/test_vision_journeys_production.py
           test/test_screen_capability_authority.py
