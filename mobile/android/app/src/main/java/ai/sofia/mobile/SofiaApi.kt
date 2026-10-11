@@ -2,6 +2,7 @@ package ai.sofia.mobile
 
 import org.json.JSONObject
 import java.io.IOException
+import java.security.MessageDigest
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
@@ -87,6 +88,31 @@ class SofiaApi(private val settings: SecureSettings) {
             expectedDeviceId = settings.deviceId,
             expectedPrivateMode = config.privateMode,
         )
+        return response
+    }
+
+    /** Query an existing delivery receipt. Never submit or regenerate a turn. */
+    fun deliveryStatus(pending: PendingMobileTurn): JSONObject {
+        val config = settings.load()
+        require(pending.matches(config)) {
+            "Unresolved send belongs to another pairing or privacy audience"
+        }
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(pending.text.trim().toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        val response = post("/v1/mobile/delivery/status", JSONObject()
+            .put("device_id", settings.deviceId)
+            .put("private_mode", pending.privateMode)
+            .put("request_id", pending.requestId)
+            .put("content_sha256", digest))
+        if (response.getString("status") == "completed") {
+            val saved = response.getJSONObject("result")
+            MobileDeliveryReceiptProof.verify(
+                saved, expectedRequestId = pending.requestId,
+                expectedDeviceId = settings.deviceId,
+                expectedPrivateMode = pending.privateMode,
+            )
+        }
         return response
     }
 
