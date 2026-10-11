@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "4135c1586eba49409716e4f27b5ffe646816132a",
+  "reviewed_main_sha": "6b9d5be564557f8c9fcf5f73b49141532b7bb10d",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -1900,10 +1900,27 @@
       "phase": "01",
       "source_topic": "30",
       "master_line": 225,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "code_present_unverified",
+      "code_paths": [
+        "ROADMAP.md",
+        "src/sofia/creative/paths.py",
+        "src/sofia/creative/service.py",
+        "src/sofia/creative/__init__.py",
+        "test/test_creative_infrastructure.py",
+        "Setup-SofiaFleetArtemis.ps1"
+      ],
+      "evidence_commits": [
+        "1e044273",
+        "e85c52f0",
+        "6b9d5be564557f8c9fcf5f73b49141532b7bb10d"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing Phase 6 ROADMAP narrative acknowledges merged Windows Project Forge path fix but retained a contradictory unchecked instruction to commit it and leave a now-tracked Fleet installer untracked. Corrected the historical checkbox to merged source evidence, separated host symlink and release acceptance tasks, and confirmed Artemis installer is tracked.",
+        "missing": "Current exact-main Windows symlink privilege test, Project Forge live acceptance and release CI are still deferred; this record is a documentation/ledger source result, not proof of feature acceptance.",
+        "acceptance": "code/source present, final verification open, not accepted"
+      }
     },
     {
       "id": "CA-3009",
