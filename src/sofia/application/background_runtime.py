@@ -244,6 +244,7 @@ def create_background_coordinator(
                 snapshot.homeostasis.competition_pressure,
             )
             with application._model_lock:
+                learning = life.learn_from_experiences(now=now, limit=16)
                 project = life.consider_new_project(
                     generate=lambda request: application._runtime.respond(
                         request, principal=local_sparks_principal(),
@@ -256,9 +257,10 @@ def create_background_coordinator(
                         request, principal=local_sparks_principal(),
                     ),
                 )
-            return result if (
+            return {**result, "interest_learning": learning} if (
                 project is not None
                 or result["jobs_started"] or result["scheduled"]
+                or any(learning.values())
             ) else None
 
         coordinator.set_task(

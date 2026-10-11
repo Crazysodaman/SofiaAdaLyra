@@ -121,6 +121,17 @@ class LifeStore:
                     PRIMARY KEY(interest_id,revision),
                     UNIQUE(name,context,audience_id,revision)
                 );
+                CREATE TABLE IF NOT EXISTS life_interest_learning (
+                    experience_id TEXT PRIMARY KEY,
+                    experience_digest TEXT NOT NULL,
+                    interest_id TEXT,
+                    outcome TEXT NOT NULL CHECK(outcome IN (
+                        'applied','no_change','ineligible','invalid'
+                    )),
+                    reason TEXT NOT NULL,
+                    processed_at TEXT NOT NULL,
+                    FOREIGN KEY(experience_id) REFERENCES life_experience(experience_id)
+                );
                 CREATE TABLE IF NOT EXISTS life_quiet_choice (
                     singleton INTEGER PRIMARY KEY CHECK(singleton=1),
                     until_at TEXT NOT NULL, reason TEXT NOT NULL,
@@ -525,6 +536,87 @@ class LifeStore:
             datetime.fromisoformat(row["recorded_at"]), json.loads(row["metadata_json"]),
         ) for row in rows)
 
+    def pending_interest_experiences(self, *, limit: int = 16) -> tuple[ExperienceRecord, ...]:
+        """Return a bounded internal queue without projecting content across audiences."""
+        if not 1 <= limit <= 64:
+            raise ValueError("interest-learning limit must be in 1..64")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                """SELECT experience.* FROM life_experience experience
+                LEFT JOIN life_interest_learning learning
+                  ON learning.experience_id=experience.experience_id
+                WHERE learning.experience_id IS NULL
+                ORDER BY experience.recorded_at,experience.experience_id LIMIT ?""",
+                (limit,),
+            ).fetchall()
+        return tuple(ExperienceRecord(
+            row["experience_id"], row["project_id"], row["kind"], row["summary"],
+            tuple(json.loads(row["evidence_refs_json"])), row["audience_id"],
+            bool(row["private"]), datetime.fromisoformat(row["occurred_at"]),
+            datetime.fromisoformat(row["recorded_at"]), json.loads(row["metadata_json"]),
+        ) for row in rows)
+
+    def record_interest_learning(
+        self, *, experience_id: str, experience_digest: str,
+        outcome: str, reason: str, processed_at: datetime,
+        interest: InterestRecord | None = None,
+        expected_revision: int | None = None,
+    ) -> bool:
+        """Atomically apply an interest revision and consume its source experience."""
+        if outcome not in {"applied", "no_change", "ineligible", "invalid"}:
+            raise ValueError("invalid interest-learning outcome")
+        if (outcome == "applied") != (interest is not None):
+            raise ValueError("applied learning requires exactly one interest revision")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            existing = db.execute(
+                "SELECT experience_digest FROM life_interest_learning WHERE experience_id=?",
+                (experience_id,),
+            ).fetchone()
+            if existing is not None:
+                if existing[0] != experience_digest:
+                    raise RuntimeError("processed experience changed after learning")
+                return False
+            source = db.execute(
+                "SELECT 1 FROM life_experience WHERE experience_id=?",
+                (experience_id,),
+            ).fetchone()
+            if source is None:
+                raise RuntimeError("learning source experience disappeared")
+            if interest is not None:
+                row = db.execute(
+                    """SELECT revision FROM life_interest_revision
+                    WHERE name=? AND context=? AND audience_id=?
+                    ORDER BY revision DESC LIMIT 1""",
+                    (interest.name, interest.context, interest.audience_id),
+                ).fetchone()
+                current = None if row is None else int(row[0])
+                if current != expected_revision or interest.revision != (
+                    1 if current is None else current + 1
+                ):
+                    raise RuntimeError("interest changed concurrently")
+                db.execute(
+                    "INSERT INTO life_interest_revision VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        interest.interest_id, interest.name, interest.context,
+                        interest.strength, interest.confidence,
+                        interest.status.value, interest.reason,
+                        json.dumps(interest.evidence_refs), interest.audience_id,
+                        interest.revision,
+                        interest.recorded_at.astimezone(timezone.utc).isoformat(),
+                    ),
+                )
+            db.execute(
+                "INSERT INTO life_interest_learning VALUES(?,?,?,?,?,?)",
+                (
+                    experience_id, experience_digest,
+                    None if interest is None else interest.interest_id,
+                    outcome, reason,
+                    processed_at.astimezone(timezone.utc).isoformat(),
+                ),
+            )
+        return True
+
     def record_selection(self, value: LifeSelection) -> None:
         with closing(self._connect()) as db, db:
             db.execute(
@@ -566,6 +658,22 @@ class LifeStore:
                 """SELECT * FROM life_interest_revision WHERE name=? AND context=?
                 AND audience_id=? ORDER BY revision DESC LIMIT 1""",
                 (name, context, audience_id),
+            ).fetchone()
+        return None if row is None else InterestRecord(
+            row["interest_id"], row["name"], row["context"],
+            float(row["strength"]), float(row["confidence"]),
+            InterestStatus(row["status"]), row["reason"],
+            tuple(json.loads(row["evidence_refs_json"])), row["audience_id"],
+            int(row["revision"]), datetime.fromisoformat(row["recorded_at"]),
+        )
+
+    def interest_by_id(self, interest_id: str, *, audience_id: str) -> InterestRecord | None:
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """SELECT * FROM life_interest_revision
+                WHERE interest_id=? AND audience_id=?
+                ORDER BY revision DESC LIMIT 1""",
+                (interest_id, audience_id),
             ).fetchone()
         return None if row is None else InterestRecord(
             row["interest_id"], row["name"], row["context"],

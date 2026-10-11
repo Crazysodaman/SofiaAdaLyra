@@ -135,6 +135,175 @@ class SelfDirectedLifeCoordinator:
         )
         return value
 
+    @staticmethod
+    def _experience_digest(experience: ExperienceRecord) -> str:
+        document = {
+            "experience_id": experience.experience_id,
+            "project_id": experience.project_id,
+            "kind": experience.kind,
+            "summary": experience.summary,
+            "evidence_refs": experience.evidence_refs,
+            "audience_id": experience.audience_id,
+            "private": experience.private,
+            "occurred_at": experience.occurred_at.astimezone(timezone.utc).isoformat(),
+            "recorded_at": experience.recorded_at.astimezone(timezone.utc).isoformat(),
+            "metadata": dict(experience.metadata),
+        }
+        return sha256(json.dumps(
+            document, sort_keys=True, separators=(",", ":"),
+        ).encode()).hexdigest()
+
+    def learn_from_experiences(
+        self, *, now: datetime, limit: int = 16,
+    ) -> dict[str, int]:
+        """Apply bounded, source-backed experience signals to durable interests.
+
+        Only canonical artifact evaluations created by LIFE carry the v1 signal.
+        Summaries, model prose, emotions, and mere project completion are never
+        interpreted as evidence of taste.
+        """
+        aware(now, "learning time")
+        counts = {"applied": 0, "no_change": 0, "ineligible": 0, "invalid": 0}
+        for experience in self.store.pending_interest_experiences(limit=limit):
+            if experience.recorded_at > now:
+                # Preserve a future-dated record for bounded reconsideration once
+                # its canonical observation window actually arrives.
+                continue
+            digest = self._experience_digest(experience)
+
+            def consume(outcome: str, reason: str) -> None:
+                if self.store.record_interest_learning(
+                    experience_id=experience.experience_id,
+                    experience_digest=digest, outcome=outcome, reason=reason,
+                    processed_at=now,
+                ):
+                    counts[outcome] += 1
+
+            signal = experience.metadata.get("interest_learning")
+            if experience.kind != "artifact_evaluated" or not isinstance(signal, dict):
+                consume("ineligible", "experience has no reviewed interest-learning signal")
+                continue
+            if signal.get("schema") != 1 or not isinstance(signal.get("evaluation_id"), str):
+                consume("invalid", "interest-learning signal schema is invalid")
+                continue
+            if experience.project_id is None:
+                consume("invalid", "interest-learning experience has no project")
+                continue
+            try:
+                project = self.store.get(
+                    experience.project_id,
+                    owner_principal_id=SOFIA_PROJECT_OWNER,
+                    audience_id=experience.audience_id,
+                )
+            except KeyError:
+                consume("invalid", "project owner or audience does not match experience")
+                continue
+            if project.audience_id != experience.audience_id:
+                consume("invalid", "project and experience audience differ")
+                continue
+            signal_confidence = signal.get("confidence")
+            if (
+                signal.get("originating_interest") != project.originating_interest
+                or isinstance(signal_confidence, bool)
+                or not isinstance(signal_confidence, (int, float))
+                or not 0 <= float(signal_confidence) <= 1
+                or float(signal_confidence) != project.confidence
+            ):
+                consume("invalid", "interest identity or confidence does not match project")
+                continue
+            evaluations = tuple(
+                item for item in self.store.evaluations(project.project_id)
+                if item.evaluation_id == signal["evaluation_id"]
+            )
+            if len(evaluations) != 1:
+                consume("invalid", "canonical artifact evaluation is missing")
+                continue
+            evaluation = evaluations[0]
+            if (
+                evaluation.evidence_refs != experience.evidence_refs
+                or evaluation.evaluated_at != experience.occurred_at
+            ):
+                consume("invalid", "experience does not match canonical evaluation")
+                continue
+            evidence = tuple(
+                self.evidence_index.lookup(ref) for ref in experience.evidence_refs
+            )
+            if any(item is None for item in evidence):
+                consume("invalid", "source evidence is missing")
+                continue
+            principal_id = local_sparks_principal().principal_id
+            if any(
+                item.principal_id != principal_id
+                or item.audience != experience.audience_id
+                or not item.source
+                or item.observed_at > experience.occurred_at
+                or item.kind not in {"reviewed_evidence", "operation_receipt"}
+                for item in evidence if item is not None
+            ):
+                consume("invalid", "evidence provenance, principal, audience, or time is invalid")
+                continue
+            judgment = evaluation.personal_judgment
+            if judgment is PersonalJudgment.UNKNOWN:
+                consume("no_change", "grounded evaluation made no personal judgment")
+                continue
+
+            current = self.store.interest_by_id(
+                project.originating_interest, audience_id=project.audience_id,
+            )
+            name = project.name if current is None else current.name
+            context = "creative-project" if current is None else current.context
+            base_strength = 0.35 if current is None else current.strength
+            base_confidence = 0.4 if current is None else current.confidence
+            delta = {
+                PersonalJudgment.LIKE: 0.10,
+                PersonalJudgment.DISLIKE: -0.14,
+                PersonalJudgment.MIXED: -0.02,
+                PersonalJudgment.INDIFFERENT: -0.08,
+            }[judgment] * max(0.25, project.confidence)
+            strength = min(1.0, max(0.0, base_strength + delta))
+            confidence = min(1.0, base_confidence + 0.05 * project.confidence)
+            if judgment is PersonalJudgment.LIKE:
+                status = (
+                    InterestStatus.ACTIVE if strength >= 0.35
+                    else InterestStatus.RETIRED
+                )
+            elif judgment in {PersonalJudgment.DISLIKE, PersonalJudgment.INDIFFERENT}:
+                status = (
+                    InterestStatus.RETIRED
+                    if strength <= 0.20 and confidence >= 0.6
+                    else (InterestStatus.ACTIVE if current is None else current.status)
+                )
+            else:
+                status = InterestStatus.ACTIVE if current is None else current.status
+            refs = tuple(dict.fromkeys(
+                (() if current is None else current.evidence_refs)
+                + experience.evidence_refs
+            ))[-32:]
+            interest_id = (
+                "interest:" + sha256(
+                    f"{name.casefold()}\0{context}".encode()
+                ).hexdigest()[:24]
+                if current is None else current.interest_id
+            )
+            revision = 1 if current is None else current.revision + 1
+            learned = InterestRecord(
+                interest_id, name, context, strength, confidence, status,
+                (
+                    f"Grounded artifact evaluation {evaluation.evaluation_id} "
+                    f"recorded a {judgment.value} judgment for {project.name}."
+                ),
+                refs, project.audience_id, revision, now,
+            )
+            if self.store.record_interest_learning(
+                experience_id=experience.experience_id,
+                experience_digest=digest, outcome="applied",
+                reason="canonical artifact evaluation updated originating interest",
+                processed_at=now, interest=learned,
+                expected_revision=None if current is None else current.revision,
+            ):
+                counts["applied"] += 1
+        return counts
+
     def invent_project(
         self, idea: ProjectIdea, *, scope: ProjectScope = ProjectScope.PERSONAL_PRIVATE,
         budget: ResourceBudget | None = None,
@@ -1084,7 +1253,15 @@ class SelfDirectedLifeCoordinator:
                 f"Evaluated {artifact_id}: technically {technical_outcome.value}; "
                 f"personal judgment {personal_judgment.value}."
             ), evidence_refs=evidence_refs, now=now,
-            metadata={"preserve_for_research": preserve_for_research},
+            metadata={
+                "preserve_for_research": preserve_for_research,
+                "interest_learning": {
+                    "schema": 1,
+                    "evaluation_id": value.evaluation_id,
+                    "originating_interest": project.originating_interest,
+                    "confidence": project.confidence,
+                },
+            },
         )
         return value
 

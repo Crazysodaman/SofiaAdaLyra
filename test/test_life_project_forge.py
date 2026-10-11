@@ -16,8 +16,9 @@ from sofia.goals import GoalEvidenceIndex, GoalService, GoalStatus, GoalStore
 from sofia.interaction.world_model import ObjectKind, Transform
 from sofia.interaction.world_store import VirtualWorldStore
 from sofia.life import (
-    MilestoneStatus, PersonalJudgment, ProjectIdea, ProjectScope, ProjectStatus,
-    SelfDirectedLifeCoordinator, TechnicalOutcome,
+    ArtifactEvaluation, ExperienceRecord, MilestoneStatus, PersonalJudgment,
+    ProjectIdea, ProjectScope, ProjectStatus, SelfDirectedLifeCoordinator,
+    TechnicalOutcome,
 )
 from sofia.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
@@ -69,7 +70,7 @@ def active_project(life, now, *, name="A Foxfire Atlas", scope=ProjectScope.PERS
         assertion="A recorded curiosity about mapping imagined foxfire colors exists.",
         now=now,
     )
-    life.revise_interest(
+    interest = life.revise_interest(
         name="foxfire-colors", context="creative", strength=0.82,
         confidence=0.9, reason="Repeated grounded aesthetic curiosity.",
         evidence_refs=(evidence,), now=now,
@@ -77,7 +78,7 @@ def active_project(life, now, *, name="A Foxfire Atlas", scope=ProjectScope.PERS
     idea = ProjectIdea(
         "idea:foxfire-atlas", name,
         "Build a small atlas pairing invented foxfire colors with short observations.",
-        "artifact-kind:text",
+        interest.interest_id,
         ("Design an original color vocabulary.", "Create an inspectable first edition."),
         ("The document opens and contains both sections.",),
         "text", (evidence,), 0.92, 0.88, now,
@@ -92,6 +93,122 @@ def active_project(life, now, *, name="A Foxfire Atlas", scope=ProjectScope.PERS
         evidence_refs=(evidence,), now=now + timedelta(seconds=2),
     )
     return project, evidence
+
+
+def record_interest_signal(life, project, *, evidence_ref, judgment, when, ordinal=1):
+    evaluation = ArtifactEvaluation(
+        f"evaluation:interest-{ordinal}", project.project_id,
+        f"artifact:interest-{ordinal}", ordinal, TechnicalOutcome.VALID,
+        judgment, {project.brief.objectives[0]: True},
+        "A source-backed personal judgment was recorded.", (evidence_ref,),
+        False, when,
+    )
+    life.store.record_evaluation(evaluation)
+    return life._experience(
+        project=project, kind="artifact_evaluated",
+        summary=f"Grounded evaluation recorded {judgment.value}.",
+        evidence_refs=(evidence_ref,), now=when,
+        metadata={
+            "interest_learning": {
+                "schema": 1,
+                "evaluation_id": evaluation.evaluation_id,
+                "originating_interest": project.originating_interest,
+                "confidence": project.confidence,
+            },
+        },
+    )
+
+
+def test_grounded_experience_updates_interest_once_across_restart_safe_ticks(tmp_path):
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        record_interest_signal(
+            life, project, evidence_ref=evidence,
+            judgment=PersonalJudgment.LIKE, when=now + timedelta(seconds=3),
+        )
+        first = life.learn_from_experiences(now=now + timedelta(seconds=4))
+        learned = life.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        )
+        assert first["applied"] == 1
+        assert learned is not None and learned.revision == 2
+        assert learned.strength > 0.82
+        life.close()
+        life, _goals, _restart_now = infrastructure(tmp_path)
+        assert life.learn_from_experiences(
+            now=now + timedelta(seconds=5),
+        ) == {"applied": 0, "no_change": 0, "ineligible": 0, "invalid": 0}
+        assert life.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        ).revision == 2
+    finally:
+        life.close()
+
+
+def test_interest_learning_rejects_missing_evidence_and_cross_audience_signal(tmp_path):
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        missing = "goal-evidence:missing-interest-source"
+        evaluation = ArtifactEvaluation(
+            "evaluation:missing-interest-source", project.project_id,
+            "artifact:missing-interest-source", 1, TechnicalOutcome.VALID,
+            PersonalJudgment.LIKE, {project.brief.objectives[0]: True},
+            "Unverifiable signal.", (missing,), False,
+            now + timedelta(seconds=3),
+        )
+        life.store.record_evaluation(evaluation)
+        life.store.record_experience(ExperienceRecord(
+            "experience:wrong-audience", project.project_id,
+            "artifact_evaluated", "An invalid cross-audience signal.",
+            (missing,), "discord:private", True,
+            now + timedelta(seconds=3), now + timedelta(seconds=3),
+            {"interest_learning": {
+                "schema": 1, "evaluation_id": evaluation.evaluation_id,
+                "originating_interest": project.originating_interest,
+                "confidence": project.confidence,
+            }},
+        ))
+        result = life.learn_from_experiences(now=now + timedelta(seconds=4))
+        assert result["invalid"] == 1
+        assert life.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        ).revision == 1
+        assert life.store.interest_by_id(
+            project.originating_interest, audience_id="discord:private",
+        ) is None
+    finally:
+        life.close()
+
+
+def test_conflicting_grounded_judgments_remain_bounded_and_auditable(tmp_path):
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        record_interest_signal(
+            life, project, evidence_ref=evidence,
+            judgment=PersonalJudgment.LIKE,
+            when=now + timedelta(seconds=3), ordinal=1,
+        )
+        for ordinal in range(2, 8):
+            record_interest_signal(
+                life, project, evidence_ref=evidence,
+                judgment=PersonalJudgment.DISLIKE,
+                when=now + timedelta(seconds=ordinal + 2), ordinal=ordinal,
+            )
+        result = life.learn_from_experiences(now=now + timedelta(seconds=10))
+        learned = life.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        )
+        assert result["applied"] == 7
+        assert learned is not None and learned.revision == 8
+        assert 0.0 <= learned.strength <= 1.0
+        assert 0.0 <= learned.confidence <= 1.0
+        assert "dislike" in learned.reason
+        assert learned.status.value == "retired"
+    finally:
+        life.close()
 
 
 def wait_for_job(life, job_id):
