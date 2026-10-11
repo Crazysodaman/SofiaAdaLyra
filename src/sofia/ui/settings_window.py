@@ -394,7 +394,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
             else ""
         )
     )
-    grant_scope = tk.StringVar(value='{"name":"SofiaAdaLyra"}')
+    grant_scope = tk.StringVar(value="{}")
     grant_expiry_minutes = tk.StringVar(value="")
 
     general = frames["General"]
