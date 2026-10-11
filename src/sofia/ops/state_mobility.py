@@ -306,7 +306,14 @@ def discover_local_state_candidates(
         ]
     if any(not isinstance(root, Path) for root in extra_roots):
         raise TypeError("extra roots must be paths")
-    guessed_roots.extend(extra_roots)
+    # Owner-approved extra roots must not be silently dropped by the cap
+    # after defaults (especially if max_roots is small). Inspect the known
+    # canonical path first, explicitly selected locations next, and use any
+    # remaining budget for conventional discovery only.
+    selected_roots = [configured_path.parent, *extra_roots]
+    selected_roots.extend(
+        root for root in guessed_roots[1:] if root not in selected_roots
+    )
     configured_identity = configured_path.absolute().parent / "protected/identity.json"
     canonical_identity_digest: bytes | None = None
     if (
@@ -325,7 +332,7 @@ def discover_local_state_candidates(
             canonical_identity_digest = None
     seen: set[Path] = set()
     results: list[StateCandidate] = []
-    for root in guessed_roots[:max_roots]:
+    for root in selected_roots[:max_roots]:
         directory = root.absolute()
         if directory in seen or _unsafe_ancestor(directory):
             continue
