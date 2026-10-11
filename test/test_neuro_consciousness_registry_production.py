@@ -187,3 +187,31 @@ def test_older_adverse_result_remains_visible_in_full_historical_counts(tmp_path
     assert "adverse=1" in report
     assert "additional historical outcomes not individually shown: 123" in report
     assert "cannot establish phenomenal consciousness" in report
+
+
+def test_one_independent_science_receipt_cannot_vote_twice_or_contradict(tmp_path):
+    state,registry=opened(tmp_path)
+    registry.preregister(reviewed_baseline_studies(at=NOW)[0])
+    first=result(kind="adverse",evidence="verify:source:immutable001")
+    registry.record_reviewed_result(first)
+    with pytest.raises(PermissionError,match="already submitted"):
+        registry.record_reviewed_result(first)
+    with pytest.raises(PermissionError,match="already submitted"):
+        registry.record_reviewed_result(
+            replace(
+                first,result="supported",
+                limitations="Conflicting summary cannot reassign old evidence",
+            )
+        )
+    # A genuinely separately reviewed later evaluation has its own ID and
+    # remains visible alongside the retained adverse finding.
+    registry.record_reviewed_result(
+        result(kind="supported",evidence="verify:source:independent002")
+    )
+    report=registry.report()
+    assert "all-recorded-outcomes=2" in report
+    assert "adverse=1" in report and "supported=1" in report
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM neuro_research_result"
+        ).fetchone()[0]==2
