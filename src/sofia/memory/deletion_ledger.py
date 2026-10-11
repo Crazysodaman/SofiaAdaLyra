@@ -10,7 +10,7 @@ operator must preserve it across failure domains and validate its signed head.
 """
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from hashlib import sha256
 import hmac
@@ -127,6 +127,35 @@ class MemoryDeletionLedger:
             raise MemoryErasureError("deletion journal lacks authenticated genesis")
         return tuple(output)
 
+    @contextmanager
+    def _exclusive(self):
+        """Cross-process lock protecting the journal's HMAC chain append."""
+        path = self.path.with_suffix(self.path.suffix + ".lock")
+        if path.is_symlink():
+            raise MemoryErasureError("redirected journal lock is forbidden")
+        descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            if os.name == "nt":
+                import msvcrt
+                # msvcrt locks need one addressable byte on the file.
+                if os.fstat(descriptor).st_size == 0:
+                    os.write(descriptor, b"\\x00")
+                os.lseek(descriptor, 0, os.SEEK_SET)
+                msvcrt.locking(descriptor, msvcrt.LK_LOCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(descriptor, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                if os.name == "nt":
+                    os.lseek(descriptor, 0, os.SEEK_SET)
+                    msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
+
     def request(
         self, *, candidate_id: UUID, principal_id: str, audience_id: str,
         authority_ref: str, at: datetime,
@@ -148,41 +177,42 @@ class MemoryDeletionLedger:
             raise ValueError("trusted scope, authority reference and time required")
         if approve(str(candidate_id), principal_id, audience_id, authority_ref) is not True:
             raise PermissionError("explicit memory erasure authority unavailable")
-        entries = self.entries()
-        for record in entries:
-            if record["candidate_id"] == str(candidate_id):
-                if (
-                    record["principal_id"] != principal_id
-                    or record["audience_id"] != audience_id
-                ):
-                    raise MemoryErasureError("candidate deletion scope conflict")
-                return False
-        previous = "0" * 64
-        with self.path.open("rb") as reader:
-            for line in reader:
-                previous = sha256(line.rstrip(b"\n")).hexdigest()
-        record = {
-            "schema": "sofia.memory-deletion-v1",
-            "sequence": len(entries) + 1,
-            "previous_sha256": previous,
-            "candidate_id": str(candidate_id),
-            "principal_id": principal_id,
-            "audience_id": audience_id,
-            "authority_ref": authority_ref,
-            "deleted_at": at.astimezone(timezone.utc).isoformat(),
-        }
-        encoded = dict(record)
-        encoded["mac"] = self.cipher.manifest_mac(_canonical(record))
-        payload = _canonical(encoded) + b"\n"
-        if self.path.stat().st_size + len(payload) > 16 * 1024 * 1024:
-            raise MemoryErasureError("bounded deletion journal is full")
-        # A writer process needs an external single-writer lock/lease for
-        # this separate failure-domain artifact, just as sofia.db does.
-        with self.path.open("ab") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        return True
+        with self._exclusive():
+            entries = self.entries()
+            for record in entries:
+                if record["candidate_id"] == str(candidate_id):
+                    if (
+                        record["principal_id"] != principal_id
+                        or record["audience_id"] != audience_id
+                    ):
+                        raise MemoryErasureError("candidate deletion scope conflict")
+                    return False
+            previous = "0" * 64
+            with self.path.open("rb") as reader:
+                for line in reader:
+                    previous = sha256(line.rstrip(b"\n")).hexdigest()
+            record = {
+                "schema": "sofia.memory-deletion-v1",
+                "sequence": len(entries) + 1,
+                "previous_sha256": previous,
+                "candidate_id": str(candidate_id),
+                "principal_id": principal_id,
+                "audience_id": audience_id,
+                "authority_ref": authority_ref,
+                "deleted_at": at.astimezone(timezone.utc).isoformat(),
+            }
+            encoded = dict(record)
+            encoded["mac"] = self.cipher.manifest_mac(_canonical(record))
+            payload = _canonical(encoded) + b"\n"
+            if self.path.stat().st_size + len(payload) > 16 * 1024 * 1024:
+                raise MemoryErasureError("bounded deletion journal is full")
+            # A writer process needs an external single-writer lock/lease for
+            # this separate failure-domain artifact, just as sofia.db does.
+            with self.path.open("ab") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            return True
 
     def apply_to_sqlite(self, state_path: Path) -> int:
         """Physical, idempotent removal of candidates and copied provenance.
