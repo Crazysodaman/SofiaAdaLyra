@@ -56,18 +56,20 @@ class SocialSessionStore:
                 """,
                 (session_id,),
             ).fetchone()
+            # Display names are presentation metadata, NOT an
+            # authentication/binding dimension. Renaming a legitimate
+            # principal must not look like a foreign audience, and must
+            # never rewrite the historical session's original label.
             expected = (
                 principal.principal_id,
                 principal.audience_id,
                 principal.audience_kind.value,
-                principal.display_name,
             )
             if row is not None:
                 actual = (
                     row["principal_id"],
                     row["audience_id"],
                     row["audience_kind"],
-                    row["display_name"],
                 )
                 if actual != expected:
                     connection.rollback()
