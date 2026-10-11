@@ -279,6 +279,26 @@ def test_hyperv_adapter_uses_typed_vm_names():
         adapter.start("bad\nname")
 
 
+def test_hyperv_general_tools_cannot_start_or_stop_reserved_sofia_vm():
+    executed: list[str] = []
+    adapter = HyperVAdapter(lambda command: executed.append(command) or "")
+    for alias in ("Sofia", " SOFIA ", "sofia", "SoFiA"):
+        with pytest.raises(PermissionError, match="independent operator-controlled"):
+            adapter.start(alias)
+        with pytest.raises(PermissionError, match="independent operator-controlled"):
+            adapter.stop(alias)
+        with pytest.raises(PermissionError, match="independent operator-controlled"):
+            adapter.stop(alias, force=True)
+    assert executed == []
+    # The isolated lab guest remains accessible through normal, separately
+    # authorized VM management. This policy does not grant that authorization.
+    adapter.start("Hephaestus")
+    adapter.stop("Hephaestus")
+    assert len(executed) == 2
+    assert "Start-VM" in executed[0]
+    assert "Stop-VM" in executed[1]
+
+
 def test_sqlite_adapter_is_read_only(tmp_path):
     db=tmp_path/"db.sqlite"
     with sqlite3.connect(db) as connection:
