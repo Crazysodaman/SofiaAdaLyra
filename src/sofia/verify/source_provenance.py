@@ -22,6 +22,62 @@ def _git(root: Path, *args: str) -> bytes:
     ).stdout
 
 
+
+def _prove_installed_python_matches_archive(
+    archive: Path, installed_package_root: Path,
+) -> dict[str, object]:
+    """Require imported wheel modules to be the exact staged Git source bytes.
+
+    Import location alone does not prove that a wheel installed the reviewed
+    code. Verify both membership and bytes, including absence of extra
+    executable Python modules. Package-data assets have separate release
+    fixtures and are not covered by this code-byte proof.
+    """
+    staged = archive / "src" / "sofia"
+    if not staged.is_dir() or staged.is_symlink():
+        raise ValueError("release archive lacks canonical Sofia package source")
+    if not installed_package_root.is_dir() or installed_package_root.is_symlink():
+        raise ValueError("installed Sofia package directory is missing or linked")
+
+    staged_modules = {
+        path.relative_to(staged).as_posix(): path
+        for path in staged.rglob("*.py") if path.is_file()
+    }
+    installed_modules = {
+        path.relative_to(installed_package_root).as_posix(): path
+        for path in installed_package_root.rglob("*.py") if path.is_file()
+    }
+    if not staged_modules or "__init__.py" not in staged_modules:
+        raise ValueError("archived package lacks its executable module entrypoint")
+    if staged_modules.keys() != installed_modules.keys():
+        missing = sorted(staged_modules.keys() - installed_modules.keys())
+        extra = sorted(installed_modules.keys() - staged_modules.keys())
+        raise ValueError(
+            f"installed wheel Python source membership differs from archive: "
+            f"missing={missing[:5]!r}, extra={extra[:5]!r}"
+        )
+
+    digest = sha256()
+    root = installed_package_root.resolve(strict=True)
+    for relative in sorted(staged_modules):
+        source = staged_modules[relative]
+        installed = installed_modules[relative]
+        if source.is_symlink() or installed.is_symlink():
+            raise ValueError(f"linked package module: {relative}")
+        if root not in installed.resolve(strict=True).parents:
+            raise ValueError(f"installed package module escapes import root: {relative}")
+        source_bytes = source.read_bytes()
+        actual_bytes = installed.read_bytes()
+        if source_bytes != actual_bytes:
+            raise ValueError(f"installed wheel code differs from Git archive: {relative}")
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\\0")
+        digest.update(sha256(source_bytes).digest())
+    return {
+        "installed_python_module_count": len(staged_modules),
+        "installed_python_source_sha256": digest.hexdigest(),
+    }
+
 def prove_release_source(
     *, checkout: Path, archive: Path, venv: Path
 ) -> dict[str, object]:
@@ -78,7 +134,13 @@ def prove_release_source(
         raise ValueError(f"Sofia imported from outside release venv: {installed}")
     if checkout in installed.parents or archive in installed.parents:
         raise ValueError("release validation imported checkout or staged source")
+    if installed.name != "__init__.py":
+        raise ValueError("installed Sofia import must resolve to its package entrypoint")
+    installed_source = _prove_installed_python_matches_archive(
+        archive, installed.parent,
+    )
     return {
+        **installed_source,
         "schema": "sofia.release-source-provenance-v1",
         "revision": revision,
         "source_file_count": len(entries),
