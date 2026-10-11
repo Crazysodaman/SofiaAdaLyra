@@ -203,6 +203,7 @@ class MobileCompanionGateway:
                     device_id=device, message=payload["message"],
                     private_mode=payload["private_mode"],
                     request_id=payload["request_id"],
+                    credential=credential,
                 )
             if operation == "/v1/mobile/delivery/status":
                 if set(payload) != {
@@ -433,6 +434,7 @@ class MobileCompanionGateway:
         message: object,
         private_mode: object = False,
         request_id: object,
+        credential: str | None = None,
     ) -> dict[str, object]:
         """At-most-once *dispatch* for a mobile request, including restarts.
 
@@ -451,12 +453,31 @@ class MobileCompanionGateway:
         mode = "private" if private_mode else "standard"
         digest = sha256(content.encode("utf-8")).hexdigest()
         generation = self.credentials.active_generation(device) or 1
+        # Direct trusted host callers preserve their explicit internal API.
+        # Every remotely dispatched call supplies its ACTUAL enrolled bearer
+        # so the durable admission transaction rechecks its precise epoch.
+        fingerprint = (
+            None if credential is None else self.credentials._digest(credential)
+        )
+        if credential is not None and fingerprint is None:
+            raise MobileCredentialRevoked("verified chat bearer required")
         with self._lock:
             if private_mode and not self.permissions.private_adult_authority().private_chat:
                 raise PermissionError("private mobile chat requires the host private-chat grant")
             now = datetime.now(timezone.utc).isoformat()
             with closing(self._connect()) as db, db:
                 db.execute("BEGIN IMMEDIATE")
+                if credential is not None:
+                    live = db.execute(
+                        "SELECT 1 FROM mobile_device_credential "
+                        "WHERE device_id=? AND token_sha256=? "
+                        "AND generation=? AND status='active'",
+                        (device, fingerprint, generation),
+                    ).fetchone()
+                    if live is None:
+                        raise MobileCredentialRevoked(
+                            "chat bearer rotated or revoked before turn admission"
+                        )
                 existing = db.execute(
                     "SELECT device_id,presentation_mode,content_sha256,status,"
                     "response_json,credential_generation "
