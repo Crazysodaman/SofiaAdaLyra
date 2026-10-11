@@ -3,6 +3,8 @@ from __future__ import annotations
 import json,platform,subprocess
 from typing import Any
 
+from sofia.ops.workshop_policy import CANONICAL_RUNTIME_VM_NAME
+
 class HyperVError(RuntimeError): pass
 
 class HyperVAdapter:
@@ -21,12 +23,26 @@ class HyperVAdapter:
         if data is not None and not isinstance(data,dict): raise HyperVError("invalid VM response")
         return data
     def start(self,name:str)->None:
-        self._name(name); self._runner(f"Start-VM -Name {self._ps(name)} -ErrorAction Stop | Out-Null")
+        self._name(name)
+        self._reject_canonical_runtime_management(name)
+        self._runner(f"Start-VM -Name {self._ps(name)} -ErrorAction Stop | Out-Null")
     def stop(self,name:str,*,force:bool=False)->None:
         self._name(name)
+        self._reject_canonical_runtime_management(name)
         cmd=f"Stop-VM -Name {self._ps(name)} -ErrorAction Stop"
         if force: cmd+=" -TurnOff"
         self._runner(cmd+" | Out-Null")
+    @staticmethod
+    def _reject_canonical_runtime_management(name: str) -> None:
+        # This shared adapter serves both local and remote Fleet VM tools.
+        # An ordinary model-facing VM action must never start/stop the sole
+        # canonical writer. Privileged host recovery is an independent path.
+        if name.strip().casefold() == CANONICAL_RUNTIME_VM_NAME.casefold():
+            raise PermissionError(
+                "canonical Sofia VM lifecycle requires independent "
+                "operator-controlled host authority"
+            )
+
     @staticmethod
     def _name(name:str)->None:
         if not isinstance(name,str) or not name.strip(): raise ValueError("VM name required")
