@@ -253,3 +253,25 @@ def test_fresh_owner_veto_releases_claim_without_sender_or_retry_cost(state):
     )
     assert later is not None and later.outcome is DeliveryOutcome.DELIVERED
     assert row_for(state, "notice-1")[0:2] == ("delivered", 1)
+
+
+def test_notice_owner_authorization_lookup_failure_keeps_delivery_unsent(state):
+    queue = SystemNoticeQueue(state)
+    enqueue(queue)
+    seen = []
+
+    def unavailable():
+        raise OSError("canonical owner authority temporarily unavailable")
+
+    assert queue.deliver_one(
+        sender=lambda payload: seen.append(payload),
+        policy=policy(), now=NOW, pre_send_decision=unavailable,
+    ) is None
+    assert seen == []
+    assert row_for(state, "notice-1") == ("queued", 0, None, None, None)
+    with sqlite3.connect(state) as db:
+        last = db.execute(
+            "SELECT stage,reason FROM act_outreach_trace "
+            "WHERE notice_id='notice-1' ORDER BY trace_id DESC LIMIT 1"
+        ).fetchone()
+    assert last == ("deferred", "authorization_unavailable")
