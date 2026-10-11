@@ -911,6 +911,12 @@ class SelfDirectedLifeCoordinator:
                 and suggestion.confidence >= 0.65
                 and suggestion.curiosity >= 0.65
                 and suggestion.artifact_kind in self._native_probe.supported_kinds
+                # An installed serializer is not an autonomous author.
+                # LIFE v1 has independently reviewed tool-free drafting for
+                # text/story only. Other native adapters still serialize
+                # starter specimens and must not be presented as completed
+                # self-directed creative work.
+                and suggestion.artifact_kind in {ArtifactKind.TEXT, ArtifactKind.STORY}
             )
             if not deterministic_accept:
                 self.choose_inactivity(
@@ -957,20 +963,6 @@ class SelfDirectedLifeCoordinator:
                 slot, status="failed", reason=type(exc).__name__,
             )
             raise
-
-    @staticmethod
-    def _initial_specification(project: LifeProject, kind: ArtifactKind) -> dict[str, object]:
-        if kind in {ArtifactKind.TEXT, ArtifactKind.STORY}:
-            return {
-                "content": f"# {project.name}\n\n{project.description}\n\n"
-                + "\n".join(f"- {objective}" for objective in project.brief.objectives),
-            }
-        if kind is ArtifactKind.ART:
-            digest = sha256(project.project_id.encode()).hexdigest()
-            return {"color": "#" + digest[:6].upper()}
-        if kind is ArtifactKind.MUSIC:
-            return {"frequency_hz": 220 + int(sha256(project.project_id.encode()).hexdigest()[:2], 16) * 2}
-        return {"concept": project.description, "objectives": list(project.brief.objectives)}
 
     def schedule_artifact(
         self, project_id: str, *, artifact_kind: ArtifactKind,
@@ -1818,35 +1810,51 @@ class SelfDirectedLifeCoordinator:
                     assertion=f"{project.project_id} selected within resource budget",
                     now=now, payload={"selection_id": selection.selection_id},
                 )
-                specification = self._initial_specification(project, kind)
-                if generate is not None and kind in {ArtifactKind.TEXT, ArtifactKind.STORY}:
-                    if not self.store.claim_daily_draft_attempt(project.project_id, now=now):
-                        return {
-                            "selection": selection.kind.value,
-                            "project_id": selection.project_id,
-                            "scheduled": 0,
-                            "jobs_started": self.manager.tick(
-                                now=now, busy=busy, resource_pressure=resource_pressure,
-                            ),
-                            "draft_status": "deferred_daily_limit",
-                            "review_queue": self.pending_work_review(limit=16),
-                        }
-                    try:
-                        specification = ProjectDraftAgent(generate).draft(project, kind)
-                    except ProjectDraftGenerationError:
-                        # A model drafting failure must not be relabeled as
-                        # successful creativity or silently replaced by a
-                        # static placeholder in production.
-                        return {
-                            "selection": selection.kind.value,
-                            "project_id": selection.project_id,
-                            "scheduled": 0,
-                            "jobs_started": self.manager.tick(
-                                now=now, busy=busy, resource_pressure=resource_pressure,
-                            ),
-                            "draft_status": "failed_unverified",
-                            "review_queue": self.pending_work_review(limit=16),
-                        }
+                if kind not in {ArtifactKind.TEXT, ArtifactKind.STORY} or generate is None:
+                    # No canned brief, hashed color, oscillator sample or
+                    # serialized concept may masquerade as autonomous work.
+                    # An explicitly approved manual Project Forge request
+                    # still uses its own capability/permission path.
+                    return {
+                        "selection": selection.kind.value,
+                        "project_id": selection.project_id,
+                        "scheduled": 0,
+                        "jobs_started": self.manager.tick(
+                            now=now, busy=busy, resource_pressure=resource_pressure,
+                        ),
+                        "draft_status": (
+                            "approved_autonomous_authoring_unavailable"
+                            if kind not in {ArtifactKind.TEXT, ArtifactKind.STORY}
+                            else "model_generation_unavailable"
+                        ),
+                        "review_queue": self.pending_work_review(limit=16),
+                    }
+                if not self.store.claim_daily_draft_attempt(project.project_id, now=now):
+                    return {
+                        "selection": selection.kind.value,
+                        "project_id": selection.project_id,
+                        "scheduled": 0,
+                        "jobs_started": self.manager.tick(
+                            now=now, busy=busy, resource_pressure=resource_pressure,
+                        ),
+                        "draft_status": "deferred_daily_limit",
+                        "review_queue": self.pending_work_review(limit=16),
+                    }
+                try:
+                    specification = ProjectDraftAgent(generate).draft(project, kind)
+                except ProjectDraftGenerationError:
+                    # A model drafting failure is not a license to submit
+                    # a template as real creative output.
+                    return {
+                        "selection": selection.kind.value,
+                        "project_id": selection.project_id,
+                        "scheduled": 0,
+                        "jobs_started": self.manager.tick(
+                            now=now, busy=busy, resource_pressure=resource_pressure,
+                        ),
+                        "draft_status": "failed_unverified",
+                        "review_queue": self.pending_work_review(limit=16),
+                    }
                 try:
                     self.schedule_artifact(
                         project.project_id, artifact_kind=kind,
