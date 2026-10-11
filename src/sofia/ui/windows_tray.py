@@ -346,6 +346,7 @@ class WindowsTrayAgent:
             1052: TrayCommand.LLM_MODE_FAST,
             1053: TrayCommand.LLM_MODE_DUAL,
             1054: TrayCommand.LLM_MODE_RESOURCE,
+            1057: TrayCommand.LLM_MODE_HYBRID,
             1055: TrayCommand.LLM_REFRESH,
             1056: TrayCommand.LLM_VIEW_ERRORS,
             1030: TrayCommand.RUNTIME_START,
@@ -618,6 +619,7 @@ class WindowsTrayAgent:
                     (1052, "Mode: Fast resident", TrayCommand.LLM_MODE_FAST, "fast_always_resident"),
                     (1053, "Mode: Dual resident", TrayCommand.LLM_MODE_DUAL, "dual_resident"),
                     (1054, "Mode: Resource aware", TrayCommand.LLM_MODE_RESOURCE, "resource_aware"),
+                    (1057, "Mode: Gaming / idle hybrid", TrayCommand.LLM_MODE_HYBRID, "hybrid_gaming_idle"),
                 ):
                     flags = MF_STRING | (
                         MF_CHECKED if status.cognitive_residency_mode == mode else 0
