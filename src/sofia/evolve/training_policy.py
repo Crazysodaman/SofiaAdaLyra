@@ -54,6 +54,41 @@ def assess_adaptation(plan: AdaptationPlan) -> AdaptationReview:
 
 
 
+
+def _verified_instruction_hashes(*, path, reviewed_digest: str) -> frozenset[bytes]:
+    """Re-read locally reviewed JSONL, returning only private in-process hashes.
+
+    Case/Unicode/whitespace-normalized INSTRUCTION overlap would leak held-out
+    prompts even when the response differs and file SHA-256 hashes differ.
+    The complete file digest is rechecked to reject mutation during reading.
+    No samples or hashes are persisted in canonical state or logs.
+    """
+    from hashlib import sha256
+    from pathlib import Path
+    from unicodedata import normalize
+    import json
+    from sofia.evolve.training_sources import MAX_LINE, MAX_ROWS
+
+    whole = sha256()
+    fingerprints: set[bytes] = set()
+    with Path(path).open("rb") as stream:
+        for index, raw in enumerate(stream, 1):
+            if index > MAX_ROWS or len(raw) > MAX_LINE:
+                raise ValueError("overlap check exceeded reviewed row bounds")
+            whole.update(raw)
+            row = json.loads(raw.decode("utf-8"))
+            if not isinstance(row, dict) or set(row) != {"instruction", "response"}:
+                raise ValueError("source structure changed during overlap review")
+            if any(not isinstance(row[k], str) or not row[k].strip()
+                   for k in ("instruction", "response")):
+                raise ValueError("empty or invalid reviewed example")
+            key = normalize("NFKC", row["instruction"]).casefold().strip()
+            fingerprints.add(sha256(key.encode("utf-8")).digest())
+    if whole.hexdigest() != reviewed_digest:
+        raise ValueError("source bytes changed while comparing held-out overlap")
+    return frozenset(fingerprints)
+
+
 def assess_registered_adaptation(
     plan: AdaptationPlan, *, dataset_store,
 ) -> AdaptationReview:
@@ -72,6 +107,7 @@ def assess_registered_adaptation(
         raise TypeError("canonical reviewed dataset owner required")
     base=assess_adaptation(plan)
     blockers=list(base.blockers)
+    instruction_hashes:dict[str,frozenset[bytes]]={}
     for role,digest in (
         ("training",plan.training_data_digest),
         ("heldout",plan.heldout_data_digest),
@@ -104,6 +140,24 @@ def assess_registered_adaptation(
             observed.duplicate_rows!=reviewed.duplicate_rows
         ):
             blockers.append(role+" source bytes changed since reviewed approval")
+            continue
+        try:
+            instruction_hashes[role]=_verified_instruction_hashes(
+                path=reviewed.source_path, reviewed_digest=digest,
+            )
+        except (OSError,ValueError,TypeError,UnicodeError):
+            blockers.append(role+" source changed during held-out overlap review")
+            continue
+        # An owner withdrawal concurrent with file inspection must not
+        # appear as a valid dataset admission in the returned review.
+        if dataset_store.find(digest) is None:
+            blockers.append(role+" source rights withdrawn during review")
+    if (
+        "training" in instruction_hashes
+        and "heldout" in instruction_hashes
+        and instruction_hashes["training"] & instruction_hashes["heldout"]
+    ):
+        blockers.append("training and heldout share instruction examples")
     return AdaptationReview(
         research_eligible=not blockers,
         blockers=tuple(dict.fromkeys(blockers)),
