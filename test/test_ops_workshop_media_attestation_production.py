@@ -20,10 +20,42 @@ from sofia.ops.workshop_media import MEDIA_POLICY_VERSION
 pytestmark=pytest.mark.pkg_ops
 
 
+def _restrict_owner_test_folder(path):
+    """Use the native ACL, not chmod emulation, on Windows test runners."""
+    if os.name != "nt":
+        path.chmod(0o700)
+        return
+    import win32api
+    import win32con
+    import win32security
+    token = win32security.OpenProcessToken(
+        win32api.GetCurrentProcess(), win32security.TOKEN_QUERY,
+    )
+    sid, _ = win32security.GetTokenInformation(
+        token, win32security.TokenUser,
+    )
+    acl = win32security.ACL()
+    inherit = win32con.CONTAINER_INHERIT_ACE | win32con.OBJECT_INHERIT_ACE
+    acl.AddAccessAllowedAceEx(
+        win32security.ACL_REVISION, inherit, win32con.GENERIC_ALL, sid,
+    )
+    acl.AddAccessAllowedAceEx(
+        win32security.ACL_REVISION, inherit, win32con.GENERIC_ALL,
+        win32security.ConvertStringSidToSid("S-1-5-18"),
+    )
+    sd = win32security.GetFileSecurity(
+        str(path), win32security.DACL_SECURITY_INFORMATION,
+    )
+    sd.SetSecurityDescriptorDacl(1, acl, 0)
+    win32security.SetFileSecurity(
+        str(path), win32security.DACL_SECURITY_INFORMATION, sd,
+    )
+
+
 def _owner_key(tmp_path,monkeypatch):
     private_dir=tmp_path/"owner-private"
     private_dir.mkdir(mode=0o700)
-    private_dir.chmod(0o700)
+    _restrict_owner_test_folder(private_dir)
     monkeypatch.setattr(
         "sofia.ops.workshop_media_attestation.getpass",
         lambda _: "test-owner-local-passphrase-only",
@@ -90,7 +122,7 @@ def test_manifest_tamper_or_wrong_owner_key_never_admits_boot(tmp_path,monkeypat
     )
     other_dir=tmp_path/"other-owner"
     other_dir.mkdir(mode=0o700)
-    other_dir.chmod(0o700)
+    _restrict_owner_test_folder(other_dir)
     unrelated=create_owner_signing_keypair(other_dir)
     with pytest.raises(PermissionError,match="pin changed"):
         verify_prepared_media(
@@ -132,7 +164,8 @@ def test_generation_requires_private_owner_key_dir(tmp_path,monkeypatch):
 def test_key_pair_is_explicitly_owner_private_and_not_regenerated(tmp_path,monkeypatch):
     private,public=_owner_key(tmp_path,monkeypatch)
     assert private.exists() and public.exists()
-    assert private.stat().st_mode & 0o077 == 0
+    from sofia.ops.workshop_media_attestation import _assert_owner_private_path
+    _assert_owner_private_path(private, directory=False)
     with pytest.raises(FileExistsError,match="overwrite"):
         create_owner_signing_keypair(private.parent)
 
