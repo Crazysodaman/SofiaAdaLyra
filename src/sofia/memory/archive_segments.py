@@ -1,17 +1,24 @@
-"""Content-addressed encrypted archive segments with independently checkable bytes.
+"""Recoverable authenticated archive segments for decades of authorized history.
 
-The archive never serializes raw conversations itself: the caller MUST encrypt
-before passing ciphertext. Manifest metadata is not conversation text.
-Deleting/forgetting requires a separate tombstone-aware retention coordinator.
+Seals plaintext in RAM with the existing BackupCipher (AES-256-GCM), writes
+only ciphertext and an authenticated manifest to storage, and requires the
+operator-held key to verify or recover. No content is promoted to memory.
 """
 from __future__ import annotations
 
+from base64 import b64encode, b64decode
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
+import hmac
 import json
 import os
 import tempfile
+
+from sofia.ops.backup import BackupCipher
+
+
+_AAD = b"sofia-archive-segment-v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,85 +31,92 @@ class SealedArchiveReceipt:
 
 
 class SealedArchiveSegmentStore:
+    """One content-addressed encrypted object with key-independent file paths."""
+
     def __init__(self, root: Path | str) -> None:
         self.root = Path(root)
 
-    def stage_encrypted(
-        self, *, ciphertext: bytes, key_id: str,
-        encryption: str = "AES-256-GCM",
+    def stage(
+        self, *, plaintext: bytes, cipher: BackupCipher, key_id: str,
     ) -> SealedArchiveReceipt:
-        if encryption != "AES-256-GCM":
-            raise ValueError("approved authenticated encryption required")
+        if not isinstance(cipher, BackupCipher):
+            raise TypeError("existing authenticated BackupCipher required")
         if not isinstance(key_id, str) or not key_id.strip() or len(key_id) > 128:
-            raise ValueError("bounded external recovery key identifier required")
-        if not isinstance(ciphertext, bytes) or not 32 <= len(ciphertext) <= 64 * 1024 * 1024:
-            raise ValueError("bounded sealed archive segment required")
+            raise ValueError("bounded external key identifier required")
+        if not isinstance(plaintext, bytes) or not 1 <= len(plaintext) <= 64 * 1024 * 1024:
+            raise ValueError("bounded source bytes required")
+        nonce, ciphertext = cipher.encrypt(plaintext, aad=_AAD)
         digest = sha256(ciphertext).hexdigest()
         self.root.mkdir(parents=True, exist_ok=True)
         if self.root.is_symlink():
-            raise ValueError("archive root must not be a symbolic link")
+            raise ValueError("symlinked archive root is not allowed")
         binary = self.root / f"{digest}.sealed"
         manifest = self.root / f"{digest}.json"
+        mac_path = self.root / f"{digest}.hmac"
         info = {
-            "schema": "sofia.sealed-archive-segment-v1",
+            "schema": "sofia.sealed-archive-segment-v2",
             "ciphertext_sha256": digest,
             "ciphertext_bytes": len(ciphertext),
-            "encryption": encryption,
+            "encryption": "AES-256-GCM",
+            "nonce_b64": b64encode(nonce).decode("ascii"),
+            "aad": _AAD.decode("ascii"),
             "key_id": key_id,
-            "plaintext_in_manifest": False,
+            "plaintext_stored": False,
         }
-        manifest_bytes = (json.dumps(info, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
-        if binary.exists():
-            if sha256(binary.read_bytes()).hexdigest() != digest:
-                raise ValueError("existing sealed archive digest mismatch")
-            if manifest.is_file() and manifest.read_bytes() != manifest_bytes:
-                raise ValueError("existing sealed archive manifest mismatch")
-            # Crash after the blob rename but before its manifest must be
-            # repairable from caller-supplied, digest-matching ciphertext.
-            if not manifest.is_file():
-                with tempfile.NamedTemporaryFile(
-                    dir=self.root, prefix=".manifest-", delete=False
-                ) as tmp:
-                    repair_path = Path(tmp.name)
-                    tmp.write(manifest_bytes)
-                    tmp.flush()
-                    os.fsync(tmp.fileno())
-                try:
-                    os.replace(repair_path, manifest)
-                finally:
-                    repair_path.unlink(missing_ok=True)
-        else:
-            with tempfile.NamedTemporaryFile(dir=self.root, prefix=".staging-", delete=False) as tmp:
-                temp = Path(tmp.name)
-                tmp.write(ciphertext)
-                tmp.flush()
-                os.fsync(tmp.fileno())
+        manifest_bytes = (
+            json.dumps(info, sort_keys=True, separators=(",", ":")) + "\n"
+        ).encode("utf-8")
+        mac_bytes = (cipher.manifest_mac(manifest_bytes) + "\n").encode("ascii")
+        for path, data in (
+            (binary, ciphertext), (manifest, manifest_bytes), (mac_path, mac_bytes),
+        ):
+            with tempfile.NamedTemporaryFile(
+                dir=self.root, prefix=".sealed-staging-", delete=False,
+            ) as handle:
+                staged = Path(handle.name)
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
             try:
-                if binary.exists():
-                    raise FileExistsError("raced with archive publisher")
-                os.replace(temp, binary)
-                with tempfile.NamedTemporaryFile(dir=self.root, prefix=".manifest-", delete=False) as tmp:
-                    manifest_tmp = Path(tmp.name)
-                    tmp.write(manifest_bytes)
-                    tmp.flush()
-                    os.fsync(tmp.fileno())
-                os.replace(manifest_tmp, manifest)
+                if path.exists():
+                    if path.read_bytes() != data:
+                        raise ValueError("conflicting archive object already exists")
+                else:
+                    os.replace(staged, path)
             finally:
-                temp.unlink(missing_ok=True)
-        return SealedArchiveReceipt(digest, len(ciphertext), key_id, binary, manifest)
-
-    def verify(self, digest: str) -> bool:
-        if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
-            raise ValueError("lowercase sha256 required")
-        binary = self.root / f"{digest}.sealed"
-        manifest = self.root / f"{digest}.json"
-        if not binary.is_file() or not manifest.is_file():
-            return False
-        info = json.loads(manifest.read_text(encoding="utf-8"))
-        return (
-            info.get("schema") == "sofia.sealed-archive-segment-v1"
-            and info.get("ciphertext_sha256") == digest
-            and info.get("ciphertext_bytes") == binary.stat().st_size
-            and info.get("encryption") == "AES-256-GCM"
-            and sha256(binary.read_bytes()).hexdigest() == digest
+                staged.unlink(missing_ok=True)
+        return SealedArchiveReceipt(
+            digest, len(ciphertext), key_id, binary, manifest,
         )
+
+    def recover(
+        self, *, digest: str, cipher: BackupCipher,
+    ) -> bytes:
+        """Validate manifest MAC, ciphertext digest and GCM tag before release."""
+        if (
+            not isinstance(digest, str) or len(digest) != 64
+            or any(ch not in "0123456789abcdef" for ch in digest)
+        ):
+            raise ValueError("lowercase SHA-256 archive digest required")
+        if not isinstance(cipher, BackupCipher):
+            raise TypeError("recovery requires a trusted BackupCipher")
+        manifest = (self.root / f"{digest}.json").read_bytes()
+        mac = (self.root / f"{digest}.hmac").read_text(encoding="ascii")
+        if not cipher.verify_manifest_mac(manifest, mac):
+            raise ValueError("archive manifest authentication failed")
+        document = json.loads(manifest.decode("utf-8"))
+        ciphertext = (self.root / f"{digest}.sealed").read_bytes()
+        if (
+            document.get("schema") != "sofia.sealed-archive-segment-v2"
+            or document.get("encryption") != "AES-256-GCM"
+            or document.get("aad") != _AAD.decode("ascii")
+            or document.get("ciphertext_sha256") != digest
+            or document.get("ciphertext_bytes") != len(ciphertext)
+            or not hmac.compare_digest(sha256(ciphertext).hexdigest(), digest)
+        ):
+            raise ValueError("sealed archive ciphertext does not match its manifest")
+        nonce = b64decode(document["nonce_b64"], validate=True)
+        if len(nonce) != 12:
+            raise ValueError("AES-GCM nonce is not 96 bits")
+        # AES-GCM authenticates content and AAD. Never return corrupted text.
+        return cipher.decrypt(ciphertext, nonce=nonce, aad=_AAD)
