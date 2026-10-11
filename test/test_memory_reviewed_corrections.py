@@ -117,3 +117,17 @@ def test_correction_duplicate_or_competing_replacement_is_rejected(tmp_path):
             store.link_correction(other.candidate_id, original.candidate_id)
     finally:
         store.close()
+
+def test_normal_promotion_preserves_previous_error_contract(tmp_path):
+    store = DurableMemoryCandidateStore(tmp_path / "sofia.db")
+    try:
+        with pytest.raises(LookupError, match="does not exist"):
+            store.promote(uuid4())
+        original = _candidate("Owner's reviewed evidence", 1)
+        store.propose(original)
+        store.promote(original.candidate_id)
+        with pytest.raises(ValueError, match="must be proposed"):
+            store.promote(original.candidate_id)
+        assert store.status(original.candidate_id) is CandidateStatus.PROMOTED
+    finally:
+        store.close()
