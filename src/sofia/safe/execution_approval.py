@@ -235,8 +235,12 @@ class ExecutionApprovalVerifier:
             db.execute("PRAGMA busy_timeout=10000")
             rows = db.execute(
                 """
-                SELECT capability, approved_by, approved_at, expires_at
-                FROM safe_execution_approval
+                SELECT capability, approved_by, approved_at, expires_at,
+                       EXISTS(
+                         SELECT 1 FROM safe_execution_owner_auth_binding b
+                         WHERE b.approval_id = a.approval_id
+                       ) AS owner_proof_bound
+                FROM safe_execution_approval a
                 WHERE consumed_at IS NULL
                 ORDER BY capability, approved_at
                 """
@@ -244,6 +248,11 @@ class ExecutionApprovalVerifier:
         capabilities = []
         for row in rows:
             if row["approved_by"] != "Sparks":
+                continue
+            if (
+                capability_permission_policy(row["capability"]).level >= PermissionLevel.PROTECTED
+                and not row["owner_proof_bound"]
+            ):
                 continue
             try:
                 approved_at = datetime.fromisoformat(row["approved_at"])
@@ -291,13 +300,22 @@ class ExecutionApprovalVerifier:
             row = db.execute(
                 """
                 SELECT capability, request_fingerprint, approved_by,
-                       approved_at, expires_at, consumed_at
-                FROM safe_execution_approval
+                       approved_at, expires_at, consumed_at,
+                       EXISTS(
+                         SELECT 1 FROM safe_execution_owner_auth_binding b
+                         WHERE b.approval_id = a.approval_id
+                       ) AS owner_proof_bound
+                FROM safe_execution_approval a
                 WHERE approval_id = ?
                 """,
                 (approval_id,),
             ).fetchone()
         if row is None or row["consumed_at"] is not None:
+            return False
+        if (
+            capability_permission_policy(capability).level >= PermissionLevel.PROTECTED
+            and not row["owner_proof_bound"]
+        ):
             return False
         try:
             approval = ExecutionApproval(
@@ -344,8 +362,12 @@ class ExecutionApprovalVerifier:
             row = db.execute(
                 """
                 SELECT capability, request_fingerprint, approved_by,
-                       approved_at, expires_at, consumed_at
-                FROM safe_execution_approval
+                       approved_at, expires_at, consumed_at,
+                       EXISTS(
+                         SELECT 1 FROM safe_execution_owner_auth_binding b
+                         WHERE b.approval_id = a.approval_id
+                       ) AS owner_proof_bound
+                FROM safe_execution_approval a
                 WHERE approval_id = ?
                 """,
                 (approval_id,),
@@ -354,6 +376,13 @@ class ExecutionApprovalVerifier:
                 raise PermissionError("execution approval does not exist")
             if row["consumed_at"] is not None:
                 raise PermissionError("execution approval was already consumed")
+            if (
+                capability_permission_policy(capability).level >= PermissionLevel.PROTECTED
+                and not row["owner_proof_bound"]
+            ):
+                raise PermissionError(
+                    "protected execution approval lacks verified owner authentication"
+                )
 
             approval = ExecutionApproval(
                 approval_id=approval_id,
