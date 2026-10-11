@@ -1328,6 +1328,35 @@ class ConversationService(ConversationMatrixMixin):
         """Validate/transform model output before it becomes durable history."""
         return response
 
+    def main_thread_page(
+        self, *, principal: PrincipalContext,
+        before: tuple[datetime, str] | None = None,
+        limit: int = 50,
+    ):
+        """Return an authenticated audience-scoped page of canonical Main.
+
+        The calling channel adapter MUST authenticate PrincipalContext; a
+        bare username, Discord author text or model-generated principal is
+        never an authorization substitute. Underlying store verifies each
+        original message's CURRENT session/audience binding. This API does
+        not copy transcripts or send content to another channel.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if self._session is None:
+            raise RuntimeError("ConversationService must be started")
+        from sofia.conversation.lifelong import LifelongThreadStore
+
+        store = getattr(self, "_lifelong_thread_store", None)
+        if store is None:
+            store = LifelongThreadStore(self._conversation_store.database_path)
+            self._lifelong_thread_store = store
+        main = store.get_or_create(owner=principal)
+        return store.visible_message_page(
+            thread_id=main.thread_id, principal=principal,
+            before=before, limit=limit,
+        )
+
     def messages(
         self,
     ) -> tuple[ConversationMessage, ...]:
