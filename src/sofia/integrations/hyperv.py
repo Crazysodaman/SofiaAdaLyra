@@ -660,11 +660,27 @@ class HyperVAdapter:
         if (
             not isinstance(output,dict)
             or str(output.get("VmId","")).lower()!=exact_id.lower()
+            or output.get("Name")!="Hephaestus"
+            or output.get("State")!="Running"
+            or output.get("MediaSha256")!=iso_sha256
             or output.get("Outcome")!="installer_boot_started"
             or output.get("OsInstalled") is not False
             or output.get("FleetEnrolled") is not False
+            or not isinstance(output.get("ObservedAtUtc"),str)
         ):
             raise HyperVError("unexpected host installer start receipt")
+        from datetime import datetime,timedelta,timezone
+        try:
+            observed=datetime.fromisoformat(
+                output["ObservedAtUtc"].replace("Z","+00:00")
+            )
+        except ValueError as exc:
+            raise HyperVError("invalid host installer-start observation time") from exc
+        if (
+            observed.tzinfo is None or observed.utcoffset() is None
+            or not timedelta(0)<=datetime.now(timezone.utc)-observed<=timedelta(minutes=3)
+        ):
+            raise HyperVError("stale or future host installer-start observation")
         return output
 
     def workshop_host(self) -> dict[str, Any]:
