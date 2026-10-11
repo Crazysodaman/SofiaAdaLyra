@@ -261,6 +261,10 @@ class ReleaseManager:
             raise ReleaseManagerError(
                 "previous release artifact failed integrity verification"
             )
+        # Rollback is code-only, not a database time machine. An older wheel
+        # must still accept the LIVE State Plane, Fleet and configuration
+        # schemas. Otherwise keep the current pointer and escalate recovery.
+        self._verify_compatibility(previous_manifest)
 
         moment = now.astimezone(timezone.utc)
         self.audit.append(
