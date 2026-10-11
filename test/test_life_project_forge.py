@@ -1152,3 +1152,68 @@ def test_unknown_life_judgment_keeps_preference_unset(tmp_path):
         ) is None
     finally:
         life.close()
+
+
+@pytest.mark.parametrize(
+    ("outcome", "claimed"),
+    [
+        (TechnicalOutcome.VALID, True),
+        (TechnicalOutcome.INVALID, True),
+        (TechnicalOutcome.INCONCLUSIVE, False),
+        (TechnicalOutcome.INVALID, None),
+    ],
+)
+def test_invented_life_artifact_failures_cannot_trigger_revisions(
+    tmp_path, outcome, claimed,
+):
+    """Generator/reviewer claims cannot substitute for real source checks."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        original = "text_contains:never-written-in-original"
+        project, _ = active_project(life, now, objectives=(original,))
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
+        finished = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        assert finished.status is WorkStatus.COMPLETED
+        with pytest.raises(ValueError, match="independent"):
+            life.evaluate_artifact(
+                project.project_id,
+                artifact_id=str(finished.result["artifact_id"]),
+                technical_outcome=outcome,
+                personal_judgment=PersonalJudgment.UNKNOWN,
+                objective_results={original: claimed},
+                reason="A false report cannot authorize another draft.",
+                evidence_refs=(str(finished.result["evidence_ref"]),),
+                preserve_for_research=False,
+                now=now + timedelta(seconds=4),
+            )
+        assert life.store.evaluations(project.project_id) == ()
+        assert life.store.jobs(project.project_id) == (finished.job_id,)
+    finally:
+        life.close()
+
+
+def test_independent_failed_artifact_critique_accepts_exact_failure(tmp_path):
+    """A genuine typed FAIL remains actionable without pretending it passed."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        original = "text_contains:never-written-in-original"
+        project, _ = active_project(life, now, objectives=(original,))
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
+        finished = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        assert finished.status is WorkStatus.COMPLETED
+        critique = life.evaluate_artifact(
+            project.project_id,
+            artifact_id=str(finished.result["artifact_id"]),
+            technical_outcome=TechnicalOutcome.INVALID,
+            personal_judgment=PersonalJudgment.UNKNOWN,
+            objective_results={original: False},
+            reason="The exact original text predicate was independently absent.",
+            evidence_refs=(str(finished.result["evidence_ref"]),),
+            preserve_for_research=False,
+            now=now + timedelta(seconds=4),
+        )
+        assert critique.objective_results[original] is False
+        assert critique.technical_outcome is TechnicalOutcome.INVALID
+        assert len(life.store.evaluations(project.project_id)) == 1
+    finally:
+        life.close()
