@@ -370,6 +370,7 @@ def assess_twin_experiment(
     at:datetime,verified_hypothesis:bool=True,
     repeated_failure_count:int=0,host_cpu_budget_ms:int=100,
     observed_cpu_ms:float=0,
+    tools_available:bool=True,source_noisy:bool=False,
 ) -> TwinExperimentDisposition:
     """Stop synthetic research when evidence is not adequate for interpretation."""
     if not isinstance(snapshot,TwinSnapshot) or not isinstance(result,TwinSimulationResult):
@@ -385,7 +386,17 @@ def assess_twin_experiment(
         or not 0<=observed_cpu_ms<=100_000
     ):
         raise ValueError("bounded experiment failure and compute observations required")
+    if (
+        type(tools_available) is not bool
+        or type(source_noisy) is not bool
+        or type(verified_hypothesis) is not bool
+    ):
+        raise TypeError("explicit validated hypothesis/tool/noise observations required")
     reasons=[]
+    if not tools_available:
+        reasons.append("required verified simulation tool is unavailable")
+    if source_noisy:
+        reasons.append("input source uncertainty or noise makes the result unusable")
     if not verified_hypothesis:
         reasons.append("hypothesis lacks independent falsification rule")
     if not timedelta(0)<=at-snapshot.generated_at<=timedelta(minutes=5):
