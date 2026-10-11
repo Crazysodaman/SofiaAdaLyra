@@ -299,3 +299,81 @@ def test_background_draft_handles_atomic_project_revision_race_without_crash(
         assert life.store.artifacts(project.project_id) == ()
     finally:
         life.close()
+
+
+def test_one_use_creative_grant_cannot_claim_after_life_pause_resume(
+    tmp_path,
+):
+    """The final writer CAS catches a revision change after RUN precheck."""
+    from sofia.creative import creative_request_digest
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Original authorized text",
+            specification={"content": "Original creative request"},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        params = dict(job.payload["parameters"])
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.RUNNING, reason="test original RUN worker claim",
+            now=now + timedelta(seconds=4),
+        )
+        life.pause(
+            project.project_id, reason="Work paused after RUN precheck.",
+            evidence_refs=(evidence,), now=now + timedelta(seconds=5),
+        )
+        life.resume(
+            project.project_id, reason="New revision needs new approval.",
+            evidence_refs=(evidence,), now=now + timedelta(seconds=6),
+        )
+        assert life.store.claim_artifact_authorization(
+            params["request_id"], project.project_id, params["artifact_id"],
+            creative_request_digest(params),
+        ) is False
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_one_use_creative_grant_claims_only_matching_original_running_job(
+    tmp_path,
+):
+    """A real current RUN job can claim only once, without executing work."""
+    from sofia.creative import creative_request_digest
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Current approved draft",
+            specification={"content": "A bounded real source request"},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        params = dict(job.payload["parameters"])
+        digest = creative_request_digest(params)
+        assert life.store.claim_artifact_authorization(
+            params["request_id"], project.project_id, params["artifact_id"],
+            digest,
+        ) is False  # QUEUED is not an executable RUN authorization
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.RUNNING, reason="test original worker claimed",
+            now=now + timedelta(seconds=4),
+        )
+        assert life.store.claim_artifact_authorization(
+            params["request_id"], project.project_id, params["artifact_id"],
+            digest,
+        ) is True
+        assert life.store.claim_artifact_authorization(
+            params["request_id"], project.project_id, params["artifact_id"],
+            digest,
+        ) is False
+        life.store.finish_artifact_authorization(params["request_id"], False)
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
