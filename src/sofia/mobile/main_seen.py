@@ -66,11 +66,17 @@ class MobileMainSeenStore:
     def acknowledge(
         self, *, device_id: str, private_mode: bool, generation: int,
         principal: PrincipalContext, canonical_sequence: int,
-        turn_position: int, message_id: str,
+        turn_position: int, message_id: str, credential_sha256: str,
     ) -> dict[str, object]:
         scope = self._scope(device_id, private_mode, generation)
         if not isinstance(principal, PrincipalContext):
             raise TypeError("authenticated principal required")
+        if (
+            not isinstance(credential_sha256, str)
+            or len(credential_sha256) != 64
+            or any(ch not in "0123456789abcdef" for ch in credential_sha256)
+        ):
+            raise PermissionError("verified device bearer digest required")
         if type(canonical_sequence) is not int or canonical_sequence < 1:
             raise ValueError("positive canonical sequence required")
         if type(turn_position) is not int or turn_position not in (0, 1):
@@ -79,6 +85,17 @@ class MobileMainSeenStore:
             raise ValueError("bounded source message ID required")
         with closing(self._guard.connect(timeout=10)) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            # The same SQLite writer transaction serializes credential
+            # rotation/revocation with read acknowledgment. Authentication
+            # performed before queued dispatch is not enough.
+            current = db.execute(
+                "SELECT 1 FROM mobile_device_credential "
+                "WHERE device_id=? AND generation=? "
+                "AND token_sha256=? AND status='active' LIMIT 1",
+                (device_id, generation, credential_sha256),
+            ).fetchone()
+            if current is None:
+                raise PermissionError("pairing changed before Main receipt commit")
             row = db.execute(
                 "SELECT 1 FROM lifelong_thread_event e "
                 "JOIN lifelong_thread t ON t.thread_id=e.thread_id "
