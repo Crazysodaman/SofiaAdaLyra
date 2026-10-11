@@ -343,6 +343,8 @@ function Prepare-OnVenus {
         Write-Host "Connected with writable administrator access through $ArtemisIp."
     }
 
+    $remoteSecretTransferAttempted = $false
+    $remoteKey = $null
     try {
         if (-not $mapped) {
             throw "Failed to create writable Artemis SMB mapping."
@@ -350,15 +352,20 @@ function Prepare-OnVenus {
 
         $remoteCanary = "$psDriveName`:\$relativeRemote"
         New-Item -ItemType Directory -Force $remoteCanary | Out-Null
-
-
+        $remoteKey = Join-Path $remoteCanary "certs\artemis-server-key.pem"
+        # Never overwrite a previously staged/live secret. Only a file
+        # proven absent before this transfer is eligible for failure cleanup.
+        if (Test-Path -LiteralPath $remoteKey) {
+            throw "Remote TLS private key already staged; independently review cleanup before replacement."
+        }
+        # Partial Copy-Item failures can create a truncated key.
+        $remoteSecretTransferAttempted = $true
         Copy-Item (Join-Path $bundle "*") $remoteCanary -Recurse -Force
         Copy-Item $wheel.FullName $remoteCanary -Force
 
         # Fail closed before telling the operator to start Artemis. The
         # private key must be the same bytes, with ACLs tightened while
         # still in staging rather than after a future agent start.
-        $remoteKey = Join-Path $remoteCanary "certs\artemis-server-key.pem"
         if (-not (Test-Path -LiteralPath $remoteKey -PathType Leaf)) {
             throw "TLS private key was not copied to Artemis."
         }
@@ -381,6 +388,16 @@ function Prepare-OnVenus {
         }
 
         Write-Host "Copied bundle to ${ArtemisHost}:$RemoteRoot"
+    }
+    catch {
+        # A failed copy, hash check or key ACL check can leave a new private
+        # key. Scrub only the one absent before this transfer attempt, while
+        # the approved SMB mapping is still open.
+        if ($remoteSecretTransferAttempted -and $remoteKey -and
+            (Test-Path -LiteralPath $remoteKey -PathType Leaf)) {
+            Remove-Item -LiteralPath $remoteKey -Force -ErrorAction Stop
+        }
+        throw
     }
     finally {
         Remove-PSDrive -Name $psDriveName -Force -ErrorAction SilentlyContinue
