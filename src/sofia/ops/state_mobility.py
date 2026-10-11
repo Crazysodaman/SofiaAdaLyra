@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -215,6 +216,36 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
         source, dest, source.is_file(), db_size, free,
         manifest, tuple(dict.fromkeys(blockers)), tuple(warnings),
     )
+
+
+def proposed_state_home_from_parent(parent: Path, folder: str) -> Path:
+    """Build a new absent state-home name for READ-ONLY settings preflight.
+
+    Directory chooser dialogs return existing directories. The reviewed
+    staging protocol requires a fresh final child name, not a precreated
+    empty destination. This builder never writes to disk or trusts an LLM.
+    """
+    if not isinstance(parent, Path) or not parent.is_absolute():
+        raise ValueError("absolute existing parent directory required")
+    if _unsafe_ancestor(parent) or not parent.is_dir():
+        raise PermissionError("proposed parent must be an unredirected directory")
+    if not isinstance(folder, str) or re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}", folder,
+    ) is None or folder.endswith((" ", ".")):
+        raise ValueError("safe 1-64 character state-home folder name required")
+    reserved = (
+        {"CON", "PRN", "AUX", "NUL"}
+        | {f"COM{i}" for i in range(1, 10)}
+        | {f"LPT{i}" for i in range(1, 10)}
+    )
+    if folder.split(".", 1)[0].upper() in reserved:
+        raise ValueError("reserved Windows device name is not a home folder")
+    destination = parent / folder
+    if _unsafe_ancestor(destination):
+        raise PermissionError("state-home destination is redirected")
+    if destination.exists() or destination.is_symlink():
+        raise FileExistsError("state-home destination must not already exist")
+    return destination
 
 
 def relocation_preflight_text(source: Path, destination: Path) -> str:
