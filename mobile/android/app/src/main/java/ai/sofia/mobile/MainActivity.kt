@@ -60,6 +60,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var status by mutableStateOf("Not connected")
     var mood by mutableStateOf("settled")
     var gesture by mutableStateOf("still")
+    var currentSessionId by mutableStateOf<String?>(null)
+        private set
+    var currentAudienceId by mutableStateOf<String?>(null)
+        private set
     var busy by mutableStateOf(false)
     val messages = mutableStateListOf<ChatLine>()
     val mainHistory = mutableStateListOf<ChatLine>()
@@ -191,6 +195,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             pendingPrivateMode = null
             mood = "settled"
             gesture = "still"
+            currentSessionId = null
+            currentAudienceId = null
         }
         secure.save(next)
         config = secure.load()
@@ -226,6 +232,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             pendingPrivateMode = null
             mood = "settled"
             gesture = "still"
+            currentSessionId = null
+            currentAudienceId = null
         }
         save(next)
         if (config.privateMode == next.privateMode) {
@@ -261,6 +269,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun applyState(json: JSONObject) {
+        val serverSession = json.optString("session_id", "")
+        val serverAudience = json.optString("audience_id", "")
+        if (serverSession.isNotBlank() && serverAudience.isNotBlank()) {
+            currentSessionId = serverSession
+            currentAudienceId = serverAudience
+        }
         val emotion = json.optJSONObject("emotion")
         mood = emotion?.optString("tone", "settled") ?: "settled"
         val expression = json.optJSONObject("expression")
@@ -422,6 +436,21 @@ private fun SofiaScreen(model: MainViewModel) {
             )
             Text("Mood: ${model.mood} · Expression: ${model.gesture}")
             Text(model.status, style = MaterialTheme.typography.bodySmall)
+            Text(
+                "Continue on this phone: " +
+                    (model.currentSessionId ?: "No server-confirmed session yet"),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "Audience: " + (model.currentAudienceId ?: "Not server-confirmed") +
+                    " · Cross-channel mirroring OFF",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "Main history only displays this authenticated audience. " +
+                    "Switching private/shared mode does not unlock another channel's messages.",
+                style = MaterialTheme.typography.bodySmall,
+            )
 
             var url by remember(model.config.baseUrl) {
                 mutableStateOf(model.config.baseUrl)

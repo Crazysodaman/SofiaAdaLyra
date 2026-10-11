@@ -571,7 +571,9 @@ class MobileCompanionGateway:
                 }
             ),
             "has_more": len(page) == limit,
+            "audience_id": principal.audience_id,
             "audience_kind": principal.audience_kind.value,
+            "cross_channel_mirroring": False,
         }
 
     def claim_notification(
@@ -666,6 +668,9 @@ class MobileCompanionGateway:
         result: dict[str, object] = {
             "as_of": now.isoformat(),
             "session_id": conversation.session_id,
+            "audience_id": principal.audience_id,
+            "audience_kind": principal.audience_kind.value,
+            "cross_channel_mirroring": False,
             "private_owner_channel": True,
             "private_mode": private_mode,
             "adult_chat_enabled": (
