@@ -7,12 +7,18 @@ and do not create a second runtime, conversation or state model.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 from pathlib import Path
 import socket
 from typing import TYPE_CHECKING
 
 from sofia.application.background import ApplicationBackgroundCoordinator
-from sofia.application.presence import WorldAvailability, WorldEpistemicState
+from sofia.act.outreach import Importance, OutreachCategory
+from sofia.application.presence import (
+    InitiativeEvent, PresenceInitiativeEngine, WorldAvailability,
+    WorldEpistemicState, WorldObservation,
+)
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.application.fleet_runtime import (
     create_fleet_bootstrap_coordinator, create_fleet_candidate_notifier,
     create_fleet_reconciliation_notifier,
@@ -31,6 +37,107 @@ from sofia.run.heartbeat import ApplicationHeartbeat
 
 if TYPE_CHECKING:
     from sofia.application.bootstrap import SofiaApplication
+
+
+def bridge_voluntary_life_outreach(
+    *, life, presence: PresenceInitiativeEngine, act_service,
+    now: datetime, busy: bool,
+) -> int:
+    """Let Sofía optionally talk about her own verified private successes.
+
+    This bridge belongs to the existing independent LIFE worker and the
+    existing Presence/ACT recipient policy, NOT to a new social scheduler.
+    Project metadata only is offered to the authenticated owner: never raw
+    files, private reflections, a public post or a device control action.
+    The human can opt out globally or choose quiet, and silence is normal.
+    """
+    if busy or act_service is None or presence is None:
+        return 0
+    if not act_service.delivery_enabled:
+        return 0
+    route = act_service.delivery_route
+    # Desktop's owner tray or a separately authenticated pinned owner DM.
+    # Home Assistant notify targets and general channels have no proven
+    # one-to-one private project audience mapping.
+    if route is None or route[0] not in {"desktop", "discord"}:
+        return 0
+    policy = act_service.policy
+    if policy is None or not policy.enabled or policy.mute or policy.stop:
+        return 0
+    if policy.recipient_id != SPARKS_PRINCIPAL_ID:
+        return 0
+    from sofia.config.user_settings import RuntimeUserSettingsStore
+    outreach = RuntimeUserSettingsStore(act_service.state_path).load().outreach
+    if outreach is not None and (not outreach.enabled or outreach.mute):
+        return 0
+    if presence.recent_life_project_outreach(now=now):
+        return 0
+    moments = life.voluntary_project_updates(now=now, limit=4)
+    if not moments:
+        return 0
+    # One event is sufficient; preference strength chooses which source
+    # event deserves the moment. No per-project sharing approval prompt.
+    candidate = max(
+        moments,
+        key=lambda row: (row["salience"], row["verified_at"], row["event_id"]),
+    )
+    if candidate["audience_id"] != "local:text":
+        return 0
+    event_id = "life-complete:" + sha256(
+        candidate["event_id"].encode("utf-8")
+    ).hexdigest()[:32]
+    observation = WorldObservation(
+        observation_id="life-observed:" + sha256(
+            candidate["event_id"].encode("utf-8")
+        ).hexdigest()[:32],
+        subject_id="life:" + sha256(
+            candidate["project_id"].encode("utf-8")
+        ).hexdigest()[:24],
+        predicate="original_project.verified_completion",
+        source_id="life:canonical_project_event",
+        observed_at=candidate["verified_at"],
+        expires_at=candidate["expires_at"],
+        confidence=1.0,
+        epistemic_state=WorldEpistemicState.OBSERVED,
+        availability=WorldAvailability.NOT_APPLICABLE,
+        value={
+            "project_id": candidate["project_id"],
+            "completion_event_id": candidate["event_id"],
+            "source_evidence_refs": candidate["source_evidence_refs"],
+            "independent_objectives_verified": True,
+            "artifact_disclosed": False,
+        },
+        audience_id="local:text",
+    )
+    name = candidate["title"]
+    # Vary the conversational invitation using a stable source identifier,
+    # not randomized nagging or fabricated emotional events.
+    style = int(event_id[-2:], 16) % 3
+    content = (
+        f"I finished {name}, and its original checks passed. "
+        "I wanted to share that little win with you. Want to hear what I made?"
+        if style == 0 else
+        f"Guess what I finished: {name}. The checks passed, "
+        "and I thought you might like to hear how it turned out."
+        if style == 1 else
+        f"A small creative victory: {name} is finished and verified. "
+        "I felt like telling you about it. Curious what I tried?"
+    )
+    decision = presence.consider(InitiativeEvent(
+        event_id=event_id,
+        trigger_kind="task_completed",
+        observation=observation,
+        content=content,
+        created_at=now,
+        expires_at=candidate["expires_at"],
+        category=OutreachCategory.SOCIAL,
+        importance=Importance.ROUTINE,
+        salience=candidate["salience"],
+        recipient_id=SPARKS_PRINCIPAL_ID,
+    ))
+    # Queued is not sent, received or read. ACT retains all delivery policy
+    # and its own attempt/transport acknowledgement receipts.
+    return int(decision.status == "queued")
 
 
 def create_background_coordinator(
@@ -334,10 +441,20 @@ def create_background_coordinator(
                         request, principal=local_sparks_principal(),
                     ),
                 )
-            return {**result, "interest_learning": learning} if (
+            queued_updates = (
+                bridge_voluntary_life_outreach(
+                    life=life, presence=application._presence,
+                    act_service=act_service, now=now, busy=busy,
+                )
+                if act_delivery_enabled and act_service is not None else 0
+            )
+            return {
+                **result, "interest_learning": learning,
+                "life_social_updates_queued": queued_updates,
+            } if (
                 project is not None
                 or result["jobs_started"] or result["scheduled"]
-                or any(learning.values())
+                or any(learning.values()) or queued_updates
             ) else None
 
         coordinator.set_task(
