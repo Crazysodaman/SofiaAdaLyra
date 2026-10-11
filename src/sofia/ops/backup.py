@@ -558,6 +558,35 @@ class BackupEngine:
         ):
             raise BackupError("backup manifest authentication failed")
         manifest = BackupManifest.from_bytes(manifest_bytes)
+        # HMAC authentication of listed ciphertext does not establish that
+        # the directory contains ONLY encrypted data. Older archives could
+        # accidentally include the cleartext SQLite snapshot used during
+        # online backup creation. Unlisted files are a confidentiality fault.
+        if not any(entry.logical_path == "sofia.db" for entry in manifest.entries):
+            raise BackupError("backup lacks canonical SQLite entry")
+        allowed_files = {
+            "manifest.json", "manifest.hmac",
+            *(f"payload/{entry.payload_name}" for entry in manifest.entries),
+        }
+        found_files: set[str] = set()
+        for item in backup_dir.rglob("*"):
+            _reject_redirected_backup_input(item)
+            relative = item.relative_to(backup_dir).as_posix()
+            if item.is_dir():
+                if relative != "payload":
+                    raise BackupError(
+                        "encrypted archive contains an unlisted directory"
+                    )
+            elif item.is_file():
+                if relative not in allowed_files:
+                    raise BackupError(
+                        "encrypted archive contains an unlisted or plaintext file"
+                    )
+                found_files.add(relative)
+            else:
+                raise BackupError("encrypted archive contains unsupported filesystem entry")
+        if found_files != allowed_files:
+            raise BackupError("encrypted archive manifest files are incomplete")
         payload_dir = backup_dir / "payload"
         for entry in manifest.entries:
             payload = payload_dir / entry.payload_name
