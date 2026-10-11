@@ -290,7 +290,7 @@ class ExpressionRuntime:
         return persisted
 
     def intent_projection(
-        self, message_id: str, *, now: datetime,
+        self, message_id: str, *, principal: PrincipalContext, now: datetime,
     ) -> ExpressionIntent | None:
         """Existing private turn's typed expression plus actual backend ACKs.
 
@@ -298,9 +298,15 @@ class ExpressionRuntime:
         not audible speech. Renderer absence, mute and interruption remain
         inspectable without synthesizing substitute output receipts.
         """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated expression principal required")
         moment = self._aware(now)
         original = self.get_for_message(message_id)
-        if original is None:
+        if (
+            original is None
+            or original.principal_id != principal.principal_id
+            or original.audience_id != principal.audience_id
+        ):
             return None
         records = self.receipts(original.decision_id)
         result = {}
