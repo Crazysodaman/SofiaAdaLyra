@@ -207,6 +207,64 @@ class HyperVAdapter:
             raise HyperVError("untrusted Hyper-V installer status payload")
         return status
 
+    def workshop_internal_stage_preflight(self) -> dict[str, Any]:
+        """Read existing OS-less guest networking BEFORE configuring a switch."""
+        command=(
+            "$ErrorActionPreference='Stop'; "
+            "$vm=Get-VM -Name 'Hephaestus' -ErrorAction Stop; "
+            "if($vm.Name -cne 'Hephaestus') {throw 'WRONG_VM'}; "
+            "$nic=@(Get-VMNetworkAdapter -VMName 'Hephaestus' "
+            "-ErrorAction Stop); "
+            "$old=@($nic | ForEach-Object {[string]$_.SwitchName}); "
+            "$oldTypes=@($nic | ForEach-Object { "
+            "if([string]$_.SwitchName) { "
+            "[string](Get-VMSwitch -Name $_.SwitchName "
+            "-ErrorAction Stop).SwitchType } else {''} }); "
+            "$target=Get-VMSwitch -Name 'Sofia-Hephaestus-Internal' "
+            "-ErrorAction SilentlyContinue; "
+            "$siblings=@(Get-VM -ErrorAction Stop | Get-VMNetworkAdapter "
+            "-ErrorAction Stop | Where-Object { "
+            "$_.SwitchName -ceq 'Sofia-Hephaestus-Internal' -and "
+            "$_.VMName -cne 'Hephaestus' } "
+            "| ForEach-Object {[string]$_.VMName}); "
+            "$nats=@(Get-NetNat -ErrorAction Stop | "
+            "ForEach-Object {[string]$_.InternalIPInterfaceAddressPrefix}); "
+            "$collisions=@(Get-NetIPAddress -AddressFamily IPv4 "
+            "-ErrorAction Stop | Where-Object {"
+            "$_.IPAddress -eq '172.30.250.1' -and $_.InterfaceAlias "
+            "-cne 'vEthernet (Sofia-Hephaestus-Internal)'}); "
+            "$ics=New-Object -ComObject HNetCfg.HNetShare -ErrorAction Stop; "
+            "$sharing=$false; "
+            "foreach($c in @($ics.EnumEveryConnection())) { "
+            "$cfg=$ics.INetSharingConfigurationForINetConnection($c); "
+            "if([bool]$cfg.SharingEnabled) {$sharing=$true} }; "
+            "[pscustomobject]@{ "
+            "VmId=[string]$vm.Id; Name=[string]$vm.Name; "
+            "State=[string]$vm.State; Generation=[int]$vm.Generation; "
+            "NicCount=[int]$nic.Count; "
+            "OriginalSwitchNames=$old; OriginalSwitchTypes=$oldTypes; "
+            "TargetExists=[bool]($null -ne $target); "
+            "TargetType=if($null -eq $target){''}else{[string]$target.SwitchType}; "
+            "OtherVmNames=$siblings; NatPrefixes=$nats; "
+            "AddressCollision=[bool]($collisions.Count -gt 0); "
+            "IcsSharingEnabled=[bool]$sharing; "
+            "ObservedAtUtc=[DateTime]::UtcNow.ToString('o'); "
+            "HostChangePerformed=$false } "
+            "| ConvertTo-Json -Depth 4 -Compress"
+        )
+        raw=self._runner(command)
+        try:
+            report=json.loads(raw)
+        except (ValueError,TypeError) as exc:
+            raise HyperVError("unparseable existing VM network preflight") from exc
+        if (
+            not isinstance(report,dict)
+            or report.get("Name")!="Hephaestus"
+            or report.get("HostChangePerformed") is not False
+        ):
+            raise HyperVError("network preflight is not read-only source evidence")
+        return report
+
     def stage_hephaestus_internal_link(self, *, vm_id: str) -> dict[str, Any]:
         """One reviewed host mutation: existing OFF VM to isolated Internal link.
 
