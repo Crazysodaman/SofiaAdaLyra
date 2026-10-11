@@ -8,17 +8,17 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-import sqlite3
+
+from sofia.state.canonical_sqlite import require_existing_sqlite
 
 from sofia.config import SofiaConfiguration
 from sofia.ui.control_center import DesktopControlSettingsStore
 
 
 def _ensure_state(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        with sqlite3.connect(path):
-            pass
+    # Only explicit configuration bootstrap may create canonical state.
+    # A detached desktop entrypoint is not a first-install database writer.
+    require_existing_sqlite(path)
 
 
 def _enforce_single_database_mode(
