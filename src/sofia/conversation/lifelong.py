@@ -711,10 +711,10 @@ class LifelongThreadStore:
     ) -> tuple[LifelongThread, ...]:
         """Page headers only AFTER original-audience visibility admission.
 
-        Source-free private project names must never consume the result
-        limit or surface to another transport. The SQL EXISTS guard checks
-        the original message and its CURRENT authenticated session binding,
-        not merely the shared owner ID or an old thread index.
+        Empty projects are visible only to their original authenticated
+        creation audience. As soon as an original is linked, source-audience
+        visibility is revalidated from the actual current binding in SQL
+        before applying the result limit.
         """
         if not isinstance(owner, PrincipalContext):
             raise TypeError("authenticated PrincipalContext required")
@@ -728,7 +728,10 @@ class LifelongThreadStore:
                 "WHERE t.owner_principal_id=? "
                 + ("" if include_archived else "AND t.archived_at IS NULL ")
                 + "AND ("
-                "t.kind='main' OR (t.kind='project' AND EXISTS ("
+                "t.kind='main' OR (t.kind='project' AND ("
+                "(t.project_audience_id=? AND t.project_audience_kind=? "
+                "AND NOT EXISTS (SELECT 1 FROM lifelong_thread_event AS e0 "
+                "WHERE e0.thread_id=t.thread_id)) OR EXISTS ("
                 "SELECT 1 FROM lifelong_thread_event AS e "
                 "JOIN conversation_messages AS m "
                 "ON m.id=e.source_message_id "
@@ -744,8 +747,9 @@ class LifelongThreadStore:
                 "ORDER BY CASE t.kind WHEN 'main' THEN 0 ELSE 1 END,"
                 "t.created_at DESC,t.thread_id LIMIT ?",
                 (
-                    owner.principal_id, owner.audience_id,
-                    owner.principal_id, owner.audience_id,
+                    owner.principal_id,
+                    owner.audience_id, owner.audience_kind.value,
+                    owner.audience_id, owner.principal_id, owner.audience_id,
                     owner.audience_kind.value, limit,
                 ),
             ).fetchall()
@@ -758,13 +762,14 @@ class LifelongThreadStore:
         """Require current exact-source audience admission before title edits.
 
         A shared principal alone cannot rename/archive another device's
-        protected project. Source-free projects lack such evidence and stay
-        unmodifiable through this API until an authorized source is linked.
+        protected project. A newly created, source-free project can be
+        edited by its attested creation audience. Unbound legacy metadata
+        cannot be claimed merely because an owner ID matches.
         """
         row = db.execute(
             "SELECT * FROM lifelong_thread WHERE thread_id=? "
             "AND owner_principal_id=? AND kind='project' "
-            "AND EXISTS (SELECT 1 FROM lifelong_thread_event AS e "
+            "AND (EXISTS (SELECT 1 FROM lifelong_thread_event AS e "
             "JOIN conversation_messages AS m ON m.id=e.source_message_id "
             "AND m.session_id=e.source_session_id "
             "JOIN social_session_principal AS s ON s.session_id=m.session_id "
@@ -772,9 +777,13 @@ class LifelongThreadStore:
             "AND e.visibility='source_audience' "
             "AND e.source_audience_id=? "
             "AND s.principal_id=? AND s.audience_id=? "
-            "AND s.audience_kind=?)",
+            "AND s.audience_kind=?) OR "
+            "(project_audience_id=? AND project_audience_kind=? "
+            "AND NOT EXISTS (SELECT 1 FROM lifelong_thread_event AS e0 "
+            "WHERE e0.thread_id=lifelong_thread.thread_id)))",
             (thread_id, principal.principal_id, principal.audience_id,
              principal.principal_id, principal.audience_id,
+             principal.audience_kind.value, principal.audience_id,
              principal.audience_kind.value),
         ).fetchone()
         if row is None or not LifelongThreadStore._project_scope_allowed(
