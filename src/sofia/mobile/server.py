@@ -7,7 +7,7 @@ import ipaddress
 import json
 from pathlib import Path
 import ssl
-from threading import Thread
+from threading import BoundedSemaphore, Thread
 from typing import Any, Protocol
 
 from .gateway import (
@@ -18,11 +18,36 @@ from .pairing import MobileDeviceCredentialStore
 
 
 _MAX_BODY = 64 * 1024
+_MAX_INFLIGHT_REQUESTS = 16
+_SOCKET_TIMEOUT_SECONDS = 15.0
 
 
 class _MobileHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
     block_on_close = False
+    request_queue_size = 16
+
+    def __init__(self, *args, **kwargs) -> None:
+        self._request_slots = BoundedSemaphore(_MAX_INFLIGHT_REQUESTS)
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request, client_address) -> None:
+        # A disconnected client cannot create an unbounded worker thread.
+        # Saturated admission is denied BEFORE dispatch or credential lookup.
+        if not self._request_slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._request_slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._request_slots.release()
 
 
 class MobileGatewayProtocol(Protocol):
@@ -74,6 +99,10 @@ class MobileCompanionServer:
 
         class Handler(BaseHTTPRequestHandler):
             server_version = "SofiaMobile/1"
+
+            def setup(self) -> None:
+                self.request.settimeout(_SOCKET_TIMEOUT_SECONDS)
+                super().setup()
 
             def log_message(self, _format, *_args):
                 return
