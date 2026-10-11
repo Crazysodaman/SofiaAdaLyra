@@ -527,13 +527,17 @@ def test_level_three_knowledge_write_honors_exact_standing_scope(tmp_path):
         capabilities.execute(other)
 
 
-def test_dev_build_is_safe_autonomous_but_production_dev_changes_are_not():
+def test_dev_build_is_safe_autonomous_but_production_dev_changes_are_not(tmp_path):
     class ApprovalProbe:
         def consume(self, **_kwargs):
             raise AssertionError("safe-autonomous build must not consume approval")
 
+    state = tmp_path / "sofia.db"
+    with sqlite3.connect(state):
+        pass
     service = DevToolService.__new__(DevToolService)
     service.approval_verifier = ApprovalProbe()
+    service.operator_stop = OperatorStopStore(state)
 
     service._authorize(
         DevOperation.BUILD,
@@ -546,6 +550,35 @@ def test_dev_build_is_safe_autonomous_but_production_dev_changes_are_not():
             {"proposal_id": "candidate-1"},
         )
 
+
+
+def test_dev_direct_service_approval_and_build_honor_durable_operator_stop(tmp_path):
+    state = tmp_path / "sofia.db"
+    with sqlite3.connect(state):
+        pass
+    service = DevToolService.__new__(DevToolService)
+    service.operator_stop = OperatorStopStore(state)
+    service.operator_stop.set(
+        active=True, updated_by="Sparks", reason="stop engineering work",
+    )
+    with pytest.raises(PermissionError, match="operator stop"):
+        service._authorize(DevOperation.BUILD, {"proposal_id": "candidate"})
+    with pytest.raises(PermissionError, match="operator stop"):
+        service._authorize(
+            DevOperation.APPLY,
+            {"proposal_id": "candidate", "approval_id": "signed-but-stopped"},
+        )
+
+    service.operator_stop.set(
+        active=False, updated_by="Sparks", reason="operator resumes",
+    )
+    service._authorize(DevOperation.BUILD, {"proposal_id": "candidate"})
+
+
+def test_dev_direct_service_refuses_missing_stop_store():
+    service = DevToolService.__new__(DevToolService)
+    with pytest.raises(RuntimeError, match="durable operator stop"):
+        service._authorize(DevOperation.BUILD, {"proposal_id": "candidate"})
 
 def test_dev_candidate_history_round_trips_from_durable_state(tmp_path):
     state = tmp_path / "sofia.db"
