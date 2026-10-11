@@ -1694,7 +1694,7 @@ class SelfDirectedLifeCoordinator:
                 )
                 if event.job_id == job.job_id
                 and event.status == job.status.value
-                and event.occurred_at <= now
+                and event.run_at <= now
                 and event.observed_at <= now
             ), None)
             if source is None:
