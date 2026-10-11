@@ -4599,9 +4599,17 @@
       "phase": "05",
       "source_topic": "53",
       "master_line": 451,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/lifelong.py",
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/mobile/main_seen.py",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+      ],
+      "evidence_commits": [
+        "85f2fababaecd6df9e2675c0f4e844f3ec3020bc"
+      ],
       "accepted": false
     },
     {
