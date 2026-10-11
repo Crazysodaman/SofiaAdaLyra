@@ -25,6 +25,7 @@ import sqlite3
 import stat
 import sys
 import tempfile
+from typing import Callable
 from uuid import uuid4
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -889,6 +890,9 @@ def rotate_backups(
     root: Path,
     *,
     keep: int,
+    verifier: Callable[[Path], BackupManifest] | None = None,
+    expected_source_host_id: str | None = None,
+    expected_failure_domain: str | None = None,
 ) -> tuple[Path, ...]:
     if not isinstance(root, Path):
         raise TypeError("root must be a Path")
@@ -914,6 +918,30 @@ def rotate_backups(
         candidates, key=lambda path: path.name, reverse=True,
     )
     expired = backups[keep:]
+    # Scheduled/automatic backup rotation must verify ALL candidate archives
+    # before ANY destructive step. A good new archive does not establish that
+    # the other retained copy is complete, authentic or even belongs to this
+    # source host. A corrupt or foreign archive is preserved for operator
+    # inspection instead of silently discarded.
+    if verifier is not None:
+        if not callable(verifier):
+            raise TypeError("backup rotation verifier must be callable")
+        for archive in backups:
+            manifest = verifier(archive)
+            if not isinstance(manifest, BackupManifest):
+                raise BackupError("archive verifier did not return authenticated manifest")
+            if manifest.backup_id != archive.name:
+                raise BackupError("archive name does not match authenticated backup ID")
+            if (
+                expected_source_host_id is not None
+                and manifest.source_host_id != expected_source_host_id
+            ):
+                raise BackupError("backup retention found a different source owner")
+            if (
+                expected_failure_domain is not None
+                and manifest.failure_domain != expected_failure_domain
+            ):
+                raise BackupError("backup retention found a different failure domain")
     # Preflight ALL selected directories before the first destructive step.
     # A symlink/junction embedded in one archive makes the entire rotation
     # fail closed rather than deleting a partial generation of backups.
