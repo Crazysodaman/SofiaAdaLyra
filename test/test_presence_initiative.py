@@ -641,3 +641,42 @@ def test_life_outreach_does_not_pass_through_untrusted_project_mentions(tmp_path
         assert "\n" not in content
     finally:
         life.close()
+
+
+def test_life_social_update_uses_owner_bound_discord_route(tmp_path):
+    """A production-configured owner DM route retains private Sparks scope."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.social.principals import SPARKS_PRINCIPAL_ID
+    import sqlite3
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        # The live ACT factory separately verifies the pinned Discord binding;
+        # this fixture verifies the resulting scoped delivery queue only.
+        service.configure_delivery(
+            sender=lambda payload: (
+                sent.append(payload)
+                or SendResult(DeliveryOutcome.DELIVERED, receipt_id="fixture")
+            ),
+            policy=policy(recipient_id=SPARKS_PRINCIPAL_ID),
+            channel="discord", destination="987654321",
+        )
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False,
+        ) == 1
+        with sqlite3.connect(life.path) as db:
+            notice = db.execute(
+                "SELECT recipient_id,channel,destination,category,content "
+                "FROM act_system_notice WHERE notice_id LIKE 'presence:%'",
+            ).fetchone()
+        assert notice[:4] == (
+            SPARKS_PRINCIPAL_ID, "discord", "987654321", "social",
+        )
+        assert project.name in notice[4]
+        assert sent == []
+    finally:
+        life.close()
