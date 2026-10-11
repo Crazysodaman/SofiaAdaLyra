@@ -92,6 +92,7 @@ def _stage(
         backup_engine=engine,
         encrypted_backup_root=tmp_path / "backups",
         failure_domain="separate-offline-fixture",
+        erasure_journal_path=tmp_path / "operator-held" / "erasures.jsonl",
     )
     return output, calls
 
