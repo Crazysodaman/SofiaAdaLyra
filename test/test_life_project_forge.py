@@ -2324,3 +2324,79 @@ def test_new_grounded_interest_evidence_can_lift_optional_life_cooldown(tmp_path
         assert later.project_id != project.project_id
     finally:
         life.close()
+
+
+def test_retired_interest_ends_paused_optional_project_without_new_work(tmp_path):
+    """Grounded voluntary disinterest may end a quiet private project."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        life.pause(
+            project.project_id,
+            reason="Choose to pause this optional work.",
+            evidence_refs=(evidence,), now=now + timedelta(seconds=3),
+        )
+        newer = life.record_observation(
+            kind="reviewed-interest-retirement",
+            source="test:recorded-interest",
+            assertion="Current independent evidence supports no longer pursuing this topic.",
+            now=now + timedelta(seconds=4),
+        )
+        life.revise_interest(
+            name="foxfire-colors", context="creative",
+            strength=0.10, confidence=0.9,
+            reason="Voluntarily retire this optional creative interest.",
+            evidence_refs=(newer,), now=now + timedelta(seconds=4),
+            retire=True,
+        )
+        outcome = life.tick(now=now + timedelta(seconds=5), busy=True)
+        assert outcome["retired_interest_projects_settled"] == 1
+        assert outcome["scheduled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.ABANDONED
+        goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        )
+        assert goal.status is GoalStatus.CANCELLED
+        assert life.tick(now=now + timedelta(seconds=6), busy=True)[
+            "retired_interest_projects_settled"
+        ] == 0
+    finally:
+        life.close()
+
+
+def test_retired_interest_never_abandons_unsettled_run_effect(tmp_path):
+    """A queued or uncertain original RUN operation outranks optional disinterest."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Unsettled creative work",
+            specification={"content": "Queued prior to the change of interest."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        life.pause(
+            project.project_id, reason="Stop optional scheduling for now.",
+            evidence_refs=(evidence,), now=now + timedelta(seconds=4),
+        )
+        fresh = life.record_observation(
+            kind="reviewed-interest-retirement",
+            source="test:recorded-interest",
+            assertion="New independent evidence for voluntary retirement.",
+            now=now + timedelta(seconds=5),
+        )
+        life.revise_interest(
+            name="foxfire-colors", context="creative",
+            strength=0.05, confidence=0.95,
+            reason="The interest is retired, but RUN needs settlement.",
+            evidence_refs=(fresh,), now=now + timedelta(seconds=5),
+            retire=True,
+        )
+        result = life.tick(now=now + timedelta(seconds=6), busy=True)
+        assert result["retired_interest_projects_settled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert life.work_store.get(job.job_id).status is WorkStatus.QUEUED
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
