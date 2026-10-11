@@ -119,3 +119,18 @@ def test_unverified_proof_of_subjectivity_and_phenomenal_hypotheses_rejected(tmp
             registered, theory_kind="phenomenal_subjectivity",
         )
     assert "No owner-preregistered" in registry.report()
+
+
+def test_scientific_theories_remain_four_distinct_noninterchangeable_questions(tmp_path):
+    from sofia.neuro.research_registry import THEORY_BOUNDARIES
+    assert set(THEORY_BOUNDARIES) == {
+        "functional_agency", "global_workspace_access",
+        "metacognitive_self_model", "phenomenal_subjectivity",
+    }
+    _, registry = opened(tmp_path)
+    view = registry.report()
+    assert "Computational Global Workspace" in view
+    assert "biological Global Neuronal Workspace" in view
+    assert "Measurable calibration" in view
+    assert "No validated behavioral proof" in view
+    assert "phenomenal_subjectivity" in view
