@@ -5,6 +5,7 @@ from pathlib import Path
 import os
 import shutil
 import sqlite3
+import sys
 from contextlib import closing
 
 
@@ -29,7 +30,82 @@ class RelocationPreflight:
 
 
 def _unsafe_ancestor(path: Path) -> bool:
-    return any(item.is_symlink() for item in (path, *path.parents))
+    return any(
+        item.is_symlink() or (
+            os.name == "nt" and getattr(item, "is_junction", lambda: False)()
+        )
+        for item in (path, *path.parents)
+    )
+
+
+_REMOTE_FILESYSTEMS = frozenset({
+    "cifs", "smb", "smb3", "nfs", "nfs4", "fuse.sshfs",
+    "sshfs", "9p", "ceph", "glusterfs", "davfs", "fuse.davfs",
+})
+
+
+def _filesystem_kind(path: Path) -> str:
+    """Detect known network state homes with host OS facts, not guesses.
+
+    This is preflight only. Unknown filesystem evidence is reported as a
+    blocker rather than silently accepting a remote SQLite WAL.
+    """
+    actual = path if path.exists() else next(
+        (parent for parent in path.parents if parent.exists()), path,
+    )
+    if os.name == "nt":
+        import ctypes
+        anchor = actual.anchor
+        if not anchor:
+            return "unknown"
+        try:
+            drive_type = ctypes.windll.kernel32.GetDriveTypeW(
+                ctypes.c_wchar_p(anchor)
+            )
+        except (OSError, AttributeError, ValueError):
+            return "unknown"
+        return {
+            3: "local",     # DRIVE_FIXED
+            4: "remote",    # DRIVE_REMOTE / mapped SMB
+            2: "removable", # DRIVE_REMOVABLE
+            5: "optical",
+            6: "ramdisk",
+        }.get(int(drive_type), "unknown")
+    if sys.platform.startswith("linux"):
+        try:
+            records = Path("/proc/self/mountinfo").read_text(
+                encoding="utf-8"
+            ).splitlines()
+            target = actual.resolve(strict=True)
+        except (OSError, RuntimeError):
+            return "unknown"
+        best_len = -1
+        kind = "unknown"
+        for record in records:
+            left, separator, right = record.partition(" - ")
+            if not separator:
+                continue
+            fields, tail = left.split(), right.split()
+            if len(fields) < 5 or not tail:
+                continue
+            # Linux mountinfo escapes spaces and special path bytes.
+            mount = Path(fields[4].replace(r"\040", " ")
+                         .replace(r"\011", "\t")
+                         .replace(r"\012", "\n")
+                         .replace(r"\134", "\\"))
+            if not (target == mount or mount in target.parents):
+                continue
+            if len(mount.parts) > best_len:
+                best_len = len(mount.parts)
+                filesystem = tail[0].casefold()
+                kind = "remote" if (
+                    filesystem in _REMOTE_FILESYSTEMS
+                    or filesystem.startswith(("fuse.sshfs", "nfs", "cifs"))
+                ) else "local"
+        return kind
+    # Portable determination on other platforms requires a trusted host
+    # broker; do not turn unknown media into a production eligibility claim.
+    return "unknown"
 
 
 def inspect_state_relocation(source_state_path: Path, destination_root: Path) -> RelocationPreflight:
@@ -37,6 +113,8 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
         raise TypeError("source/destination must be paths")
     if not destination_root.is_absolute():
         raise ValueError("destination must be an absolute host-local path")
+    if ".." in source_state_path.parts or ".." in destination_root.parts:
+        raise ValueError("state paths cannot traverse parent components")
     source = source_state_path.absolute()
     dest = destination_root.absolute()
     origin = source.parent
@@ -47,7 +125,13 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
     if not source.is_file():
         blockers.append("canonical_state_database_missing")
     if _unsafe_ancestor(source) or _unsafe_ancestor(dest):
-        blockers.append("symlinked_state_or_destination_path")
+        blockers.append("symlinked_or_reparse_state_destination_path")
+    for path, label in ((source, "canonical_source"), (dest, "destination")):
+        filesystem = _filesystem_kind(path)
+        if filesystem != "local":
+            blockers.append(
+                f"{label}_filesystem_not_proven_local:{filesystem}"
+            )
     if dest == origin or origin in dest.parents or dest in origin.parents:
         blockers.append("source_destination_overlap")
     if os.name == "nt" and (str(dest).startswith("\\\\") or not dest.drive):
