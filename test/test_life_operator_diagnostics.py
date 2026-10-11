@@ -230,3 +230,53 @@ def test_life_goal_dependency_completed_run_requires_independent_review(tmp_path
         assert life.store.artifacts(project.project_id) == ()
     finally:
         life.close()
+
+
+def test_completed_life_diagnostic_revokes_current_proof_after_byte_change(tmp_path):
+    """Historical COMPLETED is not proof that the artifact still passes."""
+    from sofia.life import PersonalJudgment, TechnicalOutcome
+    from test.test_life_project_forge import (
+        authored_foxfire_text, wait_for_job,
+    )
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        life.tick(
+            now=now + timedelta(seconds=3), generate=authored_foxfire_text,
+        )
+        job = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        assert job.status is WorkStatus.COMPLETED
+        artifact_id = str(job.result["artifact_id"])
+        life.evaluate_artifact(
+            project.project_id, artifact_id=artifact_id,
+            technical_outcome=TechnicalOutcome.VALID,
+            personal_judgment=PersonalJudgment.UNKNOWN,
+            objective_results={"text_contains:Foxfire": True},
+            reason="Original criterion is supported by the real artifact.",
+            evidence_refs=(str(job.result["evidence_ref"]),),
+            preserve_for_research=False, now=now + timedelta(seconds=4),
+        )
+        life.complete(
+            project.project_id,
+            reason="Original typed criterion verified.",
+            now=now + timedelta(seconds=5),
+        )
+        verified = life.operator_diagnostics(
+            now=now + timedelta(seconds=6),
+        )["projects"][0]
+        assert verified["has_verified_completion"] is True
+        path, _media = life.creative_explorer.verified_preview(
+            artifact_id, owner_principal_id="sofia", audience_id="local:text",
+        )
+        path.write_text("Content changed and the original digest was invalidated.")
+        afterward = life.operator_diagnostics(
+            now=now + timedelta(seconds=7),
+        )["projects"][0]
+        assert afterward["project_status"] == "completed"
+        assert afterward["has_verified_completion"] is False
+        assert life._project(project.project_id).status is ProjectStatus.COMPLETED
+    finally:
+        life.close()
