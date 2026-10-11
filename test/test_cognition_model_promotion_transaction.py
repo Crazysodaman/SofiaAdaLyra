@@ -2,6 +2,7 @@
 from dataclasses import replace
 from datetime import datetime, timezone
 from hashlib import sha256
+import sqlite3
 
 import pytest
 
@@ -112,3 +113,39 @@ def test_crash_during_provider_transition_refuses_automatic_replay(tmp_path):
     assert store.load().cognitive_primary_model == plan.new_model
     with pytest.raises(ModelPromotionUncertain, match="no replayable"):
         _broker(plan,store,apply=lambda _: pytest.fail("must not replay"))
+
+
+def test_concurrent_marker_rewrite_cannot_masquerade_as_accepted(tmp_path):
+    store = RuntimeUserSettingsStore(tmp_path / "sofia.db")
+    plan = prepared()
+
+    def tamper_during_health(role, model):
+        with sqlite3.connect(store.path) as db:
+            db.execute(
+                "UPDATE cognitive_model_promotion SET status='uncertain' "
+                "WHERE approval_ref=?", (plan.operator_approval_ref,),
+            )
+        return True
+
+    with pytest.raises(ModelPromotionUncertain, match="transition receipt"):
+        _broker(
+            plan, store, apply=lambda _: True, health=tamper_during_health,
+        )
+    assert store.load().cognitive_primary_model == plan.new_model
+
+
+def test_rollback_must_update_its_own_exact_transition_receipt(tmp_path):
+    store = RuntimeUserSettingsStore(tmp_path / "sofia.db")
+    plan = prepared()
+
+    def apply(settings):
+        if settings.cognitive_primary_model == plan.old_model:
+            with sqlite3.connect(store.path) as db:
+                db.execute(
+                    "UPDATE cognitive_model_promotion SET status='accepted' "
+                    "WHERE approval_ref=?", (plan.operator_approval_ref,),
+                )
+        return True
+
+    with pytest.raises(ModelPromotionUncertain, match="rollback receipt"):
+        _broker(plan, store, apply=apply, health=lambda *_: False)
