@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "87719681ede429aee7cac77349dc20c6b208e480",
+  "reviewed_main_sha": "401ad77c94dc266957f9b3aff8ae7ceef69aa682",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -1765,14 +1765,30 @@
         "1db5590cf29134cbdf3efaa31754d7e76b3e7977",
         "79be61a0f72b784e76f5a0f1fee93096ebaa8071",
         "37c29ec6489df5cc3f68f7303e5dcfe6451ddaed",
-        "000c78536e603d1082580b9c6967ae7dfbb880b9"
+        "000c78536e603d1082580b9c6967ae7dfbb880b9",
+        "4b315c8e8bff4aa96ee745568e44970ebc353604"
       ],
       "accepted": false,
       "audit_observation": {
         "at_sha": "74afeb4dc7ec859afad0f5c5262dd8e820ccc4cb",
         "depth": "canary_and_bootstrap_failure_secret_staging_source",
         "interpretation": "Supervised Artemis canary staging ACLs/verified transfer/controller duplicate cleanup and WindowsCimBootstrapInstaller success-or-failure controller temporary key cleanup coded. Regression source added, unexecuted; Windows ACL/SMB live acceptance and certificate lifecycle remain open. Persistent installer still uses broad LocalSubnet/Any firewall and unpinned pip: CA-3011/3012 require separate remediation."
-      }
+      },
+      "latest_coding_slices": [
+        {
+          "source_review_sha": "401ad77c94dc266957f9b3aff8ae7ceef69aa682",
+          "commits": [
+            "4b315c8e8bff4aa96ee745568e44970ebc353604"
+          ],
+          "source_paths": [
+            "Setup-SofiaFleetArtemis.ps1",
+            "test/test_ops_windows_bootstrap.py"
+          ],
+          "production_route": "Human-supervised Prepare-OnVenus -> canonical Fleet PKI source -> temporary canary bundle -> verified build/lock/SMB stage -> outer finally always scrubs duplicate temporary controller key except explicitly successful -SkipCopy offline transfer.",
+          "fulfilled_slice": "Controller bundle private key is cleaned up on previously uncovered pre-transfer failure paths; root PKI remains untouched.",
+          "remaining": "Not full CA-3010: certificate rotation and revocation, remote failed-stage cleanup, effective Windows ACL and multi-host live acceptance remain; tests authored but not executed."
+        }
+      ]
     },
     {
       "id": "CA-3011",
