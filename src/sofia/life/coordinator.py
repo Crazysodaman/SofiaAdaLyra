@@ -1083,19 +1083,19 @@ class SelfDirectedLifeCoordinator:
             raise ValueError("causal trace limit must be 1..100")
         project = self._project(project_id)
         principal = local_sparks_principal()
-        def observed_refs(refs: tuple[str, ...]) -> tuple[str, ...]:
-            verified = []
-            for ref in refs:
-                original = self.evidence_index.lookup(ref)
-                if (
-                    original is None
-                    or original.principal_id != principal.principal_id
-                    or original.audience != project.audience_id
-                    or original.observed_at > now
-                ):
-                    continue
-                verified.append(ref)
-            return tuple(verified)
+        def observed_refs(
+            refs: tuple[str, ...], *, occurred_at: datetime,
+        ) -> tuple[str, ...]:
+            # Preserve only original, scoped, chronologically available
+            # references. A future or corrupted row is UNKNOWN, not a
+            # historical cause, and never gains authority from the trace.
+            return tuple(
+                ref for ref in refs
+                if self._original_scoped_evidence_current(
+                    refs=(ref,), audience_id=project.audience_id,
+                    valid_at=occurred_at, now=now,
+                )
+            )
 
         events = self.store.events(
             project.project_id,
@@ -1123,7 +1123,7 @@ class SelfDirectedLifeCoordinator:
         ), None)
         intent = []
         for event in events[-limit:]:
-            originals = observed_refs(event.evidence_refs)
+            originals = observed_refs(event.evidence_refs, occurred_at=event.occurred_at)
             valid = len(originals) == len(event.evidence_refs)
             intent.append({
                 "event_id": event.event_id,
@@ -1143,7 +1143,7 @@ class SelfDirectedLifeCoordinator:
             result = job.result if isinstance(job.result, dict) else {}
             receipt_ref = result.get("evidence_ref")
             source = (
-                observed_refs((receipt_ref,))
+                observed_refs((receipt_ref,), occurred_at=job.updated_at)
                 if isinstance(receipt_ref, str) else ()
             )
             actions.append({
@@ -1158,7 +1158,7 @@ class SelfDirectedLifeCoordinator:
             })
         critiques = []
         for evaluation in evaluations[-limit:]:
-            refs = observed_refs(evaluation.evidence_refs)
+            refs = observed_refs(evaluation.evidence_refs, occurred_at=evaluation.evaluated_at)
             valid = len(refs) == len(evaluation.evidence_refs)
             critiques.append({
                 "evaluation_id": evaluation.evaluation_id,
@@ -1178,8 +1178,11 @@ class SelfDirectedLifeCoordinator:
             })
         episodes = []
         for experience in reversed(experiences):
-            refs = observed_refs(experience.evidence_refs)
-            valid = len(refs) == len(experience.evidence_refs)
+            refs = observed_refs(experience.evidence_refs, occurred_at=experience.occurred_at)
+            valid = (
+                experience.recorded_at <= now
+                and len(refs) == len(experience.evidence_refs)
+            )
             episodes.append({
                 "experience_id": experience.experience_id,
                 "kind": experience.kind if valid else "unknown",
