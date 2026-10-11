@@ -168,6 +168,11 @@ def persist_enrollment(
     _unb64(credential_id, limit=1024)
     if not isinstance(registration_challenge_digest, str) or len(registration_challenge_digest) != 64:
         raise PermissionError("registration challenge identity required")
+    if first:
+        # Even a direct internal call cannot silently bootstrap another owner.
+        # Test fixtures bypass this only by patching the platform guard.
+        from sofia.safe.owner_enroll_browser import require_venus_interactive_windows
+        require_venus_interactive_windows()
     moment = _utc(at or datetime.now(timezone.utc))
     with closing(verifier._db()) as db, db:
         db.execute("BEGIN IMMEDIATE")
