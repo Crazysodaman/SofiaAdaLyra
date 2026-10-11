@@ -84,6 +84,45 @@ def configured(state, sent, *, outreach_policy=None):
     return service
 
 
+def test_concurrent_presence_clients_keep_one_original_decision(state):
+    """Concurrent identical opportunities converge without a duplicate notice."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    import sqlite3
+
+    sent = []
+    service = configured(state, sent)
+    one = PresenceInitiativeEngine(state_path=state, act_service=service)
+    two = PresenceInitiativeEngine(state_path=state, act_service=service)
+    common = event("same-observation-concurrent")
+    gate = Barrier(2)
+    for instance in (one, two):
+        original_observe = instance.observe
+
+        def observe_then_sync(observation, *, _original=original_observe, **kw):
+            result = _original(observation, **kw)
+            gate.wait(timeout=10)
+            return result
+
+        instance.observe = observe_then_sync
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a = pool.submit(one.consider, common)
+        b = pool.submit(two.consider, common)
+        decisions = (a.result(timeout=20), b.result(timeout=20))
+    assert decisions[0] == decisions[1]
+    assert decisions[0].status == "queued"
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM presence_initiative_opportunity WHERE event_id=?",
+            (common.event_id,),
+        ).fetchone()[0] == 1
+        assert db.execute(
+            "SELECT COUNT(*) FROM act_system_notice WHERE notice_id=?",
+            (decisions[0].notice_id,),
+        ).fetchone()[0] == 1
+    assert sent == []
+
+
 def test_replayed_presence_event_never_restores_deleted_original_observation(state):
     """An ACT candidate must not become grounded by replaying its old event."""
     import sqlite3
