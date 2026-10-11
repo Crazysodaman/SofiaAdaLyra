@@ -131,6 +131,7 @@ def assess_training_lab(
     plan:TrainingLabPlan,*,dataset_store:TrainingDatasetStore,
     guest_debian_attested:bool=False,
     venus_gpu_job_approved:bool=False,
+    workshop_handoff_store=None,
     at:datetime,
 )->TrainingLabReview:
     if not isinstance(plan,TrainingLabPlan) or not isinstance(dataset_store,TrainingDatasetStore):
@@ -153,6 +154,22 @@ def assess_training_lab(
         dataset_store=dataset_store,
     )
     blockers=list(source.blockers)
+    # An owner-typed GUID is NOT proof that the reviewed guest is Hephaestus.
+    # Compare against canonical read-only mTLS host observation evidence.
+    if workshop_handoff_store is None:
+        blockers.append("no authenticated owner-created VM handoff source")
+    else:
+        from sofia.ops.workshop_handoff import WorkshopHandoffStore
+        if not isinstance(workshop_handoff_store,WorkshopHandoffStore):
+            raise TypeError("canonical pinned Fleet handoff owner required")
+        observed_guest=workshop_handoff_store.read_model_brief()
+        if (
+            observed_guest.get("status")!="reviewed_read_only"
+            or observed_guest.get("artemis_node_id")!=str(plan.artemis_node_id)
+            or observed_guest.get("vm_guid")!=str(plan.hephaestus_vm_id)
+            or observed_guest.get("guest_name")!="Hephaestus"
+        ):
+            blockers.append("reviewed Hyper-V Hephaestus host/VM identity missing or stale")
     # A reviewed draft does not acquire guest trust or host GPU availability.
     if not guest_debian_attested:
         blockers.append("no independently attested Debian Hephaestus worker")
