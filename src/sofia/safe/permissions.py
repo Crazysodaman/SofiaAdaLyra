@@ -476,6 +476,16 @@ class PermissionStore:
                 )
                 """
             )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS safe_private_authority_auth_binding (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                    approval_id TEXT NOT NULL UNIQUE,
+                    FOREIGN KEY(singleton)
+                        REFERENCES safe_private_adult_authority(singleton)
+                )
+                """
+            )
             row = db.execute(
                 "SELECT 1 FROM safe_private_adult_authority WHERE singleton=1"
             ).fetchone()
@@ -761,20 +771,40 @@ class PermissionStore:
         with closing(self._connect()) as db:
             row = db.execute(
                 """
-                SELECT private_chat,adult_chat,adult_avatar,
-                       adult_external_delivery,updated_by,updated_at
-                FROM safe_private_adult_authority
-                WHERE singleton=1
+                SELECT p.private_chat,p.adult_chat,p.adult_avatar,
+                       p.adult_external_delivery,p.updated_by,p.updated_at,
+                       EXISTS(
+                         SELECT 1 FROM safe_private_authority_auth_binding b
+                         JOIN safe_execution_approval ap
+                           ON ap.approval_id=b.approval_id
+                           AND ap.consumed_at IS NOT NULL
+                         JOIN safe_execution_owner_auth_binding auth
+                           ON auth.approval_id=ap.approval_id
+                         JOIN safe_owner_challenge ch
+                           ON auth.authentication_event_id =
+                              ('owner-webauthn:' || ch.challenge_digest)
+                         JOIN safe_owner_credential credential
+                           ON credential.credential_id=ch.credential_id
+                         WHERE b.singleton=p.singleton
+                           AND ch.consumed_at IS NOT NULL
+                           AND credential.revoked_at IS NULL
+                       ) AS owner_authenticated
+                FROM safe_private_adult_authority p
+                WHERE p.singleton=1
                 """
             ).fetchone()
         if row is None:
             raise RuntimeError("private/adult authority state is missing")
+        # Preserve privacy restrictions from historical records, but do not
+        # honor unverified historical expansion of adult authority. A revoked
+        # authorizing FIDO2 key immediately restores the restrictive view.
+        trusted = bool(row["owner_authenticated"])
         return AdultPrivateAuthority(
             private_chat=bool(row["private_chat"]),
-            adult_chat=bool(row["adult_chat"]),
-            adult_avatar=bool(row["adult_avatar"]),
-            adult_external_delivery=bool(row["adult_external_delivery"]),
-            updated_by=row["updated_by"],
+            adult_chat=trusted and bool(row["adult_chat"]),
+            adult_avatar=trusted and bool(row["adult_avatar"]),
+            adult_external_delivery=trusted and bool(row["adult_external_delivery"]),
+            updated_by=row["updated_by"] if trusted else "system:unverified",
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
 
@@ -835,6 +865,12 @@ class PermissionStore:
                     updated_by,
                     moment.isoformat(),
                 ),
+            )
+            db.execute(
+                "INSERT INTO safe_private_authority_auth_binding "
+                "(singleton,approval_id) VALUES(1,?) "
+                "ON CONFLICT(singleton) DO UPDATE SET approval_id=excluded.approval_id",
+                (approval_id,),
             )
             self.audit.append_in_transaction(
                 db,
