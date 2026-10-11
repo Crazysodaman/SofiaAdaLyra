@@ -193,6 +193,9 @@ class RelocationAuthorization:
     next_writer_epoch: int
     operator_approval_ref: str
     writer_fence_ref: str
+    protected_operation_id: str
+    operator_principal_id: str
+    source_writer_epoch: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,10 +241,16 @@ def stage_verified_state_home(
     if any(not isinstance(v, str) or not v.strip() for v in (
         proof.writer_host_id, proof.source_writer_host_id,
         proof.operator_approval_ref, proof.writer_fence_ref, failure_domain,
+        proof.protected_operation_id, proof.operator_principal_id,
     )):
         raise ValueError("complete privileged approval and fencing provenance required")
-    if type(proof.next_writer_epoch) is not int or proof.next_writer_epoch < 1:
-        raise ValueError("positive next writer epoch required")
+    if (
+        type(proof.source_writer_epoch) is not int
+        or proof.source_writer_epoch < 1
+        or type(proof.next_writer_epoch) is not int
+        or proof.next_writer_epoch <= proof.source_writer_epoch
+    ):
+        raise ValueError("new writer epoch must exceed independently witnessed old epoch")
     if independently_verify_authorization(proof) is not True:
         raise PermissionError("writer fencing / owner approval was not verified")
     preflight = inspect_state_relocation(
