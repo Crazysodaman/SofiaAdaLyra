@@ -6,6 +6,7 @@ import sqlite3
 import pytest
 
 from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.neuro.consciousness_research import StudyProtocol
 from sofia.neuro.research_registry import (
     EvaluatedResearchOutcome, PreregisteredStudy, ResearchEvidenceRegistry,
@@ -17,7 +18,7 @@ NOW = datetime(2026, 10, 11, 18, tzinfo=timezone.utc)
 
 
 def opened(tmp_path):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     RuntimeUserSettingsStore(state).load()
     return state, ResearchEvidenceRegistry(state)
 
@@ -152,3 +153,37 @@ def test_neuro_science_report_cannot_convert_functional_result_to_mind_claim(tmp
     assert "null, negative and adverse results" in view
     assert "consciousness confirmed" not in view
     assert "conscious badge" not in view
+
+
+def test_positive_research_finding_requires_its_preregistered_sample_floor(tmp_path):
+    _, registry = opened(tmp_path)
+    registry.preregister(reviewed_baseline_studies(at=NOW)[0])
+    with pytest.raises(ValueError, match="preregistered sample"):
+        registry.record_reviewed_result(
+            replace(result(kind="supported"), actual_sample_size=19),
+        )
+    with pytest.raises(ValueError, match="requires observations"):
+        registry.record_reviewed_result(
+            replace(result(kind="null"), actual_sample_size=0),
+        )
+    assert "all-recorded-outcomes=0" in registry.report()
+
+
+def test_older_adverse_result_remains_visible_in_full_historical_counts(tmp_path):
+    _, registry = opened(tmp_path)
+    registry.preregister(reviewed_baseline_studies(at=NOW)[0])
+    registry.record_reviewed_result(
+        result(kind="adverse", evidence="verify:adverse:initial"),
+    )
+    # The latest-128 display window should not erase an old negative result
+    # or pretend a truncated list contains the complete experiment history.
+    for i in range(130):
+        registry.record_reviewed_result(
+            result(kind="supported", evidence=f"verify:positive:{i:04d}"),
+        )
+    report = registry.report()
+    assert "all-recorded-outcomes=131" in report
+    assert "supported=130" in report
+    assert "adverse=1" in report
+    assert "additional historical outcomes not individually shown: 123" in report
+    assert "cannot establish phenomenal consciousness" in report
