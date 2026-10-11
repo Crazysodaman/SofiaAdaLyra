@@ -365,3 +365,32 @@ def test_revoked_security_key_cannot_issue_or_preserve_unused_protected_approval
             ),
             authentication_event_id=proof["authentication_event_id"],
         )
+
+
+def test_canonical_safe_approval_checks_are_safe_before_any_owner_enrollment(tmp_path):
+    from sofia.safe.execution_approval import ExecutionApprovalVerifier
+
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    approvals = ExecutionApprovalVerifier(state)
+    assert approvals.active_capabilities(now=NOW) == ()
+    assert not approvals.matches_unconsumed(
+        approval_id="not-enrolled",
+        capability="fleet.enroll",
+        parameters={"host_id":"Artemis"},
+        now=NOW,
+    )
+    with pytest.raises(PermissionError, match="does not exist"):
+        approvals.consume(
+            approval_id="not-enrolled",
+            capability="fleet.enroll",
+            parameters={"host_id":"Artemis"},
+            now=NOW,
+        )
+    with sqlite3.connect(state) as db:
+        tables = {
+            row[0] for row in db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+    assert {"safe_owner_credential", "safe_owner_challenge",
+            "safe_execution_owner_auth_binding"} <= tables
