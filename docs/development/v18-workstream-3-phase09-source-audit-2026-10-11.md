@@ -776,3 +776,9 @@
 - **Confirmed missing read fence:** Active interest strength, status and confidence remained selectable in background LIFE after its original reviewed evidence ref vanished. Existing typed source checks at creation and evaluation did not protect *later* source changes before autonomous selection and RUN.
 - **Production correction:** Source-scoped fresh original evidence check now guards motivation, pre-model interest selection, post-model selected-interest revision, direct original LIFE RUN admission and queued native creative effect execution. The gate checks the existing `GoalEvidenceIndex` and canonical principal/audience; it neither mutates GOALS nor models other memory deletion subsystems.
 - **Commit:** `4a3b1d9`; new regressions `0937124`, `093bf6c`, not run. No acceptance receipt or host effects.
+
+## Follow-up: source-correct LIFE episode context in ProjectIdeaAgent (2026-10-11)
+
+- **Original CA IDs:** CA-101, CA-107, CA-2407. Partial original implementation only.
+- **Gap:** The actual LIFE background ideation call sent recent `life_experience.summary` strings without rechecking original source evidence, chronology, or audience eligibility. This was distinct from the already source-fenced origin interest.
+- **Change:** `SelfDirectedLifeCoordinator.consider_new_project` now uses a bounded verified episode subset and post-model source recheck, with the same scoped original `GoalEvidenceIndex` guard; no independent recorder, permission mechanism or replacement planner. Source `aedeb93`; regression `b23f9ce` authored only. Remaining future work includes original-record digest freshness during model latency, correction/deletion invalidation of already-learned historical preferences, and end-to-end tests.
