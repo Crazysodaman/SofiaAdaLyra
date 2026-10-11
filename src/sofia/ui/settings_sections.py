@@ -1026,10 +1026,6 @@ class SettingsSections:
         # appears as a model-facing tool and is never invoked by RUN.
         from datetime import timedelta
         from uuid import uuid4
-        from sofia.safe.execution_approval import (
-            ExecutionApproval, ExecutionApprovalVerifier,
-            execution_fingerprint,
-        )
         from sofia.safe.operator_stop import OperatorStopStore
         from sofia.ops.workshop_guest_bootstrap import (
             reviewed_handoff_from_store,
