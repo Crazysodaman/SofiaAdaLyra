@@ -702,7 +702,7 @@ class MobileCompanionGateway:
             headers = source.list_threads(owner=principal, limit=limit)
             visible = []
             for header in headers:
-                if header.kind != "main" and not source.visible_message_page(
+                if header.kind != "main" and not source.visible_events(
                     thread_id=header.thread_id, principal=principal, limit=1,
                 ):
                     continue
@@ -726,6 +726,8 @@ class MobileCompanionGateway:
         """Read an existing project thread, never create or route a turn."""
         if not isinstance(thread_id, str) or not 8 <= len(thread_id) <= 128:
             raise ValueError("bounded project thread ID required")
+        if type(limit) is not int or not 1 <= limit <= 50:
+            raise ValueError("project page limit must be 1..50")
         device = self._device(device_id)
         if type(private_mode) is not bool:
             raise TypeError("private_mode must be a bool")
@@ -734,17 +736,19 @@ class MobileCompanionGateway:
         principal = self._principal(device, private_mode=private_mode)
         with self._lock:
             source = LifelongThreadStore(self.state_path)
-            eligible = next(
-                (
-                    header for header in source.list_threads(
-                        owner=principal, limit=100,
-                    )
-                    if header.thread_id == thread_id and header.kind == "project"
-                ),
-                None,
+            eligible = source.thread_for(
+                owner=principal, thread_id=thread_id,
             )
-            if eligible is None:
+            if eligible is None or eligible.kind != "project":
                 raise PermissionError("project thread does not belong to owner")
+            # Owner-wide metadata access does not imply that this Android
+            # audience may observe its title or transcript.
+            if not source.visible_events(
+                thread_id=thread_id, principal=principal, limit=1,
+            ):
+                raise PermissionError(
+                    "project has no visible originals for this audience"
+                )
             # Delegate shared cursor validation and byte-budget logic to the
             # exact same canonical Main pager instead of a shadow reader.
             page = self._canonical_history_page(
@@ -757,10 +761,8 @@ class MobileCompanionGateway:
                         before=cursor, limit=page_limit,
                     ),
             )
-            if not page["messages"]:
-                raise PermissionError(
-                    "project thread has no visible source events for this audience"
-                )
+            # Exhausted keyset pages are normal: return an empty page, not
+            # a spurious permission denial after authenticated paging.
             page["thread_id"] = thread_id
             page["kind"] = "project"
             page["name"] = eligible.name
