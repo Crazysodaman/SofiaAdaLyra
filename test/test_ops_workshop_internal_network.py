@@ -26,6 +26,9 @@ def host_source(**changes):
         "IPv4Forwarding":"Disabled","IPv6Forwarding":"Disabled",
         "DefaultRoutes":[],"DnsServers":[],"NatPrefixes":[],
         "IcsSharingEnabled":False,"OtherVmNames":[],
+            "FirewallNetworkCategory":"Public",
+            "PublicFirewallEnabled":True,
+            "PublicFirewallDefaultInbound":"Block",
         "ObservedAtUtc":AT.isoformat(),
     }
     payload.update(changes)
