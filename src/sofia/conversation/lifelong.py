@@ -288,13 +288,62 @@ class LifelongThreadStore:
                     raise CanonicalTurnConflict(
                         "source event ID was reused across content or authority scope"
                     )
-                admission = self._turn_admission(existing)
+                try:
+                    admission = self._turn_admission(existing)
+                except (ValueError, TypeError, KeyError) as exc:
+                    raise CanonicalTurnUncertain(
+                        "stored canonical response is no longer independently readable"
+                    ) from exc
                 if admission.status == "processing":
                     raise CanonicalTurnPending("canonical turn is already processing")
                 if admission.status in {"interrupted", "uncertain"}:
                     raise CanonicalTurnUncertain(
                         "prior canonical turn outcome is uncertain; replay denied"
                     )
+                if admission.status == "completed":
+                    # The receipt alone is not permanent permission to
+                    # resurrect deleted or withdrawn source conversation.
+                    # Verify BOTH original messages and their current Main
+                    # source-audience links inside this same SQLite snapshot
+                    # before returning previously generated model/tool text.
+                    original_rows = db.execute(
+                        """SELECT m.id,m.role,m.content,e.turn_position
+                        FROM conversation_messages AS m
+                        JOIN lifelong_thread_event AS e
+                          ON e.source_message_id=m.id
+                          AND e.source_session_id=m.session_id
+                        JOIN lifelong_thread AS t
+                          ON t.thread_id=e.thread_id
+                        WHERE m.session_id=?
+                          AND m.id IN (?,?)
+                          AND e.canonical_sequence=?
+                          AND e.source_audience_id=?
+                          AND e.visibility='source_audience'
+                          AND t.kind='main'
+                          AND t.owner_principal_id=?""",
+                        (
+                            session_id, admission.user_message_id,
+                            admission.assistant_message_id,
+                            admission.canonical_sequence,
+                            principal.audience_id, principal.principal_id,
+                        ),
+                    ).fetchall()
+                    original_by_id = {row["id"]: row for row in original_rows}
+                    user = original_by_id.get(admission.user_message_id)
+                    assistant = original_by_id.get(admission.assistant_message_id)
+                    if (
+                        admission.response is None
+                        or len(original_rows) != 2
+                        or user is None or assistant is None
+                        or user["role"] != "user" or user["turn_position"] != 0
+                        or assistant["role"] != "assistant"
+                        or assistant["turn_position"] != 1
+                        or assistant["content"] != admission.response.content
+                    ):
+                        raise CanonicalTurnUncertain(
+                            "completed response no longer has current original "
+                            "conversation and Main audience evidence"
+                        )
                 return admission
             sequence = int(db.execute(
                 """SELECT COALESCE(MAX(canonical_sequence),0)+1
