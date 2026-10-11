@@ -704,6 +704,48 @@ Deferred original-source/mismatched-audience/unknown-session tests:
 CA relevance: CA-4105, CA-4107, CA-4206, CA-5304, CA-6303.
 No live index rebuild, source rewrite, grant or host change.
 
+### Phase 05 authenticated Android project-thread browsing, no shadow transcripts
+
+Production route: `MainActivity` Projects →
+`MainViewModel.listVisibleProjects` →
+`SofiaApi.visibleThreads` →
+authenticated `MobileCompanionServer` narrow route →
+`MobileCompanionGateway.dispatch_authenticated` exact per-device bearer →
+`visible_thread_headers` →
+existing `LifelongThreadStore.list_threads` plus
+`visible_events` principal/audience/original binding filter →
+only visible existing project titles and Main.
+Selecting a project calls `SofiaApi.projectThreadPage` →
+`MobileCompanionGateway.project_thread_history` →
+`LifelongThreadStore.thread_for` owner check →
+`visible_events` exact source visibility authorization →
+`visible_message_page` existing canonical keyset/source joins →
+shared `_canonical_history_page` byte budget and cursor validation →
+read-only Android history display. Project pagination has a separate
+client-side selected ID and falls back to an empty final page rather than a
+spurious authorization denial. Android cannot create project histories,
+modify original source events, send to a project, or mirror another channel.
+
+The API intentionally does **not** transfer private desktop or Discord
+projects into a phone simply because they have the same principal ID.
+The project title is hidden until at least one original source event is
+visible under this phone's exact authenticated audience.
+Offline Main caching is still Main-only; no project content is cached.
+No new database, shadow thread store, or cloned transcript was created.
+Project editing/routing and opt-in cross-device history grants remain
+additional requirements and design questions, not implied by this feature.
+
+Commits: `9acd7d0589bcb6f96638c5636f0a88208ae24a33` gateway first route;
+`61c4773ab9c64f9040d11e6fecc32754653035d3` exact owned canonical
+thread lookup; `575f861d6859a78326d36c85dc6242efb1fb40aa` source-visibility
+hardening; `e41ad91232ee112c57bb87ced790cc27b806f988` deferred
+source/audience and keyset-paging regression;
+`3fbdf51d58d3d93b6c27ba1493afb13cd7b8b1a9` Android API;
+`4f8f89049d0f89ade4bb6cb723a3bf2a05b145a8` Android UI.
+**Tests and builds deliberately unexecuted.** Original CA evidence remains
+partial until regression and privacy acceptance. CA relevance: CA-4102,
+CA-4104, CA-4107, CA-4109, CA-4113, CA-5301, CA-5304, CA-5307, CA-6304.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
