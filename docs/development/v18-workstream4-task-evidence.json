@@ -19,7 +19,8 @@
     "2026-10-11: CA-808 bounded one-NEURO workspace published and consumed by real chat/personality paths; bounded read receipts, expiry and snapshot identity guarded. No functional scientific result or test execution claimed.",
     "2026-10-11: Artemis hypervisor confirmed by operator as Hyper-V. Phase 13 SAFE levels fixed in real policy; no actual host inventory, VM provisioning or testing executed.",
     "2026-10-11: Operator selected Microsoft Hyper-V on Artemis. W4 implemented SAFE Level-4 separation, typed Hyper-V Hephaestus planning, read-only mTLS host and bounded offline image observation, owner Fleet preview and read-only model OPS status; tests and host actions deferred.",
-    "2026-10-11 operator has already created the Hyper-V Hephaestus VM but NO OS. Production path now exclusively owner-created exact GUID with pinned offline unattended Debian installer start, one-use SAFE+Fleet grants and UNCERTAIN outcomes. No actual VM/host action, installs, tests or CI occurred."
+    "2026-10-11 operator has already created the Hyper-V Hephaestus VM but NO OS. Production path now exclusively owner-created exact GUID with pinned offline unattended Debian installer start, one-use SAFE+Fleet grants and UNCERTAIN outcomes. No actual VM/host action, installs, tests or CI occurred.",
+    "2026-10-11 continuation: Hephaestus VM exists OS-less. One-time owner-approved, host-admin pinned Hyper-V unattended ISO boot and read-only installer status are integrated with real Artemis Fleet; Debian installation not attempted; no completed guest OS or Fleet enrollment asserted. Source regressions written, none run."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -144,7 +145,42 @@
     "d2eb69819a2757de1c2a459d1afb10a4f2ce8f5e",
     "b60c111469c301ac51abd22da4b3a21f537c819b",
     "1a16f65a7615bd0e38b760913de32c03dfda21bc",
-    "db305620d82d3d4962ad0b8d3a188c1ebb87c704"
+    "db305620d82d3d4962ad0b8d3a188c1ebb87c704",
+    "0bb2ce887ae91b378231e42572eb47d275f79e75",
+    "81f396440b4a29430152882cc445f6acc45b88ad",
+    "ad9cb9ce73265ef0abc1b2686470e5770df75449",
+    "c883086db1acee725053d16291163fa105b4f15b",
+    "932d8981119feb84570983cb337deaf67d08440f",
+    "adacb7cb9a2c598bb5ddbd781e9e38d21950f740",
+    "5696aaf2d61033836231751d12787337e3942f2e",
+    "bf1c837a001dc61af00846021dd96672ea069f01",
+    "ffd27a1906a68eed9ea82a4adf6d886ec2a701d4",
+    "a1030b23ce79864f89876639eea4d531973be49e",
+    "b2c055868f1462e43ce5d6bc6329cef2ae8194d9",
+    "aac4ff56a5c0f06d6af28d00c52adcad5a7e9dc4",
+    "f93acb49a203585abc4d5f74ef2b0c3e920c9908",
+    "256f2c3a124dba78b687a27e8b2ac023385e453d",
+    "acafa94e8d862627ee6b467c463f367373ec22f2",
+    "99fa262741ab230b7f098d775fc34456a1c63715",
+    "d0234406a8e06a1074d404233abcfdd503d82210",
+    "6427037716b63ee8f4a52fb59eb2448bdcfe194f",
+    "42e404b690c0cbb5b64d94b04b78f8e8030836e1",
+    "37bee2a8a4d801283fb0a34435ead9d5e7256ae8",
+    "413913d7a15ff2c2b13f2b12fab78e68ca244ba3",
+    "5d633bb2b580b57e4a9f49af7bc589c49b1340eb",
+    "dd7f5623136b3441e39ba2807be89719e0d2df1e",
+    "9e0a6d48693d627d25b29921b8932b73c7ca9225",
+    "4bb9f34c920f3e2e677cd89b73eb6155728d591d",
+    "a6a7e015492190a1b417b2911981886035a41adf",
+    "6d66bccb2976212e229beee623781dbd2035e7c4",
+    "b76a1c73efeb0c37f097164d13ffcfdb506a2836",
+    "f74bd119a0d1e87e3970bc291de1bc8fb4713a74",
+    "da331cb5fa4e6bbc2ef2fd9db60d0faa8bd9a7b0",
+    "ae70b31ba8fa3d54f03e1df1881243c35620173a",
+    "d096f1b435faeb0be2185eac0f088c723835bd39",
+    "e57b76e4f976794f1cadabb19d8f640885378374",
+    "7e4a2e948da59919a15f216e2ddf2f6a355704a1",
+    "0c422ce14d9797d6957ba991bb6131ac2b19ff97"
   ],
   "tasks": [
     {
@@ -1007,12 +1043,12 @@
       "phase": "13",
       "master_line": 1024,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
+      "finding": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial."
     },
     {
       "id": "CA-2806",
@@ -1354,34 +1390,36 @@
       "phase": "13",
       "master_line": 1058,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial."
     },
     {
       "id": "CA-2913",
       "phase": "13",
       "master_line": 1059,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial."
     },
     {
       "id": "CA-2914",
       "phase": "13",
       "master_line": 1060,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
+      "finding": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial."
     },
     {
       "id": "CA-2915",
@@ -1646,12 +1684,12 @@
       "phase": "13",
       "master_line": 1090,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
+      "finding": "The existing OS-less owner VM is inspected via authenticated Artemis Hyper-V prior to installation. Host-side approved ISO boot now yields durable INSTALLER_BOOT_STARTED/UNCERTAIN with no fabricated OS proof. Follow-up read-only workshop.inspect/installer_status obtains power/DVD/firmware and integration-service observations and stores canonical source receipts. Guest-side signed heartbeat, installer completion criteria, exact media cleanup, quarantine and postinstall trusted guest identity still not coded/verified, so task remains partial."
     },
     {
       "id": "CA-4307",
