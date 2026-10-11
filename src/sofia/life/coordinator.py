@@ -458,6 +458,67 @@ class SelfDirectedLifeCoordinator:
         self.store.record_selection(selection)
         return selection
 
+    def pending_work_review(self, *, limit: int = 32) -> tuple[dict[str, object], ...]:
+        """Project existing RUN outcomes without asserting goal success.
+
+        A finished creative job is *not* independently validated work.
+        Missing receipts, failure and uncertain outcomes remain review items.
+        This method reads canonical stores only and cannot schedule, promote
+        memories, grant permissions or alter project statuses.
+        """
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("review limit must be between 1 and 100")
+        projects = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+            statuses=(ProjectStatus.ACTIVE, ProjectStatus.PAUSED, ProjectStatus.FAILED),
+        )
+        reviews: list[dict[str, object]] = []
+        for project in projects:
+            evaluated = {
+                (item.artifact_id, item.artifact_revision)
+                for item in self.store.evaluations(project.project_id)
+            }
+            for job_id in self.store.jobs(project.project_id):
+                job = self.work_store.get(job_id)
+                outcome = job.result if isinstance(job.result, dict) else {}
+                artifact_id = outcome.get("artifact_id")
+                revision = outcome.get("revision")
+                verified_link = (
+                    isinstance(artifact_id, str)
+                    and type(revision) is int
+                    and (artifact_id, revision) in self.store.artifacts(project.project_id)
+                )
+                if job.status is WorkStatus.COMPLETED:
+                    if verified_link and (artifact_id, revision) in evaluated:
+                        continue
+                    disposition = (
+                        "needs_independent_artifact_review"
+                        if verified_link else "missing_or_unlinked_artifact_receipt"
+                    )
+                elif job.status is WorkStatus.UNCERTAIN:
+                    disposition = "uncertain_no_automatic_retry"
+                elif job.status in {WorkStatus.FAILED, WorkStatus.CANCELLED, WorkStatus.BLOCKED}:
+                    disposition = "needs_failure_or_blocked_review"
+                else:
+                    continue  # queued/running are not settled results
+                reviews.append({
+                    "project_id": project.project_id,
+                    "job_id": job.job_id,
+                    "status": job.status.value,
+                    "disposition": disposition,
+                    "artifact_id": artifact_id if verified_link else None,
+                    "revision": revision if verified_link else None,
+                    "evidence_ref": (
+                        outcome.get("evidence_ref")
+                        if isinstance(outcome.get("evidence_ref"), str)
+                        else None
+                    ),
+                })
+                if len(reviews) >= limit:
+                    return tuple(reviews)
+        return tuple(reviews)
+
     def consider_new_project(
         self, *, generate, now: datetime, busy: bool,
         resource_pressure: float,
@@ -938,6 +999,7 @@ class SelfDirectedLifeCoordinator:
             "project_id": selection.project_id,
             "scheduled": scheduled,
             "jobs_started": started,
+            "review_queue": self.pending_work_review(limit=16),
         }
 
     def close(self) -> None:
