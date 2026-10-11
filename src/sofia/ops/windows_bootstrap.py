@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import hashlib
+import ipaddress
 import json
 from pathlib import Path, PureWindowsPath
 import re
@@ -62,6 +63,29 @@ def _safe_windows_path(value: str, label: str) -> str:
     if not path.is_absolute() or not path.drive:
         raise ValueError(f"{label} must be an absolute Windows drive path")
     return str(path)
+
+
+
+def _reviewed_controller_ip(value: str) -> str:
+    """Require one explicit controller IPv4, never a subnet or wildcard."""
+    if not isinstance(value, str):
+        raise ValueError("exact reviewed controller IPv4 address required")
+    try:
+        address = ipaddress.IPv4Address(value)
+    except ipaddress.AddressValueError as exc:
+        raise ValueError("exact reviewed controller IPv4 address required") from exc
+    if (
+        str(address) != value
+        or address.is_unspecified
+        or address.is_loopback
+        or address.is_multicast
+        or address.is_reserved
+        or address.is_link_local
+    ):
+        raise ValueError("unsafe or non-canonical controller IPv4 address")
+    return str(address)
+
+
 
 
 @dataclass(frozen=True)
@@ -132,6 +156,7 @@ def render_installer(
     package_sha256: str,
     node_id: UUID,
     listen_port: int,
+    controller_ip: str,
 ) -> str:
     stage_path = _safe_windows_path(stage_path, "stage path")
     install_root = _safe_windows_path(install_root, "install root")
@@ -141,6 +166,7 @@ def render_installer(
         raise ValueError("invalid package SHA-256")
     if not 1 <= listen_port <= 65535:
         raise ValueError("listen port out of range")
+    controller_ip = _reviewed_controller_ip(controller_ip)
 
     return f"""$ErrorActionPreference = "Stop"
 $Stage = '{stage_path}'
@@ -149,6 +175,8 @@ $WheelName = '{wheel_name}'
 $ExpectedHash = '{package_sha256}'
 $NodeId = '{node_id}'
 $ListenPort = {listen_port}
+$ControllerIp = '{controller_ip}'
+$DependencyLock = Join-Path $Stage "agent-dependencies.lock"
 $Receipt = Join-Path $Stage "bootstrap-receipt.json"
 function Save-Receipt([hashtable]$Payload) {{
     $Payload | ConvertTo-Json -Depth 5 | Set-Content -Path $Receipt -Encoding UTF8
@@ -159,6 +187,7 @@ try {{
     if (-not (Test-Path $Wheel -PathType Leaf)) {{ throw "Approved Fleet wheel missing." }}
     $ActualHash = (Get-FileHash -Algorithm SHA256 $Wheel).Hash.ToLowerInvariant()
     if ($ActualHash -ne $ExpectedHash) {{ throw "Fleet wheel hash mismatch." }}
+    if (-not (Test-Path $DependencyLock -PathType Leaf)) {{ throw "Approved dependency lock missing." }}
 
     foreach ($Relative in @("agent.json","certs\\fleet-ca.pem","certs\\artemis-server.pem","certs\\artemis-server-key.pem")) {{
         if (-not (Test-Path (Join-Path $Stage $Relative) -PathType Leaf)) {{ throw "Required Fleet file missing: $Relative" }}
@@ -245,8 +274,8 @@ try {{
     $AgentPython = Join-Path $Venv "Scripts\\python.exe"
     & $AgentPython -m pip install --disable-pip-version-check --no-deps (Join-Path $Root $WheelName)
     if ($LASTEXITCODE -ne 0) {{ throw "Fleet wheel installation failed." }}
-    & $AgentPython -m pip install --disable-pip-version-check cryptography pywin32
-    if ($LASTEXITCODE -ne 0) {{ throw "Fleet service dependencies installation failed." }}
+    & $AgentPython -m pip install --disable-pip-version-check --require-hashes -r $DependencyLock
+    if ($LASTEXITCODE -ne 0) {{ throw "Hashed Fleet dependencies installation failed." }}
 
     $ConfigPath = Join-Path $Root "agent.json"
     $Config = & $AgentPython -m sofia.distributed.agent_main --config $ConfigPath --check-config 2>&1
@@ -256,8 +285,10 @@ try {{
     $PythonVersion = (& $AgentPython --version 2>&1 | Out-String).Trim()
 
     $FirewallName = "SofiaAdaLyra Fleet Agent $ListenPort"
-    Get-NetFirewallRule -DisplayName $FirewallName -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue
-    New-NetFirewallRule -DisplayName $FirewallName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $ListenPort -RemoteAddress LocalSubnet -Profile Any | Out-Null
+    if (Get-NetFirewallRule -DisplayName $FirewallName -ErrorAction SilentlyContinue) {{
+        throw "Existing Fleet firewall rule requires explicit operator review/removal."
+    }}
+    New-NetFirewallRule -DisplayName $FirewallName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $ListenPort -RemoteAddress $ControllerIp -Profile Private | Out-Null
 
     $InstallOutput = & $AgentPython -m sofia.distributed.windows_agent_service_admin install --config $ConfigPath 2>&1
     if ($LASTEXITCODE -ne 0) {{
@@ -369,6 +400,8 @@ class WindowsCimBootstrapInstaller:
         controller_stage_directory: Path,
         remote_stage_path: str,
         node_id: UUID,
+        controller_ip: str,
+        dependency_lock_path: Path,
         install_root: str = r"C:\ProgramData\SofiaAdaLyra\FleetAgent",
         listen_port: int = 7443,
         timeout_seconds: float = 300.0,
@@ -382,6 +415,8 @@ class WindowsCimBootstrapInstaller:
         self.remote_stage_path = _safe_windows_path(remote_stage_path, "remote stage path")
         self.install_root = _safe_windows_path(install_root, "install root")
         self.node_id = node_id
+        self.controller_ip = _reviewed_controller_ip(controller_ip)
+        self.dependency_lock_path = Path(dependency_lock_path)
         self.listen_port = listen_port
         self.timeout_seconds = timeout_seconds
         self.launcher = launcher
@@ -407,6 +442,14 @@ class WindowsCimBootstrapInstaller:
         for relative in _REQUIRED:
             if not (self.bundle_directory / Path(relative)).is_file():
                 raise FileNotFoundError(f"Fleet bundle missing {relative}")
+        if (
+            not self.dependency_lock_path.is_file()
+            or self.dependency_lock_path.is_symlink()
+        ):
+            raise FileNotFoundError("approved Fleet dependency lock is unavailable")
+        contents = self.dependency_lock_path.read_text(encoding="utf-8")
+        if "--hash=sha256:" not in contents or "==" not in contents:
+            raise ValueError("Fleet dependency lock must contain reviewed pinned hashes")
 
         stage, remote_stage = self._new_stage_paths()
         self._active_controller_stage_directory = stage
@@ -425,6 +468,7 @@ class WindowsCimBootstrapInstaller:
         for name in ("fleet-ca.pem", "artemis-server.pem", "artemis-server-key.pem"):
             shutil.copy2(self.bundle_directory / "certs" / name, stage / "certs" / name)
         shutil.copy2(self.wheel_path, stage / self.wheel_path.name)
+        shutil.copy2(self.dependency_lock_path, stage / "agent-dependencies.lock")
 
         installer = stage / "install.ps1"
         installer.write_text(
@@ -435,6 +479,7 @@ class WindowsCimBootstrapInstaller:
                 package_sha256=package.sha256,
                 node_id=self.node_id,
                 listen_port=self.listen_port,
+                controller_ip=self.controller_ip,
             ),
             encoding="utf-8",
         )
@@ -524,6 +569,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--stage-dir", required=True)
     parser.add_argument("--remote-stage-path", required=True)
     parser.add_argument("--listen-port", type=int, default=7443)
+    parser.add_argument("--controller-ip", required=True)
+    parser.add_argument("--dependency-lock", required=True)
     args = parser.parse_args(argv)
 
     if not args.approve:
@@ -560,6 +607,8 @@ def main(argv: list[str] | None = None) -> int:
             remote_stage_path=args.remote_stage_path,
             node_id=UUID(args.node_id),
             listen_port=args.listen_port,
+            controller_ip=args.controller_ip,
+            dependency_lock_path=Path(args.dependency_lock),
         )
         receipt = FleetBootstrapExecutor().execute(plan, installer)
         print(
