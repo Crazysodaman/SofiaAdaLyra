@@ -869,6 +869,124 @@ class SettingsSections:
                 root.after(350,poll_installer_observation)
 
         root.after(350,poll_installer_observation)
+        # Synthetic homelab twin uses ONLY existing OPS hosts and owner-
+        # declared dependencies. No network scan, VM launch or simulated
+        # result may become an authorization for a real operation.
+        from sofia.ops.digital_twin import (
+            TwinDependencyStore,TwinReviewedDependency,
+            read_digital_twin_fleet,run_digital_twin_scenario,
+        )
+        from sofia.ops.capability import OpsToolService
+        from uuid import uuid4
+        dependency_store=TwinDependencyStore(config.state_path)
+        ttk.Label(
+            frames["Fleet"],
+            text="HOMELAB DIGITAL TWIN: source-grounded synthetic scenarios",
+        ).pack(anchor="w",pady=(12,2))
+        ttk.Label(
+            frames["Fleet"],
+            text=(
+                "Only OPS Fleet-enrolled host identities are modeled. "
+                "Dependency links are owner declarations, NOT discovered "
+                "network links. Simulation cannot trigger host/robot/rail "
+                "actions, enrollment or permissions."
+            ),wraplength=660,
+        ).pack(anchor="w",pady=3)
+        twin_dependent=tk.StringVar(root,value="")
+        twin_prerequisite=tk.StringVar(root,value="")
+        twin_kind=tk.StringVar(root,value="service")
+        twin_target=tk.StringVar(root,value="")
+        twin_scenario=tk.StringVar(root,value="dns_outage")
+        for label,var in (
+            ("Dependent OPS host ID",twin_dependent),
+            ("Prerequisite OPS host ID",twin_prerequisite),
+        ):
+            ttk.Label(frames["Fleet"],text=label).pack(anchor="w",pady=(3,1))
+            ttk.Entry(frames["Fleet"],textvariable=var).pack(fill="x")
+        ttk.Combobox(
+            frames["Fleet"],textvariable=twin_kind,
+            values=("dns","fleet_transport","data","service","storage"),
+            state="readonly",
+        ).pack(fill="x",pady=(2,5))
+        twin_result={"value":"No synthetic scenario run or Fleet graph observed."}
+        twin_view=self.viewer(
+            frames["Fleet"],
+            "Digital twin: reviewed sources, unknowns and simulation-only output",
+            lambda:twin_result["value"],
+        )
+
+        def owner_review_twin_dependency():
+            service=OpsToolService(config.state_path)
+            host_ids=tuple(host.host_id for host in service.registry.hosts())
+            proposed=TwinReviewedDependency(
+                dependent_host_id=twin_dependent.get().strip(),
+                prerequisite_host_id=twin_prerequisite.get().strip(),
+                kind=twin_kind.get(),
+                reviewed_at=datetime.now(timezone.utc),
+                approval_ref="owner-ui:"+uuid4().hex,
+            )
+            if not self.messagebox.askyesno(
+                "Record owner-declared simulation dependency?",
+                (
+                    "This is a modeling assumption, not a discovered "
+                    "real-world route.\n\n"
+                    f"Dependent: {proposed.dependent_host_id}\n"
+                    f"Prerequisite: {proposed.prerequisite_host_id}\n"
+                    f"Category: {proposed.kind}\n\n"
+                    "It will never grant authority or cause a real action."
+                ),
+                parent=root,
+            ):
+                return
+            dependency_store.record_owner_review(
+                proposed,known_host_ids=host_ids,
+            )
+            twin_result["value"]=json.dumps(
+                read_digital_twin_fleet(
+                    service=service,at=datetime.now(timezone.utc),
+                ),
+                indent=2,default=str,
+            )
+            twin_view.refresh()
+
+        ttk.Button(
+            frames["Fleet"],text="Review modeled dependency (no host writes)",
+            command=self.guarded(owner_review_twin_dependency),
+        ).pack(anchor="w",pady=(4,7))
+        ttk.Label(
+            frames["Fleet"],text="Synthetic failure target: existing OPS host ID",
+        ).pack(anchor="w",pady=(3,1))
+        ttk.Entry(frames["Fleet"],textvariable=twin_target).pack(fill="x")
+        ttk.Combobox(
+            frames["Fleet"],textvariable=twin_scenario,
+            values=(
+                "dns_outage","fleet_agent_unreachable","disk_pressure",
+                "sqlite_lock","container_crash","stale_clock",
+                "weather_sensor_failure","conflicting_node_identity",
+            ),state="readonly",
+        ).pack(fill="x",pady=(3,5))
+
+        def run_homelab_twin():
+            service=OpsToolService(config.state_path)
+            now=datetime.now(timezone.utc)
+            if not twin_target.get().strip():
+                report=read_digital_twin_fleet(service=service,at=now)
+            else:
+                report=run_digital_twin_scenario(
+                    service=service,scenario=twin_scenario.get(),
+                    target_host_id=twin_target.get().strip(),at=now,
+                )
+            twin_result["value"]=json.dumps(
+                report,indent=2,default=str,
+            )
+            twin_view.refresh()
+
+        ttk.Button(
+            frames["Fleet"],
+            text="Inspect sources / run synthetic failure (read only)",
+            command=self.guarded(run_homelab_twin),
+        ).pack(anchor="w",pady=(4,8))
+
         self.identity_panel(frames["Sofía"])
         self.avatar_panel(frames["Avatar"])
         from .wardrobe_panel import WardrobePanel, current_mood
