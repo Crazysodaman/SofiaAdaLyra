@@ -519,6 +519,66 @@ def test_dev_build_tool_schema_does_not_require_or_offer_approval_id():
         assert "approval_id" in schema["required"]
 
 
+
+def test_host_generic_approval_preflight_binds_exact_unconsumed_effect(tmp_path):
+    configuration = _configuration(tmp_path)
+    store = PermissionStore(configuration.state_path)
+    verifier = ExecutionApprovalVerifier(configuration.state_path)
+    authorizer = create_capability_authorizer(
+        runtime_provider=lambda: object(),
+        configuration=configuration,
+        operator_stop=OperatorStopStore(configuration.state_path),
+    )
+    now = datetime.now(timezone.utc)
+    parameters = {"root_index": 0, "path": "exact-file.txt"}
+    approval = ExecutionApproval(
+        approval_id="remove-exact-file-once",
+        capability="storage.delete",
+        request_fingerprint=execution_fingerprint("storage.delete", parameters),
+        approved_by="Sparks",
+        approved_at=now - timedelta(seconds=5),
+        expires_at=now + timedelta(minutes=10),
+    )
+    verifier.record(approval)
+
+    def allowed(args):
+        return authorizer(CapabilityRequest(
+            capability=Capability("storage.delete", "Protected deletion."),
+            parameters=args, requested_scope=None,
+            rationale="verify exact host preflight",
+        ))
+
+    assert allowed({**parameters, "approval_id": "invented-token"}) is False
+    assert allowed({**parameters, "path": "wrong-file.txt",
+                    "approval_id": approval.approval_id}) is False
+    assert allowed({**parameters, "approval_id": approval.approval_id}) is True
+    verifier.consume(
+        approval_id=approval.approval_id,
+        capability="storage.delete",
+        parameters=parameters,
+        now=now,
+    )
+    assert allowed({**parameters, "approval_id": approval.approval_id}) is False
+
+
+def test_host_generic_approval_preflight_preserves_specialized_dev_verifier(tmp_path):
+    configuration = _configuration(tmp_path)
+    PermissionStore(configuration.state_path)
+    authorizer = create_capability_authorizer(
+        runtime_provider=lambda: object(),
+        configuration=configuration,
+        operator_stop=OperatorStopStore(configuration.state_path),
+    )
+    # DEV owns a separate signed one-use verifier at its effect boundary.
+    # The composition preflight must not reject its different receipt schema.
+    request = CapabilityRequest(
+        capability=Capability("dev.apply", "Apply an operator-approved patch."),
+        parameters={"proposal_id": "p1", "approval_id": "signed-dev-receipt"},
+        requested_scope=None,
+        rationale="delegate to DEV's actual authorization boundary",
+    )
+    assert authorizer(request) is True
+
 def test_legacy_standing_configuration_cannot_authorize_level_three(tmp_path):
     configuration = SofiaConfiguration(
         constitution_path=tmp_path / "constitution.md",
