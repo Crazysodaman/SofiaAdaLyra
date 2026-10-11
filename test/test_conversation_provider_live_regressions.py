@@ -26,6 +26,8 @@ def _application(monkeypatch, tmp_path, responses):
         state_path=tmp_path / "isolated-sofia.db",
         filesystem_root=tmp_path,
     )
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(configuration.state_path)
     application = SofiaApplication(configuration)
     application.start()
     captured.clear()
