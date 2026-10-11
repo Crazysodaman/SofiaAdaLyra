@@ -81,7 +81,6 @@ def test_blank_vm_handoff_checks_actual_guid_offline_disk_private_network_and_re
 
 @pytest.mark.parametrize("payload,expected",[
     ({"VmId":str(uuid4())},"GUID"),
-    ({"Name":"Sofia"},"exact Hephaestus"),
     ({"State":"Running"},"powered off"),
     ({"Generation":1},"Generation-2"),
     ({"Processors":7},"vCPU"),
@@ -249,3 +248,8 @@ def test_hyperv_workshop_blank_read_permission_separate_from_bootstrap():
     assert capability_permission_policy("workshop.guest.bootstrap").level is PermissionLevel.PROTECTED
     assert capability_permission_policy("fleet.enroll").level is PermissionLevel.PROTECTED
     assert capability_permission_policy("permissions.grant").level is PermissionLevel.NEVER_SELF_AUTHORIZED
+
+
+def test_wrong_vm_name_rejected_before_any_boot_review():
+    with pytest.raises(ValueError,match="exact Hephaestus"):
+        observed_owner_vm(vm_json(Name="Sofia"))
