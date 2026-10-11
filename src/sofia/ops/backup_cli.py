@@ -55,7 +55,11 @@ def _create(args) -> int:
     manifest = engine.verify(backup_dir)
     if manifest.backup_id != evidence.backup_id or manifest.digest != evidence.content_digest:
         raise RuntimeError("new backup authentication disagrees with original creation receipt")
-    removed = rotate_backups(destination, keep=args.keep)
+    removed = rotate_backups(
+        destination, keep=args.keep, verifier=engine.verify,
+        expected_source_host_id=manifest.source_host_id,
+        expected_failure_domain=manifest.failure_domain,
+    )
     print(
         f"backup created: {backup_dir} "
         f"backup_id={evidence.backup_id} "
