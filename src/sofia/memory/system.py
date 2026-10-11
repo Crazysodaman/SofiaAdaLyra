@@ -192,6 +192,17 @@ class MemorySystem:
             if candidate is None:
                 continue
 
+            # The first candidate-ID search is scope-filtered, but an
+            # independently updated/corrected record must still be checked
+            # at the last point before it enters the model context.
+            if (
+                candidate.principal_id != principal.principal_id
+                or candidate.audience_id not in (None, principal.audience_id)
+                or candidate_store.status(candidate.candidate_id)
+                is not CandidateStatus.PROMOTED
+            ):
+                continue
+
             records.append(
                 MemoryRecord(
                     id=str(candidate.candidate_id),
