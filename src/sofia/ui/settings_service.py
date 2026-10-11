@@ -201,6 +201,18 @@ def install_approved_configured_model(
         policy=configuration.model_lifecycle,
         backend=OllamaAdapter(),
     )
+    # An already-present model needs neither a pull nor an installation
+    # approval consumption. Do not write a misleading installation receipt.
+    from sofia.cognition.model_lifecycle import ModelResidency
+    before = manager.status(selected)
+    if before.state in {
+        ModelResidency.UNLOADED, ModelResidency.READY, ModelResidency.BUSY,
+    }:
+        return before
+    if before.state is not ModelResidency.UNAVAILABLE:
+        raise RuntimeError(
+            "local model inventory unavailable; installation not authorized"
+        )
     verifier = ExecutionApprovalVerifier(canonical_path)
 
     def consume_exact_approval(ref, approved_role, model):
