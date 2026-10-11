@@ -23,6 +23,61 @@ _SCENARIOS=frozenset({
     "weather_sensor_failure", "conflicting_node_identity",
 })
 _EDGE_TYPES=frozenset({"dns","fleet_transport","data","service","storage"})
+# Explicit fidelity choices, not guesses that a guest or docker replica
+# exists. Only the dependency graph has a wired executable observer today.
+FIDELITY_COMPARISON={
+    "dependency_graph_v1":{
+        "implemented":True,
+        "effect":"Hypothetical directed failures over reviewed OPS host edges",
+        "limit":"Cannot measure packets, processes, guest OS or latency",
+    },
+    "disposable_docker_replica":{
+        "implemented":False,
+        "effect":"Potentially test declared service images in an isolated worker",
+        "limit":"Requires approved images, verified runner, no network and an actual worker",
+    },
+    "full_vm_replica":{
+        "implemented":False,
+        "effect":"Potentially test guest OS behavior in a disposable VM image",
+        "limit":"No verified Hephaestus guest OS or known-clean snapshot yet",
+    },
+}
+PHYSICAL_DOMAIN_BOUNDARIES={
+    "Gaia":{
+        "simulatable":(
+            "3-DOF leg kinematics",
+            "nominal gait timing",
+            "virtual support polygon",
+        ),
+        "unmeasured":(
+            "real servo deadband",
+            "180-degree vs continuous-rotation servo calibration",
+            "actual torque/current and stall limits",
+            "power rail brownout and USB/SSC-32 latency",
+        ),
+        "real_action_scope":"robot.motion requires separate protected authority",
+        "default":"NO PHYSICAL SERVO PULSES",
+    },
+    "JMRI":{
+        "simulatable":(
+            "hypothetical route dependency graph",
+            "fictional timetable and switching puzzle",
+        ),
+        "read_only_inputs":(
+            "owner-reviewed roster",
+            "validated occupancy",
+            "status telemetry",
+        ),
+        "unmeasured":(
+            "actual route clearance",
+            "physical turnout position",
+            "live electrical power state",
+        ),
+        "real_action_scope":"track power, turnout movement and locomotive commands require separate grants",
+        "default":"NO TRACK POWER OR LOCO MOVEMENT",
+    },
+}
+
 _SCENARIO_EDGE_TYPES={
     "dns_outage":frozenset({"dns"}),
     "fleet_agent_unreachable":frozenset({"fleet_transport"}),
@@ -493,5 +548,7 @@ def read_digital_twin_fleet(*,service,at:datetime)->dict:
         "reviewed_dependency_count":len(snapshot.dependencies),
         "observed_network_topology":"UNKNOWN (no automatic probing)",
         "simulation_only":True,
+        "fidelity_comparison":FIDELITY_COMPARISON,
+        "physical_domain_boundaries":PHYSICAL_DOMAIN_BOUNDARIES,
         "may_execute_real_actions":False,
     }
