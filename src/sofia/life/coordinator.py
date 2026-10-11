@@ -565,6 +565,16 @@ class SelfDirectedLifeCoordinator:
             if (
                 report.revision == evaluation.artifact_revision
                 and report.eligible_for_independent_completion
+                and any(
+                    self._confirmed_artifact_run_receipt(
+                        project,
+                        artifact_id=evaluation.artifact_id,
+                        revision=evaluation.artifact_revision,
+                        evidence_ref=ref,
+                        now=now,
+                    )
+                    for ref in evaluation.evidence_refs
+                )
             ):
                 verified_result = True
                 break
@@ -1289,6 +1299,42 @@ class SelfDirectedLifeCoordinator:
         self.store.update_milestone(updated, expected_status=expected_status)
         return updated
 
+    def _confirmed_artifact_run_receipt(
+        self, project: LifeProject, *, artifact_id: str, revision: int,
+        evidence_ref: str, now: datetime,
+    ) -> bool:
+        """Require an actual completed, linked RUN operation receipt.
+
+        Valid artifact bytes alone cannot attest to authorized execution.
+        The typed GOALS evidence index verifies the original operation
+        receipt independently of artifact metadata or provider text.
+        """
+        receipt = self.evidence_index.lookup(evidence_ref)
+        if (
+            receipt is None or receipt.kind != "operation_receipt"
+            or receipt.source != "life:creative-capability"
+            or receipt.successful is not True
+            or receipt.goal_id != project.goal_id
+            or receipt.principal_id != local_sparks_principal().principal_id
+            or receipt.audience != project.audience_id
+            or receipt.observed_at > now
+        ):
+            return False
+        for job_id in self.store.jobs(project.project_id):
+            if job_id != receipt.action_id:
+                continue
+            job = self.work_store.get(job_id)
+            result = job.result if isinstance(job.result, dict) else {}
+            return (
+                job.status is WorkStatus.COMPLETED
+                and result.get("artifact_id") == artifact_id
+                and type(result.get("revision")) is int
+                and result["revision"] == revision
+                and result.get("evidence_ref") == evidence_ref
+                and (artifact_id, revision) in self.store.artifacts(project.project_id)
+            )
+        return False
+
     def _settle_verified_milestones(
         self, project: LifeProject, *, artifact_id: str, revision: int,
         evaluation: ArtifactEvaluation, evidence_ref: str, job_id: str,
@@ -1310,17 +1356,12 @@ class SelfDirectedLifeCoordinator:
             or evidence_ref not in evaluation.evidence_refs
         ):
             return 0
-        evidence = self.evidence_index.lookup(evidence_ref)
-        if (
-            evidence is None
-            or evidence.kind != "operation_receipt"
-            or evidence.successful is not True
-            or evidence.goal_id != project.goal_id
-            or evidence.action_id != job_id
-            or evidence.principal_id != local_sparks_principal().principal_id
-            or evidence.audience != project.audience_id
-            or evidence.observed_at > now
+        if not self._confirmed_artifact_run_receipt(
+            project, artifact_id=artifact_id, revision=revision,
+            evidence_ref=evidence_ref, now=now,
         ):
+            return 0
+        if self.evidence_index.lookup(evidence_ref).action_id != job_id:
             return 0
         try:
             report = self.inspect_artifact_objectives(
@@ -1527,7 +1568,10 @@ class SelfDirectedLifeCoordinator:
             or type(revision) is not int
             or (artifact_id, revision) not in self.store.artifacts(project.project_id)
             or not isinstance(evidence_ref, str)
-            or self.evidence_index.lookup(evidence_ref) is None
+            or not self._confirmed_artifact_run_receipt(
+                project, artifact_id=artifact_id, revision=revision,
+                evidence_ref=evidence_ref, now=now,
+            )
         ):
             return 0, "missing_verified_artifact_receipt"
 
@@ -1570,7 +1614,15 @@ class SelfDirectedLifeCoordinator:
                 technical_outcome=technical,
                 personal_judgment=PersonalJudgment.UNKNOWN,
                 objective_results=outcomes,
-                reason="Independent source-objective inspection; subjective taste not claimed.",
+                reason=(
+                    "Independent artifact-byte/objective critique; "
+                    "subjective taste not claimed. "
+                    + "; ".join(
+                        f"{finding.check}: {finding.disposition.value} "
+                        f"({finding.reason})"
+                        for finding in report.findings[:8]
+                    )[:800]
+                ),
                 evidence_refs=(evidence_ref,), preserve_for_research=False,
                 now=now,
             )
@@ -1628,9 +1680,21 @@ class SelfDirectedLifeCoordinator:
             key for key, result in evaluation.objective_results.items()
             if result is False
         )
+        # The revision prompt receives independent checker findings only.
+        # Generator self-critique is never a pass/fail oracle.
+        checked = self.inspect_artifact_objectives(
+            project.project_id, artifact_id=artifact_id,
+        )
+        if checked.revision != revision:
+            return 0, "artifact_revision_changed_requires_review"
         feedback = (
-            "The prior artifact was source-checked and failed these exact "
-            "independent objectives: " + "; ".join(failed[:4])
+            "The prior artifact failed independently inspected objectives: "
+            + "; ".join(
+                f"{item.objective[:100]} ({item.check}: {item.reason})"
+                for item in checked.findings
+                if item.objective in failed
+                and item.disposition.value == "fail"
+            )[:400]
         )[:600]
         try:
             draft = ProjectDraftAgent(generate).draft(
