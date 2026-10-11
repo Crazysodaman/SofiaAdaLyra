@@ -2112,6 +2112,61 @@ class SelfDirectedLifeCoordinator:
             return 0, "waiting_on_existing_work"
         return 1, "revision_scheduled"
 
+    def _settle_retired_optional_interests(self, *, now: datetime) -> int:
+        """Close paused personal projects after newer reviewed disinterest.
+
+        A retired interest comes from original canonical evidence and never
+        implies a model has feelings. Active work, uncertain effects, duties,
+        the operator stop and old unverified retirement cannot be overridden.
+        """
+        if self.operator_stop.current().active:
+            return 0
+        projects = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+            statuses=(ProjectStatus.PAUSED,),
+        )
+        settled = 0
+        for project in projects:
+            if project.scope is not ProjectScope.PERSONAL_PRIVATE:
+                continue
+            interest = self.store.interest_by_id(
+                project.originating_interest, audience_id=project.audience_id,
+            )
+            if (
+                interest is None
+                or interest.status is not InterestStatus.RETIRED
+                or interest.recorded_at <= project.updated_at
+                or interest.recorded_at > now
+                or not interest.evidence_refs
+            ):
+                continue
+            if any(
+                self.work_store.get(job_id).status in {
+                    WorkStatus.QUEUED, WorkStatus.RUNNING,
+                    WorkStatus.WAITING_APPROVAL, WorkStatus.BLOCKED,
+                    WorkStatus.UNCERTAIN,
+                }
+                for job_id in self.store.jobs(project.project_id)
+            ):
+                continue
+            if any(
+                self.evidence_index.lookup(ref) is None
+                for ref in interest.evidence_refs
+            ):
+                continue
+            self.abandon(
+                project.project_id,
+                reason=(
+                    "Newer reviewed evidence retired the originating interest; "
+                    "this optional personal project has ended."
+                ),
+                evidence_refs=interest.evidence_refs[:32],
+                now=now,
+            )
+            settled += 1
+        return settled
+
     def _reconcile_canonical_goal_lifecycle(self, *, now: datetime) -> int:
         """Stop private optional LIFE activity after a canonical GOALS change.
 
@@ -2347,6 +2402,7 @@ class SelfDirectedLifeCoordinator:
         observed = self.store.reconcile_run_outcomes(now=now)
         terminal_settled = self._reconcile_terminal_run_projects(now=now)
         goal_settled = self._reconcile_canonical_goal_lifecycle(now=now)
+        retired_settled = self._settle_retired_optional_interests(now=now)
         if self.operator_stop.current().active:
             return {
                 "selection": SelectionKind.INACTIVITY.value,
@@ -2357,6 +2413,7 @@ class SelfDirectedLifeCoordinator:
                 "run_outcomes_observed": len(observed),
                 "terminal_run_projects_settled": terminal_settled,
                 "goal_lifecycle_projects_settled": goal_settled,
+                "retired_interest_projects_settled": retired_settled,
                 "review_queue": self.pending_work_review(limit=16),
             }
         if self.operator_stop.current().active:
@@ -2374,6 +2431,7 @@ class SelfDirectedLifeCoordinator:
                 "run_outcomes_observed": len(observed),
                 "terminal_run_projects_settled": terminal_settled,
                 "goal_lifecycle_projects_settled": goal_settled,
+                "retired_interest_projects_settled": retired_settled,
                 "review_queue": self.pending_work_review(limit=16),
             }
         # Completion verification is a settlement of an ALREADY STARTED
@@ -2503,6 +2561,7 @@ class SelfDirectedLifeCoordinator:
                     ),
                     "terminal_run_projects_settled": terminal_settled,
             "goal_lifecycle_projects_settled": goal_settled,
+            "retired_interest_projects_settled": retired_settled,
                     "review_queue": self.pending_work_review(limit=16),
                 }
         selection = self.select_activity(
@@ -2541,6 +2600,7 @@ class SelfDirectedLifeCoordinator:
                         ),
                         "terminal_run_projects_settled": terminal_settled,
             "goal_lifecycle_projects_settled": goal_settled,
+            "retired_interest_projects_settled": retired_settled,
                         "review_queue": self.pending_work_review(limit=16),
                     }
                 if not self.store.claim_daily_draft_attempt(project.project_id, now=now):
@@ -2554,6 +2614,7 @@ class SelfDirectedLifeCoordinator:
                         "draft_status": "deferred_daily_limit",
                         "terminal_run_projects_settled": terminal_settled,
             "goal_lifecycle_projects_settled": goal_settled,
+            "retired_interest_projects_settled": retired_settled,
                         "review_queue": self.pending_work_review(limit=16),
                     }
                 try:
@@ -2571,6 +2632,7 @@ class SelfDirectedLifeCoordinator:
                         "draft_status": "failed_unverified",
                         "terminal_run_projects_settled": terminal_settled,
             "goal_lifecycle_projects_settled": goal_settled,
+            "retired_interest_projects_settled": retired_settled,
                         "review_queue": self.pending_work_review(limit=16),
                     }
                 # Do not leave a misleading creative-work evidence record
@@ -2605,6 +2667,7 @@ class SelfDirectedLifeCoordinator:
             ),
             "terminal_run_projects_settled": terminal_settled,
             "goal_lifecycle_projects_settled": goal_settled,
+            "retired_interest_projects_settled": retired_settled,
             "review_queue": self.pending_work_review(limit=16),
         }
 
