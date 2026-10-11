@@ -556,3 +556,11 @@ Original CA task ledger coverage for all 175 assigned IDs remains incomplete and
 - **Found:** the production LIFE draft path required a relevant exact-match skill to appear in a global newest-64 proof report. Newer unrelated procedures could starve its otherwise valid source verification.
 - **Changed:** `LifeProcedureCatalog.source_projects_for_compatible_precedent` now fetches original evidence IDs for the current exact scope, definition, environment and still-verified procedure, with bounded fail-closed size. `SelfDirectedLifeCoordinator._current_verified_procedures_for_draft` continues checking all original RUN, GOALS, project and creative bytes independently before any non-executable source hints reach the real ProjectDraftAgent. SAFE/RUN remain authoritative.
 - **Regression source:** genuine two-original-project proof is available even when global index is inaccessible; bad limit and quarantined proof are rejected. Written, **not run**; no CI, host or external service invoked.
+
+
+## Phase 09: exact original RUN-event terminal proof (2026-10-11)
+
+- **Original task IDs:** CA-106, CA-2402 and CA-110. These remain partial overall, not accepted.
+- **Real failure:** `SelfDirectedLifeCoordinator._reconcile_terminal_run_projects` previously consulted `run_outcome_observations(project_id)`, capped at 100 recent derived rows. A flood of later observations could hide the true original latest job terminal event forever, leaving an ACTIVE project unreconciled.
+- **Production correction:** `LifeStore.exact_original_run_outcome` performs a bounded indexed lookup keyed by exact original project/job/status, cross-checks the canonical `autonomous_work_event` ID, job, status and occurred_at and the original project/job link, rather than trusting an unattested derived row. The existing LIFE tick rechecks source time and current RUN job state before the original pause/fail transitions, without retrying external effects or inventing receipt authority.
+- **Deferred regression:** a real uncertain RUN job is reconciled despite 105 later invalid/unlinked derived diagnostic rows; fabricated rows without original RUN events are rejected. Test source was written but not executed. No tests/CI, model, live host or external device operation.
