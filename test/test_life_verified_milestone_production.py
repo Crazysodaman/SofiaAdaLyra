@@ -146,7 +146,7 @@ def test_unsupported_or_unrelated_evidence_never_advances_milestone(tmp_path):
         project, evidence = prepared_project(life, now)
         job = complete_real_job(
             life, project, evidence, now,
-            "Violet sparks appear, but quiet constellations do not.",
+            "Violet sparks appear, but no other mapped stars are shown.",
         )
         observation = life.record_observation(
             kind="unrelated",
