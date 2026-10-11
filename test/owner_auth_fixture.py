@@ -90,10 +90,14 @@ def resume_with_signed_owner_proof(store, *, reason: str, now=None):
     if not isinstance(store, OperatorStopStore):
         raise TypeError("durable operator stop store required")
     moment = now or datetime.now(timezone.utc)
+    expected_updated_at = store.current().updated_at.isoformat()
     approval = ExecutionApproval(
         approval_id=str(uuid4()), capability="operator.stop.resume",
         request_fingerprint=execution_fingerprint(
-            "operator.stop.resume", {"active": False, "reason": reason},
+            "operator.stop.resume", {
+                "active": False, "reason": reason,
+                "expected_updated_at": expected_updated_at,
+            },
         ),
         approved_by="Sparks", approved_at=moment,
         expires_at=moment + timedelta(minutes=5),
@@ -104,4 +108,5 @@ def resume_with_signed_owner_proof(store, *, reason: str, now=None):
     return store.set(
         active=False, updated_by="Sparks", reason=reason,
         at=moment, approval_id=approval.approval_id,
+        expected_updated_at=expected_updated_at,
     )
