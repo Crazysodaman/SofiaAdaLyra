@@ -1901,7 +1901,14 @@ class SelfDirectedLifeCoordinator:
                                 candidate.project_id, now=now,
                             )
                         )
-                        if not can_revise and not needs_milestone_replay:
+                        # A permanently exhausted revision policy must
+                        # settle to PAUSED even without a model callback or
+                        # any remaining daily creation budget. Otherwise
+                        # the finished work loops in ACTIVE forever.
+                        exhausted = (
+                            len(self.store.artifacts(candidate.project_id)) >= 3
+                        )
+                        if not (can_revise or needs_milestone_replay or exhausted):
                             continue
                     elif not needs_milestone_replay:
                         # Unverifiable criteria do not justify retries.
