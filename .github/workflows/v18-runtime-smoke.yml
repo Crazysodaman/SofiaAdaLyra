@@ -1,0 +1,32 @@
+name: V18 Runtime and Conversation Regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'test/test_cognitive_routing.py'
+      - 'test/test_ui_desktop_worker.py'
+      - 'test/test_conversation_loop.py'
+      - 'test/test_conversation_provider_live_regressions.py'
+      - '.github/workflows/v18-runtime-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v18-runtime-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  runtime-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . pytest
+      - name: Regression cases for single-writer state, GUI worker, cognition and chat
+        run: python -m pytest -q test/test_cognitive_routing.py test/test_ui_desktop_worker.py test/test_conversation_loop.py test/test_conversation_provider_live_regressions.py
