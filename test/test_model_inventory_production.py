@@ -287,3 +287,54 @@ def test_model_without_content_address_is_only_historical_inventory(tmp_path):
     assert "No FRESH" in candidate
     assert "without SHA-256 identity: 1" in candidate
     assert "orphan:old" in store.readable(host_id="venus")
+
+
+def test_out_of_order_inventory_scan_cannot_rewind_host_snapshot(tmp_path):
+    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
+        cognitive_primary_model="primary:stable",
+        cognitive_secondary_model="secondary:missing",
+    ))
+    first=collect_local_model_inventory(
+        selection=selection(),backend=LocalOllama(),
+        host_id="venus",at=NOW,
+    )
+    newer=collect_local_model_inventory(
+        selection=selection(),backend=LocalOllama(),
+        host_id="venus",at=NOW+timedelta(seconds=30),
+    )
+    store=ModelInventoryStore(state)
+    store.replace_host(host_id="venus",observations=newer)
+    with pytest.raises(RuntimeError,match="stale model inventory"):
+        store.replace_host(host_id="venus",observations=first)
+    assert "orphan:old" in store.candidate_review(
+        host_id="venus",at=NOW+timedelta(seconds=30),
+    )
+    assert (NOW+timedelta(seconds=30)).isoformat() in store.readable(host_id="venus")
+
+
+def test_inconsistent_inventory_snapshot_cannot_publish(tmp_path):
+    from dataclasses import replace
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).load()
+    store=ModelInventoryStore(state)
+    observations=collect_local_model_inventory(
+        selection=selection(),backend=LocalOllama(),
+        host_id="venus",at=NOW,
+    )
+    with pytest.raises(ValueError,match="one observed snapshot"):
+        store.replace_host(
+            host_id="venus",
+            observations=(observations[0],replace(
+                observations[1],observed_at=NOW+timedelta(seconds=1),
+            )),
+        )
+    with pytest.raises(ValueError,match="duplicate observed model"):
+        store.replace_host(
+            host_id="venus",observations=(observations[0],observations[0]),
+        )
+    with pytest.raises(ValueError,match="nonempty"):
+        store.replace_host(host_id="venus",observations=())
+    assert store.readable(host_id="venus").startswith("No successful")
