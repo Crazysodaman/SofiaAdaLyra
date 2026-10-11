@@ -112,6 +112,15 @@ def create_default_agent_dispatcher(
         hyperv=HyperVAdapter()
         dispatcher.register("vm.inspect","list",lambda p:_plain(hyperv.vms()))
         dispatcher.register("vm.inspect","get",lambda p:_plain(hyperv.vm(str(p["vm"]))))
+        # Read-only, static Hyper-V host preflight over the already-pinned
+        # Fleet mTLS transport. No guest write or generic PowerShell route.
+        dispatcher.register(
+            "workshop.inspect","host",
+            lambda p:_plain(hyperv.workshop_host())
+            if not p else (_ for _ in ()).throw(
+                ValueError("host inspection accepts no remote parameters")
+            ),
+        )
         dispatcher.register("vm.manage","start",lambda p:_plain(hyperv.start(str(p["vm"]))))
         dispatcher.register("vm.manage","stop",lambda p:_plain(hyperv.stop(str(p["vm"]),force=bool(p.get("force",False)))))
 
