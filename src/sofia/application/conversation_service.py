@@ -1700,11 +1700,22 @@ class ConversationService(ConversationMatrixMixin):
                     fulltext = ConversationFullTextSearch(
                         self._conversation_store.database_path
                     )
-                    if fulltext.status().ready:
+                    # FTS is an optional optimization, not an audience
+                    # authority. It runs only for sessions with a current
+                    # canonical social binding and SQL verifies the binding
+                    # again before returning any original source text.
+                    bound_search_principal = self._social_store.get(
+                        self._session.id
+                    )
+                    if (
+                        bound_search_principal is not None
+                        and fulltext.status().ready
+                    ):
                         candidates = fulltext.keyword_search(
                             session_id=self._session.id, terms=terms,
                             limit=_MAX_SPECIFIC_RETRIEVAL_MESSAGES,
                             user_only=user_only,
+                            principal=bound_search_principal,
                         )
                 except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
                     _LOG.warning(
