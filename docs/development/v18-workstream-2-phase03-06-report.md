@@ -1053,6 +1053,31 @@ validation regressions:
 human review; no unilateral request resubmission, DB writer cutover,
 enrollment or live host change was performed.
 
+### Phase 05: Audience filtering occurs before bounded project-header pagination
+
+The Android `/v1/mobile/threads` route now consumes
+`LifelongThreadStore.list_visible_threads(owner,limit)`, which
+performs one canonical SQLite `EXISTS` source-visibility query **before**
+applying `LIMIT`. The predicate checks the original
+`conversation_messages` row, `lifelong_thread_event` source audience,
+visibility mode and *current* `social_session_principal` principal,
+audience and kind; unreviewed owner ID alone is not source consent.
+
+Previously `list_threads(limit)` was invoked first and filtered by
+audience afterwards in Python. 65 unrelated private/newer projects
+could bury one older legitimately visible project and falsely suggest
+it did not exist. The fix removes that N+1 scan and keeps names hidden
+as soon as original audience evidence is withdrawn. It does not create
+copies, reveal hidden project titles, merge authorities, or widen the
+read-only Android project scope.
+
+Production commits: `25556108fa82ddd753b5b7adbcab07864af215f9`
+(canonical source SQL); `6b169364a22cfff9fcee762516ee8d882aa9527e`
+(authenticated mobile gateway); deferred limit/erasure regressions
+`6b66d2b5462e168f9e2e2591b1680f268154d48a`.
+No tests/CI executed, no archive/live host action. Relevance:
+CA-4107, CA-4109, CA-5304, CA-6304.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
