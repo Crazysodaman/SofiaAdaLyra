@@ -784,16 +784,16 @@ class SelfDirectedLifeCoordinator:
                     project, now=now,
                 ) else 0.0
             )
-            unresolved_run = latest is not None and latest.status in {
+            unresolved_run = any(job.status in {
                 WorkStatus.QUEUED, WorkStatus.RUNNING,
                 WorkStatus.WAITING_APPROVAL, WorkStatus.BLOCKED,
                 WorkStatus.UNCERTAIN,
                 WorkStatus.FAILED, WorkStatus.CANCELLED,
-            }
+            } for job in jobs)
             uncertainty = (
-                1.0 if latest is not None and latest.status in {
+                1.0 if any(job.status in {
                     WorkStatus.UNCERTAIN, WorkStatus.BLOCKED,
-                }
+                } for job in jobs)
                 else 0.65 if latest is not None
                 and latest.status is WorkStatus.COMPLETED
                 and verified_progress == 0
@@ -1594,9 +1594,24 @@ class SelfDirectedLifeCoordinator:
                 if job.status in {
                     WorkStatus.QUEUED, WorkStatus.RUNNING,
                     WorkStatus.WAITING_APPROVAL, WorkStatus.BLOCKED,
-                    WorkStatus.UNCERTAIN,
+                    WorkStatus.UNCERTAIN, WorkStatus.FAILED,
+                    WorkStatus.CANCELLED,
                 }
             )
+            # An earlier uncertain or refused RUN result does not disappear
+            # because a later queued/completed job became the latest entry.
+            # The review target is the most consequential unsettled original
+            # source, with deterministic priorities and stable link order.
+            review_job = next((
+                job for status in (
+                    WorkStatus.UNCERTAIN, WorkStatus.WAITING_APPROVAL,
+                    WorkStatus.BLOCKED, WorkStatus.FAILED,
+                    WorkStatus.CANCELLED, WorkStatus.RUNNING,
+                    WorkStatus.QUEUED,
+                )
+                for job in jobs if job.status is status
+            ), None)
+            source_job = review_job if review_job is not None else latest
             usage = self.store.usage(
                 project.project_id, now.astimezone(timezone.utc).date(),
             )
@@ -1616,17 +1631,17 @@ class SelfDirectedLifeCoordinator:
                 constraints.append("daily_time_budget_exhausted")
             if int(usage["storage_bytes"]) >= budget.storage_bytes:
                 constraints.append("daily_storage_budget_exhausted")
-            if latest is not None:
-                if latest.status is WorkStatus.UNCERTAIN:
+            if review_job is not None:
+                if review_job.status is WorkStatus.UNCERTAIN:
                     constraints.append("run_effect_uncertain")
-                elif latest.status is WorkStatus.WAITING_APPROVAL:
+                elif review_job.status is WorkStatus.WAITING_APPROVAL:
                     constraints.append("operator_approval_pending")
-                elif latest.status is WorkStatus.BLOCKED:
+                elif review_job.status is WorkStatus.BLOCKED:
                     constraints.append("run_blocked")
-                elif latest.status in {WorkStatus.QUEUED, WorkStatus.RUNNING}:
-                    constraints.append("existing_run_job")
-                elif latest.status in {WorkStatus.FAILED, WorkStatus.CANCELLED}:
+                elif review_job.status in {WorkStatus.FAILED, WorkStatus.CANCELLED}:
                     constraints.append("run_failure_review")
+                elif review_job.status in {WorkStatus.QUEUED, WorkStatus.RUNNING}:
+                    constraints.append("existing_run_job")
             # A source-derived next-action suggestion is NOT authorization,
             # execution, private motivation or evidence of objective success.
             # It gives the operator a precise blocker/verification route
@@ -1637,15 +1652,15 @@ class SelfDirectedLifeCoordinator:
                 next_action, next_reason = (
                     "rest", "Original SAFE operator stop is active."
                 )
-            elif latest is not None and latest.status is WorkStatus.UNCERTAIN:
+            elif review_job is not None and review_job.status is WorkStatus.UNCERTAIN:
                 next_action, next_reason = (
                     "ask", "Original RUN outcome is uncertain; no automatic retry."
                 )
-            elif latest is not None and latest.status is WorkStatus.WAITING_APPROVAL:
+            elif review_job is not None and review_job.status is WorkStatus.WAITING_APPROVAL:
                 next_action, next_reason = (
                     "ask", "RUN requires an independent operator approval."
                 )
-            elif latest is not None and latest.status in {
+            elif review_job is not None and review_job.status in {
                 WorkStatus.BLOCKED, WorkStatus.FAILED, WorkStatus.CANCELLED,
             }:
                 next_action, next_reason = (
@@ -1668,7 +1683,7 @@ class SelfDirectedLifeCoordinator:
                 next_action, next_reason = (
                     "rest", "The personal project is not active."
                 )
-            elif latest is not None and latest.status in {
+            elif review_job is not None and review_job.status in {
                 WorkStatus.QUEUED, WorkStatus.RUNNING,
             }:
                 next_action, next_reason = (
@@ -1737,7 +1752,7 @@ class SelfDirectedLifeCoordinator:
                 and reviewed is None
             )
             due_source = (
-                latest.updated_at if latest is not None
+                source_job.updated_at if source_job is not None
                 and next_action in {"verify", "review", "ask"}
                 else project.updated_at
                 if next_action == "explore" else None
@@ -1751,6 +1766,12 @@ class SelfDirectedLifeCoordinator:
                 "goal_revision": None if goal is None else goal.revision,
                 "run_job_id": None if latest is None else latest.job_id,
                 "run_status": None if latest is None else latest.status.value,
+                "review_run_job_id": (
+                    None if source_job is None else source_job.job_id
+                ),
+                "review_run_status": (
+                    None if source_job is None else source_job.status.value
+                ),
                 "evaluation_id": None if reviewed is None else reviewed.evaluation_id,
                 "next_milestone_id": (
                     None if next_milestone is None
@@ -1803,7 +1824,9 @@ class SelfDirectedLifeCoordinator:
                 "blockers": tuple(constraints),
                 "next_action_candidate": next_action,
                 "next_action_reason": next_reason,
-                "next_action_source_job_id": None if latest is None else latest.job_id,
+                "next_action_source_job_id": (
+                    None if source_job is None else source_job.job_id
+                ),
                 "next_action_review_id": (
                     None if latest_review is None else latest_review.evaluation_id
                 ),
