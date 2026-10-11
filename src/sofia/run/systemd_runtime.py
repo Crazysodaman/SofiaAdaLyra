@@ -82,7 +82,7 @@ def require_debian_guest(*, os_release_path: Path = Path("/etc/os-release")) -> 
     if (
         values.get("ID") != "debian"
         or values.get("VERSION_ID") != DEBIAN_VERSION_ID
-        or values.get("VERSION_CODENAME", DEBIAN_CODENAME) != DEBIAN_CODENAME
+        or values.get("VERSION_CODENAME") != DEBIAN_CODENAME
     ):
         raise RuntimeError(
             "canonical Sofia VM requires reviewed Debian 13 (trixie) guest; "
@@ -196,6 +196,10 @@ def run_headless(*, stop_event: Event) -> None:
     application = SofiaApplication(configuration)
     try:
         application.start()
+        # A shutdown request can arrive while application.start() is still
+        # composing. Never publish READY after a stop was already requested.
+        if stop_event.is_set():
+            return
         notify_systemd("READY=1")
         stop_event.wait()
     finally:
