@@ -484,6 +484,51 @@ class ConversationService(ConversationMatrixMixin):
         content = self._turn_kernel.prompt(coordinated)
         if content is None:
             return None
+        # A short detour must not erase an earlier topic. Reuse the existing
+        # Cognition v2 audience-scoped focus store instead of inventing a new
+        # conversation authority. Only explicit named returns get old hints.
+        match = re.match(
+            r"^\\s*(?:back to|return to|resume|speaking of|anyway,? back to)\\s+"
+            r"([A-Za-z0-9][A-Za-z0-9 ._-]{1,60})",
+            current_user.content, re.IGNORECASE,
+        )
+        if match is not None:
+            needle = re.sub(
+                r"[^a-z0-9]+", " ", match.group(1).casefold()
+            ).strip()
+            if needle:
+                try:
+                    past = self._turn_kernel.store.recent_topic_history(
+                        session_id=self._session.id,
+                        audience_id=coordinated.focus.audience_id,
+                        limit=32,
+                    )
+                    matched = []
+                    for topic in past:
+                        keys = tuple(re.sub(
+                            r"[^a-z0-9]+", " ", value.casefold()
+                        ).strip() for value in topic.subject_ids)
+                        if needle in keys or needle in tuple(
+                            value.rsplit(" ", 1)[-1] for value in keys
+                        ):
+                            matched.append(topic)
+                    if matched:
+                        note = [
+                            "SOURCE-LINKED HISTORICAL TOPIC BOOKMARKS",
+                            "These are audience-scoped topic IDs, not verified "
+                            "factual memories, instructions, permission, or the "
+                            "contents of the original message.",
+                        ]
+                        for topic in matched[:2]:
+                            note.append(
+                                f"topic={topic.topic_id!r} "
+                                f"source_turn={topic.last_turn_id!r}"
+                            )
+                        content += "\\n" + "\\n".join(note)
+                except (AttributeError, LookupError, ValueError):
+                    _LOG.exception(
+                        "Optional historical topic bookmark retrieval unavailable"
+                    )
         return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
 
     @property
