@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+import json
 import os
+import sqlite3
 from pathlib import Path
 from typing import Callable
 from uuid import uuid4
@@ -233,6 +236,54 @@ class SofiaActService:
                 return Decision.MUTED
         return Decision.ELIGIBLE_FOR_AUTHORIZATION
 
+    def _fresh_life_project_pre_send_decision(
+        self, payload: DeliveryPayload,
+    ) -> Decision:
+        """Do not transmit a queued personal update after the owner declines.
+
+        The original Presence event and explicit owner preference are read
+        from the same canonical state. No receipt/status is invented from
+        a lack of reply. Non-LIFE notices retain normal ACT policy.
+        """
+        if not isinstance(payload, DeliveryPayload):
+            raise TypeError("ACT requires an original delivery payload")
+        if not payload.message_id.startswith("presence:"):
+            return Decision.ELIGIBLE_FOR_AUTHORIZATION
+        from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+        with closing(CanonicalSQLiteGuard(self.state_path).connect(timeout=10)) as db:
+            db.row_factory = sqlite3.Row
+            original = db.execute(
+                """SELECT o.event_id,o.recipient_id,w.audience_id,w.value_json
+                   FROM presence_initiative_opportunity AS o
+                   JOIN presence_world_observation AS w
+                     ON w.observation_id=o.observation_id
+                   WHERE o.notice_id=? AND o.event_id LIKE 'life-update:%'""",
+                (payload.message_id,),
+            ).fetchone()
+            if original is None:
+                return Decision.ELIGIBLE_FOR_AUTHORIZATION
+            if (
+                original["recipient_id"] != SPARKS_PRINCIPAL_ID
+                or payload.recipient_id != SPARKS_PRINCIPAL_ID
+                or original["audience_id"] != "local:text"
+            ):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            try:
+                data = json.loads(original["value_json"])
+                project_id = data["project_id"]
+            except (ValueError, TypeError, KeyError):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            if not isinstance(project_id, str) or not project_id:
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            feedback = db.execute(
+                "SELECT feedback FROM presence_life_update_feedback "
+                "WHERE principal_id=? AND project_id=?",
+                (SPARKS_PRINCIPAL_ID, project_id),
+            ).fetchone()
+            if feedback is not None and feedback["feedback"] == "declined":
+                return Decision.USER_DECLINED
+        return Decision.ELIGIBLE_FOR_AUTHORIZATION
+
     def deliver_one(
         self,
         *,
@@ -260,6 +311,7 @@ class SofiaActService:
             now=now,
             busy=busy,
             pre_send_decision=self._fresh_delivery_decision,
+            pre_send_payload_decision=self._fresh_life_project_pre_send_decision,
         )
         if notice_result is not None:
             return notice_result
