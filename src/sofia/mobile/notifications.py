@@ -11,6 +11,7 @@ import secrets
 import sqlite3
 
 from sofia.act.diagnostics import OutreachTraceStore
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _CLAIM_LEASE = timedelta(minutes=5)
@@ -33,6 +34,7 @@ class MobileNotificationStore:
         self.path = Path(state_path)
         if not self.path.is_file():
             raise FileNotFoundError("existing application state database required")
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db, db:
             db.executescript(
                 """
@@ -60,9 +62,7 @@ class MobileNotificationStore:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(
-            self.path.absolute().as_uri() + "?mode=rw", uri=True, timeout=10,
-        )
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db
