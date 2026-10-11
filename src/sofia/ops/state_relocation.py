@@ -156,6 +156,32 @@ def _publish_new_home_without_replacing(
     )
 
 
+def _inventory_persistent_state_files(root: Path) -> set[str]:
+    """Reject source entries that cannot be represented in a file backup.
+
+    Do not follow source junctions/links or omit FIFOs, sockets or devices as
+    though they were safely restored. This is source inventory, not authority
+    to activate a recovered home.
+    """
+    if _unsafe_ancestor(root) or not root.is_dir():
+        raise BackupError("canonical source home is missing or redirected")
+    persistent: set[str] = set()
+    transient = {"sofia.db-wal", "sofia.db-shm", "sofia.db-journal"}
+    for entry in root.rglob("*"):
+        if entry.is_symlink() or getattr(entry, "is_junction", lambda: False)():
+            raise BackupError("state relocation refuses linked or junction entries")
+        if entry.is_dir():
+            continue
+        if not entry.is_file():
+            raise BackupError(
+                "state relocation cannot preserve special filesystem entries"
+            )
+        relative = entry.relative_to(root).as_posix()
+        if relative not in transient:
+            persistent.add(relative)
+    return persistent
+
+
 @dataclass(frozen=True, slots=True)
 class RelocationAuthorization:
     """Evidence carried from an independently privileged control plane."""
@@ -240,6 +266,10 @@ def stage_verified_state_home(
         or backup_root.is_symlink()
     ):
         raise ValueError("backup destination must be a separate approved location")
+    # Inventory BEFORE backup I/O: named pipes and device files must never
+    # be opened by a generic archive collector. Repeat the inventory after
+    # the snapshot to fail closed if the supposedly fenced source changed.
+    persistent_before = _inventory_persistent_state_files(origin)
     bundle, _evidence = backup_engine.create(
         state_path=proof.source_state_path,
         destination_root=backup_root,
@@ -256,19 +286,12 @@ def stage_verified_state_home(
     # entry in the authenticated encrypted manifest. Missing external assets
     # must be explicitly classified before another cutover attempt.
     archived = {entry.logical_path for entry in manifest.entries}
-    transient_sqlite = {"sofia.db-wal", "sofia.db-shm", "sofia.db-journal"}
-    persistent: set[str] = set()
-    root = origin
-    for item in root.rglob("*"):
-        if item.is_symlink():
-            raise BackupError("state relocation refuses symbolic-link entries")
-        if not item.is_file():
-            continue
-        relative = item.relative_to(root).as_posix()
-        if relative in transient_sqlite:
-            continue
-        persistent.add(relative)
-    missing = sorted(persistent - archived)
+    persistent_after = _inventory_persistent_state_files(origin)
+    if persistent_after != persistent_before:
+        raise BackupError(
+            "canonical source file inventory changed during encrypted backup"
+        )
+    missing = sorted(persistent_after - archived)
     if missing:
         raise BackupError(
             "encrypted backup omits persistent state files: "
