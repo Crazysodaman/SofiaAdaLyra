@@ -231,3 +231,13 @@ Rows reproduce the master IDs and abbreviated original objective, alongside thei
 ## Deferred acceptance and ownership
 
 The user expressly deferred tests and CI; never treat these commits as accepted until focused, full, restart and live host tests are authorized and executed. This report is independent of the global ledger and should be reconciled by Workstream 1 with precise source/commit evidence. Explicit operator approval is still needed for permissions, pairing, writer-host choice, physical robotics, state migrations and live deployments.
+
+## Continued production source work after initial inventory
+
+- `4d3e5bbc`: Fixed the existing `pending_work_review` projection to keep independently evaluated but **unresolved** artifacts visible. It distinguishes missing review, outstanding original milestone settlement, unknown objective validation, personal critique review, and bounded revision/pause. Canonical events/evaluations stay in `LifeStore`, and no second scheduler is introduced.
+- `46ba2079`: Added unexecuted regression for persistent operator visibility of subjective/unsupported objectives and no duplicate work.
+- `87a71cb2`: Corrected `ProjectIdeaAgent.suggest` to place lower-trust experience summaries and interest reasons into a USER data message, not its SYSTEM policy message; the original canonical cognition generator and tool-free contract are retained.
+- `7e062c92`: Added unexecuted prompt-boundary regression ensuring lower-trust observations cannot become a privileged instruction.
+- Manual read-only source review confirmed the new coordinator receipt helper is wired into `_settle_personal_project`, `_settle_verified_milestones` and `complete`; `tick` invokes terminal outcome reconciliation; the revised review queue is returned through the existing runtime telemetry. **No syntax, test, CI, integration, model or host runtime was executed.**
+
+These changes advance selected Phase 09 requirements, notably CA-102, CA-105, CA-106, CA-110, CA-112, CA-113, CA-2402 and CA-3501, but they do not establish full task-level coding completion or acceptance. Workstream 1 must decide global ledger status after the remaining source and test gates. Phase 07 shared MEM storage was deliberately not modified while Workstream 2 owns it.
