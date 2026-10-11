@@ -265,10 +265,9 @@ def _model_lifecycle_configuration_from_environ(
             "SOFIA_COGNITION_MODEL_AUTO_MANAGE",
             default=user_settings.cognitive_model_auto_manage,
         ),
-        auto_install_missing=_environment_flag(
-            "SOFIA_COGNITION_MODEL_AUTO_INSTALL",
-            default=user_settings.cognitive_model_auto_install,
-        ),
+        # A legacy auto-install preference or environment variable cannot
+        # authorize model downloads. Installation uses a separate SAFE/host receipt.
+        auto_install_missing=False,
         idle_unload_seconds=_positive_environment_int(
             "SOFIA_COGNITION_MODEL_IDLE_UNLOAD_SECONDS",
             default=user_settings.cognitive_model_idle_unload_seconds,
