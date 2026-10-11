@@ -110,3 +110,57 @@ def test_signed_pointer_denies_symlinked_home_parent(tmp_path):
     pointer.write_text(json.dumps(record), encoding="utf-8")
     with pytest.raises(PermissionError, match="symbolic link or junction"):
         _open(pointer, key)
+
+
+def test_signed_pointer_rejects_poststat_size_growth(tmp_path, monkeypatch):
+    """The actual pointer read must be bounded even when stat is stale."""
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    _home, pointer, key = _signed(tmp_path)
+    pointer.write_bytes(b"X" * (16_384 + 4096))
+    original_stat = Path.stat
+
+    def stale_stat(self, *args, **kwargs):
+        result = original_stat(self, *args, **kwargs)
+        if self == pointer:
+            return SimpleNamespace(st_size=1, st_mode=result.st_mode)
+        return result
+
+    monkeypatch.setattr(Path, "stat", stale_stat)
+    with pytest.raises(ValueError, match="pointer exceeds size policy"):
+        _open(pointer, key)
+
+
+def test_signed_pointer_trust_key_and_document_use_bounded_file_reads(
+    tmp_path, monkeypatch,
+):
+    """Pointer admission must not call unbounded read_bytes or read_text."""
+    from pathlib import Path
+
+    home, pointer, key = _signed(tmp_path)
+    original_read_bytes = Path.read_bytes
+    original_read_text = Path.read_text
+
+    def deny_unbounded_binary(self):
+        if self in (pointer, key):
+            raise AssertionError("unbounded signed bootstrap binary read")
+        return original_read_bytes(self)
+
+    def deny_unbounded_text(self, *args, **kwargs):
+        if self in (pointer, key):
+            raise AssertionError("unbounded signed bootstrap text read")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_bytes", deny_unbounded_binary)
+    monkeypatch.setattr(Path, "read_text", deny_unbounded_text)
+    assert _open(pointer, key).root == home
+
+
+def test_oversized_external_trust_key_is_rejected_without_pointer_activation(
+    tmp_path,
+):
+    _home, pointer, key = _signed(tmp_path)
+    key.write_bytes(b"k" * (32 + 4096))
+    with pytest.raises(ValueError, match="HMAC key must be 32 bytes"):
+        _open(pointer, key)
