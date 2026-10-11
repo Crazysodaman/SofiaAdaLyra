@@ -782,3 +782,10 @@
 - **Original CA IDs:** CA-101, CA-107, CA-2407. Partial original implementation only.
 - **Gap:** The actual LIFE background ideation call sent recent `life_experience.summary` strings without rechecking original source evidence, chronology, or audience eligibility. This was distinct from the already source-fenced origin interest.
 - **Change:** `SelfDirectedLifeCoordinator.consider_new_project` now uses a bounded verified episode subset and post-model source recheck, with the same scoped original `GoalEvidenceIndex` guard; no independent recorder, permission mechanism or replacement planner. Source `aedeb93`; regression `b23f9ce` authored only. Remaining future work includes original-record digest freshness during model latency, correction/deletion invalidation of already-learned historical preferences, and end-to-end tests.
+
+## 2026-10-11: source snapshot race in LIFE idea context
+
+- **Original IDs:** CA-101/107/2407, **partial** task scope.
+- **Confirmed gap:** Existing original-evidence rechecking around `ProjectIdeaAgent` did not detect a correction to `life_experience.summary` or `metadata_json` when evidence IDs themselves remained valid.
+- **Active production patch:** exact scoped `LifeStore.experience_by_id` plus post-model canonical digest comparison and continued original evidence-current check, performed before the real `invent_project` path. Source `bfba8ea` and `a607ed9`; regression `6c92979` authored only, not executed.
+- **Remaining:** source-level correction/deletion replay into already learned long-term interest revisions, optional ordinary experience admission, research/acceptance matrix and independent benchmarks. No completion promotion from this fix alone.
