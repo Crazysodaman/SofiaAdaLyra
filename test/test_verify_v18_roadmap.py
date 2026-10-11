@@ -61,6 +61,16 @@ def test_v18_accepted_claim_must_have_exact_receipt(tmp_path):
     fixture = tmp_path / "src/sofia/life/coordinator.py"
     fixture.parent.mkdir(parents=True, exist_ok=True)
     fixture.write_text("# mocked local source\n", encoding="utf-8")
+    claimed["production_wiring"] = {
+        "entrypoint": "sofia.application",
+        "remaining": "tests_only",
+        "explanation": "A synthetic trace with the fields required to reach receipt validation.",
+        "source_review_sha": records["reviewed_main_sha"],
+        "composition_path": claimed["code_paths"][0],
+        "caller_path": claimed["code_paths"][0],
+        "implementation_path": claimed["code_paths"][0],
+        "effect_path": claimed["code_paths"][0],
+    }
     ledger.write_text(json.dumps(records), encoding="utf-8")
     with pytest.raises(RoadmapIntegrityError, match="acceptance receipt"):
         validate_repository(tmp_path)
@@ -110,6 +120,17 @@ def test_v18_partial_source_cannot_be_relabelled_tests_only_without_wiring(tmp_p
     _, ledger, records = _fixture(tmp_path)
     partial = next(item for item in records["tasks"] if item["status"] == "partial_wiring")
     partial["status"] = "code_present_unverified"
+    ledger.write_text(json.dumps(records), encoding="utf-8")
+    with pytest.raises(RoadmapIntegrityError, match="production-wired claim"):
+        validate_repository(tmp_path)
+
+
+def test_v18_accepted_without_production_wiring_cannot_claim_green(tmp_path):
+    _, ledger, records = _fixture(tmp_path)
+    claimed = next(item for item in records["tasks"] if item["status"] == "code_present_unverified")
+    claimed["status"] = "accepted"
+    claimed["accepted"] = True
+    claimed.pop("production_wiring")
     ledger.write_text(json.dumps(records), encoding="utf-8")
     with pytest.raises(RoadmapIntegrityError, match="production-wired claim"):
         validate_repository(tmp_path)
