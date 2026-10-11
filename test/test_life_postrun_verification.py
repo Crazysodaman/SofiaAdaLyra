@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from sofia.life.model import ProjectStatus
 from sofia.run.work import WorkStatus
-from test.test_life_project_forge import infrastructure, active_project, wait_for_job
+from test.test_life_project_forge import (infrastructure, active_project, wait_for_job, authored_foxfire_text)
 
 
 def test_completed_run_artifact_still_gets_independent_review_after_daily_budget(
@@ -15,7 +15,7 @@ def test_completed_run_artifact_still_gets_independent_review_after_daily_budget
     life, _goals, now = infrastructure(tmp_path)
     try:
         project, _ = active_project(life, now)
-        initial = life.tick(now=now + timedelta(seconds=3))
+        initial = life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         assert initial["scheduled"] == 1
         job = wait_for_job(life, life.store.jobs(project.project_id)[0])
         assert job.status is WorkStatus.COMPLETED
@@ -50,7 +50,7 @@ def test_chosen_quiet_prevents_optional_artifact_evaluation_until_expiry(tmp_pat
     life, _goals, now = infrastructure(tmp_path)
     try:
         project, _ = active_project(life, now)
-        life.tick(now=now + timedelta(seconds=3))
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         job = wait_for_job(life, life.store.jobs(project.project_id)[0])
         assert job.status is WorkStatus.COMPLETED
         life.choose_inactivity(
