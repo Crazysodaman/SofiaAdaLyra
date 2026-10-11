@@ -267,7 +267,15 @@ class DesktopInputService:
     """Production SAFE-approval gate before any single OS input operation."""
     def __init__(self, state_path: Path | str, *, backend=None) -> None:
         self.state_path = Path(state_path)
-        self.backend = backend if backend is not None else WindowsDesktopInput()
+        if backend is not None:
+            self.backend = backend
+        elif sys.platform == "win32":
+            self.backend = WindowsDesktopInput()
+        elif sys.platform == "linux":
+            from sofia.vision.linux_desktop import LinuxDesktop
+            self.backend = LinuxDesktop()
+        else:
+            raise RuntimeError("unsupported interactive desktop")
 
     def execute(self, action: DesktopAction, *, approval_id: str) -> dict:
         if not isinstance(action, DesktopAction):
@@ -277,8 +285,8 @@ class DesktopInputService:
         real_host = socket.gethostname()
         if action.host_id.casefold() != real_host.casefold():
             raise PermissionError("requested host does not match executing OS")
-        if sys.platform != "win32":
-            raise PermissionError("only real Windows interactive sessions supported")
+        if sys.platform not in {"win32", "linux"}:
+            raise PermissionError("only real Windows/Linux interactive sessions supported")
         from sofia.safe.execution_approval import ExecutionApprovalVerifier
         from sofia.safe.operator_stop import OperatorStopStore
 
@@ -287,7 +295,11 @@ class DesktopInputService:
             now = datetime.now(timezone.utc)
             if stop.current().active:
                 raise PermissionError("independent operator STOP active")
-            require_workstation_clear(self.state_path, action.host_id, now)
+            if sys.platform == "win32":
+                require_workstation_clear(self.state_path, action.host_id, now)
+            else:
+                from sofia.vision.linux_desktop import require_linux_game_clear
+                require_linux_game_clear()
             if self.backend.foreground() != (action.window_handle, action.process_id):
                 raise PermissionError("original approved foreground window changed")
         # The approval is consumed immediately before the effect, never before
