@@ -632,6 +632,51 @@ executing the test suite:
 acceptance ledger is not revised by this focused workstream, and no
 uninspected requirement is marked coding-complete.
 
+### Additional source-verified integration: conversation authority and mobile pairing rotation (2026-10-11)
+
+**SocialSessionStore, Phase 03/05:** all existing bind/get operations now use
+`CanonicalSQLiteGuard` to pin the configured `sofia.db` identity.
+Previously its raw `sqlite3.connect(str(path))` would open a replacement
+database or implicitly create a missing one, potentially losing original
+conversation principal/audience bindings. Production
+`ConversationService` and mobile `MobileCompanionGateway` already call
+the same SocialSessionStore, so their existing real paths are protected.
+Test setup that intentionally creates a new empty state now explicitly calls
+`bootstrap_canonical_sqlite`. This change neither selects a writer host
+nor migrates any live state.
+
+- `2cbba7b5358cdfdecae7e84df44e1bb17f16240d` social owner production.
+- `ad8ca7f5c53ff66cf4a43c156ab6676f99b47ee1` social state-loss and
+  replacement regression, no execution.
+- `6aad136aa2aad110400d241eabcea1f13fe7fc80` mobile Main fixture
+  authorized first bootstrapping.
+- `d602907e2325ba79afcc20ef87a5e0c0d6f20298` lifelong historical
+  import fixture authorized first bootstrapping.
+
+**MobileMainSeenStore, Phase 04/05:** on authenticated
+`MobileCompanionGateway.dispatch_authenticated` read-receipt requests,
+the gateway now passes the digest of the *actual* verified bearer into
+`MobileMainSeenStore.acknowledge`. The same canonical SQLite
+`BEGIN IMMEDIATE` transaction that updates the generation-specific
+`mobile_main_seen` row now checks
+`mobile_device_credential(device_id,generation,token_sha256,status)`.
+A bearer revoked/rotated after its first admission cannot write an
+acknowledgment into a different generation. Original audience/message
+visibility joins and monotonic cursor constraints remain in that same
+transaction. No bearer is saved into Main history or a model prompt.
+
+- `1fa866b4b85e99e69a0eeecbb9a68c440dfd9b17` transaction guard.
+- `9afb6f3462b42806e68d01da543fa15b1cbd1dfd` gateway bearer wiring.
+- `f9f98af5ec0a5cbba25bf8c22ecf52eeb57dcf89` revoked/rotated
+  in-flight read receipt tests; authored, not executed.
+
+**Coding status:** these are source-verified focused repairs only.
+Original Phase 03–06 has **182 task IDs**, and the separately
+maintained shared V18 task ledger remains the only per-ID audit record.
+Neither source presence nor authored tests are automatic acceptance.
+All tests, CI, Android builds, and host cutovers remain deferred by
+operator request.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
