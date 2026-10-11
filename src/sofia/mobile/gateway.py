@@ -107,6 +107,32 @@ class MobileCompanionGateway:
                 CREATE INDEX IF NOT EXISTS mobile_turn_receipt_device
                 ON mobile_turn_receipt(device_id,presentation_mode,created_at)
             """)
+            # V2 is preserved as read-only generation-one migration evidence.
+            # V3 owns the durable *versioned* device-session relationship.
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS mobile_conversation_binding_v3 (
+                    device_id TEXT NOT NULL,
+                    presentation_mode TEXT NOT NULL CHECK(
+                        presentation_mode IN ('private','standard')
+                    ),
+                    credential_generation INTEGER NOT NULL CHECK(
+                        credential_generation >= 1
+                    ),
+                    session_id TEXT NOT NULL UNIQUE,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(device_id,presentation_mode,credential_generation)
+                )
+            """)
+            receipt_fields = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(mobile_turn_receipt)"
+                ).fetchall()
+            }
+            if "credential_generation" not in receipt_fields:
+                db.execute(
+                    "ALTER TABLE mobile_turn_receipt ADD COLUMN "
+                    "credential_generation INTEGER NOT NULL DEFAULT 1"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(
@@ -209,17 +235,25 @@ class MobileCompanionGateway:
         legacy session is never reused for private conversation.
         """
         mode = "private" if private_mode else "standard"
+        generation = self.credentials.active_generation(device_id) or 1
         principal = self._principal(device_id, private_mode=private_mode)
-        key = (device_id, mode)
+        key = (device_id, mode, generation)
         existing = self._conversations.get(key)
         if existing is not None:
             return existing
         with closing(self._connect()) as db:
             row = db.execute(
-                "SELECT session_id FROM mobile_conversation_binding_v2 "
-                "WHERE device_id=? AND presentation_mode=?",
+                "SELECT session_id FROM mobile_conversation_binding_v3 "
+                "WHERE device_id=? AND presentation_mode=? "
+                "AND credential_generation=?",
                 key,
             ).fetchone()
+            if row is None and generation == 1:
+                row = db.execute(
+                    "SELECT session_id FROM mobile_conversation_binding_v2 "
+                    "WHERE device_id=? AND presentation_mode=?",
+                    (device_id, mode),
+                ).fetchone()
             if row is not None:
                 session_id = row[0]
                 current = self._social_sessions.get(session_id)
@@ -248,7 +282,7 @@ class MobileCompanionGateway:
                 legacy = db.execute(
                     "SELECT session_id FROM mobile_conversation_binding WHERE device_id=?",
                     (device_id,),
-                ).fetchone()
+                ).fetchone() if generation == 1 else None
                 candidate = None if legacy is None else legacy[0]
                 bound = None if candidate is None else self._social_sessions.get(candidate)
                 session_id = candidate if (
@@ -276,29 +310,54 @@ class MobileCompanionGateway:
         self._social_sessions.bind(session_id=actual_session, principal=principal)
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            now_stamp = datetime.now(timezone.utc).isoformat()
             db.execute(
-                "INSERT OR IGNORE INTO mobile_conversation_binding_v2 "
-                "(device_id,presentation_mode,session_id,updated_at) VALUES(?,?,?,?)",
-                (device_id, mode, actual_session, datetime.now(timezone.utc).isoformat()),
+                "INSERT OR IGNORE INTO mobile_conversation_binding_v3 "
+                "(device_id,presentation_mode,credential_generation,session_id,updated_at) "
+                "VALUES(?,?,?,?,?)",
+                (device_id, mode, generation, actual_session, now_stamp),
             )
             stored = db.execute(
-                "SELECT session_id FROM mobile_conversation_binding_v2 "
-                "WHERE device_id=? AND presentation_mode=?", key,
+                "SELECT session_id FROM mobile_conversation_binding_v3 "
+                "WHERE device_id=? AND presentation_mode=? "
+                "AND credential_generation=?", key,
             ).fetchone()
             if stored is None or stored[0] != actual_session:
                 raise RuntimeError(
-                    "another mobile gateway owns the persisted device session; reconnect"
+                    "another gateway already owns this generation's session"
                 )
+            if generation == 1:
+                # Backward-compatible V2 record for legacy generation-one
+                # mobile clients, never assign old records to a new pairing.
+                db.execute(
+                    "INSERT OR IGNORE INTO mobile_conversation_binding_v2 "
+                    "(device_id,presentation_mode,session_id,updated_at) "
+                    "VALUES(?,?,?,?)",
+                    (device_id, mode, actual_session, now_stamp),
+                )
+                prior = db.execute(
+                    "SELECT session_id FROM mobile_conversation_binding_v2 "
+                    "WHERE device_id=? AND presentation_mode=?",
+                    (device_id, mode),
+                ).fetchone()
+                if prior is None or prior[0] != actual_session:
+                    raise RuntimeError("legacy session binding changed concurrently")
         self._conversations[key] = conversation
         return conversation
 
-    @staticmethod
-    def _principal(device_id: str, *, private_mode: bool):
+    def _principal(self, device_id: str, *, private_mode: bool):
         digest = sha256(device_id.encode("utf-8")).hexdigest()[:20]
         mode = "private" if private_mode else "standard"
+        generation = self.credentials.active_generation(device_id) or 1
+        # Generation one preserves existing authenticated mobile audience
+        # history. A re-paired device must not inherit a prior bearer epoch's
+        # private memories or its previously linked social sessions.
+        audience = f"mobile:{mode}:{digest}"
+        if generation > 1:
+            audience += f":g{generation}"
         return PrincipalContext(
             principal_id=SPARKS_PRINCIPAL_ID,
-            audience_id=f"mobile:{mode}:{digest}",
+            audience_id=audience,
             audience_kind=(
                 AudienceKind.PRIVATE if private_mode else AudienceKind.SHARED
             ),
@@ -329,6 +388,7 @@ class MobileCompanionGateway:
         content = message.strip()
         mode = "private" if private_mode else "standard"
         digest = sha256(content.encode("utf-8")).hexdigest()
+        generation = self.credentials.active_generation(device) or 1
         with self._lock:
             if private_mode and not self.permissions.private_adult_authority().private_chat:
                 raise PermissionError("private mobile chat requires the host private-chat grant")
@@ -336,12 +396,16 @@ class MobileCompanionGateway:
             with closing(self._connect()) as db, db:
                 db.execute("BEGIN IMMEDIATE")
                 existing = db.execute(
-                    "SELECT device_id,presentation_mode,content_sha256,status,response_json "
+                    "SELECT device_id,presentation_mode,content_sha256,status,"
+                    "response_json,credential_generation "
                     "FROM mobile_turn_receipt WHERE request_id=?",
                     (request_id,),
                 ).fetchone()
                 if existing is not None:
-                    if tuple(existing[:3]) != (device, mode, digest):
+                    if (
+                        tuple(existing[:3]) != (device, mode, digest)
+                        or existing[5] != generation
+                    ):
                         raise MobileDeliveryConflict("request ID was reused with a different scope or message")
                     if existing[3] == "completed" and existing[4] is not None:
                         return json.loads(existing[4])
@@ -351,9 +415,10 @@ class MobileCompanionGateway:
                 db.execute(
                     "INSERT INTO mobile_turn_receipt "
                     "(request_id,device_id,presentation_mode,content_sha256,"
-                    "status,response_json,created_at,updated_at) "
-                    "VALUES(?,?,?,?,?,?,?,?)",
-                    (request_id, device, mode, digest, "processing", None, now, now),
+                    "status,response_json,created_at,updated_at,credential_generation) "
+                    "VALUES(?,?,?,?,?,?,?,?,?)",
+                    (request_id, device, mode, digest, "processing", None,
+                     now, now, generation),
                 )
 
             # Do NOT hold an open SQLite writer transaction over model work.
@@ -386,9 +451,10 @@ class MobileCompanionGateway:
                     "UPDATE mobile_turn_receipt SET status='completed',"
                     "response_json=?,updated_at=? "
                     "WHERE request_id=? AND status='processing' "
-                    "AND device_id=? AND presentation_mode=? AND content_sha256=?",
+                    "AND device_id=? AND presentation_mode=? AND content_sha256=? "
+                    "AND credential_generation=?",
                     (encoded, datetime.now(timezone.utc).isoformat(),
-                     request_id, device, mode, digest),
+                     request_id, device, mode, digest, generation),
                 )
                 if changed.rowcount != 1:
                     raise MobileDeliveryUncertain(

@@ -94,6 +94,16 @@ class MobileDeviceCredentialStore:
             return None
         return row[0]
 
+    def active_generation(self, device_id: str) -> int | None:
+        """Return canonical current device binding epoch, if still enrolled."""
+        self._device(device_id)
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT generation FROM mobile_device_credential "
+                "WHERE device_id=? AND status='active'", (device_id,),
+            ).fetchone()
+        return None if row is None else int(row[0])
+
     def active_count(self) -> int:
         with closing(self._connect()) as db:
             return int(db.execute(

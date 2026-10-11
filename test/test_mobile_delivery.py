@@ -68,7 +68,10 @@ def test_processing_receipt_after_restart_must_never_replay(tmp_path):
         msg = "Might already have reached the model"
         now = datetime.now(timezone.utc).isoformat()
         db.execute(
-            "INSERT INTO mobile_turn_receipt VALUES(?,?,?,?,?,?,?,?)",
+            "INSERT INTO mobile_turn_receipt "
+            "(request_id,device_id,presentation_mode,content_sha256,"
+            "status,response_json,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?)",
             (req, "phone-one", "standard", sha256(msg.encode()).hexdigest(),
              "processing", None, now, now),
         )
