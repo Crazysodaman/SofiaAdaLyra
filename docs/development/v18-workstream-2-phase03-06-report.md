@@ -53,6 +53,60 @@ auth/enrollment/device-list/active-generation fail closed.
 counts as production-accepted. No new database, alternate pairing authority,
 live relocation or fleet mutation was introduced.
 
+## Additional production slices: 2026-10-11
+
+### Mobile sensor, notification, and gateway writer identity
+
+Production call routes:
+- Android `/v1/mobile/sensors` → `MobileCompanionServer.do_POST` →
+  `MobileCompanionGateway.dispatch_authenticated` → `MobileSensorStore.record` →
+  canonical enrollment check + `mobile_sensor_latest`; `MobileSensorProvider`
+  projects eligible observations to the existing ENVIRONMENT service.
+- ACT notification enqueue → `MobileNotificationStore` → HTTP claim/ack →
+  canonical `mobile_notification` and opaque delivery handles.
+- Android chat → HTTP auth → `MobileCompanionGateway.chat` → canonical
+  `mobile_turn_receipt` and device/audience/session binding.
+
+The three previously direct mode=rw store connections now use separate
+`CanonicalSQLiteGuard` instances pinned at owner initialization. They do not
+follow a replaced database after a runtime starts. Their prior existing
+schemas and callers are unchanged; no shadow state was added.
+
+Commits:
+- `9f6410acd5e996e8da141048deb5be92253e1563` mobile sensors.
+- `2cadf2d1313edebea190a73bc6e22dd62ba13eea` mobile notifications.
+- `581d659a6fff6c130f9fc1ba0b716f90d2239cc2` mobile gateway.
+- `46a4e1a989a700b78ebabf67d49518ec7b972607` existing sensor regression expectation.
+- `8eb25e8f4d4d543ecd3f0c742d1c122bee9dd356` additional independent production route regression tests.
+
+CA relevance: CA-6804 (no competing canonical state), CA-6101 (single owner
+design), CA-6306 (safe unavailability), CA-4103/CA-4111 (credential-bound
+remote gateway). These are **partial engineering evidence only**; no
+entire task is declared completed.
+
+### Backup online snapshot source pinning
+
+Production path: configured backup coordinator/BackupEngine.create →
+pin existing `CanonicalSQLiteGuard` → encrypted backup staging →
+`_sqlite_snapshot(..., guard=source_guard)` →
+`sqlite3.Connection.backup` → SQLite integrity check →
+AES-GCM payload encryption and authenticated manifest publication.
+This closes the direct default `sqlite3.connect(source)` race that could
+create an empty replacement source after removal, or snapshot a different
+database after an unexpected file replacement.
+
+Commits:
+- `33595ddf3d06c4dde4a26fcca78ba90f298d9077` production.
+- `6a53d0be66359a786ff045afe4ba58d982a8854f` deferred race regressions.
+
+CA relevance: CA-5202, CA-6105, CA-6404. These remain only partial
+evidence pending whole recovery-epoch, archive, key, and restore validation.
+
+**Unresolved**: a pinned file guard is not a distributed writer lease,
+fencing of already-open connections, or failover/backup epoch barrier.
+Multi-file restore publication is not globally atomic and needs a separate
+operator-approved migration/restore procedure. No host move was made.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
