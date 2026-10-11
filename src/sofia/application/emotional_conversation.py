@@ -1093,11 +1093,20 @@ class EmotionalConversationService(ConversationService):
             emotion=state,
             environment=environment,
         )
+        # PERSONALITY reads the same published eligible workspace, never
+        # an independent stream of private memories or raw sensor facts.
+        neuro_snapshot = getattr(self, "_current_neuro_snapshot", None)
+        neuro_runtime = getattr(self, "_neuro_runtime", None)
+        if neuro_snapshot is not None and neuro_runtime is not None:
+            if neuro_runtime.read_workspace(
+                consumer="personality", at=current_user.created_at,
+            ) is None:
+                neuro_snapshot = None
         modulation = derive_expression_modulation(
             turn=getattr(self, "_current_turn_matrix", None),
             influence=influence,
             user_text=current_user.content,
-            neuro=getattr(self, "_current_neuro_snapshot", None),
+            neuro=neuro_snapshot,
             previous=getattr(self, "_previous_expression_modulation", None),
         )
         self._current_contextual_influence = influence
