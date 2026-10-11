@@ -251,6 +251,37 @@ Commits:
 CA relevance: CA-5201, CA-5603, CA-4204, CA-1703, CA-6306.
 No tests executed, no promoted facts changed, no CA status accepted.
 
+### Imported raw transcript audience egress isolation (Phase 06)
+
+Production route:
+`runtime.response.respond_with_runtime_context` →
+`MemorySystem.recall_historical_evidence` →
+`ChatGPTExportEvidenceStore.search_relevant` →
+canonical principal-filtered historical import evidence →
+`CognitiveContext`.
+The privacy matrix previously gated private versus shared, but all
+`AudienceKind.PRIVATE` callers with matching principal could retrieve the
+source archive automatically. That included Discord DMs, Android-private
+and independently re-paired generation-two mobile audiences even though
+those devices had **not** been individually granted access to raw imports.
+
+The memory-system egress gate now permits automatic source-archive
+retrieval only for authenticated local `local:text` and
+`local:terminal` private audiences. Other private audiences return
+no raw historical evidence rather than copying personal archives.
+Reviewed, promoted, principal-scoped memory retrieval is unchanged.
+No permissions, sessions or source archives were edited.
+
+Commits:
+- `c2039bd505ef75699b507c25dfdfa7bd5c9b3b0f` production policy.
+- `31f1828cdce45ea59163cc6529aa448acacf143d` exact client-audience
+  regression cases; **not executed**.
+
+CA relevance: CA-4107, CA-4111, CA-5304, CA-6303, CA-4204,
+CA-4206. Future explicit owner-authorized cross-channel export requires
+a separate bounded grant mechanism; this change deliberately does not
+invent one.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
