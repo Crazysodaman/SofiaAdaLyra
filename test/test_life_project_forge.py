@@ -840,6 +840,16 @@ def test_terminal_life_run_outcome_reconciles_once(
         assert goal.status is goal_outcome
         assert life.store.artifacts(project.project_id) == ()
         assert life.store.evaluations(project.project_id) == ()
+        if run_outcome is WorkStatus.UNCERTAIN:
+            diagnostic = life.operator_diagnostics(
+                now=now + timedelta(seconds=6),
+            )
+            row = next(
+                row for row in diagnostic["projects"]
+                if row["project_id"] == project.project_id
+            )
+            assert row["condition"] == "uncertain"
+            assert row["source_job_id"] == job.job_id
         events = life.store.events(
             project.project_id, owner_principal_id="sofia:self",
             audience_id="local:text",
