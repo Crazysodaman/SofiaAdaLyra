@@ -159,7 +159,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun receivePending() {
-        secure.consumeIncoming().forEach { messages += ChatLine("Sofía", it) }
+        try {
+            secure.consumeIncoming().forEach { messages += ChatLine("Sofía", it) }
+        } catch (_: Exception) {
+            status = "Protected incoming messages cannot be read; cache retained for recovery."
+        }
     }
 
     fun hasUnconfirmedSend(): Boolean =
@@ -184,7 +188,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             // Old server/audience material must not appear under a newly
             // paired credential. Keep only the owner's unsent local draft.
-            secure.clearIncoming()
+            try {
+                secure.clearIncoming()
+            } catch (_: Exception) {
+                status = "Protected incoming cache could not be cleared; privacy switch denied."
+                return
+            }
             messages.clear()
             mainHistory.clear()
             historyCursor = null
@@ -198,9 +207,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             currentSessionId = null
             currentAudienceId = null
         }
-        secure.save(next)
-        config = secure.load()
-        status = "Settings saved"
+        try {
+            secure.save(next)
+            config = secure.load()
+            status = "Settings saved"
+        } catch (failure: Exception) {
+            status = failure.message ?: "Settings were not durably saved"
+        }
     }
 
     fun setPrivateMode(next: CompanionSettings) {
@@ -220,7 +233,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             // The previous mode's transcript and unopened notification
             // bodies must not remain on a shared screen.
-            secure.clearIncoming()
+            try {
+                secure.clearIncoming()
+            } catch (_: Exception) {
+                status = "Protected incoming cache could not be cleared; privacy switch denied."
+                return
+            }
             messages.clear()
             mainHistory.clear()
             historyCursor = null
