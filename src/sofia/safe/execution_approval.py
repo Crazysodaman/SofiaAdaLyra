@@ -31,14 +31,16 @@ def execution_fingerprint(
         "capability": capability,
         "parameters": filtered,
     }
-    return sha256(
-        json.dumps(
-            document,
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=False,
-        ).encode("utf-8")
-    ).hexdigest()
+    # A one-time grant must bind bounded, finite JSON arguments exactly.
+    # Python's default NaN/Infinity spellings are NOT portable JSON and
+    # must never become a cross-language approval fingerprint.
+    encoded = json.dumps(
+        document, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    ).encode("utf-8")
+    if len(encoded) > 64_000:
+        raise ValueError("approved execution request exceeds 64-KiB bound")
+    return sha256(encoded).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +59,12 @@ class ExecutionApproval:
                 raise ValueError(f"{name} must be a bounded identifier")
         if not isinstance(self.capability, str) or not self.capability.strip():
             raise ValueError("capability must be nonempty")
+        # Approval records are operator statements, not a string that can
+        # be impersonated by a downstream handler or recovered model output.
+        if self.approved_by != "Sparks":
+            raise PermissionError(
+                "only the independently authenticated owner can approve execution"
+            )
         if re.fullmatch(r"[0-9a-f]{64}", self.request_fingerprint) is None:
             raise ValueError("request_fingerprint must be lowercase SHA-256")
         for name in ("approved_at", "expires_at"):
@@ -95,6 +103,8 @@ class ExecutionApprovalVerifier:
     def record(self, approval: ExecutionApproval) -> None:
         if not isinstance(approval, ExecutionApproval):
             raise TypeError("approval must be an ExecutionApproval")
+        if approval.approved_by != "Sparks":
+            raise PermissionError("non-owner execution approval denied")
         with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
@@ -228,6 +238,8 @@ class ExecutionApprovalVerifier:
                 raise PermissionError("execution approval is not active yet")
             if moment >= approval.expires_at.astimezone(timezone.utc):
                 raise PermissionError("execution approval expired")
+            if approval.approved_by != "Sparks":
+                raise PermissionError("execution approval was not granted by the owner")
             if approval.capability != capability:
                 raise PermissionError("execution approval is for another capability")
             if approval.request_fingerprint != expected:
