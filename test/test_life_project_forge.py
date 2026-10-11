@@ -1782,3 +1782,75 @@ def test_atomic_life_pair_rejects_second_revision_critique_without_experience(
         )] == [original.evaluation_id]
     finally:
         life.close()
+
+
+def test_goal_derived_life_pause_resumes_only_when_canonical_goal_reactivates(
+    tmp_path,
+):
+    """The original GOALS lifecycle may release only its own derived pause."""
+    from sofia.goals import SOFIA_GOAL_OWNER_ID
+
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        principal = local_sparks_principal()
+        goal = next(
+            item for item in goals.list_visible(principal)
+            if item.id == project.goal_id
+        )
+        pause = goals.transition(
+            goal_id=goal.id, principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience,
+            expected_status=GoalStatus.ACTIVE,
+            next_status=GoalStatus.PAUSED,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            now=now + timedelta(seconds=3), evidence_refs=(evidence,),
+        )
+        assert life.tick(now=now + timedelta(seconds=4), busy=True)[
+            "goal_lifecycle_projects_settled"
+        ] == 1
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        goals.transition(
+            goal_id=goal.id, principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience,
+            expected_status=pause.status,
+            next_status=GoalStatus.ACTIVE,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            now=now + timedelta(seconds=5), evidence_refs=(evidence,),
+        )
+        resumed = life.tick(now=now + timedelta(seconds=6), busy=True)
+        assert resumed["goal_lifecycle_projects_settled"] == 1
+        assert resumed["scheduled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        assert life.tick(now=now + timedelta(seconds=7), busy=True)[
+            "goal_lifecycle_projects_settled"
+        ] == 0
+        assert life.store.jobs(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_manual_life_pause_cannot_be_undone_by_active_goal(tmp_path):
+    """A personal pause does not become another scheduler's automatic resume."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        life.pause(
+            project.project_id,
+            reason="Intentionally resting this optional hobby.",
+            evidence_refs=(evidence,),
+            now=now + timedelta(seconds=3),
+        )
+        report = life.tick(
+            now=now + timedelta(seconds=4),
+            busy=False, generate=authored_foxfire_text,
+        )
+        assert report["goal_lifecycle_projects_settled"] == 0
+        assert report["scheduled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert any(
+            item.id == project.goal_id and item.status is GoalStatus.PAUSED
+            for item in goals.list_visible(local_sparks_principal())
+        )
+    finally:
+        life.close()
