@@ -2918,6 +2918,52 @@ cross-channel owner grants or physical deletion.
 No tests/CI, live memory, consent grant or
 database migration executed.
 
+
+
+### Phase 03 item 82: Preserve post-rename publication uncertainty through staging cleanup
+
+Source audit of `stage_verified_state_home` found a
+high-risk exception-masking path during a privileged
+offline recovery stage. Linux
+`_publish_new_home_without_replacing` correctly
+raises `StateHomePublicationUncertain` if the atomic
+directory rename has already succeeded but the
+subsequent parent-directory `fsync` fails.
+At that point the staging directory no longer
+exists, yet the outer `finally` unconditionally
+attempted `shutil.rmtree(staging)` whenever
+`published=False`. That could raise
+`FileNotFoundError`, hide the crucial uncertainty
+classification and encourage unsafe repeat
+publication or accidental activation.
+
+Production `src/sofia/ops/state_relocation.py`
+now cleans up only when its own randomly named
+staging directory **still exists and is not a
+symbolic link**. A candidate already renamed
+to the owner-selected destination remains intact
+for independent inspection. This change
+does NOT assert Linux directory-entry durability,
+issue writer-fence authority or convert uncertainty
+into a success receipt; existing strict operator
+authorization and erasure checks remain.
+
+- Production `8a72fb269e8a8a142e7b9e7bc543fba61f02e316`
+  (`[skip ci]`).
+- Deferred integrated synthetic staging contract
+  `test/test_ws2_relocation_postrename_cleanup.py`,
+  `25395ae1a0f22f0d60cfabef9fbc15a3ac7eecfd`
+  (`[skip ci]`). Verifies typed uncertainty survives
+  after simulated directory rename while the destination
+  candidate and original source both remain; pre-rename
+  denial still discards only staging.
+
+Original CA relevance: CA-5202, CA-5204,
+CA-6105, CA-6311, CA-6404.
+No test/CI execution, real host fencing,
+backup restore, state-home mutation,
+database relocation or service activation.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
