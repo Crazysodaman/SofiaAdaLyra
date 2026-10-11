@@ -2799,6 +2799,76 @@ cross-project source attribution, pin/export/search
 and final live acceptance. This is source-level coding,
 not a migrated live schema or a successful test.
 
+
+
+### Phase 04 item 80: Android read-only archived projects with withdrawn-source provenance
+
+Item 77 introduced owner-scoped reversible archived-project
+metadata and Item 79 made newly created **never-linked**
+projects visible to their exact creation audience. The
+Android application already browsed authenticated project
+headers and read-only original-source pages, but had no
+way to request archived projects. It also required
+source events for every project page, incorrectly
+denying a brand-new empty project.
+
+The real pairing-authenticated
+`MobileCompanionGateway.dispatch_authenticated`
+`/v1/mobile/threads` route now accepts strictly typed
+optional `include_archived`, defaults to the old
+unarchived behavior and uses
+`LifelongThreadStore.list_visible_threads` to
+filter original source-audience visibility **before**
+pagination. It includes a grounded `archived` boolean
+for each header. Android's `SofiaApi.visibleThreads`,
+`MainViewModel` and Compose UI now have an explicit
+read-only "Include archived / Hide archived" toggle,
+refresh the authenticated header set and identify
+archived project choices without enabling remote
+rename, archive, sharing or tool execution.
+
+**Withdrawal guard:** A previously linked project must
+never become a "new empty project" when its final
+source link is deleted. Production therefore adds
+durable `lifelong_thread.has_linked_source` evidence:
+legacy rows default to **ever linked** (fail closed)
+and new creation-audience-bound projects start at
+`0`. A successful original source link sets the bit
+to `1` transactionally; deletion of all links does
+not reset it. Only `has_linked_source=0` plus no
+current events and exact creation-audience proof can
+show an empty title or return an empty authenticated
+project-history page. Old projects with withdrawn or
+rebound original sources stay inaccessible.
+
+- Authenticated read-only gateway archive projection:
+  `1517b29fa1859a0e2482a3c523b4dc62859b1ea0`
+  (`[skip ci]`).
+- Android API `c769a8253efd1a72130382eb2bfd5b43331f114b`
+  and UI `ce7f3d45d4dc6647300ced663226715ff209684a`
+  (`[skip ci]`).
+- Durable ever-linked source provenance:
+  `9b1ad5498eaa9194f5bccb1c00fcec98567598bc`
+  (`[skip ci]`).
+- Source-free current-audience page admission:
+  `b4bf7f607ca22c7c81954ca23cdddd531f0c14d9`,
+  gateway `43963835665c71725a62027dc0c93cebb637f687`
+  (`[skip ci]`).
+- Deferred synthetic gateway/privacy/withdrawal fixtures:
+  `test/test_ws2_mobile_archived_project_headers.py`
+  `0536eab81d646eeddbcca8ab266063893bc254a7`
+  and `e0bd4a77263a977cced81a662206768ca11bbb0d`
+  (`[skip ci]`).
+
+Original CA relevance: CA-4107, CA-4109, CA-5303,
+CA-5307, CA-5503, CA-5506.
+This is authenticated **read-only** project browsing and
+source-withdrawal safety, not project-creation UI,
+phone-side editing permission, cross-channel mirroring,
+full Android instrumentation acceptance or tests/CI.
+No running Android device, live schema, database,
+service or host was changed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
