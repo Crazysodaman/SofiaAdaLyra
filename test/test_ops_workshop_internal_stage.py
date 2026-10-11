@@ -176,6 +176,17 @@ def test_host_power_shell_restricts_new_internal_switch_to_exact_guest():
     )
     assert "Get-NetIPInterface -InterfaceAlias $alias" in command
     assert "Get-NetIPAddress -InterfaceAlias $alias" in command
+    # Independently re-observe the same existing Gen2 VM, exact one NIC,
+    # and actual switch type after the potential host mutation.
+    for safeguard in (
+        "POST_STAGE_VM_IDENTITY_OR_POWER_CHANGED",
+        "POST_STAGE_NIC_IDENTITY_CHANGED",
+        "POST_STAGE_SWITCH_NOT_INTERNAL",
+    ):
+        assert safeguard in command
+        assert command.index("Connect-VMNetworkAdapter") < command.index(safeguard)
+    assert "[string]$postVm.Id" in command
+    assert "[string]$finalSwitch.SwitchType" in command
 
 
 def test_stage_cannot_authorize_a_different_vm_or_unrecognized_policy(tmp_path):
