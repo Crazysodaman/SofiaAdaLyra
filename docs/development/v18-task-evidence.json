@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "5839bc202056cbb8549a478a5bc420373ab95917",
+  "reviewed_main_sha": "49d644d135e0fbce55806c377480a65b9668fc54",
   "audit_date_utc": "2026-10-11",
-  "notice": "Workstream 1: SAFE generic approval preflight, type-strict standing grants and direct integration operator-stop gates; Phase01 installed wheel source-byte proof. All associated V18 tasks remain partial until broader coding and deferred tests/live acceptance. Other workstream evidence preserved.",
+  "notice": "Workstream 1 production SAFE integration boundary repairs and installed wheel source proof are committed. CA-1904/1907/6507/3004 remain partial; tests, CI and live acceptance deferred. Other workstream evidence records retained.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1714,7 +1714,8 @@
         "test/test_safe_execution_action_fingerprint.py",
         "src/sofia/composition/authorization.py",
         "test/test_permission_runtime_wiring.py",
-        "test/test_safe_permissions.py"
+        "test/test_safe_permissions.py",
+        "src/sofia/integrations/capabilities.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -1727,7 +1728,9 @@
         "d1c450a392e52c61c38da328210f6e93245332b3",
         "81b462effe34c0ab1682168a3c9e64b40ecc084d",
         "31a5adbd9db044dfe0b69aad96b5b4baa12b7e67",
-        "5bd2f3fc6716ce67e639099889c1047a152065a1"
+        "5bd2f3fc6716ce67e639099889c1047a152065a1",
+        "b7513bf43a8944e2f3387c8c22f5f324f9b69beb",
+        "e14e44a5073277536d48ab245b17e078ae8cf363"
       ],
       "accepted": false,
       "coding_update": {
@@ -1736,9 +1739,9 @@
         "acceptance": "deferred"
       },
       "audit_observation": {
-        "at_sha": "aa112c737933044c1e2a6a48c1f1f3956ec2b526",
-        "depth": "production_authority_and_regression_source",
-        "interpretation": "Two production SAFE repairs: generic exact unconsumed approval preflight and strict finite size-bounded type-safe standing-grant scope comparison. Actual effect handlers retain atomic approval consumption; specialized approvals use their own verifiers. Full CA-1904 requirements not completely audited or implemented. Regression tests authored but not run."
+        "at_sha": "49d644d135e0fbce55806c377480a65b9668fc54",
+        "depth": "production_integration_mutation_boundary",
+        "interpretation": "New source verifies generic exact approval, typed bounded standing grants, operator-stop recheck and standing grant revalidation immediately before local integration side effects. Tests authored but not run. Not universal cross-subsystem coverage or in-flight cancellation; task remains partial."
       }
     },
     {
@@ -1774,13 +1777,15 @@
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
-        "5b56f88c234b61aacfbeb5ef5282a1e49d4fcb93"
+        "5b56f88c234b61aacfbeb5ef5282a1e49d4fcb93",
+        "b7513bf43a8944e2f3387c8c22f5f324f9b69beb",
+        "e14e44a5073277536d48ab245b17e078ae8cf363"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "5839bc202056cbb8549a478a5bc420373ab95917",
-        "depth": "integration_effect_boundary",
-        "interpretation": "Production generic integration effect handlers recheck durable operator stop before approval and immediately before effect, including Level-2 maintenance. Tests authored only. This is not full universal stop/revocation coverage, and in-flight external actions may not be cancellable."
+        "at_sha": "49d644d135e0fbce55806c377480a65b9668fc54",
+        "depth": "production_integration_mutation_boundary",
+        "interpretation": "New source verifies generic exact approval, typed bounded standing grants, operator-stop recheck and standing grant revalidation immediately before local integration side effects. Tests authored but not run. Not universal cross-subsystem coverage or in-flight cancellation; task remains partial."
       }
     },
     {
