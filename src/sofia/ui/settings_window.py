@@ -1341,98 +1341,174 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 ),
             )
 
+    from sofia.safe.permissions import standing_grant_parameters
+    from sofia.safe.owner_approval_ui import select_security_key_for_settings
+    from sofia.safe.owner_browser import authorize_exact_action
+
+    permission_feedback = Queue()
+    permission_busy = {"active": False}
+
     def grant_standing_permission() -> None:
+        if permission_busy["active"]:
+            return
         try:
             capability = grant_capability.get().strip()
             scope = _permission_scope(grant_scope.get())
             if not scope:
                 raise ValueError("Standing grants require a nonempty exact parameter scope")
-            minutes = _optional_expiry_minutes(
-                grant_expiry_minutes.get()
-            )
+            minutes = _optional_expiry_minutes(grant_expiry_minutes.get())
             policy = capability_permission_policy(capability)
             if not messagebox.askyesno(
                 "Grant standing permission?",
                 (
-                    f"Grant Level {int(policy.level)} permission for:\n\n"
-                    f"{capability}\n\n"
-                    f"Scope: {json.dumps(scope, sort_keys=True)}\n\n"
-                    "This changes Sofía's durable authority."
+                    f"Grant Level {int(policy.level)} permission for:\\n\\n"
+                    f"{capability}\\n\\n"
+                    f"Scope: {json.dumps(scope, sort_keys=True)}\\n\\n"
+                    "This changes Sofía's durable authority and requires FIDO2."
                 ),
                 parent=root,
             ):
                 return
-            now = datetime.now(timezone.utc)
-            permission_store.grant(
-                capability,
-                scope=scope,
-                granted_by="Sparks",
-                expires_at=(
-                    None
-                    if minutes is None
-                    else now + timedelta(minutes=minutes)
-                ),
-                now=now,
+            credential = select_security_key_for_settings(
+                config.state_path, parent=root,
             )
-            refresh_permission_grants()
-            status.set(
-                "Standing permission granted. Runtime authority reads it live."
+            grant_id = str(uuid4())
+            expiry = (
+                None if minutes is None
+                else datetime.now(timezone.utc) + timedelta(minutes=minutes)
             )
+            permission_busy["active"] = True
+            grant_button.configure(state="disabled")
+            revoke_button.configure(state="disabled")
+            status.set("Waiting for FIDO2 owner approval to create standing permission")
+
+            def worker() -> None:
+                try:
+                    approval = authorize_exact_action(
+                        config.state_path,
+                        capability="safe.permission.standing.grant",
+                        parameters=standing_grant_parameters(
+                            capability, scope=scope,
+                            grant_id=grant_id, expires_at=expiry,
+                        ),
+                        credential_id=credential, expires_seconds=120,
+                    )
+                    store = PermissionStore(config.state_path)
+                    receipt = store.grant(
+                        capability, scope=scope,
+                        grant_id=grant_id, expires_at=expiry,
+                        granted_by="Sparks", approval_id=approval.approval_id,
+                    )
+                    permission_feedback.put((
+                        "success", f"One-use authenticated grant: {receipt.grant_id}"
+                    ))
+                except Exception as exc:
+                    permission_feedback.put((
+                        "error", f"{type(exc).__name__}: {exc}"
+                    ))
+
+            Thread(
+                target=worker,
+                name="sofia-fido2-standing-permission-grant",
+                daemon=False,
+            ).start()
         except Exception as exc:
             messagebox.showerror(
-                "Permission not granted",
-                f"{type(exc).__name__}: {exc}",
+                "Permission not granted", f"{type(exc).__name__}: {exc}",
                 parent=root,
             )
 
     def revoke_standing_permission() -> None:
+        if permission_busy["active"]:
+            return
         selected = permission_tree.selection()
         if len(selected) != 1:
             messagebox.showinfo(
-                "Select a grant",
-                "Select one standing permission to revoke.",
+                "Select a grant", "Select one standing permission to revoke.",
                 parent=root,
             )
             return
         grant_id = selected[0]
         if not messagebox.askyesno(
             "Revoke standing permission?",
-            "Revoke the selected durable standing permission?",
+            "Revoke this exact durable standing permission using FIDO2?",
             parent=root,
         ):
             return
         try:
-            permission_store.revoke(
-                grant_id,
-                revoked_by="Sparks",
+            credential = select_security_key_for_settings(
+                config.state_path, parent=root,
             )
-            refresh_permission_grants()
-            status.set("Standing permission revoked.")
+            permission_busy["active"] = True
+            grant_button.configure(state="disabled")
+            revoke_button.configure(state="disabled")
+            status.set("Waiting for FIDO2 owner approval to revoke standing permission")
+
+            def worker() -> None:
+                try:
+                    approval = authorize_exact_action(
+                        config.state_path,
+                        capability="safe.permission.standing.revoke",
+                        parameters={"grant_id": grant_id},
+                        credential_id=credential, expires_seconds=120,
+                    )
+                    store = PermissionStore(config.state_path)
+                    receipt = store.revoke(
+                        grant_id, revoked_by="Sparks",
+                        approval_id=approval.approval_id,
+                    )
+                    permission_feedback.put((
+                        "success", f"Authenticated revocation: {receipt.grant_id}"
+                    ))
+                except Exception as exc:
+                    permission_feedback.put((
+                        "error", f"{type(exc).__name__}: {exc}"
+                    ))
+
+            Thread(
+                target=worker,
+                name="sofia-fido2-standing-permission-revoke",
+                daemon=False,
+            ).start()
         except Exception as exc:
             messagebox.showerror(
-                "Permission not revoked",
-                f"{type(exc).__name__}: {exc}",
+                "Permission not revoked", f"{type(exc).__name__}: {exc}",
                 parent=root,
             )
 
     grant_buttons = ttk.Frame(grants_frame)
     grant_buttons.pack(fill="x")
-    ttk.Button(
-        grant_buttons,
-        text="Grant",
-        command=grant_standing_permission,
-    ).pack(side="left")
-    ttk.Button(
-        grant_buttons,
-        text="Revoke selected",
+    grant_button = ttk.Button(
+        grant_buttons, text="Grant", command=grant_standing_permission,
+    )
+    grant_button.pack(side="left")
+    revoke_button = ttk.Button(
+        grant_buttons, text="Revoke selected",
         command=revoke_standing_permission,
-    ).pack(side="left", padx=(6, 0))
+    )
+    revoke_button.pack(side="left", padx=(6, 0))
     ttk.Button(
-        grant_buttons,
-        text="Refresh",
-        command=refresh_permission_grants,
+        grant_buttons, text="Refresh", command=refresh_permission_grants,
     ).pack(side="left", padx=(6, 0))
     refresh_permission_grants()
+
+    def poll_permission_receipt() -> None:
+        try:
+            outcome, detail = permission_feedback.get_nowait()
+        except Empty:
+            pass
+        else:
+            permission_busy["active"] = False
+            grant_button.configure(state="normal")
+            revoke_button.configure(state="normal")
+            refresh_permission_grants()
+            status.set(detail)
+            if outcome == "error":
+                messagebox.showerror("Permission change denied", detail, parent=root)
+        if root.winfo_exists():
+            root.after(250, poll_permission_receipt)
+
+    root.after(250, poll_permission_receipt)
 
     fleet_frame = ttk.LabelFrame(
         permissions,
