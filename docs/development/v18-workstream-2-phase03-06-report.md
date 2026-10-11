@@ -3692,6 +3692,40 @@ their confidentiality. No CI/tests,
 live backup scan, cleanup, key
 rotation or host operation ran.
 
+
+
+### Phase 03 item 87: Bounded discovery of unreadable or oversized recovery candidates
+
+`discover_local_state_candidates` scans a small, approved collection of
+local Sofía homes without activating a database or selecting a writer.
+Before this fix, opening any candidate SQLite header and hashing any
+`protected/identity.json` could raise an unhandled `OSError`,
+aborting recovery discovery of other valid roots. Identity reads were
+also unbounded, allowing a misplaced large identity file to force a
+disproportionate memory read even though discovered homes are not
+authoritative.
+
+Production `src/sofia/ops/state_mobility.py` now caps candidate
+identity reads at 64 KiB; an oversized, symlinked, redirected or
+unreadable identity cannot claim lineage to the configured home.
+Unreadable or vanished candidate DBs are skipped individually, and
+their failures cannot suppress other candidates. The SQLite-header
+read and file-size snapshot are guarded together. No candidate is
+promoted based on its filename, content timestamp or hash alone.
+
+- Production `da9a3af1c20aace02918ff334fdfd37a42ed25eb`
+  (`[skip ci]`).
+- Deferred synthetic discovery regression
+  `test/test_ws2_state_candidate_discovery_resilience.py`,
+  `13a0763fe49201413cd4eca8dbae1f39e1cfdde2`
+  (`[skip ci]`).
+
+Original CA relevance: CA-6803, CA-6804, CA-6807 and CA-5207.
+Original requirements remain partial; recovery lineage and
+writer authority still require an independent operator and
+privileged cross-host fencing. No tests/CI or live file scans
+were executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
