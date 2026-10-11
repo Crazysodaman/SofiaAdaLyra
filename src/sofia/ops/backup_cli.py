@@ -10,6 +10,7 @@ import tempfile
 
 from sofia.config.defaults import production_state_path
 from sofia.ops.recovery import DEFAULT_RECOVERY_OBJECTIVES
+from sofia.ops.recovery_export import export_portable_conversations
 from sofia.ops.backup import (
     BackupCipher,
     BackupEngine,
@@ -96,6 +97,41 @@ def _rehearse(args) -> int:
     return 0
 
 
+def _export_jsonl(args) -> int:
+    # This never reads a live SQLite WAL or reaches a model/runtime. It
+    # decrypts an authenticated archive into a disposable offline snapshot,
+    # then writes plaintext only with a second explicit operator decision.
+    if args.approve_sensitive_plaintext is not True:
+        raise PermissionError(
+            "--approve-sensitive-plaintext is required; all audiences "
+            "including private conversations will be exported"
+        )
+    destination = Path(args.output)
+    if not destination.is_absolute():
+        raise ValueError("portable export requires absolute --output path")
+    engine = _engine(Path(args.key))
+    with tempfile.TemporaryDirectory(prefix="sofia-portable-recovery-") as work:
+        state = Path(work) / "sofia.db"
+        engine.restore(
+            backup_dir=Path(args.backup_dir),
+            target_state_path=state,
+            verifier="operator-portable-jsonl-export",
+            replace_existing=False,
+            now=datetime.now(timezone.utc),
+        )
+        exported = export_portable_conversations(
+            state_path=state, destination=destination,
+            approve_sensitive_plaintext=True,
+        )
+    print(
+        f"portable PRIVATE PLAINTEXT conversation export: {exported.destination} "
+        f"schema={exported.schema} messages={exported.message_count} "
+        f"threads={exported.thread_count} links={exported.link_count} "
+        f"body_sha256={exported.content_sha256}"
+    )
+    return 0
+
+
 def _rotate(args) -> int:
     removed = rotate_backups(
         Path(args.root),
@@ -141,6 +177,16 @@ def main(argv: list[str] | None = None) -> int:
     rehearse.add_argument("--backup-dir", required=True)
     rehearse.add_argument("--verifier", required=True)
     rehearse.set_defaults(handler=_rehearse)
+
+    portable = sub.add_parser(
+        "export-jsonl",
+        help="explicit sensitive plaintext export from an authenticated offline backup",
+    )
+    portable.add_argument("--key", required=True)
+    portable.add_argument("--backup-dir", required=True)
+    portable.add_argument("--output", required=True)
+    portable.add_argument("--approve-sensitive-plaintext", action="store_true")
+    portable.set_defaults(handler=_export_jsonl)
 
     rotate = sub.add_parser("rotate")
     rotate.add_argument("--root", required=True)
