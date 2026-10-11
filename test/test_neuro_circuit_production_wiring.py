@@ -141,3 +141,45 @@ def test_new_user_subject_wins_over_higher_aged_nonconversational_signal():
         activation.key != redirected.focus.key
         for activation in switched_again.secondary
     )
+
+
+def test_active_project_remains_contextual_without_trapping_new_user_topic():
+    runtime = NeuroRuntime()
+    project = NeuralSignal(
+        source="project:gaia-hexapod",
+        kind="goal",
+        value=.9, confidence=.9, novelty=.9, urgency=.6,
+        observed_at=NOW, ttl_seconds=300.0,
+    )
+    runtime.observe_signal(project)
+    first = runtime.observe_turn(
+        content="Investigate Gaia's left servo alignment.",
+        created_at=NOW + timedelta(seconds=1),
+        channel="desktop",
+        turn=None,
+    )
+    assert first.focus.kind == "foreground"
+    assert any(
+        activation.key == "goal:project:gaia-hexapod"
+        for activation in first.secondary
+    )
+    detour = runtime.observe_turn(
+        content="Unrelated detour: what happened with Docker?",
+        created_at=NOW + timedelta(seconds=2),
+        channel="discord",
+        turn=None,
+    )
+    assert detour.focus.kind == "foreground"
+    assert detour.focus.key != first.focus.key
+    assert any(
+        activation.key == "goal:project:gaia-hexapod"
+        for activation in detour.secondary
+    )
+    # A short-lived past project cannot be hallucinated into durable memory
+    # or become a permanent recurrent focus beyond its observation lease.
+    expired = runtime.snapshot(now=NOW + timedelta(seconds=301))
+    assert all(
+        item.key != "goal:project:gaia-hexapod"
+        for item in (expired.focus, *expired.secondary)
+        if item is not None
+    )
