@@ -18,6 +18,19 @@ from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
+@pytest.fixture(autouse=True)
+def _synthetic_verified_local_media(monkeypatch):
+    # Docker/CI tmp_path may be overlayfs, which is deliberately NOT
+    # authorized as a durable production home. These tests exercise JSONL
+    # behavior in isolated synthetic paths, not actual host disk admission.
+    monkeypatch.setattr(
+        "sofia.ops.recovery_export._filesystem_kind",
+        lambda _path: "local",
+    )
+
+
+
+
 
 def _fixture(tmp_path):
     root = tmp_path / "offline-restored-home"
