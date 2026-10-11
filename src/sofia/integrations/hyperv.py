@@ -94,7 +94,13 @@ class HyperVAdapter:
             + " -Algorithm SHA256 -ErrorAction Stop "
             "| Select-Object -ExpandProperty Hash"
         )
-        result = self._runner(command).strip().lower()
+        # Large reviewed VM images may take longer than ordinary host
+        # inventory. Only the fixed Get-FileHash operation gets this budget.
+        result = (
+            self._powershell(command, timeout_seconds=120)
+            if self._runner is self._powershell
+            else self._runner(command)
+        ).strip().lower()
         import re
         if re.fullmatch(r"[0-9a-f]{64}", result) is None:
             raise HyperVError("image hash not observed or not SHA-256")
@@ -119,9 +125,9 @@ class HyperVAdapter:
     def _ps(value:str)->str:
         return "'"+value.replace("'","''")+"'"
     @staticmethod
-    def _powershell(command:str)->str:
+    def _powershell(command:str,*,timeout_seconds:float=30)->str:
         if platform.system()!="Windows": raise HyperVError("Hyper-V adapter requires Windows")
         cp=subprocess.run(["powershell.exe","-NoProfile","-NonInteractive","-Command",command],
-            text=True,capture_output=True,timeout=30,check=False)
+            text=True,capture_output=True,timeout=timeout_seconds,check=False)
         if cp.returncode: raise HyperVError(cp.stderr.strip() or "Hyper-V command failed")
         return cp.stdout
