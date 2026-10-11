@@ -12,6 +12,7 @@ import pytest
 from test.owner_auth_fixture import record_verified_owner_approval
 
 from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.distributed.capability import RemoteFleetToolService
 from sofia.integrations.hyperv import HyperVAdapter
 from sofia.ops.workshop_handoff import (
@@ -62,7 +63,7 @@ def vm_facts(at):
 
 def reviewed_state(tmp_path):
     at=datetime.now(timezone.utc)
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).load()
     plan=WorkshopBlankVMHandoff(
         plan_id="hephaestus:handoff:"+uuid4().hex,
@@ -150,6 +151,7 @@ def fake_service(state,at,*,result="reported_success",mutated=False,
                     "Outcome":"installer_boot_started",
                     "MediaSha256":SHA,"OsInstalled":False,
                     "FleetEnrolled":False,"State":"Running",
+                    "ObservedAtUtc":(at+timedelta(seconds=2)).isoformat(),
                 }),
             }
         raise AssertionError("unexpected remote capability")
@@ -234,6 +236,7 @@ def test_production_hyperv_boot_command_never_creates_vm_or_network():
         "Outcome":"installer_boot_started","State":"Running",
         "MediaSha256":SHA,"OsInstalled":False,
         "FleetEnrolled":False,
+        "ObservedAtUtc":datetime.now(timezone.utc).isoformat(),
     }
     adapter=HyperVAdapter(
         runner=lambda statement:commands.append(statement) or json.dumps(response),
