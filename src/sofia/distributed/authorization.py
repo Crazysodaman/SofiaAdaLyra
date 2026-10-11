@@ -50,6 +50,7 @@ REMOTE_READ_ONLY_OPERATIONS = frozenset({
     ("system.inspect", "hardware"),
     ("vm.inspect", "list"),
     ("vm.inspect", "get"),
+    ("workshop.inspect", "host"),
     ("container.inspect", "list"),
     ("container.inspect", "get"),
     ("container.inspect", "stats"),
