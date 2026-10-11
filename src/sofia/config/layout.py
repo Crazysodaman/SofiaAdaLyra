@@ -189,10 +189,10 @@ class RuntimeStorageLayout:
         *,
         protected: bool,
     ) -> None:
-        if target.exists():
-            if not target.is_file():
+        if target.exists() or target.is_symlink():
+            if target.is_symlink() or not target.is_file():
                 raise RuntimeError(
-                    f"runtime path exists but is not a file: {target}"
+                    f"runtime path exists but is not a regular file: {target}"
                 )
             return
         if not source.is_file():
@@ -212,10 +212,26 @@ class RuntimeStorageLayout:
             shutil.copyfile(source, temporary)
             if os.name != "nt":
                 temporary.chmod(0o600 if protected else 0o640)
-            os.replace(temporary, target)
+            # Publish only a fully copied, flushed file. os.replace() used
+            # here would destroy an identity written by a competing startup
+            # between the initial existence check and this point.
+            with temporary.open("rb") as persisted:
+                os.fsync(persisted.fileno())
+            try:
+                # Same-directory hard link atomically creates only if absent.
+                # Unsupported filesystems fail closed rather than exposing a
+                # partially copied identity or overwriting an existing one.
+                os.link(temporary, target)
+            except FileExistsError:
+                if target.is_symlink() or not target.is_file():
+                    raise RuntimeError(
+                        f"runtime path raced with an unsafe file: {target}"
+                    )
+                # The competing writer won; never overwrite or use the
+                # staging copy as the new authority.
+                return
         finally:
-            if temporary.exists():
-                temporary.unlink()
+            temporary.unlink(missing_ok=True)
 
         if protected and os.name != "nt":
             try:

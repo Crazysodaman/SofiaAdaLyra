@@ -151,3 +151,51 @@ def test_production_state_path_resolution_has_no_filesystem_side_effect(
 
     assert path == state_root / "sofia.db"
     assert state_root.exists() is False
+
+
+def test_identity_seed_publish_is_atomic_and_never_overwrites_racing_writer(
+    tmp_path, monkeypatch,
+):
+    source = tmp_path / "source-identity.json"
+    source.write_bytes(b'{"identity":"release-seed"}')
+    target = tmp_path / "protected" / "identity.json"
+    target.parent.mkdir()
+    original_link = layout_module.os.link
+
+    def another_writer_finishes_first(staged, destination):
+        Path(destination).write_bytes(b'{"identity":"live-authoritative"}')
+        raise FileExistsError("a different Sofia startup claimed the identity")
+
+    monkeypatch.setattr(layout_module.os, "link", another_writer_finishes_first)
+    RuntimeStorageLayout._seed_file(source, target, protected=True)
+    assert target.read_bytes() == b'{"identity":"live-authoritative"}'
+    assert list(target.parent.glob(".identity.json.*.tmp")) == []
+    monkeypatch.setattr(layout_module.os, "link", original_link)
+
+
+def test_protected_seed_rejects_dangling_symlink_without_replacing_it(tmp_path):
+    import pytest
+
+    source = tmp_path / "source.json"
+    source.write_text("canonical source", encoding="utf-8")
+    target = tmp_path / "protected" / "identity.json"
+    target.parent.mkdir()
+    try:
+        target.symlink_to(tmp_path / "does-not-exist")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation not permitted on this test host")
+    with pytest.raises(RuntimeError, match="not a regular file"):
+        RuntimeStorageLayout._seed_file(source, target, protected=True)
+    assert target.is_symlink()
+
+
+def test_new_protected_seed_is_closed_before_publication(tmp_path):
+    source = tmp_path / "seed.json"
+    source.write_bytes(b'{"identity":"original"}')
+    target = tmp_path / "protected" / "identity.json"
+    RuntimeStorageLayout._seed_file(source, target, protected=True)
+    assert target.read_bytes() == source.read_bytes()
+    source.write_bytes(b'{"identity":"changed-after-publication"}')
+    RuntimeStorageLayout._seed_file(source, target, protected=True)
+    assert target.read_bytes() == b'{"identity":"original"}'
+    assert not list(target.parent.glob(".identity.json.*.tmp"))
