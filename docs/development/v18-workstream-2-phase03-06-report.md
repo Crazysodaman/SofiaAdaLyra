@@ -1534,6 +1534,55 @@ independently privileged writer-host shutdown. A published *candidate*
 still has no activation authority. No tests/CI, deletion, migration,
 backup pruning or live host operation performed. Task statuses unchanged.
 
+
+
+### Phase 04 item 50: Android chat and recovery reuse original paired configuration
+
+Audited the complete phone outgoing route:
+`MainViewModel.send` → Android Keystore-encrypted
+`SecureSettings.reserveOutbound` (original message/request ID/privacy mode,
+HTTPS origin and pairing-token fingerprint) → `SofiaApi.chat` →
+authenticated `/v1/mobile/chat` → durable canonical delivery receipt →
+`SecureSettings.confirmOutbound`.
+
+Previously `SofiaApi.chat(message,requestId)` received independent
+unsaved arguments and reloaded the current phone pairing, rather than
+accepting the authenticated, durable `PendingMobileTurn`. The HTTP helper
+also independently reloaded the pairing after `chat` or
+`deliveryStatus` had already inspected it. Configuration changes between
+those calls could silently change the token or privacy audience governing
+a previously queued request/recovery lookup.
+
+`SofiaApi.chat` now accepts the **exact persisted pending turn**, matches
+its credential fingerprint, HTTPS origin and private mode against one
+loaded configuration snapshot before any HTTP operation, and uses its
+original message/request ID/privacy mode for request and receipt proof.
+The shared `post` helper accepts that same configuration snapshot,
+and `deliveryStatus` also uses the snapshot already matched against the
+pending turn. `MainViewModel.send` passes the actual result of
+`reserveOutbound` to the API, not a reconstituted argument pair.
+A changed pairing, origin or mode fails without dispatch; the existing
+encrypted pending record remains unresolved and owner recovery is
+still explicit. The canonical server remains responsible for independently
+validating the bearer at reception.
+
+Production:
+- `mobile/android/app/src/main/java/ai/sofia/mobile/SofiaApi.kt`
+  `3ec6ceb1092c99e3fedfad2785b867faf5641060` (`[skip ci]`).
+- `mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt`
+  `4935db28ff4b86a814dd1997cc51153980a5876e` (`[skip ci]`).
+Deferred Android instrumented source:
+- `mobile/android/app/src/androidTest/java/ai/sofia/mobile/PendingOutboundInstrumentedTest.kt`
+  `1a5268bafd4f70be8dd2a401db580cd8aaacd641` (`[skip ci]`);
+  rotated token, changed privacy audience and changed origin all refuse
+  request dispatch while preserving the original pending turn.
+
+Original CA relevance: CA-4103, CA-4104, CA-5304, CA-6302, CA-6303,
+CA-6311. This is a closed **local client credential-snapshot gap**,
+not proof that all original Phase 04 tasks are production complete.
+No HTTP request, tests, CI, Android build, pairing change or live
+runtime change was made during this coding slice.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
