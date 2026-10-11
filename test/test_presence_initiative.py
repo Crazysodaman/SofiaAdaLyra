@@ -780,3 +780,34 @@ def test_life_quiet_and_busy_never_wake_outreach_model(tmp_path):
         assert unexpected == []
     finally:
         life.close()
+
+
+def test_life_outreach_operator_stop_after_model_choice_is_honored(tmp_path):
+    """A choice made before the user's stop cannot queue a later notice."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+
+    life, _project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+
+        def model_then_owner_stops(request):
+            result = _choose_to_share(request)
+            OperatorStopStore(life.path).set(
+                active=True,
+                updated_by="Sparks",
+                reason="Don't deliver personal updates now.",
+                at=now,
+            )
+            return result
+
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False, generate=model_then_owner_stops,
+        ) == 0
+        assert service.has_pending() is False
+        assert sent == []
+        assert presence.recent_life_project_outreach(now=now) is False
+    finally:
+        life.close()
