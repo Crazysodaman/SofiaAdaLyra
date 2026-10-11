@@ -7,6 +7,7 @@ import sqlite3
 import pytest
 
 from sofia.config.defaults import production_storage_layout
+from sofia.memory.deletion_ledger import MemoryDeletionLedger
 from sofia.ops.backup import (
     BackupCipher,
     BackupEngine,
@@ -60,6 +61,14 @@ def make_state(tmp_path: Path) -> Path:
     )
     layout.personality_path.write_text("{}", encoding="utf-8")
     return state
+
+
+def make_erasure_journal(tmp_path: Path) -> Path:
+    root = tmp_path / "operator-held-erasure"
+    root.mkdir(exist_ok=True)
+    path = root / "memory-deletion.jsonl"
+    MemoryDeletionLedger(path, BackupCipher(b"k" * 32)).initialize()
+    return path
 
 
 @pytest.fixture
@@ -118,6 +127,7 @@ def test_restore_requires_explicit_overwrite_and_recreates_state(
             backup_dir=backup_dir,
             target_state_path=target,
             verifier="test",
+            erasure_journal=make_erasure_journal(tmp_path),
         )
 
     result = engine.restore(
@@ -126,6 +136,7 @@ def test_restore_requires_explicit_overwrite_and_recreates_state(
         verifier="test",
         replace_existing=True,
         now=NOW,
+        erasure_journal=make_erasure_journal(tmp_path),
     )
     assert result.succeeded is True
     with sqlite3.connect(target) as db:
