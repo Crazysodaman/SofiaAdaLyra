@@ -51,6 +51,7 @@ REMOTE_READ_ONLY_OPERATIONS = frozenset({
     ("vm.inspect", "list"),
     ("vm.inspect", "get"),
     ("workshop.inspect", "host"),
+    ("workshop.inspect", "blank_vm"),
     ("workshop.inspect", "media"),
     ("container.inspect", "list"),
     ("container.inspect", "get"),
