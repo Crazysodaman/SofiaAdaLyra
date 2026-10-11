@@ -25,3 +25,13 @@ These are actual production source changes, not new scheduler, model, identity, 
 ## Deferred acceptance commands
 
 Run existing `pkg_life`, `pkg_goals`, `pkg_conversation` and state/recovery suites plus `pytest -q test/test_life_canonical_state_loss.py` at the final exact-SHA verification campaign. Use a Windows host to prove no surviving file handles prevent unlink, and verify disappearance/symlink attempts never create a new canonical DB.
+
+
+## Additional SAFE and Presence boundary inspection
+
+- `b77bac1` blocks implicit SQLite creation in production Presence world-sensor and outreach stores after canonical-state loss.
+- `40f8a10` makes operator stop read/write fail when the canonical file vanishes and refuses a stop write that updated zero rows. `test/test_safe_operator_stop_state_loss.py` (`eac251e`) records missing-state and row-loss regressions.
+- `155c761` makes the SAFE standing-permission owner require a preexisting non-symlink canonical file, rather than letting its constructor silently create permission authority. Subsequent grant reads/writes use `mode=rw`. `test/test_safe_permission_state_loss.py` (`4b69f10`) records loss and explicit seed cases.
+- The existing `AuditChain` and other persistent owners still need a per-connection no-create audit, rather than accepting their current constructor-level checks as exhaustive. The `ConversationStore` first-boot/reopen boundary and `DurableWorkStore` RUN job store likewise require additional targeted source work.
+- Some older test fixtures constructed `PermissionStore` and `OperatorStopStore` using nonexistent state paths, relying on the former implicit bootstrap. Those fixtures must be reconciled with the canonical `SQLiteStatePlane` bootstrap during the deferred test-coding/verification campaign; no passing assertion is claimed.
+- **No host, permission, service, database, or Fleet configuration was changed**, and none of the newly authored tests was executed.
