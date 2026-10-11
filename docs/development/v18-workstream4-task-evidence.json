@@ -93,7 +93,8 @@
     "d6dbcb450f49b1ec43b9d0b63fa639c8975fbeef",
     "a4fe24697b63723d0d26216c881e0d9d72dbf203",
     "72498e5d334cbec4516c3ecfc94abf707b371d3b",
-    "f7c1f90d6bfeabb7273bf078cb703e58b5af278f"
+    "f7c1f90d6bfeabb7273bf078cb703e58b5af278f",
+    "0c21b2106bf1a3257e7d82abfa0008085ac83cb9"
   ],
   "tasks": [
     {
@@ -1796,11 +1797,12 @@
       "phase": "15",
       "master_line": 1143,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Actual production NeuroRuntime observes and bounded-decays project/goal/ops signals between turns, retains eligible project information in secondary attention and overrides foreground on the next user question/correction; Matrix topic history remains separately audience-scoped. W4 added explicit active-project/detour/expiry regression; not executed."
     },
     {
       "id": "CA-707",
