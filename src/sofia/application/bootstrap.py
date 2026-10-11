@@ -473,6 +473,20 @@ class SofiaApplication:
     def neuro_inputs(self) -> NeuroInputCoordinator:
         return self._neuro_inputs
 
+    def latest_companion_decision_trace(self):
+        """Read-only, non-authoritative projection of the latest session turn.
+
+        This view joins only source-identified Matrix facts. A NEURO snapshot
+        without a turn correlation key is labeled separate, not causal proof.
+        No new durable store, LLM call, memory promotion or authority is created.
+        """
+        from sofia.application.decision_trace import project_companion_decision
+
+        return project_companion_decision(
+            matrix_trace=self._conversation_service.latest_matrix_trace(),
+            neuro_snapshot=self._neuro.last_snapshot,
+        )
+
     @property
     def goals(self) -> GoalService:
         return self._goals
