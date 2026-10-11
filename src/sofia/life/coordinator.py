@@ -711,6 +711,25 @@ class SelfDirectedLifeCoordinator:
                 kind, project = SelectionKind.PROJECT, candidate
                 reason = "Selected the highest-priority eligible personal project within current budgets."
                 break
+        # The background worker may observe identical inactivity on every
+        # 300-second tick. Reuse a recent exact idle decision instead of
+        # producing indefinite duplicate durable rows and false activity.
+        # A changed quiet window, busy/pressure context or eligible project
+        # still produces a fresh canonical selection immediately.
+        if kind is SelectionKind.INACTIVITY:
+            previous = self.store.selections(limit=1)
+            if previous:
+                recent = previous[0]
+                if (
+                    recent.kind is SelectionKind.INACTIVITY
+                    and recent.project_id is None
+                    and recent.reason == reason
+                    and recent.busy is busy
+                    and recent.resource_pressure == resource_pressure
+                    and recent.selected_at <= now
+                    and now - recent.selected_at < timedelta(hours=1)
+                ):
+                    return recent
         selection = LifeSelection(
             f"life-selection:{uuid4()}", kind,
             None if project is None else project.project_id, reason,
