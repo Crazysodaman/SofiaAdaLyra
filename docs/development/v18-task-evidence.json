@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "aa112c737933044c1e2a6a48c1f1f3956ec2b526",
+  "reviewed_main_sha": "02d7778e85447cf7c74ec5490d6ac644df3a285e",
   "audit_date_utc": "2026-10-11",
-  "notice": "Workstream 1, CA-1904: Generic mutation preflight and grant-scope hardening committed on main with [skip ci]. Task remains partial. Other workstream evidence/statuses retained. No CI/tests or live host changes.",
+  "notice": "Multi-workstream evidence ledger: WS1 CA-1904 and CA-3004 production coding repairs committed, both remain partial; regression tests authored but unrun. Other task records preserved. No release/live acceptance.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1321,13 +1321,21 @@
         "src/sofia/verify/source_provenance.py",
         "src/sofia/verify/gate.py",
         "src/sofia/verify/package_selection.py",
-        "test/conftest.py"
+        "test/conftest.py",
+        "test/test_verify_installed_wheel_release.py"
       ],
       "evidence_commits": [
         "a9ec36e94c4e55347d607f337e182d15b4120f03",
-        "a7de797b5a4b3c875da2e9de9638d3c4a58f41c0"
+        "a7de797b5a4b3c875da2e9de9638d3c4a58f41c0",
+        "cf004394e031e0009b8eb3556e4f7fc42b52b1e9",
+        "62131e85b7394eaee977e1221891a7a33eda8d96"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "02d7778e85447cf7c74ec5490d6ac644df3a285e",
+        "depth": "release_provenance_source_and_regression",
+        "interpretation": "Live release workflow calls source_provenance which now compares exact archived Python module membership and bytes against the installed package and emits digest. Existing workflow creates two wheels with hashes. No release/CI tests executed or wheel signing evidence captured; overall CA-3004 remains partial."
+      }
     },
     {
       "id": "CA-3005",
