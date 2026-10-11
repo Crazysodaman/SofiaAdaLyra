@@ -18,6 +18,17 @@ _SCHEMA = "sofia.state-home-pointer.v1"
 _DOMAIN = b"sofia-state-home-pointer-v1\0"
 
 
+def _require_unredirected_path(path: Path, *, label: str) -> None:
+    """Reject a trust/state-home path redirected by any ancestor component.
+
+    The signed pointer attests bytes but cannot authorize a symlink or
+    Windows junction through which a different disk/share can be substituted.
+    """
+    for component in (path, *path.parents):
+        if component.is_symlink() or getattr(component, "is_junction", lambda: False)():
+            raise PermissionError(f"{label} includes a symbolic link or junction")
+
+
 @dataclass(frozen=True, slots=True)
 class VerifiedStateHome:
     root: Path
@@ -46,8 +57,8 @@ def read_verified_state_home(
         raise ValueError("exact host identity required")
     if type(minimum_writer_epoch) is not int or minimum_writer_epoch < 1:
         raise ValueError("positive external writer epoch floor required")
-    if pointer_path.is_symlink() or key_path.is_symlink():
-        raise PermissionError("state-home trust files must not be symlinks")
+    _require_unredirected_path(pointer_path, label="state-home pointer")
+    _require_unredirected_path(key_path, label="state-home trust key")
     raw_key = key_path.read_bytes()
     if len(raw_key) != 32:
         raise ValueError("external state-home pointer HMAC key must be 32 bytes")
@@ -85,7 +96,8 @@ def read_verified_state_home(
     root = Path(root_value)
     if not root.is_absolute() or os.fspath(root).startswith(("\\\\", "//")):
         raise ValueError("canonical state root must be an absolute host-local path")
-    if root.is_symlink() or not root.is_dir():
+    _require_unredirected_path(root, label="state-home directory")
+    if not root.is_dir():
         raise ValueError("state home must exist as a real directory")
     resolved_root = root.resolve(strict=True)
     if (
@@ -95,8 +107,12 @@ def read_verified_state_home(
         or resolved_root in pointer_path.resolve(strict=True).parents
     ):
         raise ValueError("trust key and location pointer must live outside the state home")
-    if not (root / "sofia.db").is_file():
+    database = root / "sofia.db"
+    identity = root / "protected" / "identity.json"
+    _require_unredirected_path(database, label="canonical state database")
+    _require_unredirected_path(identity, label="protected identity")
+    if not database.is_file():
         raise FileNotFoundError("verified state home lacks sofia.db")
-    if not (root / "protected" / "identity.json").is_file():
+    if not identity.is_file():
         raise FileNotFoundError("verified state home lacks protected identity")
     return VerifiedStateHome(root, host, epoch, receipt)
