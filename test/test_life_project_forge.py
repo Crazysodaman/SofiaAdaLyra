@@ -69,6 +69,33 @@ def infrastructure(tmp_path, *, authorized=True, share_callback=None):
 
 
 
+
+
+def test_stop_blocks_background_life_idea_before_any_model_wake(tmp_path):
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        evidence = life.record_observation(
+            kind="curiosity", source="test:observed",
+            assertion="One source-backed curiosity about painting.", now=now,
+        )
+        life.revise_interest(
+            name="painting", context="creative", strength=0.8,
+            confidence=0.9, reason="Source-backed creative curiosity.",
+            evidence_refs=(evidence,), now=now,
+        )
+        OperatorStopStore(life.path).set(
+            active=True, updated_by="Sparks", reason="pause personal idea generation",
+        )
+        calls = []
+        assert life.consider_new_project(
+            generate=lambda request: calls.append(request),
+            now=now + timedelta(seconds=1), busy=False, resource_pressure=0.0,
+        ) is None
+        assert calls == []
+    finally:
+        life.close()
+
+
 def test_operator_stop_blocks_life_tick_schedule_and_direct_executor(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
