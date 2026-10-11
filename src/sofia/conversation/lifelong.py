@@ -512,6 +512,27 @@ class LifelongThreadStore:
             return LifelongThread(identifier, owner.principal_id, kind, name,
                                   datetime.fromisoformat(when))
 
+    def thread_for(
+        self, *, owner: PrincipalContext, thread_id: str,
+    ) -> LifelongThread | None:
+        """Resolve one canonical thread header for its authenticated owner.
+
+        This is an ownership lookup only, NOT permission to render private
+        project titles to a different audience. Callers must also check
+        original source-event visibility before exposing its name/content.
+        """
+        if not isinstance(owner, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if not isinstance(thread_id, str) or not 8 <= len(thread_id) <= 128:
+            raise ValueError("bounded thread ID required")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT * FROM lifelong_thread "
+                "WHERE thread_id=? AND owner_principal_id=?",
+                (thread_id, owner.principal_id),
+            ).fetchone()
+        return None if row is None else self._decode(row)
+
     def list_threads(
         self, *, owner: PrincipalContext, limit: int = 30,
     ) -> tuple[LifelongThread, ...]:
