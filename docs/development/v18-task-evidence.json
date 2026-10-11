@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "64ea019c88dbfa55f318611c299a59a2bdc9b735",
+  "reviewed_main_sha": "655079bdb9186a19d726db1c04d4661c366fc326",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2679,7 +2679,9 @@
         "dd2236b22526bb5354952fa3f939df5c2d207bff",
         "2de108e2ed4dc6f0c1730e923e2581c3b0312003",
         "417d603abd40a69d18660dbd810494092ffeed3b",
-        "53b65de323091ff79a5a68d8288ed625334364f8"
+        "53b65de323091ff79a5a68d8288ed625334364f8",
+        "bb3d72f022c4cfdb895489a097605235cbfc537c",
+        "2c54de66e6d6d7efa985eeb57c35eb6045b36921"
       ],
       "accepted": false,
       "coding_update": {
@@ -2895,6 +2897,19 @@
           "production_route": "Human reviewed Hephaestus host network or Debian installer target → local FIDO2 credential selection on UI thread → signed exact one-use WebAuthn approval in existing worker → pinned mTLS Fleet remote inspect/proof → host-specific handler repeats exact SAFE grant matching → guarded host effect with uncertain-outcome receipt and no automatic replay.",
           "fulfilled_slice": "Replaced both remaining Workshop Settings actor-only ExecutionApproval constructions with signed FIDO2 challenges; preserved existing no-retry UNCERTAIN semantics; static production caller regressions authored.",
           "remaining": "End-to-end Hyper-V/Artemis host acceptance, physical owner key, workshop isolation and all deferred tests; signed remote principal migration still open. Never executed host operations."
+        },
+        {
+          "source_review_sha": "64ea019c88dbfa55f318611c299a59a2bdc9b735",
+          "commits": [
+            "bb3d72f022c4cfdb895489a097605235cbfc537c",
+            "2c54de66e6d6d7efa985eeb57c35eb6045b36921"
+          ],
+          "source_paths": [
+            "src/sofia/safe/permissions.py",
+            "test/test_safe_permission_owner_auth.py"
+          ],
+          "fulfilled_slice": "Fixed mutually exclusive execution approval capability filters in signed standing-grant projection; new source regression asserts signed exact-scope standing grant is active and changed scope is denied.",
+          "remaining": "No tests executed. Complete workstream regression/CI and host acceptance remain deferred; CA-1904 remains partial."
         }
       ]
     },
