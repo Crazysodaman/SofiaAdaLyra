@@ -560,6 +560,7 @@ class BackupEngine:
             # fails closed if the journal is missing or scope conflicts.
             try:
                 deletion_ledger.apply_to_sqlite(staged_db)
+                deletion_ledger.verify_applied(staged_db)
             except (MemoryErasureError, sqlite3.DatabaseError) as exc:
                 raise BackupError(
                     "restored state failed authenticated memory-erasure replay"
