@@ -89,6 +89,11 @@ def test_partial_forged_or_trailing_exports_fail_closed(tmp_path, alter):
 
 def test_capped_line_read_refuses_unbounded_content(tmp_path):
     path = tmp_path / "oversized.jsonl"
-    path.write_bytes(_document())
+    path.write_bytes(
+        _document().replace(
+            b"Entirely invented data for export verification",
+            b"x" * 2048,
+        )
+    )
     with pytest.raises(ValueError, match="maximum size"):
         verify_portable_export(path, max_line_bytes=1024)
