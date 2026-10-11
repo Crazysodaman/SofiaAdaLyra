@@ -28,8 +28,49 @@ On the **Artemis Fleet agent service account**, configure the following host-con
 - `SOFIA_WORKSHOP_BOOTSTRAP_VM_ID`: the actual GUID of the owner-created Hephaestus VM.
 - `SOFIA_WORKSHOP_BOOTSTRAP_OS_DISK`: the exact existing Hephaestus VHDX path.
 - `SOFIA_WORKSHOP_BOOTSTRAP_ENABLED=1`: deliberately enables the otherwise unavailable protected host bootstrap operation.
+- `SOFIA_WORKSHOP_MEDIA_OWNER_PUBKEY`: exact path to an independently ACL-pinned **public** Ed25519 key, separate from the offline ISO/media root; required for signed console-admin policy verification.
 
-**Debian unattended-media requirement:** The approved ISO must actually contain a working Debian Installer preseed and UEFI boot configuration that passes `auto=true priority=critical preseed/file=/cdrom/preseed.cfg` (or a separately reviewed equivalent). A standard interactive Debian ISO will only boot the installer menu; it cannot fulfill Sofía's hands-off installation task. The owner must review unattended partitioning because it can erase the exact OS VHDX. Use a verified offline DVD/package source if networking is prohibited. The image may not contain reusable passwords, private keys, host credentials, arbitrary shell prompts or unapproved LAN connectivity. The boot ISO digest must be observed from Artemis each time before the protected boot operation. See Debian 13's official preseed guidance for UEFI/ISO details.
+## Secure console account and owner-signed offline installer media
+
+**Owner-selected first-boot design:**
+
+- Debian 13 **headless**, no LAN or Internet access during installation.
+- `sofia-admin` is the **local console administrator**. Its password is entered at a **local hidden prompt** when building the ISO; no plaintext credential is entered into ChatGPT, Settings, GitHub, commands, shell history or environment variables.
+- Installer records only a salted **SHA-512 crypt** password verifier in the media. Debian root account is **locked**.
+- `sofia-admin` may use `sudo`, but sudo **requires the password**. Any `NOPASSWD` rule aborts the guest-hardening stage.
+- `sofia-worker` is a **separate non-login system account**, with locked password, no sudo membership and private home directory. It is not a secondary administrator.
+- OpenSSH server is **not installed**; ssh/sshd units are masked. Enabling SSH, outbound networking or Fleet enrollment requires a separate later review and approval.
+- The preseed aborts unless Debian Installer finds **exactly one disk**. It partitions the already owner-declared blank VHDX only, using source-verified offline Debian DVD packages. Installer is configured to **halt**, not reboot repeatedly from its still-attached ISO.
+
+**Build media locally (owner-operated, not on Artemis):** Use a **Linux or WSL** machine with `xorriso`, `openssl` and Sofía's declared Python dependencies installed. Create a private Linux-filesystem folder (not a Git checkout or synced folder). The example source filename is a placeholder; independently verify Debian's official signed SHA-256 and obtain matching Debian 13 **amd64 DVD-1**, not a netinst or live image.
+
+```bash
+mkdir -m 700 -p "$HOME/sofia-owner-keys"
+mkdir -m 700 -p "$HOME/sofia-private-iso"
+
+python -m sofia.ops.workshop_media_attestation \
+  --create-owner-key-dir "$HOME/sofia-owner-keys"
+
+python -m sofia.ops.workshop_media \
+  --source-iso "/approved/debian-13.X.Y-amd64-DVD-1.iso" \
+  --source-sha256 "REPLACE_WITH_INDEPENDENTLY_VERIFIED_64_HEX_SHA256" \
+  --output-iso "$HOME/sofia-private-iso/hephaestus-debian13-offline.iso" \
+  --signing-key-file "$HOME/sofia-owner-keys/hephaestus-owner-private.pem"
+```
+
+The builder refuses to run without the verified source hash, required tools and **locally encrypted Ed25519 owner key**. It verifies the Debian UEFI GRUB installer paths, appends an unattended boot entry, embeds the preseed and worker-hardening script, preserves the original ISO's UEFI boot structures and verifies the output's boot descriptor and embedded files. The signed report contains:
+
+- `hephaestus-debian13-offline.iso` with a SHA-256 digest
+- `hephaestus-debian13-offline.iso.manifest.json` signed with your **private** owner key and binding the exact ISO digest, console-admin/SSH/worker policy and source DVD hash
+- `hephaestus-owner-public.pem` for Artemis to **independently pin** (the owner private key stays ONLY in the owner's offline key directory)
+
+Copy the **ISO and its adjacent .manifest.json** into the host-approved offline media root on Artemis. Pin the **public** key separately with host-admin ACLs. Configure `SOFIA_WORKSHOP_MEDIA_OWNER_PUBKEY` to point to that public key. Neither Sofía's model nor a remote caller may replace this key. Artemis **rejects unsigned ISOs, incorrect signatures, changed content and a policy other than `hephaestus-debian13-console-admin-v1`** during both media preflight and protected boot. Hash verification alone is insufficient.
+
+**Security warning:** A salt-and-hash verifier inside an ISO is not plaintext, but someone who obtains the private ISO can attempt an offline password-guessing attack. Use a unique strong password, restrict media access, delete/revoke old copies after verified guest setup and rotate the account password if the ISO leaks. Do not publish media, manifest-with-ISO, credential verifier, or owner private key to GitHub.
+
+**This installer is not a proven guest until the final tests:** A generated boot entry and media signature cannot prove the UEFI installer finishes, creates the approved accounts, configures sudo/SSH correctly or isolates the VM. Complete the physical Hyper-V and guest-side acceptance gates before marking those items production-verified.
+
+**Debian unattended-media requirement:** The approved ISO must actually contain a working Debian Installer preseed and UEFI boot configuration that passes `auto=true priority=critical preseed/file=/cdrom/preseed.cfg` (or a separately reviewed equivalent). A standard interactive Debian ISO will only boot the installer menu; it cannot fulfill Sofía's hands-off installation task. The owner must review unattended partitioning because it can erase the exact OS VHDX. Use a verified offline DVD/package source if networking is prohibited. The image may contain only the locally generated salted administrator password verifier, never plaintext passwords, private signing keys, host credentials, arbitrary shell prompts or unapproved LAN connectivity. The boot ISO digest must be observed from Artemis each time before the protected boot operation. See Debian 13's official preseed guidance for UEFI/ISO details.
 
 A host admin must install and configure the Fleet agent and its pinned mTLS transport separately. **Do not paste passwords, signing keys, API tokens or host administrator credentials into an ISO, settings UI or Git.**
 
@@ -39,7 +80,7 @@ A production deployment should constrain the Artemis service identity to the nec
 
 Use **Tray Settings → Fleet → Hephaestus: owner-created blank VM handoff**.
 
-- Supply exact enrolled Artemis node UUID, existing VM GUID, owner-created VHDX path, unattended ISO path and its independently verified SHA-256. Confirm the exact disk is blank.
+- Supply exact enrolled Artemis node UUID, existing VM GUID, owner-created VHDX path, **owner-signed** unattended ISO path and its independently verified SHA-256. Confirm the exact disk is blank. Artemis must independently attest the signed first-boot policy.
 - Select **Inspect my blank Hephaestus VM (read only)**. It performs only authenticated `workshop.inspect/blank_vm` and offline media SHA-256 inspection and records the result to the canonical state. It cannot create or start a VM.
 - Review the actual blockers and immutable handoff fingerprint.
 - Select **Review & approve one Debian installer boot (protected)** only when ready. That creates a one-use, exact, time-limited SAFE receipt, issues a short exact-node Fleet grant and invokes `workshop.bootstrap/start`. Both must pass.
