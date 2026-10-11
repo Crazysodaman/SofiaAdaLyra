@@ -55,8 +55,22 @@ class SealedArchiveSegmentStore:
         if binary.exists():
             if sha256(binary.read_bytes()).hexdigest() != digest:
                 raise ValueError("existing sealed archive digest mismatch")
-            if not manifest.is_file() or manifest.read_bytes() != manifest_bytes:
+            if manifest.is_file() and manifest.read_bytes() != manifest_bytes:
                 raise ValueError("existing sealed archive manifest mismatch")
+            # Crash after the blob rename but before its manifest must be
+            # repairable from caller-supplied, digest-matching ciphertext.
+            if not manifest.is_file():
+                with tempfile.NamedTemporaryFile(
+                    dir=self.root, prefix=".manifest-", delete=False
+                ) as tmp:
+                    repair_path = Path(tmp.name)
+                    tmp.write(manifest_bytes)
+                    tmp.flush()
+                    os.fsync(tmp.fileno())
+                try:
+                    os.replace(repair_path, manifest)
+                finally:
+                    repair_path.unlink(missing_ok=True)
         else:
             with tempfile.NamedTemporaryFile(dir=self.root, prefix=".staging-", delete=False) as tmp:
                 temp = Path(tmp.name)
