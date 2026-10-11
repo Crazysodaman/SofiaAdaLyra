@@ -8,7 +8,7 @@
 
 Microsoft documents that an Internal switch connects the host to its VMs; it can also underpin a separately configured NAT network. A switch of type Internal by itself is **not isolation evidence**. The host-side inspector must produce matching, fresh evidence of:
 
-- Artemis vEthernet adapter named `vEthernet (Sofia-Hephaestus-Internal)`, with **only 172.30.250.1/30**; no host-side DNS resolver or default gateway.
+- Artemis vEthernet adapter named `vEthernet (Sofia-Hephaestus-Internal)`, with **only 172.30.250.1/30**; no host-side DNS resolver or default gateway. Host vEthernet must use **Public** Windows firewall profile, with the Public firewall **enabled and default inbound blocked**, checked again before installer boot.
 - Host IPv4 **and** IPv6 forwarding disabled; no overlapping WinNAT subnet; **Windows Internet Connection Sharing disabled**.
 - Exactly one guest vNIC and **no sibling VM** on that Internal switch.
 - An actual Debian guest fixed at **172.30.250.2/30**, without gateway/DNS/routes to external networks, once installed. That guest configuration must be independently observed later.
@@ -66,12 +66,12 @@ On the **Artemis Fleet agent service account**, configure the following host-con
 
 **Owner-selected first-boot design:**
 
-- Debian 13 **headless**, no LAN or Internet access during installation.
+- Debian 13 **headless**, no LAN or Internet access during installation; the guest post-install NIC is pinned to **172.30.250.2/30 with no gateway, DNS or DHCP**.
 - `sofia-admin` is the **local console administrator**. Its password is entered at a **local hidden prompt** when building the ISO; no plaintext credential is entered into ChatGPT, Settings, GitHub, commands, shell history or environment variables.
 - Installer records only a salted **SHA-512 crypt** password verifier in the media. Debian root account is **locked**.
 - `sofia-admin` may use `sudo`, but sudo **requires the password**. Any `NOPASSWD` rule aborts the guest-hardening stage.
 - `sofia-worker` is a **separate non-login system account**, with locked password, no sudo membership and private home directory. It is not a secondary administrator.
-- OpenSSH server is **not installed**; ssh/sshd units are masked. Enabling SSH, outbound networking or Fleet enrollment requires a separate later review and approval.
+- OpenSSH server is **not installed**; ssh/sshd units are masked. A signed offline **nftables** policy defaults guest **input, output and forwarding to DROP**, permitting loopback, established replies and only host **172.30.250.1 → guest 172.30.250.2 TCP 7443** for a future independently authenticated agent. Guest IPv4/IPv6 forwarding is disabled. Enabling SSH, wider outbound networking or Fleet enrollment requires a separate later review and approval.
 - The preseed aborts unless Debian Installer finds **exactly one disk**. It partitions the already owner-declared blank VHDX only, using source-verified offline Debian DVD packages. Installer is configured to **halt**, not reboot repeatedly from its still-attached ISO.
 
 **Build media locally (owner-operated, not on Artemis):** Use a **Linux or WSL** machine with `xorriso`, `openssl` and Sofía's declared Python dependencies installed. Create a private Linux-filesystem folder (not a Git checkout or synced folder). The example source filename is a placeholder; independently verify Debian's official signed SHA-256 and obtain matching Debian 13 **amd64 DVD-1**, not a netinst or live image.
