@@ -154,3 +154,14 @@ def guest_network_contract()->dict:
         "guest_os_installed":False,
         "may_modify_host_network":False,
     }
+
+
+def network_policy_digest()->str:
+    """Exact owner-reviewed Internal link contract for one-use SAFE approval."""
+    import json
+    from hashlib import sha256
+    content=json.dumps(
+        guest_network_contract(),sort_keys=True,separators=(",",":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return sha256(content).hexdigest()
