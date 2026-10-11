@@ -469,3 +469,68 @@ def test_malformed_original_run_timestamp_is_not_ingested(tmp_path):
         assert receipts[0].run_at <= receipts[0].observed_at
     finally:
         life.close()
+
+
+
+def test_old_uncertain_run_blocks_motivation_and_dependency_review(tmp_path):
+    """New queued work cannot hide an earlier uncertain original RUN event."""
+    import sqlite3
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, first = _queued_job(life, now)
+        life.work_store.transition(
+            first.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.UNCERTAIN,
+            reason="older original result is unconfirmed",
+            now=now + timedelta(seconds=4),
+        )
+        later = life.manager.submit(
+            kind="life-create-artifact",
+            fingerprint="life-newest-queued-hides-old-uncertain-test",
+            payload={
+                "project_id": project.project_id,
+                "goal_id": project.goal_id,
+                "project_revision": project.revision,
+                "goal_revision": 1,
+                "capability_name": "creative.artifact.create",
+                "parameters": {"request_id": "request:second-unexecuted"},
+                "requested_scope": project.project_id,
+                "rationale": "source fixture only, no execution",
+            },
+            priority=1, resource_cost=1, risk="isolated_change",
+            completion_condition="Must not execute during source audit",
+            now=now + timedelta(seconds=5),
+            deadline=now + timedelta(minutes=1),
+        )
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "INSERT INTO life_project_job VALUES(?,?,?)",
+                (
+                    project.project_id, later.job_id,
+                    (now + timedelta(seconds=5)).isoformat(),
+                ),
+            )
+        signal = next(
+            signal for signal in life.motivation_signals(
+                now=now + timedelta(seconds=6),
+                busy=False, resource_pressure=0,
+            ) if signal.project_id == project.project_id
+        )
+        assert signal.eligible is False
+        assert "prior_run_needs_settlement" in signal.reason
+        assert signal.uncertainty == 1.0
+        view = next(
+            row for row in life.goal_dependency_view(
+                now=now + timedelta(seconds=6),
+            ) if row["project_id"] == project.project_id
+        )
+        assert view["latest_run_job_id"] == later.job_id
+        assert view["next_action_source_job_id"] == first.job_id
+        assert view["next_action_candidate"] == "ask"
+        assert "run_effect_uncertain" in view["blockers"]
+        assert set(view["unsettled_job_ids"]) == {first.job_id, later.job_id}
+        assert view["eligible_for_new_work"] is False
+        assert life.work_store.get(later.job_id).status is WorkStatus.QUEUED
+    finally:
+        life.close()
