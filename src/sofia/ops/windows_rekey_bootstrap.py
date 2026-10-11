@@ -149,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--stage-dir", required=True)
     parser.add_argument("--remote-stage-path", required=True)
     parser.add_argument("--endpoint-host", required=True)
+    parser.add_argument("--controller-ip", required=True)
+    parser.add_argument("--dependency-lock", required=True)
     parser.add_argument("--server-dns", action="append", default=[])
     parser.add_argument("--server-ip", action="append", default=[])
     parser.add_argument("--listen-port", type=int, default=9999)
@@ -211,6 +213,8 @@ def main(argv: list[str] | None = None) -> int:
             remote_stage_path=args.remote_stage_path,
             node_id=node_id,
             listen_port=args.listen_port,
+            controller_ip=args.controller_ip,
+            dependency_lock_path=Path(args.dependency_lock),
         )
         FleetBootstrapExecutor().execute(plan, installer)
 
