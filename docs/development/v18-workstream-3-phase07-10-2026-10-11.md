@@ -273,3 +273,10 @@ Source changes are unexecuted and therefore not production-accepted. Production-
 - `52d1cbd9`: Two unexecuted regression cases verify that a LIFE pause and an independently cancelled SELF goal prevent a queued artifact and preserve the blocked RUN record/operator review visibility.
 
 This addresses a narrow authority-race path, **not** full atomic GOALS/LIFE two-phase settlement or all cancellation races: a canonical GOALS change between the worker check and the independently governed capability effect still needs future concurrency and host tests. No tests, CI, deployment, host or Gaia operations were performed.
+
+## Original GOALS-to-LIFE lifecycle settlement checkpoint
+
+- `c966a85b`: The recurring, application-owned `SelfDirectedLifeCoordinator.tick` now reconciles **already changed canonical scoped SELF goals** with personal LIFE state, using the existing `GoalService.list_visible`, `LifeStore` statuses and `_transition` event CAS. A private goal PAUSED or externally COMPLETED/SUPERSEDED suspends optional LIFE activity; terminal CANCELLED/EXPIRED/REJECTED may end optional work as ABANDONED only after linked RUN jobs are no longer queued/running/waiting/uncertain. If effects may still be running or unknown, the project is paused for operator review instead of claiming safe abandonment. This worker does not reauthorize GOALS, replay effects, or convert GOALS COMPLETED to LIFE project success.
+- `2d04ce70`: Unexecuted source regressions cover an already cancelled goal with queued RUN work (first PAUSED, then after source-blocked RUN becomes ABANDONED, idempotently) and a GOALS PAUSED decision preventing new LIFE activity without changing the original goal lifecycle.
+
+**Boundaries:** no claim that missing/unreadable goals do not exist, no automatic changes for USER/OPERATIONAL/COLLABORATIVE work, no host cutover or robot operation, no test execution. Cross-store interruption between LIFE/GOALS/SAFE/RUN updates still requires bounded recovery tests and source authority checks. Original CA-106, CA-113, CA-2402 remain open pending full task-level audit and deferred verification.
