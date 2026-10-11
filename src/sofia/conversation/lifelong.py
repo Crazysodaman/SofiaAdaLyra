@@ -1333,11 +1333,15 @@ class LifelongThreadStore:
             raise ValueError("bounded event limit required")
         with closing(self._connect()) as db:
             row = db.execute(
-                "SELECT owner_principal_id FROM lifelong_thread WHERE thread_id=?",
+                "SELECT * FROM lifelong_thread WHERE thread_id=?",
                 (thread_id,),
             ).fetchone()
             if row is None or row["owner_principal_id"] != principal.principal_id:
                 raise PermissionError("thread not accessible to caller")
+            if row["kind"] == "project" and not self._project_scope_allowed(
+                db, row=row, principal=principal,
+            ):
+                return ()
             # Re-validate the current source session binding on every read.
             # An index entry is not a grant: a deleted source, changed binding,
             # different audience kind or another principal must not surface.
@@ -1385,11 +1389,15 @@ class LifelongThreadStore:
             raise ValueError("bounded source message limit required")
         with closing(self._connect()) as db:
             thread = db.execute(
-                "SELECT owner_principal_id FROM lifelong_thread WHERE thread_id=?",
+                "SELECT * FROM lifelong_thread WHERE thread_id=?",
                 (thread_id,),
             ).fetchone()
             if thread is None or thread["owner_principal_id"] != principal.principal_id:
                 raise PermissionError("thread not accessible to authenticated principal")
+            if thread["kind"] == "project" and not self._project_scope_allowed(
+                db, row=thread, principal=principal,
+            ):
+                return ()
             rows = db.execute(
                 "SELECT m.id,m.session_id,m.role,m.content,m.created_at "
                 "FROM lifelong_thread_event AS e "
@@ -1479,11 +1487,15 @@ class LifelongThreadStore:
         args.append(limit)
         with closing(self._connect()) as db:
             owner = db.execute(
-                "SELECT owner_principal_id FROM lifelong_thread "
-                "WHERE thread_id=?", (thread_id,),
+                "SELECT * FROM lifelong_thread WHERE thread_id=?",
+                (thread_id,),
             ).fetchone()
             if owner is None or owner["owner_principal_id"] != principal.principal_id:
                 raise PermissionError("lifelong thread is not owned by this principal")
+            if owner["kind"] == "project" and not self._project_scope_allowed(
+                db, row=owner, principal=principal,
+            ):
+                raise PermissionError("project original audience is unavailable")
             rows = db.execute(
                 "SELECT e.source_message_id,e.source_audience_id,e.linked_at,"
                 "e.canonical_sequence,e.turn_position,"
