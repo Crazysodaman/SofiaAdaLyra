@@ -24,6 +24,17 @@
 | 15 NEURO | Existing prototype circuit motifs reused, read-only provenance/ablation inventory | Real experimental ablations, measurable outcome comparisons and resource budgets |
 | 16 Research | Falsifiable preregistration checks without claims of achieved consciousness | Actual research protocol, independently reviewed results; subjective experience not guaranteed |
 
+## Follow-up coding slice: 2026-10-10 evening, no tests
+
+- **P02 SAFE:** Settings audits the complete statically grantable catalog, configured standing capabilities and orphaned grants rather than only already-configured standing names. Runtime execution acceptance remains open.
+- **P03 recovery:** Existing `BackupEngine` and `stage_verified_state_home` were reused. Staging now rejects persistent root files omitted from the authenticated backup manifest. `prepare_pending_state_pointer` writes only an operator-reviewable HMAC-authenticated `*.pending.json` outside the new home. It **never publishes an active pointer, restarts service, alters the old writer or performs a production cutover**. Verified external fencing and restore proof remain mandatory.
+- **P04 offline:** `OfflineDraftJournal` now binds a pending draft read to principal as well as device/audience and requires a verified canonical-host acknowledgement matching the original encrypted draft before marking it exported. It is not a second transcript database.
+- **P05 Main:** `LifelongThreadStore` rechecks original session principal/audience kind on reads; supplies bounded original-message and thread listings. `SofiaApplication` now exposes authenticated thread/message facade methods. Existing Cognition v2 focus store retains durable topic bookmarks, no second topic manager. No unreviewed cross-channel disclosure.
+- **P06 memory:** conversation recall scans all matching source messages with SQL-side ranking/limit, instead of dropping everything outside the newest 256. Optional FTS5 in canonical SQLite uses an explicitly authorized, fenced **offline** rebuild, source-table triggers and current-session queries; normal conversation uses it if ready and falls back to original SQL when unavailable.
+- **P09 LIFE:** technical validity and goal completion recheck every original objective against actual current artifact bytes and the independent closed objective validator. Model-supplied booleans alone cannot complete a project; subjective original objectives remain unverified pending review.
+- **Removal audit:** `ConversationStore.list_messages` and other legacy paths still have callers (including original-archive and acceptance adapters). No source files were deleted on search-only evidence.
+- **No tests or CI jobs run.** No live host/VM, canonical DB, grant or model transition was performed. `[skip ci]` used for commits. This audit describes coded changes, not acceptance.
+
 ## Source safety requirements
 
 1. **No test execution**: Every new code path remains untested. Old failed `pkg_verify`, `pkg_body` and Release Candidate statuses are not resolved by source edits alone.
