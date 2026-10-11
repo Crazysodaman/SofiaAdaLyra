@@ -15,6 +15,8 @@ def test_four_way_experiment_uses_same_eligible_memory_population():
     assert all(row["trials"]==2 for row in conditions)
     assert all(row["forbidden_memory_count"]==0 for row in conditions)
     assert all(row["topic_switch_errors"]==0 for row in conditions)
+    assert all(row["noise_focus_errors"]==0 for row in conditions)
+    assert all(row["p50_cpu_ms"]>=0 for row in conditions)
     assert all(row["observed_model_calls"]==0 for row in conditions)
     assert conditions[0]["precision_at_one"] <= conditions[2]["precision_at_one"]
     assert conditions[1]["precision_at_one"] <= conditions[3]["precision_at_one"]
