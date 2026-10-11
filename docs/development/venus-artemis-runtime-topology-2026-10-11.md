@@ -16,6 +16,14 @@
 
 The runtime and the language-model inference engine are separate. Artemis does **not** need a GPU for the canonical runtime/database. Venus's RTX-class GPU can serve approved models over the existing Fleet remote inference transport; **do not expose an unauthenticated Ollama API/11434 to the LAN or Internet**. The existing `ConfiguredRemoteInferenceClient` and `DurableRemoteInferenceControl` require enrolled identity, pinned mutual TLS, a fresh advertised `llm.inference` capability and exact grant. Model-management rights stay separately scoped; `auto_provision_models=false` is the safe migration default.
 
+## Operator-reported provisioning status (2026-10-11)
+
+- **REPORTED BY OWNER:** The Hyper-V VM named `Sofia` has been created on Artemis. **Debian is not installed in that VM.** This statement is operator-supplied, not independently observed VM identity, disk, firmware, network or guest operating-system proof.
+- **NOT YET VERIFIED:** Actual VM GUID, Generation 2 firmware, CPU/RAM, attached VHDX/storage filesystem, selected virtual switch, ISO integrity, guest hostname/OS, Fleet enrollment, mTLS connection, protected credentials, running application, trusted backup or any state migration.
+- **CURRENT WRITER:** Venus still owns the active canonical runtime and `sofia.db`; an empty VM on Artemis has **no production writer authority**. Installing Debian by itself will not change this. The separate research/test VM remains isolated.
+- **READ-ONLY PRODUCTION INSPECTION:** `HyperVAdapter.sofia_guest_inventory()` is callable through the existing Level-1 `hyperv.sofia.inspect` local integration or the existing pinned-Fleet `vm.inspect / sofia_preflight` operation. It observes exact VM `Sofia` host metadata and reports blockers for missing disks/unknown networking while always leaving guest OS readiness, writer activity and activation **unverified/unauthorized**. This method does not start VMs, attach ISOs, install Debian, grant credentials or switch state ownership. Its availability does not mean a live inspection has been performed.
+- **NEXT HUMAN-SUPERVISED INSTALL MILESTONE:** After reviewing guest hardware/network and Debian 13 install-media authenticity, the owner or independently approved host operator installs Debian 13 minimal headless. Only then can guest OS identity, non-root service setup and signed pointer preflight be tested against that guest. Production DB restore and sole-writer activation are a later, separately approved operation.
+
 ## Dedicated production VM versus experiment VM
 
 - **`Sofia` is the reserved canonical runtime VM name on Artemis.** This VM is a single protected production authority, not a scratch guest. It must have its own guest identity, OS-managed credential store, local state disk, service account and authenticated application endpoint. Hyper-V host is a separate privilege boundary; the guest must not inherit unrestricted host admin power.
