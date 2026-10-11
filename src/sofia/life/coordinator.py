@@ -3294,28 +3294,34 @@ class SelfDirectedLifeCoordinator:
             job_ids = self.store.jobs(project.project_id)
             if not job_ids:
                 continue
-            job = self.work_store.get(job_ids[-1])
-            if job.status not in {
-                WorkStatus.FAILED, WorkStatus.CANCELLED,
-                WorkStatus.UNCERTAIN, WorkStatus.BLOCKED,
-            }:
-                continue
-            # The derived LIFE observation is source-linked to a RUN
-            # event. Neither an unlinked job nor a fabricated result dict
-            # can cause an autonomous project status transition.
-            source = self.store.exact_original_run_outcome(
-                project_id=project.project_id,
-                job_id=job.job_id, status=job.status.value,
-            )
-            if (
-                source is None
-                or source.run_at > now or source.observed_at > now
-            ):
-                continue
-            # Recheck before applying policy, in case RUN settled between
-            # the projection and this transition. This is still a separate
-            # source observation, not authorization for another effect.
-            if self.work_store.get(job.job_id).status is not job.status:
+            # Inspect every original linked RUN job. A more recent queued or
+            # completed job does not erase an earlier uncertain, failed or
+            # blocked effect. Source reconciliation remains idempotent:
+            # the project transitions out of ACTIVE after the first genuine
+            # unsafe original receipt; no work is started or retried here.
+            job = None
+            source = None
+            for job_id in job_ids:
+                candidate = self.work_store.get(job_id)
+                if candidate.status not in {
+                    WorkStatus.FAILED, WorkStatus.CANCELLED,
+                    WorkStatus.UNCERTAIN, WorkStatus.BLOCKED,
+                }:
+                    continue
+                receipt = self.store.exact_original_run_outcome(
+                    project_id=project.project_id,
+                    job_id=candidate.job_id, status=candidate.status.value,
+                )
+                if (
+                    receipt is None
+                    or receipt.run_at > now or receipt.observed_at > now
+                    or self.work_store.get(candidate.job_id).status
+                       is not candidate.status
+                ):
+                    continue
+                job, source = candidate, receipt
+                break
+            if job is None or source is None:
                 continue
             status = job.status
             explanation = (
