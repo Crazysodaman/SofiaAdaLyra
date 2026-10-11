@@ -2086,3 +2086,96 @@ def test_private_life_portfolio_marks_missing_revision_unverified(tmp_path):
         assert row["linked_artifact_count"] == 1
     finally:
         life.close()
+
+
+def test_multi_interest_life_project_keeps_selected_evidence_scope(tmp_path):
+    """Autonomous projects cannot inherit the wrong highest-sorted interest."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first_evidence = life.record_observation(
+            kind="interest", source="test:independent",
+            assertion="An actual distinct music curiosity was recorded.", now=now,
+        )
+        second_evidence = life.record_observation(
+            kind="interest", source="test:independent",
+            assertion="An actual distinct field-guide curiosity was recorded.", now=now,
+        )
+        first = life.revise_interest(
+            name="music-hobby", context="creative", strength=0.92,
+            confidence=0.90, reason="Recorded music curiosity.",
+            evidence_refs=(first_evidence,), now=now,
+        )
+        second = life.revise_interest(
+            name="fictional-field-guides", context="creative", strength=0.79,
+            confidence=0.86, reason="Recorded independent writing curiosity.",
+            evidence_refs=(second_evidence,), now=now,
+        )
+        def generate(_request):
+            return CognitiveResponse(json.dumps({
+                "name": "An Atlas of Violet Valleys",
+                "description": "Create original fictional writing from the atlas interest.",
+                "objectives": ["text_contains:violet valley"],
+                "optional_success_criteria": [],
+                "artifact_kind": "text",
+                "confidence": 0.8, "curiosity": 0.9,
+                "pursue": True, "reason": "The atlas interest is eligible.",
+                "originating_interest_id": second.interest_id,
+            }))
+        project = life.consider_new_project(
+            generate=generate, now=now + timedelta(seconds=1),
+            busy=False, resource_pressure=0.1,
+        )
+        assert project is not None
+        assert project.originating_interest == second.interest_id
+        assert project.originating_interest != first.interest_id
+        events = life.store.events(
+            project.project_id, owner_principal_id="sofia:self",
+            audience_id=project.audience_id,
+        )
+        assert events[0].evidence_refs == (second_evidence,)
+        assert first_evidence not in events[0].evidence_refs
+    finally:
+        life.close()
+
+
+def test_multi_interest_life_ideation_rejects_missing_or_forged_origin(tmp_path):
+    """No fallback to arbitrary first interest when the selected origin is unknown."""
+    from sofia.life.idea_agent import ProjectIdeaAgent, ProjectIdeaGenerationError
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        eligible = []
+        for ordinal in range(2):
+            evidence = life.record_observation(
+                kind="curiosity", source="test:original",
+                assertion=f"Grounded independent activity {ordinal}.", now=now,
+            )
+            eligible.append(life.revise_interest(
+                name=f"interest-{ordinal}", context="creative",
+                strength=0.8, confidence=0.9, reason="Grounded observation.",
+                evidence_refs=(evidence,), now=now,
+            ))
+        for forged_origin in (None, "interest:outside-approved-scope"):
+            def generate(_request):
+                proposal = {
+                    "name": "Ambiguous Creative Idea",
+                    "description": "A bounded test proposal without valid source identity.",
+                    "objectives": ["text_contains:somewhere"],
+                    "optional_success_criteria": [],
+                    "artifact_kind": "text", "confidence": 0.9,
+                    "curiosity": 0.9, "pursue": True,
+                    "reason": "Claims provenance without real eligibility.",
+                }
+                if forged_origin is not None:
+                    proposal["originating_interest_id"] = forged_origin
+                return CognitiveResponse(json.dumps(proposal))
+            with pytest.raises(ProjectIdeaGenerationError, match="original interest"):
+                ProjectIdeaAgent(generate).suggest(
+                    interests=tuple(eligible), experience_summaries=(),
+                    now=now,
+                )
+        assert life.store.list_scope(
+            owner_principal_id="sofia:self", audience_id="local:text",
+        ) == ()
+    finally:
+        life.close()
