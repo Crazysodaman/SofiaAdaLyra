@@ -596,3 +596,38 @@ def test_mtls_discovery_fails_closed_on_malformed_http_response(monkeypatch):
         discovery_module, "HTTPSConnection", MalformedResponseConnection,
     )
     assert source.discover() == ()
+
+
+@pytest.mark.parametrize("source_kind", ["bare_presence", "pinned_mtls"])
+@pytest.mark.parametrize("cidr", ["0.0.0.0/0", "::/0"])
+def test_scoped_discovery_rejects_huge_cidr_without_enumerating(
+    monkeypatch, source_kind, cidr,
+):
+    """Host count bounds must fire before materializing a huge address range."""
+    class EnormousNetwork:
+        num_addresses = 2 ** 32
+
+        def hosts(self):
+            pytest.fail("Unbounded CIDR hosts must never be enumerated")
+
+    monkeypatch.setattr(
+        discovery_module.ipaddress,
+        "ip_network",
+        lambda value, strict: EnormousNetwork(),
+    )
+    if source_kind == "bare_presence":
+        source = ScopedHostPresenceDiscoverySource(
+            scopes=(cidr,), max_hosts_per_scope=256,
+        )
+    else:
+        source = ScopedMtlsAgentDiscoverySource(
+            explicit_targets=(),
+            scopes=(cidr,),
+            ca_file="ca.pem",
+            client_certificate="client.pem",
+            client_private_key="client.key",
+            max_hosts_per_scope=256,
+        )
+
+    with pytest.raises(ValueError, match="exceeds max_hosts_per_scope"):
+        source._scope_addresses()
