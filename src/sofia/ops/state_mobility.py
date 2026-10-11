@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import sqlite3
+import stat
 import sys
 from contextlib import closing
 
@@ -145,10 +146,24 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
     warnings: list[str] = []
     if source.name != "sofia.db":
         blockers.append("unexpected_canonical_db_filename")
-    if not source.is_file():
-        blockers.append("canonical_state_database_missing")
-    if _unsafe_ancestor(source) or _unsafe_ancestor(dest):
+    redirected_source = _unsafe_ancestor(source)
+    if redirected_source or _unsafe_ancestor(dest):
         blockers.append("symlinked_or_reparse_state_destination_path")
+    # A removable canonical home can vanish or become unreadable during the
+    # Settings read-only preview. Describe it as unavailable, rather than
+    # letting a second stat crash the inspection or implicitly bootstrap.
+    source_regular = False
+    source_bytes = 0
+    if not redirected_source:
+        try:
+            source_metadata = source.stat()
+            source_regular = stat.S_ISREG(source_metadata.st_mode)
+            if source_regular:
+                source_bytes = source_metadata.st_size
+        except OSError:
+            pass
+    if not source_regular:
+        blockers.append("canonical_state_database_missing")
     for path, label in ((source, "canonical_source"), (dest, "destination")):
         filesystem = _filesystem_kind(path)
         if filesystem != "local":
@@ -201,7 +216,7 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
         "existing_backup_engine_must_verify_staged_bundle_before_approved_cutover",
         "never_copy_live_sqlite_wal_files_with_plain_file_copy",
     ]
-    db_size = source.stat().st_size if source.is_file() else 0
+    db_size = source_bytes
     free: int | None = None
     try:
         available = dest if dest.exists() else next(
@@ -213,7 +228,7 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
     except OSError:
         blockers.append("destination_space_unverifiable")
     return RelocationPreflight(
-        source, dest, source.is_file(), db_size, free,
+        source, dest, source_regular, db_size, free,
         manifest, tuple(dict.fromkeys(blockers)), tuple(warnings),
     )
 
