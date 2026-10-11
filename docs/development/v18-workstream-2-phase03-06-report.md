@@ -2964,6 +2964,49 @@ No test/CI execution, real host fencing,
 backup restore, state-home mutation,
 database relocation or service activation.
 
+
+
+### Phase 03 item 83: Pending pointer requires unchanged staged paths and current privileged handoff
+
+The operator-only `prepare_pending_state_pointer`
+already produced a signed `*.pending.json` outside
+the state home and refused a redirected **output**
+path, but checked the candidate SQLite database
+and protected identity with `is_file()`, which
+follows symlinks. It also checked the independent
+cutover witness only at the start; external
+approval could have been withdrawn during
+filesystem verification or signing preparations.
+
+Production `src/sofia/ops/state_promotion.py`
+now rejects symlink/junction redirection in the
+**original spelling** of the staged canonical
+database, protected identity and their ancestry
+before signing. Immediately before `O_EXCL`
+pending-file creation, it rechecks the
+independently privileged handoff approval and
+those trust paths. An expired approval fails
+closed with no new pending artifact. A healthy
+approval still creates a signed, **nonactive**
+file and never changes the current bootstrap
+pointer or grants the new host writer authority.
+
+- Production `4b583eee6b45fca6c083a4e26fadd96b0afc0ed1`
+  (`[skip ci]`).
+- Deferred synthetic approval-revocation and
+  redirected-canonical-database/identity regression
+  `test/test_ws2_pending_pointer_handoff_recheck.py`,
+  `d006827a13da5139872a5beb7511bf451afe4398`
+  (`[skip ci]`).
+
+Original CA relevance: CA-5202, CA-5204, CA-6101,
+CA-6105, CA-6311, CA-6807.
+This does not prove a cross-host atomic lease,
+an active pointer transition, Windows directory-entry
+crash durability or a hardware-backed remote witness.
+No tests/CI, live VM, host control, restore or cutover
+has been performed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
