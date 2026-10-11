@@ -140,6 +140,10 @@ class RemoteFleetToolService:
             )
         now=datetime.now(timezone.utc)
         timeout_seconds=10.0
+        if capability=="workshop.inspect" and operation=="media":
+            # Hashing a large approved local image may take multiple seconds.
+            # This remains a bounded read-only operation; no VM is created.
+            timeout_seconds=120.0
         if capability=="llm.manage":
             timeout_seconds={
                 "pull":7200.0,
