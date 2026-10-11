@@ -6,8 +6,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from sofia.ops import backup_cli
-from sofia.ops.backup import BackupCipher, BackupEngine
+from sofia.ops.backup import BackupCipher, BackupEngine, BackupError, rotate_backups
 from sofia.ops.backup_topology import BackupTopologyPolicy
 from test.test_ops_backup_restore import make_state
 
@@ -119,3 +121,70 @@ def test_manual_rotation_defaults_to_two_without_touching_other_files(
     assert not by_name[0].exists()
     assert all(x.exists() for x in by_name[1:])
     assert journal.read_text(encoding="utf-8") == "not a snapshot"
+
+
+def test_automatic_rotation_rejects_corrupt_old_copy_without_deleting_anything(
+    tmp_path,
+):
+    state = make_state(tmp_path)
+    engine = BackupEngine(BackupCipher(b"k" * 32))
+    root = tmp_path / "encrypted"
+    copies = tuple(engine.create(
+        state_path=state, destination_root=root, source_host_id="venus",
+        failure_domain="offline-fixture", now=NOW + timedelta(days=i),
+    )[0] for i in range(3))
+    first_payload = next((copies[0] / "payload").iterdir())
+    first_payload.write_bytes(b"corrupt-old-generation")
+    with pytest.raises(BackupError):
+        rotate_backups(
+            root, keep=2, verifier=engine.verify,
+            expected_source_host_id="venus",
+            expected_failure_domain="offline-fixture",
+        )
+    assert all(copy.is_dir() for copy in copies)
+    assert engine.verify(copies[2]).source_host_id == "venus"
+
+
+def test_automatic_rotation_refuses_foreign_backup_source_without_deletion(
+    tmp_path,
+):
+    state = make_state(tmp_path)
+    engine = BackupEngine(BackupCipher(b"k" * 32))
+    root = tmp_path / "encrypted"
+    first, _ = engine.create(
+        state_path=state, destination_root=root, source_host_id="other-host",
+        failure_domain="offline-fixture", now=NOW,
+    )
+    second, _ = engine.create(
+        state_path=state, destination_root=root, source_host_id="venus",
+        failure_domain="offline-fixture", now=NOW + timedelta(days=1),
+    )
+    third, _ = engine.create(
+        state_path=state, destination_root=root, source_host_id="venus",
+        failure_domain="offline-fixture", now=NOW + timedelta(days=2),
+    )
+    with pytest.raises(BackupError, match="different source owner"):
+        rotate_backups(
+            root, keep=2, verifier=engine.verify,
+            expected_source_host_id="venus",
+            expected_failure_domain="offline-fixture",
+        )
+    assert all(path.is_dir() for path in (first, second, third))
+
+
+def test_authenticated_rotation_prunes_only_after_every_copy_verifies(tmp_path):
+    state = make_state(tmp_path)
+    engine = BackupEngine(BackupCipher(b"k" * 32))
+    root = tmp_path / "encrypted"
+    copies = tuple(engine.create(
+        state_path=state, destination_root=root, source_host_id="venus",
+        failure_domain="offline-fixture", now=NOW + timedelta(days=i),
+    )[0] for i in range(3))
+    removed = rotate_backups(
+        root, keep=2, verifier=engine.verify,
+        expected_source_host_id="venus",
+        expected_failure_domain="offline-fixture",
+    )
+    assert removed == (copies[0],)
+    assert not copies[0].exists()
+    assert all(engine.verify(copy).source_host_id == "venus" for copy in copies[1:])
