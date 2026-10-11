@@ -110,3 +110,21 @@ def test_release_provenance_refuses_missing_or_extra_wheel_modules(tmp_path):
     (staged / "required.py").write_text("pass\\n", encoding="utf-8")
     with pytest.raises(ValueError, match="membership differs"):
         source_provenance._prove_installed_python_matches_archive(archive, installed)
+
+
+def test_release_gate_tests_the_exact_candidate_wheel_not_a_separate_source_install():
+    """The SHA-matched publishable wheel must be installed before provenance and tests."""
+    root = Path(__file__).resolve().parents[1]
+    pipeline = (root / ".github/workflows/release-candidate.yml").read_text(
+        encoding="utf-8",
+    )
+    build = pipeline.index("- name: Build wheel twice and require reproducibility")
+    install = pipeline.index("- name: Install exactly the reproducibly built candidate wheel")
+    provenance = pipeline.index("- name: Assert exact source and installed package provenance")
+    verification = pipeline.index("- name: Run revision-bound verification gate")
+    release = pipeline.index("- name: Construct and verify release evidence")
+    assert build < install < provenance < verification < release
+    assert '"RELEASE_WHEEL_SHA256=$HashA"' in pipeline
+    assert '$actualHash -ne $env:RELEASE_WHEEL_SHA256' in pipeline
+    assert 'pip install --no-index --no-deps --force-reinstall "$wheelPath"' in pipeline
+    assert 'pip install --no-deps "$env:SOFIA_RELEASE_SOURCE"' not in pipeline

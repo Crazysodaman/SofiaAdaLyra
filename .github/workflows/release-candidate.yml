@@ -61,23 +61,6 @@ jobs:
           # Keep the interpreter-bundled pip; do not fetch an unpinned toolchain.
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock.windows-py312.txt
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt
-          .\.releasevenv\Scripts\python.exe -m pip install --no-deps "$env:SOFIA_RELEASE_SOURCE"
-
-      - name: Assert exact source and installed package provenance
-        shell: pwsh
-        run: |
-          .\.releasevenv\Scripts\python.exe -m sofia.verify.source_provenance `
-            --checkout "$env:GITHUB_WORKSPACE" `
-            --archive "$env:SOFIA_RELEASE_SOURCE" `
-            --venv ".releasevenv" `
-            --evidence "source-provenance.json"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Run revision-bound verification gate
-        shell: pwsh
-        run: |
-          .\.releasevenv\Scripts\python.exe -m sofia.verify.gate --phase full --installed-wheel-only --repo "$env:GITHUB_WORKSPACE" --evidence-path verification-evidence.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build wheel twice and require reproducibility
         shell: pwsh
@@ -96,6 +79,33 @@ jobs:
           if ($HashA -ne $HashB) { throw "release wheel is not reproducible" }
           Copy-Item $WheelA.FullName $WheelA.Name
           "RELEASE_WHEEL=$($WheelA.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_WHEEL_SHA256=$HashA" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install exactly the reproducibly built candidate wheel
+        shell: pwsh
+        run: |
+          $wheelPath = Join-Path $env:GITHUB_WORKSPACE $env:RELEASE_WHEEL
+          if (-not (Test-Path -LiteralPath $wheelPath -PathType Leaf)) { throw "candidate wheel is missing" }
+          $actualHash = (Get-FileHash -LiteralPath $wheelPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:RELEASE_WHEEL_SHA256) { throw "candidate wheel changed after reproducibility proof" }
+          .\.releasevenv\Scripts\python.exe -m pip install --no-index --no-deps --force-reinstall "$wheelPath"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Assert exact source and installed package provenance
+        shell: pwsh
+        run: |
+          .\.releasevenv\Scripts\python.exe -m sofia.verify.source_provenance `
+            --checkout "$env:GITHUB_WORKSPACE" `
+            --archive "$env:SOFIA_RELEASE_SOURCE" `
+            --venv ".releasevenv" `
+            --evidence "source-provenance.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run revision-bound verification gate
+        shell: pwsh
+        run: |
+          .\.releasevenv\Scripts\python.exe -m sofia.verify.gate --phase full --installed-wheel-only --repo "$env:GITHUB_WORKSPACE" --evidence-path verification-evidence.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Construct and verify release evidence
         shell: pwsh
