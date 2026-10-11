@@ -236,9 +236,13 @@ class MobileCompanionServer:
         self._thread.start()
 
     def close(self) -> None:
-        self._httpd.shutdown()
-        self._httpd.server_close()
         thread = self._thread
-        if thread is not None:
+        # shutdown() blocks until serve_forever() exits. A bind/launch
+        # failure can leave the server constructed but never started; never
+        # deadlock the canonical systemd shutdown trying to stop that socket.
+        if thread is not None and thread.is_alive():
+            self._httpd.shutdown()
+        self._httpd.server_close()
+        if thread is not None and thread.is_alive():
             thread.join(timeout=5)
         self._thread = None
