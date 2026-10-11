@@ -2948,6 +2948,9 @@ class SelfDirectedLifeCoordinator:
         try:
             draft = ProjectDraftAgent(generate).draft(
                 project, kind, feedback=feedback,
+                verified_precedents=self._current_verified_procedures_for_draft(
+                    project, now=now,
+                ),
             )
         except ProjectDraftGenerationError:
             return 0, "revision_draft_failed_unverified"
@@ -3313,6 +3316,32 @@ class SelfDirectedLifeCoordinator:
             invalidated += 1
         return invalidated
 
+    def _current_verified_procedures_for_draft(
+        self, project: LifeProject, *, now: datetime,
+    ) -> tuple:
+        """Read bounded source-sound creative precedents before model drafting.
+
+        No model wakeup, revised goal, permission change or RUN submission.
+        The source verification is repeated each time; an old catalog
+        VERIFIED flag alone is never enough to reuse a stale procedure.
+        """
+        aware(now, "procedure reference time")
+        if project.scope is not ProjectScope.PERSONAL_PRIVATE:
+            return ()
+        sources = dict(self.procedures.verified_proof_projects(limit=64))
+        return tuple(
+            precedent
+            for precedent in self.procedures.available_for_project(
+                project, limit=2,
+            )
+            if (
+                precedent.procedure_id in sources
+                and self._verified_procedure_origins_current(
+                    sources[precedent.procedure_id], now=now,
+                )
+            )
+        )[:2]
+
     def _reconcile_procedure_catalog(
         self, *, now: datetime, limit: int = 64,
     ) -> int:
@@ -3623,7 +3652,12 @@ class SelfDirectedLifeCoordinator:
                         "review_queue": self.pending_work_review(limit=16),
                     }
                 try:
-                    specification = ProjectDraftAgent(generate).draft(project, kind)
+                    specification = ProjectDraftAgent(generate).draft(
+                        project, kind,
+                        verified_precedents=self._current_verified_procedures_for_draft(
+                            project, now=now,
+                        ),
+                    )
                 except ProjectDraftGenerationError:
                     # A model drafting failure is not a license to submit
                     # a template as real creative output.
