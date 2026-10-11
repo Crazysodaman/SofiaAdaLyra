@@ -19,6 +19,7 @@ from sofia.config.model_catalog import (
     known_local_model_names,
 )
 from sofia.config.user_settings import (
+    OutreachSettings,
     RuntimeUserSettingsStore,
 )
 from sofia.cognition.runtime_state import CognitionRuntimeStateStore
@@ -1065,6 +1066,66 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         wraplength=680,
     ).pack(anchor="w", pady=(6, 0))
     refresh_operator_stop()
+
+    outreach_controls = ttk.LabelFrame(
+        permissions, text="Optional outreach", padding=8,
+    )
+    outreach_controls.pack(anchor="w", fill="x", pady=(0, 10))
+    outreach_state = tk.StringVar()
+
+    def refresh_outreach_mute() -> None:
+        current_outreach = runtime_store.load().outreach
+        outreach_state.set(
+            "MUTED" if (
+                current_outreach is not None
+                and (current_outreach.mute or not current_outreach.enabled)
+            ) else "ELIGIBLE (subject to quiet hours, permissions and audience)"
+        )
+
+    def change_outreach_mute(mute: bool) -> None:
+        if not mute and not messagebox.askyesno(
+            "Unmute optional outreach?",
+            "Allow permitted optional notifications to resume under the "
+            "saved quiet-hour and audience policy?",
+            parent=root,
+        ):
+            return
+        try:
+            # Reload at the write boundary to preserve unrelated concurrent
+            # settings edits instead of saving this window's stale snapshot.
+            current_runtime = runtime_store.load()
+            current_outreach = current_runtime.outreach or OutreachSettings()
+            runtime_store.save(replace(
+                current_runtime,
+                outreach=replace(
+                    current_outreach, mute=mute,
+                ),
+            ))
+            refresh_outreach_mute()
+            status.set("Optional outreach muted." if mute else "Optional outreach unmuted.")
+        except Exception as exc:
+            messagebox.showerror(
+                "Outreach setting unchanged", f"{type(exc).__name__}: {exc}",
+                parent=root,
+            )
+
+    ttk.Label(
+        outreach_controls, textvariable=outreach_state, wraplength=680,
+    ).pack(anchor="w", pady=(0, 6))
+    mute_buttons = ttk.Frame(outreach_controls)
+    mute_buttons.pack(fill="x")
+    ttk.Button(
+        mute_buttons, text="Mute optional outreach",
+        command=lambda: change_outreach_mute(True),
+    ).pack(side="left")
+    ttk.Button(
+        mute_buttons, text="Unmute optional outreach",
+        command=lambda: change_outreach_mute(False),
+    ).pack(side="left", padx=(6, 0))
+    ttk.Button(
+        mute_buttons, text="Refresh", command=refresh_outreach_mute,
+    ).pack(side="left", padx=(6, 0))
+    refresh_outreach_mute()
 
     levels_frame = ttk.LabelFrame(
         permissions,
