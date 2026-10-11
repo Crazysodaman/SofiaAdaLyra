@@ -96,3 +96,17 @@ def test_explicit_owner_roots_come_before_guessed_paths_under_small_cap(tmp_path
         configured / "sofia.db",
         approved / "sofia.db",
     ]
+
+
+def test_duplicate_owner_roots_do_not_use_up_distinct_scan_slots(tmp_path):
+    configured = tmp_path / "configured"
+    approved = tmp_path / "second-root"
+    _db(configured / "sofia.db")
+    _db(approved / "sofia.db")
+    found = discover_local_state_candidates(
+        configured_path=configured / "sofia.db",
+        extra_roots=(configured, approved), max_roots=2,
+    )
+    assert [candidate.state_path for candidate in found] == [
+        configured / "sofia.db", approved / "sofia.db",
+    ]
