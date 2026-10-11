@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 from queue import Empty, Queue
 import socket
-import sqlite3
 import subprocess
 import sys
 from threading import Lock, Thread
@@ -15,6 +14,7 @@ import time
 from uuid import uuid4
 
 from sofia.config import create_production_configuration
+from sofia.state.canonical_sqlite import require_existing_sqlite
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import ModelLifecycleConfiguration
 from sofia.config.user_settings import RuntimeUserSettingsStore
@@ -59,10 +59,9 @@ from .windows_tray import WindowsTrayAgent
 
 
 def _ensure_state(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        with sqlite3.connect(path):
-            pass
+    # A detached tray may be started before the runtime. Do not implicitly
+    # initialize a second/empty canonical state database here.
+    require_existing_sqlite(path)
 
 
 def _local_host_id() -> str:
