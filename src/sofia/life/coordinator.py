@@ -41,7 +41,7 @@ from .model import (
 )
 from .idea_agent import ProjectIdeaAgent
 from .draft_agent import ProjectDraftAgent, ProjectDraftGenerationError
-from .store import LifeStore
+from .store import LifeStore, ProjectWorkPending
 
 
 SOFIA_PROJECT_OWNER = "sofia:self"
@@ -732,13 +732,12 @@ class SelfDirectedLifeCoordinator:
             risk="isolated_change",
             completion_condition="A real managed artifact is created and hash-verified.",
             now=now, deadline=now + timedelta(minutes=30),
+            after_enqueue=lambda db, candidate: self.store.provision_artifact_job(
+                db, project_id=project.project_id, job_id=candidate.job_id,
+                request_id=str(parameters["request_id"]), artifact_id=artifact_key,
+                request_digest=creative_request_digest(parameters), now=now,
+            ),
         )
-        self.store.authorize_artifact(
-            request_id=str(parameters["request_id"]), project_id=project.project_id,
-            artifact_id=artifact_key,
-            request_digest=creative_request_digest(parameters), now=now,
-        )
-        self.store.link_job(project.project_id, job.job_id, now=now)
         return job
 
     def _create_artifact(self, job: WorkJob, cancel) -> WorkResult:
@@ -1258,11 +1257,16 @@ class SelfDirectedLifeCoordinator:
                 "evaluation_id": evaluation.evaluation_id,
             },
         )
-        self.schedule_artifact(
-            project.project_id, artifact_kind=kind,
-            title=project.name, specification=draft,
-            evidence_ref=observation, now=now,
-        )
+        try:
+            self.schedule_artifact(
+                project.project_id, artifact_kind=kind,
+                title=project.name, specification=draft,
+                evidence_ref=observation, now=now,
+            )
+        except ProjectWorkPending:
+            # A concurrently running canonical LIFE tick won admission.
+            # The winner's original job/permission must be left unchanged.
+            return 0, "waiting_on_existing_work"
         return 1, "revision_scheduled"
 
     def tick(
@@ -1321,13 +1325,17 @@ class SelfDirectedLifeCoordinator:
                             "draft_status": "failed_unverified",
                             "review_queue": self.pending_work_review(limit=16),
                         }
-                self.schedule_artifact(
-                    project.project_id, artifact_kind=kind,
-                    title=project.name,
-                    specification=specification,
-                    evidence_ref=evidence_ref, now=now,
-                )
-                scheduled = 1
+                try:
+                    self.schedule_artifact(
+                        project.project_id, artifact_kind=kind,
+                        title=project.name,
+                        specification=specification,
+                        evidence_ref=evidence_ref, now=now,
+                    )
+                except ProjectWorkPending:
+                    follow_through = "waiting_on_existing_work"
+                else:
+                    scheduled = 1
         started = self.manager.tick(
             now=now, busy=busy, resource_pressure=resource_pressure,
         )

@@ -174,6 +174,7 @@ class DurableWorkStore:
         self, *, kind: str, fingerprint: str, payload: dict[str, object],
         priority: int, resource_cost: int, risk: str,
         completion_condition: str, now: datetime, deadline: datetime,
+        after_enqueue: Callable[[sqlite3.Connection, WorkJob], None] | None = None,
     ) -> WorkJob:
         self._validate_id(kind, "kind")
         self._validate_id(fingerprint, "fingerprint")
@@ -195,7 +196,14 @@ class DurableWorkStore:
             db.execute("BEGIN IMMEDIATE")
             old = db.execute("SELECT * FROM autonomous_work_job WHERE fingerprint=?", (fingerprint,)).fetchone()
             if old is not None:
-                return self._job(old)
+                existing = self._job(old)
+                if after_enqueue is not None:
+                    # Reconciliation must not relabel an old RUN job with a
+                    # different grant, request or payload under the same key.
+                    if existing.kind != kind or existing.payload != payload:
+                        raise RuntimeError("work fingerprint collision changed the original payload")
+                    after_enqueue(db, existing)
+                return existing
             job_id = f"work:{uuid4()}"
             db.execute(
                 """INSERT INTO autonomous_work_job
@@ -209,7 +217,13 @@ class DurableWorkStore:
             )
             self._event(db, job_id, None, WorkStatus.QUEUED, "accepted", moment)
             row = db.execute("SELECT * FROM autonomous_work_job WHERE job_id=?", (job_id,)).fetchone()
-        return self._job(row)
+            job = self._job(row)
+            if after_enqueue is not None:
+                # Keep RUN receipt, LIFE one-use admission and LIFE job link
+                # in ONE sqlite transaction. A callback failure rolls all
+                # three writes back. Do not create an orphan runnable job.
+                after_enqueue(db, job)
+        return job
 
     def get(self, job_id: str) -> WorkJob:
         with closing(self._connect()) as db:

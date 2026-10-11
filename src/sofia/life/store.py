@@ -15,6 +15,10 @@ from .model import (
 )
 
 
+class ProjectWorkPending(RuntimeError):
+    """Another canonical RUN submission already owns this project's slot."""
+
+
 class LifeStore:
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
@@ -572,6 +576,73 @@ class LifeStore:
             )
             if changed.rowcount != 1:
                 raise RuntimeError("idea attempt is not claimable")
+
+    def provision_artifact_job(
+        self, db: sqlite3.Connection, *, project_id: str, job_id: str,
+        request_id: str, artifact_id: str, request_digest: str, now: datetime,
+    ) -> None:
+        """Atomically bind a RUN job and one-use creative request to LIFE.
+
+        Called only within DurableWorkStore.enqueue's BEGIN IMMEDIATE on the
+        *same* canonical sofia.db. This is LIFE's writer, not a new job owner.
+        A racing second scheduler may not create another outstanding job for
+        the same personal project, and an existing grant is never reset.
+        """
+        if not isinstance(db, sqlite3.Connection) or not db.in_transaction:
+            raise RuntimeError("artifact admission requires the RUN write transaction")
+        if not isinstance(request_digest, str) or len(request_digest) != 64:
+            raise ValueError("full creative request digest required")
+        stamp = now.astimezone(timezone.utc).isoformat()
+        project = db.execute(
+            "SELECT status,goal_id FROM life_project WHERE project_id=?",
+            (project_id,),
+        ).fetchone()
+        if (
+            project is None or project["status"] != ProjectStatus.ACTIVE.value
+            or not project["goal_id"]
+        ):
+            raise RuntimeError("project was deactivated before atomic RUN admission")
+        owner = db.execute(
+            "SELECT project_id FROM life_project_job WHERE job_id=?",
+            (job_id,),
+        ).fetchone()
+        if owner is not None and owner["project_id"] != project_id:
+            raise PermissionError("RUN job is already linked to another project")
+        # Reject simultaneous submissions, including another runtime using
+        # the same canonical state. Do NOT allow a second unbounded job if
+        # one queued/running/awaiting approval has not settled.
+        conflicting = db.execute(
+            """SELECT j.job_id FROM life_project_job AS l
+               JOIN autonomous_work_job AS j ON j.job_id=l.job_id
+               WHERE l.project_id=? AND l.job_id<>?
+               AND j.status IN (
+                   'queued','running','waiting_approval','blocked','uncertain'
+               )
+               LIMIT 1""",
+            (project_id, job_id),
+        ).fetchone()
+        if conflicting is not None:
+            raise ProjectWorkPending("project already has an unsettled RUN job")
+        existing = db.execute(
+            "SELECT project_id,artifact_id,request_digest FROM life_artifact_authorization "
+            "WHERE request_id=?",
+            (request_id,),
+        ).fetchone()
+        if existing is None:
+            db.execute(
+                "INSERT INTO life_artifact_authorization VALUES(?,?,?,?,'authorized',?,NULL)",
+                (request_id, project_id, artifact_id, request_digest, stamp),
+            )
+        elif (
+            existing["project_id"] != project_id
+            or existing["artifact_id"] != artifact_id
+            or existing["request_digest"] != request_digest
+        ):
+            raise PermissionError("replayed creative request has changed scope or digest")
+        db.execute(
+            "INSERT OR IGNORE INTO life_project_job VALUES(?,?,?)",
+            (project_id, job_id, stamp),
+        )
 
     def authorize_artifact(
         self, *, request_id: str, project_id: str, artifact_id: str,
