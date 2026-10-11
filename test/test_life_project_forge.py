@@ -97,7 +97,7 @@ def test_operator_stop_blocks_life_tick_schedule_and_direct_executor(tmp_path):
             Event(),
         )
         assert guarded.status is WorkStatus.BLOCKED
-        assert "operator_stop" in guarded.error
+        assert "operator_stop" in guarded.reason
         operator.set(active=False, updated_by="Sparks", reason="resume personal projects")
         assert life.select_activity(
             now=now + timedelta(seconds=11), busy=False, resource_pressure=0.0,
