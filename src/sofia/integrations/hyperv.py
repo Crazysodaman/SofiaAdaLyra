@@ -75,6 +75,118 @@ class HyperVAdapter:
             raise HyperVError("wrong Hyper-V VM identity observed")
         return result
 
+    def bootstrap_existing_hephaestus(
+        self, *, vm_id: str, os_disk_path: str,
+        iso_path: str, iso_sha256: str,
+    ) -> dict[str, Any]:
+        """Boot reviewed unattended Debian ISO on the exact EXISTING VM.
+
+        Host administrator configuration pins the VM GUID, OS disk and media
+        root before agent registration.  No New-VM, networking or guest Fleet
+        permissions. Success here means the installer STARTED, not that an OS
+        has been installed, attested or enrolled.
+        """
+        from uuid import UUID
+        from sofia.ops.workshop_provision import _path
+        import re
+        exact_id=str(UUID(vm_id))
+        disk=str(_path(os_disk_path))
+        media=str(_path(iso_path))
+        if not disk.casefold().endswith(".vhdx") or not media.casefold().endswith(".iso"):
+            raise ValueError("existing VHDX OS disk and unattended ISO required")
+        if re.fullmatch(r"[0-9a-f]{64}",iso_sha256) is None:
+            raise ValueError("exact approved ISO SHA-256 required")
+        quote=self._ps
+        # All parameters are quoted scalars. No arbitrary PowerShell commands
+        # or user-selected VM names are admitted.
+        script=(
+            "$ErrorActionPreference='Stop'; "
+            "$vm=Get-VM -Name 'Hephaestus' -ErrorAction Stop; "
+            "if([string]$vm.Id -ne "+quote(exact_id)+") "
+            "{throw 'VM_GUID_MISMATCH'}; "
+            "if([string]$vm.State -ne 'Off') "
+            "{throw 'VM_MUST_BE_POWERED_OFF'}; "
+            "if([int]$vm.Generation -ne 2) {throw 'GEN2_REQUIRED'}; "
+            "if([int]$vm.ProcessorCount -lt 2 -or "
+            "[int]$vm.ProcessorCount -gt 4) {throw 'CPU_SCOPE_DRIFT'}; "
+            "if([long]$vm.MemoryStartup -lt 4294967296 -or "
+            "[long]$vm.MemoryStartup -gt 8589934592) "
+            "{throw 'RAM_SCOPE_DRIFT'}; "
+            "$disks=@(Get-VMHardDiskDrive -VMName 'Hephaestus' "
+            "-ErrorAction Stop); "
+            "if($disks.Count -ne 1) {throw 'OS_DISK_COUNT_DRIFT'}; "
+            "if([string]$disks[0].Path -ine "+quote(disk)+") "
+            "{throw 'OS_DISK_PATH_DRIFT'}; "
+            "$vd=Get-VHD -Path "+quote(disk)+" -ErrorAction Stop; "
+            "if([long]$vd.Size -lt 64424509440 -or "
+            "[long]$vd.Size -gt 137438953472) "
+            "{throw 'OS_DISK_SIZE_DRIFT'}; "
+            "$nics=@(Get-VMNetworkAdapter -VMName 'Hephaestus' "
+            "-ErrorAction Stop); "
+            "if($nics.Count -ne 1 -or [string]$nics[0].SwitchName "
+            "-cne 'Sofia-Hephaestus-Private') "
+            "{throw 'NETWORK_SCOPE_DRIFT'}; "
+            "$sw=Get-VMSwitch -Name 'Sofia-Hephaestus-Private' "
+            "-ErrorAction Stop; "
+            "if([string]$sw.SwitchType -ne 'Private') "
+            "{throw 'NOT_PRIVATE_SWITCH'}; "
+            "$firm=Get-VMFirmware -VMName 'Hephaestus' -ErrorAction Stop; "
+            "if([string]$firm.SecureBoot -ne 'Off' -and "
+            "([string]$firm.SecureBoot -ne 'On' -or "
+            "[string]$firm.SecureBootTemplate -ne "
+            "'MicrosoftUEFICertificateAuthority')) "
+            "{throw 'UNREVIEWED_SECURE_BOOT'}; "
+            "if(-not (Test-Path -LiteralPath "+quote(media)+
+            " -PathType Leaf)) {throw 'ISO_UNAVAILABLE'}; "
+            "$hash=(Get-FileHash -LiteralPath "+quote(media)+
+            " -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant(); "
+            "if($hash -cne "+quote(iso_sha256)+") "
+            "{throw 'ISO_HASH_MISMATCH'}; "
+            "$dvd=@(Get-VMDvdDrive -VMName 'Hephaestus' -ErrorAction Stop); "
+            "if($dvd.Count -gt 1 -or "
+            "@($dvd | Where-Object {$_.Path}).Count -gt 0) "
+            "{throw 'UNREVIEWED_MOUNTED_MEDIA'}; "
+            "if($dvd.Count -eq 0) { "
+            "$drive=Add-VMDvdDrive -VMName 'Hephaestus' "
+            "-Path "+quote(media)+" -Passthru -ErrorAction Stop "
+            "} else { "
+            "Set-VMDvdDrive -VMDvdDrive $dvd[0] -Path "+quote(media)+
+            " -ErrorAction Stop; "
+            "$drive=Get-VMDvdDrive -VMName 'Hephaestus' "
+            "-ErrorAction Stop }; "
+            "Set-VMFirmware -VMName 'Hephaestus' "
+            "-FirstBootDevice $drive -ErrorAction Stop; "
+            "Start-VM -Name 'Hephaestus' -ErrorAction Stop; "
+            "$final=Get-VM -Name 'Hephaestus' -ErrorAction Stop; "
+            "if([string]$final.Id -ne "+quote(exact_id)+") "
+            "{throw 'POST_START_IDENTITY_CHANGED'}; "
+            "[pscustomobject]@{VmId=[string]$final.Id; "
+            "Name=[string]$final.Name; State=[string]$final.State; "
+            "MediaSha256=$hash; Outcome='installer_boot_started'; "
+            "OsInstalled=$false; FleetEnrolled=$false; "
+            "ObservedAtUtc=[DateTime]::UtcNow.ToString('o')} "
+            "| ConvertTo-Json -Depth 3 -Compress"
+        )
+        # Full-file hashing may take longer than a normal inspection.
+        raw=(
+            self._powershell(script,timeout_seconds=240)
+            if self._runner is self._powershell
+            else self._runner(script)
+        )
+        try:
+            output=json.loads(raw)
+        except (ValueError,TypeError) as exc:
+            raise HyperVError("Hyper-V installer boot outcome uncertain") from exc
+        if (
+            not isinstance(output,dict)
+            or str(output.get("VmId","")).lower()!=exact_id.lower()
+            or output.get("Outcome")!="installer_boot_started"
+            or output.get("OsInstalled") is not False
+            or output.get("FleetEnrolled") is not False
+        ):
+            raise HyperVError("unexpected host installer start receipt")
+        return output
+
     def workshop_host(self) -> dict[str, Any]:
         """Host-only read-only Hyper-V capacity and topology observation.
 
