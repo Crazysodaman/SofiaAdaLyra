@@ -38,7 +38,8 @@ def test_circuit_is_in_single_runtime_path_and_observable(tmp_path):
     assert snap.selection_method == CircuitCompetition.ALGORITHM_VERSION
     saved = runtime._observability.current()["snapshot"]
     assert saved["selection_method"] == snap.selection_method
-    assert "eligible-signal competition" in saved["selection_reason"]
+    assert "selected=diagnostic:b" in saved["selection_reason"]
+    assert "baseline=diagnostic:a" in saved["selection_reason"]
     assert "NOT evidence" in snap.prompt()
 
 
@@ -76,3 +77,30 @@ def test_unexpected_circuit_backend_error_also_falls_back_without_losing_turn():
     assert snapshot.focus.key == "diagnostic:a"
     assert snapshot.selection_method == "salience-v1"
     assert runtime.last_competition_error == "RuntimeError"
+
+
+def test_current_turn_focus_outranks_engineered_circuit_without_faking_evidence():
+    runtime = NeuroRuntime(competition=DeliberatelyContraryCompetition())
+    turn = runtime.observe_turn(
+        content="This is my new question", created_at=NOW, channel="desktop", turn=None,
+    )
+    assert turn.focus is not None
+    assert turn.focus.kind == "foreground"
+    after = runtime.observe_signal(signal("background", 0.15))
+    assert after.focus.key == turn.focus.key
+    assert after.selection_method == CircuitCompetition.ALGORITHM_VERSION
+    assert "current-turn precedence" in after.selection_reason
+    assert f"selected={turn.focus.key}" in after.selection_reason
+
+
+def test_malformed_duplicate_circuit_channels_fall_back_to_baseline():
+    class DuplicateCircuit(CircuitCompetition):
+        def run(self, inputs, *, iterations=6):
+            key = next(iter(inputs))
+            return CompetitionResult(((key, .95), (key, .90)), key, iterations)
+    runtime = NeuroRuntime(competition=DuplicateCircuit())
+    runtime.observe_signal(signal("a", 0.70))
+    after = runtime.observe_signal(signal("b", 0.68))
+    assert after.selection_method == "salience-v1"
+    assert after.focus.key == "diagnostic:a"
+    assert runtime.last_competition_error == "ValueError"
