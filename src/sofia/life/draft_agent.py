@@ -73,6 +73,15 @@ class ProjectDraftAgent:
             ) from exc
         if not isinstance(result, CognitiveResponse) or result.tool_calls:
             raise ProjectDraftGenerationError("drafting must be tool-free")
+        # Project Forge already bounds the eventual RUN specification,
+        # but reject oversized model text BEFORE json.loads as well. A
+        # verbose provider reply cannot silently consume unbounded memory
+        # just to be discarded at the subsequent capability boundary.
+        if (
+            not isinstance(result.content, str)
+            or len(result.content.encode("utf-8")) > 64_000
+        ):
+            raise ProjectDraftGenerationError("draft exceeds model response budget")
         try:
             value = json.loads(result.content)
         except (TypeError, ValueError) as exc:
