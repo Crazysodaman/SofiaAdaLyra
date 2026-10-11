@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "6a53d0be66359a786ff045afe4ba58d982a8854f",
+  "reviewed_main_sha": "aa112c737933044c1e2a6a48c1f1f3956ec2b526",
   "audit_date_utc": "2026-10-11",
-  "notice": "Multi-workstream coding campaign, tests deferred. Workstream 1 CA-1904 generic host approval preflight source committed, still partial. Previous workstream records and statuses preserved; no tasks accepted by this change.",
+  "notice": "Workstream 1, CA-1904: Generic mutation preflight and grant-scope hardening committed on main with [skip ci]. Task remains partial. Other workstream evidence/statuses retained. No CI/tests or live host changes.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1705,7 +1705,8 @@
         "src/sofia/safe/execution_approval.py",
         "test/test_safe_execution_action_fingerprint.py",
         "src/sofia/composition/authorization.py",
-        "test/test_permission_runtime_wiring.py"
+        "test/test_permission_runtime_wiring.py",
+        "test/test_safe_permissions.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -1716,7 +1717,9 @@
         "9bc35b7971d6a3988533e3a20b0c6d2be096d1bc",
         "37411e23907e8dd2fe486a3813b12a2cb46221db",
         "d1c450a392e52c61c38da328210f6e93245332b3",
-        "81b462effe34c0ab1682168a3c9e64b40ecc084d"
+        "81b462effe34c0ab1682168a3c9e64b40ecc084d",
+        "31a5adbd9db044dfe0b69aad96b5b4baa12b7e67",
+        "5bd2f3fc6716ce67e639099889c1047a152065a1"
       ],
       "accepted": false,
       "coding_update": {
@@ -1725,9 +1728,9 @@
         "acceptance": "deferred"
       },
       "audit_observation": {
-        "at_sha": "6a53d0be66359a786ff045afe4ba58d982a8854f",
-        "depth": "production_preflight_and_regression_source",
-        "interpretation": "Generic handler host preflight validates exact active unconsumed durable approvals. Atomic consume remains downstream. Specialized DEV/EVOLVE/Fleet approvals retained; entire CA-1904 remains partial pending action-intent/expected-effects/fresh-check audit across all owner domains. Tests not executed."
+        "at_sha": "aa112c737933044c1e2a6a48c1f1f3956ec2b526",
+        "depth": "production_authority_and_regression_source",
+        "interpretation": "Two production SAFE repairs: generic exact unconsumed approval preflight and strict finite size-bounded type-safe standing-grant scope comparison. Actual effect handlers retain atomic approval consumption; specialized approvals use their own verifiers. Full CA-1904 requirements not completely audited or implemented. Regression tests authored but not run."
       }
     },
     {
