@@ -382,3 +382,8 @@ Previously a stale global `verified_proof_projects(limit=64)` page limited `goal
 ## Continued implementation evidence: exact native creative toolchain (2026-10-11)
 
 Production `LifeProcedureCatalog.record_verified_attempt` now requires a current `NativeCreativeAdapter.probe` plus exact original creative `tool_id` and `tool_version` agreement in the durable `ArtifactRevision` and RUN evidence. `SelfDirectedLifeCoordinator._verified_procedure_origins_current` enforces the identical read-only predicate for real draft reuse and rotating source audit. Stale native version/ID fails closed and can be quarantined. This **narrows** the original CA-1404/2606 gap, but does not record independently authenticated historical Fleet node identity, remote tool versions, or every host capability. It must not be described as cross-host portable skills, nor as passing tests. Production commits `fcd7cdfa`, `1f77114b`; deferred regression source `e7fdba91`.
+
+
+## 2026-10-11 production follow-up: first-writer-only skill quarantine
+
+The existing `LifeProcedureCatalog.quarantine` now atomically transitions VERIFIED→QUARANTINED exactly once, preserving the first reason and timestamp. Repeated audits or competing coordinators cannot rewrite that evidence or report a second invalidation, and never-verified candidates are rejected. `SelfDirectedLifeCoordinator._audit_procedure_sources` counts only actually changed rows. Partial original IDs CA-1405/1407/2408; production `d47f868f`, `f41b2774`; tests authored `b909eb65`, unexecuted. There is **no new reinstatement authority**: owner approval/new revision semantics remain a separate design issue rather than a silent automatic recovery.
