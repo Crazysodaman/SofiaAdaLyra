@@ -62,6 +62,7 @@ class StandingPermissionGrant:
     granted_at: datetime
     expires_at: datetime | None = None
     revoked_at: datetime | None = None
+    owner_authenticated: bool = False
 
     @property
     def active(self) -> bool:
@@ -69,7 +70,7 @@ class StandingPermissionGrant:
 
     def is_active_at(self, now: datetime) -> bool:
         moment = now.astimezone(timezone.utc)
-        if self.revoked_at is not None:
+        if self.revoked_at is not None or not self.owner_authenticated:
             return False
         if self.expires_at is not None and moment >= self.expires_at.astimezone(timezone.utc):
             return False
@@ -454,6 +455,15 @@ class PermissionStore:
             )
             db.execute(
                 """
+                CREATE TABLE IF NOT EXISTS safe_permission_owner_auth_binding (
+                    grant_id TEXT PRIMARY KEY,
+                    approval_id TEXT NOT NULL UNIQUE,
+                    FOREIGN KEY(grant_id) REFERENCES safe_permission_grant(grant_id)
+                )
+                """
+            )
+            db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS safe_private_adult_authority (
                     singleton INTEGER PRIMARY KEY CHECK(singleton=1),
                     private_chat INTEGER NOT NULL CHECK(private_chat IN (0,1)),
@@ -480,11 +490,17 @@ class PermissionStore:
                     """,
                     ("system:bootstrap", now.isoformat()),
                 )
+        # The durable-grant projection joins the original signed action
+        # receipt and active authenticator. Tables must also exist before
+        # the first owner credential is enrolled.
+        from sofia.safe.execution_approval import ExecutionApprovalVerifier
+        ExecutionApprovalVerifier(self.path)
 
     def _connect(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
+        db.execute("PRAGMA foreign_keys=ON")
         return db
 
     @staticmethod
@@ -578,6 +594,11 @@ class PermissionStore:
                     None if expires_at is None else expires_at.isoformat(),
                 ),
             )
+            db.execute(
+                "INSERT INTO safe_permission_owner_auth_binding "
+                "(grant_id,approval_id) VALUES(?,?)",
+                (identifier, approval_id),
+            )
             self.audit.append_in_transaction(
                 db,
                 actor_id=granted_by,
@@ -601,6 +622,7 @@ class PermissionStore:
             moment,
             expires_at,
             None,
+            True,
         )
 
     def revoke(
@@ -680,16 +702,37 @@ class PermissionStore:
                     else datetime.fromisoformat(row["revoked_at"])
                 )
             ),
+            owner_authenticated=(
+                bool(row["owner_authenticated"])
+                if "owner_authenticated" in row.keys() else False
+            ),
         )
 
     def grants(self, *, active_only: bool = False) -> tuple[StandingPermissionGrant, ...]:
         with closing(self._connect()) as db:
             rows = db.execute(
                 """
-                SELECT grant_id,capability,scope_json,granted_by,granted_at,
-                       expires_at,revoked_at
-                FROM safe_permission_grant
-                ORDER BY granted_at, grant_id
+                SELECT g.grant_id,g.capability,g.scope_json,g.granted_by,
+                       g.granted_at,g.expires_at,g.revoked_at,
+                       EXISTS(
+                         SELECT 1
+                         FROM safe_permission_owner_auth_binding b
+                         JOIN safe_execution_approval ap
+                           ON ap.approval_id=b.approval_id
+                           AND ap.consumed_at IS NOT NULL
+                         JOIN safe_execution_owner_auth_binding auth
+                           ON auth.approval_id=ap.approval_id
+                         JOIN safe_owner_challenge ch
+                           ON auth.authentication_event_id =
+                              ('owner-webauthn:' || ch.challenge_digest)
+                         JOIN safe_owner_credential credential
+                           ON credential.credential_id=ch.credential_id
+                         WHERE b.grant_id=g.grant_id
+                           AND ch.consumed_at IS NOT NULL
+                           AND credential.revoked_at IS NULL
+                       ) AS owner_authenticated
+                FROM safe_permission_grant g
+                ORDER BY g.granted_at,g.grant_id
                 """
             ).fetchall()
         grants = tuple(self._row_to_grant(row) for row in rows)
