@@ -2599,10 +2599,28 @@
       "phase": "02",
       "source_topic": "19",
       "master_line": 273,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/system.py",
+        "src/sofia/cognition/tools.py",
+        "src/sofia/life/idea_agent.py",
+        "src/sofia/life/draft_agent.py",
+        "test/test_cognitive_tools.py",
+        "docs/development/v18-ws1-untrusted-input-boundary-inventory-2026-10-11.md"
+      ],
+      "evidence_commits": [
+        "5a53470ea8193ebd9cd3e4cef950445f0baeade3",
+        "7be656c1aea355ae4e7a481116c7e4cab8fb690f",
+        "92fe4c14fffba924926f9c03b3c5f8acd1558657"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "65468a3af8ba2fb41b5dbb758ef97d4e59b9dea8",
+        "depth": "cognitive_tool_source_to_model_input_boundary",
+        "observed": "CognitiveToolDispatcher.dispatch converts the model tool call to an existing host-gateway CapabilityProposal, rejects model attempts to supply host-controlled principal/audience metadata and enforces fixed tool parameters. CognitiveSystem appends external evidence as CognitiveRole.TOOL rather than SYSTEM. The production tool-result serializer now marks content UNTRUSTED EVIDENCE DATA; cleanup no longer calls tool-result contents trusted instructions. LIFE idea/draft agents already separate system policy from untrusted user briefs.",
+        "missing": "No demonstrated complete end-to-end taint invariant across every Discord, GitHub, web, Home Assistant, Docker, imported memory, NEURO, GOALS, LIFE and ACT consumer; tool text can still influence a generative model. Host-side authorization, adversarial injection denial, cross-entrypoint privacy and persistence checks remain to be independently traced. Neither tests nor host acceptance run.",
+        "acceptance": "source-partial, not coding-complete"
+      }
     },
     {
       "id": "CA-1903",
@@ -3109,7 +3127,13 @@
         "6ef64f1bcb4823033902835d0ea688af7b71e08f",
         "800de4d69206ed05e6f758fd654aad54818f8bad",
         "30b1ba502500698ed91236d96d9e3cac286f4660",
-        "87e7b8f2559b8e22b3408c3be52d2c58e951069b"
+        "87e7b8f2559b8e22b3408c3be52d2c58e951069b",
+        "4b260c116e20546096728a594cef33815e7e4717",
+        "66e41d717f390f7d67b42dff2e6ebb0c2404e913",
+        "0cc340f52dfd6ff4e76dc908cef7fd7a6a82720c",
+        "18aaea1f885201932936c38d2412c577135de318",
+        "8c22a580d740165491526b7375c5f7ed6ccd03a0",
+        "9aed9928db13f2223a09d1940278319eebf47d1c"
       ],
       "accepted": false,
       "audit_observation": {
@@ -3118,7 +3142,19 @@
         "observed": "Real configured Fleet discovery calls MtlsAgentDiscoverySource over pinned mTLS to read untrusted identity and capabilities JSON. The previous response.read() was unbounded. Production now caps each HTTP response at 256 KiB, rejects announced or actually overlong responses and treats malformed HTTP framing as unavailable discovery evidence. Four focused regression fixtures were authored without execution.",
         "missing": "Broader original CA-1906 malicious SVG/files, huge Docker logs, hostile memory associations, fabricated receipts, secret-bearing tool outputs and runaway model retries remain unproven. No current-main tests, CI or host proof.",
         "acceptance": "source-partial, not coding-complete"
-      }
+      },
+      "latest_coding_slices": [
+        {
+          "source_review_sha": "65468a3af8ba2fb41b5dbb758ef97d4e59b9dea8",
+          "source_paths": [
+            "src/sofia/ops/agent_discovery.py",
+            "test/test_ops_agent_discovery.py"
+          ],
+          "production_route": "Configured approved-scope discovery -> bounded CIDR address enumeration -> immutable probed IP endpoint -> certificate-authenticated mTLS identity and capability reads -> bounded JSON decode -> untrusted discovery evidence.",
+          "fulfilled_slice": "Preflight IPv4/IPv6 network cardinality before host expansion, keep approved probed IP separate from untrusted reverse DNS, reject pathological JSON nesting. Regressions authored and unexecuted.",
+          "remaining": "Original CA-1906 cross-integration resource, data exfiltration, secret filtering, forged receipts and hostile memory cases not closed; current exact SHA tests deferred."
+        }
+      ]
     },
     {
       "id": "CA-1907",
@@ -3145,7 +3181,9 @@
         "test/test_act_delivery.py",
         "src/sofia/safe/audit.py",
         "test/test_safe_operator_stop_state_loss.py",
-        "src/sofia/act/outreach.py"
+        "src/sofia/act/outreach.py",
+        "src/sofia/application/background.py",
+        "test/test_application_background.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -3182,14 +3220,28 @@
         "ea319410e0942d64e1587b81fdee94488b58f1e8",
         "73434f93619f1557ddddf824c8e999c3b11d0241",
         "ec6bb304db62d630b26d8d6835bcece74e188a8c",
-        "62ada59108356658ab8c8f9bab2d818921bec21f"
+        "62ada59108356658ab8c8f9bab2d818921bec21f",
+        "17d871011ad500988ede1f1f3cf8578ce5f34bfd",
+        "bc764a6af3bc8e5867d85e8393ff97d9998a30a6"
       ],
       "accepted": false,
       "audit_observation": {
         "at_sha": "59137b5835f1a1d79652a0440e245d7554274064",
         "depth": "ACT_post_claim_authority_failure_source_and_regression",
         "interpretation": "The production ACT SystemNoticeQueue and ActDeliveryRunner now treat a post-claim fresh permission check failure or bad decision type as explicit authorization_unavailable, release the unsent claim, restore retry budget, and refuse sender invocation. Source and regressions committed; tests unrun. Full item remains partial pending broader authority validation and external host evidence."
-      }
+      },
+      "latest_coding_slices": [
+        {
+          "source_review_sha": "65468a3af8ba2fb41b5dbb758ef97d4e59b9dea8",
+          "source_paths": [
+            "src/sofia/application/background.py",
+            "test/test_application_background.py"
+          ],
+          "production_route": "SofiaApplication -> ApplicationBackgroundCoordinator.run_once -> canonical OperatorStopStore PAUSE read before reflection, ACT delivery, LIFE/Fleet or other optional task -> no background claim or callback while stopped.",
+          "fulfilled_slice": "Central scheduler now refuses new optional work during durable emergency PAUSE; regression source checks no callbacks and no background claims.",
+          "remaining": "Already-running callbacks still require their own fresh SAFE pre-effect checks; complete PAUSE during in-flight model/recovery tasks, permission revocation and live-host tests remain open. Not all CA-1907 behavior proven."
+        }
+      ]
     },
     {
       "id": "CA-2701",
