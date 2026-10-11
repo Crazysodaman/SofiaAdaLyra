@@ -260,3 +260,48 @@ def test_revoked_fido2_key_fences_its_level5_private_authority(tmp_path):
     assert effective.adult_chat is False
     assert effective.adult_avatar is False
     assert effective.adult_external_delivery is False
+
+
+def test_modified_stored_grant_scope_cannot_reuse_legitimate_owner_signature(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = PermissionStore(state)
+    grant = grant_with_signed_owner(
+        store, "storage.mkdir",
+        scope={"root_index": 0, "path": "approved"},
+        grant_id="cannot-expand", now=NOW,
+    )
+    assert store.allows_standing(
+        "storage.mkdir",
+        {"root_index": 0, "path": "approved"},
+        now=NOW + timedelta(seconds=1),
+    )
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE safe_permission_grant SET scope_json=? WHERE grant_id=?",
+            ('{"root_index":0,"path":"different"}', grant.grant_id),
+        )
+    assert store.grants()[0].owner_authenticated is False
+    assert not store.allows_standing(
+        "storage.mkdir",
+        {"root_index": 0, "path": "different"},
+        now=NOW + timedelta(seconds=2),
+    )
+
+
+def test_modified_level5_flags_cannot_inherit_earlier_signature(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = PermissionStore(state)
+    private_with_signed_owner(
+        store, private_chat=True, adult_chat=False, adult_avatar=False,
+        adult_external_delivery=False, now=NOW,
+    )
+    assert store.private_adult_authority().adult_chat is False
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE safe_private_adult_authority SET "
+            "adult_chat=1,adult_avatar=1 WHERE singleton=1"
+        )
+    current = store.private_adult_authority()
+    assert current.updated_by == "system:unverified"
+    assert current.adult_chat is False
+    assert current.adult_avatar is False
