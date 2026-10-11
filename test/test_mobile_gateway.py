@@ -95,7 +95,7 @@ def test_mobile_chat_is_authenticated_private_owner_context(tmp_path):
     result = gateway.chat(
         device_id="android-owner",
         message="Hello privately",
-        private_mode=True,
+        private_mode=True, request_id="android-owner-first",
     )
 
     content, principal, channel = app.conversation.calls[0]
@@ -122,7 +122,7 @@ def test_private_avatar_requires_explicit_phone_toggle(tmp_path):
     gateway.chat(
         device_id="android-owner",
         message="Keep this safe for a shared screen",
-        private_mode=False,
+        private_mode=False, request_id="android-owner-shared",
     )
     _, principal, channel = app.conversation.calls[-1]
     assert principal.audience_kind is AudienceKind.SHARED
@@ -256,14 +256,14 @@ def test_private_mobile_chat_requires_a_fresh_host_grant(tmp_path):
         gateway.chat(
             device_id="android-owner",
             message="Private text must not reach the model",
-            private_mode=True,
+            private_mode=True, request_id="android-owner-private-denied",
         )
     assert app.conversation.calls == []
 
     # Standard owner chat remains functional despite revoked private grant.
     gateway.chat(
         device_id="android-owner", message="Standard conversation",
-        private_mode=False,
+        private_mode=False, request_id="android-owner-standard-allowed",
     )
     assert len(app.conversation.calls) == 1
 
@@ -290,6 +290,7 @@ def test_private_mobile_http_denied_as_403_without_exposing_message(tmp_path):
                 "device_id": "android-owner",
                 "message": "Never dispatch this private text",
                 "private_mode": True,
+                "request_id": "android-owner-https-denied",
             }),
             headers={"Authorization": f"Bearer {token}",
                      "Content-Type": "application/json"},

@@ -4,6 +4,7 @@ from __future__ import annotations
 from contextlib import closing
 from datetime import datetime, timezone
 from hashlib import sha256
+import json
 from pathlib import Path
 from threading import RLock
 import re
@@ -21,6 +22,16 @@ from .sensors import MobileSensorProvider, MobileSensorStore
 
 
 _DEVICE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
+_REQUEST = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}")
+
+
+class MobileDeliveryConflict(RuntimeError):
+    """Request ID was already used for another payload or conversation."""
+
+
+class MobileDeliveryUncertain(RuntimeError):
+    """The host cannot prove an earlier turn did not execute; never replay."""
+
 
 
 class MobileCompanionGateway:
@@ -65,6 +76,24 @@ class MobileCompanionGateway:
                     updated_at TEXT NOT NULL,
                     PRIMARY KEY(device_id,presentation_mode)
                 )
+            """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS mobile_turn_receipt (
+                    request_id TEXT PRIMARY KEY,
+                    device_id TEXT NOT NULL,
+                    presentation_mode TEXT NOT NULL
+                        CHECK(presentation_mode IN ('private','standard')),
+                    content_sha256 TEXT NOT NULL,
+                    status TEXT NOT NULL
+                        CHECK(status IN ('processing','completed','uncertain')),
+                    response_json TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            db.execute("""
+                CREATE INDEX IF NOT EXISTS mobile_turn_receipt_device
+                ON mobile_turn_receipt(device_id,presentation_mode,created_at)
             """)
 
     def _connect(self) -> sqlite3.Connection:
@@ -178,30 +207,90 @@ class MobileCompanionGateway:
         device_id: object,
         message: object,
         private_mode: object = False,
+        request_id: object,
     ) -> dict[str, object]:
+        """At-most-once *dispatch* for a mobile request, including restarts.
+
+        A processing receipt whose process crashed cannot establish whether
+        the model/conversation already persisted a turn. Retain it as
+        uncertain and explicitly reject replay instead of guessing success.
+        """
         device = self._device(device_id)
         if type(private_mode) is not bool:
             raise TypeError("private_mode must be a bool")
         if not isinstance(message, str) or not message.strip() or len(message) > 12_000:
             raise ValueError("mobile message must be 1..12000 characters")
+        if not isinstance(request_id, str) or _REQUEST.fullmatch(request_id) is None:
+            raise ValueError("mobile request_id must be a bounded stable identifier")
+        content = message.strip()
+        mode = "private" if private_mode else "standard"
+        digest = sha256(content.encode("utf-8")).hexdigest()
         with self._lock:
             if private_mode and not self.permissions.private_adult_authority().private_chat:
-                # Evaluate durable SAFE authority immediately before chat
-                # dispatch, not before waiting on another device's turn.
                 raise PermissionError("private mobile chat requires the host private-chat grant")
-            conversation = self._conversation(device, private_mode=private_mode)
-            principal = self._principal(device, private_mode=private_mode)
-            response = conversation.respond(
-                message.strip(),
-                principal=principal,
-                channel=("mobile-private" if private_mode else "mobile-standard"),
-            )
-            return self._state_payload(
-                conversation,
-                response=response.content,
-                principal=principal,
-                private_mode=private_mode,
-            )
+            now = datetime.now(timezone.utc).isoformat()
+            with closing(self._connect()) as db, db:
+                db.execute("BEGIN IMMEDIATE")
+                existing = db.execute(
+                    "SELECT device_id,presentation_mode,content_sha256,status,response_json "
+                    "FROM mobile_turn_receipt WHERE request_id=?",
+                    (request_id,),
+                ).fetchone()
+                if existing is not None:
+                    if tuple(existing[:3]) != (device, mode, digest):
+                        raise MobileDeliveryConflict("request ID was reused with a different scope or message")
+                    if existing[3] == "completed" and existing[4] is not None:
+                        return json.loads(existing[4])
+                    raise MobileDeliveryUncertain(
+                        "a prior mobile delivery is not independently settled"
+                    )
+                db.execute(
+                    "INSERT INTO mobile_turn_receipt "
+                    "(request_id,device_id,presentation_mode,content_sha256,"
+                    "status,response_json,created_at,updated_at) "
+                    "VALUES(?,?,?,?,?,?,?,?)",
+                    (request_id, device, mode, digest, "processing", None, now, now),
+                )
+
+            # Do NOT hold an open SQLite writer transaction over model work.
+            # The durable processing claim prevents replay on a second host
+            # even if the first host disappears before finalization.
+            try:
+                conversation = self._conversation(device, private_mode=private_mode)
+                principal = self._principal(device, private_mode=private_mode)
+                response = conversation.respond(
+                    content, principal=principal,
+                    channel=("mobile-private" if private_mode else "mobile-standard"),
+                )
+                result = self._state_payload(
+                    conversation, response=response.content,
+                    principal=principal, private_mode=private_mode,
+                )
+                encoded = json.dumps(result, ensure_ascii=False, sort_keys=True)
+                if len(encoded.encode("utf-8")) > 256_000:
+                    raise ValueError("mobile delivery response exceeds durable receipt bound")
+            except BaseException:
+                with closing(self._connect()) as db, db:
+                    db.execute(
+                        "UPDATE mobile_turn_receipt SET status='uncertain',updated_at=? "
+                        "WHERE request_id=? AND status='processing'",
+                        (datetime.now(timezone.utc).isoformat(), request_id),
+                    )
+                raise
+            with closing(self._connect()) as db, db:
+                changed = db.execute(
+                    "UPDATE mobile_turn_receipt SET status='completed',"
+                    "response_json=?,updated_at=? "
+                    "WHERE request_id=? AND status='processing' "
+                    "AND device_id=? AND presentation_mode=? AND content_sha256=?",
+                    (encoded, datetime.now(timezone.utc).isoformat(),
+                     request_id, device, mode, digest),
+                )
+                if changed.rowcount != 1:
+                    raise MobileDeliveryUncertain(
+                        "delivery receipt changed before it could be committed"
+                    )
+            return result
 
     def state(
         self, *, device_id: object, private_mode: object = False

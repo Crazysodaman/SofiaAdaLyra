@@ -11,6 +11,8 @@ import ssl
 from threading import Thread
 from typing import Any, Protocol
 
+from .gateway import MobileDeliveryConflict, MobileDeliveryUncertain
+
 
 _MAX_BODY = 64 * 1024
 
@@ -126,13 +128,14 @@ class MobileCompanionServer:
                         result = outer.gateway.ingest_sensors(payload)
                     elif self.path == "/v1/mobile/chat":
                         if set(payload) != {
-                            "device_id", "message", "private_mode"
+                            "device_id", "message", "private_mode", "request_id"
                         }:
                             raise ValueError("chat payload fields are invalid")
                         result = outer.gateway.chat(
                             device_id=payload["device_id"],
                             message=payload["message"],
                             private_mode=payload["private_mode"],
+                            request_id=payload["request_id"],
                         )
                     elif self.path == "/v1/mobile/state":
                         if set(payload) != {"device_id", "private_mode"}:
@@ -169,6 +172,11 @@ class MobileCompanionServer:
                     else:
                         self._send(404, {"error": "not_found"})
                         return
+                except (MobileDeliveryConflict, MobileDeliveryUncertain):
+                    # A duplicate with different bytes or uncertain prior
+                    # host effect is never auto-replayed on reconnect.
+                    self._send(409, {"error": "delivery_conflict_or_uncertain"})
+                    return
                 except PermissionError:
                     # Private-history grants and source audience checks are
                     # host-owned. Never turn a policy denial into HTTP 500.

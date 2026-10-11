@@ -46,6 +46,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.util.UUID
 
 data class ChatLine(val speaker: String, val text: String)
 
@@ -66,6 +67,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var historyHasMore by mutableStateOf(false)
         private set
     private var historyCursor: JSONObject? = null
+    private var pendingText: String? = null
+    private var pendingRequestId: String? = null
+    private var pendingPrivateMode: Boolean? = null
 
     init {
         receivePending()
@@ -98,6 +102,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             historyOpen = false
             historyHasMore = false
             draft = ""
+            pendingText = null
+            pendingRequestId = null
+            pendingPrivateMode = null
             mood = "settled"
             gesture = "still"
         }
@@ -150,12 +157,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val text = draft.trim()
         if (text.isEmpty() || busy) return
         draft = ""
+        val requestId = if (
+            pendingText == text && pendingPrivateMode == config.privateMode
+        ) pendingRequestId ?: UUID.randomUUID().toString()
+        else UUID.randomUUID().toString()
+        pendingText = text
+        pendingPrivateMode = config.privateMode
+        pendingRequestId = requestId
         val pending = ChatLine("You", text)
         val index = messages.size
         messages += pending
         launchRequest {
             try {
-                val result = withContext(Dispatchers.IO) { api.chat(text) }
+                val result = withContext(Dispatchers.IO) {
+                    api.chat(text, requestId)
+                }
+                pendingText = null
+                pendingRequestId = null
+                pendingPrivateMode = null
                 messages += ChatLine("Sofía", result.getString("response"))
                 applyState(result)
             } catch (failure: Exception) {
