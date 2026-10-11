@@ -16,8 +16,12 @@ from pathlib import Path
 import sqlite3
 
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.goals.evidence import GoalEvidenceIndex
+from sofia.run.work import DurableWorkStore, WorkStatus
+from sofia.social.principals import local_sparks_principal
 
-from .model import LifeProject, ProjectScope
+from .model import LifeProject, ProjectScope, ProjectStatus, TechnicalOutcome
+from .store import LifeStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +180,60 @@ class LifeProcedureCatalog:
         ):
             raise ValueError("original source job, receipt and aware time required")
         key, environment = self._definition(project)
+        # Do not let an arbitrary caller promote a made-up model lesson.
+        # Recheck the original canonical LIFE row, linked RUN receipt and
+        # independent evaluation before recording a single success.
+        canonical = LifeStore(self.path).get(
+            project.project_id,
+            owner_principal_id=project.owner_principal_id,
+            audience_id=project.audience_id,
+        )
+        if (
+            canonical != project
+            or canonical.status is not ProjectStatus.COMPLETED
+        ):
+            raise ValueError("procedure source is not the current completed LIFE project")
+        original = GoalEvidenceIndex(self.path).lookup(original_run_evidence_ref)
+        if (
+            original is None or original.kind != "operation_receipt"
+            or original.source != "life:creative-capability"
+            or original.successful is not True
+            or original.goal_id != project.goal_id
+            or original.action_id != job_id
+            or original.principal_id != local_sparks_principal().principal_id
+            or original.audience != project.audience_id
+            or original.observed_at > now
+        ):
+            raise ValueError("procedure requires the real original scoped RUN receipt")
+        work = DurableWorkStore(self.path).get(job_id)
+        output = work.result if isinstance(work.result, dict) else {}
+        if (
+            work.status is not WorkStatus.COMPLETED
+            or output.get("evidence_ref") != original_run_evidence_ref
+            or not isinstance(output.get("artifact_id"), str)
+            or type(output.get("revision")) is not int
+        ):
+            raise ValueError("original RUN effect has no matching completed artifact")
+        source = LifeStore(self.path)
+        if (
+            job_id not in source.jobs(project.project_id)
+            or (output["artifact_id"], output["revision"])
+            not in source.artifacts(project.project_id)
+            or not any(
+                evaluation.artifact_id == output["artifact_id"]
+                and evaluation.artifact_revision == output["revision"]
+                and evaluation.technical_outcome is TechnicalOutcome.VALID
+                and original_run_evidence_ref in evaluation.evidence_refs
+                and set(evaluation.objective_results) ==
+                set(project.brief.objectives)
+                and all(
+                    value is True
+                    for value in evaluation.objective_results.values()
+                )
+                for evaluation in source.evaluations(project.project_id)
+            )
+        ):
+            raise ValueError("independent original LIFE objective proof missing")
         now_iso = now.astimezone(timezone.utc).isoformat()
         project_brief = project.brief
         with closing(self._connect()) as db, db:
