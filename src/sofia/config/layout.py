@@ -227,7 +227,7 @@ class RuntimeStorageLayout:
             # Publish only a fully copied, flushed file. os.replace() used
             # here would destroy an identity written by a competing startup
             # between the initial existence check and this point.
-            with temporary.open("rb") as persisted:
+            with temporary.open("r+b") as persisted:
                 os.fsync(persisted.fileno())
             try:
                 # Same-directory hard link atomically creates only if absent.
