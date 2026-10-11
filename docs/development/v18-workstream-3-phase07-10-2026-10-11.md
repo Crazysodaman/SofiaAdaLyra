@@ -363,3 +363,10 @@ This closes the concrete indefinite-ACTIVE decision loop for unknown objective e
 - `47ef7b76`: Two unexecuted regression cases cover oversized original model project ideas and artifact drafts, confirming the expected bounded rejection and absence of a newly minted LIFE job/artifact.
 
 This bounds returned model text, not input token accounting, inference runtime, GPU VRAM allocation or OS isolation. Full model-role resource admission and isolated-worker envelope remain open to Workstream 4/SAFE. All regression/CI/host acceptance execution is explicitly deferred.
+
+## New-work eligibility cannot skip independent verification
+
+- `c7dc635d`: The read-only LIFE dependency projection now treats a lack of blocked permissions as insufficient for new-work eligibility. An original RUN job classified COMPLETED but lacking independent validated artifact critique is `next_action_candidate=verify`, **not eligible for new work**, avoiding misleading operator guidance or future admission interpretation.
+- `771d03d2`: Regression source checks the completed-unverified original RUN scenario and asserts the new-work admission projection stays false. Tests intentionally unexecuted.
+
+This is a source/projection correctness patch, not a replacement for LIVE RUN admission checking. Production RUN/GOALS/SAFE still own authorizations; the entire 175-ID scope remains open pending complete source audit and deferred testing.
