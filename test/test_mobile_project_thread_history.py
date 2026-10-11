@@ -153,3 +153,66 @@ def test_mobile_project_history_only_accepts_exact_authenticated_route(tmp_path)
         )["messages"][0]["content"] == "HO-scale original"
     finally:
         source.close()
+
+
+def test_project_header_limit_applies_after_audience_visibility(tmp_path):
+    """An old eligible project cannot be buried under 65 hidden newer ones."""
+    path, source, social, app, gateway = _setup(tmp_path)
+    bearer = gateway.credentials.enroll("android-owner")
+    try:
+        visible = _project(
+            source, social, gateway, device="android-owner",
+            private=False, name="Old authorized robotics project",
+            words=("visible original evidence",),
+        )
+        for index in range(65):
+            _project(
+                source, social, gateway, device="android-other",
+                private=False, name=f"Hidden project {index:03d}",
+                words=(f"inaccessible source {index}",),
+            )
+        # Old list_threads(..., limit=1) could return a hidden project and
+        # filter it afterwards, hiding a legitimately visible old project.
+        headers = gateway.dispatch_authenticated(
+            credential=bearer, operation="/v1/mobile/threads",
+            payload={
+                "device_id": "android-owner", "private_mode": False,
+                "limit": 1,
+            },
+        )
+        assert len(headers["threads"]) == 1
+        assert headers["threads"][0]["thread_id"] == visible.thread_id
+        assert headers["threads"][0]["name"] == "Old authorized robotics project"
+        assert "Hidden project" not in str(headers)
+    finally:
+        source.close()
+
+
+def test_deleted_source_ends_project_title_visibility_immediately(tmp_path):
+    path, source, social, app, gateway = _setup(tmp_path)
+    bearer = gateway.credentials.enroll("android-owner")
+    try:
+        visible = _project(
+            source, social, gateway, device="android-owner",
+            private=False, name="Erase before display", words=("source original",),
+        )
+        before = _dispatch(
+            gateway, bearer, "/v1/mobile/threads", limit=5,
+        )
+        assert visible.thread_id in {
+            header["thread_id"] for header in before["threads"]
+        }
+        with __import__("sqlite3").connect(path) as db:
+            db.execute(
+                "DELETE FROM lifelong_thread_event WHERE thread_id=?",
+                (visible.thread_id,),
+            )
+        after = _dispatch(
+            gateway, bearer, "/v1/mobile/threads", limit=5,
+        )
+        assert visible.thread_id not in {
+            header["thread_id"] for header in after["threads"]
+        }
+        assert "Erase before display" not in str(after)
+    finally:
+        source.close()
