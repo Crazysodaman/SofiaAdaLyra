@@ -1906,7 +1906,7 @@ class SelfDirectedLifeCoordinator:
                             else "model_generation_unavailable"
                         ),
                         "terminal_run_projects_settled": terminal_settled,
-                    "review_queue": self.pending_work_review(limit=16),
+                        "review_queue": self.pending_work_review(limit=16),
                     }
                 if not self.store.claim_daily_draft_attempt(project.project_id, now=now):
                     return {
@@ -1918,7 +1918,7 @@ class SelfDirectedLifeCoordinator:
                         ),
                         "draft_status": "deferred_daily_limit",
                         "terminal_run_projects_settled": terminal_settled,
-                    "review_queue": self.pending_work_review(limit=16),
+                        "review_queue": self.pending_work_review(limit=16),
                     }
                 try:
                     specification = ProjectDraftAgent(generate).draft(project, kind)
@@ -1934,7 +1934,7 @@ class SelfDirectedLifeCoordinator:
                         ),
                         "draft_status": "failed_unverified",
                         "terminal_run_projects_settled": terminal_settled,
-                    "review_queue": self.pending_work_review(limit=16),
+                        "review_queue": self.pending_work_review(limit=16),
                     }
                 # Do not leave a misleading creative-work evidence record
                 # when there is no authorized original draft to submit.
