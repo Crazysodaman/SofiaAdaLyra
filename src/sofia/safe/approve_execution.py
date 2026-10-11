@@ -61,24 +61,26 @@ def main(argv: list[str] | None = None) -> int:
                 raise PermissionError(
                     "protected operation requires --credential-id and fresh FIDO2 verification"
                 )
+            if args.ttl_seconds > 900:
+                raise ValueError("protected approval TTL cannot exceed 900 seconds")
             approval = authorize_exact_action(
                 state_path, capability=args.capability, parameters=parameters,
                 credential_id=args.credential_id,
-                expires_seconds=min(args.ttl_seconds, 900),
+                expires_seconds=args.ttl_seconds,
             )
         else:
             now = datetime.now(timezone.utc)
             approval = ExecutionApproval(
-            approval_id=str(uuid4()),
-            capability=args.capability,
-            request_fingerprint=execution_fingerprint(
-                args.capability,
-                parameters,
-            ),
-            approved_by=args.approved_by,
-            approved_at=now,
-            expires_at=now + timedelta(seconds=args.ttl_seconds),
-        )
+                approval_id=str(uuid4()),
+                capability=args.capability,
+                request_fingerprint=execution_fingerprint(
+                    args.capability,
+                    parameters,
+                ),
+                approved_by=args.approved_by,
+                approved_at=now,
+                expires_at=now + timedelta(seconds=args.ttl_seconds),
+            )
             ExecutionApprovalVerifier(state_path).record(approval)
         print(
             json.dumps(
