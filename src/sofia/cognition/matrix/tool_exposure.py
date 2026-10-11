@@ -272,7 +272,7 @@ class MatrixToolExposurePlanner:
         if _OLLAMA.search(text):
             _add(capabilities, "ollama.models", "ollama.running", "ollama.model.show")
         if _VM.search(text):
-            _add(capabilities, "hyperv.vms", "hyperv.vm", "remote.vm.list", "remote.vm.get")
+            _add(capabilities, "hyperv.vms", "hyperv.vm", "hyperv.sofia.inspect", "remote.vm.list", "remote.vm.get")
         if _STORAGE.search(text):
             _add(capabilities, "storage.roots", "storage.usage", "storage.list", "storage.read_text")
         if _SQLITE.search(text):
