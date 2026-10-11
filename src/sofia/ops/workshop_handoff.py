@@ -16,6 +16,10 @@ from uuid import UUID
 from sofia.ops.workshop_provision import (
     EXPECTED_SWITCH, EXPECTED_VM, _path, _SHA,
 )
+from sofia.ops.workshop_network import (
+    HostInternalIsolation, decode_host_internal_isolation,
+    review_internal_network,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,7 +63,7 @@ class WorkshopBlankVMHandoff:
         ):
             raise ValueError("distinct authenticated Artemis and VM UUIDs required")
         if self.guest_name != EXPECTED_VM or self.switch_name != EXPECTED_SWITCH:
-            raise PermissionError("only Hephaestus on dedicated private switch allowed")
+            raise PermissionError("only Hephaestus on dedicated nonrouted Internal switch allowed")
         if (
             self.vm_generation != 2 or self.desired_os != "Debian"
             or self.installation_style != "approved_unattended_gen2_iso"
@@ -137,6 +141,7 @@ class WorkshopVMObservation:
     secure_boot: str | None
     observed_at: datetime
     firmware_boot_order: tuple[str,...] = ()
+    network_isolation: HostInternalIsolation | None = None
 
     def __post_init__(self):
         if not isinstance(self.hyperv_vm_id,UUID) or not isinstance(self.name,str):
@@ -236,8 +241,10 @@ def inspect_blank_vm_handoff(
         or not handoff.min_disk_gib <= observation.os_disk_sizes_gib[0] <= handoff.max_disk_gib
     ):
         blockers.append("OS disk size unknown or outside reviewed budget")
-    if observation.nic_switches != ((EXPECTED_SWITCH,"Private"),):
-        blockers.append("exactly one private Hephaestus NIC required; no LAN/NAT/external")
+    if observation.nic_switches != ((EXPECTED_SWITCH,"Internal"),):
+        blockers.append("exactly one dedicated Internal Hephaestus NIC required; no external or Default Switch")
+    network_review=review_internal_network(observation.network_isolation,now=now)
+    blockers.extend(network_review.blockers)
     if observation.dvd_paths:
         blockers.append("unexpected existing DVD attachment; refuse replacement")
     if not observation.firmware_boot_order:
@@ -325,6 +332,10 @@ def observed_owner_vm(payload: dict) -> WorkshopVMObservation:
         dvd_paths=tuple(raw_dvds),
         secure_boot=security,observed_at=moment,
         firmware_boot_order=tuple(boot_order),
+        network_isolation=(
+            None if payload.get("NetworkIsolation") is None
+            else decode_host_internal_isolation(payload["NetworkIsolation"])
+        ),
     )
 
 
@@ -353,6 +364,8 @@ class WorkshopHandoffPreview:
             "Media observed: "+str(self.observed_boot_sha256 or "UNKNOWN"),
             "Signed first-boot policy: "+str(self.approved_media_policy or "UNKNOWN"),
             "Network: "+str(self.observation.nic_switches),
+            "Internal host-only isolation observed: "
+            +str(self.observation.network_isolation is not None),
             "No self-created guest, network change, or implicit Fleet enrollment.",
             "Owner confirmed empty OS disk: "+str(self.handoff.owner_declares_empty_disk),
             "Eligible for separate boot approval: "
@@ -480,6 +493,11 @@ class WorkshopHandoffStore:
         o=asdict(preview.observation)
         o["hyperv_vm_id"]=str(preview.observation.hyperv_vm_id)
         o["observed_at"]=preview.observation.observed_at.astimezone(timezone.utc).isoformat()
+        if o["network_isolation"] is not None:
+            o["network_isolation"]["observed_at"]=(
+                preview.observation.network_isolation.observed_at
+                .astimezone(timezone.utc).isoformat()
+            )
         serialized=json.dumps({
             "plan":preview.handoff.exact_manifest(),
             "observation":o,
@@ -546,6 +564,10 @@ class WorkshopHandoffStore:
             "vm_guid":plan["hyperv_vm_id"],
             "state":data["observation"]["state"],
             "network":data["observation"]["nic_switches"],
+            "internal_isolation_observed":bool(
+                data["observation"].get("network_isolation")
+            ),
+            "host_to_guest_lan_routing_permitted":False,
             "boot_media_digest":data["media_sha256"],
             "owner_approved_media_policy":data.get("owner_approved_media_policy"),
             "ready_for_bootstrap_review":(
