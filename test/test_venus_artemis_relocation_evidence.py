@@ -120,6 +120,7 @@ def _stage(
             and (not revoke_before_publish or authorization_checks == 1)
         )
 
+    (tmp_path / "operator-held").mkdir(exist_ok=True)
     output = stage_verified_state_home(
         proof=proof,
         independently_verify_authorization=verify_fence,
