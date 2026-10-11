@@ -1102,6 +1102,169 @@ class SelfDirectedLifeCoordinator:
         self.store.record_experience(value)
         return value
 
+    def _settle_personal_project(
+        self, project: LifeProject, *, now: datetime, generate,
+    ) -> tuple[int, str]:
+        """Review settled RUN receipts and advance optional personal work.
+
+        One application-owned production path: real creative artifact bytes ->
+        closed independent objective checker -> durable evaluation -> either
+        completion, one bounded revision, or an explicit review/pause. NEVER
+        infer a successful result from LLM text or a synthetic job receipt.
+        Protected/user work is not automatically revised or completed.
+        """
+        if project.scope is not ProjectScope.PERSONAL_PRIVATE:
+            return 0, "awaiting_owner_review"
+        jobs = tuple(self.work_store.get(key) for key in self.store.jobs(project.project_id))
+        if not jobs:
+            return 0, "no_work"
+        if any(job.status in {
+            WorkStatus.QUEUED, WorkStatus.RUNNING,
+            WorkStatus.BLOCKED, WorkStatus.WAITING_APPROVAL,
+        } for job in jobs):
+            return 0, "waiting_on_existing_work"
+        if any(job.status in {
+            WorkStatus.FAILED, WorkStatus.CANCELLED, WorkStatus.UNCERTAIN,
+        } for job in jobs):
+            # External effects may already have happened, or grants failed.
+            # Never silently retry a protected or uncertain RUN operation.
+            return 0, "failed_or_uncertain_requires_review"
+
+        evaluations = self.store.evaluations(project.project_id)
+        evaluated = {
+            (evaluation.artifact_id, evaluation.artifact_revision): evaluation
+            for evaluation in evaluations
+        }
+        latest = jobs[-1]
+        outcome = latest.result if isinstance(latest.result, dict) else {}
+        artifact_id, revision = outcome.get("artifact_id"), outcome.get("revision")
+        evidence_ref = outcome.get("evidence_ref")
+        if (
+            latest.status is not WorkStatus.COMPLETED
+            or not isinstance(artifact_id, str)
+            or type(revision) is not int
+            or (artifact_id, revision) not in self.store.artifacts(project.project_id)
+            or not isinstance(evidence_ref, str)
+            or self.evidence_index.lookup(evidence_ref) is None
+        ):
+            return 0, "missing_verified_artifact_receipt"
+
+        evaluation = evaluated.get((artifact_id, revision))
+        if evaluation is None:
+            try:
+                report = self.inspect_artifact_objectives(
+                    project.project_id, artifact_id=artifact_id,
+                )
+            except (LookupError, PermissionError, OSError, ValueError):
+                return 0, "artifact_integrity_review_required"
+            if report.revision != revision:
+                return 0, "artifact_revision_changed_requires_review"
+            from .validation import ObjectiveDisposition
+            if report.integrity is ObjectiveDisposition.FAIL:
+                # Corruption is a possible external side-effect or tampering,
+                # not evidence that a new creative draft should replace it.
+                return 0, "artifact_integrity_review_required"
+            outcomes = {
+                finding.objective: (
+                    True if finding.disposition is ObjectiveDisposition.PASS
+                    else False if finding.disposition is ObjectiveDisposition.FAIL
+                    else None
+                )
+                for finding in report.findings
+            }
+            if report.eligible_for_independent_completion:
+                technical = TechnicalOutcome.VALID
+            elif (
+                report.integrity is ObjectiveDisposition.FAIL
+                or any(f.disposition is ObjectiveDisposition.FAIL for f in report.findings)
+            ):
+                technical = TechnicalOutcome.INVALID
+            else:
+                technical = TechnicalOutcome.INCONCLUSIVE
+            # The host may grade the typed artifact objective, but it has no
+            # basis to invent a personal emotional preference for the model.
+            evaluation = self.evaluate_artifact(
+                project.project_id, artifact_id=artifact_id,
+                technical_outcome=technical,
+                personal_judgment=PersonalJudgment.UNKNOWN,
+                objective_results=outcomes,
+                reason="Independent source-objective inspection; subjective taste not claimed.",
+                evidence_refs=(evidence_ref,), preserve_for_research=False,
+                now=now,
+            )
+        if evaluation.technical_outcome is TechnicalOutcome.VALID:
+            if (
+                evaluation.personal_judgment is PersonalJudgment.UNKNOWN
+                and set(evaluation.objective_results) == set(project.brief.objectives)
+                and all(value is True for value in evaluation.objective_results.values())
+            ):
+                self.complete(
+                    project.project_id,
+                    reason="All original typed objectives passed independent source checks.",
+                    now=now,
+                )
+                return 0, "independently_completed"
+            return 0, "reviewed_judgment_requires_decision"
+        if evaluation.technical_outcome is TechnicalOutcome.INCONCLUSIVE:
+            # No automatic retry can make an unknown free-text objective
+            # independently verifiable; ask for a reviewed criterion instead.
+            return 0, "needs_independent_objective_review"
+        if evaluation.personal_judgment is not PersonalJudgment.UNKNOWN:
+            return 0, "personal_judgment_requires_decision"
+        if set(evaluation.objective_results) != set(project.brief.objectives) or any(
+            value is None for value in evaluation.objective_results.values()
+        ):
+            return 0, "needs_independent_objective_review"
+
+        # Bounded autonomous revisions ONLY for failed, independently graded
+        # TEXT/STORY artifacts, not inconclusive subjective work.
+        if len(self.store.artifacts(project.project_id)) >= 3:
+            self.pause(
+                project.project_id,
+                reason="Three independently checked attempts exhausted; choosing to pause.",
+                evidence_refs=(evidence_ref,), now=now,
+            )
+            return 0, "revision_budget_exhausted_paused"
+        kind_tool = next((
+            tool for tool in project.brief.required_tools
+            if tool.startswith("artifact-kind:")
+        ), "artifact-kind:text")
+        kind = ArtifactKind(kind_tool.split(":")[-1])
+        if kind not in {ArtifactKind.TEXT, ArtifactKind.STORY} or generate is None:
+            return 0, "revision_requires_native_drafting"
+        if not self.store.claim_daily_draft_attempt(project.project_id, now=now):
+            return 0, "deferred_daily_draft_limit"
+        failed = tuple(
+            key for key, result in evaluation.objective_results.items()
+            if result is False
+        )
+        feedback = (
+            "The prior artifact was source-checked and failed these exact "
+            "independent objectives: " + "; ".join(failed[:4])
+        )[:600]
+        try:
+            draft = ProjectDraftAgent(generate).draft(
+                project, kind, feedback=feedback,
+            )
+        except ProjectDraftGenerationError:
+            return 0, "revision_draft_failed_unverified"
+        observation = self.record_observation(
+            kind="independent-revision",
+            source="life:artifact-objectives",
+            assertion=f"Independent objective report requires revision of {artifact_id}.",
+            now=now, payload={
+                "previous_artifact_id": artifact_id,
+                "previous_revision": revision,
+                "evaluation_id": evaluation.evaluation_id,
+            },
+        )
+        self.schedule_artifact(
+            project.project_id, artifact_kind=kind,
+            title=project.name, specification=draft,
+            evidence_ref=observation, now=now,
+        )
+        return 1, "revision_scheduled"
+
     def tick(
         self, *, now: datetime, busy: bool = False,
         resource_pressure: float = 0.0,
@@ -1111,9 +1274,14 @@ class SelfDirectedLifeCoordinator:
             now=now, busy=busy, resource_pressure=resource_pressure,
         )
         scheduled = 0
+        follow_through = "not_applicable"
         if selection.kind is SelectionKind.PROJECT and selection.project_id is not None:
             project = self._project(selection.project_id)
-            if not self.store.artifacts(project.project_id) and not self.store.jobs(project.project_id):
+            if self.store.jobs(project.project_id):
+                scheduled, follow_through = self._settle_personal_project(
+                    project, now=now, generate=generate,
+                )
+            elif not self.store.artifacts(project.project_id):
                 kind_tool = next((
                     tool for tool in project.brief.required_tools
                     if tool.startswith("artifact-kind:")
@@ -1168,6 +1336,7 @@ class SelfDirectedLifeCoordinator:
             "project_id": selection.project_id,
             "scheduled": scheduled,
             "jobs_started": started,
+            "follow_through": follow_through,
             "review_queue": self.pending_work_review(limit=16),
         }
 

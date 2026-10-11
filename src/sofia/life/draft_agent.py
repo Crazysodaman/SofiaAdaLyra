@@ -25,7 +25,10 @@ class ProjectDraftAgent:
             raise TypeError("provider callback required")
         self.generate = generate
 
-    def draft(self, project: LifeProject, kind: ArtifactKind) -> dict[str, object]:
+    def draft(
+        self, project: LifeProject, kind: ArtifactKind,
+        *, feedback: str | None = None,
+    ) -> dict[str, object]:
         if not isinstance(project, LifeProject):
             raise TypeError("canonical LIFE project required")
         if kind not in {ArtifactKind.TEXT, ArtifactKind.STORY}:
@@ -42,11 +45,18 @@ class ProjectDraftAgent:
             "at the specified creative objectives. Do not report publication, "
             "execution, tests, verification or real-world outcomes."
         )
+        if feedback is not None and (
+            not isinstance(feedback, str)
+            or not feedback.strip()
+            or len(feedback) > 600
+        ):
+            raise ValueError("bounded independent revision feedback required")
         brief = json.dumps({
             "name": project.name,
             "description": project.description,
             "objectives": project.brief.objectives,
             "kind": kind.value,
+            "independent_revision_feedback": feedback,
         }, sort_keys=True, ensure_ascii=False)
         request = CognitiveRequest(
             messages=(

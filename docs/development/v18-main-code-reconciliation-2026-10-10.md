@@ -15,7 +15,7 @@ The separate `Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md` fr
 | 06 Memory | Indexed source SQL, optional FTS5, temporal candidates | Measured large-history recall, correction/revocation review and full composition |
 | 07 Archives | AES-GCM `SealedArchiveSegmentStore` | Rotation, retention, source indexing and verified lifecycle/erasure |
 | 08 Emotion | Existing emotion journal/expression/presence | Longitudinal recall and real renderer/voice delivery verification |
-| 09 LIFE | Canonical LIFE coordinator, Project Forge, source-validated objectives | Reviewed critique-revision completion loop and resource/host acceptance |
+| 09 LIFE | Canonical LIFE coordinator, Project Forge, source-validated objectives, **this change now wires independent completed-artifact inspection, bounded revisions, and typed objective completion into recurring `tick()`** | Real host tests, longitudinal acceptance, subjective-criteria review, native formats and experience-triggered interests remain open |
 | 10 Skills | Capability-scoped skill candidate review | Host-verified skill activation/import/rollback and safe adapters |
 | 11 LLM | Role trials, guarded proposal, production model lifecycle | Exact-grant live model promotion, reproducible trials and rollback |
 | 12 Vision | Screen-observation admission/receipt contract | Windows/Hyprland real capture, VLM, privacy indicator and revocation |
@@ -38,3 +38,7 @@ Code above is intended production path, not a verified production deployment. Ph
 ### Permission/transition hardening
 
 Private Main endpoint denies reads without durable host private-chat permission (HTTP 403); an Android private/shared toggle is disabled while requests are in flight and scrubs chat, Main history and the composer on a successful switch. This prevents an outstanding private response from repainting a shared-screen view.
+
+### Phase 09 audit continuation
+
+The production LIFE `tick()` now reviews settled original RUN results via closed source-verified `inspect_artifact_objectives` and records one canonical evaluation. For personally owned, exactly checkable objectives it may independently finish. Failed typed objectives may produce up to three verified TEXT/STORY attempts, each via existing daily budget and GOALS/SAFE/RUN/creative grants. Subjective/inconclusive criteria, tampered artifacts, user/operational work and failed/uncertain jobs fail closed. See `docs/development/phase09-life-followthrough-2026-10-10.md`. No tests or real host actions were executed.

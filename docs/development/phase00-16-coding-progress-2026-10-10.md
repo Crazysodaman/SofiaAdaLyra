@@ -15,7 +15,7 @@
 | 06 Memory scaling | Cursor/page reads, bounded recent messages in model request, bounded older source-specific recall, dated candidate records | FTS5 performance, retrieval quality, corrections and full lifetime context composition |
 | 07 Archive | AES-GCM sealed segment writer/recovery using existing backup cipher; encrypted ciphertext integrity and authenticated manifest | Source archive indexing, consistent DB/assets/archives backup epochs, retention and erasure tombstones |
 | 08 Emotion | Existing `EmotionalJournal` reused; explicit historical-scope recall added without treating old emotions as current | Long-term memory promotion and rendering/voice delivery evidence |
-| 09 LIFE | Existing GOALS/RUN/LIFE reused; live tool-free creative text/story draft, per-project daily admission, execution receipt review and duplicate evaluation guard | Real iterative critique/revision, independent goal-success criteria, resource benchmarks and actual long-running acceptance |
+| 09 LIFE | Existing GOALS/RUN/LIFE reused; tool-free original text/story drafts, per-day budgets, actual RUN receipt checks; recurring tick now source-validates and evaluates settled personal artifacts, retries failed typed objectives at most three times, and completes only independently checkable objectives | Real host acceptance, quality/subjective review, other native formats and longitudinal benchmarks |
 | 10 Skills | Digest/evidence/capability-scoped procedural candidate review | Explicit approval, executable skill runtime and safe imports |
 | 11 LLMs | Measured baseline/candidate eligibility policy with safety, accuracy and CPU-memory/latency limits | Autonomous discovery, permitted actual model switching, reproducible benchmarks and rollback |
 | 12 Vision | Exact time-scoped screen observation policy and minimal receipt contract | Real Windows/Hyprland interactive capture and redaction; UI indicators; actual VLM frames |
@@ -63,3 +63,7 @@
 - Offline restore and complete state-bundle migration using one fenced writer; multi-day resource/companionship acceptance
 
 **Next coding dependencies:** Phase 03 single-writer relocation and long-lived source integrity, Phase 05 cross-channel review and topic continuity, Phase 06 memory/correction quality and Phase 09 objective evaluation. Later experimental phases are not a substitute for these foundational requirements.
+
+## Phase 09 source coding continuation, 2026-10-10 (no tests)
+
+The existing application-owned LIFE background tick now follows settled canonical RUN receipts into real source-byte structural/objective evaluation, idempotent stored judgments, allowed revisions, and exact-goal completion. It refuses to equate subjective criteria or a model's assertion with independently verified objective PASS. See `docs/development/phase09-life-followthrough-2026-10-10.md`; production acceptance remains open until the end-of-coding test campaign and host verification.
