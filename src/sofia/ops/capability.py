@@ -151,8 +151,8 @@ class OpsToolService:
         Never contacts the hypervisor, performs OS bootstrap, or creates
         permission from the model's request.
         """
-        from sofia.ops.workshop_provision import WorkshopPreviewStore
-        return WorkshopPreviewStore(self.state_path).read_model_brief()
+        from sofia.ops.workshop_handoff import WorkshopHandoffStore
+        return WorkshopHandoffStore(self.state_path).read_model_brief()
 
     @staticmethod
     def _tag_value(tags:tuple[str,...],prefix:str)->str|None:
