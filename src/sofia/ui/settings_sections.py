@@ -917,7 +917,12 @@ class SettingsSections:
 
         def owner_review_twin_dependency():
             service=OpsToolService(config.state_path)
-            host_ids=tuple(host.host_id for host in service.registry.hosts())
+            host_ids=tuple(
+                host.host_id for host in service.registry.hosts()
+                if host.trusted and host.lifecycle.value not in (
+                    "candidate","decommissioned",
+                )
+            )
             proposed=TwinReviewedDependency(
                 dependent_host_id=twin_dependent.get().strip(),
                 prerequisite_host_id=twin_prerequisite.get().strip(),
