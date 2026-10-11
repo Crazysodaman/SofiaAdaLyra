@@ -128,7 +128,7 @@ def test_real_ops_registration_is_readonly_and_has_no_direct_execution():
     for name in ("ops.digital_twin.inspect","ops.digital_twin.simulate"):
         policy=capability_permission_policy(name)
         assert policy.level is PermissionLevel.OBSERVE_READ
-        assert policy.standing_grant_allowed
+        assert policy.standing_grant_allowed is False  # L1 observation never requires standing authority
     bindings=create_ops_tool_bindings()
     names={item.capability_name for item in bindings}
     assert "ops.digital_twin.inspect" in names
