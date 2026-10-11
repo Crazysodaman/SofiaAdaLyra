@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -95,5 +96,18 @@ class OfflineMainCacheInstrumentedTest {
         )
         store.clearMainCache()
         assertNull(store.cachedMainPage(config()))
+    }
+
+    @Test fun offlineFallbackOnlyPermitsNetworkFailures() {
+        assertTrue(isOfflineNetworkFailure(java.net.UnknownHostException("offline")))
+        assertTrue(isOfflineNetworkFailure(java.net.ConnectException("refused")))
+        assertTrue(isOfflineNetworkFailure(java.net.SocketTimeoutException("timed out")))
+        assertFalse(isOfflineNetworkFailure(SofiaHttpFailure(403, "forbidden")))
+        assertFalse(isOfflineNetworkFailure(SofiaHttpFailure(401, "unauthorized")))
+        assertFalse(isOfflineNetworkFailure(javax.net.ssl.SSLHandshakeException("untrusted")))
+        assertFalse(isOfflineNetworkFailure(
+            java.io.IOException("response exceeds bounded reply size"),
+        ))
+        assertFalse(isOfflineNetworkFailure(IllegalArgumentException("bad JSON")))
     }
 }
