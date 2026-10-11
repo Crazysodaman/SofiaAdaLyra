@@ -20,8 +20,10 @@ class SofiaHttpFailure(
 ) : IOException("Sofía HTTP $statusCode ($serverCode)")
 
 class SofiaApi(private val settings: SecureSettings) {
-    private fun post(path: String, payload: JSONObject): JSONObject {
-        val config = settings.load()
+    private fun post(
+        path: String, payload: JSONObject,
+        config: CompanionSettings = settings.load(),
+    ): JSONObject {
         require(config.baseUrl.startsWith("https://") &&
             config.token.startsWith("sm1_") && config.token.length >= 52) {
             "Configure an HTTPS server and pairing token first"
@@ -75,18 +77,22 @@ class SofiaApi(private val settings: SecureSettings) {
         }
     }
 
-    fun chat(message: String, requestId: String): JSONObject {
+    /** Send ONLY the original durable outbox message under its saved pairing. */
+    fun chat(pending: PendingMobileTurn): JSONObject {
         val config = settings.load()
+        require(pending.matches(config)) {
+            "Original queued message belongs to another pairing or privacy audience"
+        }
         val response = post("/v1/mobile/chat", JSONObject()
             .put("device_id", settings.deviceId)
-            .put("message", message)
-            .put("private_mode", config.privateMode)
-            .put("request_id", requestId))
+            .put("message", pending.text)
+            .put("private_mode", pending.privateMode)
+            .put("request_id", pending.requestId), config)
         MobileDeliveryReceiptProof.verify(
             response,
-            expectedRequestId = requestId,
+            expectedRequestId = pending.requestId,
             expectedDeviceId = settings.deviceId,
-            expectedPrivateMode = config.privateMode,
+            expectedPrivateMode = pending.privateMode,
         )
         return response
     }
@@ -104,7 +110,7 @@ class SofiaApi(private val settings: SecureSettings) {
             .put("device_id", settings.deviceId)
             .put("private_mode", pending.privateMode)
             .put("request_id", pending.requestId)
-            .put("content_sha256", digest))
+            .put("content_sha256", digest), config)
         if (response.getString("status") == "completed") {
             val saved = response.getJSONObject("result")
             MobileDeliveryReceiptProof.verify(
