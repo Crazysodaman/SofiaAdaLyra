@@ -841,6 +841,61 @@ def test_original_interest_source_loss_during_ideation_rejects_model_draft(tmp_p
         life.close()
 
 
+def test_project_ideation_filters_experiences_with_missing_original_evidence(
+    tmp_path,
+):
+    """Only actual current, scoped LIFE episodes reach the idea model."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        evidence = life.record_observation(
+            kind="curiosity", source="test:verified-source",
+            assertion="A real miniature field-guide interest was recorded.",
+            now=now,
+        )
+        life.revise_interest(
+            name="little-guides", context="creative", strength=0.85,
+            confidence=0.9, reason="Grounded interest in fiction catalogs.",
+            evidence_refs=(evidence,), now=now,
+        )
+        life.store.record_experience(ExperienceRecord(
+            "experience:valid-idea-context", None, "ordinary_observation",
+            "Source-verified miniature guide reading.", (evidence,),
+            "local:text", True, now, now,
+        ))
+        life.store.record_experience(ExperienceRecord(
+            "experience:invalid-idea-context", None, "ordinary_observation",
+            "UNVERIFIED CONTEXT MUST NOT REACH COGNITION.",
+            ("goal-evidence:missing-context",), "local:text", True,
+            now + timedelta(seconds=1), now + timedelta(seconds=1),
+        ))
+        observed_model_context = []
+
+        def generate(request):
+            observed_model_context.append(request.messages[1].content)
+            return CognitiveResponse(json.dumps({
+                "name": "Miniature Almanac",
+                "description": "A tiny work of original fiction.",
+                "objectives": ["Invent two entries", "Write one chapter"],
+                "optional_success_criteria": ["Readable original prose"],
+                "artifact_kind": "story", "confidence": 0.8,
+                "curiosity": 0.8, "pursue": False,
+                "reason": "Choose rest this time.",
+            }))
+
+        assert life.consider_new_project(
+            generate=generate, now=now + timedelta(seconds=2),
+            busy=False, resource_pressure=0.0,
+        ) is None
+        assert len(observed_model_context) == 1
+        assert "Source-verified miniature guide reading." in observed_model_context[0]
+        assert "UNVERIFIED CONTEXT MUST NOT REACH COGNITION." not in observed_model_context[0]
+        assert life.store.list_scope(
+            owner_principal_id="sofia:self", audience_id="local:text",
+        ) == ()
+    finally:
+        life.close()
+
+
 def test_model_suggests_but_host_policy_invents_and_activates_project(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
