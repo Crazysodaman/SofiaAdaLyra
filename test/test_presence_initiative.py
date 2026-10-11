@@ -84,6 +84,64 @@ def configured(state, sent, *, outreach_policy=None):
     return service
 
 
+def test_replayed_presence_event_never_restores_deleted_original_observation(state):
+    """An ACT candidate must not become grounded by replaying its old event."""
+    import sqlite3
+
+    sent = []
+    service = configured(state, sent)
+    presence = PresenceInitiativeEngine(state_path=state, act_service=service)
+    original = event("source-revoked-and-replayed")
+    first = presence.consider(original)
+    assert first.status == "queued"
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "DELETE FROM presence_world_observation WHERE observation_id=?",
+            (original.observation.observation_id,),
+        )
+    again = presence.consider(original)
+    assert again == first
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT 1 FROM presence_world_observation WHERE observation_id=?",
+            (original.observation.observation_id,),
+        ).fetchone() is None
+    assert service.deliver_one(now=NOW + timedelta(minutes=1)) is None
+    assert sent == []
+
+
+def test_presence_replay_rejects_changed_original_event_identity(state):
+    """One event ID cannot be relabelled as another observation or recipient."""
+    from dataclasses import replace
+    import sqlite3
+
+    sent = []
+    service = configured(state, sent)
+    presence = PresenceInitiativeEngine(state_path=state, act_service=service)
+    original = event("single-original-opportunity")
+    first = presence.consider(original)
+    changed_source = replace(
+        original,
+        observation=replace(
+            original.observation,
+            observation_id="observation:substituted-source",
+        ),
+    )
+    with pytest.raises(ValueError, match="event ID reused"):
+        presence.consider(changed_source)
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT 1 FROM presence_world_observation WHERE observation_id=?",
+            (changed_source.observation.observation_id,),
+        ).fetchone() is None
+        assert db.execute(
+            "SELECT COUNT(*) FROM presence_initiative_opportunity WHERE event_id=?",
+            (original.event_id,),
+        ).fetchone()[0] == 1
+    assert presence.consider(original) == first
+    assert sent == []
+
+
 def test_evidence_backed_event_delivers_without_user_message_and_traces(state):
     sent = []
     service = configured(state, sent)
