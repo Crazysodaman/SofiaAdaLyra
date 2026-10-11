@@ -28,7 +28,8 @@
     "2026-10-11: CA-6703 training-source revocation closure coded, owner-only EVOLVE dataset rights and future LoRA admission integrated. No private memory training supported, no independent validation of external licenses claimed, no tests/CI or training run.",
     "2026-10-11: Phase 12 four visual consent journeys designed/wired through owner Safety UI and metadata-only genuine-frame path. No OS capture adapter installed; UI explicitly says NOT OBSERVED. No tests/CI/host actions.",
     "2026-10-11: CA-6702 reviewed Hephaestus training-lab resource/separation design wired to EVOLVE Settings and actual read-only OPS, no training execution path or existing guest OS. Host GPU worker choice awaits separate authorization.",
-    "2026-10-11 OPTION B: User chose dedicated Hyper-V Internal host-to-guest link for existing OS-less Hephaestus VM. Production source updated on main: exact opt-in Artemis one-use SAFE/Fleet network stage, read-only original VM preflight, no siblings/NAT/ICS/IPv4 or IPv6 forwarding, host Public firewall default-deny, 172.30.250.1/30↔172.30.250.2/30, signed Debian nftables default DROP and no gateway/DNS. Live Artemis network and VM untouched; guest not installed; no tests/CI; CA-2806/2909 remain open pending measured isolation proof."
+    "2026-10-11 OPTION B: User chose dedicated Hyper-V Internal host-to-guest link for existing OS-less Hephaestus VM. Production source updated on main: exact opt-in Artemis one-use SAFE/Fleet network stage, read-only original VM preflight, no siblings/NAT/ICS/IPv4 or IPv6 forwarding, host Public firewall default-deny, 172.30.250.1/30↔172.30.250.2/30, signed Debian nftables default DROP and no gateway/DNS. Live Artemis network and VM untouched; guest not installed; no tests/CI; CA-2806/2909 remain open pending measured isolation proof.",
+    "2026-10-11 owner selected Option B Internal host-to-guest Hyper-V dedicated link. Existing source-coded protected staging/inspection was already present from concurrent main writer. Workstream4 audited and tightened training-lab source eligibility against reviewed exact isolated link. No live Artemis changes and no tests/CI. No change to item count."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -241,7 +242,9 @@
     "a738fc786cfb7a2c953f78cd02030e92defbf3ef",
     "9d88d152c76e2a1a02a644042c819ee7f5727aad",
     "7dd6504412cc0eed23617c416fab47de549afa44",
-    "64592722a4d2012d7df7e8e683c954856c9781d8"
+    "64592722a4d2012d7df7e8e683c954856c9781d8",
+    "ca8c56dad91ca3a0e0d40aed9842e6d6214bced8",
+    "c4a16054a42440c6c879bb1b67ff38f444fabea4"
   ],
   "tasks": [
     {
@@ -1799,7 +1802,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Actual EVOLVE owner training-lab plan now binds exact enrolled Artemis Fleet host and existing Hephaestus Hyper-V VM IDs, independently reviewed train+heldout data digests, fixed seed, offline/private network, no root/SSH/secrets or canonical DB access, 2-8GiB RAM, 1-4 CPU, bounded scratch disk, hard wall/GPU/VRAM and financial caps, 30min plan lease and separate hypothetical Venus GPU source. Owner EVOLVE Settings creates immutable canonical reviewed plan; model reads only real read-only OPS blocker status. No OS exists and no GPU worker or trainer is installed, so every plan remains non-executable and cannot promote weights; source regressions authored not run."
+      "finding": "Actual EVOLVE owner training-lab plan now binds exact enrolled Artemis Fleet host and existing Hephaestus Hyper-V VM IDs, independently reviewed train+heldout data digests, fixed seed, offline/private network, no root/SSH/secrets or canonical DB access, 2-8GiB RAM, 1-4 CPU, bounded scratch disk, hard wall/GPU/VRAM and financial caps, 30min plan lease and separate hypothetical Venus GPU source. Owner EVOLVE Settings creates immutable canonical reviewed plan; model reads only real read-only OPS blocker status. No OS exists and no GPU worker or trainer is installed, so every plan remains non-executable and cannot promote weights; source regressions authored not run. Option B cross-subsystem audit: training-lab source review now requires fresh ready_for_bootstrap_review and source-observed internal_isolation_observed from authenticated owner-created Hyper-V handoff, not only matching VM GUIDs; future guest/real GPU trust remains blocked."
     },
     {
       "id": "CA-6703",
