@@ -133,3 +133,51 @@ def test_delivery_status_rejects_malformed_or_overbroad_requests(tmp_path, bad):
             payload=payload,
         )
     assert app.conversation.calls == []
+
+
+@pytest.mark.parametrize("revoked", ("adult_chat", "adult_avatar"))
+def test_revoked_adult_presentation_grants_block_completed_replay(
+    tmp_path, revoked,
+):
+    app, gateway = _gateway(tmp_path)
+    bearer = gateway.credentials.enroll("android-owner")
+    saved = _chat(gateway, bearer, mode=True)
+    assert saved["adult_chat_enabled"] is True
+    assert saved["adult_avatar_enabled"] is True
+    assert _check(gateway, bearer, mode=True)["status"] == "completed"
+    prior_calls = len(app.conversation.calls)
+
+    gateway.permissions.set_private_adult_authority(
+        private_chat=True,
+        adult_chat=revoked != "adult_chat",
+        adult_avatar=revoked != "adult_avatar",
+        adult_external_delivery=False,
+    )
+    with pytest.raises(PermissionError, match="current adult"):
+        _check(gateway, bearer, mode=True)
+    with pytest.raises(PermissionError, match="current adult"):
+        _chat(gateway, bearer, mode=True)
+    assert len(app.conversation.calls) == prior_calls
+
+    # Revoking an egress grant does not erase or rewrite source evidence.
+    gateway.permissions.set_private_adult_authority(
+        private_chat=True, adult_chat=True, adult_avatar=True,
+        adult_external_delivery=False,
+    )
+    restored = _check(gateway, bearer, mode=True)
+    assert restored["status"] == "completed"
+    assert restored["result"] == saved
+    assert len(app.conversation.calls) == prior_calls
+
+
+def test_standard_completed_recovery_does_not_require_unrelated_adult_grants(
+    tmp_path,
+):
+    app, gateway = _gateway(tmp_path)
+    bearer = gateway.credentials.enroll("android-owner")
+    _chat(gateway, bearer, mode=False)
+    gateway.permissions.set_private_adult_authority(
+        private_chat=False, adult_chat=False, adult_avatar=False,
+        adult_external_delivery=False,
+    )
+    assert _check(gateway, bearer, mode=False)["status"] == "completed"
