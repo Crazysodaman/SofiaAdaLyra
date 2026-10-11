@@ -18,7 +18,7 @@ from hashlib import sha256
 import hmac
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import shutil
 import sqlite3
 import tempfile
@@ -52,18 +52,29 @@ class BackupEntry:
     nonce_b64: str
 
     def __post_init__(self) -> None:
-        logical = Path(self.logical_path)
+        # Manifests are portable between Unix and Windows. Native Path()
+        # alone cannot recognize a Windows drive or backslash traversal
+        # when verification happens on Linux.
+        logical = PurePosixPath(self.logical_path)
+        windows = PureWindowsPath(self.logical_path)
         if (
-            not self.logical_path
-            or logical.is_absolute()
-            or ".." in logical.parts
+            not self.logical_path or "\\x00" in self.logical_path
+            or "\\\\" in self.logical_path or ":" in self.logical_path
+            or logical.is_absolute() or windows.is_absolute()
+            or windows.drive or ".." in logical.parts
+            or "." in logical.parts
+            or logical.as_posix() != self.logical_path
+            or any(PureWindowsPath(part).is_reserved() for part in logical.parts)
         ):
             raise ValueError("logical_path must be a safe relative path")
-        payload = Path(self.payload_name)
+        payload = PurePosixPath(self.payload_name)
         if (
-            not self.payload_name
+            not self.payload_name or "\\x00" in self.payload_name
+            or "\\\\" in self.payload_name or ":" in self.payload_name
             or payload.name != self.payload_name
             or self.payload_name in {".", ".."}
+            or PureWindowsPath(self.payload_name).drive
+            or PureWindowsPath(self.payload_name).is_reserved()
         ):
             raise ValueError("payload_name must be a simple file name")
         if len(self.sha256) != 64:
