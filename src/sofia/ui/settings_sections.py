@@ -124,18 +124,31 @@ class SettingsSections:
         from datetime import datetime, timezone
 
         inventory_store = ModelInventoryStore(config.state_path)
-        host_id = (
-            create_machine_discovery().discover().identity.machine_id
-        )
+        try:
+            host_id = (
+                create_machine_discovery().discover().identity.machine_id
+            )
+        except Exception:
+            # Model inspection is unavailable, not a reason to hide every
+            # other owner setting or invent a local host identity.
+            host_id = None
         inventory_view = self.viewer(
             frames["Models"],
             "Observed installed/configured model inventory (local host)",
-            lambda: inventory_store.readable(host_id=host_id),
+            lambda: (
+                inventory_store.readable(host_id=host_id)
+                if host_id is not None
+                else "Local machine identity unverified; inventory denied."
+            ),
         )
         inventory_responses = Queue()
         inventory_busy = {"active": False}
 
         def refresh_model_inventory():
+            if host_id is None:
+                raise PermissionError(
+                    "local host identity unavailable; cannot inspect models"
+                )
             if inventory_busy["active"]:
                 return
             inventory_busy["active"] = True
@@ -184,6 +197,8 @@ class SettingsSections:
             command=self.guarded(refresh_model_inventory),
         )
         inventory_button.pack(anchor="w", pady=6)
+        if host_id is None:
+            inventory_button.configure(state="disabled")
 
         def poll_model_inventory():
             try:
