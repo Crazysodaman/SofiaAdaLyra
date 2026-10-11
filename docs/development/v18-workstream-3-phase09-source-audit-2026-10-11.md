@@ -748,3 +748,10 @@
 - CA-3501–3510: independent research/test oracles and adversarial held-out evidence; not acceptable from source-written tests alone.
 
 **No claim all 66 have been individually fully audited or coding-complete.** Additional static path audit and safe production implementation remain. Only user-authorized end-of-campaign test execution can establish acceptance.
+
+
+## Continued source evidence: GOALS expiry and exact original RUN chronology (2026-10-11)
+
+- **CA-102/106/108/110/114/1604/1606:** expired SELF goals can no longer admit optional creative RUN jobs while the GOALS expiry sweep is delayed. Motivation selection rejects overdue ACTIVE status before model wake, operator dependency projections report a deadline blocker and GOALS→LIFE reconciliation pauses overdue projects without forging a GOALS status change. See code commits `a66cc92d`, `7b77fe7a`; regressions authored only.
+- **CA-106/204/2402/2407/2408:** `LifeStore.exact_original_run_outcome` now requires exact original reason as well as event/job/status/time and rejects backdated, timezone-naive or malformed derived observed timestamps without crashing reconciliation. See production commits `2ab07ca1`, `3cfbb41f`; regression code authored, not run.
+- **Remaining:** every original CA clause still requires exact-source production tracing; standalone reviewed documents are not accepted tasks. No tests, models, CI or real hosts were exercised by these changes.
