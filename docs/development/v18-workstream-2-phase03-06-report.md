@@ -2258,6 +2258,48 @@ ontology, reviewed subjective interpretation pipeline,
 independent end-to-end fiction-label propagation or run
 acceptance. Tests/CI and live memory stores untouched.
 
+
+
+### Phase 06 item 68: Review lifecycle writes retain original audience ownership
+
+`MemoryReviewService.promote` already verified the candidate's
+original authenticated reviewer principal/audience **before**
+promoting source-backed personal memory, but sibling owner-facing
+lifecycle methods `reject`, `revoke`, `set_expiration`
+and `link_correction` previously checked only that the caller
+was a private Sparks reviewer. A candidate UUID in one private
+audience could therefore authorize a state change to a candidate
+belonging to another separately protected private Android,
+Discord or local audience.
+
+The **real application review service** now reuses one private
+owner + exact candidate source-scope guard for all operations,
+including promote. Both original and replacement candidate
+are checked before staged correction linkage. This preserves
+existing same-audience review behavior and accepted legacy
+principal-owned unscoped candidates, but does not silently
+broaden shared/private memories or interpret a candidate ID
+as access authority. The lower-level canonical
+`DurableMemoryCandidateStore` remains the transaction owner
+and handles atomic promotion/correction, lifecycle idempotency,
+and source evidence without a competing memory database.
+
+- Production `src/sofia/application/memory_review.py`
+  `5010ea99910f1a1e08443c17c91fbafa5cfd00fe`
+  (`[skip ci]`).
+- Deferred synthetic application/store regressions
+  `test/test_ws2_memory_review_audience_mutations.py`
+  `aca9a2fd5f98223c915c25e509a6fc94b7418b0c`
+  (`[skip ci]`): foreign rejection, expiration, revocation
+  and mixed-audience correction are denied without mutation;
+  matching original reviewer retains normal authority.
+
+Original CA relevance: CA-4204, CA-4806, CA-5604,
+CA-5803, CA-5805, CA-5908. Not a general cross-channel
+memory-management privilege grant, nor end-to-end erasure of
+all caches, mobile copies or external providers.
+No tests/CI executed and no live candidate altered.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
