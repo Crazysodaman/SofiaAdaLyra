@@ -2497,6 +2497,44 @@ Items 69–72 are the distinct code changes documented above.
 No tests/CI, approved imports, server processes, network,
 clients, source messages or live host state changed.
 
+
+
+### Phase 06 item 73: FTS5 source-count metadata remains current after live source edits
+
+The canonical `ConversationFullTextSearch.rebuild_offline` creates
+a host-authorized external-content SQLite FTS5 index over original
+`conversation_messages` and stores `indexed_source_count` in
+`conversation_fts_meta`. Source index triggers already mirrored
+new, deleted and modified text into FTS, but the reported count
+was calculated only during the original rebuild. Long-lived
+conversations therefore reported an obsolete indexed-source count
+after every subsequent message insertion or deletion.
+
+Production `src/sofia/conversation/fulltext_search.py` now
+transactionally upgrades the three canonical FTS triggers **only
+inside the existing independently approved offline rebuild**.
+An insert adds one source to the metadata count, a deletion
+subtracts one, and content changes update search terms without
+increasing the count. The optional FTS text index continues
+to index original canonical rows and never becomes a second
+source-of-truth or permission boundary. Existing pre-count
+triggers are replaced within the verified rebuild transaction;
+there is no unauthorized eager index creation on chat startup.
+
+- Production `0bf71f7fd590d709f8093639c5a029bfbc5750e8`
+  (`[skip ci]`).
+- Deferred fixture `test/test_ws2_fts_count_triggers.py`
+  `d609abda05479aefd52dc3ce4e321e4a840e81d4`
+  (`[skip ci]`), covering add, edit, delete, search
+  results and replacement of an old countless insert trigger
+  during an independently authorized synthetic offline rebuild.
+
+Original CA relevance: CA-5002, CA-5603, CA-5604,
+CA-5608. This is **index metadata maintenance**, not a
+repair of preexisting corrupt FTS blocks or proof of
+10-million-event query cost. No real rebuild, test, CI,
+database mutation or live model invocation executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
