@@ -184,7 +184,7 @@ def discover_local_state_candidates(
         if not database.is_file() or database.is_symlink():
             continue
         with database.open("rb") as handle:
-            has_sqlite_header = handle.read(16) == b"SQLite format 3\\x00"
+            has_sqlite_header = handle.read(16) == b"SQLite format 3\x00"
         has_schema = False
         if has_sqlite_header:
             # Query-only URI prevents accidental DB creation or state edits.
