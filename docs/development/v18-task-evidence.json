@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "0a036177f72a91d40fb585a7edbc256785aa4956",
+  "reviewed_main_sha": "b89141059bb75e32c6548d48f57fd0095032b551",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1: source-bound SAFE generic preflight, grant scope, revocation, integration/DEV stops, authority-refusal disposition and installed-wheel provenance code committed; phase 00/01/02 tasks remain unaccepted without tests/live evidence. Other workstream records preserved.",
+  "notice": "Workstream 1 SAFE and release provenance source fixes, now CA-3010 canary TLS key staging; all newly source-touched CA tasks still partial, no tests/CI/live acceptance. Other workstream entries preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1433,10 +1433,21 @@
       "phase": "01",
       "source_topic": "30",
       "master_line": 227,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "Setup-SofiaFleetArtemis.ps1",
+        "test/test_ops_windows_bootstrap.py"
+      ],
+      "evidence_commits": [
+        "e93941846441119fbd9d66bcdada96cd1921dce8",
+        "1db5590cf29134cbdf3efaa31754d7e76b3e7977"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "b89141059bb75e32c6548d48f57fd0095032b551",
+        "depth": "supervised_canary_pki_staging_source",
+        "interpretation": "Artemis canary Prepare source now applies restricted ACL to duplicate TLS key, checks copied key hash, restricts remote staged key and removes redundant controller copy after copy attempt. Static regression authored, unexecuted; host SMB/ACL acceptance and other certificate lifecycles remain open. No host touched."
+      }
     },
     {
       "id": "CA-3011",
