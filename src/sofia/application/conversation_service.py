@@ -488,7 +488,7 @@ class ConversationService(ConversationMatrixMixin):
         # Cognition v2 audience-scoped focus store instead of inventing a new
         # conversation authority. Only explicit named returns get old hints.
         match = re.match(
-            r"^\\s*(?:back to|return to|resume|speaking of|anyway,? back to)\\s+"
+            r"^\s*(?:back to|return to|resume|speaking of|anyway,? back to)\s+"
             r"([A-Za-z0-9][A-Za-z0-9 ._-]{1,60})",
             current_user.content, re.IGNORECASE,
         )
@@ -524,7 +524,7 @@ class ConversationService(ConversationMatrixMixin):
                                 f"topic={topic.topic_id!r} "
                                 f"source_turn={topic.last_turn_id!r}"
                             )
-                        content += "\\n" + "\\n".join(note)
+                        content += "\n" + "\n".join(note)
                 except (AttributeError, LookupError, ValueError):
                     _LOG.exception(
                         "Optional historical topic bookmark retrieval unavailable"
