@@ -2254,3 +2254,73 @@ def test_stop_during_life_ideation_cannot_create_optional_project(tmp_path):
         ) == ()
     finally:
         life.close()
+
+
+def test_rejected_interest_cooldown_blocks_repetitive_autonomous_ideation(tmp_path):
+    """Reviewed optional abandonment cannot spawn identical-topic work next tick."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        life.abandon(
+            project.project_id,
+            reason="No interest in continuing this optional experiment.",
+            evidence_refs=(evidence,), now=now + timedelta(seconds=4),
+        )
+        calls = []
+        def unexpected(request):
+            calls.append(request)
+            raise AssertionError("no repeated model wake after voluntary abandonment")
+        assert life.consider_new_project(
+            generate=unexpected, now=now + timedelta(hours=1),
+            busy=False, resource_pressure=0.1,
+        ) is None
+        assert calls == []
+        assert len(life.store.list_scope(
+            owner_principal_id="sofia:self", audience_id="local:text",
+        )) == 1
+    finally:
+        life.close()
+
+
+def test_new_grounded_interest_evidence_can_lift_optional_life_cooldown(tmp_path):
+    """A changed interest has a legitimate later chance to propose fresh work."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        life.abandon(
+            project.project_id,
+            reason="Temporarily done exploring the existing plan.",
+            evidence_refs=(evidence,), now=now + timedelta(seconds=4),
+        )
+        fresh = life.record_observation(
+            kind="curiosity", source="test:recent-independent-observation",
+            assertion="New grounded evidence for a different creative approach.",
+            now=now + timedelta(hours=2),
+        )
+        revised = life.revise_interest(
+            name="foxfire-colors", context="creative",
+            strength=0.85, confidence=0.9,
+            reason="An independently recorded new approach changed the interest.",
+            evidence_refs=(fresh,), now=now + timedelta(hours=2),
+        )
+        def propose(_request):
+            return CognitiveResponse(json.dumps({
+                "name": "A New Violet Field Appendix",
+                "description": "An original, separate bounded creative appendix.",
+                "objectives": ["text_contains:foxfire"],
+                "optional_success_criteria": [],
+                "artifact_kind": "text",
+                "confidence": 0.85, "curiosity": 0.86,
+                "pursue": True,
+                "reason": "New eligible evidence for a different optional project.",
+            }))
+        later = life.consider_new_project(
+            generate=propose,
+            now=now + timedelta(hours=2, seconds=1),
+            busy=False, resource_pressure=0.1,
+        )
+        assert later is not None
+        assert later.originating_interest == revised.interest_id
+        assert later.project_id != project.project_id
+    finally:
+        life.close()
