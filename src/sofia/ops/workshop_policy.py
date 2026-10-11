@@ -9,6 +9,8 @@ from datetime import datetime
 import re
 
 
+CANONICAL_RUNTIME_VM_NAME = "Sofia"
+
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -44,7 +46,7 @@ def review_lab_experiment(spec: LaboratoryExperiment) -> LaboratoryAdmission:
         issues.append("missing experiment/host/guest identity")
     # The experimental guest must never impersonate the reserved canonical
     # production runtime VM, even under a different case or trailing spaces.
-    if spec.guest_name.strip().casefold() == "sofia":
+    if spec.guest_name.strip().casefold() == CANONICAL_RUNTIME_VM_NAME.casefold():
         issues.append("workshop guest cannot use reserved canonical VM name Sofia")
     if _SHA.fullmatch(spec.guest_image_sha256) is None:
         issues.append("guest installer image not pinned by sha256")
