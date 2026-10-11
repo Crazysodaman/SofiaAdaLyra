@@ -245,11 +245,11 @@ function Prepare-OnVenus {
     Write-Host "SHA256: $wheelHash"
     Set-Content -LiteralPath (Join-Path $bundle "wheel.sha256") -Value $wheelHash -Encoding ascii
     if (-not $AgentDependencyLock) {
-        throw "Prepare requires -AgentDependencyLock for the Artemis Python interpreter."
+        throw "Prepare requires -AgentDependencyLock reviewed for Artemis Python."
     }
     $approvedLock = (Resolve-Path -LiteralPath $AgentDependencyLock -ErrorAction Stop).Path
-    if (-not ((Get-Content -LiteralPath $approvedLock -Raw) -match "--hash=sha256:")) {
-        throw "Approved dependency lock has no package hashes."
+    if ((Get-Content -LiteralPath $approvedLock -Raw) -notmatch "--hash=sha256:") {
+        throw "Dependency lock must pin package hashes."
     }
     Copy-Item -LiteralPath $approvedLock -Destination (Join-Path $bundle "agent-dependencies.lock") -Force
 
@@ -354,7 +354,7 @@ function Prepare-OnVenus {
     Write-Host "Next, open Administrator PowerShell on Artemis and run:"
     Write-Host ""
     Write-Host "  Set-ExecutionPolicy -Scope Process Bypass"
-    Write-Host "  & '$RemoteRoot\Setup-SofiaFleetArtemis.ps1' -Phase Artemis -ArtemisHost '$ArtemisHost'"
+    Write-Host "  & '$RemoteRoot\Setup-SofiaFleetArtemis.ps1' -Phase Artemis -ArtemisHost '$ArtemisHost' -ControllerIp '<reviewed Venus IPv4>'"
     Write-Host ""
     Write-Host "Leave that window open when the foreground Fleet agent starts."
 }
@@ -381,13 +381,29 @@ function Start-OnArtemis {
         throw "No Sofía wheel found in $RemoteRoot"
     }
 
-    $expectedPath = Join-Path $RemoteRoot "wheel.sha256"
-    if (-not (Test-Path -LiteralPath $expectedPath -PathType Leaf)) {
-        throw "Wheel digest manifest missing."
+    # Compare staged wheel to the signed-off hash copied from Venus.
+    $hashManifest = Join-Path $RemoteRoot "wheel.sha256"
+    if (-not (Test-Path -LiteralPath $hashManifest -PathType Leaf)) {
+        throw "Canary wheel hash manifest missing."
     }
-    $expectedHash = (Get-Content -LiteralPath $expectedPath -Raw).Trim().ToLowerInvariant()
-    $actualHash = (Get-FileHash -LiteralPath $wheel.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($expectedHash -notmatch '^[0-9a-f]{64}
+    $expectedHash = (Get-Content -LiteralPath $hashManifest -Raw).Trim().ToLowerInvariant()
+    $wheelHash = (Get-FileHash -LiteralPath $wheel.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($expectedHash -notmatch '^[0-9a-f]{64}$' -or $wheelHash -ne $expectedHash) {
+        throw "Staged Fleet wheel does not match the approved SHA-256."
+    }
+    $dependencyLock = Join-Path $RemoteRoot "agent-dependencies.lock"
+    if (-not (Test-Path -LiteralPath $dependencyLock -PathType Leaf)) {
+        throw "Hashed dependency lock missing."
+    }
+    $tlsKey = Join-Path $RemoteRoot "certs\artemis-server-key.pem"
+    if (-not (Test-Path -LiteralPath $tlsKey -PathType Leaf)) {
+        throw "Staged TLS server key missing."
+    }
+    & icacls.exe $tlsKey "/inheritance:r" "/grant:r" "SYSTEM:(F)" "Administrators:(F)" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cannot restrict staged TLS private-key ACL."
+    }
+    Write-Step "Artemis Python"
     $python = Get-Command python.exe -ErrorAction SilentlyContinue
     if ($null -eq $python) {
         throw "python.exe was not found on Artemis."
@@ -428,16 +444,27 @@ function Start-OnArtemis {
         throw "Artemis agent configuration validation failed."
     }
 
-    if (-not $ControllerIp) {
-        throw "Canary firewall requires an exact reviewed -ControllerIp."
-    }
+    # A foreground canary may be contacted only by its exact reviewed controller.
+    # The finally block is normal-exit cleanup; a crashed host still requires
+    # independent stale-firewall-rule inspection before another canary run.
     $parsedIp = $null
-    if (-not [System.Net.IPAddress]::TryParse($ControllerIp, [ref]$parsedIp)) {
-        throw "Canary controller must be a literal IP address."
+    if (-not $ControllerIp -or -not [System.Net.IPAddress]::TryParse(
+        $ControllerIp, [ref]$parsedIp
+    )) {
+        throw "Set an exact operator-reviewed -ControllerIp."
+    }
+    if ($parsedIp.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork -or
+        $ControllerIp -eq "0.0.0.0" -or $ControllerIp -eq "255.255.255.255" -or
+        [System.Net.IPAddress]::IsLoopback($parsedIp)) {
+        throw "Only an exact non-loopback IPv4 controller is permitted."
+    }
+    if (@(Get-NetConnectionProfile -ErrorAction Stop |
+        Where-Object { $_.NetworkCategory.ToString() -eq "Private" }).Count -eq 0) {
+        throw "Expected active Private Windows network profile."
     }
     $firewallName = "SofiaAdaLyra Fleet Canary $Port"
     if (Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue) {
-        throw "Old Fleet canary firewall rule exists; investigate before continuing."
+        throw "Previous canary firewall rule exists. Review/remove it first."
     }
     try {
         New-NetFirewallRule `
@@ -448,137 +475,7 @@ function Start-OnArtemis {
             -LocalPort $Port `
             -RemoteAddress $ControllerIp `
             -Profile Private | Out-Null
-        Write-Step "Start foreground Fleet agent"
-        & $agentPython -m sofia.distributed.agent_main --config $agentJson
-    } finally {
-        Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue |
-            Remove-NetFirewallRule -ErrorAction SilentlyContinue
-    }
-}
-
-function Verify-FromVenus {
-    Assert-Repo
-    Set-Location $RepoRoot
-
-    Write-Step "Load expected Artemis identity"
-    Assert-PkiComplete -Root $FleetRoot
-
-    $nodeIdPath = Join-Path $FleetRoot "artemis-node-id.txt"
-    if (-not (Test-Path $nodeIdPath -PathType Leaf)) {
-        throw "Artemis node ID file is missing: $nodeIdPath"
-    }
-
-    $nodeId = (Get-Content $nodeIdPath -Raw).Trim()
-    $serverPin = Get-Fingerprint (Join-Path $FleetRoot "artemis\artemis-server.pem")
-
-    Write-Host "Expected node ID : $nodeId"
-    Write-Host "Expected cert pin: $serverPin"
-
-    Write-Step "TCP check"
-    $tcp = Test-NetConnection $ArtemisHost -Port $Port -WarningAction SilentlyContinue
-    Write-Host "Remote address   : $($tcp.RemoteAddress)"
-    Write-Host "TCP $Port open     : $($tcp.TcpTestSucceeded)"
-
-    if (-not $tcp.TcpTestSucceeded) {
-        throw "Artemis is not reachable on TCP $Port. Keep the Artemis foreground agent running and check its console."
-    }
-
-    Write-Step "Read-only pinned-mTLS discovery canary"
-    & python -m sofia.ops.discovery_canary `
-        --host "$ArtemisHost" `
-        --port $Port `
-        --ca-file (Join-Path $FleetRoot "ca\fleet-ca.pem") `
-        --client-cert (Join-Path $FleetRoot "venus\venus-client.pem") `
-        --client-key (Join-Path $FleetRoot "venus\venus-client-key.pem") `
-        --expected-node-id "$nodeId" `
-        --expected-name "$ArtemisHost" `
-        --expected-server-key "$serverPin"
-
-    $code = $LASTEXITCODE
-    if ($code -ne 0) {
-        throw "Fleet discovery canary failed with exit code $code."
-    }
-
-    Write-Host ""
-    Write-Host "MUTUAL-TLS CANARY PASSED" -ForegroundColor Green
-    Write-Host "No Fleet trust/enrollment was created by this verification."
-}
-
-switch ($Phase) {
-    "Prepare" { Prepare-OnVenus }
-    "Artemis" { Start-OnArtemis }
-    "Verify"  { Verify-FromVenus }
-}
- -or $actualHash -ne $expectedHash) {
-        throw "Wheel bytes differ from prepared SHA-256 manifest."
-    }
-    $dependencyLock = Join-Path $RemoteRoot "agent-dependencies.lock"
-    if (-not (Test-Path -LiteralPath $dependencyLock -PathType Leaf)) {
-        throw "Reviewed dependency lock is missing."
-    }
-
-    Write-Step "Artemis Python"
-    $python = Get-Command python.exe -ErrorAction SilentlyContinue
-    if ($null -eq $python) {
-        throw "python.exe was not found on Artemis."
-    }
-    & $python.Source --version
-
-    Write-Step "Create isolated canary environment"
-    $venv = Join-Path $RemoteRoot ".venv"
-    $agentPython = Join-Path $venv "Scripts\python.exe"
-
-    if (-not (Test-Path $agentPython -PathType Leaf)) {
-        & $python.Source -m venv $venv
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to create Artemis Fleet venv."
-        }
-    }
-    else {
-        Write-Host "Existing canary venv found. Reusing it."
-    }
-
-    Write-Step "Install Fleet package"
-    & $agentPython -m pip install --disable-pip-version-check --no-deps --force-reinstall $wheel.FullName
-    if ($LASTEXITCODE -ne 0) {
-        throw "Fleet package installation failed."
-    }
-
-    & $agentPython -m pip install --disable-pip-version-check cryptography pywin32
-    if ($LASTEXITCODE -ne 0) {
-        throw "Fleet dependencies installation failed."
-    }
-
-    Write-Step "Validate copied agent configuration"
-    & $agentPython -m sofia.distributed.agent_main `
-        --config $agentJson `
-        --check-config
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Artemis agent configuration validation failed."
-    }
-
-    if (-not $ControllerIp) {
-        throw "Canary firewall requires an exact reviewed -ControllerIp."
-    }
-    $parsedIp = $null
-    if (-not [System.Net.IPAddress]::TryParse($ControllerIp, [ref]$parsedIp)) {
-        throw "Canary controller must be a literal IP address."
-    }
-    $firewallName = "SofiaAdaLyra Fleet Canary $Port"
-    if (Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue) {
-        throw "Old Fleet canary firewall rule exists; investigate before continuing."
-    }
-    try {
-        New-NetFirewallRule `
-            -DisplayName $firewallName `
-            -Direction Inbound `
-            -Action Allow `
-            -Protocol TCP `
-            -LocalPort $Port `
-            -RemoteAddress $ControllerIp `
-            -Profile Private | Out-Null
-        Write-Step "Start foreground Fleet agent"
+        Write-Step "Start exact-controller foreground Fleet agent"
         & $agentPython -m sofia.distributed.agent_main --config $agentJson
     } finally {
         Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue |
