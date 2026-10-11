@@ -46,6 +46,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.IOException
 import java.util.UUID
 
 data class ChatLine(val speaker: String, val text: String)
@@ -190,8 +191,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // paired credential. Keep only the owner's unsent local draft.
             try {
                 secure.clearIncoming()
+                secure.clearMainCache()
             } catch (_: Exception) {
-                status = "Protected incoming cache could not be cleared; privacy switch denied."
+                status = "Protected local content could not be cleared; privacy switch denied."
                 return
             }
             messages.clear()
@@ -235,8 +237,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // bodies must not remain on a shared screen.
             try {
                 secure.clearIncoming()
+                secure.clearMainCache()
             } catch (_: Exception) {
-                status = "Protected incoming cache could not be cleared; privacy switch denied."
+                status = "Protected local content could not be cleared; privacy switch denied."
                 return
             }
             messages.clear()
@@ -261,14 +264,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun showChat() { historyOpen = false }
 
+    fun discardOfflineMain() {
+        if (busy) return
+        try {
+            secure.clearMainCache()
+            mainHistory.clear()
+            historyHasMore = false
+            historyCursor = null
+            historyOpen = false
+            status = "Encrypted offline Main cache discarded locally."
+        } catch (_: Exception) {
+            status = "Offline Main cache could not be discarded."
+        }
+    }
+
     fun loadMainHistory(reset: Boolean = true) {
         if (busy) return
         if (!reset && !historyHasMore) return
         val cursor = if (reset) null else historyCursor
         historyOpen = true
         launchRequest {
-            val result = withContext(Dispatchers.IO) {
-                api.mainPage(cursor)
+            val result = try {
+                withContext(Dispatchers.IO) { api.mainPage(cursor) }
+            } catch (failure: Exception) {
+                // An HTTP 401/403/409 is a HOST refusal, never offline
+                // permission to reveal a previously cached transcript.
+                if (reset && failure is IOException && failure !is SofiaHttpFailure) {
+                    val cached = try {
+                        secure.cachedMainPage(config)
+                    } catch (_: Exception) {
+                        status = "Encrypted Main cache unreadable; clear it explicitly."
+                        null
+                    }
+                    if (cached != null) {
+                        val rows = cached.getJSONArray("messages")
+                        mainHistory.clear()
+                        for (index in 0 until rows.length()) {
+                            val item = rows.getJSONObject(index)
+                            mainHistory += ChatLine(
+                                if (item.getString("role") == "user") "You" else "Sofía",
+                                item.getString("content"),
+                            )
+                        }
+                        historyCursor = null
+                        historyHasMore = false
+                        status = "OFFLINE · encrypted cached Main page · read-only · no new facts"
+                        return@launchRequest
+                    }
+                }
+                throw failure
             }
             // Compose state is owned by the UI dispatcher, never IO.
             val array = result.getJSONArray("messages")
@@ -283,6 +327,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else mainHistory.addAll(0, loaded)
             historyCursor = result.optJSONObject("next_before")
             historyHasMore = result.optBoolean("has_more", false)
+            if (reset) {
+                try {
+                    secure.saveMainCache(config, result)
+                    status = "Canonical Main history loaded; encrypted offline copy saved."
+                } catch (_: Exception) {
+                    status = "Canonical Main history loaded; offline cache not saved."
+                }
+            }
             // Only an actually displayed newest page may advance the local
             // device's canonical last-seen marker. Paging older must not
             // regress it, and legacy rows without a sequence stay unmarked.
@@ -592,6 +644,9 @@ private fun SofiaScreen(model: MainViewModel) {
                 Button(onClick = model::showChat, enabled = !model.busy) { Text("Chat") }
                 Button(onClick = { model.loadMainHistory() }, enabled = !model.busy) {
                     Text("Main history")
+                }
+                Button(onClick = model::discardOfflineMain, enabled = !model.busy) {
+                    Text("Clear offline Main")
                 }
                 if (model.historyOpen && model.historyHasMore) {
                     Button(onClick = { model.loadMainHistory(false) }, enabled = !model.busy) {
