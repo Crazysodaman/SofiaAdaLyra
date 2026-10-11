@@ -113,6 +113,7 @@ class RuntimeUserSettings:
     cognitive_model_auto_manage: bool = True
     cognitive_model_auto_install: bool = False
     cognitive_model_idle_unload_seconds: int = 1800
+    cognitive_model_idle_preload_seconds: int = 1800
     cognitive_model_keep_alive: str = "10m"
     cognitive_model_residency_mode: str = "resource_aware"
     neuro_competition_enabled: bool = True
@@ -262,6 +263,11 @@ class RuntimeUserSettings:
                 "cognitive_model_idle_unload_seconds must be in 1..86400"
             )
         if (
+            type(self.cognitive_model_idle_preload_seconds) is not int
+            or not 60 <= self.cognitive_model_idle_preload_seconds <= 86400
+        ):
+            raise ValueError("desktop idle preload threshold must be 60..86400 seconds")
+        if (
             not isinstance(self.cognitive_model_keep_alive, str)
             or not self.cognitive_model_keep_alive.strip()
             or len(self.cognitive_model_keep_alive) > 64
@@ -274,6 +280,7 @@ class RuntimeUserSettings:
             "fast_always_resident",
             "dual_resident",
             "resource_aware",
+            "hybrid_gaming_idle",
         }:
             raise ValueError("invalid cognitive model residency mode")
 
