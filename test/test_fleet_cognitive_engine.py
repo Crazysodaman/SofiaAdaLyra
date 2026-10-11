@@ -320,3 +320,54 @@ def test_disabled_fleet_placement_is_normal_local_inference_not_fallback(tmp_pat
     assert response.content == "local"
     assert len(local.calls) == 1
     assert calls == []
+
+
+def test_successful_venus_host_never_survives_failed_next_inference_attempt(
+    tmp_path,
+):
+    """Deferred Artemis remote-only outcome attribution, no CPU fallback."""
+    state = {"available": True}
+
+    def remote_worker(*_):
+        if not state["available"]:
+            raise OSError("approved Venus inference is unavailable")
+        return CognitiveResponse(content="from approved Venus worker")
+
+    engine, local, calls = _engine(
+        tmp_path,
+        hosts=(
+            _host("local", cpu=95),
+            _host("remote", cpu=5, node_id=uuid4()),
+        ),
+        policy=FleetCognitionPolicy(enabled=True, local_fallback=False),
+        remote=remote_worker,
+    )
+    assert engine.respond(CognitiveRequest(messages=())).content == (
+        "from approved Venus worker"
+    )
+    assert engine.last_host_id == "remote"
+    assert engine.last_remote is True
+
+    state["available"] = False
+    with pytest.raises(CognitiveEngineError, match="fallback is disabled"):
+        engine.respond(CognitiveRequest(messages=()))
+    assert engine.last_host_id is None
+    assert engine.last_remote is False
+    assert local.calls == []
+    assert len(calls) == 2
+
+
+def test_failed_disabled_fleet_local_request_has_no_successful_host(tmp_path):
+    engine, local, calls = _engine(
+        tmp_path,
+        hosts=(_host("local", cpu=5),),
+        policy=FleetCognitionPolicy(enabled=False),
+    )
+    def unavailable_local(_request):
+        raise CognitiveEngineError("local provider unavailable")
+    local.respond = unavailable_local
+    with pytest.raises(CognitiveEngineError, match="local provider unavailable"):
+        engine.respond(CognitiveRequest(messages=()))
+    assert engine.last_host_id is None
+    assert engine.last_remote is False
+    assert calls == []
