@@ -1,6 +1,7 @@
 package ai.sofia.mobile
 
 import org.json.JSONObject
+import java.io.IOException
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
@@ -11,6 +12,12 @@ data class ProactiveNotification(
     val preview: String,
 )
 
+/** Status-only transport failure. Never include bearer or raw response bytes. */
+class SofiaHttpFailure(
+    val statusCode: Int,
+    val serverCode: String,
+) : IOException("Sofía HTTP $statusCode ($serverCode)")
+
 class SofiaApi(private val settings: SecureSettings) {
     private fun post(path: String, payload: JSONObject): JSONObject {
         val config = settings.load()
@@ -19,19 +26,52 @@ class SofiaApi(private val settings: SecureSettings) {
             "Configure an HTTPS server and pairing token first"
         }
         val connection = URL(config.baseUrl + path).openConnection() as HttpsURLConnection
-        connection.requestMethod = "POST"
-        connection.connectTimeout = 10_000
-        connection.readTimeout = 120_000
-        connection.doOutput = true
-        connection.setRequestProperty("Authorization", "Bearer ${config.token}")
-        connection.setRequestProperty("Content-Type", "application/json")
-        connection.outputStream.use { it.write(payload.toString().toByteArray()) }
-        val status = connection.responseCode
-        val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-        val text = stream.bufferedReader().use { it.readText() }
-        connection.disconnect()
-        if (status !in 200..299) throw IllegalStateException("Sofía server returned HTTP $status")
-        return JSONObject(text)
+        try {
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 120_000
+            connection.doOutput = true
+            connection.setRequestProperty("Authorization", "Bearer ${config.token}")
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.outputStream.use {
+                it.write(payload.toString().toByteArray(Charsets.UTF_8))
+            }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) {
+                connection.inputStream
+            } else connection.errorStream
+            // Read a bounded reply; a hostile proxy/server must not fill
+            // phone memory or echo secrets through an exception message.
+            val text = stream?.bufferedReader(Charsets.UTF_8)?.use { reader ->
+                val body = StringBuilder()
+                val chunk = CharArray(4096)
+                while (true) {
+                    val count = reader.read(chunk)
+                    if (count < 0) break
+                    body.append(chunk, 0, count)
+                    if (body.length > 256_000) {
+                        throw IOException("Sofía response exceeds bounded reply size")
+                    }
+                }
+                body.toString()
+            } ?: ""
+            if (status !in 200..299) {
+                val code = runCatching {
+                    JSONObject(text).optString("error", "http_error")
+                }.getOrDefault("http_error")
+                throw SofiaHttpFailure(
+                    status, code.takeIf { it in setOf(
+                        "unauthorized", "forbidden",
+                        "delivery_conflict_or_uncertain", "not_found",
+                    ) } ?: "http_error",
+                )
+            }
+            return JSONObject(text)
+        } finally {
+            // HttpsURLConnection must be released on timeouts, HTTP errors,
+            // malformed JSON and cancellation, not just on successful calls.
+            connection.disconnect()
+        }
     }
 
     fun chat(message: String, requestId: String): JSONObject {

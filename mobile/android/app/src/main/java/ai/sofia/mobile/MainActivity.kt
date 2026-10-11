@@ -266,7 +266,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     messages.removeAt(index)
                 }
                 draft = text
-                status = "Delivery unconfirmed; check Main history before resending"
+                status = when {
+                    failure is SofiaHttpFailure && failure.statusCode == 409 ->
+                        "Host reports a delivery conflict or uncertain result. Check Main history; do not retry blindly."
+                    failure is SofiaHttpFailure && failure.statusCode == 401 ->
+                        "Phone credential revoked or expired. Preserve draft; re-pair only after resolving this send."
+                    failure is SofiaHttpFailure && failure.statusCode == 403 ->
+                        "Host permission denied. Draft preserved; do not infer that the request was approved."
+                    else ->
+                        "Delivery unconfirmed; check Main history before resending"
+                }
             }
         }
     }
