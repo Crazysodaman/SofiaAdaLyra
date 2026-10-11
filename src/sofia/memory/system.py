@@ -135,7 +135,13 @@ class MemorySystem:
             raise TypeError(
                 "MemorySystem principal must be a PrincipalContext or None."
             )
-        if principal.audience_kind is not AudienceKind.PRIVATE:
+        if (
+            principal.audience_kind is not AudienceKind.PRIVATE
+            or principal.audience_id not in {"local:text", "local:terminal"}
+        ):
+            # Raw imported transcripts are local-only source evidence until
+            # the owner explicitly authorizes a different egress audience.
+            # A private toggle on Android/Discord is NOT such consent.
             return ()
         return self._historical_store.search_relevant(
             query,
