@@ -108,3 +108,14 @@ def test_installed_wheel_pytest_import_override_is_the_only_allowed_trailing_arg
         duration_seconds=command.duration_seconds,
     )
     assert not _evidence("full", clean=True, commands=tuple(base)).accepted
+
+
+def test_same_command_results_are_rejected_if_git_head_moved_mid_gate():
+    from dataclasses import replace
+
+    stable = _evidence("full", clean=True)
+    assert stable.accepted
+    moved = replace(stable, revision_stable=False)
+    assert moved.git_revision == stable.git_revision
+    assert moved.commands == stable.commands
+    assert not moved.accepted
