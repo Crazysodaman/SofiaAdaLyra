@@ -80,10 +80,27 @@ class StandingPermissionGrant:
         # are retained for audit but cannot authorize any operation.
         if not self.scope or not self.is_active_at(now):
             return False
-        return all(
-            key in parameters and parameters[key] == expected
-            for key, expected in self.scope.items()
-        )
+        # Compare canonical JSON values, not Python equality: True == 1
+        # in Python, but a boolean must never match an integer permission
+        # boundary. Reject unsupported/non-finite or excessively large
+        # request values rather than silently widening authority.
+        for key, expected in self.scope.items():
+            if key not in parameters:
+                return False
+            try:
+                given = json.dumps(
+                    parameters[key], sort_keys=True, separators=(",", ":"),
+                    ensure_ascii=False, allow_nan=False,
+                )
+                allowed = json.dumps(
+                    expected, sort_keys=True, separators=(",", ":"),
+                    ensure_ascii=False, allow_nan=False,
+                )
+            except (TypeError, ValueError):
+                return False
+            if len(given.encode("utf-8")) > 64_000 or given != allowed:
+                return False
+        return True
 
 
 @dataclass(frozen=True, slots=True)
@@ -439,12 +456,16 @@ class PermissionStore:
         if any(not isinstance(key, str) or not key.strip() for key in scope):
             raise ValueError("scope keys must be nonempty strings")
         try:
-            return json.dumps(
+            encoded = json.dumps(
                 scope,
                 sort_keys=True,
                 separators=(",", ":"),
                 ensure_ascii=False,
+                allow_nan=False,
             )
+            if len(encoded.encode("utf-8")) > 64_000:
+                raise ValueError("standing grant scope exceeds 64-KiB bound")
+            return encoded
         except (TypeError, ValueError) as exc:
             raise ValueError("scope must contain JSON-serializable values") from exc
 
