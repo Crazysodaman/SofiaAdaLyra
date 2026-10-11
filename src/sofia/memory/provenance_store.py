@@ -114,6 +114,32 @@ class DurableMemoryCandidateStore:
                 )
                 """
             )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS memory_candidate_validity (
+                    candidate_id TEXT PRIMARY KEY,
+                    expires_at TEXT,
+                    reviewed_at TEXT NOT NULL,
+                    reviewed_by TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
+                )
+                """
+            )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS memory_candidate_validity_event (
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    candidate_id TEXT NOT NULL,
+                    previous_expires_at TEXT,
+                    expires_at TEXT,
+                    reviewed_at TEXT NOT NULL,
+                    reviewed_by TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
+                )
+                """
+            )
             # Canonical indexes support bounded keyset search without a
             # second memory database or an unreviewed semantic copy.
             db.execute(
@@ -237,6 +263,92 @@ class DurableMemoryCandidateStore:
             audience_id=row[3],
         )
 
+    def set_expiration(
+        self, candidate_id: UUID, *, expires_at: datetime | None,
+        reviewed_by: str, reason: str,
+    ) -> None:
+        """Reviewed time validity, not inferred decay or irreversible erasure.
+
+        A null expiration revokes a prior expiry decision, while retaining
+        append-only evidence of the earlier review. Promotion status and
+        original source provenance never change.
+        """
+        if not isinstance(candidate_id, UUID):
+            raise TypeError("candidate_id must be UUID")
+        if expires_at is not None:
+            deadline = _utc(expires_at)
+        else:
+            deadline = None
+        if not isinstance(reviewed_by, str) or not reviewed_by.strip():
+            raise ValueError("reviewed_by must identify the owner")
+        if not isinstance(reason, str) or not 1 <= len(reason.strip()) <= 500:
+            raise ValueError("a bounded reviewer reason is required")
+        stamp = _utc(datetime.now(timezone.utc))
+        with self._lock:
+            db = self._require_db()
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                candidate = db.execute(
+                    "SELECT status,principal_id FROM memory_candidate "
+                    "WHERE candidate_id=?", (str(candidate_id),),
+                ).fetchone()
+                if candidate is None:
+                    raise LookupError("candidate does not exist")
+                if candidate[0] != CandidateStatus.PROMOTED.value:
+                    raise ValueError("expiration requires promoted memory")
+                if candidate[1] is None or candidate[1] != reviewed_by:
+                    raise PermissionError("expiration must be reviewed by the owner")
+                previous = db.execute(
+                    "SELECT expires_at FROM memory_candidate_validity "
+                    "WHERE candidate_id=?", (str(candidate_id),),
+                ).fetchone()
+                db.execute(
+                    "INSERT INTO memory_candidate_validity "
+                    "(candidate_id,expires_at,reviewed_at,reviewed_by,reason) "
+                    "VALUES(?,?,?,?,?) "
+                    "ON CONFLICT(candidate_id) DO UPDATE SET "
+                    "expires_at=excluded.expires_at,"
+                    "reviewed_at=excluded.reviewed_at,"
+                    "reviewed_by=excluded.reviewed_by,reason=excluded.reason",
+                    (str(candidate_id), deadline, stamp, reviewed_by, reason.strip()),
+                )
+                db.execute(
+                    "INSERT INTO memory_candidate_validity_event "
+                    "(candidate_id,previous_expires_at,expires_at,"
+                    "reviewed_at,reviewed_by,reason) VALUES(?,?,?,?,?,?)",
+                    (str(candidate_id), None if previous is None else previous[0],
+                     deadline, stamp, reviewed_by, reason.strip()),
+                )
+
+    def expiration(self, candidate_id: UUID) -> datetime | None:
+        """Read approved validity without hiding historical review evidence."""
+        if not isinstance(candidate_id, UUID):
+            raise TypeError("candidate_id must be UUID")
+        with self._lock:
+            row = self._require_db().execute(
+                "SELECT expires_at FROM memory_candidate_validity "
+                "WHERE candidate_id=?", (str(candidate_id),),
+            ).fetchone()
+        return None if row is None or row[0] is None else datetime.fromisoformat(row[0])
+
+    def is_recall_eligible(
+        self, candidate_id: UUID, *, at: datetime | None = None,
+    ) -> bool:
+        """Late revocation and approved deadline check against canonical state."""
+        if not isinstance(candidate_id, UUID):
+            raise TypeError("candidate_id must be UUID")
+        stamp = _utc(at or datetime.now(timezone.utc))
+        with self._lock:
+            row = self._require_db().execute(
+                "SELECT 1 FROM memory_candidate c "
+                "LEFT JOIN memory_candidate_validity v "
+                "ON v.candidate_id=c.candidate_id "
+                "WHERE c.candidate_id=? AND c.status=? "
+                "AND (v.expires_at IS NULL OR v.expires_at>?)",
+                (str(candidate_id), CandidateStatus.PROMOTED.value, stamp),
+            ).fetchone()
+        return row is not None
+
     def iter_promoted_summaries(
         self,
         *,
@@ -264,8 +376,15 @@ class DurableMemoryCandidateStore:
         if type(batch_size) is not int or not 1 <= batch_size <= 512:
             raise ValueError("batch_size must be 1..512")
 
-        clauses = ["status=?"]
-        scope: list[str] = [CandidateStatus.PROMOTED.value]
+        clauses = [
+            "status=?",
+            "NOT EXISTS (SELECT 1 FROM memory_candidate_validity AS v "
+            "WHERE v.candidate_id=memory_candidate.candidate_id "
+            "AND v.expires_at IS NOT NULL AND v.expires_at<=?)",
+        ]
+        scope: list[str] = [
+            CandidateStatus.PROMOTED.value, _utc(datetime.now(timezone.utc)),
+        ]
         if principal_id is not None:
             clauses.append("principal_id=?")
             scope.append(principal_id)
