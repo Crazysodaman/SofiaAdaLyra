@@ -50,9 +50,13 @@ These are **documented future operator-run commands**, not host changes performe
 
 **All source changes committed to main with `[skip ci]`. No tests or CI were run. This is NOT fully enrolled or host-accepted production authentication.**
 
-## Audit finding: approval-to-effect atomicity (source review, 2026-10-11)
+## Approval-to-state transaction consistency: coded repair, verification deferred
 
-`PermissionStore.grant`, `PermissionStore.revoke`, `PermissionStore.set_private_adult_authority` and `OperatorStopStore.set(active=False)` currently call `ExecutionApprovalVerifier.consume`, which opens, commits and closes its **own** SQLite transaction, before beginning the separate canonical state mutation transaction. A subsequent storage/constraint/OS failure can spend the one-use approval while leaving the requested mutation unapplied. The current design fails closed (no unauthorized new permission), but it does not yet provide all-or-nothing approval/mutation/audit evidence. The preferred repair is one shared guarded `BEGIN IMMEDIATE` transaction for approval consumption, exact-state mutation and append-only SAFE audit, with rollback covering every write and no early commit; keep independent remote side-effect semantics explicitly uncertain. This remains an **open source-audited gap**, not completed implementation. No tests were run.
+An audit found split SQLite commits in owner-approved standing grant creation/revocation, Level-5 private authority changes and operator stop RESUME. The exact-action approval could previously be consumed before an associated state or audit write failed.
+
+The new `ExecutionApprovalVerifier.consume(_transaction_db=...)` accepts an internal, already active canonical `BEGIN IMMEDIATE` transaction, enforces active transaction semantics, and does **not commit or close** the caller's connection. `PermissionStore.grant`, `PermissionStore.revoke`, `PermissionStore.set_private_adult_authority` and `OperatorStopStore.set(active=False)` now perform signed receipt consumption, exact state change and tamper-evident SAFE audit inside the same SQLite transaction. The operator verifier is constructed before acquiring its write lock to avoid schema initialization deadlocks.
+
+Source commits: `c685430`, `9d33c2c`, `0dcddd0`, `719f17e`. Authored rollback regressions: `eefbf24`, `8dd55ee`. **This repair has not been tested or accepted.** It does not make a separate remote effect rollback-atomic and does not imply cross-host writer fencing.
 
 ## Still outstanding after the approved Option A coding slice
 
