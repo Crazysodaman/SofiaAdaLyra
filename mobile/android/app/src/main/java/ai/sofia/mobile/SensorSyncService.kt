@@ -128,7 +128,13 @@ class SensorSyncService : Service(), SensorEventListener, LocationListener {
             // cannot be displayed or cached after credentials switch.
             return false
         }
-        settings.storeIncoming(notification.id, notification.content)
+        // The host may only receive an ACK after its message is durably
+        // stored under this device's encrypted inbox. Storage failures leave
+        // the server claim unacknowledged for safe lease-based redelivery.
+        if (runCatching {
+                settings.storeIncoming(notification.id, notification.content)
+            }.isFailure
+        ) return false
         val launch = PendingIntent.getActivity(
             this,
             notification.id.hashCode(),
