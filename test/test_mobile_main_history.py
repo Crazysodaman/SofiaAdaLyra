@@ -21,6 +21,7 @@ from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
 from sofia.safe.permissions import PermissionStore
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 10, tzinfo=timezone.utc)
@@ -51,7 +52,7 @@ class CanonicalMainApp:
 
 
 def _setup(tmp_path):
-    path = tmp_path / "sofia.db"
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     source = ConversationStore(path)
     social = SocialSessionStore(path)
     app = CanonicalMainApp(path)
