@@ -43,7 +43,7 @@ class BackupTopologyPolicy:
     minimum_copies: int = 2
     minimum_failure_domains: int = 2
     minimum_hosts: int = 2
-    keep_per_target: int = 7
+    keep_per_target: int = 2
 
     def __post_init__(self) -> None:
         for name in (
@@ -352,7 +352,7 @@ def create_backup_topology_from_environment(
             os.environ.get("SOFIA_BACKUP_MIN_FAILURE_DOMAINS", "2")
         ),
         minimum_hosts=int(os.environ.get("SOFIA_BACKUP_MIN_HOSTS", "2")),
-        keep_per_target=int(os.environ.get("SOFIA_BACKUP_KEEP_PER_TARGET", "7")),
+        keep_per_target=int(os.environ.get("SOFIA_BACKUP_KEEP_PER_TARGET", "2")),
     )
     return MultiHostBackupCoordinator(
         state_path=state_path,
