@@ -880,6 +880,7 @@ def test_sharing_is_explicit_and_uses_grounded_project_callback(tmp_path):
     [
         (WorkStatus.UNCERTAIN, ProjectStatus.PAUSED, GoalStatus.PAUSED),
         (WorkStatus.CANCELLED, ProjectStatus.PAUSED, GoalStatus.PAUSED),
+        (WorkStatus.BLOCKED, ProjectStatus.PAUSED, GoalStatus.PAUSED),
         (WorkStatus.FAILED, ProjectStatus.FAILED, GoalStatus.BLOCKED),
     ],
 )
