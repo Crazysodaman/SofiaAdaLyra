@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -335,14 +335,23 @@ class ModelInventoryStore:
         return "\n".join(lines)
 
 
-    def candidate_review(self, *, host_id: str) -> str:
-        """Only locally observed unconfigured installs merit operator review.
+    def candidate_review(
+        self, *, host_id: str, at: datetime | None = None,
+    ) -> str:
+        """Only fresh local unconfigured installs merit operator review.
 
         These are not capability rankings. No training, benchmarking, license
         acceptance or role promotion is performed by this read-only method.
         """
         if not isinstance(host_id, str) or not host_id.strip():
             raise ValueError("observed host ID is required")
+        moment = at if at is not None else datetime.now(timezone.utc)
+        if (
+            not isinstance(moment, datetime)
+            or moment.tzinfo is None or moment.utcoffset() is None
+        ):
+            raise ValueError("aware inventory review time required")
+        moment = moment.astimezone(timezone.utc)
         with closing(self._guard.connect(timeout=10)) as db:
             rows = db.execute(
                 "SELECT snapshot_json FROM cognition_model_inventory "
@@ -350,8 +359,20 @@ class ModelInventoryStore:
                 (host_id,),
             ).fetchall()
         candidate_rows = []
+        stale_observations = 0
         for (raw,) in rows:
             row = json.loads(raw)
+            try:
+                observed_at=datetime.fromisoformat(row["observed_at"])
+                if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+                    raise ValueError("naive provider observation")
+                age=moment-observed_at.astimezone(timezone.utc)
+            except (KeyError,TypeError,ValueError):
+                stale_observations+=1
+                continue
+            if age<timedelta(0) or age>timedelta(minutes=15):
+                stale_observations+=1
+                continue
             if (
                 row.get("installed") is not True
                 or row.get("provider") != "ollama"
@@ -361,11 +382,15 @@ class ModelInventoryStore:
             candidate_rows.append(row)
         if not candidate_rows:
             return (
-                "No unconfigured installed Ollama models observed. "
-                "Unknown or missing metadata is not interpreted as eligibility."
+                "No FRESH unconfigured installed Ollama models observed. "
+                "Historical observations may remain visible in read-only "
+                "inventory, but a new local scan is required before any "
+                "candidate suitability review. "
+                f"Stale/invalid observations: {stale_observations}."
             )
         lines = [
-            "DISCOVERY ONLY: Installed and unconfigured, NOT approved for a role.",
+            "DISCOVERY ONLY: FRESH observed install, NOT approved for a role.",
+            "Only source-observed within the past 15 minutes; no future clocks.",
             "Independent capability benchmarks, licensing, operator approval,",
             "resource budgeting and rollback evidence are required before use.",
         ]
