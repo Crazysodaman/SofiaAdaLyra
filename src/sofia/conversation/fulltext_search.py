@@ -60,8 +60,30 @@ class ConversationFullTextSearch:
                 "SELECT is_ready, indexed_source_count FROM conversation_fts_meta "
                 "WHERE singleton=1"
             ).fetchone()
+            # A leftover ready marker does not prove the FTS5 virtual
+            # table and live index maintenance triggers still exist. Missing
+            # structures are a degraded index, not permission to fabricate
+            # an answer or skip canonical original-source fallback.
+            objects = {
+                value["name"]: value["type"]
+                for value in db.execute(
+                    "SELECT name,type FROM sqlite_master WHERE name IN ("
+                    "'conversation_messages_fts',"
+                    "'conversation_source_fts_insert',"
+                    "'conversation_source_fts_delete',"
+                    "'conversation_source_fts_update')"
+                ).fetchall()
+            }
+            required = {
+                "conversation_messages_fts": "table",
+                "conversation_source_fts_insert": "trigger",
+                "conversation_source_fts_delete": "trigger",
+                "conversation_source_fts_update": "trigger",
+            }
             return ConversationSearchStatus(
-                bool(row["is_ready"]) if row is not None else False,
+                bool(row["is_ready"]) and all(
+                    objects.get(name) == kind for name, kind in required.items()
+                ) if row is not None else False,
                 int(row["indexed_source_count"]) if row is not None else 0,
             )
 
