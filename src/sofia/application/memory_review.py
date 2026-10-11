@@ -109,9 +109,19 @@ class MemoryReviewService:
             raise PermissionError(
                 "reviewed memory source bytes, role, order or timestamps changed"
             )
-        # Review is authoritative only after *current* immutable original
-        # evidence checks. DurableMemoryCandidateStore still owns the
-        # transactional lifecycle and atomic correction/revocation.
+        # A reviewed candidate carries this source-binding guard into
+        # future model-context reads. Erasing or rebinding the original
+        # afterwards makes recall fail closed without erasing the audit
+        # record or rewriting a memory candidate.
+        self._candidates.require_current_original_at_recall(
+            candidate_id,
+            session_id=original_session,
+            principal_id=current_binding.principal_id,
+            audience_id=current_binding.audience_id,
+            audience_kind=current_binding.audience_kind.value,
+        )
+        # DurableMemoryCandidateStore still owns the atomic promotion and
+        # correction/revocation lifecycle.
         self._candidates.promote(candidate_id)
 
     def reject(
