@@ -77,6 +77,7 @@ def collect_local_model_inventory(
     backend,
     host_id: str,
     at: datetime,
+    details_limit: int = 64,
 ) -> tuple[ModelInventoryObservation, ...]:
     """Bounded Ollama /tags + /version + /show inventory, with honest unknowns."""
     if not isinstance(selection, CognitiveModelSelection):
@@ -85,6 +86,8 @@ def collect_local_model_inventory(
         raise ValueError("verified host ID required")
     if not isinstance(at, datetime) or at.tzinfo is None or at.utcoffset() is None:
         raise ValueError("observation time must be timezone-aware")
+    if type(details_limit) is not int or not 0 <= details_limit <= 64:
+        raise ValueError("details_limit must be an integer in 0..64")
 
     # A model service outage is an error, not evidence that no models exist.
     tags = backend.models()
@@ -122,6 +125,13 @@ def collect_local_model_inventory(
     # Include configured Ollama role models missing from /tags. Non-Ollama
     # roles are explicitly unknown to this Ollama-only observer.
     names = sorted(set(by_name) | set(configured))
+    # Automatic discovery only spends its small /show budget on configured
+    # models first. Every other installed model remains listed as observed
+    # rather than silently disappearing when metadata inspection is deferred.
+    detail_order = tuple(sorted(
+        names, key=lambda name: (name not in configured, name),
+    ))
+    inspect_names = frozenset(detail_order[:details_limit])
     result = []
     for name in names:
         entry = by_name.get(name)
@@ -138,7 +148,9 @@ def collect_local_model_inventory(
         license_terms = None
         license_truncated = False
         detail_error = None
-        if entry is not None:
+        if entry is not None and name not in inspect_names:
+            detail_error = "details_deferred_budget"
+        if entry is not None and name in inspect_names:
             try:
                 shown = backend.show(name)
                 if not isinstance(shown, Mapping):
@@ -196,6 +208,43 @@ def collect_local_model_inventory(
             details_error=detail_error,
         ))
     return tuple(result)
+
+
+def refresh_local_model_inventory(
+    *,
+    state_path: Path,
+    host_id: str,
+    at: datetime,
+    details_limit: int = 8,
+    backend=None,
+) -> tuple[ModelInventoryObservation, ...]:
+    """Reuse the configured production role map and canonical inventory owner.
+
+    The default backend is strictly the loopback Ollama adapter and only its
+    read-only /tags, /version and /show endpoints are invoked. This function
+    never pulls, loads, performs inference, or changes the configured role.
+    """
+    from sofia.config import create_production_configuration
+    from sofia.integrations.ollama import OllamaAdapter
+
+    config = create_production_configuration(state_path=Path(state_path))
+    selection = CognitiveModelSelection.from_configuration(config)
+    adapter = backend if backend is not None else OllamaAdapter()
+    if backend is None:
+        # Keep unattended local metadata polling a short, interruptible unit.
+        adapter.http.timeout = 3.0
+    observations = collect_local_model_inventory(
+        selection=selection,
+        backend=adapter,
+        host_id=host_id,
+        at=at,
+        details_limit=details_limit,
+    )
+    ModelInventoryStore(Path(state_path)).replace_host(
+        host_id=host_id,
+        observations=observations,
+    )
+    return observations
 
 
 class ModelInventoryStore:
@@ -257,6 +306,8 @@ class ModelInventoryStore:
         lines = [
             "Observed local model metadata only. Capabilities are ADVERTISED,",
             "NOT VERIFIED. Licenses are NOT accepted by discovery.",
+            "Unconfigured installed models are discovery CANDIDATES ONLY;",
+            "they have not passed model benchmarks or compatibility review.",
         ]
         for (raw,) in rows:
             item = json.loads(raw)
