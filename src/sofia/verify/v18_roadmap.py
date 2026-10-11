@@ -141,6 +141,45 @@ def validate_repository(repo_root: Path) -> dict[str, object]:
             _within(repo, path)
         if status in {"partial_wiring", "code_present_unverified", "accepted"} and not paths:
             raise RoadmapIntegrityError(f"task claims code without source paths: {key}")
+        if status == "code_present_unverified":
+            # A source file, a unit test or an unused class is not a
+            # production implementation. Only reachable, composed code with
+            # an identified actual effect may be counted as tests-only.
+            wiring = record.get("production_wiring")
+            if not isinstance(wiring, dict):
+                raise RoadmapIntegrityError(
+                    f"production-wired claim lacks real path evidence: {key}"
+                )
+            entrypoint = wiring.get("entrypoint")
+            if not isinstance(entrypoint, str) or not entrypoint.strip():
+                raise RoadmapIntegrityError(
+                    f"production-wired claim lacks entrypoint: {key}"
+                )
+            if wiring.get("remaining") != "tests_only":
+                raise RoadmapIntegrityError(
+                    f"production-wired claim cannot conceal missing coding: {key}"
+                )
+            explanation = wiring.get("explanation")
+            if not isinstance(explanation, str) or len(explanation.strip()) < 30:
+                raise RoadmapIntegrityError(
+                    f"production-wired claim lacks source explanation: {key}"
+                )
+            source_review = wiring.get("source_review_sha")
+            if not isinstance(source_review, str) or REVISION_RE.fullmatch(source_review) is None:
+                raise RoadmapIntegrityError(
+                    f"production-wired claim lacks exact source review: {key}"
+                )
+            for role in ("composition_path", "caller_path", "implementation_path", "effect_path"):
+                part = wiring.get(role)
+                if not isinstance(part, str) or part not in paths:
+                    raise RoadmapIntegrityError(
+                        f"production-wired {role} lacks declared source: {key}"
+                    )
+                _within(repo, part)
+                if part.startswith(("test/", "docs/")):
+                    raise RoadmapIntegrityError(
+                        f"production-wired {role} points only at tests/docs: {key}"
+                    )
         accepted = record.get("accepted")
         if type(accepted) is not bool:
             raise RoadmapIntegrityError(f"missing explicit acceptance state: {key}")
