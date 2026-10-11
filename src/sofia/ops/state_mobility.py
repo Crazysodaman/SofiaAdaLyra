@@ -309,10 +309,20 @@ def discover_local_state_candidates(
     guessed_roots.extend(extra_roots)
     configured_identity = configured_path.absolute().parent / "protected/identity.json"
     canonical_identity_digest: bytes | None = None
-    if configured_identity.is_file() and not configured_identity.is_symlink():
+    if (
+        not _unsafe_ancestor(configured_identity)
+        and configured_identity.is_file()
+    ):
         from hashlib import sha256
-        # Private identities are compared only, never returned or logged.
-        canonical_identity_digest = sha256(configured_identity.read_bytes()).digest()
+        # A corrupted or malicious identity file cannot force discovery to
+        # ingest unbounded data or prevent inspection of other candidates.
+        try:
+            if configured_identity.stat().st_size <= 64 * 1024:
+                canonical_identity_digest = sha256(
+                    configured_identity.read_bytes()
+                ).digest()
+        except OSError:
+            canonical_identity_digest = None
     seen: set[Path] = set()
     results: list[StateCandidate] = []
     for root in guessed_roots[:max_roots]:
@@ -321,10 +331,16 @@ def discover_local_state_candidates(
             continue
         seen.add(directory)
         database = directory / "sofia.db"
-        if not database.is_file() or database.is_symlink():
+        if _unsafe_ancestor(database) or not database.is_file():
             continue
-        with database.open("rb") as handle:
-            has_sqlite_header = handle.read(16) == b"SQLite format 3\x00"
+        try:
+            database_size = database.stat().st_size
+            with database.open("rb") as handle:
+                has_sqlite_header = handle.read(16) == b"SQLite format 3\x00"
+        except OSError:
+            # A disappearing, locked or unreadable copy must not abort the
+            # entire operator-scoped scan or be presented as a valid home.
+            continue
         has_schema = False
         if has_sqlite_header:
             # Query-only URI prevents accidental DB creation or state edits.
@@ -348,14 +364,25 @@ def discover_local_state_candidates(
                 # Corrupt, locked or incompatible copies never become trusted.
                 has_schema = False
         identity = directory / "protected/identity.json"
-        identity_exists = identity.is_file() and not identity.is_symlink()
+        identity_exists = False
         same_identity: bool | None = None
-        if identity_exists and canonical_identity_digest is not None:
-            from hashlib import sha256
-            same_identity = sha256(identity.read_bytes()).digest() == canonical_identity_digest
+        if not _unsafe_ancestor(identity):
+            try:
+                if identity.is_file() and identity.stat().st_size <= 64 * 1024:
+                    identity_exists = True
+                    if canonical_identity_digest is not None:
+                        from hashlib import sha256
+                        same_identity = (
+                            sha256(identity.read_bytes()).digest()
+                            == canonical_identity_digest
+                        )
+            except OSError:
+                # A vanishing or unreadable identity never proves lineage.
+                identity_exists = False
+                same_identity = None
         results.append(StateCandidate(
             state_path=database,
-            database_size=database.stat().st_size,
+            database_size=database_size,
             protected_identity_present=identity_exists,
             is_configured_path=database == configured_path.absolute(),
             sqlite_header_valid=has_sqlite_header,
