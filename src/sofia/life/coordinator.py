@@ -458,6 +458,35 @@ class SelfDirectedLifeCoordinator:
         self.store.record_selection(selection)
         return selection
 
+    def inspect_artifact_objectives(self, project_id: str, *, artifact_id: str):
+        """Independent, read-only structural and objective evidence projection.
+
+        Unknown natural-language objectives remain unknown. This cannot
+        complete a goal or update preferences or memory by itself.
+        """
+        from .validation import inspect_objective_artifact
+
+        project = self._project(project_id)
+        path, _media = self.creative_explorer.verified_preview(
+            artifact_id,
+            owner_principal_id=SOFIA_CREATIVE_OWNER,
+            audience_id=project.audience_id,
+        )
+        revision = self.creative_store.latest(
+            artifact_id, SOFIA_CREATIVE_OWNER, project.audience_id,
+        )
+        if (
+            revision is None
+            or revision.project_id != project.project_id
+            or (artifact_id, revision.revision) not in self.store.artifacts(project_id)
+        ):
+            raise PermissionError("requested artifact is not linked to this project")
+        return inspect_objective_artifact(
+            revision=revision,
+            path=path,
+            objectives=project.brief.objectives,
+        )
+
     def pending_work_review(self, *, limit: int = 32) -> tuple[dict[str, object], ...]:
         """Project existing RUN outcomes without asserting goal success.
 
