@@ -141,17 +141,20 @@ def test_tray_unloads_every_current_configured_model_role(monkeypatch):
     app.config = SimpleNamespace(state_path=Path("test-only-canonical.db"))
     app._service = Service()
     approved = []
+    selected_kinds = []
     monkeypatch.setattr(
         owner_approval_ui, "active_owner_credentials",
-        lambda state_path, *, kind: ("test-only-platform",),
+        lambda state_path, *, kind: ("test-only-security-key",),
     )
+    def choose(state_path, *, kind, parent=None):
+        selected_kinds.append(kind)
+        return "test-only-security-key"
     monkeypatch.setattr(
-        owner_approval_ui, "select_owner_credential",
-        lambda state_path, *, kind, parent=None: "test-only-platform",
+        owner_approval_ui, "select_owner_credential", choose,
     )
     def signed_approval(state_path, *, capability, parameters,
                         credential_id, expires_seconds):
-        assert credential_id == "test-only-platform"
+        assert credential_id == "test-only-security-key"
         approved.append((capability, parameters))
         return SimpleNamespace(approval_id=f"signed-{len(approved)}")
     monkeypatch.setattr(
@@ -167,6 +170,7 @@ def test_tray_unloads_every_current_configured_model_role(monkeypatch):
         "vendor/primary:anything",
         "vendor/open:anything",
     ]
+    assert selected_kinds == ["security_key", "security_key"]
     assert [call[2] for call in calls] == ["signed-1", "signed-2"]
     assert [item[1]["model"] for item in approved] == [
         "vendor/primary:anything", "vendor/open:anything",
