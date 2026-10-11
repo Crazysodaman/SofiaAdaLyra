@@ -31,6 +31,19 @@ _STABLE_FIRST_PERSON = re.compile(
     r")",
     re.IGNORECASE,
 )
+_EXPLICIT_CORRECTION = re.compile(
+    r"^\s*(?:"
+    r"(?:actually|correction|to\s+correct\s+that)[,:]?\s*"
+    r"i\s+(?:(?:now|no\s+longer|don't|do\s+not)\s+)?"
+    r"(?:like|love|prefer|hate|dislike|use|want)\b|"
+    r"i\s+(?:no\s+longer|don't|do\s+not)\s+"
+    r"(?:like|love|prefer|hate|dislike|use|want)\b|"
+    r"i\s+changed\s+my\s+mind[,:]?\s*i\s+"
+    r"(?:now\s+)?(?:like|love|prefer|hate|dislike|use|want)\b"
+    r")",
+    re.IGNORECASE,
+)
+
 _CORRECTION_ONLY = re.compile(
     r"^\s*(?:forget\b|stop\s+tracking\b|that's\s+not\s+a\s+habit\b|"
     r"that\s+is\s+not\s+a\s+habit\b)",
@@ -72,6 +85,11 @@ class ConversationLearningCoordinator:
             return False, "correction commands are handled by explicit controls"
         if _EXPLICIT_MEMORY.search(text):
             return True, "explicit remember request"
+        if _EXPLICIT_CORRECTION.search(text):
+            # Preserve the exact durable source. The existing review UI
+            # selects which earlier fact to supersede; this creates only a
+            # PROPOSED candidate, never silently revoking a previous fact.
+            return True, "explicit correction requiring memory review"
         if _STABLE_FIRST_PERSON.search(text):
             return True, "explicit first-person preference or stable fact"
         return False, "no reviewed automatic-learning pattern matched"
