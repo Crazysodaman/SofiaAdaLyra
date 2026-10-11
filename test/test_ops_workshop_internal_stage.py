@@ -155,7 +155,7 @@ def test_host_power_shell_restricts_new_internal_switch_to_exact_guest():
         "Sofia-Hephaestus-Internal",
         "NAT_OVERLAPS_GUEST_SUBNET",
         "EXISTING_ICS_SHARING_ACTIVE",
-        "OTHER_GUESTS_ON_INTERNAL_SWITCH",
+        "TARGET_SWITCH_HAS_OTHER_GUESTS",
         "Get-NetIPInterface","Set-NetIPInterface",
         "New-VMSwitch","New-NetIPAddress",
         "Connect-VMNetworkAdapter",
@@ -198,6 +198,8 @@ def test_host_power_shell_restricts_new_internal_switch_to_exact_guest():
         "POST_STAGE_FIREWALL_NOT_DEFAULT_DENY",
         "POST_STAGE_NAT_OVERLAP",
         "POST_STAGE_ICS_ACTIVE",
+        "POST_STAGE_HOST_DNS_NOT_EMPTY",
+        "POST_STAGE_HOST_DEFAULT_ROUTE",
     ):
         assert sentinel in command
         assert command.index(sentinel) > command.index("Connect-VMNetworkAdapter")
