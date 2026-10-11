@@ -1252,26 +1252,28 @@ class SelfDirectedLifeCoordinator:
             evidence_refs, preserve_for_research, now,
         )
         self.store.record_evaluation(value)
-        disposition = {
-            PersonalJudgment.LIKE: PreferenceDisposition.LIKE,
-            PersonalJudgment.DISLIKE: PreferenceDisposition.DISLIKE,
-            PersonalJudgment.MIXED: PreferenceDisposition.UNKNOWN,
-            PersonalJudgment.INDIFFERENT: PreferenceDisposition.INDIFFERENT,
-            PersonalJudgment.UNKNOWN: PreferenceDisposition.UNKNOWN,
-        }[personal_judgment]
-        current = self.preferences.current(
-            subject=PreferenceSubject.SOFIA, category="creation",
-            target_id=artifact_id, context="project", audience_id=project.audience_id,
-        )
-        self.preferences.revise(
-            subject=PreferenceSubject.SOFIA, category="creation",
-            target_id=artifact_id, context="project", disposition=disposition,
-            strength=0.75 if personal_judgment in {PersonalJudgment.LIKE, PersonalJudgment.DISLIKE} else 0.4,
-            confidence=project.confidence, reason=reason,
-            evidence_ref=evidence_refs[0], audience_id=project.audience_id,
-            expected_revision=None if current is None else current.revision, now=now,
-        )
-        self._experience(
+        # Independent objective evidence is not evidence of personal taste.
+        # UNKNOWN is deliberate abstention, not a preference observation.
+        if personal_judgment is not PersonalJudgment.UNKNOWN:
+            disposition = {
+                PersonalJudgment.LIKE: PreferenceDisposition.LIKE,
+                PersonalJudgment.DISLIKE: PreferenceDisposition.DISLIKE,
+                PersonalJudgment.MIXED: PreferenceDisposition.UNKNOWN,
+                PersonalJudgment.INDIFFERENT: PreferenceDisposition.INDIFFERENT,
+                }[personal_judgment]
+            current = self.preferences.current(
+                subject=PreferenceSubject.SOFIA, category="creation",
+                target_id=artifact_id, context="project", audience_id=project.audience_id,
+            )
+            self.preferences.revise(
+                subject=PreferenceSubject.SOFIA, category="creation",
+                target_id=artifact_id, context="project", disposition=disposition,
+                strength=0.75 if personal_judgment in {PersonalJudgment.LIKE, PersonalJudgment.DISLIKE} else 0.4,
+                confidence=project.confidence, reason=reason,
+                evidence_ref=evidence_refs[0], audience_id=project.audience_id,
+                expected_revision=None if current is None else current.revision, now=now,
+            )
+            self._experience(
             project=project, kind="artifact_evaluated",
             summary=(
                 f"Evaluated {artifact_id}: technically {technical_outcome.value}; "
