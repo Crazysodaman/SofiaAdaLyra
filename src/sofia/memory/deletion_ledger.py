@@ -198,6 +198,10 @@ class MemoryDeletionLedger:
             raise MemoryErasureError("redirected state may not be erased")
         removed = 0
         with closing(sqlite3.connect(state_path, timeout=10)) as db:
+            # SQLite secure_delete overwrites deleted cell content in its
+            # working pages; a live runtime must be stopped so no other
+            # connection retains old plaintext or unread WAL snapshots.
+            db.execute("PRAGMA secure_delete=ON")
             db.execute("PRAGMA foreign_keys=ON")
             db.execute("BEGIN IMMEDIATE")
             tables = {
