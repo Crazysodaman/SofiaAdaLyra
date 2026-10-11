@@ -811,3 +811,116 @@ def test_life_outreach_operator_stop_after_model_choice_is_honored(tmp_path):
         assert presence.recent_life_project_outreach(now=now) is False
     finally:
         life.close()
+
+
+def test_explicit_project_decline_prevents_future_model_wakeup(tmp_path, monkeypatch):
+    """A user's reviewed no stops new outreach, but not the creative project."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.social.principals import local_sparks_principal
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, _sent = _owner_only_outreach(life)
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False, generate=_choose_to_share,
+        ) == 1
+        from hashlib import sha256
+        original_id = "life-update:" + sha256(
+            life.voluntary_project_updates(now=now)[0]["event_id"].encode("utf-8")
+        ).hexdigest()[:32]
+        principal = local_sparks_principal()
+        assert presence.owner_life_update_feedback(
+            project_id=project.project_id, principal=principal,
+        ) is None
+        presence.record_owner_life_update_feedback(
+            principal=principal, project_id=project.project_id,
+            original_event_id=original_id, feedback="declined", at=now,
+        )
+        assert PresenceInitiativeEngine(
+            state_path=life.path, act_service=service,
+        ).owner_life_update_feedback(
+            project_id=project.project_id, principal=principal,
+        ) == "declined"
+        # Isolate the explicit topic decline from the independent daily
+        # anti-spam policy. A restart cannot wake the model for this topic.
+        restarted = PresenceInitiativeEngine(
+            state_path=life.path, act_service=service,
+        )
+        monkeypatch.setattr(
+            restarted, "recent_life_project_outreach",
+            lambda **_: False,
+        )
+        calls = []
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=restarted, act_service=service,
+            now=now + timedelta(seconds=30), busy=False,
+            generate=calls.append,
+        ) == 0
+        assert calls == []
+        assert life._project(project.project_id).status.value == "completed"
+        assert len(life.store.jobs(project.project_id)) == 1
+    finally:
+        life.close()
+
+
+def test_life_owner_feedback_rejects_cross_scope_and_fabricated_opportunities(
+    tmp_path,
+):
+    """Neither foreign principals nor imagined notifications supply preferences."""
+    from sofia.social.model import AudienceKind, PrincipalContext
+    from sofia.social.principals import local_sparks_principal
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, _ = _owner_only_outreach(life)
+        principal = local_sparks_principal()
+        with pytest.raises(PermissionError, match="matching authentic"):
+            presence.record_owner_life_update_feedback(
+                principal=principal, project_id=project.project_id,
+                original_event_id="life-update:synthetic-not-sent",
+                feedback="declined", at=now,
+            )
+        foreign = PrincipalContext(
+            "person:other", "private:other",
+            AudienceKind.PRIVATE, "Other person",
+        )
+        with pytest.raises(PermissionError, match="owner-only"):
+            presence.record_owner_life_update_feedback(
+                principal=foreign, project_id=project.project_id,
+                original_event_id="life-update:synthetic-not-sent",
+                feedback="declined", at=now,
+            )
+        assert presence.owner_life_update_feedback(
+            project_id=project.project_id, principal=principal,
+        ) is None
+        assert service.has_pending() is False
+    finally:
+        life.close()
+
+
+def test_owner_life_decline_is_explicit_not_inferred_from_silence(tmp_path):
+    """No recipient reply must never be recorded as dislike or rejection."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.social.principals import local_sparks_principal
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, _ = _owner_only_outreach(life)
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False, generate=_choose_to_share,
+        ) == 1
+        assert presence.owner_life_update_feedback(
+            project_id=project.project_id,
+            principal=local_sparks_principal(),
+        ) is None
+        assert presence.recent_life_project_outreach(now=now) is True
+    finally:
+        life.close()
