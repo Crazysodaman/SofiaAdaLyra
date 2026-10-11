@@ -28,6 +28,29 @@ _OUTCOMES = frozenset({
     "adverse", "protocol_violation",
 })
 
+# Distinct scientific questions. Computation may quantify functional
+# capabilities, but cannot turn third-person behavior into first-person proof.
+# Computational workspace/broadcast hypotheses are not evidence of the
+# biological Global Neuronal Workspace's substrate-specific mechanisms.
+THEORY_BOUNDARIES = {
+    "functional_agency": (
+        "Outcome-directed choices against independent task/action receipts",
+        "Measurable via controlled behavioral task outcomes",
+    ),
+    "global_workspace_access": (
+        "Limited broadcast of permitted information to downstream readers",
+        "Computational Global Workspace only; not biological Global Neuronal Workspace",
+    ),
+    "metacognitive_self_model": (
+        "Predicted capability, uncertainty and error vs verified outcomes",
+        "Measurable calibration, not a subjective awareness report",
+    ),
+    "phenomenal_subjectivity": (
+        "First-person subjective experience as distinct from behaviors",
+        "No validated behavioral proof; this registry forbids positive inference",
+    ),
+}
+
 
 @dataclass(frozen=True, slots=True)
 class PreregisteredStudy:
@@ -209,7 +232,10 @@ class ResearchEvidenceRegistry:
             "All measures are behavioral/functionally observable only.",
             "Even supported outcomes cannot establish phenomenal consciousness.",
             "Null, negative and adverse results are retained, not hidden.",
+            "SCIENTIFIC THEORY BOUNDARIES:",
         ]
+        for kind, (meaning, limit_text) in THEORY_BOUNDARIES.items():
+            lines.append(f"  {kind}: {meaning}; limitation: {limit_text}")
         for protocol_id, raw in protocols:
             entry = json.loads(raw)
             protocol = entry["protocol"]
