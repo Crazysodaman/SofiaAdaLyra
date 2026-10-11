@@ -252,6 +252,9 @@ def create_background_coordinator(
                 )
                 result = life.tick(
                     now=now, busy=busy, resource_pressure=pressure,
+                    generate=lambda request: application._runtime.respond(
+                        request, principal=local_sparks_principal(),
+                    ),
                 )
             return result if (
                 project is not None

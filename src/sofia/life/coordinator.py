@@ -40,6 +40,7 @@ from .model import (
     TechnicalOutcome, aware, identifier, text,
 )
 from .idea_agent import ProjectIdeaAgent
+from .draft_agent import ProjectDraftAgent, ProjectDraftGenerationError
 from .store import LifeStore
 
 
@@ -1066,6 +1067,7 @@ class SelfDirectedLifeCoordinator:
     def tick(
         self, *, now: datetime, busy: bool = False,
         resource_pressure: float = 0.0,
+        generate=None,
     ) -> dict[str, object]:
         selection = self.select_activity(
             now=now, busy=busy, resource_pressure=resource_pressure,
@@ -1084,10 +1086,28 @@ class SelfDirectedLifeCoordinator:
                     assertion=f"{project.project_id} selected within resource budget",
                     now=now, payload={"selection_id": selection.selection_id},
                 )
+                specification = self._initial_specification(project, kind)
+                if generate is not None and kind in {ArtifactKind.TEXT, ArtifactKind.STORY}:
+                    try:
+                        specification = ProjectDraftAgent(generate).draft(project, kind)
+                    except ProjectDraftGenerationError:
+                        # A model drafting failure must not be relabeled as
+                        # successful creativity or silently replaced by a
+                        # static placeholder in production.
+                        return {
+                            "selection": selection.kind.value,
+                            "project_id": selection.project_id,
+                            "scheduled": 0,
+                            "jobs_started": self.manager.tick(
+                                now=now, busy=busy, resource_pressure=resource_pressure,
+                            ),
+                            "draft_status": "failed_unverified",
+                            "review_queue": self.pending_work_review(limit=16),
+                        }
                 self.schedule_artifact(
                     project.project_id, artifact_kind=kind,
                     title=project.name,
-                    specification=self._initial_specification(project, kind),
+                    specification=specification,
                     evidence_ref=evidence_ref, now=now,
                 )
                 scheduled = 1
