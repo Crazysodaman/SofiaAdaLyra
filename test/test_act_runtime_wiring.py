@@ -6,6 +6,10 @@ from sofia.act.delivery import ActOutbox, DeliveryOutcome, SendResult
 from sofia.application.act_service import SofiaActService
 from sofia.act.outreach import Policy
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.safe.operator_stop import OperatorStopStore
+from sofia.personality.reflection import ReflectionJournal
+from sofia.personality.influence import ContinuityInfluence
+from sofia.social.model import SocialScope, ScopeKind
 from sofia.config.user_settings import (
     OutreachSettings,
     RuntimeUserSettings,
@@ -343,3 +347,32 @@ def test_application_act_skips_blocked_message_and_delivers_later_eligible_one(
 
     assert result is not None
     assert sent == ["eligible"]
+
+
+def test_operator_pause_refuses_optional_reflection_admission(tmp_path):
+    path = tmp_path / "state.db"
+    path.touch()
+    stop = OperatorStopStore(path)
+    service = SofiaActService(path)
+    stop.set(active=True, updated_by="Sparks", reason="pause LIFE and outreach")
+    # This should bail out before touching either reflection outbox or
+    # creating synthetic delivery receipts.
+    result = service.bridge_reflection_outbox(
+        reflections=ReflectionJournal(path),
+        scope=SocialScope(kind=ScopeKind.RELATIONSHIP, principal_id=SPARKS_PRINCIPAL_ID),
+        now=NOW,
+        influence=ContinuityInfluence(),
+    )
+    assert result == 0
+
+
+def test_settings_operator_stop_is_wired_to_existing_permissions_page():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "src/sofia/ui/settings_window.py").read_text(encoding="utf-8")
+    assert 'permissions = frames["Permissions"]' in source
+    assert 'operator_stop_store = OperatorStopStore(config.state_path)' in source
+    assert 'command=lambda: change_operator_stop(active=True)' in source
+    assert 'command=lambda: change_operator_stop(active=False)' in source
+    assert 'operator_stop_store.current()' in source
+
