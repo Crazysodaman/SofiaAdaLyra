@@ -13,6 +13,8 @@ from sofia.safe.execution_approval import (
     ExecutionApprovalVerifier,
     execution_fingerprint,
 )
+from sofia.safe.owner_browser import authorize_exact_action
+from sofia.safe.permissions import PermissionLevel, capability_permission_policy
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,6 +30,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--ttl-seconds", type=int, default=900)
     parser.add_argument("--approved-by", default="Sparks")
+    parser.add_argument(
+        "--credential-id",
+        help="Previously enrolled WebAuthn credential ID; protected actions require a hardware key",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -45,8 +51,24 @@ def main(argv: list[str] | None = None) -> int:
                 "current operator approval must be explicitly recorded as Sparks"
             )
 
-        now = datetime.now(timezone.utc)
-        approval = ExecutionApproval(
+        state_path = (
+            Path(args.state_path)
+            if args.state_path
+            else production_state_path()
+        )
+        if capability_permission_policy(args.capability).level >= PermissionLevel.PROTECTED:
+            if not args.credential_id:
+                raise PermissionError(
+                    "protected operation requires --credential-id and fresh FIDO2 verification"
+                )
+            approval = authorize_exact_action(
+                state_path, capability=args.capability, parameters=parameters,
+                credential_id=args.credential_id,
+                expires_seconds=min(args.ttl_seconds, 900),
+            )
+        else:
+            now = datetime.now(timezone.utc)
+            approval = ExecutionApproval(
             approval_id=str(uuid4()),
             capability=args.capability,
             request_fingerprint=execution_fingerprint(
@@ -57,12 +79,7 @@ def main(argv: list[str] | None = None) -> int:
             approved_at=now,
             expires_at=now + timedelta(seconds=args.ttl_seconds),
         )
-        state_path = (
-            Path(args.state_path)
-            if args.state_path
-            else production_state_path()
-        )
-        ExecutionApprovalVerifier(state_path).record(approval)
+            ExecutionApprovalVerifier(state_path).record(approval)
         print(
             json.dumps(
                 {
