@@ -81,7 +81,7 @@ class HyperVAdapter:
             "host_inventory": observed,
             "read_only_review": asdict(review_sofia_guest_inventory(observed)),
             "guest_os_installed": "unverified",
-            "canonical_writer_active": False,
+            "canonical_writer_active": "unverified",
             "activation_authorized": False,
         }
 
