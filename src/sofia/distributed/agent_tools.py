@@ -159,6 +159,74 @@ def create_default_agent_dispatcher(
                 "workshop.inspect","media",
                 reviewed_media_digest,
             )
+        # Privileged bootstrap registration is opt-in on Artemis itself.
+        # Never expose the operation on a default workstation/agent.
+        # Host admin binds an exact VM GUID + OS disk and a local image root.
+        from uuid import UUID
+        from re import fullmatch
+        from sofia.ops.workshop_provision import _path
+        bootstrap_enabled=os.environ.get(
+            "SOFIA_WORKSHOP_BOOTSTRAP_ENABLED",""
+        ).strip()=="1"
+        pinned_vm=os.environ.get(
+            "SOFIA_WORKSHOP_BOOTSTRAP_VM_ID",""
+        ).strip()
+        pinned_disk=os.environ.get(
+            "SOFIA_WORKSHOP_BOOTSTRAP_OS_DISK",""
+        ).strip()
+        if bootstrap_enabled:
+            if not pinned_vm or not pinned_disk or not workshop_image_root:
+                raise PermissionError(
+                    "host-admin workshop bootstrap requires pinned VM GUID, "
+                    "OS VHDX and approved offline media root"
+                )
+            approved_vm=str(UUID(pinned_vm))
+            approved_disk=str(_path(pinned_disk))
+            allowed_root=Path(workshop_image_root).resolve(strict=True)
+            if not allowed_root.is_dir():
+                raise PermissionError("offline media root is not a directory")
+
+            def reviewed_hephaestus_boot(parameters):
+                if set(parameters)!={
+                    "vm_id","disk_path","iso_path","iso_sha256",
+                    "handoff_fingerprint",
+                }:
+                    raise ValueError("exact protected bootstrap parameters required")
+                vm_id=str(UUID(str(parameters["vm_id"])))
+                disk_path=str(_path(str(parameters["disk_path"])))
+                iso_path=str(_path(str(parameters["iso_path"])))
+                media_sha=str(parameters["iso_sha256"])
+                handoff_hash=str(parameters["handoff_fingerprint"])
+                if (
+                    vm_id!=approved_vm
+                    or disk_path.casefold()!=approved_disk.casefold()
+                    or fullmatch(r"[0-9a-f]{64}",handoff_hash) is None
+                    or fullmatch(r"[0-9a-f]{64}",media_sha) is None
+                ):
+                    raise PermissionError(
+                        "bootstrap VM, disk or exact handoff identity not authorized"
+                    )
+                source=Path(iso_path).resolve(strict=True)
+                if (
+                    not source.is_relative_to(allowed_root)
+                    or not source.is_file()
+                    or source.suffix.casefold()!=".iso"
+                    or source.stat().st_size > 16*(1024**3)
+                    or source.stat().st_size < 100*(1024**2)
+                ):
+                    raise PermissionError("unattended ISO outside approved offline root")
+                # Verify before entering the host action; the exact PowerShell
+                # operation independently checks the hash again before boot.
+                if hyperv.workshop_image_sha256(str(source))!=media_sha:
+                    raise PermissionError("offline ISO content hash mismatch")
+                return _plain(hyperv.bootstrap_existing_hephaestus(
+                    vm_id=vm_id,os_disk_path=disk_path,
+                    iso_path=str(source),iso_sha256=media_sha,
+                ))
+
+            dispatcher.register(
+                "workshop.bootstrap","start",reviewed_hephaestus_boot,
+            )
         dispatcher.register("vm.manage","start",lambda p:_plain(hyperv.start(str(p["vm"]))))
         dispatcher.register("vm.manage","stop",lambda p:_plain(hyperv.stop(str(p["vm"]),force=bool(p.get("force",False)))))
 
