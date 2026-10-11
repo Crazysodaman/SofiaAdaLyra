@@ -5,6 +5,7 @@ recorded. Missing provider metrics remain unknown rather than invented zeroes.
 """
 from __future__ import annotations
 
+import math
 import os
 import sys
 from dataclasses import dataclass
@@ -128,8 +129,15 @@ def emit_performance(stage: str, **values: Any) -> None:
     for name, value in values.items():
         if value is None:
             parts.append(f"{name}=unknown")
-        elif isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
-            raise ValueError("Performance metrics must be nonnegative numbers or unknown.")
+        elif (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value < 0
+        ):
+            raise ValueError(
+                "Performance metrics must be finite nonnegative numbers or unknown."
+            )
         else:
             parts.append(f"{name}={value:.1f}" if isinstance(value, float) else f"{name}={value}")
     print(f"[sofia-perf] {stage} " + " ".join(parts), file=sys.stderr, flush=True)
