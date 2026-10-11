@@ -126,3 +126,33 @@ The preceding contract predated the owner-approved hybrid auth coding. The follo
 **Host state:** Venus is the sole authorized canonical writer; the owner reported Debian installation in progress on the dedicated Artemis `Sofia` VM. No writer cutover, live key enrollment, remote host action, tests, CI or build took place in this audit.
 
 **Acceptance gate remains open:** Review exact-SHA diffs, execute focused SAFE tests, run the full original V18 package test gates, then supervise physical Windows Hello/FIDO2 and multi-host acceptance before reclassifying any status as accepted.
+
+
+## CA-005: event/evidence envelope source-to-sink ownership map (2026-10-11)
+
+This table maps the *requested envelope semantics* to currently existing typed source owners. **An event envelope is a view, not a new canonical row.** Each adapter is required to project source-owned values and to preserve `unknown` where a source lacks the necessary field.
+
+| Envelope field | Typed canonical source or derived adapter | Verified limitation / sink |
+| --- | --- | --- |
+| `event_id` | `life/model.py:ProjectEvent.event_id`; conversation message ID (`conversation/model.py`); Matrix `TurnEnvelope.message_id`; RUN job/result identifiers; ACT message/delivery IDs | **No single universal event ID yet.** Distinct schemas must preserve original IDs and namespace them without reassigning the source identity |
+| `source` | `cognition/matrix/model.py:EvidenceRecord.source_ref`, individual LIFE/RUN/ACT producer/store | Never infer a trusted source from an LLM citation string; `None` remains unknown |
+| `subject` | Project `project_id`, goal `goal_id`, conversation `session_id` and measured resource identity from its owning model | Not every producer includes a universal subject ID. Adapter must not substitute the current chat user |
+| `principal` | `social/model.py:PrincipalContext.principal_id`; `life/model.py:LifeProject.creator_principal_id/owner_principal_id`; `matrix/model.py:TurnEnvelope.principal_id` | Producer/caller identity must remain separate from tool authority; a natural-language display name is not authentication |
+| `audience` | `social/model.py:SocialScope` / `AudienceKind` plus channel delivery and session binding owners | `TurnEnvelope.channel` alone is **not** adequate evidence of permitted cross-channel audience |
+| `observed_at` | `TurnEnvelope.created_at`, `life/model.py:MotivationSignal.observed_at`, durable event/receipt timestamps owned by producer | Timestamps are not interchangeable: event occurrence, ingestion and presentation may be different |
+| `expiry/freshness` | Existing permission grant expiry, action/ACT delivery expiry and Matrix `EvidenceState.STALE` | Some evidence records have no expiry. Do not project `fresh` based only on existence |
+| `confidence` | `cognition/matrix/model.py:TurnMatrix.confidence` and `life/model.py:ProjectIdea.confidence` | Source-specific confidence is **not** universal factual certainty or permission |
+| `evidence_refs` | Matrix `EvidenceRecord.source_ref` and provider-specific typed source IDs; `CompanionDecisionTrace.referenced_evidence` is a limited projection | A reference is a pointer requiring access/verification, never by itself proof of truth |
+| `action_id` | Existing SAFE `ExecutionApproval.approval_id`, capability/job effect receipt and RUN job reference | Approval ID is **not** an execution-success receipt |
+| `goal_id` | `life/model.py:LifeProject.goal_id` and canonical GOALS service/store | Empty means not linked; do not invent a goal from topic similarity |
+| `project_id` | `life/model.py:LifeProject.project_id`, `ProjectEvent.project_id`, GOALS and LIFE associations | Project correlation needs a source-owned explicit link, not nearest-time coincidence |
+| `consent_class` | `safe/permissions.py:PermissionLevel`/privacy classification plus exact scoped grants and authenticated owner approval | No producer-level consent derived from emotion, desire, historical conversation or automatically generated text |
+| `renderer/transport receipt` | ACT actual delivery/queue status (`application/act_service.py`), Desktop/Discord/Mobile adapters; expression renderer/TTS have separate owners | `desktop-queued`, `discord-ack`, `mobile-queued`, `ha-ack` prove only their specific stage, not human observation or physical embodiment |
+
+**Observed independent paths:** `application/bootstrap.py:SofiaApplication` composes canonical cognition/NEURO/MEM/LIFE/GOALS/ACT; `application/background_runtime.py` supplies distinct asynchronous LIFE and backup/ACT workers. `application/decision_trace.py:project_companion_decision` currently surfaces Matrix `message_id`, `session_id`, principal and referenced evidence. Its `neuro_turn_correlated=False`, blank goal/project/ACT links and `objective_verified=False` are **explicit truthfulness boundaries**.
+
+**Outstanding CA-005 work:** one source-verified adapter interface per producer, typed correlation IDs for NEURO/GOALS/LIFE/ACT across a single turn, audience checks before projection, operational retention/expiry policy, and tests for missing/stale/revoked/contradictory inputs, restart and multi-host cutover. No cross-component causal link has been validated by tests in this code-only pass. **Do not manufacture a universal event ledger or declare CA-005 accepted.**
+
+## CA-001: end-to-end event-trace static audit boundary
+
+The existing production composition includes the COGNITION v2/Matrix turn trace, `application/background_runtime.py` background LIFE/NEURO functions, original conversation store, SAFE permission gate and ACT delivery service. **Static source evidence does not yet establish a single concrete event traversing all of those subsystems.** Particularly the current `CompanionDecisionTrace` deliberately refuses to claim NEURO causation or LIFE/GOALS/ACT settlement without shared source references. Thus the full CA-001 trace remains **partial/unverified**, with a future controlled event fixture needed to prove each actual caller and settled receipt.
