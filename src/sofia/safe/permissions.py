@@ -778,7 +778,6 @@ class PermissionStore:
                          JOIN safe_execution_approval ap
                            ON ap.approval_id=b.approval_id
                            AND ap.consumed_at IS NOT NULL
-                           AND ap.capability='safe.permission.private_authority.change'
                            AND ap.capability='safe.permission.standing.grant'
                          JOIN safe_execution_owner_auth_binding auth
                            ON auth.approval_id=ap.approval_id
