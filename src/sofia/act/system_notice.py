@@ -524,15 +524,6 @@ class SystemNoticeQueue:
                         evidence_id=row["evidence_id"],
                         content=row["content"],
                     )
-                    record_outreach_trace(
-                        db,
-                        notice_id=row["notice_id"],
-                        stage="transport_attempt",
-                        reason="sender_invoked",
-                        recorded_at=moment,
-                        channel=row["channel"],
-                        destination=row["destination"],
-                    )
                     break
 
         if payload is None:
@@ -574,6 +565,21 @@ class SystemNoticeQueue:
                 )
                 return None
 
+        # Only a notice that passed both final authority checks may
+        # enter the transport attempt trace. A policy deferral or explicit
+        # owner decline above must never claim that the sender was invoked.
+        with closing(self._connect()) as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                record_outreach_trace(
+                    db,
+                    notice_id=payload.message_id,
+                    stage="transport_attempt",
+                    reason="sender_invoked",
+                    recorded_at=moment,
+                    channel=payload.channel,
+                    destination=payload.destination,
+                )
         try:
             result = sender(payload)
             if not isinstance(result, SendResult):
