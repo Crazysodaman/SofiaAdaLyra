@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "49d644d135e0fbce55806c377480a65b9668fc54",
+  "reviewed_main_sha": "bb85d08430596d76888eb05be8b08ad1d0ad6da2",
   "audit_date_utc": "2026-10-11",
-  "notice": "Workstream 1 production SAFE integration boundary repairs and installed wheel source proof are committed. CA-1904/1907/6507/3004 remain partial; tests, CI and live acceptance deferred. Other workstream evidence records retained.",
+  "notice": "WS1 Phase00-02: SAFE generic approval, scoped grant, integration/DEV stop, and release wheel source-byte proof source committed. All affected CA tasks remain partial unless separately accepted; no tests/CI/live host changes. Preserve other workstreams' evidence.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1773,19 +1773,22 @@
       "code_paths": [
         "src/sofia/integrations/capabilities.py",
         "src/sofia/safe/operator_stop.py",
-        "test/test_permission_runtime_wiring.py"
+        "test/test_permission_runtime_wiring.py",
+        "src/sofia/dev/capability.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
         "5b56f88c234b61aacfbeb5ef5282a1e49d4fcb93",
         "b7513bf43a8944e2f3387c8c22f5f324f9b69beb",
-        "e14e44a5073277536d48ab245b17e078ae8cf363"
+        "e14e44a5073277536d48ab245b17e078ae8cf363",
+        "80b1d7d236c9144c9a488a6b621910b82abb2136",
+        "bb85d08430596d76888eb05be8b08ad1d0ad6da2"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "49d644d135e0fbce55806c377480a65b9668fc54",
-        "depth": "production_integration_mutation_boundary",
-        "interpretation": "New source verifies generic exact approval, typed bounded standing grants, operator-stop recheck and standing grant revalidation immediately before local integration side effects. Tests authored but not run. Not universal cross-subsystem coverage or in-flight cancellation; task remains partial."
+        "at_sha": "bb85d08430596d76888eb05be8b08ad1d0ad6da2",
+        "depth": "runtime_integration_and_dev_execution_boundary",
+        "interpretation": "Direct integration and DEV operations check canonical durable operator stop at local effect boundaries; generic standing-scope revocation is rechecked before effect. Tests authored, not executed. Other domains and in-flight external cancellation remain open."
       }
     },
     {
@@ -1937,17 +1940,20 @@
       "code_paths": [
         "src/sofia/integrations/capabilities.py",
         "src/sofia/safe/operator_stop.py",
-        "test/test_permission_runtime_wiring.py"
+        "test/test_permission_runtime_wiring.py",
+        "src/sofia/dev/capability.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
-        "5b56f88c234b61aacfbeb5ef5282a1e49d4fcb93"
+        "5b56f88c234b61aacfbeb5ef5282a1e49d4fcb93",
+        "80b1d7d236c9144c9a488a6b621910b82abb2136",
+        "bb85d08430596d76888eb05be8b08ad1d0ad6da2"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "5839bc202056cbb8549a478a5bc420373ab95917",
-        "depth": "integration_effect_boundary",
-        "interpretation": "Production generic integration effect handlers recheck durable operator stop before approval and immediately before effect, including Level-2 maintenance. Tests authored only. This is not full universal stop/revocation coverage, and in-flight external actions may not be cancellable."
+        "at_sha": "bb85d08430596d76888eb05be8b08ad1d0ad6da2",
+        "depth": "runtime_integration_and_dev_execution_boundary",
+        "interpretation": "Direct integration and DEV operations check canonical durable operator stop at local effect boundaries; generic standing-scope revocation is rechecked before effect. Tests authored, not executed. Other domains and in-flight external cancellation remain open."
       }
     },
     {
