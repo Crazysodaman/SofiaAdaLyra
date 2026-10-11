@@ -121,6 +121,37 @@ def create_default_agent_dispatcher(
                 ValueError("host inspection accepts no remote parameters")
             ),
         )
+        # Only images under a host-admin configured offline media root may
+        # be hashed remotely. A model cannot turn this into host file probing.
+        workshop_image_root=os.environ.get(
+            "SOFIA_WORKSHOP_IMAGE_ROOT",""
+        ).strip()
+        if workshop_image_root:
+            def reviewed_media_digest(parameters):
+                if tuple(parameters) != ("image_path",):
+                    raise ValueError("exact approved media path required")
+                from sofia.ops.workshop_provision import _path
+                requested=str(_path(str(parameters["image_path"])))
+                root=Path(workshop_image_root).resolve(strict=True)
+                media=Path(requested).resolve(strict=True)
+                if (
+                    not root.is_dir() or not media.is_file()
+                    or not media.is_relative_to(root)
+                    or media.suffix.casefold() not in {".iso",".vhdx"}
+                    or media.stat().st_size > 128 * (1024 ** 3)
+                ):
+                    raise PermissionError(
+                        "media outside host-approved offline image root"
+                    )
+                return {
+                    "sha256":hyperv.workshop_image_sha256(str(media)),
+                    "bytes":media.stat().st_size,
+                    "kind":media.suffix.casefold(),
+                }
+            dispatcher.register(
+                "workshop.inspect","media",
+                reviewed_media_digest,
+            )
         dispatcher.register("vm.manage","start",lambda p:_plain(hyperv.start(str(p["vm"]))))
         dispatcher.register("vm.manage","stop",lambda p:_plain(hyperv.stop(str(p["vm"]),force=bool(p.get("force",False)))))
 
