@@ -256,3 +256,32 @@ def test_image_model_failure_does_not_fallback_to_other_models():
         describe_frame(CapturedFrame(pixels, evidence),
                        model="owner-chosen-model", client=client)
     assert client.attempts == 1
+
+
+def test_x11_click_requires_original_geometry_and_pointer_window():
+    calls = []
+    def runner(argv, **kwargs):
+        calls.append(argv)
+        if argv[1] == "getwindowgeometry":
+            return b"X=10\nY=20\nWIDTH=100\nHEIGHT=100\n"
+        if argv[1] == "getmouselocation":
+            return b"X=30\nY=40\nWINDOW=66\n"
+        return b""
+    backend = LinuxDesktop(runner=runner, session=lambda: "x11")
+    action = DesktopAction(host_id=socket.gethostname(), window_handle=77,
+                           process_id=88, operation="mouse_click", x=30, y=40)
+    with pytest.raises(PermissionError, match="pointer no longer"):
+        backend.execute(action, lambda: None)
+    assert not any(item[1] == "click" for item in calls)
+
+    calls.clear()
+    def owner_pointer(argv, **kwargs):
+        calls.append(argv)
+        if argv[1] == "getwindowgeometry":
+            return b"X=10\nY=20\nWIDTH=100\nHEIGHT=100\n"
+        if argv[1] == "getmouselocation":
+            return b"X=30\nY=40\nWINDOW=77\n"
+        return b""
+    backend = LinuxDesktop(runner=owner_pointer, session=lambda: "x11")
+    backend.execute(action, lambda: None)
+    assert calls[-1] == ("xdotool", "click", "1")
