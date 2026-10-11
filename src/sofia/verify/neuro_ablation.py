@@ -18,7 +18,7 @@ from pathlib import Path
 import platform
 import statistics
 import tempfile
-from time import perf_counter_ns
+from time import perf_counter_ns, process_time_ns
 from uuid import uuid4
 
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
@@ -45,6 +45,8 @@ class AblationTrial:
     precision_at_one: float
     forbidden_memory_count: int
     topic_switch_errors: int
+    noise_focus_errors: int
+    p50_cpu_ms: float
     p50_latency_ms: float
     p95_latency_ms: float
     max_latency_ms: float
@@ -103,14 +105,20 @@ def _trial(*, competition_enabled: bool, association_enabled: bool, rounds: int)
             candidates,
             association_store=association if association_enabled else None,
         )
-        correct, unauthorized, switch_errors = 0, 0, 0
+        correct, unauthorized, switch_errors, noise_errors = 0, 0, 0, 0
         latencies = []
+        cpu_times = []
         for _ in range(rounds):
             # One real NeuroRuntime per replicate, not four independent brains.
             neuro = NeuroRuntime(competition_enabled=competition_enabled)
             start = perf_counter_ns()
+            cpu_start = process_time_ns()
             neuro.observe_signal(_signal("project:gaia", .9))
             neuro.observe_signal(_signal("ops:background", .6, kind="ops"))
+            for index in range(6):
+                neuro.observe_signal(_signal(
+                    f"noisy-{index}", .1, kind="diagnostic",
+                ))
             first = neuro.observe_turn(
                 content="Inspect the local model train issue.",
                 created_at=NOW + timedelta(seconds=1), channel="desktop",
@@ -128,6 +136,8 @@ def _trial(*, competition_enabled: bool, association_enabled: bool, rounds: int)
                 or first.focus.key == switched.focus.key
             ):
                 switch_errors += 1
+            if switched.focus is not None and switched.focus.kind == "diagnostic":
+                noise_errors += 1
             retrieved = memory.recall_relevant(
                 "model trains", principal=local_sparks_principal(), limit=3,
             )
@@ -143,6 +153,7 @@ def _trial(*, competition_enabled: bool, association_enabled: bool, rounds: int)
                 for record in foreign
             )
             latencies.append((perf_counter_ns()-start)/1_000_000)
+            cpu_times.append((process_time_ns()-cpu_start)/1_000_000)
         candidates.close()
     ordered = sorted(latencies)
     p95_index = min(len(ordered)-1, max(0, int(.95*len(ordered)) - 1))
@@ -158,6 +169,8 @@ def _trial(*, competition_enabled: bool, association_enabled: bool, rounds: int)
         precision_at_one=correct/rounds,
         forbidden_memory_count=unauthorized,
         topic_switch_errors=switch_errors,
+        noise_focus_errors=noise_errors,
+        p50_cpu_ms=round(statistics.median(cpu_times),3),
         p50_latency_ms=round(statistics.median(ordered),3),
         p95_latency_ms=round(ordered[p95_index],3),
         max_latency_ms=round(max(ordered),3),
