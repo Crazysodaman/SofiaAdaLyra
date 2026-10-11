@@ -378,19 +378,23 @@ catch {{
         Stop-Service -Name "SofiaAdaLyraFleetAgent" -Force -ErrorAction SilentlyContinue
         & sc.exe delete "SofiaAdaLyraFleetAgent" 2>$null | Out-Null
     }}
-    # Also remove any legacy hidden bootstrap process from older installs.
-    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-        Where-Object {{
-            $_.CommandLine -and
-            $_.CommandLine.Contains($Root) -and
-            (
-                $_.CommandLine.Contains("sofia.distributed.agent_main") -or
-                $_.CommandLine.Contains("agent_canary.py")
-            )
-        }} |
-        ForEach-Object {{
-            Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-        }}
+    # Only stop legacy agents after this attempt actually entered
+    # replacement. Invalid hashes, credentials or firewall scope must
+    # never disturb a preexisting process.
+    if ($TouchedService) {{
+        Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object {{
+                $_.CommandLine -and
+                $_.CommandLine.Contains($Root) -and
+                (
+                    $_.CommandLine.Contains("sofia.distributed.agent_main") -or
+                    $_.CommandLine.Contains("agent_canary.py")
+                )
+            }} |
+            ForEach-Object {{
+                Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+            }}
+    }}
     # Scrub the staged TLS credential after failure as on success.
     Remove-Item (Join-Path $Stage "certs\\artemis-server-key.pem") -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 500
