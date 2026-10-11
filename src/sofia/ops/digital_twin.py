@@ -23,6 +23,16 @@ _SCENARIOS=frozenset({
     "weather_sensor_failure", "conflicting_node_identity",
 })
 _EDGE_TYPES=frozenset({"dns","fleet_transport","data","service","storage"})
+_SCENARIO_EDGE_TYPES={
+    "dns_outage":frozenset({"dns"}),
+    "fleet_agent_unreachable":frozenset({"fleet_transport"}),
+    "disk_pressure":frozenset({"storage","data"}),
+    "sqlite_lock":frozenset({"data"}),
+    "container_crash":frozenset({"service"}),
+    "stale_clock":frozenset({"fleet_transport"}),
+    "weather_sensor_failure":frozenset({"service"}),
+    "conflicting_node_identity":frozenset({"fleet_transport"}),
+}
 # Dependency direction: child depends on parent. A parent disruption can
 # hypothetically impact its direct/indirect descendants. Not actual network.
 MAX_HOSTS=64
@@ -212,6 +222,14 @@ def snapshot_from_ops(
         raise TypeError("canonical OPS Fleet host objects required")
     if not isinstance(at,datetime) or at.tzinfo is None or at.utcoffset() is None:
         raise ValueError("simulation observation time required")
+    # Candidate/decommissioned or unauthenticated nodes cannot silently
+    # become a factual input to a hosted experiment.
+    hosts=tuple(
+        host for host in hosts
+        if host.trusted and host.lifecycle.value not in (
+            "candidate","decommissioned",
+        )
+    )
     observations=tuple(TwinHostObservation(
         host_id=host.host_id,
         observed_at=None if host.telemetry is None else host.telemetry.observed_at,
@@ -251,7 +269,10 @@ def simulate_hypothetical_failure(
         expansion={
             edge.dependent_host_id
             for edge in snapshot.dependencies
-            if edge.prerequisite_host_id in affected
+            if (
+                edge.prerequisite_host_id in affected
+                and edge.kind in _SCENARIO_EDGE_TYPES[scenario]
+            )
         }
         updated=affected|expansion
         if updated==affected:
@@ -273,6 +294,7 @@ def simulate_hypothetical_failure(
             for edge in snapshot.dependencies
             if edge.dependent_host_id in affected
             and edge.prerequisite_host_id in affected
+            and edge.kind in _SCENARIO_EDGE_TYPES[scenario]
         ),
         telemetry_stale_or_missing=missing,
         fidelity=snapshot.fidelity,
