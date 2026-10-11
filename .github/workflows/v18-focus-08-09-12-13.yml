@@ -20,6 +20,10 @@ on:
       - '.github/workflows/v18-focus-08-09-12-13.yml'
   workflow_dispatch:
 
+concurrency:
+  group: v18-focus-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
