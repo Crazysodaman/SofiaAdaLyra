@@ -145,6 +145,19 @@ class OpsToolService:
     def fleet(self)->tuple[dict[str,Any],...]:
         return tuple(self._host(host) for host in self.registry.hosts())
 
+    def digital_twin_readonly(self) -> dict[str,Any]:
+        from sofia.ops.digital_twin import read_digital_twin_fleet
+        return read_digital_twin_fleet(
+            service=self,at=datetime.now(timezone.utc),
+        )
+
+    def digital_twin_simulate(self,*,scenario:str,target_host_id:str) -> dict[str,Any]:
+        from sofia.ops.digital_twin import run_digital_twin_scenario
+        return run_digital_twin_scenario(
+            service=self,scenario=scenario,target_host_id=target_host_id,
+            at=datetime.now(timezone.utc),
+        )
+
     def workshop_preview(self) -> dict[str,Any]:
         """Read only the last owner-reviewed Artemis plan evidence.
 
@@ -690,7 +703,8 @@ class OpsToolService:
         }
 
 class OpsCapabilitySet:
-    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.enrollment_evidence","fleet.enroll","ops.fleet.discover","network.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.migration.execute","ops.migration.receipt","ops.maintenance.receipt","ops.workshop.preview")
+    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.enrollment_evidence","fleet.enroll","ops.fleet.discover","network.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.migration.execute","ops.migration.receipt","ops.maintenance.receipt","ops.workshop.preview",
+           "ops.digital_twin.inspect","ops.digital_twin.simulate")
     def __init__(self,service:OpsToolService)->None: self.service=service
     def capabilities(self)->tuple[Capability,...]:
         descriptions={
@@ -711,6 +725,8 @@ class OpsCapabilitySet:
             "ops.migration.receipt":"Read durable workload migration stage/receipts. Read-only.",
             "ops.maintenance.receipt":"Read one durable verified maintenance receipt. Read-only.",
             "ops.workshop.preview":"Read last owner-observed Hyper-V Hephaestus plan blockers. Never provisions.",
+            "ops.digital_twin.inspect":"Read source-grounded Fleet graph twin and uncertainty. No network probe or action.",
+            "ops.digital_twin.simulate":"Run bounded synthetic dependency-graph outage scenario; never execute or grant authority.",
         }
         return tuple(Capability(name,descriptions[name]) for name in self.NAMES)
     def execute(self,request:CapabilityRequest)->Any:
@@ -732,6 +748,10 @@ class OpsCapabilitySet:
         if name=="ops.migration.receipt": return self.service.migration_receipt(p["migration_id"])
         if name=="ops.maintenance.receipt": return self.service.maintenance_receipt(p["request_id"])
         if name=="ops.workshop.preview": return self.service.workshop_preview()
+        if name=="ops.digital_twin.inspect": return self.service.digital_twin_readonly()
+        if name=="ops.digital_twin.simulate": return self.service.digital_twin_simulate(
+            scenario=p["scenario"],target_host_id=p["target_host_id"],
+        )
         raise ValueError("unsupported OPS capability")
 
 def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
@@ -792,4 +812,11 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
         b("inspect_hephaestus_workshop_plan","ops.workshop.preview",
           "Read owner-reviewed Hyper-V workshop preflight and why setup remains blocked; "
           "never invokes Hyper-V or creates guest resources."),
+        b("inspect_homelab_digital_twin","ops.digital_twin.inspect",
+          "Read actual Fleet-known nodes and owner-reviewed dependencies, with unknowns explicit. "
+          "Never probe networks."),
+        b("simulate_homelab_failure","ops.digital_twin.simulate",
+          "Run a strictly synthetic fault propagation model with no real-world actions.",
+          {"scenario":{"type":"string"},"target_host_id":{"type":"string"}},
+          ("scenario","target_host_id")),
     )
