@@ -368,6 +368,14 @@ class ApplicationBackgroundCoordinator:
         if moment.tzinfo is None or moment.utcoffset() is None:
             raise ValueError("background coordinator time must be timezone-aware")
         moment = moment.astimezone(timezone.utc)
+        # This is the common RUN-owned entrypoint for optional reflection,
+        # ACT delivery, LIFE, Fleet and maintenance tasks. A durable operator
+        # PAUSE must gate the whole scheduler, not only selected callbacks.
+        # Individual consequential effects still require their own fresh
+        # SAFE checks because PAUSE may arrive during a running callback.
+        from sofia.safe.operator_stop import OperatorStopStore
+        if OperatorStopStore(self.budget.path).current().active:
+            return "operator_stopped"
         if not self.service.ready_for_idle_reflection(
             idle_seconds=self.idle_seconds
         ):
