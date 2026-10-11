@@ -585,19 +585,36 @@ def rotate_backups(
         raise TypeError("root must be a Path")
     if type(keep) is not int or keep < 1:
         raise ValueError("keep must be a positive integer")
+    # Retention is a destructive operation, not a backup verifier.
+    # A redirected root can point at an unrelated host directory, and a
+    # malicious/surprised archive link must not be recursively deleted.
+    _reject_redirected_backup_input(root)
     if not root.exists():
         return ()
+    if not root.is_dir():
+        raise BackupError("backup retention root must be a real directory")
+    candidates: list[Path] = []
+    for path in root.iterdir():
+        _reject_redirected_backup_input(path)
+        if path.is_dir():
+            manifest = path / "manifest.json"
+            _reject_redirected_backup_input(manifest)
+            if manifest.is_file():
+                candidates.append(path)
     backups = sorted(
-        (
-            path
-            for path in root.iterdir()
-            if path.is_dir() and (path / "manifest.json").is_file()
-        ),
-        key=lambda path: path.name,
-        reverse=True,
+        candidates, key=lambda path: path.name, reverse=True,
     )
+    expired = backups[keep:]
+    # Preflight ALL selected directories before the first destructive step.
+    # A symlink/junction embedded in one archive makes the entire rotation
+    # fail closed rather than deleting a partial generation of backups.
+    for path in expired:
+        _reject_redirected_backup_input(path)
+        for child in path.rglob("*"):
+            _reject_redirected_backup_input(child)
     removed: list[Path] = []
-    for path in backups[keep:]:
+    for path in expired:
+        _reject_redirected_backup_input(path)
         shutil.rmtree(path)
         removed.append(path)
     return tuple(removed)
