@@ -1,4 +1,4 @@
-"""Headless canonical Sofía application under systemd (Debian or Arch).
+"""Headless canonical Sofía application under Debian 13 systemd.
 
 This is the *application* runtime, not the independently enrolled Fleet agent.
 An operator-provided signed state-home pointer is mandatory. This module does
@@ -19,6 +19,8 @@ from threading import Event
 from sofia.state.canonical_sqlite import require_existing_sqlite
 
 SERVICE_NAME = "sofia-runtime.service"
+DEBIAN_VERSION_ID = "13"
+DEBIAN_CODENAME = "trixie"
 _USER = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 _SAFE_PATH = re.compile(r"^/[A-Za-z0-9._/+@-]+$")
 
@@ -53,12 +55,46 @@ class SystemdRuntimeSpec:
             raise ValueError("service_user must be a dedicated unprivileged account name")
 
 
+def require_debian_guest(*, os_release_path: Path = Path("/etc/os-release")) -> None:
+    """Refuse an unreviewed OS before starting a new canonical state writer.
+
+    The operator selected Debian 13 Stable. A later Debian major upgrade
+    requires an explicit source/config review rather than silent promotion.
+    This is a local OS compatibility check, *not* migration authorization.
+    """
+    if not sys.platform.startswith("linux"):
+        raise RuntimeError("canonical headless runtime requires Linux")
+    raw = os_release_path.read_text(encoding="utf-8")
+    if len(raw) > 32768:
+        raise ValueError("guest os-release is unexpectedly large")
+    values: dict[str, str] = {}
+    for raw_line in raw.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        if key in {"ID", "VERSION_ID", "VERSION_CODENAME"}:
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                value = value[1:-1]
+            values[key] = value
+    if (
+        values.get("ID") != "debian"
+        or values.get("VERSION_ID") != DEBIAN_VERSION_ID
+        or values.get("VERSION_CODENAME", DEBIAN_CODENAME) != DEBIAN_CODENAME
+    ):
+        raise RuntimeError(
+            "canonical Sofia VM requires reviewed Debian 13 (trixie) guest; "
+            "refusing unapproved distribution or major upgrade"
+        )
+
+
 def render_unit(spec: SystemdRuntimeSpec) -> str:
     """Render a real headless application unit; never enable or install it."""
     if not isinstance(spec, SystemdRuntimeSpec):
         raise TypeError("SystemdRuntimeSpec required")
     return f"""[Unit]
-Description=Sofía Ada Lyra canonical headless runtime
+Description=Sofía Ada Lyra canonical headless runtime (Debian 13)
 Wants=network-online.target
 After=network-online.target
 # Do not start against a missing or unmounted canonical database.
@@ -72,6 +108,7 @@ Environment=SOFIA_RUNTIME_MODE=production
 Environment=SOFIA_IDENTITY_BOOTSTRAP_MODE=require_existing
 Environment=PYTHONDONTWRITEBYTECODE=1
 EnvironmentFile={spec.environment_file}
+ExecStartPre={spec.python_path} -m sofia.run.systemd_runtime verify-guest
 ExecStart={spec.python_path} -m sofia.run.systemd_runtime
 Restart=on-failure
 RestartSec=10s
@@ -123,6 +160,7 @@ def run_headless(*, stop_event: Event) -> None:
             "headless production runtime requires operator-approved signed "
             "state-home pointer; refusing implicit local writer"
         )
+    require_debian_guest()
     from sofia.config.defaults import (
         create_production_configuration,
         production_state_path,
@@ -154,8 +192,12 @@ def main(argv: list[str] | None = None) -> int:
     show.add_argument("--state-root", required=True)
     show.add_argument("--environment-file", required=True)
     show.add_argument("--user", default="sofia")
+    sub.add_parser("verify-guest", help="Verify approved Debian 13 OS only; no services start")
     args = parser.parse_args(argv)
     try:
+        if args.command == "verify-guest":
+            require_debian_guest()
+            return 0
         if args.command == "render-unit":
             print(render_unit(SystemdRuntimeSpec(
                 python_path=PurePosixPath(args.python),
