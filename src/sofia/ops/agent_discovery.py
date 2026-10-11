@@ -341,7 +341,9 @@ class ScopedHostPresenceDiscoverySource:
             source="approved-scope-host-presence",
             inside_approved_scope=True,
             trusted_bootstrap_available=False,
-            observed_endpoint_hostname=hostname,
+            # Reverse DNS is descriptive evidence, never a new approved
+            # network destination. Preserve the actual probed scope IP.
+            observed_endpoint_hostname=address,
         )
 
     def discover(self) -> tuple[FleetDiscoveryEvidence, ...]:
@@ -459,12 +461,11 @@ class ScopedMtlsAgentDiscoverySource:
                 pass
         except OSError:
             return None
-        try:
-            hostname = socket.gethostbyaddr(address)[0]
-        except (OSError, socket.herror):
-            hostname = address
+        # Authenticate the same approved IP that the TCP preflight probed.
+        # A reverse-DNS name may resolve elsewhere and must not silently
+        # extend the operator's network discovery scope.
         return AgentDiscoveryTarget(
-            hostname=hostname,
+            hostname=address,
             port=self.agent_port,
             inside_approved_scope=True,
         )
