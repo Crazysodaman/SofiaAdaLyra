@@ -96,7 +96,7 @@ def test_tray_reloads_effective_model_roles_after_startup(
     )
 
 
-def test_tray_unloads_every_current_configured_model_role():
+def test_tray_unloads_every_current_configured_model_role(monkeypatch):
     app = object.__new__(TrayAgentApplication)
     app.host_id = "venus"
     app._operator_stop = SimpleNamespace(
@@ -137,9 +137,26 @@ def test_tray_unloads_every_current_configured_model_role():
         ):
             calls.append((target, action, approval_id, llm_model))
 
-    approvals = []
+    from sofia.safe import owner_approval_ui, owner_browser
+    app.config = SimpleNamespace(state_path=Path("test-only-canonical.db"))
     app._service = Service()
-    app._execution_approvals = SimpleNamespace(record=approvals.append)
+    approved = []
+    monkeypatch.setattr(
+        owner_approval_ui, "active_owner_credentials",
+        lambda state_path, *, kind: ("test-only-platform",),
+    )
+    monkeypatch.setattr(
+        owner_approval_ui, "select_owner_credential",
+        lambda state_path, *, kind, parent=None: "test-only-platform",
+    )
+    def signed_approval(state_path, *, capability, parameters,
+                        credential_id, expires_seconds):
+        assert credential_id == "test-only-platform"
+        approved.append((capability, parameters))
+        return SimpleNamespace(approval_id=f"signed-{len(approved)}")
+    monkeypatch.setattr(
+        owner_browser, "authorize_exact_action", signed_approval,
+    )
 
     app._service_action(
         ServiceKind.LLM_ENGINE,
@@ -150,4 +167,7 @@ def test_tray_unloads_every_current_configured_model_role():
         "vendor/primary:anything",
         "vendor/open:anything",
     ]
-    assert len(approvals) == 2
+    assert [call[2] for call in calls] == ["signed-1", "signed-2"]
+    assert [item[1]["model"] for item in approved] == [
+        "vendor/primary:anything", "vendor/open:anything",
+    ]
