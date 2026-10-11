@@ -310,3 +310,30 @@ def test_source_inventory_drift_blocks_staging_after_backup(tmp_path, monkeypatc
     assert len(calls) == 2
     assert not proof.destination_root.exists()
     assert (proof.source_state_path.parent / "new-identity-log.json").is_file()
+
+
+def test_same_epoch_source_and_destination_rejected_before_backup(
+    tmp_path, monkeypatch,
+):
+    from dataclasses import replace
+
+    proof = replace(_plan(tmp_path), source_writer_epoch=2)
+    with pytest.raises(ValueError, match="exceed independently witnessed old epoch"):
+        _stage(proof, tmp_path, monkeypatch)
+    assert not proof.destination_root.exists()
+
+
+@pytest.mark.parametrize("invalid", (
+    {"protected_operation_id": ""},
+    {"operator_principal_id": " "},
+    {"source_writer_epoch": 0},
+))
+def test_invalid_exact_approval_or_old_epoch_prevents_staging(
+    tmp_path, monkeypatch, invalid,
+):
+    from dataclasses import replace
+
+    proof = replace(_plan(tmp_path), **invalid)
+    with pytest.raises(ValueError):
+        _stage(proof, tmp_path, monkeypatch)
+    assert not proof.destination_root.exists()
