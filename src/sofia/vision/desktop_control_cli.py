@@ -44,6 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--x", type=int, default=-1)
     parser.add_argument("--y", type=int, default=-1)
     parser.add_argument("--credential-id")
+    parser.add_argument("--verify-action", action="store_true", help="Require owner FIDO2 screenshot before AND after one exact input")
     parser.add_argument("--describe-model", help="explicit local Ollama image model for approved capture")
     args = parser.parse_args(argv)
     try:
@@ -51,6 +52,8 @@ def main(argv: list[str] | None = None) -> int:
         host = socket.gethostname()
         if args.describe_model and not args.capture:
             raise ValueError("image interpretation needs explicit capture selection")
+        if args.verify_action and not args.operation:
+            raise ValueError("post-action visual verification requires one exact input")
         if args.inspect:
             if (args.window_handle is not None or args.process_id is not None
                 or args.credential_id or args.key or args.x != -1 or args.y != -1):
@@ -117,6 +120,64 @@ def main(argv: list[str] | None = None) -> int:
             process_id=args.process_id, operation=args.operation,
             key=args.key, text=text, x=args.x, y=args.y,
         )
+        if args.verify_action:
+            from dataclasses import asdict
+            from sofia.vision.action_workflow import ReviewedScreenAction, ScreenActionWorkflow
+            from sofia.vision.capture import local_target_id, ScreenCaptureService
+            from sofia.vision.journeys import ScreenJourney, propose_owner_screen_journey
+
+            target = local_target_id(host, args.window_handle, args.process_id)
+            def owner_snapshot_request():
+                return propose_owner_screen_journey(
+                    journey=ScreenJourney.LOOK_AT_WINDOW,
+                    principal_id="person:sparks", audience_id="local:text",
+                    device_id=host, target_id=target,
+                    purpose="Review a single input action on the exact selected window",
+                    at=datetime.now(timezone.utc),
+                )
+            reviewed = ReviewedScreenAction(
+                action=action, before=owner_snapshot_request(),
+                after=owner_snapshot_request(),
+            )
+            def authorize_snapshot(request):
+                params = {
+                    "host_id": host,
+                    "window_handle": action.window_handle,
+                    "process_id": action.process_id,
+                    "target_id": target,
+                    "permit_id": request.permit.permit_id,
+                    "journey": request.journey.value,
+                    "purpose": request.permit.purpose,
+                }
+                return authorize_exact_action(
+                    state_path, capability="screen.capture_once",
+                    parameters=params, credential_id=args.credential_id,
+                    expires_seconds=30,
+                ).approval_id
+            def authorize_input(requested_action):
+                return authorize_exact_action(
+                    state_path, capability="screen.act_exact",
+                    parameters=requested_action.approval_parameters(),
+                    credential_id=args.credential_id, expires_seconds=60,
+                ).approval_id
+            print("Before-capture FIDO2, exact input FIDO2, and after-capture FIDO2 are separate approvals.")
+            result = ScreenActionWorkflow(
+                capture_service=ScreenCaptureService(
+                    state_path, foreground_backend=backend,
+                ),
+                input_service=DesktopInputService(
+                    state_path, backend=backend,
+                ),
+            ).perform_staged(
+                reviewed, approve_capture=authorize_snapshot,
+                approve_input=authorize_input,
+            )
+            print(json.dumps(asdict(result), sort_keys=True))
+            # A visible change alone is never certified application success.
+            return 0 if result.status in {
+                "submitted_no_visible_change",
+                "submitted_visual_change_unattributed",
+            } else 3
         approval = authorize_exact_action(
             state_path, capability="screen.act_exact",
             parameters=action.approval_parameters(),
