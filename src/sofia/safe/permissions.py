@@ -158,6 +158,7 @@ _READ_ONLY = frozenset({
     "ops.workshop.preview",
     "ops.digital_twin.inspect",
     "ops.training.inspect",
+    "ops.training.lab.inspect",
     "ops.autonomy.budget",
     "ops.digital_twin.simulate",
     "ops.maintenance.receipt",
