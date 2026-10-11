@@ -1357,7 +1357,24 @@ class SelfDirectedLifeCoordinator:
             technical_outcome, personal_judgment, objective_results, reason,
             evidence_refs, preserve_for_research, now,
         )
-        self.store.record_evaluation(value)
+        experience = self._experience(
+            project=project, kind="artifact_evaluated",
+            summary=(
+                f"Evaluated {artifact_id}: technically {technical_outcome.value}; "
+                f"personal judgment {personal_judgment.value}."
+            ), evidence_refs=evidence_refs, now=now,
+            metadata={
+                "preserve_for_research": preserve_for_research,
+                "interest_learning": {
+                    "schema": 1,
+                    "evaluation_id": value.evaluation_id,
+                    "originating_interest": project.originating_interest,
+                    "confidence": project.confidence,
+                },
+            },
+            persist=False,
+        )
+        self.store.record_evaluation_with_experience(value, experience)
         # Independent objective evidence is not evidence of personal taste.
         # UNKNOWN is deliberate abstention, not a preference observation.
         if personal_judgment is not PersonalJudgment.UNKNOWN:
@@ -1379,22 +1396,6 @@ class SelfDirectedLifeCoordinator:
                 evidence_ref=evidence_refs[0], audience_id=project.audience_id,
                 expected_revision=None if current is None else current.revision, now=now,
             )
-        self._experience(
-            project=project, kind="artifact_evaluated",
-            summary=(
-                f"Evaluated {artifact_id}: technically {technical_outcome.value}; "
-                f"personal judgment {personal_judgment.value}."
-            ), evidence_refs=evidence_refs, now=now,
-            metadata={
-                "preserve_for_research": preserve_for_research,
-                "interest_learning": {
-                    "schema": 1,
-                    "evaluation_id": value.evaluation_id,
-                    "originating_interest": project.originating_interest,
-                    "confidence": project.confidence,
-                },
-            },
-        )
         return value
 
     def update_milestone(
@@ -1644,7 +1645,7 @@ class SelfDirectedLifeCoordinator:
     def _experience(
         self, *, project: LifeProject, kind: str, summary: str,
         evidence_refs: tuple[str, ...], now: datetime,
-        metadata: Mapping[str, object],
+        metadata: Mapping[str, object], persist: bool = True,
     ) -> ExperienceRecord:
         value = ExperienceRecord(
             f"experience:{uuid4()}", project.project_id, kind, summary,
@@ -1652,7 +1653,8 @@ class SelfDirectedLifeCoordinator:
             project.scope is ProjectScope.PERSONAL_PRIVATE,
             now, now, metadata,
         )
-        self.store.record_experience(value)
+        if persist:
+            self.store.record_experience(value)
         return value
 
     def _settle_personal_project(
