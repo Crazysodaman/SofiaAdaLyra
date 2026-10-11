@@ -79,6 +79,16 @@ def test_signed_grant_is_single_use_and_fingerprint_binds_exact_scope(tmp_path):
         approval_id=approval_id, now=NOW,
     )
     assert granted.grant_id == grant_id
+    projected = store.grants()
+    assert len(projected) == 1
+    assert projected[0].owner_authenticated is True
+    assert store.allows_standing(
+        "storage.mkdir", exact, now=NOW + timedelta(seconds=1),
+    ) is True
+    assert store.allows_standing(
+        "storage.mkdir", {**exact, "path": "another"},
+        now=NOW + timedelta(seconds=1),
+    ) is False
     with pytest.raises(PermissionError, match="already consumed"):
         store.grant(
             "storage.mkdir", scope=exact, grant_id="different-grant",
