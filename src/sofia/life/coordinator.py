@@ -3434,6 +3434,13 @@ class SelfDirectedLifeCoordinator:
                 or not report.eligible_for_independent_completion
             ):
                 return False
+            artifact = self.creative_store.latest(
+                artifact_id, SOFIA_CREATIVE_OWNER, original.audience_id,
+            )
+            if not LifeProcedureCatalog.native_source_toolchain_current(
+                artifact, original_result=result,
+            ):
+                return False
         return True
 
     def _audit_procedure_sources(
