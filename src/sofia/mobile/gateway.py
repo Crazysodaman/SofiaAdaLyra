@@ -1,7 +1,8 @@
 """Owner-authenticated mobile chat and sensor application boundary."""
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -67,6 +68,12 @@ class MobileCompanionGateway:
         )
         self._conversations = {}
         self._lock = RLock()
+        # An authenticated HTTP request may outlive a pairing rotation.
+        # Keep its exact bearer epoch within this execution context, never
+        # silently retarget source-audience reads to a newly paired phone.
+        self._dispatch_epoch = ContextVar(
+            "sofia_mobile_authenticated_dispatch_epoch", default=None,
+        )
         self._social_sessions = SocialSessionStore(self.state_path)
         environment = getattr(self.application.runtime, "environment_service", None)
         if environment is not None and not any(
@@ -167,6 +174,49 @@ class MobileCompanionGateway:
             raise ValueError("invalid mobile device_id")
         return value
 
+    def _admitted_generation(self, device_id: str) -> int | None:
+        pinned = self._dispatch_epoch.get()
+        return pinned[1] if pinned is not None and pinned[0] == device_id else None
+
+    @contextmanager
+    def _pin_authenticated_dispatch(self, *, device: str, credential: str):
+        fingerprint = self.credentials._digest(credential)
+        if fingerprint is None:
+            raise MobileCredentialRevoked("verified mobile credential required")
+        with closing(self._connect()) as db:
+            # One SQLite read snapshot selects the exact token + generation.
+            # Checking device and then looking up an epoch independently is
+            # not proof that those two observations describe one pairing.
+            row = db.execute(
+                "SELECT generation FROM mobile_device_credential "
+                "WHERE device_id=? AND token_sha256=? AND status='active'",
+                (device, fingerprint),
+            ).fetchone()
+        if row is None:
+            raise MobileCredentialRevoked(
+                "paired credential changed before request admission"
+            )
+        generation = int(row[0])
+        handle = self._dispatch_epoch.set((device, generation, fingerprint))
+        try:
+            yield
+            # A credential rotated while a Main query was reading must not
+            # receive a response about the new audience (or an old private
+            # response after revocation). Recheck the exact original epoch.
+            with closing(self._connect()) as db:
+                still_active = db.execute(
+                    "SELECT 1 FROM mobile_device_credential "
+                    "WHERE device_id=? AND token_sha256=? "
+                    "AND generation=? AND status='active'",
+                    (device, fingerprint, generation),
+                ).fetchone()
+            if still_active is None:
+                raise MobileCredentialRevoked(
+                    "paired credential changed before response publication"
+                )
+        finally:
+            self._dispatch_epoch.reset(handle)
+
     def dispatch_authenticated(
         self, *, credential: str, operation: str,
         payload: dict[str, object],
@@ -191,91 +241,94 @@ class MobileCompanionGateway:
                 )
             if payload.get("device_id") != device:
                 raise PermissionError("mobile bearer and device identity disagree")
-            if operation == "/v1/mobile/sensors":
-                # The existing typed sensor parser enforces its own schema.
-                return self.ingest_sensors(payload)
-            if operation == "/v1/mobile/chat":
-                if set(payload) != {
-                    "device_id", "message", "private_mode", "request_id"
-                }:
-                    raise ValueError("chat payload fields are invalid")
-                return self.chat(
-                    device_id=device, message=payload["message"],
-                    private_mode=payload["private_mode"],
-                    request_id=payload["request_id"],
-                    credential=credential,
-                )
-            if operation == "/v1/mobile/delivery/status":
-                if set(payload) != {
-                    "device_id", "private_mode", "request_id",
-                    "content_sha256"
-                }:
-                    raise ValueError("delivery status payload fields are invalid")
-                return self.delivery_status(
-                    credential=credential, device_id=device,
-                    private_mode=payload["private_mode"],
-                    request_id=payload["request_id"],
-                    content_sha256=payload["content_sha256"],
-                )
-            if operation == "/v1/mobile/state":
-                if set(payload) != {"device_id", "private_mode"}:
-                    raise ValueError("state payload fields are invalid")
-                return self.state(
-                    device_id=device, private_mode=payload["private_mode"],
-                )
-            if operation == "/v1/mobile/main/page":
-                if set(payload) != {
-                    "device_id", "private_mode", "before", "limit"
-                }:
-                    raise ValueError("Main page payload fields are invalid")
-                return self.main_history(
-                    device_id=device, private_mode=payload["private_mode"],
-                    before=payload["before"], limit=payload["limit"],
-                )
-            if operation == "/v1/mobile/threads":
-                if set(payload) != {"device_id", "private_mode", "limit"}:
-                    raise ValueError("thread list payload fields are invalid")
-                return self.visible_thread_headers(
-                    device_id=device,
-                    private_mode=payload["private_mode"],
-                    limit=payload["limit"],
-                )
-            if operation == "/v1/mobile/thread/page":
-                if set(payload) != {
-                    "device_id", "private_mode", "thread_id", "before", "limit"
-                }:
-                    raise ValueError("thread page payload fields are invalid")
-                return self.project_thread_history(
-                    device_id=device, private_mode=payload["private_mode"],
-                    thread_id=payload["thread_id"],
-                    before=payload["before"], limit=payload["limit"],
-                )
-            if operation == "/v1/mobile/main/seen":
-                if set(payload) != {
-                    "device_id", "private_mode", "canonical_sequence",
-                    "turn_position", "message_id"
-                }:
-                    raise ValueError("Main seen payload fields are invalid")
-                return self.acknowledge_main_seen(
-                    device_id=device, private_mode=payload["private_mode"],
-                    canonical_sequence=payload["canonical_sequence"],
-                    turn_position=payload["turn_position"],
-                    message_id=payload["message_id"],
-                    credential=credential,
-                )
-            if operation == "/v1/mobile/notifications/claim":
-                if set(payload) != {"device_id", "private_mode"}:
-                    raise ValueError("notification claim fields are invalid")
-                return self.claim_notification(
-                    device_id=device, private_mode=payload["private_mode"],
-                )
-            if operation == "/v1/mobile/notifications/ack":
-                if set(payload) != {"device_id", "notification_id"}:
-                    raise ValueError("notification ack fields are invalid")
-                return self.acknowledge_notification(
-                    device_id=device, notification_id=payload["notification_id"],
-                )
-            raise MobileRouteNotFound("unknown authenticated mobile operation")
+            with self._pin_authenticated_dispatch(
+                device=device, credential=credential,
+            ):
+                if operation == "/v1/mobile/sensors":
+                    # The existing typed sensor parser enforces its own schema.
+                    return self.ingest_sensors(payload)
+                if operation == "/v1/mobile/chat":
+                    if set(payload) != {
+                        "device_id", "message", "private_mode", "request_id"
+                    }:
+                        raise ValueError("chat payload fields are invalid")
+                    return self.chat(
+                        device_id=device, message=payload["message"],
+                        private_mode=payload["private_mode"],
+                        request_id=payload["request_id"],
+                        credential=credential,
+                    )
+                if operation == "/v1/mobile/delivery/status":
+                    if set(payload) != {
+                        "device_id", "private_mode", "request_id",
+                        "content_sha256"
+                    }:
+                        raise ValueError("delivery status payload fields are invalid")
+                    return self.delivery_status(
+                        credential=credential, device_id=device,
+                        private_mode=payload["private_mode"],
+                        request_id=payload["request_id"],
+                        content_sha256=payload["content_sha256"],
+                    )
+                if operation == "/v1/mobile/state":
+                    if set(payload) != {"device_id", "private_mode"}:
+                        raise ValueError("state payload fields are invalid")
+                    return self.state(
+                        device_id=device, private_mode=payload["private_mode"],
+                    )
+                if operation == "/v1/mobile/main/page":
+                    if set(payload) != {
+                        "device_id", "private_mode", "before", "limit"
+                    }:
+                        raise ValueError("Main page payload fields are invalid")
+                    return self.main_history(
+                        device_id=device, private_mode=payload["private_mode"],
+                        before=payload["before"], limit=payload["limit"],
+                    )
+                if operation == "/v1/mobile/threads":
+                    if set(payload) != {"device_id", "private_mode", "limit"}:
+                        raise ValueError("thread list payload fields are invalid")
+                    return self.visible_thread_headers(
+                        device_id=device,
+                        private_mode=payload["private_mode"],
+                        limit=payload["limit"],
+                    )
+                if operation == "/v1/mobile/thread/page":
+                    if set(payload) != {
+                        "device_id", "private_mode", "thread_id", "before", "limit"
+                    }:
+                        raise ValueError("thread page payload fields are invalid")
+                    return self.project_thread_history(
+                        device_id=device, private_mode=payload["private_mode"],
+                        thread_id=payload["thread_id"],
+                        before=payload["before"], limit=payload["limit"],
+                    )
+                if operation == "/v1/mobile/main/seen":
+                    if set(payload) != {
+                        "device_id", "private_mode", "canonical_sequence",
+                        "turn_position", "message_id"
+                    }:
+                        raise ValueError("Main seen payload fields are invalid")
+                    return self.acknowledge_main_seen(
+                        device_id=device, private_mode=payload["private_mode"],
+                        canonical_sequence=payload["canonical_sequence"],
+                        turn_position=payload["turn_position"],
+                        message_id=payload["message_id"],
+                        credential=credential,
+                    )
+                if operation == "/v1/mobile/notifications/claim":
+                    if set(payload) != {"device_id", "private_mode"}:
+                        raise ValueError("notification claim fields are invalid")
+                    return self.claim_notification(
+                        device_id=device, private_mode=payload["private_mode"],
+                    )
+                if operation == "/v1/mobile/notifications/ack":
+                    if set(payload) != {"device_id", "notification_id"}:
+                        raise ValueError("notification ack fields are invalid")
+                    return self.acknowledge_notification(
+                        device_id=device, notification_id=payload["notification_id"],
+                    )
+                raise MobileRouteNotFound("unknown authenticated mobile operation")
 
     def ingest_sensors(self, payload: object) -> dict[str, object]:
         report = MobileSensorReport.from_payload(payload)
@@ -302,9 +355,11 @@ class MobileCompanionGateway:
         """
         mode = "private" if private_mode else "standard"
         generation = (
-            self.credentials.active_generation(device_id) or 1
-            if admitted_generation is None else admitted_generation
+            admitted_generation if admitted_generation is not None
+            else self._admitted_generation(device_id)
         )
+        if generation is None:
+            generation = self.credentials.active_generation(device_id) or 1
         if type(generation) is not int or generation < 1:
             raise ValueError("positive admitted credential generation required")
         principal = self._principal(
@@ -426,9 +481,11 @@ class MobileCompanionGateway:
         digest = sha256(device_id.encode("utf-8")).hexdigest()[:20]
         mode = "private" if private_mode else "standard"
         generation = (
-            self.credentials.active_generation(device_id) or 1
-            if admitted_generation is None else admitted_generation
+            admitted_generation if admitted_generation is not None
+            else self._admitted_generation(device_id)
         )
+        if generation is None:
+            generation = self.credentials.active_generation(device_id) or 1
         if type(generation) is not int or generation < 1:
             raise ValueError("positive admitted credential generation required")
         # Generation one preserves existing authenticated mobile audience
@@ -500,7 +557,10 @@ class MobileCompanionGateway:
         content = message.strip()
         mode = "private" if private_mode else "standard"
         digest = sha256(content.encode("utf-8")).hexdigest()
-        generation = self.credentials.active_generation(device) or 1
+        generation = (
+            self._admitted_generation(device)
+            or self.credentials.active_generation(device) or 1
+        )
         # Direct trusted host callers preserve their explicit internal API.
         # Every remotely dispatched call supplies its ACTUAL enrolled bearer
         # so the durable admission transaction rechecks its precise epoch.
@@ -891,7 +951,10 @@ class MobileCompanionGateway:
                     )
                 page_limit = max(1, page_limit // 2)
         first = page[0] if page else None
-        active_generation = self.credentials.active_generation(device)
+        active_generation = (
+            self._admitted_generation(device)
+            or self.credentials.active_generation(device)
+        )
         return {
             "messages": messages,
             "next_before": (
@@ -1023,7 +1086,10 @@ class MobileCompanionGateway:
         fingerprint = self.credentials._digest(credential)
         if fingerprint is None:
             raise MobileCredentialRevoked("valid device bearer required")
-        generation = self.credentials.active_generation(device)
+        generation = (
+            self._admitted_generation(device)
+            or self.credentials.active_generation(device)
+        )
         if generation is None:
             raise PermissionError("active paired mobile device required")
         with self._lock:
