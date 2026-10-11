@@ -376,14 +376,34 @@ class SelfDirectedLifeCoordinator:
         if project.goal_id is None:
             raise ValueError("active project has no canonical goal")
         evaluations = self.store.evaluations(project_id)
-        verified_result = any(
-            item.technical_outcome is TechnicalOutcome.VALID
-            and item.objective_results
-            and all(result is True for result in item.objective_results.values())
-            for item in evaluations
-        )
+        # A historic model judgment may predate the independent validation
+        # gate or refer to a superseded revision. Recheck the actual current
+        # bytes, exact original objectives, and revision before completion.
+        verified_result = False
+        for evaluation in evaluations:
+            if evaluation.technical_outcome is not TechnicalOutcome.VALID:
+                continue
+            if set(evaluation.objective_results) != set(project.brief.objectives):
+                continue
+            if not all(value is True for value in evaluation.objective_results.values()):
+                continue
+            try:
+                report = self.inspect_artifact_objectives(
+                    project_id, artifact_id=evaluation.artifact_id,
+                )
+            except (LookupError, OSError, ValueError, PermissionError):
+                continue
+            if (
+                report.revision == evaluation.artifact_revision
+                and report.eligible_for_independent_completion
+            ):
+                verified_result = True
+                break
         if not verified_result:
-            raise ValueError("completion requires a verified successful artifact evaluation")
+            raise ValueError(
+                "completion requires current artifact bytes and independent "
+                "PASS for all original objectives; model critique alone is insufficient"
+            )
         goal = next(item for item in self.goals.list_visible(local_sparks_principal()) if item.id == project.goal_id)
         record = self.evidence.record(
             kind="reviewed_evidence", observed_at=now, source="life:project-evaluation",
@@ -858,10 +878,28 @@ class SelfDirectedLifeCoordinator:
             or (artifact_id, revision.revision) not in self.store.artifacts(project_id)
         ):
             raise PermissionError("artifact is not linked to this project")
-        if technical_outcome is TechnicalOutcome.VALID and (
-            not objective_results or any(result is not True for result in objective_results.values())
-        ):
-            raise ValueError("technical validity requires every declared objective check to pass")
+        if technical_outcome is TechnicalOutcome.VALID:
+            # An LLM-supplied dict of True values is *not* an independent
+            # evaluation. Every original objective must be checked against
+            # immutable artifact bytes by the closed deterministic registry.
+            from .validation import inspect_objective_artifact, ObjectiveDisposition
+            objective_report = inspect_objective_artifact(
+                revision=revision, path=path, objectives=project.brief.objectives,
+            )
+            if set(objective_results) != set(project.brief.objectives):
+                raise ValueError("VALID critique must cover every original project objective")
+            if not objective_report.eligible_for_independent_completion:
+                raise ValueError(
+                    "independent objective checks failed or abstained; "
+                    "self-reported model success cannot count as VERIFIED"
+                )
+            if any(
+                result is not True for result in objective_results.values()
+            ) or any(
+                finding.disposition is not ObjectiveDisposition.PASS
+                for finding in objective_report.findings
+            ):
+                raise ValueError("technical validity requires independent objective PASS")
         # Repeated ticks/restarts must not promote the same artifact revision
         # into multiple independent judgments or memory/preference updates.
         # A changed judgment requires an explicit reviewed correction path.
