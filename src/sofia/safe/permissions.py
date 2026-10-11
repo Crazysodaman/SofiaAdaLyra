@@ -222,6 +222,8 @@ _READ_ONLY = frozenset({
     "evolve.proposal.get",
     "hyperv.vms",
     "hyperv.vm",
+    "workshop.vm.inspect",
+    "workshop.vm.plan",
     "environment.nws.read",
     "environment.home_assistant.read",
     "web.search",
@@ -268,6 +270,11 @@ _REVERSIBLE = frozenset({
 
 _PROTECTED = frozenset({
     "fleet.enroll",
+    "workshop.vm.provision",
+    "workshop.vm.quarantine",
+    "workshop.vm.cleanup",
+    "workshop.network.create",
+    "workshop.guest.bootstrap",
     "ops.migration.execute",
     "release.rollout.execute",
     "home_assistant.service.call",
