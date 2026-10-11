@@ -2354,6 +2354,47 @@ CA-5304, CA-5505. This is source-level receipt hardening,
 not production test evidence or a full Main acceptance.
 No CI/test execution, live messages or host changes.
 
+
+
+### Phase 05 item 70: Page all original historical-import preview batches
+
+The real `LifelongThreadStore.preview_historical_import` advertised
+that an operator could review an old original conversation in
+multiple bounded batches, yet it always selected the **first**
+up to 128 original messages and did not expose an `after` cursor.
+Thus an old session containing hundreds or millions of messages
+could not actually preview or independently approve later history
+through that production method without ad-hoc direct SQL.
+
+Production `src/sofia/conversation/lifelong.py` now supports
+an optional bounded original `(created_at,message_id)` keyset
+cursor and returns `HistoricalImportPreview.next_cursor`
+only when at least one more original message exists. It
+retrieves only `limit+1` rows, checks the **current**
+`social_session_principal` owner and audience anew before
+each page, uses the original stored timestamp for pagination
+without mutating any source data and preserves the existing
+one-batch preview response contract for shorter sessions.
+No preview action ever inserts or imports Main links: a
+separate independently approved `apply_historical_import`
+request is still required for each selected set of original IDs.
+
+- Production commit `6292828ec3fdcd7838e25a0853dcd5d0f4675542`
+  (`[skip ci]`).
+- Deferred regression `test/test_ws2_historical_preview_pagination.py`
+  `6a59382a94bc88d5a1952e44488d1e066bb579a8`
+  (`[skip ci]`), covering 163 original messages, duplicate-free
+  second page, source-only preview with no mutation, and
+  current-audience checks on continued paging.
+
+Original CA relevance: CA-4107, CA-5502, CA-5503,
+CA-5506, CA-5603, CA-6306. Old source rows with
+mixed timezone-offset text retain their original ordering
+and need a reviewed offline normalization strategy;
+this feature neither rewrites old timestamps nor
+claims authoritative import acceptance.
+No tests, CI, live import or host operations executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
