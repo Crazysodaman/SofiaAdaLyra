@@ -135,3 +135,19 @@ def test_key_pair_is_explicitly_owner_private_and_not_regenerated(tmp_path,monke
     assert private.stat().st_mode & 0o077 == 0
     with pytest.raises(FileExistsError,match="overwrite"):
         create_owner_signing_keypair(private.parent)
+
+def test_owner_signed_media_contract_explicitly_requires_guest_firewall():
+    from sofia.ops.workshop_media_attestation import media_manifest_payload
+    p=media_manifest_payload(
+        media_name="hephaestus-debian13-offline.iso",
+        media_sha256="a"*64,base_sha256="b"*64,
+    )
+    assert p["network_mode"]=="internal_host_guest_no_lan"
+    assert p["guest_ipv4"]=="172.30.250.2/30"
+    assert p["gateway"] is None
+    assert p["dns_servers"]==[]
+    assert p["guest_firewall"]=="nftables:default_drop_input_output_forward"
+    assert p["guest_firewall_other_outbound"]=="DENIED"
+    assert p["host_guest_agent_allowed_tcp_port"]==7443
+    assert p["ipv4_forwarding_enabled"] is False
+    assert p["ipv6_forwarding_enabled"] is False
