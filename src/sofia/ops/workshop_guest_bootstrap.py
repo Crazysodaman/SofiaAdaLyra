@@ -303,12 +303,21 @@ def start_owner_approved_installer(
         # a real host effect. Preserve UNCERTAIN, NEVER automatically retry.
         status="UNCERTAIN"
     finally:
+        # A grant-revocation/DB-close failure must not erase the reserved job
+        # evidence or falsely label the VM as settled. The short grant also
+        # expires independently if Fleet is disrupted.
+        authority_cleanup_failed=False
         try:
             authority.revoke(grant.grant_id)
-        finally:
+        except Exception:
+            authority_cleanup_failed=True
+        try:
             authority.close()
+        except Exception:
+            authority_cleanup_failed=True
         store.settle(
-            plan_id=handoff.plan_id,status=status,
+            plan_id=handoff.plan_id,
+            status="UNCERTAIN" if authority_cleanup_failed else status,
             request_id=remote_id,vm_state=state,
             at=datetime.now(timezone.utc),
         )
