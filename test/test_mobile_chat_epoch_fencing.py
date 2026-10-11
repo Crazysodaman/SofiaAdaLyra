@@ -68,6 +68,9 @@ def test_rotating_bearer_during_generation_returns_uncertain_not_completed(
     with pytest.raises(MobileCredentialRevoked, match="result settlement"):
         _dispatch(gateway, old_bearer, request_id="mobile-race-002")
     assert len(app.conversation.calls) == 1
+    # The original admitted turn cannot silently migrate into the new
+    # generation's memory/session scope when a bearer rotates during work.
+    assert not app.conversation.calls[0][1].audience_id.endswith(":g2")
     assert gateway.credentials.authenticate(old_bearer) is None
     with sqlite3.connect(gateway.state_path) as db:
         row = db.execute(
@@ -98,3 +101,39 @@ def test_same_live_bearer_completes_one_canonical_chat(tmp_path):
     assert result["delivery_receipt"]["logical_status"] == "completed"
     assert result["delivery_receipt"]["credential_generation"] == 1
     assert len(app.conversation.calls) == 1
+
+
+def test_rotation_after_admission_before_cognition_denies_old_turn(
+    tmp_path, monkeypatch,
+):
+    app, gateway = _gateway(tmp_path)
+    old_bearer = gateway.credentials.enroll("android-owner")
+    original = gateway._conversation
+    observed_generations = []
+
+    def rotate_before_conversation(device_id, *, private_mode, admitted_generation=None):
+        observed_generations.append(admitted_generation)
+        gateway.credentials.enroll("android-owner", rotate=True)
+        return original(
+            device_id, private_mode=private_mode,
+            admitted_generation=admitted_generation,
+        )
+
+    monkeypatch.setattr(gateway, "_conversation", rotate_before_conversation)
+    with pytest.raises(MobileCredentialRevoked, match="before original cognition"):
+        _dispatch(gateway, old_bearer, request_id="mobile-race-004")
+
+    assert observed_generations == [1]
+    assert app.conversation.calls == []
+    with sqlite3.connect(gateway.state_path) as db:
+        receipt = db.execute(
+            "SELECT status,credential_generation FROM mobile_turn_receipt "
+            "WHERE request_id='mobile-race-004'"
+        ).fetchone()
+        sessions = db.execute(
+            "SELECT credential_generation FROM mobile_conversation_binding_v3 "
+            "WHERE device_id='android-owner' ORDER BY credential_generation"
+        ).fetchall()
+    assert receipt == ("uncertain", 1)
+    assert sessions == [(1,)]
+    assert gateway.credentials.active_generation("android-owner") == 2
