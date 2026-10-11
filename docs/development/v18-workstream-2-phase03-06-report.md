@@ -3155,6 +3155,56 @@ permission to promote or write canonical
 SQLite from both hosts. No CI/tests, live
 restores or host operations were performed.
 
+
+
+### Phase 06 item 86: Deletion replay and journal append share one external lock
+
+The real `MemoryDeletionLedger.apply_to_sqlite`
+replayed the signed external erasure journal into
+canonical SQLite under `BEGIN IMMEDIATE`, but
+read the journal entries **before** obtaining that
+SQLite lock and without holding the journal's
+cross-process append lock. Another authorized
+process could append a new tombstone after the
+read but before local deletion commit, leaving
+that freshly requested erasure unapplied in a
+runtime that believed its startup replay was
+complete.
+
+Production `src/sofia/memory/deletion_ledger.py`
+now holds the existing same
+`MemoryDeletionLedger._exclusive()` file lock
+for the **entire** signed-journal read and
+SQLite erasure replay/commit. The existing
+journal `request` path uses that lock to
+append new signed tombstones, so cooperating
+local appenders cannot advance the journal
+mid-replay. Signed sequence, external HMAC,
+candidate scope, idempotency, anti-resurrection
+and SQLite secure-delete behavior are
+unchanged. This is **not** a distributed
+cross-host writer fence or proof that an
+external journal replica is globally newest.
+
+- Production `d8620683fd078dc55f4b4d68709125315f5b2b1f`
+  (`[skip ci]`).
+- Deferred synthetic canonical SQLite and
+  lock ownership regressions
+  `test/test_ws2_erasure_replay_lock.py`,
+  `416a30c369978074d588a5b7e6bb9eb483e13905`
+  (`[skip ci]`).
+
+Original CA relevance: CA-4806, CA-5202,
+CA-5908, CA-6105, CA-6108, CA-6311.
+A concurrent append **after replay and
+after lock release** still requires live
+runtime invalidation/replay coordination
+before the new deletion is observable
+everywhere. Complete external authority
+and deletion across all storage layers
+remain unaccepted. No tests/CI, live
+deletes, restore or host changes performed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
