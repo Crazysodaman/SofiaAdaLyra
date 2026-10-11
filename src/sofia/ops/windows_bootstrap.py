@@ -178,6 +178,9 @@ $ListenPort = {listen_port}
 $ControllerIp = '{controller_ip}'
 $DependencyLock = Join-Path $Stage "agent-dependencies.lock"
 $Receipt = Join-Path $Stage "bootstrap-receipt.json"
+$FirewallName = "SofiaAdaLyra Fleet Agent $ListenPort"
+$FirewallCreated = $false
+$TouchedService = $false
 function Save-Receipt([hashtable]$Payload) {{
     $Payload | ConvertTo-Json -Depth 5 | Set-Content -Path $Receipt -Encoding UTF8
 }}
@@ -188,6 +191,14 @@ try {{
     $ActualHash = (Get-FileHash -Algorithm SHA256 $Wheel).Hash.ToLowerInvariant()
     if ($ActualHash -ne $ExpectedHash) {{ throw "Fleet wheel hash mismatch." }}
     if (-not (Test-Path $DependencyLock -PathType Leaf)) {{ throw "Approved dependency lock missing." }}
+    # Review network trust before touching a running installation.
+    if (Get-NetFirewallRule -DisplayName $FirewallName -ErrorAction SilentlyContinue) {{
+        throw "Existing Fleet firewall rule requires explicit operator review/removal."
+    }}
+    if (@(Get-NetConnectionProfile -ErrorAction Stop |
+          Where-Object {{ $_.NetworkCategory.ToString() -eq "Private" }}).Count -eq 0) {{
+        throw "Approved Private Windows network profile is required."
+    }}
 
     foreach ($Relative in @("agent.json","certs\\fleet-ca.pem","certs\\artemis-server.pem","certs\\artemis-server-key.pem")) {{
         if (-not (Test-Path (Join-Path $Stage $Relative) -PathType Leaf)) {{ throw "Required Fleet file missing: $Relative" }}
@@ -211,6 +222,7 @@ try {{
     $ManagedPython = Join-Path $Root ".venv\\Scripts\\python.exe"
 
     # Stop and remove the prior durable service before replacing its venv.
+    $TouchedService = $true
     $ExistingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
     if ($null -ne $ExistingService) {{
         Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
@@ -284,11 +296,8 @@ try {{
     if ($LASTEXITCODE -ne 0) {{ throw "Fleet service import smoke failed." }}
     $PythonVersion = (& $AgentPython --version 2>&1 | Out-String).Trim()
 
-    $FirewallName = "SofiaAdaLyra Fleet Agent $ListenPort"
-    if (Get-NetFirewallRule -DisplayName $FirewallName -ErrorAction SilentlyContinue) {{
-        throw "Existing Fleet firewall rule requires explicit operator review/removal."
-    }}
     New-NetFirewallRule -DisplayName $FirewallName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $ListenPort -RemoteAddress $ControllerIp -Profile Private | Out-Null
+    $FirewallCreated = $true
 
     $InstallOutput = & $AgentPython -m sofia.distributed.windows_agent_service_admin install --config $ConfigPath 2>&1
     if ($LASTEXITCODE -ne 0) {{
@@ -355,11 +364,17 @@ try {{
     Remove-Item (Join-Path $Stage "agent.json") -Force -ErrorAction SilentlyContinue
 }}
 catch {{
-    if (Test-Path $AgentPython -PathType Leaf) {{
+    # A failed preflight must not stop an existing service or delete an
+    # existing firewall rule. Undo only effects this attempt created.
+    if ($FirewallCreated) {{
+        Get-NetFirewallRule -DisplayName $FirewallName -ErrorAction SilentlyContinue |
+            Remove-NetFirewallRule -ErrorAction SilentlyContinue
+    }}
+    if ($TouchedService -and $AgentPython -and (Test-Path $AgentPython -PathType Leaf)) {{
         & $AgentPython -m sofia.distributed.windows_agent_service_admin stop 2>$null | Out-Null
         & $AgentPython -m sofia.distributed.windows_agent_service_admin remove 2>$null | Out-Null
     }}
-    else {{
+    elseif ($TouchedService) {{
         Stop-Service -Name "SofiaAdaLyraFleetAgent" -Force -ErrorAction SilentlyContinue
         & sc.exe delete "SofiaAdaLyraFleetAgent" 2>$null | Out-Null
     }}
@@ -376,6 +391,8 @@ catch {{
         ForEach-Object {{
             Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
         }}
+    # Scrub the staged TLS credential after failure as on success.
+    Remove-Item (Join-Path $Stage "certs\\artemis-server-key.pem") -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 500
     Save-Receipt @{{
         status = "failed"
