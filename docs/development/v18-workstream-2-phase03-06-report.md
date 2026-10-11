@@ -677,6 +677,33 @@ Neither source presence nor authored tests are automatic acceptance.
 All tests, CI, Android builds, and host cutovers remain deferred by
 operator request.
 
+### Full-text conversation search enforces original audience binding (Phase 05/06)
+
+Production trace: the active `ConversationService._build_request` chooses
+`HistoryPolicy.RETRIEVE_SPECIFIC` for the latest saved user message →
+reads its current `SocialSessionStore` binding →
+`ConversationFullTextSearch.keyword_search` now **requires**
+`PrincipalContext` → SQL checks exact
+`social_session_principal(session_id,principal_id,audience_id,audience_kind)`
+and joins source `conversation_messages` with that same binding before
+returning any matched original source. The optional FTS index remains inside
+the canonical `sofia.db`, built only by its already-authorized explicit
+offline maintenance operation. Unbound sessions do not use FTS; existing
+bounded current-session source search remains the fallback.
+
+Previously the FTS public method accepted any arbitrary known session ID
+and relied on external callers to enforce identity, while the SQL queried
+the index by session alone. A future caller could inadvertently reveal a
+foreign audience's transcript. That missing source-boundary check is now
+implemented instead of trusting the caller's comment.
+
+Production commits: `fa9b3df2e1d4bf2a333f47a7d588b75a1e59dba2`,
+`5b5c0b112d3456c238cdebbd67e54520c9478a5c`.
+Deferred original-source/mismatched-audience/unknown-session tests:
+`593f47dd42261ffa4c23eb715d6afa237fe6de63`. **Not executed.**
+CA relevance: CA-4105, CA-4107, CA-4206, CA-5304, CA-6303.
+No live index rebuild, source rewrite, grant or host change.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
