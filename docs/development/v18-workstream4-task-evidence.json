@@ -33,7 +33,8 @@
     "2026-10-11 continuation 2: protected exact Hephaestus Internal host link staging now rejects incorrect/incomplete/stale host result identity/state/IP/forwarding-related network details as UNCERTAIN, and the host validates /30 and both IPv4/IPv6 forwarding flags before attaching its existing VM NIC. Test source uses actual signed synthetic FIDO2 assertion fixture and new negative receipt cases. NO tests, CI or Artemis effects; CA-2806/2909 remain partial pending complete source audit and supervised isolation proof.",
     "2026-10-11 continuation 2 follow-up: Hyper-V stage source now independently re-reads the original Hephaestus VM identity/Off Gen2 state, exact one guest vNIC, and Internal switch type after potential host mutation, before reporting stage success. Failure/timeout remains UNCERTAIN; no live Artemis operation or tests run.",
     "2026-10-11 Workstream4 further audit: Phase12 existing UI screen requests/receipts had audience-only history visibility, no principal partition and inclusive exact-expiry permits. Production receipts now record principal, filter principal+audience, quarantine pre-migration unscoped rows and reject frames exactly at consent expiry. Existing UI consumes the scoped path and focused regressions were authored. No OS picker/capture adapter, no screen observation, tests/CI or host changes. Original 6206/6207/6208 remain partial, not code ready.",
-    "2026-10-11 Workstream4 Phase14 source audit: production assess_registered_adaptation now independently checks train versus held-out instruction overlap including case/Unicode/whitespace normalization, rereads exact dataset SHA-256 and checks that rights have not been revoked. Canonical training review refuses re-recording permanently revoked digests. Deferred targeted tests authored; no training, host actions, tests or CI. CA-6703 stays coded candidate/test pending; CA-6706/6708 partial."
+    "2026-10-11 Workstream4 Phase14 source audit: production assess_registered_adaptation now independently checks train versus held-out instruction overlap including case/Unicode/whitespace normalization, rereads exact dataset SHA-256 and checks that rights have not been revoked. Canonical training review refuses re-recording permanently revoked digests. Deferred targeted tests authored; no training, host actions, tests or CI. CA-6703 stays coded candidate/test pending; CA-6706/6708 partial.",
+    "2026-10-11 WS4 NEURO memory-derived state audit: canonical neuro_association_* tables already cleaned revoked and deleted candidates; new installed SQLite trigger also erases prior association weights and teaching receipts when promoted memory content, principal or audience changes in place. Focused regression source authored, not run. CA-705/711 remain prior code-ready candidates with tests pending, no new accepted task."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -264,7 +265,9 @@
     "53540ae115b28977568390e528f66c32e80f96d1",
     "96e29c115c2c4b8d425e256e66f2056d9ba65e6c",
     "fc79c33569814a2e02345451f4fd4c7ebb65ccbd",
-    "0a15e190b5e39b0906d2fab63ea269218d6cc203"
+    "0a15e190b5e39b0906d2fab63ea269218d6cc203",
+    "265527c07e76813faaa8febd1dccd759f7bf0a7a",
+    "417d6af852f30d70e221c33c17012830c737973e"
   ],
   "tasks": [
     {
@@ -1999,7 +2002,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Canonical opted-in audience-scoped reviewed association weights/receipt provenance, algorithm version, 64-event per-memory limit, +/-0.1 reinforcement cap, bounded score/decay and owner reset-to-baseline. No raw query persisted, and RUN schedules slow decay only while opted-in/not gaming. Tests written, not run."
+      "finding": "Canonical opted-in audience-scoped reviewed association weights/receipt provenance, algorithm version, 64-event per-memory limit, +/-0.1 reinforcement cap, bounded score/decay and owner reset-to-baseline. No raw query persisted, and RUN schedules slow decay only while opted-in/not gaming. Tests written, not run. Additional privacy/correction hardening: neuro_association_revision_cleanup SQLite trigger erases old weights/event receipts on in-place content/principal/audience change, while no-op updates preserve receipts. Source src/sofia/neuro/connectome/association_store.py, unexecuted regression test/test_neuro_association_production.py. Does not create MEM authority or infer scientific brain equivalence."
     },
     {
       "id": "CA-706",
@@ -2082,7 +2085,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Production one-state association table keyed by authenticated principal/audience/candidate, opt-in disabled by default with owner Settings controls, SQLite revoke/delete triggers and JOIN status rechecks prevent stale/corrected memories from surviving. Source tests written, not run."
+      "finding": "Production one-state association table keyed by authenticated principal/audience/candidate, opt-in disabled by default with owner Settings controls, SQLite revoke/delete triggers and JOIN status rechecks prevent stale/corrected memories from surviving. Source tests written, not run. Additional privacy/correction hardening: neuro_association_revision_cleanup SQLite trigger erases old weights/event receipts on in-place content/principal/audience change, while no-op updates preserve receipts. Source src/sofia/neuro/connectome/association_store.py, unexecuted regression test/test_neuro_association_production.py. Does not create MEM authority or infer scientific brain equivalence."
     },
     {
       "id": "CA-712",
