@@ -648,55 +648,73 @@ class BackupEngine:
                         "external erasure journal unavailable before restore publication"
                     ) from exc
                 published_directories: set[Path] = set()
-                for source in sorted(staging.rglob("*")):
-                    if not source.is_file():
-                        continue
-                    logical = source.relative_to(staging)
-                    destination = (
-                        target_state_path
-                        if logical.as_posix() == "sofia.db"
-                        else target_root / logical
-                    )
-                    _reject_redirected_restore_path(destination)
-                    destination.parent.mkdir(parents=True, exist_ok=True)
-                    _reject_redirected_restore_path(destination)
-                    # Never open a predictable ".<name>.restore" alias for
-                    # writing: an existing symlink there could escape the
-                    # destination even though its final pathname was validated.
-                    # mkstemp provides O_EXCL creation and a held regular-file
-                    # descriptor under this approved destination directory.
-                    descriptor, temporary_name = tempfile.mkstemp(
-                        prefix=f".{destination.name}.restore-",
-                        suffix=".tmp", dir=destination.parent,
-                    )
-                    temp_target = Path(temporary_name)
-                    try:
-                        with (
-                            os.fdopen(descriptor, "wb") as restored_file,
-                            source.open("rb") as original_file,
-                        ):
-                            shutil.copyfileobj(original_file, restored_file)
-                            restored_file.flush()
-                            os.fsync(restored_file.fileno())
-                        # File bytes are already durable. A default restore
-                        # now uses create-if-absent publication for EVERY
-                        # protected asset, not only the SQLite database. The
-                        # hard link and temporary file share a filesystem;
-                        # an unsupported hard-link filesystem fails closed.
+                published_any = False
+                try:
+                    for source in sorted(staging.rglob("*")):
+                        if not source.is_file():
+                            continue
+                        logical = source.relative_to(staging)
+                        destination = (
+                            target_state_path
+                            if logical.as_posix() == "sofia.db"
+                            else target_root / logical
+                        )
                         _reject_redirected_restore_path(destination)
-                        if replace_existing:
-                            os.replace(temp_target, destination)
-                        else:
-                            try:
-                                os.link(temp_target, destination)
-                            except FileExistsError as exc:
-                                raise BackupError(
-                                    "restore target appeared during publication; "
-                                    "never overwrite without explicit replace_existing"
-                                ) from exc
-                        published_directories.add(destination.parent)
-                    finally:
-                        temp_target.unlink(missing_ok=True)
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        _reject_redirected_restore_path(destination)
+                        # Never open a predictable ".<name>.restore" alias for
+                        # writing: an existing symlink there could escape the
+                        # destination even though its final pathname was validated.
+                        # mkstemp provides O_EXCL creation and a held regular-file
+                        # descriptor under this approved destination directory.
+                        descriptor, temporary_name = tempfile.mkstemp(
+                            prefix=f".{destination.name}.restore-",
+                            suffix=".tmp", dir=destination.parent,
+                        )
+                        temp_target = Path(temporary_name)
+                        try:
+                            with (
+                                os.fdopen(descriptor, "wb") as restored_file,
+                                source.open("rb") as original_file,
+                            ):
+                                shutil.copyfileobj(original_file, restored_file)
+                                restored_file.flush()
+                                os.fsync(restored_file.fileno())
+                            # File bytes are already durable. A default restore
+                            # now uses create-if-absent publication for EVERY
+                            # protected asset, not only the SQLite database. The
+                            # hard link and temporary file share a filesystem;
+                            # an unsupported hard-link filesystem fails closed.
+                            _reject_redirected_restore_path(destination)
+                            if replace_existing:
+                                os.replace(temp_target, destination)
+                            else:
+                                try:
+                                    os.link(temp_target, destination)
+                                except FileExistsError as exc:
+                                    raise BackupError(
+                                        "restore target appeared during publication; "
+                                        "never overwrite without explicit replace_existing"
+                                    ) from exc
+                            published_any = True
+                            published_directories.add(destination.parent)
+                        finally:
+                            temp_target.unlink(missing_ok=True)
+                except Exception as exc:
+                    # The bundle is not an atomic *group* publication. One
+                    # or more destination entries may already be visible
+                    # even though a later copy, validation or link failed.
+                    # Preserve those entries for offline review; never claim
+                    # that the failed restore left a clean empty target.
+                    if isinstance(exc, RestorePublicationUncertain):
+                        raise
+                    if published_any:
+                        raise RestorePublicationUncertain(
+                            "restore published part of the protected bundle "
+                            "before failing; quarantine target and require "
+                            "independent offline review before any activation"
+                        ) from exc
+                    raise
                 if sys.platform.startswith("linux"):
                     try:
                         _fsync_restored_linux_directories(published_directories)
