@@ -3209,16 +3209,14 @@ class SelfDirectedLifeCoordinator:
             # The derived LIFE observation is source-linked to a RUN
             # event. Neither an unlinked job nor a fabricated result dict
             # can cause an autonomous project status transition.
-            source = next((
-                event for event in reversed(
-                    self.store.run_outcome_observations(project.project_id)
-                )
-                if event.job_id == job.job_id
-                and event.status == job.status.value
-                and event.run_at <= now
-                and event.observed_at <= now
-            ), None)
-            if source is None:
+            source = self.store.exact_original_run_outcome(
+                project_id=project.project_id,
+                job_id=job.job_id, status=job.status.value,
+            )
+            if (
+                source is None
+                or source.run_at > now or source.observed_at > now
+            ):
                 continue
             # Recheck before applying policy, in case RUN settled between
             # the projection and this transition. This is still a separate
