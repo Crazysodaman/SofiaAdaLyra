@@ -8,6 +8,7 @@ import sqlite3
 import sys
 
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.safe.secret_store import ProtectedSecretStore
 from sofia.mobile.provisioning import mobile_companion_ready
@@ -87,7 +88,7 @@ def save_settings(
                 secrets.clear(key)
             else:
                 secrets.set(key, value)
-        with closing(sqlite3.connect(path, timeout=10)) as db, db:
+        with closing(CanonicalSQLiteGuard(path).connect(timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             runtime_store.save(runtime, at=now, connection=db)
             desktop_store.save(desktop, at=now, connection=db)
@@ -124,7 +125,9 @@ def save_settings(
 
 def database_diagnostics(path: Path) -> str:
     """Inspect the selected canonical database without evaluating arbitrary SQL."""
-    with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=10)) as db:
+    # Validate file identity before introspecting the canonical source.
+    canonical = CanonicalSQLiteGuard(path)
+    with closing(canonical.connect(timeout=10)) as db:
         integrity = db.execute("PRAGMA quick_check").fetchall()
         tables = db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
     return f"Database: {path}\nIntegrity: {integrity}\nSize: {path.stat().st_size:,} bytes\nTables ({len(tables)}):\n" + "\n".join(row[0] for row in tables)
