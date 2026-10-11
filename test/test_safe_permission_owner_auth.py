@@ -206,3 +206,57 @@ def test_revoking_signing_owner_key_invalidates_existing_standing_grant(tmp_path
     assert store.allows_standing(
         "storage.mkdir", {"root_index": 0}, now=NOW + timedelta(seconds=3),
     ) is False
+
+
+def test_old_actor_only_adult_flags_do_not_survive_authentication_upgrade(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = PermissionStore(state)
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE safe_private_adult_authority SET "
+            "private_chat=0,adult_chat=1,adult_avatar=1,"
+            "adult_external_delivery=1,updated_by='Sparks' WHERE singleton=1"
+        )
+    effective = store.private_adult_authority()
+    assert effective.private_chat is False
+    assert effective.adult_chat is False
+    assert effective.adult_avatar is False
+    assert effective.adult_external_delivery is False
+    assert effective.updated_by == "system:unverified"
+
+
+def test_revoked_fido2_key_fences_its_level5_private_authority(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = PermissionStore(state)
+    flags = {
+        "private_chat": False,
+        "adult_chat": True,
+        "adult_avatar": True,
+        "adult_external_delivery": False,
+    }
+    private_with_signed_owner(store, **flags, now=NOW)
+    active = store.private_adult_authority()
+    assert active.private_chat is False
+    assert active.adult_chat is True
+    assert active.adult_avatar is True
+    with sqlite3.connect(state) as db:
+        cred = db.execute(
+            "SELECT ch.credential_id "
+            "FROM safe_private_authority_auth_binding b "
+            "JOIN safe_execution_owner_auth_binding auth "
+            "ON auth.approval_id=b.approval_id "
+            "JOIN safe_owner_challenge ch ON "
+            "auth.authentication_event_id=('owner-webauthn:' || ch.challenge_digest) "
+            "WHERE b.singleton=1"
+        ).fetchone()
+        assert cred is not None
+        db.execute(
+            "UPDATE safe_owner_credential SET revoked_at=? "
+            "WHERE credential_id=?",
+            ((NOW + timedelta(seconds=2)).isoformat(), cred[0]),
+        )
+    effective = store.private_adult_authority()
+    assert effective.private_chat is False
+    assert effective.adult_chat is False
+    assert effective.adult_avatar is False
+    assert effective.adult_external_delivery is False
