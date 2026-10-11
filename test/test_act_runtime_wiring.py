@@ -389,7 +389,10 @@ def test_settings_operator_stop_is_wired_to_existing_permissions_page():
 
 def test_durable_owner_outreach_mute_applies_without_restarting_sender(tmp_path):
     state = tmp_path / "state.db"
-    state.touch()
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "CREATE TABLE conversation_messages(id TEXT PRIMARY KEY, role TEXT NOT NULL)"
+        )
     saved = RuntimeUserSettingsStore(state)
     saved.save(RuntimeUserSettings(
         outreach=OutreachSettings(enabled=True, mute=False),
@@ -404,7 +407,7 @@ def test_durable_owner_outreach_mute_applies_without_restarting_sender(tmp_path)
         policy=Policy(
             recipient_id=SPARKS_PRINCIPAL_ID,
             enabled=True, min_interval=timedelta(0),
-            max_daily=10, quiet_start_local=0, quiet_end_local=0,
+            max_daily=10, quiet_start_local=22, quiet_end_local=8,
         ),
         channel="desktop", destination="tray",
     )
@@ -461,7 +464,7 @@ def test_application_transport_fresh_decision_reads_owner_pause_after_claim(tmp_
         policy=Policy(
             recipient_id=SPARKS_PRINCIPAL_ID, enabled=True,
             min_interval=timedelta(0), max_daily=10,
-            quiet_start_local=0, quiet_end_local=0,
+            quiet_start_local=22, quiet_end_local=8,
         ),
         now=NOW, pre_send_decision=pause_then_check,
     )
