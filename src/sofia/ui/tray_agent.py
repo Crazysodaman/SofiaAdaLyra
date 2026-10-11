@@ -28,6 +28,7 @@ from sofia.ops.activity import (
     HostActivityStore,
     detect_windows_game,
     windows_desktop_idle_seconds,
+    observed_desktop_activity,
 )
 from sofia.ops.capability import OpsToolService
 from sofia.system.capability import create_local_system_backend
@@ -185,12 +186,9 @@ class TrayAgentApplication:
         threshold = RuntimeUserSettingsStore(
             self.config.state_path
         ).load().cognitive_model_idle_preload_seconds
-        mode = (
-            ActivityMode.GAMING if gaming
-            else ActivityMode.IDLE
-            if idle is not None and idle >= threshold
-            else ActivityMode.NORMAL if idle is not None
-            else ActivityMode.UNKNOWN
+        mode=observed_desktop_activity(
+            gaming=gaming, idle_seconds=idle,
+            idle_threshold_seconds=threshold,
         )
         self.activity_store.record(
             HostActivityObservation(
