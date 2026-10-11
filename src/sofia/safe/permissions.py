@@ -317,6 +317,20 @@ _PROTECTED = frozenset({
     "evolve.code.candidate.rollback",
 })
 
+# Screen inspection, pixels, ongoing watching and external delivery all
+# require an explicit operator-authorized host UI path, never an L1/2
+# automatic read capability or inherited desktop-control grant.
+# Capability registration does not install an OS capture/actuation provider.
+_SCREEN_PROTECTED = frozenset({
+    "screen.discover",
+    "screen.capture_once",
+    "screen.watch_scoped",
+})
+_SCREEN_NEVER_SELF = frozenset({
+    "screen.remote_view",
+    "screen.act_exact",
+})
+
 _NEVER_SELF_AUTHORIZED = frozenset({
     "permissions.grant",
     "permissions.revoke",
@@ -334,6 +348,8 @@ def explicitly_classified_capabilities() -> frozenset[str]:
         | _REVERSIBLE
         | _PROTECTED
         | _NEVER_SELF_AUTHORIZED
+        | _SCREEN_PROTECTED
+        | _SCREEN_NEVER_SELF
     )
 
 
@@ -346,6 +362,20 @@ def is_explicitly_classified(capability: str) -> bool:
 def capability_permission_policy(capability: str) -> CapabilityPermissionPolicy:
     if not isinstance(capability, str) or not capability.strip():
         raise ValueError("capability must be nonempty")
+    if capability in _SCREEN_NEVER_SELF:
+        return CapabilityPermissionPolicy(
+            capability, PermissionLevel.NEVER_SELF_AUTHORIZED,
+            PrivacyClass.PROTECTED_PRIVATE, False,
+            "Exact host UI and separately authorized external viewing or "
+            "GUI action; no standing or model self-approval.",
+        )
+    if capability in _SCREEN_PROTECTED:
+        return CapabilityPermissionPolicy(
+            capability, PermissionLevel.PROTECTED,
+            PrivacyClass.PROTECTED_PRIVATE, False,
+            "Exact selected active-user screen, short-lived OS picker grant; "
+            "no general capture or background viewing.",
+        )
     if capability in _READ_ONLY:
         return CapabilityPermissionPolicy(
             capability,
