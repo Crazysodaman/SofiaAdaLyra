@@ -1984,3 +1984,78 @@ def test_legacy_duplicate_life_objectives_cannot_complete_or_grant_milestones(
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
     finally:
         life.close()
+
+
+def test_private_life_portfolio_projects_original_creative_history_without_writes(
+    tmp_path,
+):
+    """Portfolio is a bounded view over real Project Forge and LIFE records."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Original portfolio item",
+            specification={"content": (
+                "Foxfire creative notes, with a deliberate technical objective."
+            )},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        life.manager.tick(now=now + timedelta(seconds=3))
+        result = wait_for_job(life, job.job_id)
+        assert result.status is WorkStatus.COMPLETED
+        review = life.evaluate_artifact(
+            project.project_id,
+            artifact_id=str(result.result["artifact_id"]),
+            technical_outcome=TechnicalOutcome.VALID,
+            personal_judgment=PersonalJudgment.UNKNOWN,
+            objective_results={"text_contains:Foxfire": True},
+            reason="Independently checked original text criterion.",
+            evidence_refs=(str(result.result["evidence_ref"]),),
+            preserve_for_research=False, now=now + timedelta(seconds=4),
+        )
+        baseline = len(life.store.events(
+            project.project_id, owner_principal_id="sofia:self",
+            audience_id=project.audience_id,
+        ))
+        records = life.portfolio_index()
+        item = next(row for row in records
+                    if row["project_id"] == project.project_id)
+        assert item["audience_id"] == project.audience_id
+        assert item["original_objectives"] == ("text_contains:Foxfire",)
+        assert item["linked_artifact_count"] == 1
+        artifact = item["artifacts"][0]
+        assert artifact["artifact_id"] == result.result["artifact_id"]
+        assert artifact["recorded_sha256"] == result.result["sha256"]
+        assert artifact["evaluation_id"] == review.evaluation_id
+        assert artifact["condition"] == "recorded_not_reverified"
+        assert life.portfolio_index() == records
+        assert len(life.store.events(
+            project.project_id, owner_principal_id="sofia:self",
+            audience_id=project.audience_id,
+        )) == baseline
+    finally:
+        life.close()
+
+
+def test_private_life_portfolio_marks_missing_revision_unverified(tmp_path):
+    """A LIFE link by itself is not a made artifact, even in private history."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _ = active_project(life, now)
+        life.store.link_artifact(
+            project.project_id, "artifact:does-not-exist", 1,
+            now=now + timedelta(seconds=3),
+        )
+        row = next(item for item in life.portfolio_index()
+                   if item["project_id"] == project.project_id)
+        assert row["artifacts"][0] == {
+            "artifact_id": "artifact:does-not-exist",
+            "revision": 1,
+            "condition": "missing_creative_revision",
+        }
+        assert row["linked_artifact_count"] == 1
+    finally:
+        life.close()
