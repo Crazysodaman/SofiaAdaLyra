@@ -143,4 +143,31 @@ class PendingOutboundInstrumentedTest {
         store.discardUnconfirmedOutbound()
         assertEquals(null, store.pendingOutbound())
     }
+
+    @Test
+    fun chatRefusesPreviouslyQueuedTurnAfterPairingOrAudienceChange() {
+        val original = config()
+        val store = SecureSettings(context)
+        store.save(original)
+        val pending = store.reserveOutbound(
+            original, "Exact original offline bytes", "request-fenced-89ac",
+        )
+        val changed = listOf(
+            original.copy(privateMode = true),
+            original.copy(token = "sm1_" + "b".repeat(64)),
+            original.copy(baseUrl = "https://another.example.invalid"),
+        )
+        for (configuration in changed) {
+            store.save(configuration)
+            try {
+                SofiaApi(store).chat(pending)
+                fail("Chat dispatched a stale durable turn under another pairing")
+            } catch (_: IllegalArgumentException) {
+                // No HTTP attempt: current settings cannot authorize the
+                // original encrypted outbox audience or credential.
+            }
+            assertEquals(pending, store.pendingOutbound())
+        }
+    }
+
 }
