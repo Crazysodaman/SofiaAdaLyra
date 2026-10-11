@@ -63,6 +63,7 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_interaction_", ("pkg_interact",)),
     ("test_memory_", ("pkg_mem",)),
     ("test_environment_", ("pkg_environment",)),
+    ("test_body_", ("pkg_body",)),
     ("test_avatar_", ("pkg_avatar",)),
     ("test_embodiment_", ("pkg_avatar",)),
     ("test_machine_", ("pkg_ops",)),

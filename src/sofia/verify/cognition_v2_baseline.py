@@ -8,7 +8,7 @@ benchmarks are a separate host acceptance step.
 from __future__ import annotations
 
 import argparse
-from contextlib import suppress
+from contextlib import closing, suppress
 from datetime import datetime, timezone
 import json
 import os
@@ -92,7 +92,9 @@ def _measure(operation: Callable[[], object]) -> dict[str, float | int | None]:
 
 
 def _database_counts(path: Path) -> dict[str, int]:
-    with sqlite3.connect(path) as db:
+    # sqlite3.Connection is a transaction manager, not a closing context.
+    # An explicit close is essential before Windows removes the temp database.
+    with closing(sqlite3.connect(path)) as db:
         tables = {
             row[0]
             for row in db.execute(

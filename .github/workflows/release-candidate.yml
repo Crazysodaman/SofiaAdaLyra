@@ -27,6 +27,8 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 30
+    env:
+      SOFIA_RELEASE_SOURCE: ${{ runner.temp }}\sofia-release-source
     permissions:
       contents: read
     steps:
@@ -43,9 +45,14 @@ jobs:
       - name: Materialize clean tracked source
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force release-source | Out-Null
-          git archive --format=tar HEAD -o source.tar
-          tar -xf source.tar -C release-source
+          # Stage clean tracked source OUTSIDE the checkout. An in-tree
+          # release-source/test directory otherwise duplicates pytest modules.
+          New-Item -ItemType Directory -Force "$env:SOFIA_RELEASE_SOURCE" | Out-Null
+          $archive = Join-Path $env:RUNNER_TEMP "sofia-tracked-source.tar"
+          git archive --format=tar HEAD -o "$archive"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          tar -xf "$archive" -C "$env:SOFIA_RELEASE_SOURCE"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify exact hashed runtime lock
         shell: pwsh
@@ -54,7 +61,7 @@ jobs:
           .\.releasevenv\Scripts\python.exe -m pip install --upgrade pip
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock.windows-py312.txt
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt
-          .\.releasevenv\Scripts\python.exe -m pip install --no-deps .\release-source
+          .\.releasevenv\Scripts\python.exe -m pip install --no-deps "$env:SOFIA_RELEASE_SOURCE"
 
       - name: Run revision-bound verification gate
         shell: pwsh
@@ -67,8 +74,8 @@ jobs:
         run: |
           $env:SOURCE_DATE_EPOCH = git show -s --format=%ct HEAD
           New-Item -ItemType Directory -Force dist-a,dist-b | Out-Null
-          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-a .\release-source
-          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-b .\release-source
+          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-a "$env:SOFIA_RELEASE_SOURCE"
+          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-b "$env:SOFIA_RELEASE_SOURCE"
           $WheelA = Get-ChildItem dist-a\*.whl | Select-Object -First 1
           $WheelB = Get-ChildItem dist-b\*.whl | Select-Object -First 1
           if ($null -eq $WheelA -or $null -eq $WheelB) { throw "reproducibility build did not create both wheels" }
@@ -92,8 +99,8 @@ jobs:
             "--git-revision","${{ github.sha }}",
             "--lock","requirements.lock.windows-py312.txt",
             "--wheel",$env:RELEASE_WHEEL,
-            "--source","release-source",
-            "--constitution-hash","release-source\src\sofia\constitution\constitution.sha256",
+            "--source",$env:SOFIA_RELEASE_SOURCE,
+            "--constitution-hash",(Join-Path $env:SOFIA_RELEASE_SOURCE "src\sofia\constitution\constitution.sha256"),
             "--verification-evidence","verification-evidence.json",
             "--output","release-evidence"
           )
