@@ -9,6 +9,7 @@ from dataclasses import asdict,dataclass
 from datetime import datetime,timezone
 from hashlib import sha256
 from pathlib import Path
+import os
 import json,re
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
@@ -77,24 +78,46 @@ def inspect_public_dataset(*,path:str|Path,source_class:str,license_id:str,
     if source_class=="owner_original_nonprivate" and license_id!="OWNER-ORIGINAL":
         raise PermissionError("owner-original material needs owner rights provenance")
     requested=Path(path).expanduser()
-    if requested.is_symlink():
-        raise PermissionError("training data path may not be a symbolic link")
+    if any(
+        component.is_symlink()
+        or getattr(component,"is_junction",lambda:False)()
+        for component in (requested,*requested.parents)
+    ):
+        raise PermissionError("training source path cannot follow symbolic links or junctions")
     source=requested.resolve(strict=True)
-    if not source.is_file() or source.suffix.casefold()!=".jsonl":
+    if any(
+        component.is_symlink()
+        or getattr(component,"is_junction",lambda:False)()
+        for component in (source,*source.parents)
+    ):
+        raise PermissionError("resolved training path contains a redirected component")
+    if (
+        not source.is_file() or source.suffix.casefold()!=".jsonl"
+        or str(source.anchor).startswith(("\\\\","//"))
+    ):
         raise ValueError("regular local JSONL file required")
     if any((parent/".git").exists() for parent in (source.parent,*source.parents)):
         raise PermissionError("datasets must not be sourced from this Git checkout")
-    if not 1<=source.stat().st_size<=MAX_BYTES:
+    before=source.stat()
+    if not 1<=before.st_size<=MAX_BYTES:
         raise ValueError("dataset outside admission size bound")
     digest=sha256()
     seen=set()
     duplicates=0
     nbytes=0
     with source.open("rb") as stream:
+        opened=os.fstat(stream.fileno())
+        if (
+            (opened.st_dev,opened.st_ino)!=(before.st_dev,before.st_ino)
+            or opened.st_size!=before.st_size
+            or opened.st_mtime_ns!=before.st_mtime_ns
+        ):
+            raise PermissionError("training source changed before inspection")
         for i,line in enumerate(stream,1):
-            if i>MAX_ROWS or len(line)>MAX_LINE:
-                raise PermissionError("row count/size exceeded")
-            digest.update(line); nbytes+=len(line)
+            nbytes+=len(line)
+            if i>MAX_ROWS or len(line)>MAX_LINE or nbytes>MAX_BYTES:
+                raise PermissionError("row count, row size or total bytes exceeded")
+            digest.update(line)
             try:
                 row=json.loads(line.decode("utf-8"))
             except (ValueError,UnicodeError) as exc:
@@ -112,6 +135,17 @@ def inspect_public_dataset(*,path:str|Path,source_class:str,license_id:str,
                 separators=(",",":")).encode("utf-8")).digest()
             if fingerprint in seen:duplicates+=1
             else:seen.add(fingerprint)
+        finished=os.fstat(stream.fileno())
+    after=source.stat()
+    for observed in (opened,finished,after):
+        if (
+            (observed.st_dev,observed.st_ino)!=(before.st_dev,before.st_ino)
+            or observed.st_size!=before.st_size
+            or observed.st_mtime_ns!=before.st_mtime_ns
+        ):
+            raise PermissionError("training source changed during review")
+    if nbytes!=before.st_size:
+        raise PermissionError("training source byte count changed during review")
     return TrainingDatasetReview(
         digest.hexdigest(),source_class,license_id,source_ref,approval_ref,
         str(source),at,len(seen),duplicates,nbytes,
