@@ -16,7 +16,9 @@ from pathlib import Path
 import sqlite3
 
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
-from sofia.creative import CreativeExplorer, CreativeStore
+from sofia.creative import (
+    ArtifactRevision, CreativeExplorer, CreativeStore, NativeCreativeAdapter,
+)
 from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.run.work import DurableWorkStore, WorkStatus
 from sofia.social.principals import local_sparks_principal
@@ -104,6 +106,32 @@ class LifeProcedureCatalog:
                     last_procedure_id TEXT NOT NULL
                 );
             """)
+
+    @staticmethod
+    def native_source_toolchain_current(
+        artifact: ArtifactRevision, *, original_result: dict[str, object],
+    ) -> bool:
+        """Exact current local native adapter, never a remote-host assumption.
+
+        This is a *read-only* suitability predicate over the original
+        immutable creative revision and original RUN operation receipt.
+        The source artifact's OS/Python catalog key is checked separately.
+        External/DEV/Fleet tools require independently authenticated host
+        and version evidence before any future procedure eligibility.
+        """
+        if not isinstance(artifact, ArtifactRevision) or not isinstance(
+            original_result, dict,
+        ):
+            return False
+        probe = NativeCreativeAdapter().probe()
+        return bool(
+            probe.available
+            and artifact.kind in probe.supported_kinds
+            and artifact.tool_id == probe.adapter_id
+            and artifact.tool_version == probe.version
+            and original_result.get("tool_id") == artifact.tool_id
+            and original_result.get("tool_version") == artifact.tool_version
+        )
 
     def _connect(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
@@ -258,6 +286,13 @@ class LifeProcedureCatalog:
             or artifact.revision != output["revision"]
         ):
             raise ValueError("current original creative revision not available")
+        if not self.native_source_toolchain_current(
+            artifact, original_result=output,
+        ):
+            raise ValueError(
+                "original creative tool ID/version does not match "
+                "the current verified local native adapter"
+            )
         try:
             path, _media = CreativeExplorer(creative).verified_preview(
                 output["artifact_id"],
