@@ -254,12 +254,16 @@ def promote_prepared_model_role(
                     raise ModelPromotionUncertain(
                         "canonical role settings changed during health acceptance"
                     )
-                db.execute(
+                accepted = db.execute(
                     "UPDATE cognitive_model_promotion SET status='accepted',"
                     "reason='independent_health_continuity_accepted',updated_at=? "
                     "WHERE approval_ref=? AND status='applying'",
                     (datetime.now(timezone.utc).isoformat(),plan.operator_approval_ref),
                 )
+                if accepted.rowcount != 1:
+                    raise ModelPromotionUncertain(
+                        "model acceptance receipt was not durably transitioned"
+                    )
             return ModelPromotionReceipt(
                 plan.operator_approval_ref,plan.role,plan.old_model,
                 plan.new_model,"accepted","independent_health_continuity_accepted",
@@ -279,12 +283,16 @@ def promote_prepared_model_role(
         if saved is not None and sha256(saved[0].encode("utf-8")).hexdigest() == proposed_hash:
             settings_store.save(prior_settings, at=at, connection=db)
             restored_settings = True
-        db.execute(
+        unresolved = db.execute(
             "UPDATE cognitive_model_promotion SET status='uncertain',"
             "reason=?,updated_at=? WHERE approval_ref=? AND status='applying'",
             (reason, datetime.now(timezone.utc).isoformat(),
              plan.operator_approval_ref),
         )
+        if unresolved.rowcount != 1:
+            raise ModelPromotionUncertain(
+                "model promotion no longer owns its transition receipt"
+            )
     provider_restored = False
     if restored_settings:
         try:
@@ -294,13 +302,17 @@ def promote_prepared_model_role(
     if restored_settings and provider_restored:
         with closing(connection()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            db.execute(
+            rolled_back = db.execute(
                 "UPDATE cognitive_model_promotion SET status='rolled_back',"
                 "reason='candidate_not_accepted_original_restored',updated_at=? "
                 "WHERE approval_ref=? AND status='uncertain'",
                 (datetime.now(timezone.utc).isoformat(),
                  plan.operator_approval_ref),
             )
+            if rolled_back.rowcount != 1:
+                raise ModelPromotionUncertain(
+                    "model rollback receipt was not durably transitioned"
+                )
         return ModelPromotionReceipt(
             plan.operator_approval_ref,plan.role,plan.old_model,
             plan.new_model,"rolled_back","candidate_not_accepted_original_restored",
