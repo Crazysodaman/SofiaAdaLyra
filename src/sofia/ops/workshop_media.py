@@ -214,6 +214,27 @@ def render_first_boot_policy() -> str:
         "# Not installed at all, and masked if a future package adds it.",
         "if dpkg-query -W openssh-server >/dev/null 2>&1; then exit 1; fi",
         "/usr/bin/systemctl mask ssh.service sshd.service ssh.socket",
+        "# Exactly one synthetic internal Hyper-V NIC, no gateway, DNS or DHCP.",
+        "test -x /sbin/ifup || exit 1",
+        "nic=''",
+        "count=0",
+        "for path in /sys/class/net/*; do",
+        "  iface=${path##*/}",
+        "  if [ \"$iface\" != lo ]; then",
+        "    count=$((count+1))",
+        "    nic=$iface",
+        "  fi",
+        "done",
+        "test \"$count\" -eq 1 || exit 1",
+        "case \"$nic\" in *[!a-zA-Z0-9_.-]*|'') exit 1;; esac",
+        "# Newly installed, owner-confirmed EMPTY VHDX; refuse inherited routes.",
+        "if grep -ER '^[[:space:]]*(gateway|dns-nameservers|iface .* inet dhcp)' "
+        "/etc/network/interfaces.d >/dev/null 2>&1; then exit 1; fi",
+        "printf '%s\\n' 'auto lo' 'iface lo inet loopback' "
+        "\"allow-hotplug $nic\" \"iface $nic inet static\" "
+        "'  address 172.30.250.2' "
+        "'  netmask 255.255.255.252' > /etc/network/interfaces",
+        "chmod 0644 /etc/network/interfaces",
         "exit 0",
         "",
     ))
