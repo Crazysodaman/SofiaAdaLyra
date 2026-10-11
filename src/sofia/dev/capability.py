@@ -13,6 +13,7 @@ from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 from sofia.dev.approval import DevOperation
 from sofia.safe.dev_approval import DevApprovalVerifier
+from sofia.safe.operator_stop import OperatorStopStore
 from sofia.state.model import StateClass, StateKey, StateRecord
 from sofia.state.plane import StatePlane
 from sofia.state.sqlite_plane import SQLiteStatePlane
@@ -161,14 +162,23 @@ class DevToolService:
             legacy_path=state_path.parent / "dev-candidates.json",
         )
         self.approval_verifier = approval_verifier
+        self.operator_stop = OperatorStopStore(state_path)
         self._applied_proposal_id: str | None = None
         self._build_slots = BoundedSemaphore(1)
+
+    def _require_operator_running(self) -> None:
+        stop = getattr(self, "operator_stop", None)
+        if not isinstance(stop, OperatorStopStore):
+            raise RuntimeError("DEV execution requires durable operator stop authority")
+        if stop.current().active:
+            raise PermissionError("operator stop blocks DEV work")
 
     def _authorize(
         self,
         operation: DevOperation,
         parameters: dict[str, Any],
     ) -> None:
+        self._require_operator_running()
         proposal_id = parameters.get("proposal_id")
         if not isinstance(proposal_id, str) or not proposal_id.strip():
             raise PermissionError("DEV operation requires proposal_id")
@@ -238,6 +248,7 @@ class DevToolService:
         if not self._build_slots.acquire(blocking=False):
             raise RuntimeError("DEV isolated build capacity is exhausted")
         try:
+            self._require_operator_running()
             candidate = self.workflow.build(request)
             self.store.put(candidate)
         finally:
@@ -257,6 +268,7 @@ class DevToolService:
     def apply(self, parameters: dict[str, Any]) -> dict[str, Any]:
         self._authorize(DevOperation.APPLY, parameters)
         candidate = self.store.get(parameters["proposal_id"])
+        self._require_operator_running()
         changed = self.workflow.apply(candidate, authorized=True)
         self._applied_proposal_id = candidate.proposal_id
         return {
@@ -273,6 +285,7 @@ class DevToolService:
             raise ValueError(
                 "rollback proposal does not match currently applied candidate"
             )
+        self._require_operator_running()
         self.workflow.rollback_applied(authorized=True)
         proposal_id = parameters["proposal_id"]
         self._applied_proposal_id = None
@@ -290,6 +303,7 @@ class DevToolService:
             raise ValueError(
                 "commit proposal does not match currently applied candidate"
             )
+        self._require_operator_running()
         sha = self.workflow.commit(
             parameters["message"],
             authorized=True,
@@ -304,6 +318,7 @@ class DevToolService:
 
     def push(self, parameters: dict[str, Any]) -> dict[str, Any]:
         self._authorize(DevOperation.PUSH, parameters)
+        self._require_operator_running()
         self.workflow.push(
             parameters["branch"],
             remote=parameters.get("remote", "origin"),
