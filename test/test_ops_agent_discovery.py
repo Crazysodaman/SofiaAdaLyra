@@ -631,3 +631,57 @@ def test_scoped_discovery_rejects_huge_cidr_without_enumerating(
 
     with pytest.raises(ValueError, match="exceeds max_hosts_per_scope"):
         source._scope_addresses()
+
+
+def test_scoped_mtls_never_retargets_approved_ip_using_reverse_dns(monkeypatch):
+    """Attacker-controlled PTR records cannot move the authenticated probe."""
+    connected = []
+
+    class SocketContext:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def connect(endpoint, timeout):
+        connected.append(endpoint)
+        return SocketContext()
+
+    monkeypatch.setattr(discovery_module.socket, "create_connection", connect)
+    monkeypatch.setattr(
+        discovery_module.socket,
+        "gethostbyaddr",
+        lambda ip: ("unapproved.example.invalid", [], [ip]),
+    )
+    source = ScopedMtlsAgentDiscoverySource(
+        explicit_targets=(),
+        scopes=("192.0.2.0/30",),
+        ca_file="ca.pem",
+        client_certificate="client.pem",
+        client_private_key="client.key",
+    )
+    target = source._reachable("192.0.2.2")
+
+    assert connected == [("192.0.2.2", 7443)]
+    assert target is not None
+    assert target.hostname == "192.0.2.2"
+    assert target.inside_approved_scope is True
+
+
+def test_bare_presence_keeps_observed_ip_separate_from_reverse_dns(monkeypatch):
+    source = ScopedHostPresenceDiscoverySource(
+        scopes=("192.0.2.0/30",),
+    )
+    monkeypatch.setattr(source, "_port_open", lambda address, port: port == 445)
+    monkeypatch.setattr(
+        discovery_module.socket,
+        "gethostbyaddr",
+        lambda ip: ("unapproved.example.invalid", [], [ip]),
+    )
+    evidence = source._observe("192.0.2.2")
+
+    assert evidence is not None
+    assert evidence.hostname == "unapproved.example.invalid"
+    assert evidence.observed_endpoint_hostname == "192.0.2.2"
+    assert evidence.observed_node_id is None
