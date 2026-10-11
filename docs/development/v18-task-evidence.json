@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
+  "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -10969,19 +10969,30 @@
       "phase": "08",
       "source_topic": "4",
       "master_line": 659,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/application/presence.py"
+      ],
+      "evidence_commits": [
+        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 3,
-        "source_report": "docs/development/v18-workstream-3-phase07-10-2026-10-11.md",
+        "source_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
+        "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
         "tests_executed": false,
         "accepted_by_review": false,
-        "evidence_level": "task_inventoried_or_source_triaged_no_full_proof",
+        "evidence_level": "source_confirmed_partial_2026_10_11",
         "phase_audit_report": "docs/development/v18-workstream-3-phase08-source-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/application/background_runtime.py, src/sofia/application/presence.py. Partial wiring and source review, not all clauses complete.",
+        "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
+        "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
     },
     {
@@ -11009,19 +11020,30 @@
       "phase": "08",
       "source_topic": "4",
       "master_line": 661,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/application/presence.py"
+      ],
+      "evidence_commits": [
+        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 3,
-        "source_report": "docs/development/v18-workstream-3-phase07-10-2026-10-11.md",
+        "source_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
+        "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
         "tests_executed": false,
         "accepted_by_review": false,
-        "evidence_level": "task_inventoried_or_source_triaged_no_full_proof",
+        "evidence_level": "source_confirmed_partial_2026_10_11",
         "phase_audit_report": "docs/development/v18-workstream-3-phase08-source-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/application/background_runtime.py, src/sofia/application/presence.py. Partial wiring and source review, not all clauses complete.",
+        "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
+        "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
     },
     {
@@ -11029,19 +11051,30 @@
       "phase": "08",
       "source_topic": "4",
       "master_line": 662,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/application/presence.py"
+      ],
+      "evidence_commits": [
+        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 3,
-        "source_report": "docs/development/v18-workstream-3-phase07-10-2026-10-11.md",
+        "source_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
+        "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
         "tests_executed": false,
         "accepted_by_review": false,
-        "evidence_level": "task_inventoried_or_source_triaged_no_full_proof",
+        "evidence_level": "source_confirmed_partial_2026_10_11",
         "phase_audit_report": "docs/development/v18-workstream-3-phase08-source-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/application/background_runtime.py, src/sofia/application/presence.py. Partial wiring and source review, not all clauses complete.",
+        "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
+        "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
     },
     {
@@ -11109,19 +11142,30 @@
       "phase": "08",
       "source_topic": "4",
       "master_line": 666,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/application/presence.py"
+      ],
+      "evidence_commits": [
+        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 3,
-        "source_report": "docs/development/v18-workstream-3-phase07-10-2026-10-11.md",
+        "source_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
+        "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
         "tests_executed": false,
         "accepted_by_review": false,
-        "evidence_level": "task_inventoried_or_source_triaged_no_full_proof",
+        "evidence_level": "source_confirmed_partial_2026_10_11",
         "phase_audit_report": "docs/development/v18-workstream-3-phase08-source-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/application/background_runtime.py, src/sofia/application/presence.py. Partial wiring and source review, not all clauses complete.",
+        "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
+        "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
     },
     {
@@ -12119,19 +12163,30 @@
       "phase": "09",
       "source_topic": "1",
       "master_line": 748,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/application/background_runtime.py"
+      ],
+      "evidence_commits": [
+        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 3,
-        "source_report": "docs/development/v18-workstream-3-phase07-10-2026-10-11.md",
+        "source_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
+        "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
         "tests_executed": false,
         "accepted_by_review": false,
-        "evidence_level": "task_inventoried_or_source_triaged_no_full_proof",
+        "evidence_level": "source_confirmed_partial_2026_10_11",
         "phase_audit_report": "docs/development/v18-workstream-3-phase09-source-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/life/coordinator.py, src/sofia/application/background_runtime.py. Partial wiring and source review, not all clauses complete.",
+        "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
+        "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
     },
     {
@@ -15481,22 +15536,32 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 989,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/safe/permissions.py"
+      ],
+      "evidence_commits": [
+        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
+        "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
         "tests_executed": false,
         "accepted_by_review": false,
-        "evidence_level": "partially_implemented_unverified",
+        "evidence_level": "source_confirmed_partial_2026_10_11",
         "code_ready_for_tests_claimed_by_workstream": false,
         "workstream_tests_executed": false,
         "workstream_finding": "Explicit production SAFE capability policy classifications: screen.discover / screen.capture_once / screen.watch_scoped are protected, and screen.remote_view / screen.act_exact are never-self-authorized with PROTECTED_PRIVATE privacy and no standing or automatic grant. Source src/sofia/safe/permissions.py and deferred test/test_screen_capability_authority.py. No actual OS capture, watch, remote sharing or GUI executor yet.",
         "phase_audit_report": null
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/safe/permissions.py. Partial wiring and source review, not all clauses complete.",
+        "missing": "Host OS picker, complete screen capture/watching, revocation and remote disclosure proof.",
+        "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
     },
     {
@@ -15642,22 +15707,34 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 996,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/desktop_control.py",
+        "src/sofia/vision/desktop_control_cli.py",
+        "src/sofia/safe/execution_approval.py"
+      ],
+      "evidence_commits": [
+        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
+        "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
         "tests_executed": false,
         "accepted_by_review": false,
-        "evidence_level": "phase_inventory_only",
+        "evidence_level": "source_confirmed_partial_2026_10_11",
         "code_ready_for_tests_claimed_by_workstream": false,
         "workstream_tests_executed": false,
         "workstream_finding": "Separate workstream inventory only; no task-specific source proof.",
         "phase_audit_report": null
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/vision/desktop_control.py, src/sofia/vision/desktop_control_cli.py, src/sofia/safe/execution_approval.py. Partial wiring and source review, not all clauses complete.",
+        "missing": "Live Win32 acceptance, OS user-session UX, screen-action pre-capture confirmation and genuine post-action verification; no remote guest agent. Gaming bans cannot be ruled out universally.",
+        "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
     },
     {
@@ -16401,22 +16478,33 @@
       "phase": "13",
       "source_topic": "29",
       "master_line": 1049,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_provision.py",
+        "src/sofia/ops/capability.py"
+      ],
+      "evidence_commits": [
+        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
+        "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
         "tests_executed": false,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_confirmed_partial_2026_10_11",
         "code_ready_for_tests_claimed_by_workstream": true,
         "workstream_tests_executed": false,
         "workstream_finding": "Real Artemis agent publishes static read-only Hyper-V host CPU/RAM/disk/VM/switch facts and independently root-scoped media SHA-256 over pinned mTLS. Owner Fleet Settings previews resource/isolation/image blockers without provisioning; canonical bounded plan evidence is available via actual read-only OPS cognitive tool ops.workshop.preview. Unknown host/image/version/expiry/name collision denies admission and may_provision always false absent distinct Level-4 executor. Regression tests authored, not run.",
         "phase_audit_report": null
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/ops/workshop_provision.py, src/sofia/ops/capability.py. Partial wiring and source review, not all clauses complete.",
+        "missing": "Validated real Artemis hardware capacity, OS-installed Hephaestus, independent guest attestation and isolated real laboratory canary.",
+        "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
     },
     {
@@ -18384,5 +18472,25 @@
     },
     "note": "Imported workstream task-indexed source reports only. No source claim was promoted to code_present_unverified or accepted. No tests, CI, host operations or cutover; 19 direct WS2 partial mappings verified by file presence, not runtime tests. Historical roadmap task wording unchanged.",
     "integrity_correction": "CA-3008 docs-only task downgraded to partial_wiring; two historical abbreviated refs preserved outside evidence_commits because shared ledger verifier requires full 40-character SHA and actual production path for code_present_unverified."
+  },
+  "focus_reconciliation_2026_10_11": {
+    "scope": "Phases 08 09 12 13 production source audit",
+    "original_ids_in_scope": 209,
+    "upgraded_partial_ids": [
+      "CA-401",
+      "CA-403",
+      "CA-404",
+      "CA-408",
+      "CA-102",
+      "CA-6205",
+      "CA-6212",
+      "CA-2903"
+    ],
+    "source_review_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
+    "notices": [
+      "No source row accepted, tested source independently of completed live hardware acceptance",
+      "Venus no input during gaming/unknown; operator-only per exact action FIDO2",
+      "Artemis Hephaestus guest OS absent, no live VM activation or approval"
+    ]
   }
 }
