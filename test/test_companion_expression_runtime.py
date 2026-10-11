@@ -11,6 +11,7 @@ from sofia.personality.influence import ContinuityInfluence
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
 from sofia.application import SofiaApplication
+from sofia.social.principals import local_sparks_principal
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from pathlib import Path
 import pytest
@@ -194,7 +195,10 @@ def test_production_conversation_records_expression_and_restores_it_after_restar
         recorded = first.expression_runtime.get_for_message(assistant.message_id)
         assert recorded is not None, first.conversation.last_expression_runtime_error
         assert recorded.principal_id
-        projected = first.expression_intent(assistant.message_id, now=NOW)
+        projected = first.expression_intent(
+            assistant.message_id, principal=local_sparks_principal(),
+            now=recorded.created_at,
+        )
         assert projected is not None
         assert projected.decision == recorded
         assert projected.text_status == "persisted"
@@ -278,7 +282,7 @@ def test_expression_intent_reports_actual_modal_acknowledgements(tmp_path):
 
     runtime, original, principal = decision(tmp_path)
     observed = runtime.intent_projection(
-        original.message_id, now=NOW + timedelta(seconds=2),
+        original.message_id, principal=principal, now=NOW + timedelta(seconds=2),
     )
     assert observed.decision == original
     assert observed.fresh is True
@@ -289,7 +293,9 @@ def test_expression_intent_reports_actual_modal_acknowledgements(tmp_path):
     assert observed.avatar_status == "unavailable"
     assert observed.avatar_acknowledged is False
     assert observed.decision.gesture == "ear-perk"
-    assert runtime.intent_projection("other-private-message", now=NOW) is None
+    assert runtime.intent_projection(
+        "other-private-message", principal=principal, now=NOW,
+    ) is None
 
     runtime.receipt(
         decision_id=original.decision_id, output="avatar",
@@ -299,7 +305,7 @@ def test_expression_intent_reports_actual_modal_acknowledgements(tmp_path):
         dedupe_key="pending-avatar",
     )
     pending = runtime.intent_projection(
-        original.message_id, now=NOW + timedelta(seconds=4),
+        original.message_id, principal=principal, now=NOW + timedelta(seconds=4),
     )
     assert pending.avatar_status == "queued"
     assert pending.avatar_acknowledged is False
@@ -311,7 +317,7 @@ def test_expression_intent_reports_actual_modal_acknowledgements(tmp_path):
         occurred_at=NOW + timedelta(seconds=5),
     )
     spoken = runtime.intent_projection(
-        original.message_id, now=NOW + timedelta(seconds=6),
+        original.message_id, principal=principal, now=NOW + timedelta(seconds=6),
     )
     assert spoken.voice_status == "spoken"
     assert spoken.voice_acknowledged is True
@@ -324,15 +330,24 @@ def test_expression_intent_reports_actual_modal_acknowledgements(tmp_path):
         occurred_at=NOW + timedelta(seconds=7),
     )
     rendered = runtime.intent_projection(
-        original.message_id, now=NOW + timedelta(seconds=8),
+        original.message_id, principal=principal, now=NOW + timedelta(seconds=8),
     )
     assert rendered.avatar_status == "rendered"
     assert rendered.avatar_acknowledged is True
     assert rendered.decision.principal_id == principal.principal_id
     assert rendered.decision.audience_id == principal.audience_id
+    other_audience = PrincipalContext(
+        principal.principal_id, "private:other-channel",
+        AudienceKind.PRIVATE, "Other",
+    )
+    assert runtime.intent_projection(
+        original.message_id,
+        principal=other_audience,
+        now=NOW + timedelta(seconds=8),
+    ) is None
     assert all(receipt_id.startswith("expression-receipt:") for receipt_id in rendered.receipt_ids)
     historical = runtime.intent_projection(
-        original.message_id, now=NOW + timedelta(minutes=8),
+        original.message_id, principal=principal, now=NOW + timedelta(minutes=8),
     )
     assert historical.fresh is False
     assert historical.voice_acknowledged is True
