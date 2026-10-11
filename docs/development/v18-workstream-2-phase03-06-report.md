@@ -1879,6 +1879,50 @@ No distributed fencing, independent globally current journal head,
 host/VM migration, tests, CI or live change is claimed.
 Original V18 task statuses remain unchanged.
 
+
+
+### Phase 03 item 59: Default offline restore never replaces existing bundle assets
+
+The original `BackupEngine.restore(replace_existing=False)` guarded
+only the canonical SQLite target: if `sofia.db` was missing in an
+otherwise populated recovery directory, the engine could silently
+overwrite `protected/identity.json`, Constitution, personality and
+other restored files using `os.replace` while still claiming no
+existing state was replaced.
+
+The **real production restore path** now preflights every authenticated
+manifest destination for preexisting files before decompression or
+copy publication. In default no-replace mode, it uses filesystem
+create-if-absent **hard-link publication** for each already fsynced
+randomly staged temporary file: a file appearing between the preflight
+and that individual publish fails closed without overwriting the
+intervening owner's bytes. Explicit `replace_existing=True` retains
+the existing reviewed replacement operation, which is still a
+file-by-file offline restore, **not** a whole-home atomic cutover or
+permission to overwrite the active state home. Unsupported filesystem
+hard-link behavior fails closed rather than downgrading to an
+overwriting rename.
+
+Production: `src/sofia/ops/backup.py`
+`da0d43f0aaa1696bbd526782a42da0cda01ad553` (`[skip ci]`).
+Deferred regressions:
+- `test/test_ws2_restore_whole_bundle_no_replace.py`
+  `5df7cbb06fe05a643c8edfedf130a1678c3c01f6`:
+  protect an existing identity even when SQLite is absent, reject
+  another writer creating a target during publication, and preserve
+  explicit reviewed replacement support.
+- `test/test_ws2_backup_restore_durability.py`
+  `52a17d470da5656a95aab467a3bbe0246abc1bb7`;
+  `test/test_ws2_restore_erasure_lock.py`
+  `7a611df286e194deaea48c2335612c20cd48f68e`:
+  deferred durability/lock assertions now inspect the actual
+  absence-only publication primitive rather than old `os.replace`.
+
+Original CA relevance: CA-5202, CA-5204, CA-6105,
+CA-6404, CA-6807, CA-6810. No tests, CI, active host restore,
+database move, backup replacement or activation performed. No
+original V18 task formally accepted.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
