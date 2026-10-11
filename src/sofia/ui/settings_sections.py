@@ -2366,19 +2366,57 @@ class SettingsSections:
             lambda: describe_state_candidates(Path(self.config.state_path)),
         )
         def preview_relocation():
-            from pathlib import Path
+            # Directory pickers normally return existing paths, whereas the
+            # verified staging publisher must use an ABSENT final name.
+            # Choose an existing parent, then preview a distinct new child;
+            # no directory, file, grant or state pointer is created here.
+            import re
+            from tkinter import simpledialog
             from sofia.ops.state_mobility import relocation_preflight_text
-            directory = filedialog.askdirectory(
-                parent=self.root, title="Select proposed local Sofía state home",
+
+            parent_directory = filedialog.askdirectory(
+                parent=self.root,
+                title="Choose parent folder for a NEW Sofía state home",
             )
-            if directory:
-                self.messagebox.showinfo(
-                    "Sofía state relocation preflight (read only)",
-                    relocation_preflight_text(
-                        Path(self.config.state_path), Path(directory),
-                    ),
+            if not parent_directory:
+                return
+            suggested = "Sofia"
+            folder = simpledialog.askstring(
+                "New state-home folder",
+                "Enter a new, not-yet-existing folder name "
+                "(preflight only; no data will move):",
+                initialvalue=suggested,
+                parent=self.root,
+            )
+            if folder is None:
+                return
+            reserved = {
+                "CON", "PRN", "AUX", "NUL",
+                *(f"COM{i}" for i in range(1, 10)),
+                *(f"LPT{i}" for i in range(1, 10)),
+            }
+            if (
+                re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}", folder)
+                is None
+                or folder.endswith((" ", "."))
+                or folder.split(".", 1)[0].upper() in reserved
+            ):
+                self.messagebox.showerror(
+                    "Invalid state-home folder",
+                    "Choose a simple 1–64 character folder name "
+                    "without path separators, reserved device names, "
+                    "or a trailing dot/space.",
                     parent=self.root,
                 )
+                return
+            destination = Path(parent_directory) / folder
+            self.messagebox.showinfo(
+                "Sofía state relocation preflight (read only)",
+                relocation_preflight_text(
+                    Path(self.config.state_path), destination,
+                ),
+                parent=self.root,
+            )
         self.ttk.Button(
             parent, text="Preview state relocation (does not move files)…",
             command=self.guarded(preview_relocation),
