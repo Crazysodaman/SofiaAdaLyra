@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "979fb44cd0faeedd7e508850555c35d20f8dca29",
+  "reviewed_main_sha": "64ea019c88dbfa55f318611c299a59a2bdc9b735",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -236,16 +236,22 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/cognition/budgets.py",
-        "src/sofia/cognition/context_evidence.py"
+        "src/sofia/cognition/context_evidence.py",
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/cognition/matrix/context_plan.py",
+        "src/sofia/application/conversation_matrix.py",
+        "src/sofia/application/optional_budget.py"
       ],
       "evidence_commits": [
-        "1925361e1362520c11980987167a410a6635deb0"
+        "1925361e1362520c11980987167a410a6635deb0",
+        "2886bb71e71cd7f5b3035b063d6c58796808c617"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
-        "depth": "source_slice_observed",
-        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+        "source_review_date": "2026-10-11",
+        "observed": "Retained prior-workstream review (including context_evidence.py) and added route token budgets, Matrix count/domain eligibility, optional-work reservation source inspection.",
+        "missing": "Per-source token caps, measured actual provider token occupancy and negative audience/freshness tests not yet established in this pass. No live or CI acceptance.",
+        "acceptance": "partial source evidence; preserves prior sibling status and commit."
       }
     },
     {
@@ -303,10 +309,24 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 85,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/verify/architecture_inventory.py",
+        "docs/development/phase00-static-ownership-harness.md",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py"
+      ],
+      "evidence_commits": [
+        "2886bb71e71cd7f5b3035b063d6c58796808c617"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Static owner map from architecture_inventory.py, canonical writer/consumer/error source contract and three production path diagrams; code and docs reviewed without executing.",
+        "missing": "No live/import/ABI reachability proof, per-component retention/failure audit or multi-host exact source/effect proof.",
+        "acceptance": "partial source evidence, no tests/CI or host acceptance."
+      }
     },
     {
       "id": "CA-3102",
