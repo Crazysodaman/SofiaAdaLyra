@@ -254,3 +254,45 @@ def test_platform_hello_proof_cannot_be_upgraded_to_protected_fido2(tmp_path):
         assert db.execute(
             "SELECT COUNT(*) FROM safe_execution_approval"
         ).fetchone()[0] == 0
+
+
+def test_preexisting_unverified_protected_approval_is_fenced_at_all_readers(tmp_path):
+    """Historical actor-only rows cannot survive the auth policy upgrade."""
+    from uuid import uuid4
+    from sofia.safe.execution_approval import (
+        ExecutionApprovalVerifier, execution_fingerprint,
+    )
+
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    approvals = ExecutionApprovalVerifier(state)
+    approval_id = str(uuid4())
+    args = {"host_id": "Artemis"}
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "INSERT INTO safe_execution_approval "
+            "(approval_id,capability,request_fingerprint,approved_by,approved_at,expires_at) "
+            "VALUES(?,?,?,?,?,?)",
+            (
+                approval_id, "fleet.enroll",
+                execution_fingerprint("fleet.enroll", args),
+                "Sparks", NOW.isoformat(),
+                (NOW + timedelta(minutes=5)).isoformat(),
+            ),
+        )
+    assert "fleet.enroll" not in approvals.active_capabilities(
+        now=NOW + timedelta(seconds=1)
+    )
+    assert not approvals.matches_unconsumed(
+        approval_id=approval_id, capability="fleet.enroll",
+        parameters=args, now=NOW + timedelta(seconds=1),
+    )
+    with pytest.raises(PermissionError, match="verified owner"):
+        approvals.consume(
+            approval_id=approval_id, capability="fleet.enroll",
+            parameters=args, now=NOW + timedelta(seconds=1),
+        )
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT consumed_at FROM safe_execution_approval WHERE approval_id=?",
+            (approval_id,),
+        ).fetchone() == (None,)
