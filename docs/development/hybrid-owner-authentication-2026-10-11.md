@@ -50,6 +50,10 @@ These are **documented future operator-run commands**, not host changes performe
 
 **All source changes committed to main with `[skip ci]`. No tests or CI were run. This is NOT fully enrolled or host-accepted production authentication.**
 
+## Audit finding: approval-to-effect atomicity (source review, 2026-10-11)
+
+`PermissionStore.grant`, `PermissionStore.revoke`, `PermissionStore.set_private_adult_authority` and `OperatorStopStore.set(active=False)` currently call `ExecutionApprovalVerifier.consume`, which opens, commits and closes its **own** SQLite transaction, before beginning the separate canonical state mutation transaction. A subsequent storage/constraint/OS failure can spend the one-use approval while leaving the requested mutation unapplied. The current design fails closed (no unauthorized new permission), but it does not yet provide all-or-nothing approval/mutation/audit evidence. The preferred repair is one shared guarded `BEGIN IMMEDIATE` transaction for approval consumption, exact-state mutation and append-only SAFE audit, with rollback covering every write and no early commit; keep independent remote side-effect semantics explicitly uncertain. This remains an **open source-audited gap**, not completed implementation. No tests were run.
+
 ## Still outstanding after the approved Option A coding slice
 
 - **Execution remains deferred:** New enrollment, registration, CLI and key-revocation code have not been tested on Windows Hello or an actual physical FIDO2 key. No hardware manufacturer attestation is claimed.
