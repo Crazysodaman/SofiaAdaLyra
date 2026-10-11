@@ -1342,6 +1342,7 @@ class SelfDirectedLifeCoordinator:
                 interest is None
                 or interest.status is not InterestStatus.ACTIVE
                 or interest.strength * interest.confidence < 0.60
+                or not self._original_interest_evidence_current(interest, now=now)
             ):
                 # A legitimate choice not to announce an achievement.
                 continue
