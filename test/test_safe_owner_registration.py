@@ -308,3 +308,35 @@ def test_revoke_requires_fido2_proof_and_keeps_at_least_one_security_key(
             "SELECT revoked_at FROM safe_owner_credential WHERE credential_id=?",
             (two,),
         ).fetchone()[0] is None
+
+
+def test_graphical_owner_session_does_not_require_console_but_initial_enrollment_does(
+    tmp_path, monkeypatch,
+):
+    from sofia.safe import owner_enroll_browser
+    calls = []
+    def token_sid(*, require_terminal=True):
+        calls.append(require_terminal)
+        return "S-1-5-21-TEST-OWNER"
+    monkeypatch.setattr(
+        owner_enroll_browser, "require_venus_interactive_windows", token_sid,
+    )
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    verifier = OwnerWebAuthnVerifier(state, rp_id="localhost", origin=ORIGIN)
+    # Establish the canonical owner binding without touching a real host.
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "CREATE TABLE safe_owner_host_identity ("
+            "singleton INTEGER PRIMARY KEY, windows_sid TEXT NOT NULL, "
+            "first_enrolled_at TEXT NOT NULL)"
+        )
+        db.execute(
+            "INSERT INTO safe_owner_host_identity VALUES(1,?,?)",
+            ("S-1-5-21-TEST-OWNER", NOW.isoformat()),
+        )
+    assert owner_enroll_browser.require_owner_windows_account(state) == (
+        "S-1-5-21-TEST-OWNER"
+    )
+    assert calls == [False]
+    owner_enroll_browser.require_venus_interactive_windows()
+    assert calls == [False, True]
