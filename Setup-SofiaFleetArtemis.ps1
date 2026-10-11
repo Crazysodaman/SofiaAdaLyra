@@ -8,6 +8,7 @@ param(
     [string]$ArtemisHost = "Artemis",
     [string]$ArtemisIp = "192.168.1.55",
     [int]$Port = 7443,
+    [string]$ControllerIp = "",
 
     [string]$FleetRoot = (Join-Path $env:LOCALAPPDATA "SofiaAdaLyra\FleetPKI\artemis-v1"),
     [string]$RemoteRoot = "C:\ProgramData\SofiaAdaLyra\FleetCanary",
@@ -411,30 +412,32 @@ function Start-OnArtemis {
         throw "Artemis agent configuration validation failed."
     }
 
-    Write-Step "Open temporary LocalSubnet firewall rule"
+    if (-not $ControllerIp) {
+        throw "Canary firewall requires an exact reviewed -ControllerIp."
+    }
+    $parsedIp = $null
+    if (-not [System.Net.IPAddress]::TryParse($ControllerIp, [ref]$parsedIp)) {
+        throw "Canary controller must be a literal IP address."
+    }
     $firewallName = "SofiaAdaLyra Fleet Canary $Port"
-
-    Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue |
-        Remove-NetFirewallRule -ErrorAction SilentlyContinue
-
-    New-NetFirewallRule `
-        -DisplayName $firewallName `
-        -Direction Inbound `
-        -Action Allow `
-        -Protocol TCP `
-        -LocalPort $Port `
-        -RemoteAddress LocalSubnet `
-        -Profile Any | Out-Null
-
-    Write-Host "Temporary rule created: $firewallName"
-
-    Write-Step "Start foreground Fleet agent"
-    Write-Host "The console will stay occupied while the agent is running."
-    Write-Host "Leave this window open and return to Venus for the Verify phase."
-    Write-Host "Press Ctrl+C when we are finished with the foreground canary."
-    Write-Host ""
-
-    & $agentPython -m sofia.distributed.agent_main --config $agentJson
+    if (Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue) {
+        throw "Old Fleet canary firewall rule exists; investigate before continuing."
+    }
+    try {
+        New-NetFirewallRule `
+            -DisplayName $firewallName `
+            -Direction Inbound `
+            -Action Allow `
+            -Protocol TCP `
+            -LocalPort $Port `
+            -RemoteAddress $ControllerIp `
+            -Profile Private | Out-Null
+        Write-Step "Start foreground Fleet agent"
+        & $agentPython -m sofia.distributed.agent_main --config $agentJson
+    } finally {
+        Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue |
+            Remove-NetFirewallRule -ErrorAction SilentlyContinue
+    }
 }
 
 function Verify-FromVenus {
