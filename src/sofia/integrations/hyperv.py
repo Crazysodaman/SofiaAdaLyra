@@ -116,6 +116,8 @@ class HyperVAdapter:
             "Disks=$disks; NetworkAdapters=$nics; DvdPaths=$dvd; "
             "SecureBoot=[string]$fw.SecureBoot; "
             "SecureBootTemplate=[string]$fw.SecureBootTemplate; "
+            "BootOrder=@($fw.BootOrder | ForEach-Object { "
+            "[string]$_.BootType }); "
             "ObservedAtUtc=[DateTime]::UtcNow.ToString('o') "
             "} | ConvertTo-Json -Depth 5 -Compress"
         )
