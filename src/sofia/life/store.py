@@ -36,8 +36,8 @@ class ProjectWorkPending(RuntimeError):
 class LifeStore:
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("canonical sofia.db is required")
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical sofia.db must exist and not be redirected")
         with closing(self._connect()) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS life_project (
@@ -168,7 +168,9 @@ class LifeStore:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical LIFE state missing or redirected")
+        db = sqlite3.connect(self.path.absolute().as_uri() + "?mode=rw", uri=True, timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA busy_timeout=10000")
