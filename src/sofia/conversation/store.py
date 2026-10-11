@@ -293,54 +293,59 @@ class ConversationStore:
         user_only: bool = False,
         limit: int = 6,
     ) -> tuple[ConversationMessage, ...]:
-        """Bounded evidence search scoped to one already-authorized session.
+        """Search ALL durable messages in the already-authorized session.
 
-        This is a conservative SQLite-backed stepping stone to FTS5. It caps
-        returned rows and memory; older rows still require index/FTS work.
-        Source message IDs remain available for user-verifiable provenance.
+        SQL performs the ranking and LIMIT before rows enter Python. This
+        corrects the old "newest 256 matching rows" recall blind spot.
+        No session or audience access is granted here; that remains the
+        ConversationService/SocialSessionStore boundary. Full-text indexing
+        is a separate optimization, not a reason to omit older evidence.
         """
         if not isinstance(session_id, str) or not session_id.strip():
             raise ValueError("nonempty session ID required")
         if type(limit) is not int or not 1 <= limit <= 32:
             raise ValueError("bounded evidence limit required")
+        if not isinstance(exclude_message_id, str):
+            raise TypeError("exclude_message_id must be text")
         if not isinstance(terms, tuple) or len(terms) > 8 or any(
             not isinstance(term, str) or not term.isascii()
             or not term.isalnum() or not 2 <= len(term) <= 48
             for term in terms
         ):
             raise ValueError("up to 8 bounded alphanumeric search terms required")
-        predicates = ["session_id=?", "id<>?"]
-        params: list[object] = [session_id, exclude_message_id]
+        predicates = ["session_id = ?", "id <> ?"]
+        arguments: list[object] = [session_id, exclude_message_id]
         if user_only:
-            predicates.append("role='user'")
+            predicates.append("role = 'user'")
         if terms:
-            predicates.append("(" + " OR ".join(
-                "instr(lower(content), ?) > 0" for _ in terms
-            ) + ")")
-            params.extend(terms)
-        params.append(256)
+            expressions = ["instr(lower(content), ?) > 0" for _ in terms]
+            predicates.append("(" + " OR ".join(expressions) + ")")
+            arguments.extend(term.lower() for term in terms)
+            scores = [
+                "(CASE WHEN instr(lower(content), ?) > 0 THEN 1 ELSE 0 END)"
+                for _ in terms
+            ]
+            order = " + ".join(scores) + " DESC, created_at DESC, id DESC"
+            arguments.extend(term.lower() for term in terms)
+        else:
+            order = "created_at DESC, id DESC"
+        arguments.append(limit)
+        sql = (
+            "SELECT id, session_id, role, content, created_at FROM "
+            "conversation_messages WHERE " + " AND ".join(predicates)
+            + " ORDER BY " + order + " LIMIT ?"
+        )
         with self._lock:
             rows = self._require_connection().execute(
-                "SELECT id, session_id, role, content, created_at FROM "
-                "conversation_messages WHERE " + " AND ".join(predicates)
-                + " ORDER BY created_at DESC, id DESC LIMIT ?",
-                params,
+                sql, tuple(arguments)
             ).fetchall()
-        ranked = sorted(
-            rows,
-            key=lambda row: (
-                sum(token in row[3].casefold() for token in terms),
-                row[4], row[0],
-            ),
-            reverse=True,
-        )[:limit]
-        ranked.sort(key=lambda row: (row[4], row[0]))
+        rows = sorted(rows, key=lambda row: (row[4], row[0]))
         return tuple(
             ConversationMessage(
                 id=row[0], session_id=row[1],
                 role=ConversationRole(row[2]), content=row[3],
                 created_at=datetime.fromisoformat(row[4]),
-            ) for row in ranked
+            ) for row in rows
         )
 
     def close(self) -> None:
