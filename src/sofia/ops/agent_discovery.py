@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
-from http.client import HTTPSConnection
+from http.client import HTTPSConnection, HTTPException
 import ipaddress
 import json
 import os
@@ -144,7 +144,9 @@ class MtlsAgentDiscoverySource:
             if not isinstance(payload, dict):
                 return None
             return payload, key_fingerprint
-        except (OSError, ssl.SSLError):
+        except (OSError, ssl.SSLError, HTTPException):
+            # Truncated HTTP bodies and malformed response framing are
+            # untrusted discovery failures, never a Fleet controller crash.
             return None
         finally:
             connection.close()
