@@ -155,6 +155,7 @@ _READ_ONLY = frozenset({
     "ops.reconcile.active",
     "ops.migration.plan",
     "ops.migration.receipt",
+    "ops.workshop.preview",
     "ops.maintenance.receipt",
     "remote.nodes",
     "remote.process.inspect",
