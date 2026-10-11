@@ -76,7 +76,7 @@ jobs:
       - name: Run revision-bound verification gate
         shell: pwsh
         run: |
-          .\.releasevenv\Scripts\python.exe -m sofia.verify.gate --phase full --evidence-path verification-evidence.json
+          .\.releasevenv\Scripts\python.exe -m sofia.verify.gate --phase full --repo "$env:GITHUB_WORKSPACE" --evidence-path verification-evidence.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build wheel twice and require reproducibility

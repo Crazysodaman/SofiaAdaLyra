@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     selector.add_argument("--all", action="store_true")
     selector.add_argument("--marker")
     parser.add_argument(
-        "--repo", type=Path, default=Path(__file__).resolve().parents[3],
+        "--repo", type=Path, default=Path.cwd(),
     )
     parser.add_argument("--receipt", type=Path)
     args = parser.parse_args(argv)

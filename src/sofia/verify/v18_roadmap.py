@@ -179,7 +179,7 @@ def validate_repository(repo_root: Path) -> dict[str, object]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m sofia.verify.v18_roadmap")
     parser.add_argument(
-        "--repo", type=Path, default=Path(__file__).resolve().parents[3],
+        "--repo", type=Path, default=Path.cwd(),
         help="canonical Git checkout containing ROADMAP and source evidence",
     )
     args = parser.parse_args(argv)

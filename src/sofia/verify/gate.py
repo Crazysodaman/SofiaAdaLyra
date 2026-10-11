@@ -88,9 +88,10 @@ _PHASES = {
 }
 
 
-def _git_revision() -> str:
+def _git_revision(repo_root: Path) -> str:
     result = subprocess.run(
         ("git", "rev-parse", "HEAD"),
+        cwd=repo_root,
         check=True,
         capture_output=True,
         text=True,
@@ -101,11 +102,12 @@ def _git_revision() -> str:
     return value
 
 
-def _tracked_tree_clean() -> bool:
+def _tracked_tree_clean(repo_root: Path) -> bool:
     """Require executed code and tracked files to equal the reported revision."""
 
     result = subprocess.run(
         ("git", "diff", "--quiet", "HEAD", "--"),
+        cwd=repo_root,
         check=False,
     )
     if result.returncode not in {0, 1}:
@@ -117,11 +119,26 @@ def run_gate(
     phase: str,
     *,
     evidence_path: Path,
+    repo_root: Path | None = None,
 ) -> VerificationEvidence:
     if phase not in _PHASES:
         raise ValueError(f"unsupported verification phase: {phase}")
     if not isinstance(evidence_path, Path):
         raise TypeError("evidence_path must be a Path")
+    if repo_root is not None and not isinstance(repo_root, Path):
+        raise TypeError("repo_root must be a Path")
+    repo = (repo_root if repo_root is not None else Path.cwd()).resolve(strict=True)
+    # The production verifier may be imported from an installed wheel.
+    # Its code path is NOT the repository's source-of-truth directory.
+    if not (repo / ".git").exists() or not (repo / "pyproject.toml").is_file():
+        raise RuntimeError("verification requires the actual Git checkout root")
+    checkout = subprocess.run(
+        ("git", "rev-parse", "--show-toplevel"), cwd=repo,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    # Windows Git normally returns C:/... while pathlib renders C:\\....
+    if Path(checkout).resolve(strict=True) != repo:
+        raise RuntimeError("verification repository is not the checkout root")
 
     commands: list[GateCommandEvidence] = []
     for name, args in _PHASES[phase]:
@@ -129,6 +146,7 @@ def run_gate(
         start = time.monotonic()
         result = subprocess.run(
             (sys.executable, *args),
+            cwd=repo,
             check=False,
         )
         end = time.monotonic()
@@ -147,9 +165,9 @@ def run_gate(
 
     report = VerificationEvidence(
         phase=phase,
-        git_revision=_git_revision(),
+        git_revision=_git_revision(repo),
         python_version=sys.version,
-        tracked_tree_clean=_tracked_tree_clean(),
+        tracked_tree_clean=_tracked_tree_clean(repo),
         generated_at=datetime.now(timezone.utc).isoformat(),
         commands=tuple(commands),
     )
@@ -184,11 +202,16 @@ def main(argv: list[str] | None = None) -> int:
         "--evidence-path",
         default="verify-evidence.json",
     )
+    parser.add_argument(
+        "--repo", type=Path, default=Path.cwd(),
+        help="Exact checkout root; never derive from installed site-packages.",
+    )
     args = parser.parse_args(argv)
     try:
         report = run_gate(
             args.phase,
             evidence_path=Path(args.evidence_path),
+            repo_root=args.repo,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         print(

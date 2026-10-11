@@ -57,7 +57,7 @@ jobs:
       - name: Prove nonempty package selection without running tests
         shell: pwsh
         run: |
-          python -m sofia.verify.package_selection --marker "${{ matrix.package }}" --receipt "package-selection-${{ matrix.package }}.json"
+          python -m sofia.verify.package_selection --repo "$env:GITHUB_WORKSPACE" --marker "${{ matrix.package }}" --receipt "package-selection-${{ matrix.package }}.json"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run package tests
