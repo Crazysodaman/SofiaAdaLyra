@@ -378,6 +378,8 @@ class SelfDirectedLifeCoordinator:
         """Validate an open-ended structured idea; no project catalogue is consulted."""
         if not isinstance(idea, ProjectIdea):
             raise TypeError("ProjectIdea required")
+        if self.operator_stop.current().active:
+            raise PermissionError("operator stop blocks optional LIFE project creation")
         self._verify_evidence(idea.evidence_refs)
         try:
             artifact_kind = ArtifactKind(idea.requested_artifact_kind)
@@ -452,6 +454,8 @@ class SelfDirectedLifeCoordinator:
         if self.operator_stop.current().active:
             raise PermissionError("operator stop blocks optional LIFE project activation")
         project = self._project(project_id)
+        if self.operator_stop.current().active:
+            raise PermissionError("operator stop blocks optional LIFE goal activation")
         if project.status is not ProjectStatus.PROPOSED:
             raise ValueError("only a proposed project may be activated")
         self._verify_evidence(evidence_refs)
@@ -1119,7 +1123,11 @@ class SelfDirectedLifeCoordinator:
         # Refuse before waking the cognitive provider or reserving a draft.
         if self.operator_stop.current().active:
             return None
-        if busy or resource_pressure >= 0.65 or self.store.quiet_until(now=now) is not None:
+        if (
+            self.operator_stop.current().active
+            or busy or resource_pressure >= 0.65
+            or self.store.quiet_until(now=now) is not None
+        ):
             return None
         live = self.store.list_scope(
             owner_principal_id=SOFIA_PROJECT_OWNER, audience_id=LOCAL_AUDIENCE,
@@ -1148,6 +1156,15 @@ class SelfDirectedLifeCoordinator:
                 experience_summaries=tuple(item.summary for item in experiences),
                 now=now,
             )
+            # A model can take time. Operator stop may have been asserted
+            # while the unprivileged suggestion was being produced.
+            if self.operator_stop.current().active:
+                self.store.finish_idea_attempt(
+                    slot, status="declined",
+                    reason="operator_stop_after_model_suggestion",
+                    suggestion_id=suggestion.suggestion_id,
+                )
+                return None
             # Project origin must be the one exact selected eligible
             # interest, not whichever interest happens to sort first.
             # Evidence from unrelated interests never launders into a
@@ -2309,6 +2326,18 @@ class SelfDirectedLifeCoordinator:
         observed = self.store.reconcile_run_outcomes(now=now)
         terminal_settled = self._reconcile_terminal_run_projects(now=now)
         goal_settled = self._reconcile_canonical_goal_lifecycle(now=now)
+        if self.operator_stop.current().active:
+            return {
+                "selection": SelectionKind.INACTIVITY.value,
+                "project_id": None,
+                "scheduled": 0,
+                "jobs_started": 0,
+                "follow_through": "operator_stop",
+                "run_outcomes_observed": len(observed),
+                "terminal_run_projects_settled": terminal_settled,
+                "goal_lifecycle_projects_settled": goal_settled,
+                "review_queue": self.pending_work_review(limit=16),
+            }
         if self.operator_stop.current().active:
             # Settling already-observed durable outcomes is bookkeeping,
             # not a license to launch new optional work or wake the model.
