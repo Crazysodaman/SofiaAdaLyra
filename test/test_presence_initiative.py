@@ -1143,3 +1143,57 @@ def test_presence_notice_with_changed_evidence_identity_fails_closed(tmp_path):
         assert sent == []
     finally:
         life.close()
+
+
+def test_presence_source_audience_revocation_blocks_already_queued_notice(
+    state,
+):
+    """A changed original private audience cannot rebroadcast to Desktop."""
+    import sqlite3
+
+    sent = []
+    service = configured(state, sent)
+    engine = PresenceInitiativeEngine(
+        state_path=state, act_service=service,
+    )
+    queued = engine.consider(event(event_id="audience-revocation"))
+    assert queued.status == "queued"
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE presence_world_observation SET audience_id=? "
+            "WHERE observation_id=?",
+            ("discord:unreviewed-private", "observation:audience-revocation"),
+        )
+    assert service.deliver_one(now=NOW) is None
+    assert sent == []
+    trace = OutreachTraceStore(state).history(notice_id=queued.notice_id)
+    assert all(row.stage != "transport_attempt" for row in trace)
+    assert any(
+        row.stage == "deferred" and row.reason == "authorization_unavailable"
+        for row in trace
+    )
+
+
+def test_presence_notice_rejects_altered_original_event_identity(state):
+    """A substituted source event does not inherit a queued notice grant."""
+    import sqlite3
+
+    sent = []
+    service = configured(state, sent)
+    engine = PresenceInitiativeEngine(
+        state_path=state, act_service=service,
+    )
+    queued = engine.consider(event(event_id="original-id-A"))
+    assert queued.status == "queued"
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE presence_initiative_opportunity SET event_id=? "
+            "WHERE notice_id=?",
+            ("original-id-B", queued.notice_id),
+        )
+    assert service.deliver_one(now=NOW) is None
+    assert sent == []
+    assert all(
+        row.stage != "transport_attempt"
+        for row in OutreachTraceStore(state).history(notice_id=queued.notice_id)
+    )
