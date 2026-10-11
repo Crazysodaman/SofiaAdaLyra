@@ -709,6 +709,155 @@ class SettingsSections:
         handoff_queue=Queue()
         handoff_busy={"active":False}
 
+        # The initial owner-created VM may still be on the old Private
+        # switch. This is a distinct, non-model, Level-4 host network action,
+        # explicitly reviewed before a one-use SAFE + Fleet request.
+        from sofia.ops.workshop_network import (
+            guest_network_contract,network_policy_digest,
+        )
+        from sofia.ops.workshop_network_stage import (
+            WorkshopNetworkStageStore,stage_approved_internal_network,
+        )
+        network_stage_busy={"active":False}
+        network_stage_queue=Queue()
+        internal_stage_preview={"text":json.dumps(
+            guest_network_contract(),indent=2,default=str,
+        )}
+        internal_stage_view=self.viewer(
+            frames["Fleet"],
+            "Dedicated Internal host-to-guest network policy and source status",
+            lambda:internal_stage_preview["text"],
+        )
+
+        def owner_stage_internal_link():
+            if network_stage_busy["active"] or handoff_busy["active"]:
+                return
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator STOP blocks network changes")
+            from uuid import UUID,uuid4
+            node=str(UUID(handoff_node.get().strip()))
+            vm=str(UUID(handoff_vm.get().strip()))
+            if node==vm:
+                raise ValueError("Artemis enrolled node and Hephaestus VM differ")
+            existing=WorkshopNetworkStageStore(config.state_path).read(
+                vm_id=vm,
+            )
+            if existing is not None:
+                raise PermissionError(
+                    "one Internal network staging attempt already recorded: "
+                    +existing.status+". Inspect Artemis before recovery."
+                )
+            contract=guest_network_contract()
+            if not self.messagebox.askyesno(
+                "Level-4: STAGE Internal network on Artemis?",
+                (
+                    "This WILL change the existing powered-OFF Hephaestus "
+                    "VM's virtual NIC and may CREATE the dedicated INTERNAL "
+                    "switch and assign a host-only address on Artemis.\n\n"
+                    f"Artemis enrolled node: {node}\n"
+                    f"Exact Hephaestus Hyper-V VM: {vm}\n"
+                    f"Switch: {contract['switch']}\n"
+                    f"Artemis: {contract['host_ipv4']}\n"
+                    f"Guest future: {contract['guest_ipv4']}\n"
+                    "NO Default Switch, LAN bridge, DNS, gateway, forwarding "
+                    "or NAT. Sibling VMs must remain untouched.\n\n"
+                    "An independently enabled/pinned Artemis agent and one-use "
+                    "approval are required. A timeout is UNCERTAIN, never "
+                    "a reason to retry blindly. This does NOT install Debian."
+                ),parent=root,
+            ):
+                return
+            now=datetime.now(timezone.utc)
+            approval=ExecutionApproval(
+                approval_id=str(uuid4()),
+                capability="workshop.network.create",
+                request_fingerprint=execution_fingerprint(
+                    "workshop.network.create",
+                    {
+                        "artemis_node_id":node,
+                        "vm_id":vm,
+                        "network_policy_digest":network_policy_digest(),
+                    },
+                ),
+                approved_by="owner:interactive",
+                approved_at=now,
+                expires_at=now+timedelta(minutes=10),
+            )
+            ExecutionApprovalVerifier(config.state_path).record(approval)
+            network_stage_busy["active"]=True
+            network_stage_button.configure(state="disabled")
+
+            def stage_worker():
+                service=None
+                try:
+                    service=create_configured_remote_fleet_service(
+                        config.state_path,
+                    )
+                    if service is None:
+                        raise PermissionError("Artemis pinned-mTLS agent unavailable")
+                    receipt=stage_approved_internal_network(
+                        state_path=config.state_path,service=service,
+                        artemis_node_id=node,hyperv_vm_id=vm,
+                        approval_id=approval.approval_id,
+                        at=datetime.now(timezone.utc),
+                    )
+                    network_stage_queue.put((
+                        "ok",
+                        "Host stage report: "+receipt.status+"\n"
+                        "VM: "+receipt.vm_id+"\n"
+                        "Guest OS/guest IP configured: NO\n"
+                        "Host isolation independently verified: NO\n"
+                        "Continue with fresh read-only Hephaestus handoff "
+                        "before any Debian installer approval.",
+                    ))
+                except Exception as exc:
+                    network_stage_queue.put((
+                        "error",
+                        type(exc).__name__+": "+str(exc)
+                        +"\nThe host may have changed before a transport error. "
+                        "Inspect its VM, NIC, switch and canonical receipt "
+                        "before any further attempt.",
+                    ))
+                finally:
+                    if service is not None:
+                        service.close()
+
+            Thread(
+                target=stage_worker,
+                name="sofia-owner-approved-hyperv-internal-link-stage",
+                daemon=False,
+            ).start()
+
+        network_stage_button=ttk.Button(
+            frames["Fleet"],
+            text="Review & authorize one host-to-guest Internal link stage (protected)",
+            command=self.guarded(owner_stage_internal_link),
+        )
+        network_stage_button.pack(anchor="w",pady=(6,8))
+
+        def poll_internal_network_stage():
+            try:
+                outcome,message=network_stage_queue.get_nowait()
+            except Empty:
+                pass
+            else:
+                network_stage_busy["active"]=False
+                network_stage_button.configure(state="normal")
+                internal_stage_preview["text"]=message
+                internal_stage_view.refresh()
+                if outcome=="error":
+                    self.messagebox.showerror(
+                        "Artemis Internal link needs host review",message,parent=root,
+                    )
+                else:
+                    self.messagebox.showinfo(
+                        "Internal host network staging reported",message,parent=root,
+                    )
+            if root.winfo_exists():
+                root.after(350,poll_internal_network_stage)
+
+        root.after(350,poll_internal_network_stage)
+
         def preview_blank_hephaestus():
             if handoff_busy["active"]:
                 return
