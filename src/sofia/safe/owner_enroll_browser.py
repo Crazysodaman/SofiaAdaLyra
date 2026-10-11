@@ -7,6 +7,7 @@ No API endpoint can self-enroll a key by supplying a display name.
 from __future__ import annotations
 
 import ctypes
+from contextlib import closing
 from datetime import datetime, timezone
 from hashlib import sha256
 from html import escape
@@ -108,17 +109,15 @@ def require_venus_interactive_windows() -> None:
 
 def enroll_attended(
     state_path: Path | str, *, kind: str, existing_credential_id: str | None = None,
-    timeout_seconds: int = 120, open_browser=None, require_host=True,
+    timeout_seconds: int = 120, open_browser=None,
 ) -> str:
     """Perform one attended WebAuthn create and persist only after verification.
 
     First enrollment is a Windows Hello platform credential on Venus. Subsequent
     registration requires an owner assertion for this exact registration session.
-    The input host policy is bypassable only in synthetic tests that supply an
-    alternate require_host=False; the production CLI never does so.
+    Host admission is mandatory. Isolated tests patch the platform guard.
     """
-    if require_host:
-        require_venus_interactive_windows()
+    require_venus_interactive_windows()
     if kind not in ("platform", "security_key"):
         raise ValueError("unknown owner credential role")
     if type(timeout_seconds) is not int or not 15 <= timeout_seconds <= 120:
