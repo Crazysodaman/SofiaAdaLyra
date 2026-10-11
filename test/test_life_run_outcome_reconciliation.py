@@ -189,3 +189,98 @@ def test_exact_original_terminal_receipt_survives_unrelated_observation_volume(
         assert life.store.jobs(project.project_id) == (job.job_id,)
     finally:
         life.close()
+
+
+def test_older_original_terminal_run_event_survives_later_queued_job(
+    tmp_path,
+):
+    """A new queued job cannot conceal the prior source-backed RUN failure."""
+    from sofia.creative import ArtifactKind
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, first = _queued_job(life, now)
+        original = life.work_store.transition(
+            first.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.UNCERTAIN,
+            reason="first external work result uncertain",
+            now=now + timedelta(seconds=4),
+        )
+        assert original.status is WorkStatus.UNCERTAIN
+        evidence = life.record_observation(
+            kind="reconciliation-test-original",
+            source="test:source-evidence",
+            assertion="A separate still-queued work item was admitted in error.",
+            now=now + timedelta(seconds=5),
+        )
+        # Historical admission may have allowed later work before the LIFE
+        # tick projected the first uncertain effect. No RUN execution here.
+        # Directly insert the queued original job via its reviewed public
+        # scheduling path only when the store's unsettled-work fence permits.
+        later = life.manager.submit(
+            kind="life-create-artifact",
+            fingerprint="life-late-queued-run-source-test",
+            payload={
+                "project_id": project.project_id,
+                "goal_id": project.goal_id,
+                "project_revision": project.revision,
+                "goal_revision": 1,
+                "capability_name": "creative.artifact.create",
+                "parameters": {"request_id": "request:test-pending-original"},
+                "requested_scope": project.project_id,
+                "rationale": "queued only, no execution",
+            },
+            priority=1, resource_cost=1, risk="isolated_change",
+            completion_condition="Review original result only",
+            now=now + timedelta(seconds=5),
+            deadline=now + timedelta(minutes=1),
+        )
+        # Historical original LIFE job association, not a new scheduler.
+        with life.store._connect() as db:
+            with db:
+                db.execute(
+                    "INSERT INTO life_project_job VALUES(?,?,?)",
+                    (
+                        project.project_id, later.job_id,
+                        (now + timedelta(seconds=5)).isoformat(),
+                    ),
+                )
+        result = life.tick(now=now + timedelta(seconds=6), busy=True)
+        assert result["terminal_run_projects_settled"] == 1
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert life.store.jobs(project.project_id) == (
+            first.job_id, later.job_id,
+        )
+        assert life.work_store.get(later.job_id).status is WorkStatus.QUEUED
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_unverified_older_run_failure_never_overrides_newer_work(tmp_path):
+    """Absent original terminal source cannot be projected as verified."""
+    import sqlite3
+    from sofia.creative import ArtifactKind
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, first = _queued_job(life, now)
+        life.work_store.transition(
+            first.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.BLOCKED, reason="unverified diagnostic",
+            now=now + timedelta(seconds=4),
+        )
+        # The original durable event, not the mutable RUN status field,
+        # proves a terminal effect. Remove it for a corrupt-history fixture.
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "DELETE FROM autonomous_work_event "
+                "WHERE job_id=? AND to_status='blocked'",
+                (first.job_id,),
+            )
+        assert life.store.reconcile_run_outcomes(now=now + timedelta(seconds=5)) == ()
+        report = life.tick(now=now + timedelta(seconds=6), busy=True)
+        assert report["terminal_run_projects_settled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+    finally:
+        life.close()
