@@ -729,6 +729,94 @@ class SettingsSections:
             lambda:internal_stage_preview["text"],
         )
 
+        network_preflight_busy={"active":False}
+        network_preflight_queue=Queue()
+
+        def inspect_original_internal_link():
+            if network_preflight_busy["active"]:
+                return
+            from uuid import UUID
+            node=str(UUID(handoff_node.get().strip()))
+            vm=str(UUID(handoff_vm.get().strip()))
+            if node==vm:
+                raise ValueError("Artemis node ID and Hephaestus VM ID must differ")
+            network_preflight_busy["active"]=True
+            network_preflight_button.configure(state="disabled")
+
+            def inspect_network_worker():
+                service=None
+                try:
+                    service=create_configured_remote_fleet_service(
+                        config.state_path,
+                    )
+                    if service is None:
+                        raise PermissionError("pinned Artemis Fleet unavailable")
+                    response=service.invoke(
+                        node,"workshop.inspect","network_stage_preflight",{},
+                    )
+                    if (
+                        not isinstance(response,dict)
+                        or response.get("node_id")!=node
+                        or response.get("outcome")!="reported_success"
+                        or not isinstance(response.get("message"),str)
+                        or len(response["message"])>16_384
+                    ):
+                        raise RuntimeError("authenticated current-VM network observation failed")
+                    host=json.loads(response["message"])
+                    if (
+                        not isinstance(host,dict)
+                        or host.get("VmId")!=vm
+                        or host.get("Name")!="Hephaestus"
+                        or host.get("HostChangePerformed") is not False
+                    ):
+                        raise PermissionError("read-only network source did not match pinned VM")
+                    network_preflight_queue.put((
+                        "ok",
+                        json.dumps(host,indent=2,default=str)
+                        +"\n\nREAD ONLY; NO HOST CHANGE; no guest OS claims. "
+                        "Source must be rechecked inside separately approved stage.",
+                    ))
+                except Exception as exc:
+                    network_preflight_queue.put((
+                        "error",type(exc).__name__+": "+str(exc)
+                        +"\nArtemis host network remains unmodified.",
+                    ))
+                finally:
+                    if service is not None:
+                        service.close()
+            Thread(
+                target=inspect_network_worker,
+                name="sofia-readonly-hephaestus-existing-network",
+                daemon=False,
+            ).start()
+
+        network_preflight_button=ttk.Button(
+            frames["Fleet"],
+            text="Inspect current Hephaestus network before changing anything (read only)",
+            command=self.guarded(inspect_original_internal_link),
+        )
+        network_preflight_button.pack(anchor="w",pady=(3,7))
+
+        def poll_original_internal_link():
+            try:
+                kind,report=network_preflight_queue.get_nowait()
+            except Empty:
+                pass
+            else:
+                network_preflight_busy["active"]=False
+                network_preflight_button.configure(state="normal")
+                internal_stage_preview["text"]=report
+                internal_stage_view.refresh()
+                if kind=="error":
+                    self.messagebox.showerror(
+                        "Artemis network inspection unavailable",
+                        report,parent=root,
+                    )
+            if root.winfo_exists():
+                root.after(350,poll_original_internal_link)
+
+        root.after(350,poll_original_internal_link)
+
         def owner_stage_internal_link():
             if network_stage_busy["active"] or handoff_busy["active"]:
                 return
