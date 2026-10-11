@@ -30,9 +30,12 @@ class VerificationEvidence:
     tracked_tree_clean: bool
     generated_at: str
     commands: tuple[GateCommandEvidence, ...]
+    revision_stable: bool = True
 
     @property
     def accepted(self) -> bool:
+        if self.revision_stable is not True:
+            return False
         expected = _PHASES.get(self.phase)
         if expected is None or len(self.commands) != len(expected):
             # An empty, shortened, reordered, or duplicated command
@@ -191,6 +194,7 @@ def run_gate(
     if installed_wheel_only:
         _assert_installed_wheel_origin(repo)
 
+    starting_revision = _git_revision(repo)
     commands: list[GateCommandEvidence] = []
     for name, args in _PHASES[phase]:
         command = (sys.executable, *args)
@@ -223,13 +227,15 @@ def run_gate(
         if result.returncode != 0:
             break
 
+    ending_revision = _git_revision(repo)
     report = VerificationEvidence(
         phase=phase,
-        git_revision=_git_revision(repo),
+        git_revision=starting_revision,
         python_version=sys.version,
         tracked_tree_clean=_tracked_tree_clean(repo),
         generated_at=datetime.now(timezone.utc).isoformat(),
         commands=tuple(commands),
+        revision_stable=(starting_revision == ending_revision),
     )
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     temp = evidence_path.with_suffix(evidence_path.suffix + ".tmp")
