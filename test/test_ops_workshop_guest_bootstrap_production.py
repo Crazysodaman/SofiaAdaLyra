@@ -42,6 +42,7 @@ def vm_facts(at):
         ],
         "DvdPaths":[],"SecureBoot":"Off",
         "SecureBootTemplate":"",
+        "BootOrder":["HardDiskDrive","NetworkAdapter"],
         "ObservedAtUtc":at.isoformat(),
     }
 
