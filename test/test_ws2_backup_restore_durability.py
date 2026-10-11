@@ -60,13 +60,14 @@ def test_restore_flushes_temp_bytes_before_rename_and_directory_afterwards(
                if kind == "rename" and str(target.parent) in path]
     assert renames
     for index, destination in renames:
-        expected_temp = str(
-            __import__("pathlib").Path(destination).with_name(
-                "." + __import__("pathlib").Path(destination).name + ".restore"
-            )
-        )
+        # The secure restore temp is an exclusively created random file,
+        # never a predictable preexisting ".restore" symlink alias.
+        from pathlib import Path
+        prefix = str(Path(destination).with_name(
+            "." + Path(destination).name + ".restore-"
+        ))
         assert any(
-            kind == "sync" and path == expected_temp
+            kind == "sync" and path.startswith(prefix) and path.endswith(".tmp")
             for kind, path in observed[:index]
         )
     last_rename = max(index for index, _ in renames)
@@ -90,7 +91,8 @@ def test_restore_refuses_rename_before_durable_temporary_file(
     published = []
 
     def failed_temp_fsync(descriptor):
-        if os.readlink(f"/proc/self/fd/{descriptor}").endswith(".restore"):
+        original_path = os.readlink(f"/proc/self/fd/{descriptor}")
+        if ".restore-" in original_path and original_path.endswith(".tmp"):
             raise OSError("simulated crash durability failure")
         return original_fsync(descriptor)
 
