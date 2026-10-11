@@ -43,6 +43,8 @@ from sofia.filesystem.capability import FilesystemCapability
 from sofia.filesystem.change_capability import FilesystemChangesCapability,create_filesystem_changes_binding
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
+from sofia.identity.model import IdentityBootstrapMode
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.net import create_configured_web_tools
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
@@ -119,6 +121,11 @@ def compose(
     configuration: SofiaConfiguration,
 ) -> SofiaRuntime:
     state_path = Path(configuration.state_path)
+    if configuration.identity_bootstrap_mode is IdentityBootstrapMode.REQUIRE_EXISTING:
+        # Production recovery must never silently seed a new empty authority.
+        # This preflight is deliberately earlier than ANY SQLiteStatePlane,
+        # permissions, memory, or other store initialization.
+        CanonicalSQLiteGuard(state_path)
     state_plane = create_state_plane(state_path)
     configuration = apply_reviewed_configuration(
         configuration,
