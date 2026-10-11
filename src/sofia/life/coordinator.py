@@ -1541,20 +1541,32 @@ class SelfDirectedLifeCoordinator:
         )
         halted = self.operator_stop.current().active
         view: list[dict[str, object]] = []
-        verified_procedure_sources = dict(
-            self.procedures.verified_proof_projects(limit=64)
-        )
-        # Validate each source group once per operator request, not once
-        # per project card. Artifact hashing is real disk I/O and must
-        # remain bounded even after years of completed creative history.
-        currently_verified_procedures = {
-            procedure_id
-            for procedure_id, source_project_ids
-            in verified_procedure_sources.items()
-            if self._verified_procedure_origins_current(
-                source_project_ids, procedure_id=procedure_id, now=now,
-            )
-        }
+        # Verify only exact procedures needed by the selected projects.
+        # A global newest-N VERIFIED page is not a trustworthy eligibility
+        # filter for a long-lived catalog: older relevant precedents can be
+        # omitted once the number of unrelated entries passes that page.
+        # Cache each bounded current source-byte check per operator request
+        # so multiple projects sharing a procedure do not repeat disk I/O.
+        verified_compatibility_cache: dict[str, bool] = {}
+
+        def current_compatible_procedures(project: LifeProject) -> tuple[str, ...]:
+            eligible = []
+            for precedent in self.procedures.available_for_project(
+                project, limit=2,
+            ):
+                procedure_id = precedent.procedure_id
+                if procedure_id not in verified_compatibility_cache:
+                    original_ids = self.procedures.source_projects_for_compatible_precedent(
+                        procedure=precedent, project=project,
+                    )
+                    verified_compatibility_cache[procedure_id] = (
+                        self._verified_procedure_origins_current(
+                            original_ids, procedure_id=procedure_id, now=now,
+                        )
+                    )
+                if verified_compatibility_cache[procedure_id]:
+                    eligible.append(procedure_id)
+            return tuple(eligible)
         for project in projects[:limit]:
             goal = visible.get(project.goal_id)
             milestone_rows = self.store.milestones(project.project_id)
@@ -1755,11 +1767,7 @@ class SelfDirectedLifeCoordinator:
                 "parent_goal_id": None if goal is None else goal.parent_goal_id,
                 "priority": project.priority,
                 "verified_procedures": (
-                    tuple(
-                        entry.procedure_id
-                        for entry in self.procedures.available_for_project(project)
-                        if entry.procedure_id in currently_verified_procedures
-                    )
+                    current_compatible_procedures(project)
                     if project.scope is ProjectScope.PERSONAL_PRIVATE
                     and project.goal_id is not None
                     else ()
