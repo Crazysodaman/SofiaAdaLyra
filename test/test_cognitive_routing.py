@@ -1041,3 +1041,15 @@ def test_verify_tool_request_does_not_reenter_failed_primary_after_secondary_fal
         "primary",
         "secondary",
     )
+
+
+def test_enabled_fleet_policy_requires_explicit_owner_local_fallback(monkeypatch):
+    monkeypatch.setenv("SOFIA_COGNITION_FLEET_ENABLED", "1")
+    monkeypatch.delenv("SOFIA_COGNITION_FLEET_LOCAL_FALLBACK", raising=False)
+    settings = create_default_configuration().fleet_cognition
+    assert settings.enabled is True
+    assert settings.local_fallback is False
+
+    monkeypatch.setenv("SOFIA_COGNITION_FLEET_LOCAL_FALLBACK", "1")
+    opted_in = create_default_configuration().fleet_cognition
+    assert opted_in.local_fallback is True
