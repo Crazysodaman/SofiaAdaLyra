@@ -117,7 +117,9 @@ class NeuroObservabilityStore:
                 "novelty_load": snapshot.homeostasis.novelty_load,
                 "competition_pressure": snapshot.homeostasis.competition_pressure,
             },
-            "winner_reason": winner_reason,
+            "winner_reason": winner_reason if snapshot.selection_method == "salience-v1" else snapshot.selection_reason,
+            "selection_method": snapshot.selection_method,
+            "selection_reason": snapshot.selection_reason,
         }
 
     def record(

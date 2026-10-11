@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import math
 import hashlib
 import re
 from threading import RLock
@@ -12,6 +13,7 @@ from sofia.cognition.matrix import (
     TurnMatrix,
 )
 
+from .connectome.competition import CircuitCompetition
 from .homeostasis import HomeostasisController
 from .model import (
     NeuralSignal,
@@ -44,6 +46,8 @@ class NeuroRuntime:
         network: SalienceNetwork | None = None,
         homeostasis: HomeostasisController | None = None,
         observability: NeuroObservabilityStore | None = None,
+        competition: CircuitCompetition | None = None,
+        competition_enabled: bool = True,
     ) -> None:
         self._network = network or SalienceNetwork()
         self._homeostasis = homeostasis or HomeostasisController()
@@ -52,6 +56,13 @@ class NeuroRuntime:
         ):
             raise TypeError("observability must be NeuroObservabilityStore or None")
         self._observability = observability
+        if competition is not None and not isinstance(competition, CircuitCompetition):
+            raise TypeError("competition must be CircuitCompetition or None")
+        if type(competition_enabled) is not bool:
+            raise TypeError("competition_enabled must be bool")
+        self._competition = competition or CircuitCompetition()
+        self._competition_enabled = competition_enabled
+        self._last_competition_error: str | None = None
         self._last_observability_error: str | None = None
         self._recent_turn_fingerprints: list[str] = []
         self._recent_signals: list[NeuralSignal] = []
@@ -71,6 +82,19 @@ class NeuroRuntime:
         """Return bounded metadata-only input history for observability."""
         with self._lock:
             return tuple(self._recent_signals)
+
+    @property
+    def last_competition_error(self) -> str | None:
+        with self._lock:
+            return self._last_competition_error
+
+    def set_competition_enabled(self, enabled: bool) -> None:
+        """Operator-facing disable hook; no new scheduler or permission authority."""
+        if type(enabled) is not bool:
+            raise TypeError("enabled must be bool")
+        with self._lock:
+            self._competition_enabled = enabled
+            self._last_competition_error = None
 
     @property
     def last_observability_error(self) -> str | None:
@@ -450,6 +474,50 @@ class NeuroRuntime:
         stimulus: bool,
     ) -> NeuroStateSnapshot:
         activations = self._network.activations(now=now)
+        ranked = activations
+        selection_method = "salience-v1"
+        selection_reason = "deterministic observed-signal ranking"
+        # Run the small engineered competition on the SAME eligible, TTL-
+        # filtered salience set. It cannot supply facts, tools, or candidates.
+        # A new subject from the current Matrix turn always takes precedence.
+        if self._competition_enabled and 1 < len(activations) <= 64:
+            try:
+                if not all(math.isfinite(item.score) for item in activations):
+                    raise ValueError("non-finite salience activation")
+                result = self._competition.run(
+                    {item.key: item.score for item in activations}
+                )
+                keys = {item.key for item in activations}
+                values = dict(result.activations)
+                if (
+                    set(values) != keys
+                    or result.winner not in keys
+                    or not all(math.isfinite(v) and 0 <= v <= 1
+                               for v in values.values())
+                ):
+                    raise ValueError("circuit result does not match eligible inputs")
+                primary = activations[0]
+                winner = next(item for item in activations
+                              if item.key == result.winner)
+                # Current-turn focus and clearly stronger deterministic
+                # priorities cannot be displaced by recurrence.
+                if (
+                    primary.kind not in _TURN_SIGNAL_KINDS
+                    and winner.score >= primary.score - 0.04
+                ):
+                    ranked = (winner,) + tuple(
+                        item for item in activations if item.key != winner.key
+                    )
+                selection_method = self._competition.ALGORITHM_VERSION
+                selection_reason = (
+                    "bounded eligible-signal competition; explicit turn "
+                    "and salience margins retain precedence"
+                )
+                self._last_competition_error = None
+            except (ValueError, TypeError, ArithmeticError, OverflowError) as exc:
+                # Invalid engineered computation must not disrupt conversation.
+                self._last_competition_error = type(exc).__name__
+                selection_reason = "circuit invalid; deterministic salience retained"
         signature = tuple(
             (item.key, item.score, item.novelty)
             for item in activations
@@ -461,8 +529,10 @@ class NeuroRuntime:
             homeostasis = self._homeostasis.state
         snapshot = NeuroStateSnapshot(
             generated_at=now,
-            focus=(activations[0] if activations else None),
-            secondary=activations[1:4],
+            focus=(ranked[0] if ranked else None),
+            secondary=ranked[1:4],
+            selection_method=selection_method,
+            selection_reason=selection_reason,
             homeostasis=homeostasis,
             active_signal_count=len(activations),
         )

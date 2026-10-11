@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+import math
 import re
 
 
@@ -13,7 +14,7 @@ _SIGNAL_ID = re.compile(r"^[A-Za-z0-9_.:/-]{1,120}$")
 def _unit_interval(name: str, value: float) -> None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(f"{name} must be numeric")
-    if not 0.0 <= float(value) <= 1.0:
+    if not math.isfinite(float(value)) or not 0.0 <= float(value) <= 1.0:
         raise ValueError(f"{name} must be in 0..1")
 
 
@@ -105,6 +106,8 @@ class NeuroStateSnapshot:
     secondary: tuple[NeuralActivation, ...] = ()
     homeostasis: HomeostaticState = HomeostaticState()
     active_signal_count: int = 0
+    selection_method: str = "salience-v1"
+    selection_reason: str = "deterministic observed-signal ranking"
 
     def __post_init__(self) -> None:
         if (
@@ -145,6 +148,7 @@ class NeuroStateSnapshot:
                 "Use normal Matrix evidence and authority rules for truth and action."
             ),
             f"Active signals: {self.active_signal_count}",
+            f"Selection: {self.selection_method}; {self.selection_reason}",
             (
                 "Homeostasis: "
                 f"cognitive_load={self.homeostasis.cognitive_load:.3f}; "
