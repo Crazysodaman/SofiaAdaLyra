@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "09089c21ab4f7e181fe0258b4cc0f2f41e0e7210",
+  "reviewed_main_sha": "76ae8f5df2d7cf539f0531b12c84abe246b6cd00",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -144,10 +144,26 @@
       "phase": "00",
       "source_topic": "12",
       "master_line": 74,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/safe/permissions.py",
+        "src/sofia/safe/execution_approval.py",
+        "src/sofia/safe/operator_stop.py",
+        "src/sofia/safe/owner_browser.py",
+        "src/sofia/ui/settings_window.py",
+        "src/sofia/ui/tray_agent.py"
+      ],
+      "evidence_commits": [
+        "76ae8f5df2d7cf539f0531b12c84abe246b6cd00"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing P0 companion-autonomy-contract.md has writer/consumer/failure table, three source-to-sink diagrams and event semantics; updated with audited source-linked decision rights, enrollment, effect receipts, stale grant and revoked-key handling.",
+        "missing": "Contract does not yet prove complete adapters for every dev/mobile/fleet/act/world effect, observed receipt propagation, audience minimization or live semantics.",
+        "acceptance": "source evidence only; no focused tests, CI or host acceptance."
+      }
     },
     {
       "id": "CA-1202",
@@ -386,10 +402,26 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 89,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/safe/permissions.py",
+        "src/sofia/safe/execution_approval.py",
+        "src/sofia/safe/operator_stop.py",
+        "src/sofia/safe/owner_browser.py",
+        "src/sofia/ui/settings_window.py",
+        "src/sofia/ui/tray_agent.py"
+      ],
+      "evidence_commits": [
+        "76ae8f5df2d7cf539f0531b12c84abe246b6cd00"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing P0 companion-autonomy-contract.md has writer/consumer/failure table, three source-to-sink diagrams and event semantics; updated with audited source-linked decision rights, enrollment, effect receipts, stale grant and revoked-key handling.",
+        "missing": "Full all-capability permission inventory and owner review, cross-host independent authentication and proof of effect-side authorization coverage remain open.",
+        "acceptance": "source evidence only; no focused tests, CI or host acceptance."
+      }
     },
     {
       "id": "CA-3106",
@@ -2423,7 +2455,19 @@
         "src/sofia/safe/operator_stop.py",
         "src/sofia/safe/operator_stop_cli.py",
         "test/test_safe_operator_stop_state_loss.py",
-        "test/test_life_project_forge.py"
+        "test/test_life_project_forge.py",
+        "src/sofia/safe/permissions_cli.py",
+        "test/test_goal_production_wiring.py",
+        "test/test_mobile_gateway.py",
+        "test/test_avatar_private_grant.py",
+        "test/test_mobile_delivery_status_reconciliation.py",
+        "test/test_ui_application.py",
+        "test/test_mobile_main_history.py",
+        "test/test_avatar_clothing_action.py",
+        "test/test_safe_permission_owner_auth.py",
+        "src/sofia/ui/tray_agent.py",
+        "test/test_ui_tray_model_roles.py",
+        "test/test_ui_tray_lifecycle.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -2511,7 +2555,34 @@
         "2f8e8851d56eb2f38d0dd170dc752ad583f23b65",
         "51c3f966244d154007ce1241e19d1f30be6d276b",
         "7abb5bc6dd7dde765e279787a2cbea8e330315fe",
-        "09089c21ab4f7e181fe0258b4cc0f2f41e0e7210"
+        "09089c21ab4f7e181fe0258b4cc0f2f41e0e7210",
+        "ccbbbfac84f56928b5fe3cb8d8cd5ea673fcc312",
+        "2ea53a43c1f9f743d9de3e5c33f4f317a69c88c4",
+        "3818dae450ce1f25883f72f6c88bd3d6063d66f3",
+        "249f9272a39fec9cb3b454cac97978e409dbd44a",
+        "26976130cf42b0cf5abcaf868fb400fa09509108",
+        "3c1bb9a8cd6795960386c202194f1ea59bfa3b40",
+        "db20afcabec455feaee95b81be64653736deba7e",
+        "96d10542871668b7af050aea2471f15e76dcf3ab",
+        "3c50420085702ec494e568ad132610f5343f8c8d",
+        "b1d780044dd1cdbf169b4b90aff9cdb5a75d5290",
+        "e82a7ed3d38619f8b3ce6d15e176d89ae7ecee10",
+        "520120372a9b7c2948ce2ec4e4449b9768d7a4b0",
+        "08543f42106ad7ebed95fdd3cb3ebe0886c93e7d",
+        "db09247d4f520400bbba0ff8890d148970805c32",
+        "f2a82c46d5d31ab385245a74d1d1ed85de5eadcb",
+        "2a313b04927f1be0f60a4e13cc7ddadc2a9e65d0",
+        "25a6d046c434622abb4b4d148733a26d669c99c9",
+        "baaecfd5f14b0b67735c178d928cf4b3a66c67fe",
+        "0c75c64f0e7a063ea8cf3bb9a051a83d6ff4aaaa",
+        "d892322ec98525a10eaaa474229856845410e361",
+        "419fd9e7976b17dafb39a7ade9aa67e75cfc86e7",
+        "0c00b60bf085fd5a2c0d002f849c67d1a0e331ad",
+        "e8f3b96201a7e8e25fcf6d2ef25d02aae465c207",
+        "7ca1244474c32a734b1fb250d9c5ebb651ee5dc9",
+        "5bdb67597de72306844a641c6687366f46e6e78a",
+        "6f361e66181e37d2db178bc9bf45954070ad478a",
+        "13a96eba74c750fde0d45a48ec95a9de3dafd223"
       ],
       "accepted": false,
       "coding_update": {
@@ -2640,6 +2711,63 @@
           "production_route": "Canonical SAFE approval reader always installs empty WebAuthn schema without registering any key. Auth-bound approved effects require nonrevoked credential at recording, projection, preflight and consume; revocation invalidates outstanding one-use grants signed by the revoked key.",
           "fulfilled_slice": "No missing-table failure on a never-enrolled canonical runtime, and unused protected approvals become invalid immediately when the signing credential is revoked.",
           "remaining": "Source and regression tests authored, never executed. Full revocation user acceptance, hardware attestation and Level-5 grant store remain open."
+        },
+        {
+          "source_review_sha": "09089c21ab4f7e181fe0258b4cc0f2f41e0e7210",
+          "commits": [
+            "ccbbbfac84f56928b5fe3cb8d8cd5ea673fcc312",
+            "2ea53a43c1f9f743d9de3e5c33f4f317a69c88c4",
+            "3818dae450ce1f25883f72f6c88bd3d6063d66f3",
+            "249f9272a39fec9cb3b454cac97978e409dbd44a",
+            "26976130cf42b0cf5abcaf868fb400fa09509108",
+            "3c1bb9a8cd6795960386c202194f1ea59bfa3b40",
+            "db20afcabec455feaee95b81be64653736deba7e",
+            "96d10542871668b7af050aea2471f15e76dcf3ab",
+            "3c50420085702ec494e568ad132610f5343f8c8d",
+            "b1d780044dd1cdbf169b4b90aff9cdb5a75d5290",
+            "e82a7ed3d38619f8b3ce6d15e176d89ae7ecee10",
+            "520120372a9b7c2948ce2ec4e4449b9768d7a4b0",
+            "08543f42106ad7ebed95fdd3cb3ebe0886c93e7d",
+            "db09247d4f520400bbba0ff8890d148970805c32",
+            "f2a82c46d5d31ab385245a74d1d1ed85de5eadcb",
+            "2a313b04927f1be0f60a4e13cc7ddadc2a9e65d0",
+            "25a6d046c434622abb4b4d148733a26d669c99c9",
+            "baaecfd5f14b0b67735c178d928cf4b3a66c67fe",
+            "0c75c64f0e7a063ea8cf3bb9a051a83d6ff4aaaa",
+            "d892322ec98525a10eaaa474229856845410e361",
+            "419fd9e7976b17dafb39a7ade9aa67e75cfc86e7",
+            "0c00b60bf085fd5a2c0d002f849c67d1a0e331ad",
+            "e8f3b96201a7e8e25fcf6d2ef25d02aae465c207",
+            "7ca1244474c32a734b1fb250d9c5ebb651ee5dc9",
+            "5bdb67597de72306844a641c6687366f46e6e78a",
+            "6f361e66181e37d2db178bc9bf45954070ad478a",
+            "13a96eba74c750fde0d45a48ec95a9de3dafd223"
+          ],
+          "source_paths": [
+            "src/sofia/safe/owner_enroll_browser.py",
+            "test/test_safe_owner_registration.py",
+            "src/sofia/safe/permissions.py",
+            "src/sofia/safe/permissions_cli.py",
+            "src/sofia/ui/settings_window.py",
+            "test/owner_auth_fixture.py",
+            "test/test_safe_permissions.py",
+            "test/test_permission_runtime_wiring.py",
+            "test/test_goal_production_wiring.py",
+            "test/test_mobile_gateway.py",
+            "test/test_avatar_private_grant.py",
+            "test/test_mobile_delivery_status_reconciliation.py",
+            "test/test_ui_application.py",
+            "test/test_mobile_main_history.py",
+            "test/test_avatar_clothing_action.py",
+            "test/test_safe_permission_owner_auth.py",
+            "src/sofia/safe/owner_approval_ui.py",
+            "src/sofia/ui/tray_agent.py",
+            "test/test_ui_tray_model_roles.py",
+            "test/test_ui_tray_lifecycle.py"
+          ],
+          "production_route": "Sofía owner Windows SID -> supervised WebAuthn register -> exact FIDO2 signed approval -> ExecutionApprovalVerifier -> canonical PermissionStore durable Level-3/5 grants plus operator policies -> Settings/Tray/CLI -> guarded runtime service effect.",
+          "fulfilled_slice": "Eliminated graphical TTY gating, authenticated Level-3 standing grant/revoke and Level-5 authority writes, quarantined historical unsigned grants, revoked-key invalidation, and signed model/Fleet/tray service paths. Regression sources migrated; no tests executed.",
+          "remaining": "Physical authenticator attestation vs supervised classification, actual Hello/FIDO2, offline recovery, remote Artemis principal, full mutation inventory, host acceptance and source-wide tests are open. Existing consumed-approval/separate-effect crash gap remains."
         }
       ]
     },
