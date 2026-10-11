@@ -97,6 +97,39 @@ class PendingOutboundInstrumentedTest {
     }
 
     @Test
+    fun offlineDraftSurvivesAndroidAppRestartWithoutRequestOrNetwork() {
+        val settings = config(privateMode = true)
+        val original = SecureSettings(context)
+        original.saveOfflineDraft(
+            settings, "Draft retained completely offline",
+        )
+        val restarted = SecureSettings(context)
+        val draft = restarted.offlineDraft()
+        assertEquals("Draft retained completely offline", draft!!.text)
+        assertTrue(draft.matches(settings))
+        assertEquals(null, restarted.pendingOutbound())
+        assertFalse(draft.matches(config(privateMode = false)))
+        assertFalse(draft.matches(config(token = "sm1_" + "b".repeat(64))))
+        restarted.clearOfflineDraft()
+        assertEquals(null, SecureSettings(context).offlineDraft())
+    }
+
+    @Test
+    fun offlineDraftNeverPretendsCorruptedCiphertextIsAnEmptyDraft() {
+        val settings = SecureSettings(context)
+        context.getSharedPreferences("sofia-mobile", Context.MODE_PRIVATE)
+            .edit().putString("offline_draft_v1", "bad-draft-aes").commit()
+        try {
+            settings.offlineDraft()
+            fail("Corrupt draft must require an explicit owner choice")
+        } catch (_: IllegalArgumentException) {
+            // Expected: preserve fail-closed scope.
+        }
+        settings.clearOfflineDraft()
+        assertEquals(null, settings.offlineDraft())
+    }
+
+    @Test
     fun unreadableEncryptedJournalNeverLooksLikeAnEmptyOutbox() {
         val store = SecureSettings(context)
         context.getSharedPreferences("sofia-mobile", Context.MODE_PRIVATE)

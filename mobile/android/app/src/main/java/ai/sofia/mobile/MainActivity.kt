@@ -73,8 +73,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingPrivateMode: Boolean? = null
 
     init {
+        recoverOfflineDraft()
         recoverUnconfirmed()
         receivePending()
+    }
+
+    private fun recoverOfflineDraft() {
+        try {
+            val saved = secure.offlineDraft() ?: return
+            if (saved.matches(config)) {
+                draft = saved.text
+                status = "Encrypted offline draft restored; it has not been sent."
+            } else {
+                status = "Offline draft belongs to another pairing/privacy mode; discard explicitly."
+            }
+        } catch (_: Exception) {
+            status = "Encrypted offline draft unavailable; explicit discard required."
+        }
+    }
+
+    fun saveOfflineDraft() {
+        if (busy || hasUnconfirmedSend()) {
+            status = "Resolve the outgoing HTTP request before saving a new offline draft."
+            return
+        }
+        try {
+            val existing = secure.offlineDraft()
+            if (existing != null && !existing.matches(config)) {
+                status = "Offline draft from another audience must be discarded explicitly."
+                return
+            }
+            secure.saveOfflineDraft(config, draft)
+            status = "Offline draft encrypted on this phone. Nothing was sent."
+        } catch (error: Exception) {
+            status = error.message ?: "Unable to save offline draft locally"
+        }
+    }
+
+    fun hasOfflineDraft(): Boolean =
+        try { secure.offlineDraft() != null } catch (_: Exception) { true }
+
+    fun discardOfflineDraft() {
+        if (busy) return
+        try {
+            secure.clearOfflineDraft()
+            draft = ""
+            status = "Offline draft discarded locally. No server operation was performed."
+        } catch (error: Exception) {
+            status = error.message ?: "Unable to discard offline draft"
+        }
     }
 
     private fun recoverUnconfirmed() {
@@ -123,6 +170,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (next.token != config.token || next.baseUrl != config.baseUrl) {
+            if (hasOfflineDraft() || draft.isNotBlank()) {
+                status = "Save or discard the unsent draft before changing the paired server."
+                return
+            }
             if (hasUnconfirmedSend()) {
                 status = "Resolve or explicitly discard the unconfirmed send before re-pairing"
                 return
@@ -153,6 +204,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (next.privateMode != config.privateMode) {
+            if (hasOfflineDraft() || draft.isNotBlank()) {
+                status = "Save or discard the unsent draft before changing its privacy audience."
+                return
+            }
             if (hasUnconfirmedSend()) {
                 status = "Resolve or discard the unconfirmed send before changing privacy mode"
                 return
@@ -235,6 +290,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // An interrupted app cannot change the identity or body of a
             // request that might have been accepted by the canonical host.
             secure.reserveOutbound(config, text, requestId)
+            // The host-facing journal is now the authoritative local copy.
+            // Do not keep a second old offline draft after moving to outbox.
+            secure.clearOfflineDraft()
         } catch (failure: Exception) {
             status = failure.message ?: "Unable to persist outgoing request"
             return
@@ -492,6 +550,21 @@ private fun SofiaScreen(model: MainViewModel) {
                 )
                 Button(onClick = model::send, enabled = !model.busy, modifier = Modifier.fillMaxWidth()) {
                     Text(if (model.busy) "Waiting…" else "Send")
+                }
+                Button(
+                    onClick = model::saveOfflineDraft,
+                    enabled = !model.busy && model.draft.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Save encrypted offline draft (do not send)")
+                }
+                if (model.hasOfflineDraft()) {
+                    Button(
+                        onClick = model::discardOfflineDraft, enabled = !model.busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Discard saved offline draft")
+                    }
                 }
                 if (model.hasUnconfirmedSend()) {
                     Text(

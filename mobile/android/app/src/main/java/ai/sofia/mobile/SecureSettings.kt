@@ -23,6 +23,18 @@ data class CompanionSettings(
     val shareAmbient: Boolean,
 )
 
+data class OfflineMobileDraft(
+    val text: String,
+    val privateMode: Boolean,
+    val baseUrl: String,
+    val tokenFingerprint: String,
+) {
+    fun matches(settings: CompanionSettings): Boolean =
+        privateMode == settings.privateMode &&
+            baseUrl == settings.baseUrl.trimEnd('/') &&
+            tokenFingerprint == SecureSettings.tokenFingerprint(settings.token)
+}
+
 data class PendingMobileTurn(
     val requestId: String,
     val text: String,
@@ -117,6 +129,56 @@ class SecureSettings(private val context: Context) {
             MessageDigest.getInstance("SHA-256")
                 .digest(token.toByteArray(Charsets.UTF_8))
                 .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    }
+
+    /** Explicit encrypted drafts-only offline storage, no network authority. */
+    fun saveOfflineDraft(config: CompanionSettings, text: String) {
+        require(text.isNotBlank() && text.length <= 12_000) {
+            "Offline draft must be 1..12000 characters"
+        }
+        val record = JSONObject()
+            .put("schema", "sofia-mobile-offline-draft-v1")
+            .put("text", text)
+            .put("private_mode", config.privateMode)
+            .put("base_url", config.baseUrl.trimEnd('/'))
+            .put("token_fingerprint", tokenFingerprint(config.token))
+        check(prefs.edit()
+            .putString("offline_draft_v1", encrypt(record.toString()))
+            .commit()
+        ) { "Offline draft could not be saved; no delivery was attempted" }
+    }
+
+    fun offlineDraft(): OfflineMobileDraft? {
+        val saved = prefs.getString("offline_draft_v1", "") ?: ""
+        if (saved.isBlank()) return null
+        val decoded = decrypt(saved)
+        require(decoded.isNotBlank()) {
+            "Offline draft key/data unavailable; explicit owner discard required"
+        }
+        val record = try {
+            JSONObject(decoded)
+        } catch (error: Exception) {
+            throw IllegalStateException("Offline draft cannot be decoded", error)
+        }
+        require(record.getString("schema") == "sofia-mobile-offline-draft-v1") {
+            "Unrecognized offline draft schema"
+        }
+        val text = record.getString("text")
+        require(text.isNotBlank() && text.length <= 12_000) {
+            "Offline draft length is invalid"
+        }
+        return OfflineMobileDraft(
+            text = text,
+            privateMode = record.getBoolean("private_mode"),
+            baseUrl = record.getString("base_url"),
+            tokenFingerprint = record.getString("token_fingerprint"),
+        )
+    }
+
+    fun clearOfflineDraft() {
+        check(prefs.edit().remove("offline_draft_v1").commit()) {
+            "Offline draft could not be discarded"
+        }
     }
 
     /** Read-only local journal entry. Never silently interpret corruption as absence. */
