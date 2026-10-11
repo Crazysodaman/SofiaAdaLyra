@@ -383,3 +383,48 @@ def test_settings_operator_stop_is_wired_to_existing_permissions_page():
     assert 'command=lambda: change_operator_stop(active=False)' in source
     assert 'operator_stop_store.current()' in source
 
+
+
+def test_durable_owner_outreach_mute_applies_without_restarting_sender(tmp_path):
+    state = tmp_path / "state.db"
+    state.touch()
+    saved = RuntimeUserSettingsStore(state)
+    saved.save(RuntimeUserSettings(
+        outreach=OutreachSettings(enabled=True, mute=False),
+    ))
+    service = SofiaActService(state)
+    sends = []
+    service.configure_delivery(
+        sender=lambda payload: (
+            sends.append(payload.message_id)
+            or SendResult(DeliveryOutcome.DELIVERED, receipt_id="receipt:delivered")
+        ),
+        policy=Policy(
+            recipient_id=SPARKS_PRINCIPAL_ID,
+            enabled=True, min_interval=timedelta(0),
+            max_daily=10, quiet_start_local=0, quiet_end_local=0,
+        ),
+        channel="desktop", destination="tray",
+    )
+    service.queue_system_notice(
+        notice_id="late-mute", recipient_id=SPARKS_PRINCIPAL_ID,
+        channel="desktop", destination="tray",
+        evidence_id="source:real-recorded-event",
+        content="A queued optional update", created_at=NOW - timedelta(minutes=1),
+        expires_at=NOW + timedelta(hours=1),
+    )
+    saved.save(RuntimeUserSettings(
+        outreach=OutreachSettings(enabled=True, mute=True),
+    ))
+    service.deliver_one(now=NOW)
+    assert sends == []
+
+
+def test_settings_has_runtime_mute_controls_and_reads_canonical_state():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "src/sofia/ui/settings_window.py").read_text(encoding="utf-8")
+    assert "runtime_store.load().outreach" in source
+    assert 'command=lambda: change_outreach_mute(True)' in source
+    assert 'command=lambda: change_outreach_mute(False)' in source
+    assert "current_runtime = runtime_store.load()" in source
