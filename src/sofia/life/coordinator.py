@@ -780,6 +780,104 @@ class SelfDirectedLifeCoordinator:
             objectives=project.brief.objectives,
         )
 
+    def portfolio_index(
+        self, *, limit: int = 24,
+    ) -> tuple[dict[str, object], ...]:
+        """Source-derived private portfolio, with no fabricated creative history.
+
+        This application-internal projection reads original scoped LIFE and
+        CreativeStore revisions, real RUN-linked artifact references, original
+        Project Forge decisions and recorded objective evaluations. It never
+        publishes/shares artifacts, generates new content or writes a second
+        index. The private local audience is fixed here deliberately.
+        """
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("portfolio limit must be 1..100")
+        projects = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+        )
+        output: list[dict[str, object]] = []
+        for project in projects[:limit]:
+            original_events = self.store.events(
+                project.project_id,
+                owner_principal_id=SOFIA_PROJECT_OWNER,
+                audience_id=project.audience_id,
+            )
+            evaluations = {
+                (value.artifact_id, value.artifact_revision): value
+                for value in self.store.evaluations(project.project_id)
+            }
+            linked = tuple(dict.fromkeys(self.store.artifacts(project.project_id)))
+            artifacts: list[dict[str, object]] = []
+            for artifact_id, revision_number in linked[-24:]:
+                # CreativeStore is authoritative for revision identity and
+                # bytes; the LIFE link alone is never proof of real content.
+                history = self.creative_store.history(
+                    artifact_id, SOFIA_CREATIVE_OWNER, project.audience_id,
+                )
+                revision = next((
+                    value for value in history
+                    if value.revision == revision_number
+                    and value.project_id == project.project_id
+                ), None)
+                if revision is None:
+                    artifacts.append({
+                        "artifact_id": artifact_id,
+                        "revision": revision_number,
+                        "condition": "missing_creative_revision",
+                    })
+                    continue
+                review = evaluations.get((artifact_id, revision_number))
+                artifacts.append({
+                    "artifact_id": artifact_id,
+                    "revision": revision_number,
+                    "kind": revision.kind.value,
+                    "title": revision.title,
+                    "recorded_sha256": revision.content_sha256,
+                    "created_at": revision.created_at.isoformat(),
+                    "source_receipt_id": revision.source_receipt_id,
+                    "condition": "recorded_not_reverified",
+                    "technical_outcome": (
+                        None if review is None
+                        else review.technical_outcome.value
+                    ),
+                    "personal_judgment": (
+                        None if review is None
+                        else review.personal_judgment.value
+                    ),
+                    "evaluation_id": (
+                        None if review is None else review.evaluation_id
+                    ),
+                    "evaluation_evidence_refs": (
+                        () if review is None else review.evidence_refs
+                    ),
+                })
+            output.append({
+                "project_id": project.project_id,
+                "scope": project.scope.value,
+                "audience_id": project.audience_id,
+                "status": project.status.value,
+                "name": project.name,
+                "original_brief": project.description,
+                "original_objectives": project.brief.objectives,
+                "goal_id": project.goal_id,
+                "started_at": project.created_at.isoformat(),
+                "last_decision": (
+                    None if not original_events else {
+                        "decision": original_events[-1].decision,
+                        "reason": original_events[-1].reason,
+                        "evidence_refs": original_events[-1].evidence_refs,
+                        "occurred_at": original_events[-1].occurred_at.isoformat(),
+                    }
+                ),
+                "space_ids": self.store.spaces(project.project_id),
+                "linked_artifact_count": len(linked),
+                "artifacts": tuple(artifacts),
+                "truncated_artifact_history": len(linked) > 24,
+            })
+        return tuple(output)
+
     def pending_work_review(self, *, limit: int = 32) -> tuple[dict[str, object], ...]:
         """Project existing RUN outcomes without asserting goal success.
 
