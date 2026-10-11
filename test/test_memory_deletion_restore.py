@@ -154,6 +154,9 @@ def test_deletion_replayed_before_older_backup_is_published(
     assert ledger.apply_to_sqlite(state) == 1
     assert ledger.apply_to_sqlite(state) == 0
     _assert_no_deleted_candidate(state)
+    assert ledger.verify_applied(state) == {
+        "signed_deletions": 1, "verified_absent": 1,
+    }
     # A late import cannot silently resurrect the same candidate UUID
     # even if it writes directly to canonical SQLite instead of the
     # higher-level MemoryCandidateStore API.
@@ -179,6 +182,7 @@ def test_deletion_replayed_before_older_backup_is_published(
     )
     assert receipt.succeeded is True
     _assert_no_deleted_candidate(restored)
+    assert ledger.verify_applied(restored)["verified_absent"] == 1
     with sqlite3.connect(restored) as db:
         with pytest.raises(sqlite3.IntegrityError, match="candidate was deleted"):
             db.execute(
@@ -325,3 +329,41 @@ def test_new_erasure_during_staged_restore_aborts_publication(
         )
     assert not target.exists()
     assert len(ledger.entries()) == 2
+
+
+def test_deletion_audit_rejects_reintroduced_derived_source(tmp_path):
+    """A stale copied source row is not a successful memory deletion."""
+    state, ledger, _engine = _prepare(tmp_path)
+    _erase(ledger)
+    assert ledger.apply_to_sqlite(state) == 1
+    assert ledger.verify_applied(state)["verified_absent"] == 1
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "INSERT INTO memory_candidate_source VALUES(?,?,?,?,?,?,?,?)",
+            (
+                str(CANDIDATE), 1, "message:stale", "session:stale",
+                "user", "PRIVATE-REINTRODUCED-SOURCE", NOW.isoformat(), 0,
+            ),
+        )
+    with pytest.raises(MemoryErasureError, match="still readable"):
+        ledger.verify_applied(state)
+    assert ledger.apply_to_sqlite(state) == 0
+    # This fixture deliberately has no foreign key on source rows: the
+    # audit catches them, so the replay must erase orphaned copies too.
+    assert ledger.verify_applied(state)["verified_absent"] == 1
+
+
+def test_signed_erase_audit_detects_missing_local_guard(tmp_path):
+    """Deleting an active guard row cannot falsify restored absence proof."""
+    state, ledger, _ = _prepare(tmp_path)
+    _erase(ledger)
+    ledger.apply_to_sqlite(state)
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "DELETE FROM memory_deletion_guard WHERE candidate_id=?",
+            (str(CANDIDATE),),
+        )
+    with pytest.raises(MemoryErasureError, match="differs from original signed"):
+        ledger.verify_applied(state)
+    assert ledger.apply_to_sqlite(state) == 0
+    assert ledger.verify_applied(state)["verified_absent"] == 1
