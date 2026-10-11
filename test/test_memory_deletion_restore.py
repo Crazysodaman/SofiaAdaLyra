@@ -115,6 +115,18 @@ def test_deletion_replayed_before_older_backup_is_published(
     assert ledger.apply_to_sqlite(state) == 1
     assert ledger.apply_to_sqlite(state) == 0
     _assert_no_deleted_candidate(state)
+    # A late import cannot silently resurrect the same candidate UUID
+    # even if it writes directly to canonical SQLite instead of the
+    # higher-level MemoryCandidateStore API.
+    with sqlite3.connect(state) as db:
+        with pytest.raises(sqlite3.IntegrityError, match="candidate was deleted"):
+            db.execute(
+                "INSERT INTO memory_candidate VALUES(?,?,?,?,?,?)",
+                (
+                    str(CANDIDATE), "PRIVATE-REINTRODUCED-SUMMARY",
+                    NOW.isoformat(), "promoted", "person:sparks", "local:text",
+                ),
+            )
 
     monkeypatch.setattr(
         "sofia.ops.backup.verify_production_component_schemas",
@@ -128,6 +140,13 @@ def test_deletion_replayed_before_older_backup_is_published(
     )
     assert receipt.succeeded is True
     _assert_no_deleted_candidate(restored)
+    with sqlite3.connect(restored) as db:
+        with pytest.raises(sqlite3.IntegrityError, match="candidate was deleted"):
+            db.execute(
+                "INSERT INTO memory_candidate VALUES(?,?,?,?,?,?)",
+                (str(CANDIDATE), "PRIVATE-REIMPORTED-RESTORED",
+                 NOW.isoformat(), "promoted", "person:sparks", "local:text"),
+            )
     assert engine.verify(backup).backup_id == receipt.backup_id
     assert len(ledger.entries()) == 1
 
