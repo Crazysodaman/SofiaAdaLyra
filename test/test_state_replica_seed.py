@@ -4,6 +4,7 @@ from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
 import sqlite3
+import os
 
 import pytest
 
@@ -89,3 +90,48 @@ def test_failed_sqlite_initialization_releases_reader_and_handle(
     monkeypatch.setattr(_ObservedConnection, "execute", original_execute)
     with closing(access.connect()) as db:
         assert db.execute("SELECT 1").fetchone() == (1,)
+
+
+def test_replica_seed_rejects_redirected_ancestor_before_creation(tmp_path):
+    primary = tmp_path / "primary.db"
+    _primary(primary)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    redirected = tmp_path / "redirect"
+    try:
+        redirected.symlink_to(elsewhere, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("OS denies symlink creation")
+    with pytest.raises(ValueError, match="redirected replica destination"):
+        _seed_sqlite(primary, redirected / "nested" / "sofia.db")
+    assert not (elsewhere / "nested").exists()
+
+
+def test_replica_seed_refuses_source_swap_during_read_connection(
+    tmp_path, monkeypatch,
+):
+    primary = tmp_path / "primary.db"
+    replacement = tmp_path / "replacement.db"
+    replica = tmp_path / "replica.db"
+    _primary(primary)
+    _primary(replacement)
+    original = sqlite3.connect
+    switched = False
+
+    def swap_before_open(database, *args, **kwargs):
+        nonlocal switched
+        if (
+            not switched and isinstance(database, str)
+            and "?mode=ro" in database
+        ):
+            switched = True
+            os.replace(replacement, primary)
+        return original(database, *args, **kwargs)
+
+    monkeypatch.setattr("sofia.state.factory.sqlite3.connect", swap_before_open)
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    with pytest.raises(CanonicalStateUnavailable, match="replaced"):
+        _seed_sqlite(primary, replica)
+    assert switched
+    assert not replica.exists()
+    assert not list(tmp_path.glob(".sofia-replica-seed-*"))
