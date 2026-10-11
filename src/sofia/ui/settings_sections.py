@@ -428,6 +428,12 @@ class SettingsSections:
         self.sql_panel(frames["World"], "Avatar and object interaction receipts", "world_interaction_receipt")
         from .creative_panel import CreativePanel
         self.creative = CreativePanel(self, frames["Creative"])
+        self.viewer(
+            frames["Life & Projects"],
+            "Canonical LIFE / NEURO / ACT operator snapshot",
+            self.autonomy_snapshot,
+            interval_ms=15000,
+        )
         self.sql_panel(frames["Life & Projects"], "Independent projects", "life_project")
         self.sql_panel(frames["Life & Projects"], "Project decisions and history", "life_project_event")
         self.sql_panel(frames["Life & Projects"], "Milestones", "life_project_milestone")
@@ -538,6 +544,111 @@ class SettingsSections:
                 parts.append(f"{label}:\n" + (path.read_text(encoding="utf-8-sig") if path.is_file() else "No persisted definition"))
             return "\n\n".join(parts)
         self.viewer(parent, "Current identity and personality", read)
+
+    def autonomy_snapshot(self) -> str:
+        """Read-only status from existing owners, without a shadow truth store.
+
+        Everything historical is labelled as a last recorded observation,
+        never as an unverified claim of current execution or delivery.
+        """
+        output = ["Source: canonical sofia.db; no actions performed."]
+        with closing(self._canonical_state.connect(timeout=10)) as db:
+            def present(table: str) -> bool:
+                return db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                    (table,),
+                ).fetchone() is not None
+
+            if present("safe_operator_stop"):
+                state = db.execute(
+                    "SELECT active, updated_at, reason FROM safe_operator_stop "
+                    "WHERE singleton=1"
+                ).fetchone()
+                output.append(
+                    ("Owner stop: " + ("PAUSED" if state[0] else "not active")
+                     + f" (recorded {state[1]}; {state[2]})")
+                    if state else "Owner stop: UNKNOWN (no canonical row)"
+                )
+            else:
+                output.append("Owner stop: UNKNOWN (no canonical row)")
+
+            selection = None
+            if present("life_selection"):
+                selection = db.execute(
+                    "SELECT kind, project_id, reason, resource_pressure, "
+                    "busy, selected_at FROM life_selection "
+                    "ORDER BY selected_at DESC, selection_id DESC LIMIT 1"
+                ).fetchone()
+            if selection is None:
+                output.append("LIFE last selection: UNKNOWN (no recorded selection)")
+                output.append("Resource pressure: UNKNOWN (no recorded sample)")
+            else:
+                kind, project_id, reason, pressure, busy, at = selection
+                output.append(
+                    f"LIFE last selection: {kind}, project={project_id or 'none'}; "
+                    f"recorded={at}; reason={str(reason)[:250]}"
+                )
+                output.append(
+                    f"Resource pressure at selection: {pressure}; busy={bool(busy)} "
+                    f"(historical, not a live measurement)"
+                )
+
+            if present("life_project"):
+                project = db.execute(
+                    "SELECT project_id, name, status, updated_at "
+                    "FROM life_project ORDER BY updated_at DESC,project_id DESC LIMIT 1"
+                ).fetchone()
+                output.append(
+                    f"LIFE last project: {project[1]} [{project[2]}], "
+                    f"id={project[0]}, recorded={project[3]}"
+                    if project else "LIFE projects: none recorded"
+                )
+                if project and present("life_project_milestone"):
+                    milestone = db.execute(
+                        "SELECT title,status,updated_at FROM life_project_milestone "
+                        "WHERE project_id=? ORDER BY ordinal LIMIT 1",
+                        (project[0],),
+                    ).fetchone()
+                    output.append(
+                        f"First milestone: {milestone[0]} [{milestone[1]}], "
+                        f"recorded={milestone[2]}"
+                        if milestone else "Milestones: none recorded"
+                    )
+
+            if present("act_system_notice"):
+                queued = db.execute(
+                    "SELECT COUNT(*) FROM act_system_notice WHERE status='queued'"
+                ).fetchone()[0]
+                output.append(f"ACT pending system notices: {queued} (queue records)")
+            else:
+                output.append("ACT pending system notices: UNKNOWN (no source table)")
+            if present("interact_queued_messages"):
+                queued = db.execute(
+                    "SELECT COUNT(*) FROM interact_queued_messages WHERE status='queued'"
+                ).fetchone()[0]
+                output.append(f"INTERACT pending messages: {queued} (queue records)")
+            if present("act_outreach_trace"):
+                decision = db.execute(
+                    "SELECT stage,reason,recorded_at,receipt_id,recipient_confirmed "
+                    "FROM act_outreach_trace ORDER BY trace_id DESC LIMIT 1"
+                ).fetchone()
+                output.append(
+                    f"ACT last decision: stage={decision[0]}, reason={decision[1]}, "
+                    f"recorded={decision[2]}, transport_receipt={decision[3] or 'none'}, "
+                    f"recipient_confirmed={bool(decision[4])}"
+                    if decision else "ACT last decision: none recorded"
+                )
+
+        from sofia.neuro.store import neuro_observability_text
+        try:
+            neuro = neuro_observability_text(self.config.state_path)
+        except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
+            output.append(
+                f"NEURO projection unavailable: {type(exc).__name__} (UNKNOWN)"
+            )
+        else:
+            output.append("NEURO recorded projection:\n" + str(neuro)[:1600])
+        return "\n".join(output)
 
     def sql_panel(self, parent, title, table, *, where="1=1"):
         # Names and predicates originate solely from the static callers above.
