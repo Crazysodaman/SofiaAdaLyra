@@ -199,6 +199,31 @@ CA-5603. These are focused implementation evidence, not whole-task acceptance.
 Further policy work must forbid accidental first-create outside the authorized
 first-install/import flow.
 
+### Imported ChatGPT transcript-evidence source file identity (Phase 06)
+
+Production route: `composition.root` → `MemorySystem` →
+`ChatGPTExportEvidenceStore` → principal-authorized
+`recall_historical_evidence` → immutable import batch/message tables →
+bounded model context. Explicit import CLI saves evidence only and does not
+promote it to approved memory.
+
+The evidence store previously opened `sqlite3.connect(self.path)` for
+every subsequent search and could recreate the state file after deletion or
+read another database after unexpected replacement. It now pins the existing
+canonical SQLite identity before the first connection when present, or after
+an explicitly new import/fixture is opened, and all later source reads and
+writes use `CanonicalSQLiteGuard.connect` (mode=rw). Existing test/import
+first-file creation is preserved; restricting all first-installs to the
+configuration bootstrap remains a separate work item.
+
+Commits:
+- `fbe63fafb2fe42b50f643137dafcd23f21042d15`: live evidence owner.
+- `47d0c84a1046eab9fa132264e567a1cc3f416bf7`: regression tests,
+  deferred and unexecuted.
+
+CA relevance: CA-5201, CA-5603, CA-4204, CA-4206, CA-6306. This only
+closes a directly observed connection/file-identity failure slice.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
