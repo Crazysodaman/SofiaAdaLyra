@@ -249,26 +249,30 @@ class MemoryDeletionLedger:
             # local guard is a derived index that prevents later importers
             # from reintroducing an identical candidate UUID between
             # journal replays. The guard contains no forgotten text.
-            db.executescript("""
+            db.execute("""
                 CREATE TABLE IF NOT EXISTS memory_deletion_guard (
                     candidate_id TEXT PRIMARY KEY,
                     principal_id TEXT NOT NULL,
                     audience_id TEXT NOT NULL
-                );
+                )
+            """)
+            db.execute("""
                 CREATE TRIGGER IF NOT EXISTS memory_deletion_reject_insert
                 BEFORE INSERT ON memory_candidate
                 WHEN EXISTS(
                     SELECT 1 FROM memory_deletion_guard AS g
                     WHERE g.candidate_id=NEW.candidate_id
                 )
-                BEGIN SELECT RAISE(ABORT,'candidate was deleted'); END;
+                BEGIN SELECT RAISE(ABORT,'candidate was deleted'); END
+            """)
+            db.execute("""
                 CREATE TRIGGER IF NOT EXISTS memory_deletion_reject_id_update
                 BEFORE UPDATE OF candidate_id ON memory_candidate
                 WHEN EXISTS(
                     SELECT 1 FROM memory_deletion_guard AS g
                     WHERE g.candidate_id=NEW.candidate_id
                 )
-                BEGIN SELECT RAISE(ABORT,'candidate was deleted'); END;
+                BEGIN SELECT RAISE(ABORT,'candidate was deleted'); END
             """)
             for record in entries:
                 prior = db.execute(
