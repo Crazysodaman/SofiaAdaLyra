@@ -1280,8 +1280,10 @@ class ConversationService(ConversationMatrixMixin):
         self._conversation_store.close()
 
     def _build_request(self) -> CognitiveRequest:
-        messages = self._conversation_store.list_messages(
-            self._session.id
+        # A lifelong session can hold decades of messages. Only a bounded
+        # recent window should be materialized on every response.
+        messages = self._conversation_store.recent_messages(
+            self._session.id, limit=96
         )
         self._current_conversation_retrieval_refs = ()
 
@@ -1323,8 +1325,19 @@ class ConversationService(ConversationMatrixMixin):
             and context_plan.history_policy is HistoryPolicy.RETRIEVE_SPECIFIC
             and current_user is not None
         ):
+            terms = tuple(sorted(_specific_retrieval_terms(current_user.content)))[:8]
+            user_only = re.search(
+                r"\bwhat\s+did\s+i\s+say\b|\bwhat\s+have\s+i\s+said\b",
+                current_user.content, re.IGNORECASE,
+            ) is not None
+            candidates = self._conversation_store.search_messages(
+                self._session.id, terms=terms,
+                exclude_message_id=current_user.id,
+                user_only=user_only,
+                limit=_MAX_SPECIFIC_RETRIEVAL_MESSAGES,
+            )
             retrieved = _retrieve_specific_conversation(
-                messages,
+                candidates,
                 current_message_id=current_user.id,
                 query=current_user.content,
             )
