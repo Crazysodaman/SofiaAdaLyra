@@ -54,7 +54,15 @@ def original_tasks(master: Path) -> dict[str, tuple[str, str, int]]:
     """Return each original CA ID with its exact phase/topic/line ownership."""
     source = master.read_bytes()
     if sha256(source).hexdigest() != MASTER_SHA256:
-        raise RoadmapIntegrityError("V18 source bytes changed; update via reviewed new version")
+        # On Windows, git autocrlf may materialize the exact signed Git text
+        # blob with CRLF. Permit ONLY that canonical platform EOL change;
+        # every other byte, task ID, phase and source line remains SHA-bound.
+        normalized = source.replace(b"\r\n", b"\n")
+        if (b"\r\n" not in source
+            or b"\r" in normalized
+            or sha256(normalized).hexdigest() != MASTER_SHA256):
+            raise RoadmapIntegrityError("V18 source bytes changed; update via reviewed new version")
+        source = normalized
     current_phase = current_topic = None
     task_map: dict[str, tuple[str, str, int]] = {}
     for lineno, line in enumerate(source.decode("utf-8").splitlines(), 1):
