@@ -30,6 +30,9 @@ def _plan(tmp_path):
         next_writer_epoch=2,
         operator_approval_ref="operator-reviewed",
         writer_fence_ref="privileged-fence-evidence",
+        protected_operation_id="offline:supervised-venus-artemis-fixture",
+        operator_principal_id="owner:supervised-fixture",
+        source_writer_epoch=1,
     )
     staged = StagedStateHome(
         backup_dir=tmp_path / "encrypted-backup",
