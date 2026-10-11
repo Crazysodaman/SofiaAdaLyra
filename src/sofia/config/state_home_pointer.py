@@ -59,12 +59,20 @@ def read_verified_state_home(
         raise ValueError("positive external writer epoch floor required")
     _require_unredirected_path(pointer_path, label="state-home pointer")
     _require_unredirected_path(key_path, label="state-home trust key")
-    raw_key = key_path.read_bytes()
+    # A preceding stat() is only an advisory size check: a redirected or
+    # unexpectedly growing file can change before an unrestricted read.
+    # Never materialize arbitrary-sized bootstrap trust bytes in RAM.
+    with key_path.open("rb") as key_source:
+        raw_key = key_source.read(33)
     if len(raw_key) != 32:
         raise ValueError("external state-home pointer HMAC key must be 32 bytes")
     if pointer_path.stat().st_size > 16_384:
         raise ValueError("state-home bootstrap pointer exceeds size policy")
-    document = json.loads(pointer_path.read_text(encoding="utf-8"))
+    with pointer_path.open("rb") as pointer_source:
+        raw_document = pointer_source.read(16_385)
+    if len(raw_document) > 16_384:
+        raise ValueError("state-home bootstrap pointer exceeds size policy")
+    document = json.loads(raw_document.decode("utf-8"))
     if not isinstance(document, dict) or set(document) != {
         "schema", "state_root", "writer_host_id",
         "epoch", "operator_approval_ref", "hmac_sha256",
