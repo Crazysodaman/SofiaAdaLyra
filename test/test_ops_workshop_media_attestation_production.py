@@ -152,7 +152,35 @@ def test_no_unsigned_interactive_iso_or_missing_owner_pin_passes():
 def test_generation_requires_private_owner_key_dir(tmp_path,monkeypatch):
     folder=tmp_path/"world-accessible"
     folder.mkdir(mode=0o777)
-    folder.chmod(0o777)
+    if os.name == "nt":
+        import win32api
+        import win32con
+        import win32security
+        # Windows chmod(0777) does NOT grant Everyone access. Use a real
+        # permissive DACL to prove the production key guard rejects it.
+        token = win32security.OpenProcessToken(
+            win32api.GetCurrentProcess(), win32security.TOKEN_QUERY,
+        )
+        user, _ = win32security.GetTokenInformation(
+            token, win32security.TokenUser,
+        )
+        acl = win32security.ACL()
+        acl.AddAccessAllowedAce(
+            win32security.ACL_REVISION, win32con.GENERIC_ALL, user,
+        )
+        acl.AddAccessAllowedAce(
+            win32security.ACL_REVISION, win32con.GENERIC_READ,
+            win32security.ConvertStringSidToSid("S-1-1-0"),
+        )
+        sd = win32security.GetFileSecurity(
+            str(folder), win32security.DACL_SECURITY_INFORMATION,
+        )
+        sd.SetSecurityDescriptorDacl(1, acl, 0)
+        win32security.SetFileSecurity(
+            str(folder), win32security.DACL_SECURITY_INFORMATION, sd,
+        )
+    else:
+        folder.chmod(0o777)
     monkeypatch.setattr(
         "sofia.ops.workshop_media_attestation.getpass",
         lambda _: "not-a-real-user-secret",
