@@ -339,11 +339,14 @@ class SettingsSections:
             self.ttk.Button(parent, text=label, command=self.guarded(lambda active=active: change(active))).pack(anchor="w", pady=4)
         self.viewer(parent, "Standing inspected capabilities", lambda: "\n".join(self.config.standing_allowed_capabilities))
         from sofia.safe.review import compact_policy_review
-        from sofia.safe.permissions import PermissionStore
+        from sofia.safe.permissions import PermissionStore, grantable_capabilities
         self.viewer(
-            parent, "SAFE configured standing capability audit",
+            parent, "SAFE declared capability and standing-grant audit",
             lambda: compact_policy_review(
-                self.config.standing_allowed_capabilities,
+                tuple(sorted(
+                    set(grantable_capabilities())
+                    | set(self.config.standing_allowed_capabilities)
+                )),
                 PermissionStore(self.config.state_path),
             ),
         )
