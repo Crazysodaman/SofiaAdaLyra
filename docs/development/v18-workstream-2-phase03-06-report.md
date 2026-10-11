@@ -2700,6 +2700,60 @@ need independent production wiring and final acceptance.
 No tests/CI, schema migration of a live installation, deployment,
 host change or original-source mutation has been performed.
 
+
+
+### Phase 05 item 78: Bind project names and new source links to their originating audience
+
+Follow-up audit of Item 77 found a broader cross-channel gap:
+`LifelongThreadStore.get_or_create(owner,kind='project',name)`
+previously deduplicated names only by principal ID. A different
+authenticated audience for the same principal could resolve the
+same private project name and obtain its canonical `thread_id`,
+then `link_message` allowed that other audience's original
+message to be appended to this shared project. This was
+**implicit cross-audience association**, even though no outbound
+message relay was intentionally performed.
+
+Production `src/sofia/conversation/lifelong.py` now persists
+`project_audience_id` and `project_audience_kind` at initial
+project creation in the **same canonical thread table**, with a
+non-destructive additive legacy schema migration. Project lookups
+require that original creation audience; other same-owner
+audiences receive a denial, not a project ID. All new project
+source links enforce this audience as well as the original source
+session's current principal/audience/kind binding. The Main logical
+thread remains cross-device, but original Main events retain
+their separate per-event visibility and are not mirrored.
+
+Preexisting project rows lacking a creation-audience stamp are
+reusable **only when all their existing original links agree**
+on one currently authenticated source audience. Mixed-audience
+and source-free ambiguous legacy projects fail closed pending
+independently reviewed owner migration, instead of guessing which
+audience is allowed to claim them. Rename and archive now use
+the same project-scope guard. This does not remove or rewrite
+legacy source events; approved cross-channel project linking
+would require a separate explicit owner-approved operation.
+
+- Project creation and legacy source-scope validation:
+  `bb4f1be5ac5c94063faba95d264ce8f7cec1d797`
+  (`[skip ci]`).
+- Original event linking and project metadata guards:
+  `655079bdb9186a19d726db1c04d4661c366fc326`
+  (`[skip ci]`).
+- Deferred canonical SQLite cross-audience/legacy
+  regressions: `test/test_ws2_project_thread_creation_scope.py`,
+  `817f8daec909f6b37bc85f75d115ca2d14d3cd89`
+  (`[skip ci]`).
+
+Original relevance: CA-4102, CA-4104, CA-4105,
+CA-4107, CA-5506, CA-5507, CA-5706.
+This is source-level project isolation, NOT the completed
+project-thread UI, independent review for legacy mixed
+projects, or global approved cross-channel metadata transfer.
+No tests/CI, automatic live migrations, remote clients,
+host movement or original source edits were performed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
