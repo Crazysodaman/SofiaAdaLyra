@@ -661,7 +661,15 @@ class PresenceInitiativeEngine:
                 or event.observation.expires_at > event.created_at
             )
         )
-        if event.trigger_kind in self._ELIGIBLE_TRIGGERS and not scoped_to_local_recipient:
+        if event.trigger_kind == "task_completed" and (
+            audience != "local:text"
+            or event.recipient_id != SPARKS_PRINCIPAL_ID
+        ):
+            # Verified private LIFE milestones belong only to the original
+            # authenticated local owner audience, not to an implicit/unknown
+            # audience or another receiver. Operational alerts are separate.
+            reason = "private_milestone_requires_exact_local_owner"
+        elif event.trigger_kind in self._ELIGIBLE_TRIGGERS and not scoped_to_local_recipient:
             reason = "incompatible_observation_audience"
         elif event.trigger_kind in self._ELIGIBLE_TRIGGERS and not observation_valid_at_event:
             reason = "stale_or_future_observation"
