@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "2fe9c1240a9db88fb514297e4c6075decec9cade",
+  "reviewed_main_sha": "a34e1eb3c1fc7bc74fc5c4684c225c13183379f1",
   "audit_date_utc": "2026-10-11",
-  "notice": "Original 700 V18 tasks, 44 partially wired prioritized. 8 partial IDs received production code repairs in the current coding pass. No task reclassified as accepted because CI/Windows/Android/Fleet/host verification remains deferred. Writer host undecided, no live changes.",
+  "notice": "Original 700 V18 CA IDs, 44 original partial tasks prioritized. 15 source repairs this campaign, 29 not newly coded. All 44 remain partial pending tests and live acceptance; no host/model/pairing changes. Canonical writer host undecided.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1221,7 +1221,11 @@
         "src/sofia/verify/cognition_v2_baseline.py",
         "src/sofia/state/sqlite_access.py",
         "src/sofia/mobile/sensors.py",
-        "test/test_mobile_sensors.py"
+        "test/test_mobile_sensors.py",
+        "src/sofia/run/work.py",
+        "src/sofia/life/coordinator.py",
+        "src/sofia/application/autonomous_work.py",
+        "test/test_run_shutdown_sqlite_drain.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
@@ -1231,9 +1235,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "7390eb39516cfe5baade0bc5f001930790e93d3c"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "7390eb39516cfe5baade0bc5f001930790e93d3c",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-3006",
@@ -1327,12 +1337,20 @@
       "master_line": 231,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/life/coordinator.py"
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "test/test_life_postrun_verification.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "a34e1eb3c1fc7bc74fc5c4684c225c13183379f1"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "a34e1eb3c1fc7bc74fc5c4684c225c13183379f1",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-3015",
@@ -2322,7 +2340,8 @@
       "status": "partial_wiring",
       "code_paths": [
         "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt",
-        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt",
+        "mobile/android/app/src/androidTest/java/ai/sofia/mobile/PendingOutboundInstrumentedTest.kt"
       ],
       "evidence_commits": [
         "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
@@ -2331,9 +2350,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "c387d67c2b025b756ba60ef2131e5326a34f79db"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "c387d67c2b025b756ba60ef2131e5326a34f79db",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-6304",
@@ -2651,14 +2676,21 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/social/store.py"
+        "src/sofia/social/store.py",
+        "test/test_social_session_display_binding.py"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "2f064ae3e3c12e5f57ed32d829a6207a0c76b5d2"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "2f064ae3e3c12e5f57ed32d829a6207a0c76b5d2",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-4106",
@@ -2959,12 +2991,19 @@
       "master_line": 461,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/conversation/lifelong.py"
+        "src/sofia/conversation/lifelong.py",
+        "test/test_lifelong_historical_reviewed_import.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "5688a35326d80a02b4c4b8a3ffa55a5b18bfa162"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "5688a35326d80a02b4c4b8a3ffa55a5b18bfa162",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-5503",
@@ -3643,12 +3682,20 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/conversation/store.py",
-        "src/sofia/conversation/fulltext_search.py"
+        "src/sofia/conversation/fulltext_search.py",
+        "src/sofia/memory/originals.py",
+        "test/test_memory_conversation_originals.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "720d416fb41a4f22b110758572afcfc2bc7a1715"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "720d416fb41a4f22b110758572afcfc2bc7a1715",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-5604",
@@ -6149,12 +6196,19 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/cognition/model_switch_plan.py",
-        "src/sofia/cognition/model_lifecycle.py"
+        "src/sofia/cognition/model_lifecycle.py",
+        "test/test_cognition_model_promotion_transaction.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "8f72fb476a8d739e0267858db2883bddcd8cbc75"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "8f72fb476a8d739e0267858db2883bddcd8cbc75",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-6609",

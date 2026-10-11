@@ -281,3 +281,19 @@ CI test report still needs actual rerun and evidence. Source state totals
 remain **6 code-present/unverified, 44 partial, 650 individually unaudited,
 0 production accepted**. More code is still needed on the remaining
 partial items; this is not a declaration that all 44 were completed.
+
+## Further partial-first source fixes through a34e1eb
+
+Seven more original partially wired tasks received committed production source
+changes after the initial eight-task phase: CA-5603 (`720d416`),
+CA-4105 (`2f064ae`), CA-5502 (`5688a35`), CA-6608
+(`8f72fb4`), CA-3005 (`7390eb3`), CA-6303 (`c387d67`)
+and CA-3014 (`a34e1eb`). Evidence paths and SHAs are attached
+to their exact CA records in `v18-task-evidence.json`.
+
+**15 of 44 original partial IDs now have new source-coded repair evidence;
+29 have no new code in this campaign.** These are not finished-task
+percentages and none has passed the deferred CI/Windows/Android/Fleet
+acceptance campaign. Overall source classifications remain
+6 code-present/unverified, 44 partial, 650 unassessed, zero accepted.
+The single-writer host remains undecided and no live host was changed.
