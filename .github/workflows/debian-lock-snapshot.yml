@@ -1,0 +1,57 @@
+name: Debian 13 Python 3.13 Dependency Lock Snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - pyproject.toml
+      - src/sofia/dev/dependency_lock.py
+      - src/sofia/dev/supply_chain.py
+      - .github/workflows/debian-lock-snapshot.yml
+
+concurrency:
+  group: debian-dependency-lock-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Resolve Linux runtime dependencies into a disposable environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/debian-lock-venv"
+          PY="$RUNNER_TEMP/debian-lock-venv/bin/python"
+          "$PY" -m pip install .
+          "$PY" -m pip freeze --exclude-editable \
+            | grep -Evi '^sofia-ada-lyra(==|[[:space:]]+@)' \
+            | LC_ALL=C sort > "$RUNNER_TEMP/debian-lock.raw"
+          "$PY" -m sofia.dev.dependency_lock \
+            "$RUNNER_TEMP/debian-lock.raw" \
+            "requirements.lock.linux-py313.txt"
+          "$PY" -m pip install --require-hashes --dry-run \
+            -r "requirements.lock.linux-py313.txt"
+          sha256sum "requirements.lock.linux-py313.txt"
+
+      - name: Upload REVIEW-ONLY hashed Linux dependency lock
+        uses: actions/upload-artifact@v7
+        with:
+          name: requirements-lock-linux-py313-${{ github.sha }}
+          path: requirements.lock.linux-py313.txt
+          if-no-files-found: error
