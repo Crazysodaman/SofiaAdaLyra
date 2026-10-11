@@ -16,6 +16,7 @@ import signal
 import socket
 import sys
 from threading import Event
+from queue import Empty, Queue
 
 from sofia.state.canonical_sqlite import require_existing_sqlite
 
@@ -149,6 +150,59 @@ def notify_systemd(message: str) -> None:
         connection.sendall(message.encode("ascii"))
 
 
+
+class _HeadlessMobileDispatch:
+    """Marshal authenticated client operations onto the canonical application thread.
+
+    Neither the HTTPS request thread nor the Windows desktop becomes an
+    application/database writer.  The existing per-device credential is
+    independently verified in the HTTP handler AND again by MobileGateway.
+    """
+
+    def __init__(self, commands: Queue) -> None:
+        self._commands = commands
+
+    def dispatch_authenticated(
+        self, *, credential: str, operation: str, payload: dict[str, object],
+    ) -> dict[str, object]:
+        result: Queue = Queue(maxsize=1)
+        try:
+            self._commands.put((credential, operation, payload, result), timeout=5)
+            succeeded, value = result.get(timeout=130)
+        except Empty as exc:
+            # An interrupted response may have committed a conversation turn.
+            # The caller must use the original stable request ID for status
+            # lookup; this boundary never retries or fabricates a completion.
+            raise TimeoutError("canonical application dispatch result unknown") from exc
+        if succeeded:
+            return value
+        if isinstance(value, BaseException):
+            raise value
+        raise RuntimeError("canonical application failed without a result")
+
+
+def _process_mobile_commands(
+    *,
+    commands: Queue,
+    gateway: object,
+    stop_event: Event,
+) -> None:
+    """Process one queued authenticated call at a time on the runtime owner."""
+    while not stop_event.is_set():
+        try:
+            credential, operation, payload, result = commands.get(timeout=0.25)
+        except Empty:
+            continue
+        try:
+            answer = gateway.dispatch_authenticated(
+                credential=credential, operation=operation, payload=payload,
+            )
+        except Exception as exc:
+            result.put((False, exc))
+        else:
+            result.put((True, answer))
+
+
 def run_headless(*, stop_event: Event) -> None:
     """Start the actual canonical application and shut it down on signal.
 
@@ -194,19 +248,54 @@ def run_headless(*, stop_event: Event) -> None:
     if stop_event.is_set():
         return
     application = SofiaApplication(configuration)
+    mobile_server = None
     try:
         application.start()
         # A shutdown request can arrive while application.start() is still
         # composing. Never publish READY after a stop was already requested.
         if stop_event.is_set():
             return
+
+        # The authoritative Debian application, not a Windows desktop copy,
+        # hosts the existing per-device authenticated mobile endpoint.
+        # Keep all gateway/application work on this same service owner thread.
+        from sofia.mobile.provisioning import MobileProvisioning
+        mobile = MobileProvisioning.from_runtime(configuration)
+        mobile_commands: Queue = Queue(maxsize=16)
+        mobile_gateway = None
+        if mobile.enabled:
+            from sofia.mobile.gateway import MobileCompanionGateway
+            from sofia.mobile.server import MobileCompanionServer
+            mobile_gateway = MobileCompanionGateway(
+                application, state_path=configuration.state_path,
+            )
+            mobile_server = MobileCompanionServer(
+                _HeadlessMobileDispatch(mobile_commands),
+                credentials=mobile_gateway.credentials,
+                configuration=mobile.server,
+            )
+            mobile_server.start()
+
+        if stop_event.is_set():
+            return
         notify_systemd("READY=1")
-        stop_event.wait()
+        if mobile_gateway is None:
+            stop_event.wait()
+        else:
+            _process_mobile_commands(
+                commands=mobile_commands,
+                gateway=mobile_gateway,
+                stop_event=stop_event,
+            )
     finally:
         try:
-            notify_systemd("STOPPING=1")
+            if mobile_server is not None:
+                mobile_server.close()
         finally:
-            application.shutdown()
+            try:
+                notify_systemd("STOPPING=1")
+            finally:
+                application.shutdown()
 
 
 def main(argv: list[str] | None = None) -> int:
