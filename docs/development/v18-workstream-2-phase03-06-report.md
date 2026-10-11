@@ -1258,6 +1258,46 @@ startup, certificate or host setting was created/changed. Implementation
 awaits cold-restore acceptance on clean Windows/Debian, authenticated
 privacy review and full estate-integrity contracts.
 
+### Phase 06 item 43: Application-reviewed memory promotion rechecks current original and local UI scope
+
+The actual Settings memory review panel was using
+`DurableMemoryCandidateStore.list_ids(principal_id=...)` with no audience.
+This store intentionally interprets an absent audience as
+`audience_id IS NULL`, so locally scoped `local:text` proposals created
+by normal `ConversationLearningCoordinator → MemoryReviewService.propose`
+were **not listed** at all. The panel now lists owner-global plus
+`local:text` candidates only; it does not surface another Discord or
+mobile audience's private proposals. Local UI promotion is now routed
+through `MemoryReviewService.promote` instead of calling low-level
+`store.promote` directly. Rejection/revocation and correction ownership
+remain store-managed, and pending expired memories remain auditable.
+
+At the application review boundary `MemoryReviewService.promote` now
+requires authenticated **private** owner, matching principal and
+exact current review audience, then re-reads the original source session's
+`SocialSessionStore` binding and
+`ConversationOriginalRetriever` exact source messages. An erased,
+missing, re-bound, tampered or differently ordered source is rejected
+before the existing atomic candidate promotion/correction lifecycle is
+called. Historical snapshots inside `memory_candidate_source` remain
+evidence but cannot substitute for the current original during the
+application review action.
+
+Production: `f1b9a19c1b05fbcecd397a4e850838ee5743cc3b` application,
+`1465b973729c293fbce1583fb67c116185304d4a` desktop Settings.
+Deferred actual SQLite, binding and source-erasure regressions:
+`5bf46f07dd2b2f4ccc233562b3d110b8cd5c9d22`.
+Source IDs CA-5603, CA-5803, CA-5808, CA-5901, CA-5904,
+CA-5906, and CA-5304.
+
+**Remaining:** a low-level authorized writer could still call
+`DurableMemoryCandidateStore.promote` directly, bypassing the
+application-level review recheck; full atomic evidence validation across
+all store callers, retrospective source revocation at every cognition
+projection, source hash/tombstone epochs and end-to-end acceptance
+remain open. No test/CI run, operator review action or live
+conversation/memory modified.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
