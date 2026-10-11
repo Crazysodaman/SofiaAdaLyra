@@ -61,6 +61,27 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
     for expected in ("protected/constitution.md", "protected/identity.json", "personality.json", "avatar.json"):
         if not (origin / expected).is_file():
             warnings.append(f"missing_or_external_component:{expected}")
+    # A live home contains more than the SQLite file. A preflight must expose
+    # unknown top-level state before anybody assumes a backup is a complete
+    # relocation manifest. Keep the scan shallow and bounded for UI use.
+    if origin.is_dir():
+        known = {
+            "sofia.db", "sofia.db-wal", "sofia.db-shm",
+            "protected", "personality.json", "avatar.json",
+            "release-runtime",
+        }
+        extras = []
+        for count, item in enumerate(origin.iterdir()):
+            if count >= 256:
+                warnings.append("state_root_inventory_truncated")
+                break
+            if item.name not in known:
+                extras.append(item.name)
+        if extras:
+            warnings.append(
+                "unclassified_state_root_items:" +
+                ",".join(sorted(extras)[:32])
+            )
     warnings += [
         "mapped_drives_and_remote_mounts_need_explicit_operator_verification",
         "external_assets_archive_references_and_secrets_need_independent_review",
