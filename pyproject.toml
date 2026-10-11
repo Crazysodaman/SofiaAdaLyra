@@ -20,6 +20,14 @@ dependencies = [
 where = ["src"]
 
 [tool.setuptools.package-data]
+# Required production identity and constitution assets must ship in an
+# installed wheel, not only in an editable Git checkout.
+"sofia" = [
+    "constitution/constitution.md",
+    "constitution/constitution.sha256",
+    "identity/identity.json",
+    "embodiment/avatar.json",
+]
 "sofia.ui" = ["assets/*.ico"]
 "sofia.avatar" = ["wardrobe_data/*.json"]
 

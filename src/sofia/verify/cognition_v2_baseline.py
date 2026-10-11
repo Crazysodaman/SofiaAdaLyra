@@ -25,7 +25,10 @@ from sofia.cognition.performance import efficiency_snapshot
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# Git checkout metadata comes from the caller's exact working checkout.
+# Installed runtime data must instead come from the actual imported wheel.
+PROJECT_ROOT = Path.cwd().resolve()
+INSTALLED_SOFIA_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _rss_peak_bytes() -> int | None:
@@ -65,7 +68,16 @@ def _configuration(root: Path) -> SofiaConfiguration:
         }),
         encoding="utf-8",
     )
-    source = PROJECT_ROOT / "src" / "sofia"
+    source = INSTALLED_SOFIA_ROOT
+    for relative in (
+        "constitution/constitution.md", "constitution/constitution.sha256",
+        "identity/identity.json", "embodiment/avatar.json",
+    ):
+        path = source / relative
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"installed Sofía distribution lacks required {relative}"
+            )
     return SofiaConfiguration(
         constitution_path=str(source / "constitution" / "constitution.md"),
         constitution_hash_path=str(
@@ -76,7 +88,7 @@ def _configuration(root: Path) -> SofiaConfiguration:
         avatar_path=str(source / "embodiment" / "avatar.json"),
         state_path=str(root / "sofia.db"),
         provider=ProviderConfiguration(provider="test", model="test"),
-        filesystem_root=PROJECT_ROOT,
+        filesystem_root=root,
     )
 
 
@@ -123,16 +135,19 @@ def capture_baseline() -> dict[str, object]:
         startup_started = perf_counter()
         startup_cpu_started = process_time()
         application = SofiaApplication(configuration)
-        application.start()
-        startup = {
-            "wall_ms": round((perf_counter() - startup_started) * 1000, 3),
-            "process_cpu_ms": round(
-                (process_time() - startup_cpu_started) * 1000,
-                3,
-            ),
-            "peak_rss_bytes": _rss_peak_bytes(),
-        }
+        # Application startup itself may open stores and then fail. Keep
+        # shutdown inside the same finally scope as the actual conversation
+        # work, so Windows can close handles before TemporaryDirectory ends.
         try:
+            application.start()
+            startup = {
+                "wall_ms": round((perf_counter() - startup_started) * 1000, 3),
+                "process_cpu_ms": round(
+                    (process_time() - startup_cpu_started) * 1000,
+                    3,
+                ),
+                "peak_rss_bytes": _rss_peak_bytes(),
+            }
             scenarios = {
                 "casual_conversation": _measure(
                     lambda: application.conversation.respond("How are you?")
