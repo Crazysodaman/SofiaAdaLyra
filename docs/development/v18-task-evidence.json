@@ -2611,7 +2611,9 @@
       "evidence_commits": [
         "5a53470ea8193ebd9cd3e4cef950445f0baeade3",
         "7be656c1aea355ae4e7a481116c7e4cab8fb690f",
-        "92fe4c14fffba924926f9c03b3c5f8acd1558657"
+        "92fe4c14fffba924926f9c03b3c5f8acd1558657",
+        "b7837372d43cb98d77e045d3d2f3121689537784",
+        "59c1bb10fae9ed3a90a9857cbf7bc14cce3494a8"
       ],
       "accepted": false,
       "audit_observation": {
@@ -3121,7 +3123,9 @@
       "code_paths": [
         "src/sofia/ops/agent_discovery.py",
         "test/test_ops_agent_discovery.py",
-        "docs/development/v18-ws1-untrusted-input-boundary-inventory-2026-10-11.md"
+        "docs/development/v18-ws1-untrusted-input-boundary-inventory-2026-10-11.md",
+        "src/sofia/cognition/tools.py",
+        "test/test_cognitive_tools.py"
       ],
       "evidence_commits": [
         "6ef64f1bcb4823033902835d0ea688af7b71e08f",
@@ -3133,7 +3137,9 @@
         "0cc340f52dfd6ff4e76dc908cef7fd7a6a82720c",
         "18aaea1f885201932936c38d2412c577135de318",
         "8c22a580d740165491526b7375c5f7ed6ccd03a0",
-        "9aed9928db13f2223a09d1940278319eebf47d1c"
+        "9aed9928db13f2223a09d1940278319eebf47d1c",
+        "b7837372d43cb98d77e045d3d2f3121689537784",
+        "59c1bb10fae9ed3a90a9857cbf7bc14cce3494a8"
       ],
       "accepted": false,
       "audit_observation": {
@@ -3153,6 +3159,19 @@
           "production_route": "Configured approved-scope discovery -> bounded CIDR address enumeration -> immutable probed IP endpoint -> certificate-authenticated mTLS identity and capability reads -> bounded JSON decode -> untrusted discovery evidence.",
           "fulfilled_slice": "Preflight IPv4/IPv6 network cardinality before host expansion, keep approved probed IP separate from untrusted reverse DNS, reject pathological JSON nesting. Regressions authored and unexecuted.",
           "remaining": "Original CA-1906 cross-integration resource, data exfiltration, secret filtering, forged receipts and hostile memory cases not closed; current exact SHA tests deferred."
+        },
+        {
+          "source_paths": [
+            "src/sofia/cognition/tools.py",
+            "test/test_cognitive_tools.py"
+          ],
+          "commits": [
+            "b7837372d43cb98d77e045d3d2f3121689537784",
+            "59c1bb10fae9ed3a90a9857cbf7bc14cce3494a8"
+          ],
+          "production_route": "CognitiveSystem tool result -> CognitiveToolDispatcher.format_result -> tagged external evidence -> 32K-character maximum and explicit truncation notice -> model TOOL message.",
+          "fulfilled_slice": "Oversized third-party tool evidence can no longer be sent wholesale in a single cognitive tool result; tests authored only.",
+          "remaining": "Input bytes and generic-evidence normalization are still potentially large before final formatting. Secret redaction and end-to-end action/injection denial are not complete."
         }
       ]
     },
