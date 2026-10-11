@@ -1064,6 +1064,93 @@ class SelfDirectedLifeCoordinator:
                     constraints.append("existing_run_job")
                 elif latest.status in {WorkStatus.FAILED, WorkStatus.CANCELLED}:
                     constraints.append("run_failure_review")
+            # A source-derived next-action suggestion is NOT authorization,
+            # execution, private motivation or evidence of objective success.
+            # It gives the operator a precise blocker/verification route
+            # without asking the model to reverse-engineer RUN events.
+            reviews = tuple(self.store.evaluations(project.project_id))
+            latest_review = reviews[-1] if reviews else None
+            if halted:
+                next_action, next_reason = (
+                    "rest", "Original SAFE operator stop is active."
+                )
+            elif latest is not None and latest.status is WorkStatus.UNCERTAIN:
+                next_action, next_reason = (
+                    "ask", "Original RUN outcome is uncertain; no automatic retry."
+                )
+            elif latest is not None and latest.status is WorkStatus.WAITING_APPROVAL:
+                next_action, next_reason = (
+                    "ask", "RUN requires an independent operator approval."
+                )
+            elif latest is not None and latest.status in {
+                WorkStatus.BLOCKED, WorkStatus.FAILED, WorkStatus.CANCELLED,
+            }:
+                next_action, next_reason = (
+                    "ask", "Original RUN outcome needs an operator review."
+                )
+            elif goal is None:
+                next_action, next_reason = (
+                    "ask", "Canonical scoped GOALS state cannot be observed."
+                )
+            elif goal.status is not GoalStatus.ACTIVE:
+                next_action, next_reason = (
+                    "rest", "The original goal does not authorize new work."
+                )
+            elif project.status is not ProjectStatus.ACTIVE:
+                next_action, next_reason = (
+                    "rest", "The personal project is not active."
+                )
+            elif latest is not None and latest.status in {
+                WorkStatus.QUEUED, WorkStatus.RUNNING,
+            }:
+                next_action, next_reason = (
+                    "wait", "An original RUN job is already in flight."
+                )
+            elif latest is not None and latest.status is WorkStatus.COMPLETED:
+                source_result = (
+                    latest.result if isinstance(latest.result, dict) else {}
+                )
+                reviewed = next((
+                    evaluation for evaluation in reversed(reviews)
+                    if evaluation.artifact_id == source_result.get("artifact_id")
+                    and evaluation.artifact_revision == source_result.get("revision")
+                ), None)
+                if reviewed is None:
+                    next_action, next_reason = (
+                        "verify", "Completed RUN receipt still needs independent artifact review."
+                    )
+                elif reviewed.technical_outcome is TechnicalOutcome.INCONCLUSIVE:
+                    next_action, next_reason = (
+                        "ask", "Original objective remains unknown to independent validators."
+                    )
+                elif reviewed.technical_outcome is TechnicalOutcome.INVALID:
+                    next_action, next_reason = (
+                        "review", "Original artifact did not meet the checked objectives."
+                    )
+                elif reviewed.personal_judgment is not PersonalJudgment.UNKNOWN:
+                    next_action, next_reason = (
+                        "review", "A recorded personal judgment needs a distinct project decision."
+                    )
+                elif open_milestones:
+                    next_action, next_reason = (
+                        "verify", "Milestones require source-backed settlement."
+                    )
+                else:
+                    next_action, next_reason = (
+                        "review", "Independent completion decision still needs reconciliation."
+                    )
+            elif any(name.startswith("daily_") for name in constraints):
+                next_action, next_reason = (
+                    "rest", "Original project daily budget is exhausted."
+                )
+            elif not jobs:
+                next_action, next_reason = (
+                    "explore", "Eligible original project has no scheduled artifact."
+                )
+            else:
+                next_action, next_reason = (
+                    "review", "Source history needs a guarded new-work decision."
+                )
             view.append({
                 "project_id": project.project_id,
                 "project_revision": project.revision,
@@ -1093,6 +1180,12 @@ class SelfDirectedLifeCoordinator:
                 "latest_run_status": None if latest is None else latest.status.value,
                 "unsettled_job_ids": unsettled,
                 "blockers": tuple(constraints),
+                "next_action_candidate": next_action,
+                "next_action_reason": next_reason,
+                "next_action_source_job_id": None if latest is None else latest.job_id,
+                "next_action_review_id": (
+                    None if latest_review is None else latest_review.evaluation_id
+                ),
                 "eligible_for_new_work": not constraints,
                 "source": "canonical_life_goals_run_projection",
             })
