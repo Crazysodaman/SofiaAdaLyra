@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "74afeb4dc7ec859afad0f5c5262dd8e820ccc4cb",
+  "reviewed_main_sha": "82b06c8ef47de8b2c4bd5a529fe8a627ce88f6f2",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 CA-3010 controller and canary TLS key stage cleanup source coded; untested. Persistent bootstrap wide firewall and unpinned dependencies remain CA-3011/CA-3012 gaps. Preserve other workstreams' ledger entries and all accepted=false statuses.",
+  "notice": "WS1 Phase01 Fleet canary and persistent Windows bootstrap hardening: CA-3010/3011/3012 partial, new explicit controller IPv4 and hashed dependency lock needed at operator deployment, tests/CI and live host acceptance deferred. No host mutation or trust granted. Other workstream evidence entries retained.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1458,20 +1458,51 @@
       "phase": "01",
       "source_topic": "30",
       "master_line": 228,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/windows_bootstrap.py",
+        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "test/test_ops_windows_bootstrap.py",
+        "Setup-SofiaFleetArtemis.ps1"
+      ],
+      "evidence_commits": [
+        "8fa6c20f1779fb590e2fa88d6c03a8ab8e5cae44",
+        "1b33d6b115829abf4485956b854ab781c3718b7a",
+        "3a18eea733d31d07f2e6f3fc6b9d5b1d29a9bfa7",
+        "51b5b39d5e39e89c14697e8d6c6107aa1370017d",
+        "99b470c358679b64bda826e96e58de8ff5ec8478",
+        "08a9083393ddd20c16c3431ab7f3722506b3329b"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "82b06c8ef47de8b2c4bd5a529fe8a627ce88f6f2",
+        "depth": "source_traced_windows_bootstrap_security",
+        "interpretation": "Persistent WindowsCimBootstrapInstaller now requires reviewed exact controller IPv4, uses only Private-profile rule, preflights existing rule and stops no service before preflight; canary already exact-controller. Tests authored not run; operator IP and real Windows/firewall acceptance still needed."
+      }
     },
     {
       "id": "CA-3012",
       "phase": "01",
       "source_topic": "30",
       "master_line": 229,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/windows_bootstrap.py",
+        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "test/test_ops_windows_bootstrap.py",
+        "Setup-SofiaFleetArtemis.ps1"
+      ],
+      "evidence_commits": [
+        "8fa6c20f1779fb590e2fa88d6c03a8ab8e5cae44",
+        "1b33d6b115829abf4485956b854ab781c3718b7a",
+        "3a18eea733d31d07f2e6f3fc6b9d5b1d29a9bfa7"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "82b06c8ef47de8b2c4bd5a529fe8a627ce88f6f2",
+        "depth": "source_traced_windows_bootstrap_security",
+        "interpretation": "Persistent CIM Fleet installer now requires explicit dependency lock, stages it, invokes pip --require-hashes; rekey CLI exposes lock input. Canary already requires --require-hashes. Operator-reviewed lock, actual Windows dependency install verification and source wheel attestation remain open."
+      }
     },
     {
       "id": "CA-3013",
