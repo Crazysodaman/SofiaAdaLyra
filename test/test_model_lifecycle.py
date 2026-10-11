@@ -534,3 +534,50 @@ def test_resource_observer_failure_is_unknown_not_no_pressure():
     assert manager.reconcile_residency(now=NOW).desired_roles == (
         CognitiveModelRole.SECONDARY,
     )
+
+
+def test_shared_model_roles_count_one_image_not_two_in_ram_budget():
+    model = "vendor/one-physical-model:any"
+    backend = Backend(installed=(model,), sizes={model: 3000})
+    manager = ModelLifecycleManager(
+        selection=_selection(model, model),
+        policy=ModelLifecycleConfiguration(
+            enabled=True, residency_mode="resource_aware",
+        ),
+        backend=backend,
+        resource_observer=lambda: Telemetry(available_ram=4000),
+    )
+    decision = manager.reconcile_residency(now=NOW)
+    assert decision.desired_roles == (
+        CognitiveModelRole.PRIMARY, CognitiveModelRole.SECONDARY,
+    )
+    assert decision.loaded_models == (model,)
+    assert backend.loads == [(model, manager.policy.keep_alive)]
+    assert backend.resident == {model}
+
+
+def test_shared_model_kept_for_secondary_is_not_unloaded_as_primary():
+    model = "vendor/one-physical-model:any"
+    backend = Backend(installed=(model,), running=(model,), sizes={model: 3000})
+    manager = ModelLifecycleManager(
+        selection=_selection(model, model),
+        policy=ModelLifecycleConfiguration(
+            enabled=True, residency_mode="resource_aware",
+            idle_unload_seconds=1,
+        ),
+        backend=backend,
+        resource_observer=lambda: Telemetry(
+            available_ram=5000, throttled=True,
+        ),
+    )
+    manager.begin_use(CognitiveModelRole.SECONDARY, now=NOW)
+    manager.end_use(CognitiveModelRole.SECONDARY, now=NOW)
+    decision = manager.reconcile_residency(now=NOW+timedelta(hours=1))
+    assert decision.desired_roles == (CognitiveModelRole.SECONDARY,)
+    assert backend.unloads == []
+    assert backend.resident == {model}
+    assert manager.sweep_idle(
+        now=NOW+timedelta(hours=2),
+        protected_roles={CognitiveModelRole.SECONDARY},
+    ) == ()
+    assert backend.resident == {model}
