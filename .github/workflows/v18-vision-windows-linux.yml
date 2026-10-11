@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/sofia/vision/**'
       - 'test/test_vision_cross_platform.py'
+      - 'test/test_vision_action_workflow.py'
       - 'test/test_vision_desktop_control.py'
       - '.github/workflows/v18-vision-windows-linux.yml'
   workflow_dispatch:
@@ -32,8 +33,8 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -e . pytest
       - name: Python source integrity
-        run: python -m compileall -q src/sofia/vision test/test_vision_cross_platform.py test/test_vision_desktop_control.py
+        run: python -m compileall -q src/sofia/vision test/test_vision_cross_platform.py test/test_vision_desktop_control.py test/test_vision_action_workflow.py
       - name: Synthetic cross-platform desktop safety contracts
-        run: python -m pytest -q test/test_vision_cross_platform.py test/test_vision_desktop_control.py
+        run: python -m pytest -q test/test_vision_cross_platform.py test/test_vision_desktop_control.py test/test_vision_action_workflow.py
       - name: No real desktop was actuated
         run: echo 'CI does not exercise physical FIDO2, OS screen pickers, uinput, GDI pixels or gaming anti-cheat guarantees.'
