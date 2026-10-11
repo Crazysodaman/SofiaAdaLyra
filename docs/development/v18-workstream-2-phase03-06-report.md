@@ -3068,6 +3068,50 @@ or remediation of already disclosed historical
 messages. Tests, CI, Android builds and live
 data repair remain deferred.
 
+
+
+### Phase 06 item 85: Fresh owner consent at the signed erasure journal append
+
+The existing external `MemoryDeletionLedger.request`
+checked independently authorized user consent
+**before** acquiring its cross-process journal
+lock, then scanned the entire authenticated
+HMAC chain and computed the next signed record.
+If approval expired while waiting for a lock
+or preparing a tombstone, that earlier check
+could still result in a durable new erasure
+record without current consent.
+
+Production `src/sofia/memory/deletion_ledger.py`
+now invokes the **same independent approval
+witness again under the external journal lock**
+after scanning and payload preparation, immediately
+before opening the journal for append.
+A withdrawn approval raises `PermissionError`;
+no new signed tombstone is written by that
+request. Current signed request IDs, journal
+sequence/HMAC, per-candidate idempotency and
+SQLite anti-resurrection remain the same.
+A duplicate already-journaled approved erasure
+still returns its original no-op receipt.
+
+- Production `6a01ecc4b64cbbe36bfd6e5f0a2d63c08d5d1281`
+  (`[skip ci]`).
+- Deferred synthetic approve-then-revoke and
+  still-approved single append proof:
+  `test/test_ws2_erasure_final_approval.py`,
+  `4135c1586eba49409716e4f27b5ffe646816132a`
+  (`[skip ci]`).
+
+Original CA relevance: CA-4806, CA-5202,
+CA-5803, CA-5908, CA-6108, CA-6311.
+External journal replication/fencing, exact
+current approval lifetime, storage durability
+and complete deletion of all cached source
+representations remain separate gates.
+No tests/CI, live deletes, restore, database
+movement or secret key changes occurred.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
