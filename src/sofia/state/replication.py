@@ -18,6 +18,7 @@ from uuid import uuid4
 
 from sofia.state.model import StateClass, StateKey, StateRecord
 from sofia.state.plane import StatePlane, StatePlaneConflictError
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 
@@ -84,10 +85,33 @@ class ReplicaDivergenceError(ReplicationError):
 class SQLiteReplicationWitness:
     """Independent durable writer fence and replication operation journal."""
 
-    def __init__(self, path: Path | str) -> None:
+    def __init__(
+        self, path: Path | str, *, allow_first_bootstrap: bool = False,
+    ) -> None:
         self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if type(allow_first_bootstrap) is not bool:
+            raise TypeError("explicit first bootstrap policy must be bool")
+        if allow_first_bootstrap:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            # Exclusive first creation is an operator-controlled offline
+            # operation. Runtime startup NEVER recreates a lost witness.
+            if not self.path.exists() and not self.path.is_symlink():
+                with self.path.open("xb"):
+                    pass
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db, db:
+            if not allow_first_bootstrap:
+                required = {"replication_writer", "replication_operation",
+                            "replication_control", "replication_target"}
+                found = {
+                    row[0] for row in db.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ).fetchall()
+                }
+                if not required.issubset(found):
+                    raise ReplicationError(
+                        "witness schema missing; runtime refuses fresh epoch-one authority"
+                    )
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS replication_writer (
@@ -138,7 +162,7 @@ class SQLiteReplicationWitness:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(str(self.path), timeout=10.0)
+        db = self._guard.connect(timeout=10.0)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         db.execute("PRAGMA foreign_keys=ON")
