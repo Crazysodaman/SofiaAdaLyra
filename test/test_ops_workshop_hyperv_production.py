@@ -129,8 +129,10 @@ def test_missing_capacity_image_collision_and_external_switch_all_block():
     assert not review.review_eligible
     assert not review.may_provision
     issues=";".join(review.blockers)
-    assert "RAM" in issues
-    assert "disk" in issues
+    # Host admission now distinguishes guest/host memory reserve from an
+    # individually measured Hyper-V volume capacity, both fail closed.
+    assert "guest/host memory reserve" in issues
+    assert "volume free capacity" in issues
     assert "collision" in issues
     assert "wrong network type" in issues
     assert "hash" in issues
@@ -270,6 +272,8 @@ def test_canonical_preview_is_model_readable_but_never_an_action_grant(tmp_path)
         WorkshopPreflight, WorkshopRemotePreview, WorkshopPreviewStore,
     )
     state=tmp_path/"sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state)
     RuntimeUserSettingsStore(state).load()
     now=datetime.now(timezone.utc)
     drafted=plan(
