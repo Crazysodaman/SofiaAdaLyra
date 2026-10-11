@@ -11,6 +11,7 @@ from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.originals import SourceMessage
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class ChatGPTMemoryMigrationService:
@@ -33,6 +34,9 @@ class ChatGPTMemoryMigrationService:
         self.candidates = candidates or DurableMemoryCandidateStore(self.path)
         self._owns_imports = imports is None
         self._owns_candidates = candidates is None
+        # The operator-reviewed promotion mapping shares the exact canonical
+        # source authority of its imported originals and candidate records.
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db:
             with db:
                 db.execute(
@@ -51,7 +55,7 @@ class ChatGPTMemoryMigrationService:
                 )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db
