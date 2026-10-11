@@ -4112,9 +4112,15 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 432,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/store.py",
+        "src/sofia/application/conversation_service.py",
+        "src/sofia/social/store.py"
+      ],
+      "evidence_commits": [
+        "a3f344abd1bfc53985353f753b3dc70b770f9838"
+      ],
       "accepted": false
     },
     {
@@ -4122,9 +4128,14 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 433,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/lifelong.py",
+        "src/sofia/social/store.py"
+      ],
+      "evidence_commits": [
+        "a3f344abd1bfc53985353f753b3dc70b770f9838"
+      ],
       "accepted": false
     },
     {
@@ -4341,9 +4352,15 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 443,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/lifelong.py",
+        "test/test_ws2_historical_preview_pagination.py",
+        "test/test_ws2_historical_review_revocation.py"
+      ],
+      "evidence_commits": [
+        "a3f344abd1bfc53985353f753b3dc70b770f9838"
+      ],
       "accepted": false
     },
     {
@@ -4371,9 +4388,15 @@
       "phase": "05",
       "source_topic": "53",
       "master_line": 449,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/lifelong.py",
+        "src/sofia/application/conversation_service.py",
+        "src/sofia/mobile/gateway.py"
+      ],
+      "evidence_commits": [
+        "a3f344abd1bfc53985353f753b3dc70b770f9838"
+      ],
       "accepted": false
     },
     {
@@ -4521,9 +4544,15 @@
       "phase": "05",
       "source_topic": "55",
       "master_line": 460,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/lifelong.py",
+        "src/sofia/social/store.py",
+        "src/sofia/application/conversation_service.py"
+      ],
+      "evidence_commits": [
+        "a3f344abd1bfc53985353f753b3dc70b770f9838"
+      ],
       "accepted": false
     },
     {
