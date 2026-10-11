@@ -93,6 +93,21 @@ def create_model_lifecycle(
         ),
     )
     runtime_state_store.clear_stale_busy()
+    # In a split runtime/inference topology the canonical runtime can be
+    # GPU-less (Artemis) while a specifically enrolled GPU node (Venus)
+    # supplies cognition over pinned mTLS. Never try to manage a local
+    # Ollama process when the remote-only Fleet policy explicitly excludes
+    # this host and disallows local fallback. This leaves canonical state,
+    # routing traces and all authority in the local runtime.
+    fleet = configuration.fleet_cognition
+    if (
+        fleet.enabled
+        and not fleet.local_fallback
+        and fleet.allowed_host_ids
+        and local_host_id is not None
+        and local_host_id not in fleet.allowed_host_ids
+    ):
+        return None
     if not configuration.model_lifecycle.enabled:
         return None
     if not any(
