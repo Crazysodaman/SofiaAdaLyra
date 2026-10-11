@@ -200,6 +200,109 @@ class LifeProcedureCatalog:
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
 
+    @staticmethod
+    def _original_proof_current_under_lock(
+        db: sqlite3.Connection, *, project: LifeProject,
+        job_id: str, evidence_ref: str, original_result: dict[str, object],
+        now: datetime,
+    ) -> bool:
+        """Recheck original SQLite RUN/LIFE/evidence identity at promotion.
+
+        The expensive creative-byte inspection occurs before this lock.
+        This final canonical-source CAS does not equate a historical RUN
+        success with current authorization to execute another operation.
+        """
+        row = db.execute(
+            "SELECT owner_principal_id,audience_id,goal_id,status,revision "
+            "FROM life_project WHERE project_id=?", (project.project_id,),
+        ).fetchone()
+        if (
+            row is None or row["owner_principal_id"] != project.owner_principal_id
+            or row["audience_id"] != project.audience_id
+            or row["goal_id"] != project.goal_id
+            or row["status"] != ProjectStatus.COMPLETED.value
+            or int(row["revision"]) != project.revision
+        ):
+            return False
+        linked = db.execute(
+            "SELECT 1 FROM life_project_job WHERE project_id=? AND job_id=?",
+            (project.project_id, job_id),
+        ).fetchone()
+        work = db.execute(
+            "SELECT kind,status,payload_json,result_json "
+            "FROM autonomous_work_job WHERE job_id=?", (job_id,),
+        ).fetchone()
+        if linked is None or work is None or work["kind"] != "life-create-artifact" or work["status"] != WorkStatus.COMPLETED.value:
+            return False
+        try:
+            payload = json.loads(work["payload_json"])
+            result = json.loads(work["result_json"])
+        except (ValueError, TypeError):
+            return False
+        parameters = payload.get("parameters") if isinstance(payload, dict) else None
+        if (
+            not isinstance(parameters, dict)
+            or payload.get("project_id") != project.project_id
+            or payload.get("goal_id") != project.goal_id
+            or parameters.get("project_id") != project.project_id
+            or parameters.get("audience_id") != project.audience_id
+            or parameters.get("artifact_id") != original_result.get("artifact_id")
+            or result != original_result
+            or result.get("evidence_ref") != evidence_ref
+        ):
+            return False
+        receipt = db.execute(
+            "SELECT kind,source,successful,goal_id,action_id,"
+            "principal_id,audience,observed_at "
+            "FROM goal_evidence_record WHERE evidence_ref=?",
+            (evidence_ref,),
+        ).fetchone()
+        if receipt is None:
+            return False
+        try:
+            observed_at = datetime.fromisoformat(receipt["observed_at"])
+        except (ValueError, TypeError, OverflowError):
+            return False
+        if (
+            receipt["kind"] != "operation_receipt"
+            or receipt["source"] != "life:creative-capability"
+            or receipt["successful"] != 1
+            or receipt["goal_id"] != project.goal_id
+            or receipt["action_id"] != job_id
+            or receipt["principal_id"] != local_sparks_principal().principal_id
+            or receipt["audience"] != project.audience_id
+            or observed_at.tzinfo is None or observed_at.utcoffset() is None
+            or observed_at > now
+        ):
+            return False
+        if db.execute(
+            "SELECT 1 FROM life_project_artifact "
+            "WHERE project_id=? AND artifact_id=? AND artifact_revision=?",
+            (project.project_id, result.get("artifact_id"), result.get("revision")),
+        ).fetchone() is None:
+            return False
+        reviews = db.execute(
+            "SELECT technical_outcome,evidence_refs_json,objective_results_json "
+            "FROM life_artifact_evaluation "
+            "WHERE project_id=? AND artifact_id=? AND artifact_revision=?",
+            (project.project_id, result.get("artifact_id"), result.get("revision")),
+        ).fetchall()
+        for review in reviews:
+            try:
+                refs = json.loads(review["evidence_refs_json"])
+                checks = json.loads(review["objective_results_json"])
+            except (ValueError, TypeError):
+                continue
+            if (
+                review["technical_outcome"] == TechnicalOutcome.VALID.value
+                and isinstance(refs, list) and evidence_ref in refs
+                and isinstance(checks, dict)
+                and set(checks) == set(project.brief.objectives)
+                and all(value is True for value in checks.values())
+            ):
+                return True
+        return False
+
     def record_verified_attempt(
         self, *, project: LifeProject, job_id: str,
         original_run_evidence_ref: str, now: datetime,
@@ -314,6 +417,14 @@ class LifeProcedureCatalog:
         project_brief = project.brief
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            if not self._original_proof_current_under_lock(
+                db, project=project, job_id=job_id,
+                evidence_ref=original_run_evidence_ref,
+                original_result=output, now=now,
+            ):
+                raise ValueError(
+                    "original LIFE/RUN/evaluation proof changed before skill promotion"
+                )
             existing = db.execute(
                 "SELECT * FROM life_procedure_catalog WHERE procedure_id=?",
                 (key,),
