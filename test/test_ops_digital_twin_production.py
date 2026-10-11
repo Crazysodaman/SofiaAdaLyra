@@ -313,3 +313,28 @@ def test_jmri_telemetry_route_simulation_never_implies_train_movement():
     assert "owner-reviewed roster" in jmri["read_only_inputs"]
     assert "actual route clearance" in jmri["unmeasured"]
     assert "locomotive commands require separate grants" in jmri["real_action_scope"]
+
+
+
+def test_unavailable_simulation_tools_and_noisy_source_trigger_abandonment():
+    from sofia.ops.digital_twin import assess_twin_experiment
+    snap=snapshot_from_ops(
+        (host("Artemis"),host("Eos")),
+        (edge("Eos","Artemis","dns"),),at=AT,
+    )
+    modeled=simulate_hypothetical_failure(
+        snap,scenario="dns_outage",target_host_id="Artemis",at=AT,
+    )
+    decision=assess_twin_experiment(
+        snapshot=snap,result=modeled,at=AT,
+        tools_available=False,source_noisy=True,
+    )
+    assert decision.decision=="ABANDON_RESEARCH"
+    assert decision.may_launch_real_experiment is False
+    assert "tool is unavailable" in "; ".join(decision.reasons)
+    assert "noise" in "; ".join(decision.reasons)
+    with pytest.raises(TypeError):
+        assess_twin_experiment(
+            snapshot=snap,result=modeled,at=AT,
+            tools_available="yes",
+        )
