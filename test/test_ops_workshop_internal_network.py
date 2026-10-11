@@ -155,3 +155,16 @@ def test_host_power_on_script_rechecks_ip_route_ics_and_nat_before_dvd_mutations
     assert script.index("HOST_IP_FORWARDING_ENABLED")<script.index("Start-VM")
     assert "New-VMSwitch" not in script
     assert "Set-VMSwitch" not in script
+
+def test_host_public_firewall_must_be_enabled_default_deny():
+    for mutation in (
+        {"FirewallNetworkCategory":"Private"},
+        {"PublicFirewallEnabled":False},
+        {"PublicFirewallDefaultInbound":"Allow"},
+    ):
+        verdict=review_internal_network(
+            decode_host_internal_isolation(host_source(**mutation)),
+            now=AT,
+        )
+        assert verdict.isolated_for_host_guest is False
+        assert any("firewall" in item.casefold() for item in verdict.blockers)
