@@ -76,8 +76,11 @@ def inspect_public_dataset(*,path:str|Path,source_class:str,license_id:str,
         raise PermissionError("raw private conversation/Discord/screen data are prohibited")
     if source_class=="owner_original_nonprivate" and license_id!="OWNER-ORIGINAL":
         raise PermissionError("owner-original material needs owner rights provenance")
-    source=Path(path).expanduser().resolve(strict=True)
-    if not source.is_file() or source.is_symlink() or source.suffix.casefold()!=".jsonl":
+    requested=Path(path).expanduser()
+    if requested.is_symlink():
+        raise PermissionError("training data path may not be a symbolic link")
+    source=requested.resolve(strict=True)
+    if not source.is_file() or source.suffix.casefold()!=".jsonl":
         raise ValueError("regular local JSONL file required")
     if any((parent/".git").exists() for parent in (source.parent,*source.parents)):
         raise PermissionError("datasets must not be sourced from this Git checkout")
