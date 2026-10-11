@@ -48,6 +48,7 @@ class MobileNotificationStore:
                     ),
                     claimed_at TEXT,
                     claimed_device TEXT,
+                    claimed_generation INTEGER,
                     displayed_at TEXT
                 );
                 CREATE INDEX IF NOT EXISTS mobile_notification_pending
@@ -60,6 +61,16 @@ class MobileNotificationStore:
                 );
                 """
             )
+            fields = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(mobile_notification)"
+                )
+            }
+            if "claimed_generation" not in fields:
+                db.execute(
+                    "ALTER TABLE mobile_notification "
+                    "ADD COLUMN claimed_generation INTEGER"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
@@ -153,7 +164,7 @@ class MobileNotificationStore:
                 return self._record(row)
             db.execute(
                 "INSERT INTO mobile_notification VALUES "
-                "(?,?,?,?, 'queued',NULL,NULL,NULL)",
+                "(?,?,?,?, 'queued',NULL,NULL,NULL,NULL)",
                 (key, heading, body, moment.isoformat()),
             )
             row = db.execute(
@@ -222,7 +233,8 @@ class MobileNotificationStore:
             )
             db.execute(
                 "UPDATE mobile_notification SET status='queued', "
-                "claimed_at=NULL, claimed_device=NULL "
+                "claimed_at=NULL, claimed_device=NULL, "
+                "claimed_generation=NULL "
                 "WHERE status='claimed' AND claimed_at<?",
                 (expired.isoformat(),),
             )
@@ -234,9 +246,9 @@ class MobileNotificationStore:
                 return None
             changed = db.execute(
                 "UPDATE mobile_notification SET status='claimed', "
-                "claimed_at=?,claimed_device=? "
+                "claimed_at=?,claimed_device=?,claimed_generation=? "
                 "WHERE notification_id=? AND status='queued'",
-                (moment.isoformat(), device, row["notification_id"]),
+                (moment.isoformat(), device, generation, row["notification_id"]),
             )
             if changed.rowcount != 1:
                 return None
@@ -269,19 +281,26 @@ class MobileNotificationStore:
                 credential_sha256=credential_sha256,
             )
             row = db.execute(
-                "SELECT status,claimed_device FROM mobile_notification "
-                "WHERE notification_id=?",
+                "SELECT status,claimed_device,claimed_generation "
+                "FROM mobile_notification WHERE notification_id=?",
                 (key,),
             ).fetchone()
             if row is None:
                 raise KeyError("mobile notification does not exist")
+            # An old claim is not a receipt under a re-paired phone's
+            # newly enrolled credential. It must expire and be reclaimed
+            # before that new generation may settle the notification.
+            if generation is not None and row["claimed_generation"] != generation:
+                raise PermissionError(
+                    "mobile notification belongs to another pairing generation"
+                )
             if row["status"] == "displayed" and row["claimed_device"] == device:
                 return
             changed = db.execute(
                 "UPDATE mobile_notification SET status='displayed',displayed_at=? "
                 "WHERE notification_id=? AND status='claimed' "
-                "AND claimed_device=?",
-                (moment.isoformat(), key, device),
+                "AND claimed_device=? AND (? IS NULL OR claimed_generation=?)",
+                (moment.isoformat(), key, device, generation, generation),
             )
             if changed.rowcount != 1:
                 raise PermissionError(
