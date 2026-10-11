@@ -570,6 +570,136 @@ class SelfDirectedLifeCoordinator:
                     return tuple(reviews)
         return tuple(reviews)
 
+    def operator_diagnostics(
+        self, *, now: datetime, limit: int = 32,
+    ) -> dict[str, object]:
+        """Read-only, canonical source-derived LIFE status for an operator.
+
+        Never make diagnosis an independent scheduler status. Project statuses
+        come from LifeStore, work transitions from DurableWorkStore, and
+        uncertain/blocked events retain their original RUN identifiers.
+        """
+        aware(now, "diagnostic timestamp")
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("diagnostic limit must be 1..100")
+        projects = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+        )
+        quiet = self.store.quiet_until(now=now)
+        recent = self.store.selections(limit=1)
+        last_selection = recent[0] if recent else None
+        records: list[dict[str, object]] = []
+        for project in projects[:limit]:
+            jobs = tuple(
+                self.work_store.get(job_id)
+                for job_id in self.store.jobs(project.project_id)
+            )
+            blocked = next((job for job in jobs if job.status is WorkStatus.BLOCKED), None)
+            uncertain = next((job for job in jobs if job.status is WorkStatus.UNCERTAIN), None)
+            approval = next(
+                (job for job in jobs if job.status is WorkStatus.WAITING_APPROVAL),
+                None,
+            )
+            running = next(
+                (job for job in jobs if job.status in {
+                    WorkStatus.RUNNING, WorkStatus.QUEUED,
+                }), None,
+            )
+            failed = next(
+                (job for job in jobs if job.status in {
+                    WorkStatus.FAILED, WorkStatus.CANCELLED,
+                }), None,
+            )
+            reviewed = self.store.evaluations(project.project_id)
+            if project.status in {
+                ProjectStatus.COMPLETED, ProjectStatus.ARCHIVED,
+                ProjectStatus.ABANDONED, ProjectStatus.REJECTED,
+                ProjectStatus.SUPERSEDED,
+            }:
+                condition, origin = "finished", "life_project.status"
+            elif project.status is ProjectStatus.PAUSED:
+                condition, origin = "paused", "life_project.status"
+            elif project.status is ProjectStatus.FAILED:
+                condition, origin = "failed", "life_project.status"
+            elif uncertain is not None:
+                condition, origin = "uncertain", "autonomous_work_job.status"
+            elif blocked is not None:
+                condition, origin = "blocked", "autonomous_work_job.status"
+            elif approval is not None:
+                condition, origin = "awaiting_permission", "autonomous_work_job.status"
+            elif failed is not None:
+                condition, origin = "reviewing_failure", "autonomous_work_job.status"
+            elif running is not None:
+                condition, origin = "working", "autonomous_work_job.status"
+            elif jobs or reviewed:
+                condition, origin = "reviewing", "life_project_job"
+            elif project.status is ProjectStatus.ACTIVE:
+                condition, origin = "eligible", "life_project.status"
+            else:
+                condition, origin = "awaiting_activation", "life_project.status"
+            cause = next((
+                item for item in (uncertain, blocked, approval, failed, running)
+                if item is not None
+            ), None)
+            observations = self.store.run_outcome_observations(
+                project.project_id, limit=1,
+            )
+            last_outcome = observations[-1] if observations else None
+            records.append({
+                "project_id": project.project_id,
+                "project_status": project.status.value,
+                "condition": condition,
+                "source": origin,
+                "source_job_id": None if cause is None else cause.job_id,
+                "source_job_status": None if cause is None else cause.status.value,
+                "source_job_reason": None if cause is None else cause.reason,
+                "last_run_event_id": (
+                    None if last_outcome is None else last_outcome.run_event_id
+                ),
+                "last_run_status": (
+                    None if last_outcome is None else last_outcome.status
+                ),
+                "artifact_count": len(self.store.artifacts(project.project_id)),
+                "evaluations_count": len(reviewed),
+                "has_verified_completion": project.status is ProjectStatus.COMPLETED,
+            })
+        if quiet is not None:
+            overall, reason = "idle_by_choice", quiet[1]
+            source = "life_quiet_choice"
+        elif not projects:
+            overall, reason = "idle_no_project", "No projects in the canonical LIFE scope."
+            source = "life_project"
+        elif any(item["condition"] == "eligible" for item in records):
+            overall, reason = "ready", "An active project is eligible for consideration."
+            source = "life_project.status"
+        elif any(item["condition"] == "working" for item in records):
+            overall, reason = "working", "A RUN job is queued or executing."
+            source = "autonomous_work_job.status"
+        elif any(item["condition"] == "uncertain" for item in records):
+            overall, reason = "uncertain", "RUN outcome may include unconfirmed effects."
+            source = "autonomous_work_job.status"
+        elif any(item["condition"] == "awaiting_permission" for item in records):
+            overall, reason = "awaiting_permission", "A RUN job needs separate approval."
+            source = "autonomous_work_job.status"
+        elif any(item["condition"] in {"blocked", "reviewing_failure", "reviewing"} for item in records):
+            overall, reason = "reviewing", "A prior project or RUN outcome requires review."
+            source = "life_project_job"
+        else:
+            overall, reason = "idle", "No currently eligible LIFE activity."
+            source = "life_project.status"
+        return {
+            "as_of": now.astimezone(timezone.utc).isoformat(),
+            "condition": overall,
+            "reason": reason,
+            "source": source,
+            "last_selection_id": None if last_selection is None else last_selection.selection_id,
+            "last_selection_reason": None if last_selection is None else last_selection.reason,
+            "quiet_until": None if quiet is None else quiet[0].isoformat(),
+            "projects": tuple(records),
+            "truncated": len(projects) > limit,
+        }
+
     def consider_new_project(
         self, *, generate, now: datetime, busy: bool,
         resource_pressure: float,
