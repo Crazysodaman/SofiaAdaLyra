@@ -33,6 +33,7 @@ from sofia.cognition.matrix import (
 from sofia.personality.influence import ContinuityInfluence
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.safe.permissions import PermissionStore
+from test.owner_auth_fixture import private_with_signed_owner
 from sofia.social.principals import local_sparks_principal
 
 
@@ -470,9 +471,8 @@ def test_unrelated_text_is_not_a_clothing_action(tmp_path):
 
 def test_verified_private_sparks_session_can_commit_and_restore_nude_state(tmp_path):
     runtime_bundle = bundle(tmp_path)
-    PermissionStore(
-        runtime_bundle.store.database_path
-    ).set_private_adult_authority(
+    private_with_signed_owner(
+        PermissionStore(runtime_bundle.store.database_path),
         private_chat=True,
         adult_chat=True,
         adult_avatar=True,
@@ -500,9 +500,8 @@ def test_verified_private_sparks_session_can_commit_and_restore_nude_state(tmp_p
 
 def test_operator_stop_blocks_private_presentation_even_when_adult_verified(tmp_path):
     runtime_bundle = bundle(tmp_path)
-    PermissionStore(
-        runtime_bundle.store.database_path
-    ).set_private_adult_authority(
+    private_with_signed_owner(
+        PermissionStore(runtime_bundle.store.database_path),
         private_chat=True,
         adult_chat=True,
         adult_avatar=True,
