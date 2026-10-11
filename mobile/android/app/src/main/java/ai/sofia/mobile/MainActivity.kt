@@ -123,7 +123,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (next.token != config.token || next.baseUrl != config.baseUrl) {
-            if (secure.pendingOutbound() != null) {
+            if (hasUnconfirmedSend()) {
                 status = "Resolve or explicitly discard the unconfirmed send before re-pairing"
                 return
             }
@@ -153,7 +153,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (next.privateMode != config.privateMode) {
-            if (secure.pendingOutbound() != null) {
+            if (hasUnconfirmedSend()) {
                 status = "Resolve or discard the unconfirmed send before changing privacy mode"
                 return
             }

@@ -135,6 +135,7 @@ def test_private_avatar_requires_explicit_phone_toggle(tmp_path):
 
 def test_sensor_ingestion_invalidates_live_environment(tmp_path):
     app, gateway = _gateway(tmp_path)
+    gateway.credentials.enroll("android-owner")
     result = gateway.ingest_sensors({
         "device_id": "android-owner",
         "observed_at": datetime.now(timezone.utc).isoformat(),
