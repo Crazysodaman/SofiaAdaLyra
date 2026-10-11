@@ -1174,6 +1174,96 @@ class SelfDirectedLifeCoordinator:
             "authority": "read_only_canonical_source_trace",
         }
 
+    def voluntary_project_updates(
+        self, *, now: datetime, limit: int = 4,
+    ) -> tuple[dict[str, object], ...]:
+        """Offer source-backed, optional owner-only conversation starters.
+
+        A personal project does not need a per-project sharing grant to
+        mention its verified progress to its authenticated owner. Actual
+        project files, private reflections and publication remain separate
+        authorized operations. Model enthusiasm cannot mint success claims.
+        No outreach, scheduler state or user message is written here.
+        """
+        aware(now, "optional sharing decision time")
+        if type(limit) is not int or not 1 <= limit <= 16:
+            raise ValueError("sharing limit must be 1..16")
+        if (
+            self.operator_stop.current().active
+            or self.store.quiet_until(now=now) is not None
+        ):
+            return ()
+        projects = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+            statuses=(ProjectStatus.COMPLETED,),
+        )
+        proposed: list[dict[str, object]] = []
+        for project in projects:
+            if project.scope is not ProjectScope.PERSONAL_PRIVATE:
+                continue
+            events = self.store.events(
+                project.project_id,
+                owner_principal_id=SOFIA_PROJECT_OWNER,
+                audience_id=project.audience_id,
+            )
+            if not events or events[-1].to_status is not ProjectStatus.COMPLETED:
+                continue
+            completed = events[-1]
+            if (
+                completed.decision != "complete"
+                or completed.occurred_at > now
+                or not timedelta(0) <= now - completed.occurred_at < timedelta(hours=2)
+                or not completed.evidence_refs
+            ):
+                continue
+            # The original goal receipt/evidence and current artifact must
+            # still validate. A stale historical COMPLETED label is not
+            # sufficient grounds for excited outreach.
+            if any(
+                self.evidence_index.lookup(ref) is None
+                for ref in completed.evidence_refs
+            ):
+                continue
+            if not self._current_verified_objective_completion(
+                project, now=now,
+            ):
+                continue
+            interest = self.store.interest_by_id(
+                project.originating_interest,
+                audience_id=project.audience_id,
+            )
+            if (
+                interest is None
+                or interest.status is not InterestStatus.ACTIVE
+                or interest.strength * interest.confidence < 0.60
+            ):
+                # A legitimate choice not to announce an achievement.
+                continue
+            reviews = self.store.evaluations(project.project_id)
+            if any(
+                review.personal_judgment is PersonalJudgment.DISLIKE
+                for review in reviews[-1:]
+            ):
+                continue
+            proposed.append({
+                "event_id": completed.event_id,
+                "project_id": project.project_id,
+                "title": project.name,
+                "verified_at": completed.occurred_at,
+                "expires_at": completed.occurred_at + timedelta(hours=2),
+                "source_evidence_refs": completed.evidence_refs,
+                "interest_id": interest.interest_id,
+                "salience": round(min(
+                    0.90, 0.40 + interest.strength * interest.confidence * 0.4
+                ), 3),
+                "audience_id": project.audience_id,
+                "disclosure": "owner_only_project_update_no_artifact_payload",
+            })
+            if len(proposed) >= limit:
+                break
+        return tuple(proposed)
+
     def portfolio_index(
         self, *, limit: int = 24,
     ) -> tuple[dict[str, object], ...]:
