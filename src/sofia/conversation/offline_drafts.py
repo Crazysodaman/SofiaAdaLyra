@@ -13,6 +13,7 @@ from hashlib import sha256
 from pathlib import Path
 import sqlite3
 from uuid import uuid4
+from typing import Callable
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +30,14 @@ class OfflineDraft:
 class OfflineDraftJournal:
     """Local queue of drafts only. This is *not* a replicated canonical DB."""
 
-    def __init__(self, local_draft_path: Path) -> None:
+    def __init__(
+        self, local_draft_path: Path, *,
+        seal: Callable[[bytes], bytes],
+        unseal: Callable[[bytes], bytes],
+    ) -> None:
+        if not callable(seal) or not callable(unseal):
+            raise TypeError("explicit authenticated encryption/decryption required")
+        self.seal, self.unseal = seal, unseal
         self.path = Path(local_draft_path)
         if self.path.name == "sofia.db":
             raise ValueError("offline draft journal must not masquerade as canonical state")
@@ -39,7 +47,7 @@ class OfflineDraftJournal:
                 "CREATE TABLE IF NOT EXISTS offline_draft("
                 "draft_id TEXT PRIMARY KEY, device_id TEXT NOT NULL,"
                 "principal_id TEXT NOT NULL, audience_id TEXT NOT NULL,"
-                "body TEXT NOT NULL, digest TEXT NOT NULL,"
+                "body BLOB NOT NULL, digest TEXT NOT NULL,"
                 "composed_at TEXT NOT NULL, exported_at TEXT)"
             )
             db.execute(
@@ -63,13 +71,14 @@ class OfflineDraftJournal:
             raise ValueError("bounded nonempty draft text required")
         now = datetime.now(timezone.utc)
         identifier = f"offline-draft:{uuid4().hex}"
-        digest = sha256(
-            "\0".join((*values, identifier, text)).encode("utf-8")
-        ).hexdigest()
+        ciphertext = self.seal(text.encode("utf-8"))
+        if not isinstance(ciphertext, bytes) or ciphertext == text.encode("utf-8"):
+            raise ValueError("draft encryption did not produce protected ciphertext")
+        digest = sha256(ciphertext).hexdigest()
         with closing(self._connect()) as db, db:
             db.execute(
                 "INSERT INTO offline_draft VALUES(?,?,?,?,?,?,?,NULL)",
-                (identifier, *values, text, digest, now.isoformat()),
+                (identifier, *values, ciphertext, digest, now.isoformat()),
             )
         return OfflineDraft(identifier, *values, text, digest, now)
 
@@ -87,7 +96,8 @@ class OfflineDraftJournal:
         return tuple(
             OfflineDraft(
                 r["draft_id"], r["device_id"], r["principal_id"],
-                r["audience_id"], r["body"], r["digest"],
-                datetime.fromisoformat(r["composed_at"]),
+                r["audience_id"],
+                self.unseal(r["body"]).decode("utf-8", "strict"),
+                r["digest"], datetime.fromisoformat(r["composed_at"]),
             ) for r in rows
         )
