@@ -474,7 +474,24 @@ class PresenceInitiativeEngine:
             }
             and event.observation.confidence >= 0.6
         )
-        if event.trigger_kind in self._ELIGIBLE_TRIGGERS and not grounded:
+        # The application currently has one explicitly configured local
+        # Sparks outreach route. A Discord-DM/private-device observation
+        # cannot silently be rebroadcast to that other channel. New routes
+        # require an exact audience/recipient mapping and approved policy.
+        audience = event.observation.audience_id
+        scoped_to_local_recipient = audience in {None, "sparks", "local:text"}
+        observation_valid_at_event = (
+            event.observation.observed_at <= event.created_at
+            and (
+                event.observation.expires_at is None
+                or event.observation.expires_at > event.created_at
+            )
+        )
+        if event.trigger_kind in self._ELIGIBLE_TRIGGERS and not scoped_to_local_recipient:
+            reason = "incompatible_observation_audience"
+        elif event.trigger_kind in self._ELIGIBLE_TRIGGERS and not observation_valid_at_event:
+            reason = "stale_or_future_observation"
+        elif event.trigger_kind in self._ELIGIBLE_TRIGGERS and not grounded:
             reason = "insufficient_grounding"
         elif event.trigger_kind in self._ELIGIBLE_TRIGGERS:
             route = self.act_service.delivery_route
@@ -502,7 +519,13 @@ class PresenceInitiativeEngine:
                     evidence_id=evidence_id,
                     content=event.content.strip(),
                     created_at=event.created_at,
-                    expires_at=event.expires_at,
+                    # Never keep a delivery candidate alive after the
+                    # observation that originally justified it expired.
+                    expires_at=(
+                        event.expires_at
+                        if event.observation.expires_at is None
+                        else min(event.expires_at, event.observation.expires_at)
+                    ),
                     category=event.category,
                     importance=event.importance,
                     salience=salience,
