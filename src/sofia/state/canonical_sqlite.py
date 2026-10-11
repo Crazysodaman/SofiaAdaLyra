@@ -117,7 +117,7 @@ def bootstrap_canonical_sqlite(path: Path | str) -> Path:
         with closing(sqlite3.connect(str(temporary), timeout=10)) as database:
             database.execute("PRAGMA application_id = 0x534F4649")
             database.commit()
-        with temporary.open("rb") as persisted:
+        with temporary.open("r+b") as persisted:
             os.fsync(persisted.fileno())
         try:
             os.link(temporary, target)
