@@ -8,6 +8,7 @@ import os
 import sqlite3
 
 from sofia.config.user_settings import OutreachSettings, RuntimeUserSettingsStore
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from .settings_service import database_diagnostics
 
 
@@ -35,6 +36,7 @@ class SettingsSections:
         from tkinter import messagebox
         self.tk, self.ttk, self.root = tk, ttk, root
         self.config, self.runtime = config, runtime
+        self._canonical_state = CanonicalSQLiteGuard(config.state_path)
         self.variables = {}
         self.groups = {}
         self.messagebox = messagebox
@@ -425,7 +427,7 @@ class SettingsSections:
     def sql_panel(self, parent, title, table, *, where="1=1"):
         # Names and predicates originate solely from the static callers above.
         def read():
-            with closing(sqlite3.connect(self.config.state_path, timeout=10)) as db:
+            with closing(self._canonical_state.connect(timeout=10)) as db:
                 if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone() is None:
                     return "No records yet."
                 db.row_factory = sqlite3.Row
