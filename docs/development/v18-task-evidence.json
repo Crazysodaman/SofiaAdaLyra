@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "d051d2a4e6bbf68a55808a0031c9aaaef17d4d55",
+  "reviewed_main_sha": "0d7dc0a6d961a6fb3d51f3252d59d9cddf37874e",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2009,19 +2009,39 @@
         "src/sofia/ops/windows_bootstrap.py",
         "src/sofia/ops/windows_rekey_bootstrap.py",
         "test/test_ops_windows_bootstrap.py",
-        "Setup-SofiaFleetArtemis.ps1"
+        "Setup-SofiaFleetArtemis.ps1",
+        "requirements.build.lock.windows-py312.txt",
+        "test/test_fleet_build_backend_hash_lock.py"
       ],
       "evidence_commits": [
         "8fa6c20f1779fb590e2fa88d6c03a8ab8e5cae44",
         "1b33d6b115829abf4485956b854ab781c3718b7a",
-        "3a18eea733d31d07f2e6f3fc6b9d5b1d29a9bfa7"
+        "3a18eea733d31d07f2e6f3fc6b9d5b1d29a9bfa7",
+        "bd3a92410a2551b906d045678e38001830807336",
+        "b21211201206e395f94fa00692b2c184e0b95628"
       ],
       "accepted": false,
       "audit_observation": {
         "at_sha": "82b06c8ef47de8b2c4bd5a529fe8a627ce88f6f2",
         "depth": "source_traced_windows_bootstrap_security",
         "interpretation": "Persistent CIM Fleet installer now requires explicit dependency lock, stages it, invokes pip --require-hashes; rekey CLI exposes lock input. Canary already requires --require-hashes. Operator-reviewed lock, actual Windows dependency install verification and source wheel attestation remain open."
-      }
+      },
+      "latest_coding_slices": [
+        {
+          "source_review_date": "2026-10-11",
+          "commits": [
+            "bd3a92410a2551b906d045678e38001830807336",
+            "b21211201206e395f94fa00692b2c184e0b95628"
+          ],
+          "source_paths": [
+            "Setup-SofiaFleetArtemis.ps1",
+            "requirements.build.lock.windows-py312.txt",
+            "test/test_fleet_build_backend_hash_lock.py"
+          ],
+          "observed": "Prepare already stages hash-locked Artemis canary agent dependencies, but wheel-build backend installation previously used only a version pin. Updated Prepare to require approved universal setuptools 80.9.0 wheel and SHA-256 checked against PyPI package page using requirements.build.lock.windows-py312.txt, with --require-hashes --only-binary=:all: --no-deps. Source regression authored.",
+          "remaining": "No operator-run Windows Prepare/Artemis/Verify canary, no actual offline wheel availability/lock integrity drill and no live host/CI proof; task remains partial."
+        }
+      ]
     },
     {
       "id": "CA-3013",
