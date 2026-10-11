@@ -44,6 +44,7 @@ class WorkshopBlankVMHandoff:
     existing_vm_only: bool = True
     may_enroll_fleet: bool = False
     may_modify_network: bool = False
+    reviewed_boot_order_policy: str = "installer_dvd_first_only_after_owner_approval"
 
     def __post_init__(self):
         from re import fullmatch
@@ -69,6 +70,8 @@ class WorkshopBlankVMHandoff:
             or self.may_modify_network
         ):
             raise PermissionError("blank VM handoff cannot create VMs, enroll or change network")
+        if self.reviewed_boot_order_policy != "installer_dvd_first_only_after_owner_approval":
+            raise PermissionError("unreviewed Hyper-V firmware boot order changes denied")
         if (
             self.min_vcpu != 2 or self.max_vcpu != 4
             or self.min_memory_mb != 4096 or self.max_memory_mb != 8192
@@ -133,6 +136,7 @@ class WorkshopVMObservation:
     dvd_paths: tuple[str,...]
     secure_boot: str | None
     observed_at: datetime
+    firmware_boot_order: tuple[str,...] = ()
 
     def __post_init__(self):
         if not isinstance(self.hyperv_vm_id,UUID) or not isinstance(self.name,str):
@@ -154,6 +158,13 @@ class WorkshopVMObservation:
         for size in self.os_disk_sizes_gib:
             if size is not None and (type(size) is not int or size < 0):
                 raise ValueError("observed virtual disk size invalid")
+        if (
+            not isinstance(self.firmware_boot_order,tuple)
+            or len(self.firmware_boot_order)>8
+            or any(not isinstance(item,str) or not item
+                   for item in self.firmware_boot_order)
+        ):
+            raise ValueError("bounded observed Hyper-V firmware boot order required")
         if (
             not isinstance(self.observed_at,datetime)
             or self.observed_at.tzinfo is None
@@ -229,6 +240,8 @@ def inspect_blank_vm_handoff(
         blockers.append("exactly one private Hephaestus NIC required; no LAN/NAT/external")
     if observation.dvd_paths:
         blockers.append("unexpected existing DVD attachment; refuse replacement")
+    if not observation.firmware_boot_order:
+        blockers.append("existing boot order unobserved; cannot preserve recovery evidence")
     if observation.secure_boot not in ("Off","On-MicrosoftUEFICertificateAuthority"):
         blockers.append("unreviewed secure boot configuration for Debian Gen2")
     # A declared blank disk cannot be cryptographically proven empty by VM
@@ -287,6 +300,12 @@ def observed_owner_vm(payload: dict) -> WorkshopVMObservation:
         memory//(1024**2)
         if type(memory) is int and memory>=0 else None
     )
+    boot_order=payload.get("BootOrder")
+    if (
+        not isinstance(boot_order,list) or len(boot_order)>8
+        or any(not isinstance(item,str) for item in boot_order)
+    ):
+        raise ValueError("Hyper-V firmware boot sources not observed")
     secure_boot=payload.get("SecureBoot")
     template=payload.get("SecureBootTemplate")
     if secure_boot=="Off":
@@ -305,6 +324,7 @@ def observed_owner_vm(payload: dict) -> WorkshopVMObservation:
         nic_switches=tuple(network),
         dvd_paths=tuple(raw_dvds),
         secure_boot=security,observed_at=moment,
+        firmware_boot_order=tuple(boot_order),
     )
 
 
