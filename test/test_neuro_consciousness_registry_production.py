@@ -134,3 +134,21 @@ def test_scientific_theories_remain_four_distinct_noninterchangeable_questions(t
     assert "Measurable calibration" in view
     assert "No validated behavioral proof" in view
     assert "phenomenal_subjectivity" in view
+
+
+def test_neuro_science_report_cannot_convert_functional_result_to_mind_claim(tmp_path):
+    _, registry=opened(tmp_path)
+    registry.preregister(reviewed_baseline_studies(at=NOW)[0])
+    registry.record_reviewed_result(
+        result(kind="supported", evidence="verify:independent:mindboundary"),
+    )
+    registry.record_reviewed_result(
+        result(kind="null", evidence="verify:independent:nullboundary"),
+    )
+    view=registry.report().casefold()
+    assert "supported" in view and "null" in view
+    assert "cannot establish phenomenal consciousness" in view
+    assert "only functional outcomes" in view
+    assert "null, negative and adverse results" in view
+    assert "consciousness confirmed" not in view
+    assert "conscious badge" not in view
