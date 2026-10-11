@@ -157,6 +157,10 @@ class SofiaActService:
         """Turn explicit share-now reflections into scoped social ACT candidates."""
         if not isinstance(reflections, ReflectionJournal):
             raise TypeError("reflections must be ReflectionJournal")
+        # A human pause blocks optional outreach admission, not only the
+        # last transport send. Do not mark paused reflections as bridged.
+        if OperatorStopStore(self.state_path).current().active:
+            return 0
         if not isinstance(scope, SocialScope):
             raise TypeError("scope must be SocialScope")
         if scope.kind not in (ScopeKind.RELATIONSHIP, ScopeKind.AUDIENCE):
