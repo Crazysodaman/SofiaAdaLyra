@@ -879,3 +879,89 @@ def test_procedure_promotion_requires_original_current_native_tool_version(
         assert not life.procedures.has_source_project(project.project_id)
     finally:
         life.close()
+
+
+
+def test_quarantine_preserves_first_original_reason_and_timestamp(tmp_path):
+    """A restarted or competing audit cannot overwrite an existing decision."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, evidence, now)
+        later = now + timedelta(minutes=1)
+        second, second_evidence = _second_same_capability_project(
+            life, first, later,
+        )
+        _original_authorized_completion(
+            life, second, second_evidence, later,
+        )
+        assert life._reconcile_procedure_catalog(
+            now=later + timedelta(seconds=8),
+        ) == 2
+        third, _ = _second_same_capability_project(
+            life, first, now + timedelta(minutes=2),
+        )
+        procedure_id = life.procedures.available_for_project(
+            third,
+        )[0].procedure_id
+        first_time = now + timedelta(minutes=2, seconds=3)
+        assert life.procedures.quarantine(
+            procedure_id,
+            reason="Original artifact digest no longer matches.",
+            now=first_time,
+        ) is True
+        assert life.procedures.quarantine(
+            procedure_id, reason="Later diagnostic must not replace first.",
+            now=first_time + timedelta(minutes=1),
+        ) is False
+        with sqlite3.connect(life.path) as db:
+            state = db.execute(
+                "SELECT status,quarantine_reason,updated_at "
+                "FROM life_procedure_catalog WHERE procedure_id=?",
+                (procedure_id,),
+            ).fetchone()
+        assert state == (
+            "quarantined",
+            "Original artifact digest no longer matches.",
+            first_time.isoformat(),
+        )
+        assert life.procedures.available_for_project(third) == ()
+        assert life._audit_procedure_sources(
+            now=first_time + timedelta(minutes=2),
+        ) == 0
+        assert life.store.jobs(third.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_quarantine_rejects_candidate_or_unknown_procedure(tmp_path):
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, evidence, now)
+        assert life._reconcile_procedure_catalog(
+            now=now + timedelta(seconds=8),
+        ) == 1
+        with sqlite3.connect(life.path) as db:
+            candidate = db.execute(
+                "SELECT procedure_id FROM life_procedure_catalog "
+                "WHERE status='candidate'",
+            ).fetchone()
+        assert candidate is not None
+        with pytest.raises(ValueError, match="only verified"):
+            life.procedures.quarantine(
+                candidate[0], reason="Candidate has not been promoted.",
+                now=now + timedelta(seconds=9),
+            )
+        with pytest.raises(LookupError, match="does not exist"):
+            life.procedures.quarantine(
+                "life-procedure:absent-from-original-catalog",
+                reason="No source exists",
+                now=now + timedelta(seconds=9),
+            )
+    finally:
+        life.close()
