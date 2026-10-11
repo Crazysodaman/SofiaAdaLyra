@@ -154,7 +154,12 @@ def test_pin_mtls_remote_node_and_preserve_missing_image_hash_as_unknown():
         installer_image_path=r"E:\ApprovedImages\debian-12.vhdx",
         installer_image_sha256="a"*64,at=NOW,
     )
-    assert calls==[(NODE,"workshop.inspect","host",{})]
+    assert calls==[
+        (NODE,"workshop.inspect","host",{}),
+        (NODE,"workshop.inspect","media",{
+            "image_path":r"E:\ApprovedImages\debian-12.vhdx",
+        }),
+    ]
     assert preview.plan.hypervisor_version=="WindowsHyperV/10.0.20348"
     assert preview.plan.memory_mb==4096
     assert preview.plan.disk_gib==60
@@ -197,3 +202,55 @@ def test_exact_installer_digest_inspection_is_read_only():
     assert "New-VM" not in commands[0]
     with pytest.raises(ValueError):
         adapter.workshop_image_sha256(r"\\server\admin\secrets.vhdx")
+
+
+def test_host_pinned_media_hash_can_qualify_readonly_plan_but_never_execute():
+    service=object.__new__(RemoteFleetToolService)
+    def invoke(node_id,capability,operation,params):
+        if (capability,operation)==("workshop.inspect","host"):
+            body=host_data()
+        elif (capability,operation)==("workshop.inspect","media"):
+            assert params=={
+                "image_path":r"E:\ApprovedImages\debian-12.vhdx",
+            }
+            body={"sha256":"a"*64,"bytes":4096,"kind":".vhdx"}
+        else:
+            raise PermissionError("unexpected remote capability")
+        return {
+            "node_id":NODE,
+            "outcome":"reported_success",
+            "request_id":str(uuid4()),
+            "message":json.dumps(body),
+        }
+    service.invoke=invoke
+    reviewed=preview_owner_hephaestus_plan(
+        remote_service=service,artemis_node_id=NODE,
+        vm_root=r"D:\SofiaLab\Hephaestus",
+        installer_image_path=r"E:\ApprovedImages\debian-12.vhdx",
+        installer_image_sha256="a"*64,at=NOW,
+    )
+    assert reviewed.observation.image_sha256=="a"*64
+    assert reviewed.review.review_eligible is True
+    assert reviewed.review.may_provision is False
+    assert "May create VM: FALSE" in reviewed.readable()
+
+
+def test_host_pinned_media_mismatch_blocks_workshop_creation():
+    service=object.__new__(RemoteFleetToolService)
+    service.invoke=lambda _,capability,operation,params: {
+        "node_id":NODE,"outcome":"reported_success",
+        "request_id":str(uuid4()),
+        "message":json.dumps(
+            host_data()
+            if operation=="host"
+            else {"sha256":"b"*64,"bytes":4096,"kind":".vhdx"}
+        ),
+    }
+    result=preview_owner_hephaestus_plan(
+        remote_service=service,artemis_node_id=NODE,
+        vm_root=r"D:\SofiaLab\Hephaestus",
+        installer_image_path=r"E:\ApprovedImages\debian-12.vhdx",
+        installer_image_sha256="a"*64,at=NOW,
+    )
+    assert result.review.review_eligible is False
+    assert "image digest differs" in ";".join(result.review.blockers)
