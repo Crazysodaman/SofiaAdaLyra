@@ -39,6 +39,29 @@ class DurableMemoryCandidateStore:
         if not target.parent.exists():
             raise FileNotFoundError("memory database parent directory must exist")
 
+        # The operator-held deletion ledger is deliberately stored outside
+        # sofia.db backups. On a configured production restart, reconcile
+        # any durable erasure whose live SQL transaction was interrupted
+        # BEFORE opening the candidate store or projecting recalled text.
+        from os import environ
+        journal_path = environ.get("SOFIA_MEMORY_ERASURE_JOURNAL", "").strip()
+        key_path = environ.get("SOFIA_MEMORY_ERASURE_KEY", "").strip()
+        if bool(journal_path) != bool(key_path):
+            raise RuntimeError(
+                "memory erasure requires both external journal and operator key"
+            )
+        if journal_path:
+            if not target.is_file():
+                raise FileNotFoundError(
+                    "erasure-enabled runtime requires existing canonical state"
+                )
+            from sofia.memory.deletion_ledger import MemoryDeletionLedger
+            from sofia.ops.backup import BackupCipher, load_backup_key
+            MemoryDeletionLedger(
+                Path(journal_path).absolute(),
+                BackupCipher(load_backup_key(Path(key_path))),
+            ).apply_to_sqlite(target)
+
         self._database_path = target
         self._lock = RLock()
         # Existing canonical state is pinned before opening. Independent
