@@ -1302,3 +1302,80 @@ def test_life_waiting_approval_is_visible_without_execution(tmp_path):
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
     finally:
         life.close()
+
+
+def test_paused_life_project_cannot_claim_queued_grant(tmp_path):
+    """A queued one-use grant cannot outlive its canonical LIFE project."""
+    from sofia.creative import creative_request_digest
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Original proposal", specification={
+                "content": "A draft that may only run while its project is active.",
+            },
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        parameters = dict(job.payload["parameters"])
+        life.pause(
+            project.project_id, reason="Operator-paused original project.",
+            evidence_refs=(evidence,), now=now + timedelta(seconds=4),
+        )
+        assert life.store.claim_artifact_authorization(
+            str(parameters["request_id"]), project.project_id,
+            str(parameters["artifact_id"]),
+            creative_request_digest(parameters),
+        ) is False
+        life.manager.tick(now=now + timedelta(seconds=5))
+        settled = wait_for_job(life, job.job_id)
+        assert settled.status is WorkStatus.BLOCKED
+        assert "no_longer_active" in settled.reason
+        assert life.store.artifacts(project.project_id) == ()
+        assert life.creative_store.latest(
+            str(parameters["artifact_id"]), "sofia", project.audience_id,
+        ) is None
+    finally:
+        life.close()
+
+
+def test_cancelled_goal_blocks_queued_life_artifact_execution(tmp_path):
+    """GOALS cancellation outranks a previously admitted LIFE RUN job."""
+    from sofia.goals import SOFIA_GOAL_OWNER_ID
+
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="No execution after cancellation",
+            specification={"content": "Previously admitted but now cancelled."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        )
+        goals.transition(
+            goal_id=goal.id, principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience, expected_status=GoalStatus.ACTIVE,
+            next_status=GoalStatus.CANCELLED,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            now=now + timedelta(seconds=4),
+            evidence_refs=(evidence,),
+            note="Canonical approval for the optional goal was cancelled.",
+        )
+        life.manager.tick(now=now + timedelta(seconds=5))
+        settled = wait_for_job(life, job.job_id)
+        assert settled.status is WorkStatus.BLOCKED
+        assert life.store.artifacts(project.project_id) == ()
+        assert life.work_store.get(job.job_id).status is WorkStatus.BLOCKED
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        assert any(
+            entry["job_id"] == job.job_id
+            and entry["disposition"] == "needs_failure_or_blocked_review"
+            for entry in life.pending_work_review()
+        )
+    finally:
+        life.close()
