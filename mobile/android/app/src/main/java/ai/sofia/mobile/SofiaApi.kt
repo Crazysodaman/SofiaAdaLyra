@@ -107,6 +107,21 @@ class SofiaApi(private val settings: SecureSettings) {
         return post("/v1/mobile/main/page", body)
     }
 
+    fun acknowledgeMainSeen(message: JSONObject): JSONObject {
+        val config = settings.load()
+        val sequence = message.getLong("canonical_sequence")
+        val position = message.getInt("turn_position")
+        require(sequence >= 1L && position in 0..1) {
+            "Only authoritative canonical Main positions can be acknowledged"
+        }
+        return post("/v1/mobile/main/seen", JSONObject()
+            .put("device_id", settings.deviceId)
+            .put("private_mode", config.privateMode)
+            .put("canonical_sequence", sequence)
+            .put("turn_position", position)
+            .put("message_id", message.getString("id")))
+    }
+
     fun sensors(payload: JSONObject): JSONObject = post("/v1/mobile/sensors", payload)
 
     fun claimNotification(): ProactiveNotification? {
