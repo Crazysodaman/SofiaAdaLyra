@@ -93,6 +93,19 @@ def _replay(args) -> int:
     return 0
 
 
+def _verify(args) -> int:
+    """An operator can audit erasure without changing live state."""
+    report = _ledger(args).verify_applied(
+        Path(args.state_path).absolute(),
+    )
+    print(
+        "authenticated deletion audit: "
+        f"signed={report['signed_deletions']} "
+        f"verified_absent={report['verified_absent']}"
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m sofia.memory.deletion_cli")
     parser.add_argument("--key", required=True,
@@ -114,6 +127,8 @@ def main(argv: list[str] | None = None) -> int:
     replay = sub.add_parser("replay")
     replay.add_argument("--approve-replay", action="store_true")
     replay.set_defaults(action=_replay)
+    audit = sub.add_parser("verify-applied")
+    audit.set_defaults(action=_verify)
     args = parser.parse_args(argv)
     try:
         return args.action(args)
