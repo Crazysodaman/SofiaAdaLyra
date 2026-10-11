@@ -156,3 +156,21 @@ def test_media_build_never_autopulls_tool_or_launches_host(monkeypatch, tmp_path
             signing_key_file=tmp_path / "owner-private-key.pem",
         )
     assert not output.exists()
+
+def test_offline_debian_enforces_default_deny_no_nat_internal_guest_firewall():
+    preseed=render_preseed(console_admin_crypted_password=PASSWORD_HASH)
+    policy=render_first_boot_policy()
+    assert "pkgsel/include string sudo nftables" in preseed
+    assert "address 172.30.250.2" in policy
+    assert "netmask 255.255.255.252" in policy
+    assert "net.ipv4.ip_forward=0" in policy
+    assert "net.ipv6.conf.all.forwarding=0" in policy
+    assert "type filter hook input priority filter; policy drop;" in policy
+    assert "type filter hook output priority filter; policy drop;" in policy
+    assert "type filter hook forward priority filter; policy drop;" in policy
+    assert "172.30.250.1 ip daddr 172.30.250.2" in policy
+    assert "tcp dport 7443 accept" in policy
+    assert "systemctl enable nftables.service" in policy
+    assert "/usr/sbin/nft -c -f /etc/nftables.conf" in policy
+    assert "gateway " not in policy
+    assert "dns-nameservers " not in policy
