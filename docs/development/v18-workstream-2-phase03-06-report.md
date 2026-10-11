@@ -1425,6 +1425,45 @@ Deferred real-gateway SQL transaction-trace regression
 Source-only change; no tests or live pairing rotation executed.
 CA relevance: CA-4103, CA-4104, CA-5304, CA-6302, CA-6311.
 
+
+
+### Phase 03 item 47: Durable Linux staged-home publication across crash boundaries
+
+Audited the existing real operator-gated relocation route:
+`stage_verified_state_home` → `BackupEngine.restore` authenticated
+whole-home candidate and erasure replay → `_publish_new_home_without_replacing`
+Linux `renameat2(RENAME_NOREPLACE)` → non-active verified destination.
+The restore's file-by-file copies and successful no-replace rename did not
+provide explicit Linux file and directory durability barriers. After a
+machine crash, an operator could encounter a missing or stale directory
+entry despite having been handed a successful staged-publication result.
+
+`src/sofia/ops/state_relocation.py` now fsyncs **every restored regular
+file and nested directory**, refusing symlink/special-file substitutions and
+traversal or sync errors before Linux publication, then fsyncs the staging
+parent. Only after this pre-publication barrier does the existing kernel
+atomic no-replace rename occur. Its destination directory entry is then
+fsynced (and the source parent too if distinct). If that post-rename
+barrier fails, a typed `StateHomePublicationUncertain` exception prevents a
+verified-success receipt: the destination is **left untouched for operator
+inspection**, never overwritten or automatically activated. No unverified
+fallback publication occurs. Windows retains its existing absence-only
+rename behavior; no cross-platform power-loss durability claim is made.
+
+Production commit `77176dee094b6799e212b7b5242f5df75a42c3e5`
+(`[skip ci]`). Deferred Linux fsync ordering, failure-before-rename,
+failure-after-rename and internal-symlink rejection regressions in
+`test/test_state_relocation_atomic_publish.py`, commit
+`0e58168414f7cf1458c20b4e6dbbf299f1ce2b5e` (`[skip ci]`).
+
+Original CA relevance: CA-3704, CA-5202, CA-5204, CA-6101, CA-6311,
+CA-6404. This is source-level crash-durability hardening **only**,
+not a whole original task completion or accepted host cutover. The missing
+independently privileged cross-host writer-fencing broker, witness freshness,
+old-writer hard stop, external journal continuity, rollback procedure and
+supervised acceptance are unchanged. No tests, CI or live host/filesystem
+operation performed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
