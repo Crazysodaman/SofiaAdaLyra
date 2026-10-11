@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+  "reviewed_main_sha": "e34fbdbf01953aa32a9124785ae995895a8ba30c",
   "audit_date_utc": "2026-10-11",
-  "notice": "Source audit only, exact 700 V18 tasks. Approved owner decision: require independently enrolled/revocable per-phone credentials; canonical writer host remains UNDECIDED. Changes f06224c/e961de6/e3b92c2 integrate operator CLI, desktop worker, mobile server and Android. No tests, build, pairing, host DB cutover or deployment have been performed. Code path presence never implies complete acceptance.",
+  "notice": "Source audit only, no tests executed. V18 original 700 IDs preserved. Seven production repair commits ed72d3a through e34fbdb integrate host re-auth, durable Android outbox, LIFE RUN source observations, notification privacy, no-create state, SQLite close and sensor revocation. Source-coded is not production-accepted. Canonical writer host intentionally undecided; no host change made.",
   "tasks": [
     {
       "id": "CA-001",
@@ -858,10 +858,19 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/run/work.py"
+        "src/sofia/run/work.py",
+        "src/sofia/life/store.py",
+        "test/test_life_run_outcome_reconciliation.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -970,9 +979,20 @@
       "phase": "01",
       "source_topic": "22",
       "master_line": 199,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/store.py",
+        "src/sofia/life/coordinator.py"
+      ],
+      "evidence_commits": [
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+      ],
       "accepted": false
     },
     {
@@ -1178,10 +1198,19 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/state/sqlite_access.py"
+        "src/sofia/state/sqlite_access.py",
+        "src/sofia/mobile/sensors.py",
+        "test/test_mobile_sensors.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -1708,9 +1737,20 @@
       "phase": "03",
       "source_topic": "37",
       "master_line": 319,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/run/work.py",
+        "src/sofia/life/store.py"
+      ],
+      "evidence_commits": [
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+      ],
       "accepted": false
     },
     {
@@ -1885,9 +1925,21 @@
       "phase": "03",
       "source_topic": "61",
       "master_line": 342,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/sensors.py",
+        "src/sofia/mobile/notifications.py",
+        "src/sofia/config/layout.py"
+      ],
+      "evidence_commits": [
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+      ],
       "accepted": false
     },
     {
@@ -2018,12 +2070,22 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/config/layout.py",
-        "src/sofia/ops/state_mobility.py"
+        "src/sofia/ops/state_mobility.py",
+        "src/sofia/mobile/sensors.py",
+        "src/sofia/mobile/pairing.py",
+        "src/sofia/mobile/gateway.py"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -2195,7 +2257,9 @@
         "src/sofia/mobile/gateway.py",
         "src/sofia/mobile/server.py",
         "mobile/android/app/src/main/java/ai/sofia/mobile/SofiaApi.kt",
-        "src/sofia/mobile/pairing.py"
+        "src/sofia/mobile/pairing.py",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
@@ -2204,7 +2268,14 @@
         "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -2213,9 +2284,20 @@
       "phase": "04",
       "source_topic": "63",
       "master_line": 392,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+      ],
+      "evidence_commits": [
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+      ],
       "accepted": false
     },
     {
@@ -2231,7 +2313,14 @@
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -2253,12 +2342,20 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -2367,9 +2464,20 @@
       "phase": "04",
       "source_topic": "64",
       "master_line": 409,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/sensors.py",
+        "src/sofia/mobile/model.py"
+      ],
+      "evidence_commits": [
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+      ],
       "accepted": false
     },
     {
@@ -2521,13 +2629,21 @@
       "code_paths": [
         "src/sofia/mobile/gateway.py",
         "src/sofia/conversation/lifelong.py",
-        "src/sofia/mobile/server.py"
+        "src/sofia/mobile/server.py",
+        "src/sofia/mobile/notifications.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -2551,7 +2667,8 @@
         "src/sofia/mobile/gateway.py",
         "src/sofia/conversation/lifelong.py",
         "test/test_mobile_delivery.py",
-        "src/sofia/ui/desktop_worker.py"
+        "src/sofia/ui/desktop_worker.py",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
@@ -2560,7 +2677,14 @@
         "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -2678,7 +2802,8 @@
         "src/sofia/mobile/gateway.py",
         "src/sofia/social/store.py",
         "src/sofia/mobile/pairing.py",
-        "src/sofia/mobile/server.py"
+        "src/sofia/mobile/server.py",
+        "src/sofia/mobile/notifications.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -2687,7 +2812,14 @@
         "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -2732,7 +2864,14 @@
       "evidence_commits": [
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },
@@ -2849,7 +2988,8 @@
       "code_paths": [
         "src/sofia/mobile/gateway.py",
         "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt",
-        "mobile/android/app/src/main/java/ai/sofia/mobile/SensorSyncService.kt"
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SensorSyncService.kt",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
@@ -2857,7 +2997,14 @@
         "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
+        "1eaf142f25c85b41d5cf9d1607d61f6a33b4364f",
+        "315ef68ca39b53477d04a7e709305fd0d2fe772e",
+        "ba9c6d99372e79506ade3ebf33da2a0820baed84",
+        "cfb64405e66276ef4753c0af36011f03bcec7bc3",
+        "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
       ],
       "accepted": false
     },

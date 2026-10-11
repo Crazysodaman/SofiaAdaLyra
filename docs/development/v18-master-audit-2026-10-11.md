@@ -223,3 +223,37 @@ individually audited, 0 accepted**. Phase 02/05 pairing is source-coded
 but complete multi-surface identity linking, offline synchronization and
 actual Android/Windows evidence remain open. No full phase was declared
 finished, no tests executed, and no live machine was touched.
+
+
+## Production source repair wave through e34fbdb, October 11, 2026
+
+The user authorized continued production coding on `main`, deferred all test
+execution until the coding campaign's final gate, and explicitly withheld
+authorization for live host changes. The user has approved **individual
+device-enrollment credentials with re-pairing**, but has **not selected the
+canonical SQLite writer machine**.
+
+Actual source commits (all pushed directly to main, [skip ci]):
+- `ed72d3a`: recertify phone token at desktop owner-thread dispatch and
+  before HTTP reply; revoked requests in queue no longer execute.
+- `1eaf142`: Android Keystore-encrypted durable single-outstanding-turn
+  journal preserves stable text/nonce across process death; no auto resend.
+- `315ef68`: LIFE journal observes original RUN event IDs for completed,
+  failed, blocked, cancelled, uncertain and awaiting approval, idempotently.
+- `ba9c6d9`: deny unauthorized mobile notification title and original ACT
+  source ID exposure; stable opaque handles remain acknowledged by host.
+- `cfb6440`: sensor/gateway/credential/notification SQLite connections
+  require existing canonical mode=rw DB; no new state-home creation.
+- `358ae1d`: mobile sensor SQLite read/write/initialization connections
+  now deterministically close, reducing Windows handle leak risk.
+- `e34fbdb`: mobile ENVIRONMENT projection only admits current active
+  paired-device sensor rows; revocation blocks new writes and current recall.
+
+Source path audit against the complete latest GitHub tree found **zero missing
+code paths among references in the 700-task ledger**. Conservative states:
+**6 coded/unverified, 44 partially wired, 650 not individually assessed,
+0 production-accepted.** The status counts measure audit coverage, not
+total coding completeness. The original V18 master task wording/IDs remain
+unchanged. Remaining Phase 03 fenced cutover, Phase 05 full cross-channel
+causal consistency, independent host/phone pairing exercise, CI, Windows,
+Android and Fleet acceptance remain explicitly open.
