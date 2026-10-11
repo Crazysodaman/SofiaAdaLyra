@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "388801e718bbdfb45213874b114772b77645e5ef",
+  "reviewed_main_sha": "6a53d0be66359a786ff045afe4ba58d982a8854f",
   "audit_date_utc": "2026-10-11",
-  "notice": "Workstream 1: V18 acceptance claims now require the same production-wiring evidence as coded/tests-only candidates (source and regression commits 288b030, 855d74e). CA-007 and CA-3302 remain partial. No tests, CI or live acceptance run. Previous ledger statuses for other tasks retained.",
+  "notice": "Multi-workstream coding campaign, tests deferred. Workstream 1 CA-1904 generic host approval preflight source committed, still partial. Previous workstream records and statuses preserved; no tasks accepted by this change.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1703,20 +1703,31 @@
         "src/sofia/safe/permissions.py",
         "src/sofia/mobile/server.py",
         "src/sofia/safe/execution_approval.py",
-        "test/test_safe_execution_action_fingerprint.py"
+        "test/test_safe_execution_action_fingerprint.py",
+        "src/sofia/composition/authorization.py",
+        "test/test_permission_runtime_wiring.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
         "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
-        "80bd5cb5f123972d13ed0ea22e3c0dfb1d0af909"
+        "80bd5cb5f123972d13ed0ea22e3c0dfb1d0af909",
+        "9bc35b7971d6a3988533e3a20b0c6d2be096d1bc",
+        "37411e23907e8dd2fe486a3813b12a2cb46221db",
+        "d1c450a392e52c61c38da328210f6e93245332b3",
+        "81b462effe34c0ab1682168a3c9e64b40ecc084d"
       ],
       "accepted": false,
       "coding_update": {
         "latest_code_sha": "80bd5cb5f123972d13ed0ea22e3c0dfb1d0af909",
         "source_coded_unverified": true,
         "acceptance": "deferred"
+      },
+      "audit_observation": {
+        "at_sha": "6a53d0be66359a786ff045afe4ba58d982a8854f",
+        "depth": "production_preflight_and_regression_source",
+        "interpretation": "Generic handler host preflight validates exact active unconsumed durable approvals. Atomic consume remains downstream. Specialized DEV/EVOLVE/Fleet approvals retained; entire CA-1904 remains partial pending action-intent/expected-effects/fresh-check audit across all owner domains. Tests not executed."
       }
     },
     {
