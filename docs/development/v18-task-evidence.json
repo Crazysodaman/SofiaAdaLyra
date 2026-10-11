@@ -3482,9 +3482,15 @@
       "phase": "03",
       "source_topic": "37",
       "master_line": 321,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/state_relocation.py",
+        "src/sofia/ops/state_promotion.py",
+        "src/sofia/config/state_home_pointer.py"
+      ],
+      "evidence_commits": [
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+      ],
       "accepted": false
     },
     {
@@ -3512,9 +3518,15 @@
       "phase": "03",
       "source_topic": "37",
       "master_line": 324,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/recovery.py",
+        "test/test_venus_artemis_relocation_evidence.py",
+        "test/test_state_relocation_atomic_publish.py"
+      ],
+      "evidence_commits": [
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+      ],
       "accepted": false
     },
     {
@@ -3575,9 +3587,15 @@
       "phase": "03",
       "source_topic": "52",
       "master_line": 332,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/backup.py",
+        "src/sofia/memory/deletion_ledger.py",
+        "src/sofia/ops/state_relocation.py"
+      ],
+      "evidence_commits": [
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+      ],
       "accepted": false
     },
     {
@@ -3595,9 +3613,15 @@
       "phase": "03",
       "source_topic": "52",
       "master_line": 334,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/backup.py",
+        "src/sofia/ops/recovery.py",
+        "test/test_memory_deletion_restore.py"
+      ],
+      "evidence_commits": [
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+      ],
       "accepted": false
     },
     {
@@ -3605,9 +3629,14 @@
       "phase": "03",
       "source_topic": "52",
       "master_line": 335,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/recovery_export.py",
+        "src/sofia/ops/backup.py"
+      ],
+      "evidence_commits": [
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+      ],
       "accepted": false
     },
     {
@@ -3649,7 +3678,10 @@
       "code_paths": [
         "src/sofia/mobile/sensors.py",
         "src/sofia/mobile/notifications.py",
-        "src/sofia/config/layout.py"
+        "src/sofia/config/layout.py",
+        "src/sofia/state/canonical_sqlite.py",
+        "src/sofia/ops/state_relocation.py",
+        "src/sofia/config/state_home_pointer.py"
       ],
       "evidence_commits": [
         "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
@@ -3659,7 +3691,8 @@
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
         "e34fbdbf01953aa32a9124785ae995895a8ba30c",
-        "40751acf0bf5fa4d3534528de62857a22899f22c"
+        "40751acf0bf5fa4d3534528de62857a22899f22c",
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
       ],
       "accepted": false,
       "audit_observation": {
@@ -3703,9 +3736,15 @@
       "phase": "03",
       "source_topic": "61",
       "master_line": 346,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/backup.py",
+        "src/sofia/ops/state_relocation.py",
+        "src/sofia/memory/deletion_ledger.py"
+      ],
+      "evidence_commits": [
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+      ],
       "accepted": false
     },
     {
@@ -3733,9 +3772,14 @@
       "phase": "03",
       "source_topic": "61",
       "master_line": 349,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/backup.py",
+        "src/sofia/memory/deletion_ledger.py"
+      ],
+      "evidence_commits": [
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+      ],
       "accepted": false
     },
     {
@@ -3793,9 +3837,14 @@
       "phase": "03",
       "source_topic": "68",
       "master_line": 357,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/state_mobility.py",
+        "src/sofia/ops/state_relocation.py"
+      ],
+      "evidence_commits": [
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+      ],
       "accepted": false
     },
     {
@@ -3844,9 +3893,14 @@
       "phase": "03",
       "source_topic": "68",
       "master_line": 359,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/config/state_home_pointer.py",
+        "src/sofia/ops/state_promotion.py"
+      ],
+      "evidence_commits": [
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+      ],
       "accepted": false
     },
     {
@@ -3868,13 +3922,16 @@
       "code_paths": [
         "src/sofia/config/layout.py",
         "src/sofia/ops/state_mobility.py",
-        "test/test_state_relocation_local_preflight.py"
+        "test/test_state_relocation_local_preflight.py",
+        "src/sofia/ops/state_relocation.py",
+        "src/sofia/ops/state_promotion.py"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
         "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
-        "248dcb9a315a0080b87e8929cedb148241ef4479"
+        "248dcb9a315a0080b87e8929cedb148241ef4479",
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
       ],
       "accepted": false,
       "coding_update": {
