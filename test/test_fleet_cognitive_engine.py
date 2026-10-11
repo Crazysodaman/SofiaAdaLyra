@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -113,6 +113,7 @@ def _engine(
         remote_prepare=prepare,
         policy=policy or FleetCognitionPolicy(enabled=True),
         workload_id="cognition-primary",
+        clock=lambda: NOW,
     )
     return engine,local,calls
 
@@ -371,3 +372,29 @@ def test_failed_disabled_fleet_local_request_has_no_successful_host(tmp_path):
     assert engine.last_host_id is None
     assert engine.last_remote is False
     assert calls == []
+
+def test_remote_inference_does_not_use_expired_gpu_telemetry(tmp_path):
+    remote_node=uuid4()
+    engine,local,calls=_engine(
+        tmp_path,
+        hosts=(
+            _host("local",cpu=80),
+            replace(
+                _host("remote",cpu=5,node_id=remote_node),
+                telemetry=replace(
+                    _host("remote",cpu=5,node_id=remote_node).telemetry,
+                    observed_at=NOW-timedelta(minutes=10),
+                ),
+            ),
+        ),
+        policy=FleetCognitionPolicy(
+            enabled=True,local_fallback=False,gpu_required=True,
+            min_vram_bytes=4*1024**3,
+        ),
+    )
+    # Current local host also has insufficient reported VRAM in this
+    # synthetic fixture, so the stale worker is not silently accepted.
+    with pytest.raises(CognitiveEngineError,match="fallback is disabled"):
+        engine.respond(CognitiveRequest(messages=()))
+    assert calls==[]
+    assert local.calls==[]
