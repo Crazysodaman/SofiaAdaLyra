@@ -12,10 +12,19 @@ import hmac
 import json
 import os
 from pathlib import Path
+import sys
 from typing import Callable
 
-from sofia.config.state_home_pointer import _DOMAIN, _SCHEMA
-from sofia.ops.state_relocation import RelocationAuthorization, StagedStateHome
+from sofia.config.state_home_pointer import (
+    _DOMAIN, _SCHEMA, _require_unredirected_path,
+)
+from sofia.ops.state_relocation import (
+    RelocationAuthorization, StagedStateHome, _fsync_linux_entry,
+)
+
+
+class PendingHomePointerUncertain(RuntimeError):
+    """Pointer bytes were published, but directory-entry durability is unknown."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,9 +98,11 @@ def prepare_pending_state_pointer(
         raise FileNotFoundError("restored destination database missing")
     if not (home / "protected" / "identity.json").is_file():
         raise FileNotFoundError("protected identity missing from staged home")
-    if pending_path.parent.resolve(strict=True) == home or (
-        home in pending_path.parent.resolve(strict=True).parents
-    ):
+    # A signed pointer does not bless a symlink/junction-controlled output
+    # directory. Recheck the original spelling, not only its resolved target.
+    _require_unredirected_path(pending_path, label="pending state-home pointer")
+    parent = pending_path.parent.resolve(strict=True)
+    if parent == home or home in parent.parents:
         raise ValueError("trusted bootstrap pointer must be outside state home")
     if pending_path.exists() or pending_path.is_symlink():
         raise FileExistsError("pending pointer already exists; never overwrite")
@@ -125,6 +136,17 @@ def prepare_pending_state_pointer(
     except BaseException:
         pending_path.unlink(missing_ok=True)
         raise
+    # fsync(file) is insufficient to guarantee the newly created pathname
+    # survives an abrupt Linux crash. Once the bytes are published, a parent
+    # sync failure is UNCERTAIN, never permission to retry by overwriting.
+    if sys.platform.startswith("linux"):
+        try:
+            _fsync_linux_entry(pending_path.parent, directory=True)
+        except OSError as exc:
+            raise PendingHomePointerUncertain(
+                "signed pending pointer exists but durable publication is "
+                "uncertain; inspect it before preparing another handoff"
+            ) from exc
     return PendingHomePointer(
         pending_path, sha256(document).hexdigest(),
         staged.writer_host_id, staged.proposed_writer_epoch,
