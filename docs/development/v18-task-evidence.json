@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "503904f121a623d943338e40f49ee11e22fd1694",
+  "reviewed_main_sha": "c95921aa135d91e1ff5e83beff77f88777acacc2",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 coding checkpoint: LIFE/ACT/Settings canonical operator stop, hot owner mute, and UI no-ad-hoc-sqlite-bootstrap code committed, tests intentionally deferred. CA-003/1102/1907/6507/2707 remain partial; unrelated workstream ledger statuses preserved.",
+  "notice": "WS1: strict permission scope exception handling, canonical LIFE/ACT/Settings operator controls and UI fail-closed state startup source committed. Tests deferred per user, no acceptance claims. Preserve other workstreams.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1830,7 +1830,8 @@
         "b7513bf43a8944e2f3387c8c22f5f324f9b69beb",
         "e14e44a5073277536d48ab245b17e078ae8cf363",
         "cf5f1467231465da5dad9e69ef03a9799c2ee842",
-        "7821a7c381d3567d5ea84da74c0fa6657b46d05b"
+        "7821a7c381d3567d5ea84da74c0fa6657b46d05b",
+        "c95921aa135d91e1ff5e83beff77f88777acacc2"
       ],
       "accepted": false,
       "coding_update": {
@@ -1839,9 +1840,9 @@
         "acceptance": "deferred"
       },
       "audit_observation": {
-        "at_sha": "0a036177f72a91d40fb585a7edbc256785aa4956",
-        "depth": "production_authorization_result_and_effect_boundary",
-        "interpretation": "Pre-handler PermissionError is reported as UNAUTHORIZED; handler errors remain FAILED because effects may have occurred. Earlier generic approval/standing scope/revocation checks retained. Source and regression authored, tests deferred. Full task remains partial."
+        "at_sha": "c95921aa135d91e1ff5e83beff77f88777acacc2",
+        "depth": "production_scope_and_operator_stop_source",
+        "interpretation": "Scoped permission serialization now keeps precise oversize error outside JSON exception handler, type-strict comparison and last-moment revocation checks preserved. LIFE and ACT/Settings durable stop paths source-wired, no tests run; full auth boundary and external side-effect cancellation remain open."
       },
       "operator_authentication_blocker": {
         "at_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
@@ -1886,7 +1887,8 @@
         "test/test_life_project_forge.py",
         "src/sofia/ui/settings_window.py",
         "src/sofia/application/act_service.py",
-        "test/test_act_runtime_wiring.py"
+        "test/test_act_runtime_wiring.py",
+        "src/sofia/safe/permissions.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -1908,13 +1910,14 @@
         "5dc4fdd850dde05590d675801bea5c8f2121bc5d",
         "5a5886d547da4a42a584df5dddbe895fc3db6bd0",
         "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
-        "5c3420e27bcd73f8693b1889478daa4da579a1bd"
+        "5c3420e27bcd73f8693b1889478daa4da579a1bd",
+        "c95921aa135d91e1ff5e83beff77f88777acacc2"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
-        "depth": "operator_stop_and_outreach_runtime_source",
-        "interpretation": "LIFE optional project tick/schedule/worker/idea generation, ACT reflection admission and dynamic delivery mute, and Settings pause/mute UI all check canonical owner state. Test source committed unrun. Domain blocking, authenticated operator identity, in-flight cancellation and complete multi-domain override remain open."
+        "at_sha": "c95921aa135d91e1ff5e83beff77f88777acacc2",
+        "depth": "production_scope_and_operator_stop_source",
+        "interpretation": "Scoped permission serialization now keeps precise oversize error outside JSON exception handler, type-strict comparison and last-moment revocation checks preserved. LIFE and ACT/Settings durable stop paths source-wired, no tests run; full auth boundary and external side-effect cancellation remain open."
       }
     },
     {
