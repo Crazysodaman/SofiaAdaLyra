@@ -2926,7 +2926,7 @@
       "phase": "01",
       "source_topic": "30",
       "master_line": 225,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "ROADMAP.md",
         "src/sofia/creative/paths.py",
@@ -2936,16 +2936,14 @@
         "Setup-SofiaFleetArtemis.ps1"
       ],
       "evidence_commits": [
-        "1e044273",
-        "e85c52f0",
         "6b9d5be564557f8c9fcf5f73b49141532b7bb10d"
       ],
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
         "observed": "Existing Phase 6 ROADMAP narrative acknowledges merged Windows Project Forge path fix but retained a contradictory unchecked instruction to commit it and leave a now-tracked Fleet installer untracked. Corrected the historical checkbox to merged source evidence, separated host symlink and release acceptance tasks, and confirmed Artemis installer is tracked.",
-        "missing": "Current exact-main Windows symlink privilege test, Project Forge live acceptance and release CI are still deferred; this record is a documentation/ledger source result, not proof of feature acceptance.",
-        "acceptance": "code/source present, final verification open, not accepted"
+        "missing": "Current exact-main Windows symlink privilege test, Project Forge live acceptance and release CI are still deferred; this record is a documentation/ledger source result, not proof of feature acceptance. Ledger's original docs-only claim did not contain the mandatory production composition/caller/effect trace and had shortened commit refs. These original prefixes remain recorded separately pending verified full-SHA repair.",
+        "acceptance": "Documentation evidence recorded; additional CI/live acceptance still deferred; conservative partial state, not complete."
       },
       "workstream_reconciliation": {
         "workstream": 1,
@@ -2954,8 +2952,12 @@
         "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
-        "evidence_level": "existing_shared_ledger_evidence"
-      }
+        "evidence_level": "docs_only_partial_no_production_wiring"
+      },
+      "previous_abbreviated_commit_refs": [
+        "1e044273",
+        "e85c52f0"
+      ]
     },
     {
       "id": "CA-3009",
@@ -18380,6 +18382,7 @@
       "partially_implemented_unverified": 43,
       "phase_inventory_only": 98
     },
-    "note": "Imported workstream task-indexed source reports only. No source claim was promoted to code_present_unverified or accepted. No tests, CI, host operations or cutover; 19 direct WS2 partial mappings verified by file presence, not runtime tests. Historical roadmap task wording unchanged."
+    "note": "Imported workstream task-indexed source reports only. No source claim was promoted to code_present_unverified or accepted. No tests, CI, host operations or cutover; 19 direct WS2 partial mappings verified by file presence, not runtime tests. Historical roadmap task wording unchanged.",
+    "integrity_correction": "CA-3008 docs-only task downgraded to partial_wiring; two historical abbreviated refs preserved outside evidence_commits because shared ledger verifier requires full 40-character SHA and actual production path for code_present_unverified."
   }
 }
