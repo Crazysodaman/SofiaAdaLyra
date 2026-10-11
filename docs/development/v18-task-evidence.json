@@ -1,0 +1,7117 @@
+{
+  "schema": "sofia.v18-task-evidence-v1",
+  "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
+  "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
+  "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
+  "reviewed_main_sha": "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+  "audit_date_utc": "2026-10-11",
+  "notice": "Source status means source was manually inspected at reviewed_main_sha. code_present_unverified never implies acceptance; partial_wiring means existing source has an incomplete task contract. unassessed means NOT REVIEWED, not MISSING. The V18 source's design-only status is a historical snapshot predating the user's later express coding authorization.",
+  "tasks": [
+    {
+      "id": "CA-001",
+      "phase": "00",
+      "source_topic": "0",
+      "master_line": 64,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-002",
+      "phase": "00",
+      "source_topic": "0",
+      "master_line": 65,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-003",
+      "phase": "00",
+      "source_topic": "0",
+      "master_line": 66,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-004",
+      "phase": "00",
+      "source_topic": "0",
+      "master_line": 67,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-005",
+      "phase": "00",
+      "source_topic": "0",
+      "master_line": 68,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-006",
+      "phase": "00",
+      "source_topic": "0",
+      "master_line": 69,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-007",
+      "phase": "00",
+      "source_topic": "0",
+      "master_line": 70,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1201",
+      "phase": "00",
+      "source_topic": "12",
+      "master_line": 74,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1202",
+      "phase": "00",
+      "source_topic": "12",
+      "master_line": 75,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1203",
+      "phase": "00",
+      "source_topic": "12",
+      "master_line": 76,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1204",
+      "phase": "00",
+      "source_topic": "12",
+      "master_line": 77,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1205",
+      "phase": "00",
+      "source_topic": "12",
+      "master_line": 78,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1206",
+      "phase": "00",
+      "source_topic": "12",
+      "master_line": 79,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1207",
+      "phase": "00",
+      "source_topic": "12",
+      "master_line": 80,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1208",
+      "phase": "00",
+      "source_topic": "12",
+      "master_line": 81,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3101",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 85,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3102",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 86,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3103",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 87,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3104",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 88,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3105",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 89,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3106",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 90,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3107",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 91,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3108",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 92,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3109",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 93,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3110",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 94,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3111",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 95,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3112",
+      "phase": "00",
+      "source_topic": "31",
+      "master_line": 96,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3301",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 100,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3302",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 101,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3303",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 102,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3304",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 103,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3305",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 104,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3306",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 105,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3307",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 106,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3308",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 107,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3309",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 108,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3310",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 109,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3311",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 110,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3312",
+      "phase": "00",
+      "source_topic": "33",
+      "master_line": 111,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4001",
+      "phase": "00",
+      "source_topic": "40",
+      "master_line": 115,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4002",
+      "phase": "00",
+      "source_topic": "40",
+      "master_line": 116,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4003",
+      "phase": "00",
+      "source_topic": "40",
+      "master_line": 117,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4004",
+      "phase": "00",
+      "source_topic": "40",
+      "master_line": 118,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4005",
+      "phase": "00",
+      "source_topic": "40",
+      "master_line": 119,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4006",
+      "phase": "00",
+      "source_topic": "40",
+      "master_line": 120,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4501",
+      "phase": "00",
+      "source_topic": "45",
+      "master_line": 124,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4502",
+      "phase": "00",
+      "source_topic": "45",
+      "master_line": 125,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4503",
+      "phase": "00",
+      "source_topic": "45",
+      "master_line": 126,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4504",
+      "phase": "00",
+      "source_topic": "45",
+      "master_line": 127,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4505",
+      "phase": "00",
+      "source_topic": "45",
+      "master_line": 128,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4506",
+      "phase": "00",
+      "source_topic": "45",
+      "master_line": 129,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4701",
+      "phase": "00",
+      "source_topic": "47",
+      "master_line": 133,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4702",
+      "phase": "00",
+      "source_topic": "47",
+      "master_line": 134,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4703",
+      "phase": "00",
+      "source_topic": "47",
+      "master_line": 135,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4704",
+      "phase": "00",
+      "source_topic": "47",
+      "master_line": 136,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4705",
+      "phase": "00",
+      "source_topic": "47",
+      "master_line": 137,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4706",
+      "phase": "00",
+      "source_topic": "47",
+      "master_line": 138,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5401",
+      "phase": "00",
+      "source_topic": "54",
+      "master_line": 142,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5402",
+      "phase": "00",
+      "source_topic": "54",
+      "master_line": 143,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5403",
+      "phase": "00",
+      "source_topic": "54",
+      "master_line": 144,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5404",
+      "phase": "00",
+      "source_topic": "54",
+      "master_line": 145,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5405",
+      "phase": "00",
+      "source_topic": "54",
+      "master_line": 146,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5406",
+      "phase": "00",
+      "source_topic": "54",
+      "master_line": 147,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5407",
+      "phase": "00",
+      "source_topic": "54",
+      "master_line": 148,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5408",
+      "phase": "00",
+      "source_topic": "54",
+      "master_line": 149,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-901",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 167,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-902",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 168,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-903",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 169,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-904",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 170,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-905",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 171,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-906",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 172,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-907",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 173,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-908",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 174,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-909",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 175,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-910",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 176,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-911",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 177,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-912",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 178,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-913",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 179,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-914",
+      "phase": "01",
+      "source_topic": "9",
+      "master_line": 180,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2201",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 184,
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/life/validation.py",
+        "src/sofia/life/coordinator.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-2202",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 185,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2203",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 186,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2204",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 187,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-2205",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 188,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/run/work.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-2206",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 189,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2207",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 190,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2208",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 191,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2209",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 192,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2210",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 193,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2211",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 194,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2212",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 195,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2213",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 196,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2214",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 197,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2215",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 198,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2216",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 199,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2217",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 200,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2218",
+      "phase": "01",
+      "source_topic": "22",
+      "master_line": 201,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2301",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 205,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2302",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 206,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2303",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 207,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2304",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 208,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2305",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 209,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2306",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 210,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2307",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 211,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2308",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 212,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2309",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 213,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2310",
+      "phase": "01",
+      "source_topic": "23",
+      "master_line": 214,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3001",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 218,
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/creative/paths.py",
+        "src/sofia/creative/service.py",
+        "test/test_creative_infrastructure.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-3002",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 219,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3003",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 220,
+      "status": "code_present_unverified",
+      "code_paths": [
+        ".github/workflows/release-candidate.yml",
+        "src/sofia/verify/source_provenance.py",
+        "pyproject.toml"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-3004",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 221,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3005",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 222,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/cognition_v2_baseline.py",
+        "src/sofia/state/sqlite_access.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-3006",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 223,
+      "status": "partial_wiring",
+      "code_paths": [
+        "test/conftest.py",
+        "test/test_body_matrix.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-3007",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 224,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3008",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 225,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3009",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 226,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3010",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 227,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3011",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 228,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3012",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 229,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3013",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 230,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3014",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 231,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-3015",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 232,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3016",
+      "phase": "01",
+      "source_topic": "30",
+      "master_line": 233,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4601",
+      "phase": "01",
+      "source_topic": "46",
+      "master_line": 237,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4602",
+      "phase": "01",
+      "source_topic": "46",
+      "master_line": 238,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4603",
+      "phase": "01",
+      "source_topic": "46",
+      "master_line": 239,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4604",
+      "phase": "01",
+      "source_topic": "46",
+      "master_line": 240,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4605",
+      "phase": "01",
+      "source_topic": "46",
+      "master_line": 241,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4606",
+      "phase": "01",
+      "source_topic": "46",
+      "master_line": 242,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4607",
+      "phase": "01",
+      "source_topic": "46",
+      "master_line": 243,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4608",
+      "phase": "01",
+      "source_topic": "46",
+      "master_line": 244,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1101",
+      "phase": "02",
+      "source_topic": "11",
+      "master_line": 262,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1102",
+      "phase": "02",
+      "source_topic": "11",
+      "master_line": 263,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1103",
+      "phase": "02",
+      "source_topic": "11",
+      "master_line": 264,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1104",
+      "phase": "02",
+      "source_topic": "11",
+      "master_line": 265,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1105",
+      "phase": "02",
+      "source_topic": "11",
+      "master_line": 266,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1106",
+      "phase": "02",
+      "source_topic": "11",
+      "master_line": 267,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1107",
+      "phase": "02",
+      "source_topic": "11",
+      "master_line": 268,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1901",
+      "phase": "02",
+      "source_topic": "19",
+      "master_line": 272,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1902",
+      "phase": "02",
+      "source_topic": "19",
+      "master_line": 273,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1903",
+      "phase": "02",
+      "source_topic": "19",
+      "master_line": 274,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1904",
+      "phase": "02",
+      "source_topic": "19",
+      "master_line": 275,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1905",
+      "phase": "02",
+      "source_topic": "19",
+      "master_line": 276,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1906",
+      "phase": "02",
+      "source_topic": "19",
+      "master_line": 277,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1907",
+      "phase": "02",
+      "source_topic": "19",
+      "master_line": 278,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2701",
+      "phase": "02",
+      "source_topic": "27",
+      "master_line": 282,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2702",
+      "phase": "02",
+      "source_topic": "27",
+      "master_line": 283,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2703",
+      "phase": "02",
+      "source_topic": "27",
+      "master_line": 284,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2704",
+      "phase": "02",
+      "source_topic": "27",
+      "master_line": 285,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2705",
+      "phase": "02",
+      "source_topic": "27",
+      "master_line": 286,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2706",
+      "phase": "02",
+      "source_topic": "27",
+      "master_line": 287,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2707",
+      "phase": "02",
+      "source_topic": "27",
+      "master_line": 288,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2708",
+      "phase": "02",
+      "source_topic": "27",
+      "master_line": 289,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6501",
+      "phase": "02",
+      "source_topic": "65",
+      "master_line": 293,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6502",
+      "phase": "02",
+      "source_topic": "65",
+      "master_line": 294,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6503",
+      "phase": "02",
+      "source_topic": "65",
+      "master_line": 295,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6504",
+      "phase": "02",
+      "source_topic": "65",
+      "master_line": 296,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6505",
+      "phase": "02",
+      "source_topic": "65",
+      "master_line": 297,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6506",
+      "phase": "02",
+      "source_topic": "65",
+      "master_line": 298,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6507",
+      "phase": "02",
+      "source_topic": "65",
+      "master_line": 299,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6508",
+      "phase": "02",
+      "source_topic": "65",
+      "master_line": 300,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3701",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 318,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3702",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 319,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3703",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 320,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3704",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 321,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3705",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 322,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3706",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 323,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3707",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 324,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3708",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 325,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3709",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 326,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3710",
+      "phase": "03",
+      "source_topic": "37",
+      "master_line": 327,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5201",
+      "phase": "03",
+      "source_topic": "52",
+      "master_line": 331,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5202",
+      "phase": "03",
+      "source_topic": "52",
+      "master_line": 332,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5203",
+      "phase": "03",
+      "source_topic": "52",
+      "master_line": 333,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5204",
+      "phase": "03",
+      "source_topic": "52",
+      "master_line": 334,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5205",
+      "phase": "03",
+      "source_topic": "52",
+      "master_line": 335,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5206",
+      "phase": "03",
+      "source_topic": "52",
+      "master_line": 336,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5207",
+      "phase": "03",
+      "source_topic": "52",
+      "master_line": 337,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5208",
+      "phase": "03",
+      "source_topic": "52",
+      "master_line": 338,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6101",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 342,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6102",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 343,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6103",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 344,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6104",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 345,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6105",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 346,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6106",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 347,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6107",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 348,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6108",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 349,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6109",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 350,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6110",
+      "phase": "03",
+      "source_topic": "61",
+      "master_line": 351,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6801",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 355,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6802",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 356,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6803",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 357,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6804",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 358,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6805",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 359,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6806",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 360,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6807",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 361,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6808",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 362,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6809",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 363,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6810",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 364,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6811",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 365,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6812",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 366,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6813",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 367,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6814",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 368,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6815",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 369,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6816",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 370,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6817",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 371,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6818",
+      "phase": "03",
+      "source_topic": "68",
+      "master_line": 372,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6301",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 390,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6302",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 391,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/lifelong.py",
+        "src/sofia/mobile/gateway.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-6303",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 392,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6304",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 393,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6305",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 394,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6306",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 395,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6307",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 396,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6308",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 397,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6309",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 398,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6310",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 399,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6311",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 400,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6312",
+      "phase": "04",
+      "source_topic": "63",
+      "master_line": 401,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6401",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 405,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6402",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 406,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6403",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 407,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6404",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 408,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6405",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 409,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6406",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 410,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6407",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 411,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6408",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 412,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6409",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 413,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6410",
+      "phase": "04",
+      "source_topic": "64",
+      "master_line": 414,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4101",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 432,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4102",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 433,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4103",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 434,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4104",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 435,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4105",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 436,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4106",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 437,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4107",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 438,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4108",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 439,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4109",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 440,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/conversation/lifelong.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-4110",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 441,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4111",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 442,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4112",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 443,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4113",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 444,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4114",
+      "phase": "05",
+      "source_topic": "41",
+      "master_line": 445,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5301",
+      "phase": "05",
+      "source_topic": "53",
+      "master_line": 449,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5302",
+      "phase": "05",
+      "source_topic": "53",
+      "master_line": 450,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5303",
+      "phase": "05",
+      "source_topic": "53",
+      "master_line": 451,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5304",
+      "phase": "05",
+      "source_topic": "53",
+      "master_line": 452,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5305",
+      "phase": "05",
+      "source_topic": "53",
+      "master_line": 453,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5306",
+      "phase": "05",
+      "source_topic": "53",
+      "master_line": 454,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5307",
+      "phase": "05",
+      "source_topic": "53",
+      "master_line": 455,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5308",
+      "phase": "05",
+      "source_topic": "53",
+      "master_line": 456,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5501",
+      "phase": "05",
+      "source_topic": "55",
+      "master_line": 460,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5502",
+      "phase": "05",
+      "source_topic": "55",
+      "master_line": 461,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/lifelong.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-5503",
+      "phase": "05",
+      "source_topic": "55",
+      "master_line": 462,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5504",
+      "phase": "05",
+      "source_topic": "55",
+      "master_line": 463,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5505",
+      "phase": "05",
+      "source_topic": "55",
+      "master_line": 464,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5506",
+      "phase": "05",
+      "source_topic": "55",
+      "master_line": 465,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5507",
+      "phase": "05",
+      "source_topic": "55",
+      "master_line": 466,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5508",
+      "phase": "05",
+      "source_topic": "55",
+      "master_line": 467,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5509",
+      "phase": "05",
+      "source_topic": "55",
+      "master_line": 468,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5701",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 472,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5702",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 473,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5703",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 474,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5704",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 475,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5705",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 476,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5706",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 477,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5707",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 478,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5708",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 479,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5709",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 480,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5710",
+      "phase": "05",
+      "source_topic": "57",
+      "master_line": 481,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-301",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 499,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-302",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 500,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-303",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 501,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-304",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 502,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-305",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 503,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-306",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 504,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-307",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 505,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-308",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 506,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-309",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 507,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-310",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 508,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-311",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 509,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-312",
+      "phase": "06",
+      "source_topic": "3",
+      "master_line": 510,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1701",
+      "phase": "06",
+      "source_topic": "17",
+      "master_line": 514,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1702",
+      "phase": "06",
+      "source_topic": "17",
+      "master_line": 515,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1703",
+      "phase": "06",
+      "source_topic": "17",
+      "master_line": 516,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1704",
+      "phase": "06",
+      "source_topic": "17",
+      "master_line": 517,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1705",
+      "phase": "06",
+      "source_topic": "17",
+      "master_line": 518,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1706",
+      "phase": "06",
+      "source_topic": "17",
+      "master_line": 519,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4201",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 523,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4202",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 524,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4203",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 525,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4204",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 526,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4205",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 527,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4206",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 528,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4207",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 529,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4208",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 530,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4209",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 531,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4210",
+      "phase": "06",
+      "source_topic": "42",
+      "master_line": 532,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4801",
+      "phase": "06",
+      "source_topic": "48",
+      "master_line": 536,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4802",
+      "phase": "06",
+      "source_topic": "48",
+      "master_line": 537,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4803",
+      "phase": "06",
+      "source_topic": "48",
+      "master_line": 538,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4804",
+      "phase": "06",
+      "source_topic": "48",
+      "master_line": 539,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4805",
+      "phase": "06",
+      "source_topic": "48",
+      "master_line": 540,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4806",
+      "phase": "06",
+      "source_topic": "48",
+      "master_line": 541,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4807",
+      "phase": "06",
+      "source_topic": "48",
+      "master_line": 542,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4808",
+      "phase": "06",
+      "source_topic": "48",
+      "master_line": 543,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5001",
+      "phase": "06",
+      "source_topic": "50",
+      "master_line": 547,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5002",
+      "phase": "06",
+      "source_topic": "50",
+      "master_line": 548,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5003",
+      "phase": "06",
+      "source_topic": "50",
+      "master_line": 549,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5004",
+      "phase": "06",
+      "source_topic": "50",
+      "master_line": 550,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5005",
+      "phase": "06",
+      "source_topic": "50",
+      "master_line": 551,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5006",
+      "phase": "06",
+      "source_topic": "50",
+      "master_line": 552,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5007",
+      "phase": "06",
+      "source_topic": "50",
+      "master_line": 553,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5008",
+      "phase": "06",
+      "source_topic": "50",
+      "master_line": 554,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5601",
+      "phase": "06",
+      "source_topic": "56",
+      "master_line": 558,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5602",
+      "phase": "06",
+      "source_topic": "56",
+      "master_line": 559,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5603",
+      "phase": "06",
+      "source_topic": "56",
+      "master_line": 560,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/store.py",
+        "src/sofia/conversation/fulltext_search.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-5604",
+      "phase": "06",
+      "source_topic": "56",
+      "master_line": 561,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5605",
+      "phase": "06",
+      "source_topic": "56",
+      "master_line": 562,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5606",
+      "phase": "06",
+      "source_topic": "56",
+      "master_line": 563,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5607",
+      "phase": "06",
+      "source_topic": "56",
+      "master_line": 564,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5608",
+      "phase": "06",
+      "source_topic": "56",
+      "master_line": 565,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5609",
+      "phase": "06",
+      "source_topic": "56",
+      "master_line": 566,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5801",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 570,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5802",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 571,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5803",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 572,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5804",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 573,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5805",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 574,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5806",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 575,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5807",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 576,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5808",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 577,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5809",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 578,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5810",
+      "phase": "06",
+      "source_topic": "58",
+      "master_line": 579,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5901",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 583,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5902",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 584,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5903",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 585,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5904",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 586,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5905",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 587,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5906",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 588,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5907",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 589,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5908",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 590,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5909",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 591,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5910",
+      "phase": "06",
+      "source_topic": "59",
+      "master_line": 592,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3401",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 610,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3402",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 611,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3403",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 612,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3404",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 613,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3405",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 614,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3406",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 615,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3407",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 616,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3408",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 617,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3409",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 618,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3410",
+      "phase": "07",
+      "source_topic": "34",
+      "master_line": 619,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4901",
+      "phase": "07",
+      "source_topic": "49",
+      "master_line": 623,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4902",
+      "phase": "07",
+      "source_topic": "49",
+      "master_line": 624,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4903",
+      "phase": "07",
+      "source_topic": "49",
+      "master_line": 625,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4904",
+      "phase": "07",
+      "source_topic": "49",
+      "master_line": 626,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4905",
+      "phase": "07",
+      "source_topic": "49",
+      "master_line": 627,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4906",
+      "phase": "07",
+      "source_topic": "49",
+      "master_line": 628,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4907",
+      "phase": "07",
+      "source_topic": "49",
+      "master_line": 629,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4908",
+      "phase": "07",
+      "source_topic": "49",
+      "master_line": 630,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5101",
+      "phase": "07",
+      "source_topic": "51",
+      "master_line": 634,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5102",
+      "phase": "07",
+      "source_topic": "51",
+      "master_line": 635,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5103",
+      "phase": "07",
+      "source_topic": "51",
+      "master_line": 636,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5104",
+      "phase": "07",
+      "source_topic": "51",
+      "master_line": 637,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5105",
+      "phase": "07",
+      "source_topic": "51",
+      "master_line": 638,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5106",
+      "phase": "07",
+      "source_topic": "51",
+      "master_line": 639,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5107",
+      "phase": "07",
+      "source_topic": "51",
+      "master_line": 640,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-5108",
+      "phase": "07",
+      "source_topic": "51",
+      "master_line": 641,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-401",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 659,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-402",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 660,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-403",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 661,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-404",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 662,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-405",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 663,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-406",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 664,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-407",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 665,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-408",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 666,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-409",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 667,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-410",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 668,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-411",
+      "phase": "08",
+      "source_topic": "4",
+      "master_line": 669,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-501",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 673,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-502",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 674,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-503",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 675,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-504",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 676,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-505",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 677,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-506",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 678,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-507",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 679,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-508",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 680,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-509",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 681,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-510",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 682,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-511",
+      "phase": "08",
+      "source_topic": "5",
+      "master_line": 683,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1801",
+      "phase": "08",
+      "source_topic": "18",
+      "master_line": 687,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1802",
+      "phase": "08",
+      "source_topic": "18",
+      "master_line": 688,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1803",
+      "phase": "08",
+      "source_topic": "18",
+      "master_line": 689,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1804",
+      "phase": "08",
+      "source_topic": "18",
+      "master_line": 690,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1805",
+      "phase": "08",
+      "source_topic": "18",
+      "master_line": 691,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1806",
+      "phase": "08",
+      "source_topic": "18",
+      "master_line": 692,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2501",
+      "phase": "08",
+      "source_topic": "25",
+      "master_line": 696,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2502",
+      "phase": "08",
+      "source_topic": "25",
+      "master_line": 697,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2503",
+      "phase": "08",
+      "source_topic": "25",
+      "master_line": 698,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2504",
+      "phase": "08",
+      "source_topic": "25",
+      "master_line": 699,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2505",
+      "phase": "08",
+      "source_topic": "25",
+      "master_line": 700,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2506",
+      "phase": "08",
+      "source_topic": "25",
+      "master_line": 701,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2507",
+      "phase": "08",
+      "source_topic": "25",
+      "master_line": 702,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2508",
+      "phase": "08",
+      "source_topic": "25",
+      "master_line": 703,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3801",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 707,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3802",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 708,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3803",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 709,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3804",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 710,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3805",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 711,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3806",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 712,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3807",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 713,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3808",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 714,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3809",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 715,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3810",
+      "phase": "08",
+      "source_topic": "38",
+      "master_line": 716,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6001",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 720,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6002",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 721,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6003",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 722,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6004",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 723,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6005",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 724,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6006",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 725,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6007",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 726,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6008",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 727,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6009",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 728,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6010",
+      "phase": "08",
+      "source_topic": "60",
+      "master_line": 729,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-101",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 747,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-102",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 748,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-103",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 749,
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/life/coordinator.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-104",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 750,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/validation.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-105",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 751,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/model.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-106",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 752,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/run/work.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-107",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 753,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-108",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 754,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-109",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 755,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-110",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 756,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-111",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 757,
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/creative/service.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-112",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 758,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/validation.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-113",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 759,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-114",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 760,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-115",
+      "phase": "09",
+      "source_topic": "1",
+      "master_line": 761,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-201",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 765,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-202",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 766,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-203",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 767,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-204",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 768,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-205",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 769,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-206",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 770,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-207",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 771,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-208",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 772,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-209",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 773,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-210",
+      "phase": "09",
+      "source_topic": "2",
+      "master_line": 774,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-601",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 778,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-602",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 779,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-603",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 780,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-604",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 781,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-605",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 782,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-606",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 783,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-607",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 784,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-608",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 785,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-609",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 786,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-610",
+      "phase": "09",
+      "source_topic": "6",
+      "master_line": 787,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1301",
+      "phase": "09",
+      "source_topic": "13",
+      "master_line": 791,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1302",
+      "phase": "09",
+      "source_topic": "13",
+      "master_line": 792,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1303",
+      "phase": "09",
+      "source_topic": "13",
+      "master_line": 793,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1304",
+      "phase": "09",
+      "source_topic": "13",
+      "master_line": 794,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1305",
+      "phase": "09",
+      "source_topic": "13",
+      "master_line": 795,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1306",
+      "phase": "09",
+      "source_topic": "13",
+      "master_line": 796,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1307",
+      "phase": "09",
+      "source_topic": "13",
+      "master_line": 797,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1601",
+      "phase": "09",
+      "source_topic": "16",
+      "master_line": 801,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1602",
+      "phase": "09",
+      "source_topic": "16",
+      "master_line": 802,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1603",
+      "phase": "09",
+      "source_topic": "16",
+      "master_line": 803,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1604",
+      "phase": "09",
+      "source_topic": "16",
+      "master_line": 804,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1605",
+      "phase": "09",
+      "source_topic": "16",
+      "master_line": 805,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1606",
+      "phase": "09",
+      "source_topic": "16",
+      "master_line": 806,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2401",
+      "phase": "09",
+      "source_topic": "24",
+      "master_line": 810,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2402",
+      "phase": "09",
+      "source_topic": "24",
+      "master_line": 811,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2403",
+      "phase": "09",
+      "source_topic": "24",
+      "master_line": 812,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2404",
+      "phase": "09",
+      "source_topic": "24",
+      "master_line": 813,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2405",
+      "phase": "09",
+      "source_topic": "24",
+      "master_line": 814,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2406",
+      "phase": "09",
+      "source_topic": "24",
+      "master_line": 815,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2407",
+      "phase": "09",
+      "source_topic": "24",
+      "master_line": 816,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2408",
+      "phase": "09",
+      "source_topic": "24",
+      "master_line": 817,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3501",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 821,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3502",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 822,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3503",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 823,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3504",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 824,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3505",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 825,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3506",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 826,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3507",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 827,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3508",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 828,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3509",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 829,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3510",
+      "phase": "09",
+      "source_topic": "35",
+      "master_line": 830,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1001",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 848,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1002",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 849,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1003",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 850,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1004",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 851,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1005",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 852,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1006",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 853,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1007",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 854,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1008",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 855,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1009",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 856,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1010",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 857,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1011",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 858,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1012",
+      "phase": "10",
+      "source_topic": "10",
+      "master_line": 859,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1401",
+      "phase": "10",
+      "source_topic": "14",
+      "master_line": 863,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1402",
+      "phase": "10",
+      "source_topic": "14",
+      "master_line": 864,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1403",
+      "phase": "10",
+      "source_topic": "14",
+      "master_line": 865,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1404",
+      "phase": "10",
+      "source_topic": "14",
+      "master_line": 866,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1405",
+      "phase": "10",
+      "source_topic": "14",
+      "master_line": 867,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1406",
+      "phase": "10",
+      "source_topic": "14",
+      "master_line": 868,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1407",
+      "phase": "10",
+      "source_topic": "14",
+      "master_line": 869,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2601",
+      "phase": "10",
+      "source_topic": "26",
+      "master_line": 873,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2602",
+      "phase": "10",
+      "source_topic": "26",
+      "master_line": 874,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2603",
+      "phase": "10",
+      "source_topic": "26",
+      "master_line": 875,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2604",
+      "phase": "10",
+      "source_topic": "26",
+      "master_line": 876,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2605",
+      "phase": "10",
+      "source_topic": "26",
+      "master_line": 877,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2606",
+      "phase": "10",
+      "source_topic": "26",
+      "master_line": 878,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2607",
+      "phase": "10",
+      "source_topic": "26",
+      "master_line": 879,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2608",
+      "phase": "10",
+      "source_topic": "26",
+      "master_line": 880,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2101",
+      "phase": "11",
+      "source_topic": "21",
+      "master_line": 898,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2102",
+      "phase": "11",
+      "source_topic": "21",
+      "master_line": 899,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2103",
+      "phase": "11",
+      "source_topic": "21",
+      "master_line": 900,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2104",
+      "phase": "11",
+      "source_topic": "21",
+      "master_line": 901,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2105",
+      "phase": "11",
+      "source_topic": "21",
+      "master_line": 902,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2106",
+      "phase": "11",
+      "source_topic": "21",
+      "master_line": 903,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3201",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 907,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3202",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 908,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3203",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 909,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3204",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 910,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3205",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 911,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3206",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 912,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3207",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 913,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3208",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 914,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3209",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 915,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3210",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 916,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3211",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 917,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3212",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 918,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3213",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 919,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3214",
+      "phase": "11",
+      "source_topic": "32",
+      "master_line": 920,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3901",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 924,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3902",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 925,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3903",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 926,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3904",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 927,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3905",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 928,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3906",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 929,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3907",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 930,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3908",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 931,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3909",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 932,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3910",
+      "phase": "11",
+      "source_topic": "39",
+      "master_line": 933,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4401",
+      "phase": "11",
+      "source_topic": "44",
+      "master_line": 937,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4402",
+      "phase": "11",
+      "source_topic": "44",
+      "master_line": 938,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4403",
+      "phase": "11",
+      "source_topic": "44",
+      "master_line": 939,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4404",
+      "phase": "11",
+      "source_topic": "44",
+      "master_line": 940,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4405",
+      "phase": "11",
+      "source_topic": "44",
+      "master_line": 941,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4406",
+      "phase": "11",
+      "source_topic": "44",
+      "master_line": 942,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4407",
+      "phase": "11",
+      "source_topic": "44",
+      "master_line": 943,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6601",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 947,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6602",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 948,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6603",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 949,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6604",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 950,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6605",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 951,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6606",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 952,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6607",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 953,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6608",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 954,
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_lifecycle.py"
+      ],
+      "evidence_commits": [
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+      ],
+      "accepted": false
+    },
+    {
+      "id": "CA-6609",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 955,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6610",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 956,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6611",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 957,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6612",
+      "phase": "11",
+      "source_topic": "66",
+      "master_line": 958,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1501",
+      "phase": "12",
+      "source_topic": "15",
+      "master_line": 976,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1502",
+      "phase": "12",
+      "source_topic": "15",
+      "master_line": 977,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1503",
+      "phase": "12",
+      "source_topic": "15",
+      "master_line": 978,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1504",
+      "phase": "12",
+      "source_topic": "15",
+      "master_line": 979,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1505",
+      "phase": "12",
+      "source_topic": "15",
+      "master_line": 980,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-1506",
+      "phase": "12",
+      "source_topic": "15",
+      "master_line": 981,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6201",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 985,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6202",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 986,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6203",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 987,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6204",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 988,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6205",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 989,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6206",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 990,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6207",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 991,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6208",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 992,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6209",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 993,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6210",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 994,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6211",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 995,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6212",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 996,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6213",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 997,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6214",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 998,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6215",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 999,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6216",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 1000,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6217",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 1001,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6218",
+      "phase": "12",
+      "source_topic": "62",
+      "master_line": 1002,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2801",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1020,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2802",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1021,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2803",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1022,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2804",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1023,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2805",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1024,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2806",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1025,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2807",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1026,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2808",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1027,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2809",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1028,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2810",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1029,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2811",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1030,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2812",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1031,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2813",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1032,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2814",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1033,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2815",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1034,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2816",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1035,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2817",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1036,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2818",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1037,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2819",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1038,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2820",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1039,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2821",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1040,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2822",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1041,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2823",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1042,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2824",
+      "phase": "13",
+      "source_topic": "28",
+      "master_line": 1043,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2901",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1047,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2902",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1048,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2903",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1049,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2904",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1050,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2905",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1051,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2906",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1052,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2907",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1053,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2908",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1054,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2909",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1055,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2910",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1056,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2911",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1057,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2912",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1058,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2913",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1059,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2914",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1060,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2915",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1061,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2916",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1062,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2917",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1063,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2918",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1064,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2919",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1065,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2920",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1066,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2921",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1067,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2922",
+      "phase": "13",
+      "source_topic": "29",
+      "master_line": 1068,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3601",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1072,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3602",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1073,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3603",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1074,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3604",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1075,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3605",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1076,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3606",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1077,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3607",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1078,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3608",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1079,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3609",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1080,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-3610",
+      "phase": "13",
+      "source_topic": "36",
+      "master_line": 1081,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4301",
+      "phase": "13",
+      "source_topic": "43",
+      "master_line": 1085,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4302",
+      "phase": "13",
+      "source_topic": "43",
+      "master_line": 1086,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4303",
+      "phase": "13",
+      "source_topic": "43",
+      "master_line": 1087,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4304",
+      "phase": "13",
+      "source_topic": "43",
+      "master_line": 1088,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4305",
+      "phase": "13",
+      "source_topic": "43",
+      "master_line": 1089,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4306",
+      "phase": "13",
+      "source_topic": "43",
+      "master_line": 1090,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-4307",
+      "phase": "13",
+      "source_topic": "43",
+      "master_line": 1091,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6701",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1109,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6702",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1110,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6703",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1111,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6704",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1112,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6705",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1113,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6706",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1114,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6707",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1115,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6708",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1116,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6709",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1117,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6710",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1118,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6711",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1119,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-6712",
+      "phase": "14",
+      "source_topic": "67",
+      "master_line": 1120,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-701",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1138,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-702",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1139,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-703",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1140,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-704",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1141,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-705",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1142,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-706",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1143,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-707",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1144,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-708",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1145,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-715",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1146,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-709",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1147,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-710",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1148,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-711",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1149,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-712",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1150,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-713",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1151,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-714",
+      "phase": "15",
+      "source_topic": "7",
+      "master_line": 1152,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2001",
+      "phase": "15",
+      "source_topic": "20",
+      "master_line": 1156,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2002",
+      "phase": "15",
+      "source_topic": "20",
+      "master_line": 1157,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2003",
+      "phase": "15",
+      "source_topic": "20",
+      "master_line": 1158,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2004",
+      "phase": "15",
+      "source_topic": "20",
+      "master_line": 1159,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2005",
+      "phase": "15",
+      "source_topic": "20",
+      "master_line": 1160,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2006",
+      "phase": "15",
+      "source_topic": "20",
+      "master_line": 1161,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-2007",
+      "phase": "15",
+      "source_topic": "20",
+      "master_line": 1162,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-801",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1180,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-802",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1181,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-803",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1182,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-804",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1183,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-805",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1184,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-806",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1185,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-807",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1186,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-808",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1187,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-809",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1188,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-810",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1189,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-811",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1190,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    },
+    {
+      "id": "CA-812",
+      "phase": "16",
+      "source_topic": "8",
+      "master_line": 1191,
+      "status": "unassessed",
+      "code_paths": [],
+      "evidence_commits": [],
+      "accepted": false
+    }
+  ]
+}

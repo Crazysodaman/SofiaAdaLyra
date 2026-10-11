@@ -51,6 +51,10 @@ _STATIC_COMMANDS = (
             "tools",
         ),
     ),
+    (
+        "v18-task-traceability",
+        ("-m", "sofia.verify.v18_roadmap"),
+    ),
     ("dependency-check", ("-m", "pip", "check")),
 )
 
