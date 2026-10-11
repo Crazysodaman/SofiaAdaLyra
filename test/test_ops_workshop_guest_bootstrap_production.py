@@ -383,3 +383,34 @@ def test_wrong_host_or_guest_vm_cannot_fake_installer_completion(tmp_path):
             state_path=state,remote_service=service,
             plan_id=plan.plan_id,now=datetime.now(timezone.utc),
         )
+
+
+@pytest.mark.parametrize("change",[
+    {"Name":"SiblingVM"},
+    {"State":"Off"},
+    {"ObservedAtUtc":"2020-01-01T00:00:00+00:00"},
+    {"ObservedAtUtc":"2099-01-01T00:00:00+00:00"},
+    {"ObservedAtUtc":"not-a-timestamp"},
+    {"ObservedAtUtc":None},
+])
+def test_installer_stage_does_not_accept_unsupported_host_receipt(tmp_path,change):
+    state,plan,approval,at,_=reviewed_state(tmp_path)
+    remote,calls=fake_service(state,at)
+    original=remote.invoke
+    def tampered(node,capability,operation,params):
+        result=original(node,capability,operation,params)
+        if capability=="workshop.bootstrap" and operation=="start":
+            payload=json.loads(result["message"])
+            payload.update(change)
+            result["message"]=json.dumps(payload)
+        return result
+    remote.invoke=tampered
+    receipt=start_owner_approved_installer(
+        state_path=state,remote_service=remote,
+        plan_id=plan.plan_id,approval_id=approval.approval_id,
+        now=at+timedelta(seconds=2),
+    )
+    assert receipt.status=="UNCERTAIN"
+    assert receipt.os_installed is False
+    assert receipt.fleet_enrolled is False
+    assert [x[2] for x in calls].count("start")==1
