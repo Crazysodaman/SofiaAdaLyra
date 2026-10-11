@@ -432,6 +432,40 @@ CA-5304 and CA-4111. Still partial per-ID evidence until
 device/server tests and concurrency acceptance are run. Project-thread
 read cursors and non-Android clients remain outstanding.
 
+### Atomic provenance-preserving reviewed memory corrections (Phase 06)
+
+Production route: an authenticated owner conversation persists source message
+→ `ConversationLearningCoordinator` or
+`MemoryReviewService.propose` creates `PROPOSED` candidate with original
+source provenance → tray Memory panel identifies proposed replacement
+and promoted original → owner reads both and explicitly chooses
+`Link correction` → `DurableMemoryCandidateStore.link_correction`
+records same-scope lineage in canonical
+`memory_candidate_correction` table without changing either fact →
+owner separately selects `Promote` →
+`DurableMemoryCandidateStore.promote` executes `BEGIN IMMEDIATE` and
+atomically revokes original plus promotes replacement; originals and exact
+source IDs are retained. Other cognitive callers use the existing status
+gate and see only the newly promoted candidate. A correction cannot silently
+join different principal or audience scopes, and conflicting/competing
+replacement links fail closed. The `MemoryReviewService` also exposes
+owner-authenticated staged correction linking for non-UI integrations.
+
+Production commits:
+- `cbaa51e8a29a4da12d85ced0a200edfee290b4fc`: SQLite canonical
+  correction lineage and atomic transition.
+- `6989bc5c084f5eccf56b2f30078b58a19c963cfd`: authenticated
+  application review owner.
+- `eeafacb86acd2c2ed40fdc84e82918f88d27e3a3`: actual tray review UI.
+- `29fdde6027b0a9e52dd0f1c83599ddc85ce003cd`: original-evidence
+  restart, conflict, scope and rollback regressions, **not executed**.
+
+CA relevance: CA-1703, CA-310, CA-4204, CA-4206, CA-4803,
+CA-5802. This is an actual coherent production correction path, though
+memory conflict *detection*, external preference/connecome invalidation,
+operator accessibility and temporal validity chronology need separate work.
+No existing facts were changed in the running system.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
