@@ -348,6 +348,18 @@ def test_verified_personal_life_work_can_start_owner_conversation(tmp_path):
         assert row[1] == "person:sparks"
         assert row[2].startswith("presence:")
         assert row[3] == "queued"
+        with sqlite3.connect(life.path) as db:
+            notice = db.execute(
+                "SELECT recipient_id,channel,destination,category,content "
+                "FROM act_system_notice WHERE notice_id=?",
+                (row[2],),
+            ).fetchone()
+        assert notice[:4] == (
+            "person:sparks", "desktop", "tray", "social",
+        )
+        assert project.name in notice[4]
+        assert "artifact:" not in notice[4]
+        assert "private reflection" not in notice[4].lower()
         # A restart and another 5-minute background tick cannot create
         # another outreach message from the same (or any other) project.
         restarted = PresenceInitiativeEngine(
@@ -456,5 +468,53 @@ def test_life_unprompted_conversation_respects_owner_outreach_mute(tmp_path):
         ) == 0
         assert service.has_pending() is False
         assert sent == []
+    finally:
+        life.close()
+
+
+def test_life_celebration_does_not_outlive_its_independent_proof(tmp_path):
+    """A historical completed label must not trigger sharing after corruption."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        artifact_id, _revision = life.store.artifacts(project.project_id)[0]
+        path, _media = life.creative_explorer.verified_preview(
+            artifact_id, owner_principal_id="sofia", audience_id="local:text",
+        )
+        path.write_text(
+            "The completed source bytes changed and are no longer verifiable.",
+            encoding="utf-8",
+        )
+        presence, service, sent = _owner_only_outreach(life)
+        assert life.voluntary_project_updates(now=now) == ()
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False,
+        ) == 0
+        assert service.has_pending() is False
+        assert sent == []
+    finally:
+        life.close()
+
+
+def test_life_celebration_expires_instead_of_announcing_old_work(tmp_path):
+    """An older completion is history, not a reason to message days later."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+
+    life, _project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        later = now + timedelta(days=4)
+        presence, service, _sent = _owner_only_outreach(life)
+        assert life.voluntary_project_updates(now=later) == ()
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=later, busy=False,
+        ) == 0
+        assert service.has_pending() is False
     finally:
         life.close()
