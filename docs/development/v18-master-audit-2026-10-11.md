@@ -105,3 +105,39 @@ Only dated, exact-commit source, focused/full tests and appropriate live-host
 evidence can change a task to `accepted`. No CI, Venus, Artemis, Gaia or
 Fleet test was executed in this audit. User's earlier **code first, tests
 at the end** instruction is still observed.
+
+## Continued source reconciliation at bb116083, 2026-10-11
+
+This audit revision preserves the original 700 CA requirements and replaces
+the prior 5/17/678 reviewed subcounts with **6 code-present/unverified,
+23 partially wired, 671 not individually assessed, 0 accepted**. This is
+NOT a claim that only six tasks contain code; it means six full code paths
+have individually traced source ownership, while 671 still need inspection.
+
+- **Phase 01:** CA-3003 repair now includes exact installed-wheel checkout
+  root, verified Git HEAD provenance and CI `GITHUB_WORKSPACE` binding.
+  CA-3004 remains partial pending actual package/source parity evidence.
+  CA-2304 has real collection proof code and workflow bindings but requires
+  an executed exact-head 22-package CI run.
+- **Phase 01 / 09:** CA-2204 now has transactional RUN enqueue, LIFE one-use
+  authorization and project link on the same SQLite connection. On any
+  provisioning exception the RUN job, event and grant roll back together.
+  Concurrent pending work plus blocked/uncertain prior outcomes are denied;
+  source regression contracts are authored but not run. Broader CA-2205
+  all-status recovery/reconciliation remains partial.
+- **Phase 02 / 05:** CA-1904 is partially wired at the mobile private-chat
+  boundary: the durable host SAFE grant is rechecked immediately before
+  private dispatch, matching Main private-history authorization. CA-4107,
+  CA-5304, CA-5503 and CA-4110 get only partial evidence from authenticated
+  mobile audience isolation and serialized gateway turns. The current
+  shared-bearer pairing model still lacks independent per-device credentials,
+  and cross-transport offline causal ordering/idempotency remain unimplemented
+  at a provable production level.
+- **Android:** Network calls execute on `Dispatchers.IO`; Compose observable
+  state updates run on the ViewModel UI coroutine. Ambiguous sends restore the
+  draft and do not automatically retransmit.
+
+The CI, Windows, Android-build and Fleet tests remain deliberately deferred,
+so no CA ID was moved to `accepted`. Any subsequent phase-completion report
+must cite the exact Git commit, source code, executing test/live receipt and
+all remaining CA requirements before describing the whole phase as done.

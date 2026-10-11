@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+  "reviewed_main_sha": "bb116083a774ab3c4f00492e367c718775cca8c1",
   "audit_date_utc": "2026-10-11",
-  "notice": "Source status means source was manually inspected at reviewed_main_sha. code_present_unverified never implies acceptance; partial_wiring means existing source has an incomplete task contract. unassessed means NOT REVIEWED, not MISSING. The V18 source's design-only status is a historical snapshot predating the user's later express coding authorization.",
+  "notice": "Only concrete code paths individually inspected are classified. Unassessed means NOT individually audited, not unimplemented. Source-coded remains UNVERIFIED until exact-head CI and relevant live evidence. Updated for production repair commits a9ec36e, c3ebbf3 and bb11608.",
   "tasks": [
     {
       "id": "CA-001",
@@ -837,13 +837,16 @@
       "phase": "01",
       "source_topic": "22",
       "master_line": 187,
-      "status": "partial_wiring",
+      "status": "code_present_unverified",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/life/store.py"
+        "src/sofia/life/store.py",
+        "src/sofia/run/work.py",
+        "test/test_life_atomic_admission.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "c3ebbf3b7fe4da7a2d74b8e8b0b620dc74cea8f8"
       ],
       "accepted": false
     },
@@ -1027,9 +1030,15 @@
       "phase": "01",
       "source_topic": "23",
       "master_line": 208,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "test/conftest.py",
+        ".github/workflows/package-tests.yml",
+        "src/sofia/verify/package_selection.py"
+      ],
+      "evidence_commits": [
+        "7c6e42d2e49e86eb84b8b392e5519cf0eac24f9e"
+      ],
       "accepted": false
     },
     {
@@ -1127,10 +1136,13 @@
       "code_paths": [
         ".github/workflows/release-candidate.yml",
         "src/sofia/verify/source_provenance.py",
-        "pyproject.toml"
+        "pyproject.toml",
+        "src/sofia/verify/gate.py",
+        "src/sofia/verify/v18_roadmap.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "a9ec36e94c4e55347d607f337e182d15b4120f03"
       ],
       "accepted": false
     },
@@ -1139,9 +1151,15 @@
       "phase": "01",
       "source_topic": "30",
       "master_line": 221,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        ".github/workflows/release-candidate.yml",
+        "src/sofia/verify/source_provenance.py",
+        "src/sofia/verify/gate.py"
+      ],
+      "evidence_commits": [
+        "a9ec36e94c4e55347d607f337e182d15b4120f03"
+      ],
       "accepted": false
     },
     {
@@ -1463,9 +1481,14 @@
       "phase": "02",
       "source_topic": "19",
       "master_line": 275,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/safe/permissions.py"
+      ],
+      "evidence_commits": [
+        "bb116083a774ab3c4f00492e367c718775cca8c1"
+      ],
       "accepted": false
     },
     {
@@ -2408,9 +2431,14 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 438,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/conversation/lifelong.py"
+      ],
+      "evidence_commits": [
+        "bb116083a774ab3c4f00492e367c718775cca8c1"
+      ],
       "accepted": false
     },
     {
@@ -2443,9 +2471,14 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 441,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/conversation/store.py"
+      ],
+      "evidence_commits": [
+        "bb116083a774ab3c4f00492e367c718775cca8c1"
+      ],
       "accepted": false
     },
     {
@@ -2523,9 +2556,14 @@
       "phase": "05",
       "source_topic": "53",
       "master_line": 452,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/social/store.py"
+      ],
+      "evidence_commits": [
+        "bb116083a774ab3c4f00492e367c718775cca8c1"
+      ],
       "accepted": false
     },
     {
@@ -2597,9 +2635,14 @@
       "phase": "05",
       "source_topic": "55",
       "master_line": 462,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/conversation/lifelong.py"
+      ],
+      "evidence_commits": [
+        "bb116083a774ab3c4f00492e367c718775cca8c1"
+      ],
       "accepted": false
     },
     {
