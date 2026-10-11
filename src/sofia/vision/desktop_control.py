@@ -171,6 +171,36 @@ class WindowsDesktopInput:
             raise PermissionError("Session 0 services cannot inject desktop input")
         return hwnd, int(pid.value)
 
+    def _ensure_click_hits_approved_window(self, action: DesktopAction) -> None:
+        """Refuse coordinates outside the exact selected foreground HWND.
+
+        Foreground alone does not prove a click will land on that window:
+        another application/overlay can cover a point. Win32's hit-test and
+        root-window identity are independently checked before moving cursor.
+        """
+        rect = wintypes.RECT()
+        self.user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+        self.user32.GetWindowRect.restype = wintypes.BOOL
+        if not self.user32.GetWindowRect(
+            wintypes.HWND(action.window_handle), ctypes.byref(rect)
+        ):
+            raise PermissionError("approved window geometry cannot be verified")
+        if not (rect.left <= action.x < rect.right and
+                rect.top <= action.y < rect.bottom):
+            raise PermissionError("click lies outside approved window")
+        self.user32.WindowFromPoint.argtypes = [wintypes.POINT]
+        self.user32.WindowFromPoint.restype = wintypes.HWND
+        hit = int(self.user32.WindowFromPoint(
+            wintypes.POINT(action.x, action.y)
+        ) or 0)
+        if hit == 0:
+            raise PermissionError("click hit-test unavailable")
+        self.user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
+        self.user32.GetAncestor.restype = wintypes.HWND
+        root = int(self.user32.GetAncestor(wintypes.HWND(hit), 2) or 0)
+        if root != action.window_handle:
+            raise PermissionError("another window or overlay covers approved click point")
+
     @staticmethod
     def _structures():
         ptr = ctypes.c_size_t
@@ -211,6 +241,7 @@ class WindowsDesktopInput:
     def execute(self, action: DesktopAction, recheck) -> None:
         if action.operation == "mouse_click":
             recheck()
+            self._ensure_click_hits_approved_window(action)
             # SetCursorPos avoids virtual-desktop coordinate normalization.
             if not self.user32.SetCursorPos(action.x, action.y):
                 raise OSError(ctypes.get_last_error(), "SetCursorPos rejected")
