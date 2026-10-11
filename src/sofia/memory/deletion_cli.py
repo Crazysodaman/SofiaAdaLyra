@@ -27,8 +27,11 @@ def _init(args) -> int:
     if args.approve_external_journal is not True:
         raise PermissionError("explicit external journal provisioning approval required")
     path = Path(args.erasure_journal).absolute()
-    if path.parent == Path(args.state_path).absolute().parent:
-        raise ValueError("deletion journal may not live alongside the backed-up DB")
+    state_home = Path(args.state_path).absolute().parent
+    if path.parent == state_home or state_home in path.parents:
+        raise ValueError(
+            "deletion journal must live entirely outside the backed-up state home"
+        )
     journal = _ledger(args)
     journal.initialize()
     print("external authenticated deletion journal initialized")
