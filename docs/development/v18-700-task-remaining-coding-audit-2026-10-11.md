@@ -16,6 +16,9 @@
 
 The original task-label distribution is **397** labeled design/research, **112** labeled verify, **110** labeled gap and **81** mixed/other labels, covering all 700. Labels describe their original intent and do not prove a task is implemented or unimplemented. Phase 13 uses many specialist labels (INFRA, NETWORK, WIRING, etc.); they are counted as mixed, not automatically complete.
 
+**Priority coding-triage subset:** Of the **110** original tasks explicitly labeled `[GAP]`, **3** have traced code-present/unverified, **12** have partial source evidence, and **95** still need task-specific code inspection. Those 95 are *not* established as absent implementations. This is a practical review queue, not a count of required new modules.
+
+
 ## Source-backed status by execution-priority phase
 
 | Phase | Area | Original tasks | Code-present (not verified) | Partial | Still needs task-specific inspection |
