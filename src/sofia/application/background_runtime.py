@@ -225,6 +225,40 @@ def create_background_coordinator(
             ready=model_discovery_ready,
         )
 
+    # Optional association decay belongs to the existing RUN lifecycle. It
+    # does not wake an LLM, store raw conversation, or create memories.
+    from sofia.config.user_settings import RuntimeUserSettingsStore
+    from sofia.neuro.connectome.association_store import ReviewedAssociationStore
+
+    def association_decay_ready():
+        return (
+            RuntimeUserSettingsStore(application._configuration.state_path)
+            .load().neuro_association_enabled
+            and activity_store.state(host_id).effective not in {
+                ActivityMode.GAMING, ActivityMode.BUSY,
+                ActivityMode.DO_NOT_DISTURB,
+            }
+        )
+
+    def decay_reviewed_associations(now):
+        owner = local_sparks_principal()
+        count = ReviewedAssociationStore(
+            application._configuration.state_path,
+        ).decay_scope(
+            principal_id=owner.principal_id,
+            audience_id=owner.audience_id,
+            rate=0.01,
+            at=now,
+        )
+        return {"decayed_weights": count} if count else None
+
+    coordinator.set_task(
+        "neuro_association_decay",
+        decay_reviewed_associations,
+        interval_seconds=86400.0,
+        ready=association_decay_ready,
+    )
+
     def deliver_act(now):
         activity = activity_store.state(host_id).effective
         busy = activity in {
