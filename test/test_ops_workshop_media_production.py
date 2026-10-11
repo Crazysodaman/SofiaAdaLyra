@@ -146,6 +146,7 @@ def test_media_build_never_autopulls_tool_or_launches_host(monkeypatch, tmp_path
     source = tmp_path / "debian-13.7.0-amd64-DVD-1.iso"
     source.write_bytes(b"faux fixture; tiny file")
     monkeypatch.setattr(media.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(media.shutil, "which", lambda _: "/usr/bin/fixture")
     output = tmp_path / "new.iso"
     with pytest.raises(ValueError, match="unexpectedly small"):
         media.prepare_offline_debian_installer(
