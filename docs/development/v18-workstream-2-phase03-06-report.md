@@ -1807,6 +1807,40 @@ replacement problem (which still requires dirfd-based filesystem trust,
 offline operator fencing and real host acceptance). No tests/CI or live
 backup, migration, restore or deletion executed.
 
+
+
+### Phase 06 item 57: External signed-erasure lock and append resist redirected files
+
+A live-path audit of `MemoryDeletionLedger.request` found that its
+cross-process append lock opened a predictable `.jsonl.lock` path and its
+journal append reopened the signed `.jsonl` path using ordinary pathname
+operations. Checking `is_symlink()` only before opening leaves a
+check-to-open substitution opportunity. On Linux an attacker with file
+replacement authority could redirect append/lock operations to another
+local file or cause two writers to lock different inodes.
+
+Production `src/sofia/memory/deletion_ledger.py` now validates
+symlink/junction ancestry and on supporting platforms uses
+`O_NOFOLLOW` with `O_CLOEXEC` to open the lock and append file.
+After open, it verifies a regular file and exact inode/device identity
+against the named path before trusting the lock or writing signed bytes.
+The encrypted/AC-authenticated append format, exclusive lock, signed
+sequence, scope checks and fsync semantics remain intact. This is a
+local-filesystem guard, **not** an independent privilege boundary against
+an OS administrator, a malicious parent-directory rename, a stale
+journal swapped with another authentically signed copy or cross-host
+writer fencing. Windows reparse trust still needs a privileged service.
+
+Production commit: `e4107714f6214fb6b00e2319c41e6f3e31ec4c0f`
+(`[skip ci]`). Deferred synthetic no-follow and original-HMAC-chain
+regressions: `test/test_ws2_deletion_journal_nofollow.py`,
+`a9ef8f8f387b14b36aa9b7f2c11bb58dcb44f0bb` (`[skip ci]`).
+
+Original requirement relevance: CA-5202, CA-5204, CA-6105,
+CA-6108, CA-6404, CA-6807. No live erasure, host changes,
+automatic migration, tests or CI. The original task IDs are not
+marked accepted by this focused coding slice.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
