@@ -178,6 +178,10 @@ class LifeStore:
                     ON life_run_outcome_observation(
                         project_id,run_event_id DESC
                     );
+                CREATE INDEX IF NOT EXISTS life_run_observation_exact
+                    ON life_run_outcome_observation(
+                        project_id,job_id,run_status,run_event_id DESC
+                    );
             """)
 
     def _connect(self) -> sqlite3.Connection:
@@ -472,6 +476,53 @@ class LifeStore:
             datetime.fromisoformat(row["run_at"]),
             datetime.fromisoformat(row["observed_at"]),
         ) for row in reversed(rows))
+
+    def exact_original_run_outcome(
+        self, *, project_id: str, job_id: str, status: str,
+    ) -> RunOutcomeObservation | None:
+        """Bounded original RUN event evidence, not a last-100 projection.
+
+        The derived observation and its original RUN event must agree on
+        identity, status and timestamp. A forged/stale LIFE observation alone
+        cannot settle a project or authorize another RUN effect.
+        """
+        if (
+            not isinstance(project_id, str) or not project_id.strip()
+            or not isinstance(job_id, str) or not job_id.strip()
+            or status not in {
+                "completed", "failed", "blocked", "cancelled",
+                "uncertain", "waiting_approval",
+            }
+        ):
+            raise ValueError("exact scoped RUN source identity and status required")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """SELECT observation.run_event_id,observation.project_id,
+                          observation.job_id,observation.run_status,
+                          observation.run_reason,observation.run_at,
+                          observation.observed_at
+                   FROM life_run_outcome_observation AS observation
+                   JOIN autonomous_work_event AS event
+                     ON event.event_id=observation.run_event_id
+                    AND event.job_id=observation.job_id
+                    AND event.to_status=observation.run_status
+                    AND event.occurred_at=observation.run_at
+                   JOIN life_project_job AS link
+                     ON link.job_id=observation.job_id
+                    AND link.project_id=observation.project_id
+                   WHERE observation.project_id=? AND observation.job_id=?
+                     AND observation.run_status=?
+                   ORDER BY observation.run_event_id DESC LIMIT 1""",
+                (project_id, job_id, status),
+            ).fetchone()
+        if row is None:
+            return None
+        return RunOutcomeObservation(
+            int(row["run_event_id"]), row["project_id"], row["job_id"],
+            row["run_status"], row["run_reason"],
+            datetime.fromisoformat(row["run_at"]),
+            datetime.fromisoformat(row["observed_at"]),
+        )
 
     def jobs(self, project_id: str) -> tuple[str, ...]:
         with closing(self._connect()) as db:
