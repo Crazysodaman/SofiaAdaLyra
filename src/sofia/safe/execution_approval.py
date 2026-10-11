@@ -10,6 +10,7 @@ import re
 import sqlite3
 
 from sofia.safe.audit import AuditChain
+from sofia.safe.owner_webauthn import ensure_owner_webauthn_schema
 from sofia.safe.permissions import PermissionLevel, capability_permission_policy
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
@@ -88,6 +89,7 @@ class ExecutionApprovalVerifier:
         self.audit = AuditChain(self.path)
         with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
+            ensure_owner_webauthn_schema(db)
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS safe_execution_approval (
