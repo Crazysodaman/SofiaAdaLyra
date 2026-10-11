@@ -144,8 +144,10 @@ def assess_training_lab(
             heldout_data_digest=plan.heldout_data_sha256,
             data_use_approval_ref=plan.data_use_approval_ref,
             adaptation_kind=plan.method,
-            max_gpu_hours=plan.max_gpu_seconds/3600,
-            max_vram_mb=plan.max_gpu_vram_mb,
+            # Dataset rights can be reviewed with no GPU installed.
+            # These are validation floor constants, NOT observed resources.
+            max_gpu_hours=max(1.0,plan.max_gpu_seconds/3600),
+            max_vram_mb=max(512,plan.max_gpu_vram_mb),
             preserve_source_privacy=True,
         ),
         dataset_store=dataset_store,
