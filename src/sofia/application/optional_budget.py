@@ -133,7 +133,13 @@ class OptionalAutonomyBudget:
 
     def reserve_in_transaction(self,db:sqlite3.Connection,*,claim_id:str,
                                task_kind:str,now:datetime)->bool:
-        if now.tzinfo is None or now.utcoffset() is None:
+        if not isinstance(db,sqlite3.Connection) or not db.in_transaction:
+            raise RuntimeError(
+                "optional reservation requires existing canonical write transaction"
+            )
+        if not isinstance(claim_id,str) or not claim_id.strip() or len(claim_id)>160:
+            raise ValueError("bounded optional reservation identity required")
+        if not isinstance(now,datetime) or now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("aware budget accounting time required")
         profile=reserve_profile(task_kind)
         limits,_=self._limits(db)
@@ -160,6 +166,14 @@ class OptionalAutonomyBudget:
 
     def settle_in_transaction(self,db:sqlite3.Connection,*,claim_id:str,
                               now:datetime,failed:bool)->None:
+        if not isinstance(db,sqlite3.Connection) or not db.in_transaction:
+            raise RuntimeError(
+                "optional settlement requires existing canonical write transaction"
+            )
+        if not isinstance(now,datetime) or now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("aware budget settlement time required")
+        if type(failed) is not bool:
+            raise TypeError("reservation failure status must be bool")
         result=db.execute(
             "UPDATE application_optional_budget_claim SET status=?,finished_at=? "
             "WHERE claim_id=? AND status='working'",
