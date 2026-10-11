@@ -21,6 +21,8 @@ import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import shutil
 import sqlite3
+import stat
+import sys
 import tempfile
 from uuid import uuid4
 
@@ -45,6 +47,35 @@ _AESGCM_TAG_BYTES = 16
 
 class BackupError(RuntimeError):
     pass
+
+
+class RestorePublicationUncertain(BackupError):
+    """Restored files were renamed but their directory durability is unknown."""
+
+
+def _fsync_restored_linux_directories(directories: set[Path]) -> None:
+    """Persist restored pathnames and newly created parent directory entries.
+
+    Files were fsynced before rename. All ancestor entries are checked and
+    flushed deepest-first, because a nested asset's parent may also have
+    been created during the restore. Linux only: unsupported directory fsync
+    fails closed rather than claiming a durable offline recovery.
+    """
+    parents: set[Path] = set()
+    for directory in directories:
+        parents.add(directory)
+        parents.update(directory.parents)
+    for directory in sorted(parents, key=lambda item: (-len(item.parts), str(item))):
+        _reject_redirected_restore_path(directory)
+        descriptor = os.open(
+            directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+        try:
+            if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
+                raise BackupError("restored pathname parent is no longer a directory")
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
 
 
 def _reject_redirected_restore_path(path: Path) -> None:
@@ -601,6 +632,7 @@ class BackupEngine:
                 raise BackupError(
                     "external erasure journal unavailable before restore publication"
                 ) from exc
+            published_directories: set[Path] = set()
             for source in sorted(staging.rglob("*")):
                 if not source.is_file():
                     continue
@@ -617,7 +649,22 @@ class BackupEngine:
                     f".{destination.name}.restore"
                 )
                 shutil.copy2(source, temp_target)
+                # A successful os.replace does not make freshly copied bytes
+                # crash-durable. Flush the exact temporary file first.
+                with temp_target.open("rb") as restored_file:
+                    os.fsync(restored_file.fileno())
                 os.replace(temp_target, destination)
+                published_directories.add(destination.parent)
+            if sys.platform.startswith("linux"):
+                try:
+                    _fsync_restored_linux_directories(published_directories)
+                except OSError as exc:
+                    # Some names may already be visible. Do not claim success,
+                    # automatically undo a partial restore, or overwrite it.
+                    raise RestorePublicationUncertain(
+                        "restored files were published but directory durability "
+                        "is uncertain; inspect offline state before activation"
+                    ) from exc
 
         return RestoreVerification(
             backup_id=manifest.backup_id,
