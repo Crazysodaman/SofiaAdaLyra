@@ -56,6 +56,8 @@ def _candidate(content: str) -> MemoryCandidate:
 
 
 def _configuration(tmp_path: Path) -> SofiaConfiguration:
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=tmp_path / "constitution.md",
         constitution_hash_path=tmp_path / "constitution.sha256",
