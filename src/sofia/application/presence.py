@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from hashlib import sha256
+import math
 import json
 from pathlib import Path
 import re
@@ -87,6 +88,114 @@ class WorldObservation:
         if not isinstance(self.availability, WorldAvailability):
             raise TypeError("availability must be WorldAvailability")
         json.dumps(self.value, ensure_ascii=False, sort_keys=True)
+
+
+class ObservationModality(str, Enum):
+    VOICE = "voice"
+    SCREEN = "screen"
+    ENVIRONMENT = "environment"
+    FLEET = "fleet"
+    APP = "app"
+    WEB = "web"
+
+
+class OriginalDataAccess(str, Enum):
+    VERIFIED_REF = "verified_ref"
+    NOT_RETAINED = "not_retained"
+    UNAVAILABLE = "unavailable"
+
+
+class ObservationPrivacy(str, Enum):
+    PUBLIC = "public"
+    PERSONAL = "personal"
+    PRIVATE = "private"
+    PROTECTED = "protected"
+
+
+@dataclass(frozen=True, slots=True)
+class CrossModalObservationReceipt:
+    """Source-linked metadata, not proof of perception or external authority."""
+
+    observation_id: str
+    modality: ObservationModality
+    source_id: str
+    observed_at: datetime
+    received_at: datetime
+    expires_at: datetime | None
+    original_access: OriginalDataAccess
+    original_ref: str | None
+    privacy: ObservationPrivacy
+    interpretation_confidence: float | None
+    epistemic_state: WorldEpistemicState
+
+    def __post_init__(self) -> None:
+        for label, value in (
+            ("observation ID",self.observation_id),
+            ("source ID",self.source_id),
+        ):
+            if not isinstance(value,str) or _ID.fullmatch(value) is None:
+                raise ValueError(f"{label} must be bounded machine-safe ID")
+        if not isinstance(self.modality, ObservationModality):
+            raise TypeError("modality must be an explicit source channel")
+        if not isinstance(self.original_access,OriginalDataAccess):
+            raise TypeError("original data access must be explicit")
+        if not isinstance(self.privacy,ObservationPrivacy):
+            raise TypeError("observation privacy must be explicit")
+        if not isinstance(self.epistemic_state,WorldEpistemicState):
+            raise TypeError("epistemic state must be explicit")
+        for value in (self.observed_at,self.received_at):
+            if (
+                not isinstance(value,datetime)
+                or value.tzinfo is None or value.utcoffset() is None
+            ):
+                raise ValueError("source/host timestamps must be timezone-aware")
+        if self.expires_at is not None and (
+            not isinstance(self.expires_at,datetime)
+            or self.expires_at.tzinfo is None
+            or self.expires_at.utcoffset() is None
+            or self.expires_at <= self.observed_at
+        ):
+            raise ValueError("expiry must follow source observation")
+        if self.original_access is OriginalDataAccess.VERIFIED_REF:
+            if (
+                not isinstance(self.original_ref,str)
+                or _ID.fullmatch(self.original_ref) is None
+            ):
+                raise ValueError("verified original requires bounded source ref")
+        elif self.original_ref is not None:
+            raise ValueError("unavailable original must not invent source ref")
+        confidence = self.interpretation_confidence
+        if confidence is not None and (
+            isinstance(confidence,bool)
+            or not isinstance(confidence,(int,float))
+            or not math.isfinite(confidence)
+            or not 0.0 <= confidence <= 1.0
+        ):
+            raise ValueError("interpretation confidence must be finite 0..1")
+
+    def validate(self, observation: WorldObservation) -> None:
+        if not isinstance(observation,WorldObservation):
+            raise TypeError("canonical WorldObservation required")
+        if (
+            self.observation_id != observation.observation_id
+            or self.source_id != observation.source_id
+            or self.observed_at.astimezone(timezone.utc) !=
+                observation.observed_at.astimezone(timezone.utc)
+            or self.epistemic_state is not observation.epistemic_state
+        ):
+            raise ValueError("cross-modal metadata disagrees with source observation")
+        if (self.expires_at is None) != (observation.expires_at is None):
+            raise ValueError("cross-modal expiry disagrees with source observation")
+        if (
+            self.expires_at is not None
+            and self.expires_at.astimezone(timezone.utc) !=
+                observation.expires_at.astimezone(timezone.utc)
+        ):
+            raise ValueError("cross-modal expiry disagrees with source observation")
+        if self.original_access is OriginalDataAccess.UNAVAILABLE and (
+            observation.epistemic_state is WorldEpistemicState.OBSERVED
+        ):
+            raise ValueError("unavailable original cannot claim directly observed fact")
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,6 +289,19 @@ class PresenceInitiativeEngine:
                 );
                 CREATE INDEX IF NOT EXISTS presence_world_subject
                     ON presence_world_observation(subject_id,predicate,observed_at DESC);
+                CREATE TABLE IF NOT EXISTS presence_cross_modal_receipt (
+                    observation_id TEXT PRIMARY KEY,
+                    modality TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    observed_at TEXT NOT NULL,
+                    received_at TEXT NOT NULL,
+                    expires_at TEXT,
+                    original_access TEXT NOT NULL,
+                    original_ref TEXT,
+                    privacy TEXT NOT NULL,
+                    interpretation_confidence REAL,
+                    epistemic_state TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS presence_initiative_opportunity (
                     event_id TEXT PRIMARY KEY,
                     observation_id TEXT NOT NULL,
@@ -205,9 +327,16 @@ class PresenceInitiativeEngine:
     def _utc(value: datetime) -> datetime:
         return value.astimezone(timezone.utc)
 
-    def observe(self, observation: WorldObservation) -> WorldObservation:
+    def observe(
+        self, observation: WorldObservation, *,
+        receipt: CrossModalObservationReceipt | None = None,
+    ) -> WorldObservation:
         if not isinstance(observation, WorldObservation):
             raise TypeError("observation must be WorldObservation")
+        if receipt is not None:
+            if not isinstance(receipt,CrossModalObservationReceipt):
+                raise TypeError("cross-modal receipt must be typed")
+            receipt.validate(observation)
         desired = (
             observation.observation_id, observation.subject_id,
             observation.predicate, observation.source_id,
@@ -227,11 +356,35 @@ class PresenceInitiativeEngine:
             if old is not None:
                 if tuple(old) != desired:
                     raise ValueError("observation_id reused for different world state")
-                return observation
-            db.execute(
-                "INSERT INTO presence_world_observation VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                desired,
-            )
+            else:
+                db.execute(
+                    "INSERT INTO presence_world_observation VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    desired,
+                )
+            if receipt is not None:
+                stamp=lambda value: (
+                    None if value is None else
+                    value.astimezone(timezone.utc).isoformat()
+                )
+                record=(
+                    receipt.observation_id,receipt.modality.value,
+                    receipt.source_id,stamp(receipt.observed_at),
+                    stamp(receipt.received_at),stamp(receipt.expires_at),
+                    receipt.original_access.value,receipt.original_ref,
+                    receipt.privacy.value,receipt.interpretation_confidence,
+                    receipt.epistemic_state.value,
+                )
+                prior=db.execute(
+                    "SELECT * FROM presence_cross_modal_receipt "
+                    "WHERE observation_id=?", (receipt.observation_id,),
+                ).fetchone()
+                if prior is not None and tuple(prior) != record:
+                    raise ValueError("cross-modal receipt changed for original source")
+                if prior is None:
+                    db.execute(
+                        "INSERT INTO presence_cross_modal_receipt "
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?)",record,
+                    )
             db.execute(
                 """
                 DELETE FROM presence_world_observation WHERE observation_id IN (
@@ -240,7 +393,62 @@ class PresenceInitiativeEngine:
                 )
                 """
             )
+            db.execute(
+                "DELETE FROM presence_cross_modal_receipt "
+                "WHERE observation_id NOT IN "
+                "(SELECT observation_id FROM presence_world_observation)"
+            )
         return observation
+
+    def source_receipt(
+        self, *, observation_id: str, audience_id: str | None,
+    ) -> CrossModalObservationReceipt | None:
+        """Return only provenance visible in its original audience scope.
+
+        A private/protected original without an explicit audience binding
+        stays inaccessible, including to a client with the same owner ID.
+        This does not authorize downloading or displaying original bytes.
+        """
+        if not isinstance(observation_id,str) or _ID.fullmatch(observation_id) is None:
+            raise ValueError("exact bounded observation ID required")
+        if audience_id is not None and (
+            not isinstance(audience_id,str) or _ID.fullmatch(audience_id) is None
+        ):
+            raise ValueError("bounded requester audience required")
+        with closing(self._connect()) as db:
+            row=db.execute(
+                "SELECT r.*,o.audience_id AS source_audience "
+                "FROM presence_cross_modal_receipt AS r "
+                "JOIN presence_world_observation AS o "
+                "ON o.observation_id=r.observation_id "
+                "WHERE r.observation_id=?", (observation_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        if row["privacy"] != ObservationPrivacy.PUBLIC.value:
+            if row["source_audience"] is None or row["source_audience"] != audience_id:
+                raise PermissionError(
+                    "observation provenance not visible in this audience"
+                )
+        elif row["source_audience"] is not None and (
+            row["source_audience"] != audience_id
+        ):
+            raise PermissionError("observation audience does not match")
+        return CrossModalObservationReceipt(
+            observation_id=row["observation_id"],
+            modality=ObservationModality(row["modality"]),
+            source_id=row["source_id"],
+            observed_at=datetime.fromisoformat(row["observed_at"]),
+            received_at=datetime.fromisoformat(row["received_at"]),
+            expires_at=None if row["expires_at"] is None else datetime.fromisoformat(
+                row["expires_at"]
+            ),
+            original_access=OriginalDataAccess(row["original_access"]),
+            original_ref=row["original_ref"],
+            privacy=ObservationPrivacy(row["privacy"]),
+            interpretation_confidence=row["interpretation_confidence"],
+            epistemic_state=WorldEpistemicState(row["epistemic_state"]),
+        )
 
     def consider(self, event: InitiativeEvent) -> InitiativeDecision:
         if not isinstance(event, InitiativeEvent):
