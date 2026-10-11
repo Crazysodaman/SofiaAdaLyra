@@ -186,3 +186,48 @@ def test_journal_requires_independent_approval_and_original_audience(tmp_path):
         )
     assert ledger.apply_to_sqlite(state) == 1
     _assert_no_deleted_candidate(state)
+
+
+def test_configured_memory_runtime_replays_journal_after_interrupted_delete(
+    tmp_path, monkeypatch,
+):
+    """A crash between journal fsync and live SQL removal heals on startup."""
+    from sofia.memory.provenance_store import DurableMemoryCandidateStore
+
+    state, ledger, _engine = _prepare(tmp_path)
+    _erase(ledger)
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT content FROM memory_candidate WHERE candidate_id=?",
+            (str(CANDIDATE),),
+        ).fetchone()[0] == "PRIVATE-REMOVED-SUMMARY"
+    key = tmp_path / "external" / "backup-key.bin"
+    key.parent.mkdir()
+    key.write_bytes(b"k" * 32)
+    monkeypatch.setenv("SOFIA_MEMORY_ERASURE_JOURNAL", str(ledger.path))
+    monkeypatch.setenv("SOFIA_MEMORY_ERASURE_KEY", str(key))
+    store = DurableMemoryCandidateStore(state)
+    try:
+        assert store.is_recall_eligible(CANDIDATE) is False
+    finally:
+        store.close()
+    _assert_no_deleted_candidate(state)
+    assert len(ledger.entries()) == 1
+
+
+def test_memory_runtime_fails_closed_when_erasures_configured_without_key(
+    tmp_path, monkeypatch,
+):
+    from sofia.memory.provenance_store import DurableMemoryCandidateStore
+
+    state, ledger, _engine = _prepare(tmp_path)
+    _erase(ledger)
+    monkeypatch.setenv("SOFIA_MEMORY_ERASURE_JOURNAL", str(ledger.path))
+    monkeypatch.delenv("SOFIA_MEMORY_ERASURE_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="both external journal and operator key"):
+        DurableMemoryCandidateStore(state)
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT content FROM memory_candidate WHERE candidate_id=?",
+            (str(CANDIDATE),),
+        ).fetchone()[0] == "PRIVATE-REMOVED-SUMMARY"
