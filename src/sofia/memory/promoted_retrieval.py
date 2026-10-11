@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from heapq import nsmallest
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -132,41 +133,27 @@ def retrieve_promoted(
         return MemoryProjection((), (), ())
 
     contextual_tokens = _contextual_rerank_tokens(influence)
-    ranked: list[tuple[int, int, int, object]] = []
-
-    for order, candidate_id in enumerate(
-        store.list_ids(
-            status=CandidateStatus.PROMOTED,
-            principal_id=principal_id,
-            audience_id=audience_id,
-        )
-    ):
-        memory = store.get(candidate_id)
-        if memory is None:
-            continue
-
-        memory_tokens = _tokens(memory.content)
-        query_score = len(query_tokens & memory_tokens)
-
-        # Hard relevance gate: contextual salience cannot summon an unrelated
-        # memory merely because weather, season, daypart, or emotion matches.
-        if query_score <= 0:
-            continue
-
-        context_score = len(contextual_tokens & memory_tokens)
-        ranked.append(
-            (
-                -query_score,
-                -context_score,
-                order,
-                candidate_id,
+    def ranked_matches():
+        # Stable keyset SQL batches keep memory bounded even when the owner
+        # retains years of reviewed candidates. Only the top `limit` IDs
+        # survive scoring; source provenance remains on canonical SQLite.
+        for order, (candidate_id, content) in enumerate(
+            store.iter_promoted_summaries(
+                principal_id=principal_id, audience_id=audience_id,
             )
-        )
+        ):
+            memory_tokens = _tokens(content)
+            query_score = len(query_tokens & memory_tokens)
 
-    ranked.sort()
+            # Salience from emotion/weather/daypart cannot grant eligibility.
+            if query_score <= 0:
+                continue
+            context_score = len(contextual_tokens & memory_tokens)
+            yield (-query_score, -context_score, order, candidate_id)
+
     ids = [
         candidate_id
-        for _, _, _, candidate_id in ranked[:limit]
+        for _, _, _, candidate_id in nsmallest(limit, ranked_matches())
     ]
     return project_promoted_memories(
         store,
