@@ -117,7 +117,7 @@ def test_empty_disk_is_owner_decision_not_silent_guest_format_permission():
         owner_handoff(owner_declares_empty_disk=False)
     with pytest.raises(PermissionError,match="only Hephaestus"):
         owner_handoff(guest_name="Sofia")
-    with pytest.raises(PermissionError,match="separate"):
+    with pytest.raises(PermissionError,match="cannot create VMs"):
         owner_handoff(may_enroll_fleet=True)
     with pytest.raises(PermissionError,match="dedicated"):
         owner_handoff(switch_name="Default Switch")
@@ -212,6 +212,8 @@ def test_missing_mismatched_or_wrong_host_signed_media_never_passes_review():
 
 def test_canonical_handoff_store_is_read_only_and_does_not_confer_authority(tmp_path):
     state=tmp_path/"sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state)
     RuntimeUserSettingsStore(state).load()
     service=object.__new__(RemoteFleetToolService)
     service.invoke=lambda node,cap,op,parameters: {
