@@ -381,4 +381,7 @@ class AutonomousWorkCoordinator:
         ))
 
     def close(self) -> None:
-        self.manager.close(wait=False)
+        # Complete the bounded worker/database callback drain before the
+        # application closes its canonical SQLite handles. Do not claim
+        # Windows state shutdown succeeded while futures still write.
+        self.manager.close(wait=True, timeout_seconds=30.0)

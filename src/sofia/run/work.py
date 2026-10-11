@@ -7,10 +7,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 import json
+import math
 from pathlib import Path
 import re
 import sqlite3
-from threading import Event, Lock
+from threading import Condition, Event, Lock
+from time import monotonic
 from typing import Callable
 from uuid import uuid4
 
@@ -442,8 +444,13 @@ class TaskExecutionManager:
         self._pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="sofia-work")
         self._active: dict[str, tuple[Future, Event]] = {}
         self._lock = Lock()
+        self._finished = Condition(self._lock)
+        self._closed = False
 
     def submit(self, **kwargs) -> WorkJob:
+        with self._lock:
+            if self._closed:
+                raise RuntimeError("RUN executor is shutting down")
         open_count = self.store.open_count()
         if open_count >= self.max_queued:
             raise WorkOverloadError("autonomous work queue is full")
@@ -480,11 +487,17 @@ class TaskExecutionManager:
         except RuntimeError:
             pass
         finally:
-            with self._lock:
+            with self._finished:
                 self._active.pop(job_id, None)
+                # The callback has finished its database transition attempt.
+                # Shutdown may now safely close the canonical SQLite handle.
+                self._finished.notify_all()
 
     def tick(self, *, now: datetime, busy: bool = False, resource_pressure: float = 0.0) -> int:
         moment = _utc(now)
+        with self._lock:
+            if self._closed:
+                raise RuntimeError("RUN executor is shutting down")
         if not 0.0 <= float(resource_pressure) <= 1.0:
             raise ValueError("resource_pressure must be in 0..1")
         self.poll(now=moment)
@@ -555,9 +568,39 @@ class TaskExecutionManager:
             reason="operator_cancelled", now=now,
         )
 
-    def close(self, *, wait: bool = False) -> None:
-        with self._lock:
+    def close(
+        self, *, wait: bool = False, timeout_seconds: float = 30.0,
+    ) -> None:
+        """Cancel work and optionally prove all SQLite callbacks have drained.
+
+        A non-waiting close is only for callers that explicitly accept a
+        still-running host worker. The application production owners use the
+        bounded drain so Windows can release temporary/canonical SQLite files.
+        A stuck handler raises instead of falsely claiming clean shutdown.
+        """
+        if (
+            isinstance(timeout_seconds, bool)
+            or not isinstance(timeout_seconds, (int, float))
+            or not math.isfinite(timeout_seconds)
+            or not 0.0 < timeout_seconds <= 300.0
+        ):
+            raise ValueError("finite bounded shutdown timeout required")
+        with self._finished:
+            self._closed = True
             active = tuple(self._active.values())
-        for _, cancel in active:
+        for future, cancel in active:
             cancel.set()
-        self._pool.shutdown(wait=wait, cancel_futures=True)
+            future.cancel()
+        # Never block indefinitely inside ThreadPoolExecutor.shutdown().
+        self._pool.shutdown(wait=False, cancel_futures=True)
+        if wait:
+            deadline = monotonic() + timeout_seconds
+            with self._finished:
+                while self._active:
+                    remaining = deadline - monotonic()
+                    if remaining <= 0:
+                        raise RuntimeError(
+                            "RUN workers still active; canonical SQLite "
+                            "shutdown has not completed safely"
+                        )
+                    self._finished.wait(timeout=remaining)
