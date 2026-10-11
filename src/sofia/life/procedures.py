@@ -16,12 +16,14 @@ from pathlib import Path
 import sqlite3
 
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.creative import CreativeExplorer, CreativeStore
 from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.run.work import DurableWorkStore, WorkStatus
 from sofia.social.principals import local_sparks_principal
 
 from .model import LifeProject, ProjectScope, ProjectStatus, TechnicalOutcome
 from .store import LifeStore
+from .validation import inspect_objective_artifact
 
 
 @dataclass(frozen=True, slots=True)
@@ -234,6 +236,35 @@ class LifeProcedureCatalog:
             )
         ):
             raise ValueError("independent original LIFE objective proof missing")
+        # Independently inspect current original bytes *here*, not only
+        # in the coordinating caller. A compromised or stale future caller
+        # cannot turn old evaluation labels into new verified skill status.
+        creative = CreativeStore(self.path)
+        artifact = creative.latest(
+            output["artifact_id"], "sofia", project.audience_id,
+        )
+        if (
+            artifact is None or artifact.project_id != project.project_id
+            or artifact.revision != output["revision"]
+        ):
+            raise ValueError("current original creative revision not available")
+        try:
+            path, _media = CreativeExplorer(creative).verified_preview(
+                output["artifact_id"],
+                owner_principal_id="sofia",
+                audience_id=project.audience_id,
+            )
+        except (LookupError, OSError, RuntimeError) as exc:
+            raise ValueError("current original creative bytes have no valid digest") from exc
+        report = inspect_objective_artifact(
+            revision=artifact, path=path,
+            objectives=project.brief.objectives,
+        )
+        if (
+            report.revision != output["revision"]
+            or not report.eligible_for_independent_completion
+        ):
+            raise ValueError("current typed objective validation no longer passes")
         now_iso = now.astimezone(timezone.utc).isoformat()
         project_brief = project.brief
         with closing(self._connect()) as db, db:
