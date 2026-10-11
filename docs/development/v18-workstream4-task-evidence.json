@@ -51,7 +51,8 @@
     "2026-10-11 WS4 Phase11 design decision (hybrid): owner requests unload idle Venus models during gaming, use interactive Windows last-input after adjustable default 1800s no-game idle to preload only with independently observed resource headroom, and consider additional unspecified 4-6GB GPU computer as separately enrolled Fleet inference host. Production source, settings/tray, fail-closed telemetry gating and synthetic deferred tests coded on main; no live enrollment, host changes, test execution or 7-day acceptance. Other phases not advanced.",
     "2026-10-11 Workstream4 Phase11 owner clarified prospective GPU host as owner-reported RTX 3060 8GB VRAM with 32GB RAM, hostname/OS unconfirmed. No enrollment, scans, inference or live settings change. Hardened Fleet OPS placement to reject missing required RAM/GPU/VRAM headroom and stale/future telemetry when clock provided, and real fleet cognitive engine supplies current clock; deferred synthetic 8GiB/32GiB hardware test and route tests authored. CA-3209/6609 still partial, phase order remains 11.",
     "2026-10-11 Workstream4 Phase11 owner confirmed Windows OS for third GPU PC (owner-reported RTX3060 8GB VRAM, 32GB RAM; hostname and model install unknown). This is NOT verified Fleet hardware, no enrollment, no live machine access and no model-fit acceptance.",
-    "2026-10-11 Workstream4 Phase11 source audit: OPS placement penalizes absent/stale automatic game activity instead of treating old NORMAL as current; Windows telemetry now observes NVIDIA GPU percent/used-and-total per-card VRAM via bounded read-only nvidia-smi when available and refuses malformed/missing values. Deferred synthetic tests written, none executed."
+    "2026-10-11 Workstream4 Phase11 source audit: OPS placement penalizes absent/stale automatic game activity instead of treating old NORMAL as current; Windows telemetry now observes NVIDIA GPU percent/used-and-total per-card VRAM via bounded read-only nvidia-smi when available and refuses malformed/missing values. Deferred synthetic tests written, none executed.",
+    "2026-10-11 Workstream4 Phase11 follow-up: Windows nvidia-smi generic GPU capacity now rejects multi-GPU hosts until inference has independently pinned model-to-GPU identity. Never advertise one card's free memory as guaranteed inference capacity on an unspecified device. Source-only tests authored, no execution, live worker or hardware assertions."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -351,7 +352,10 @@
     "711d73ab5b1593e8e5949a59266975f14815aebe",
     "b91869d32f55d7ce0e1b383bdab32733bf0ccda0",
     "cf3631379fd2d5c3aa3ce612e31aa73d9b385a5a",
-    "bef63120f4375abfa96b9a012cd15fb2804089d4"
+    "bef63120f4375abfa96b9a012cd15fb2804089d4",
+    "27d2faa55d1fb1f87b3f31aa73b040a107878df3",
+    "dd31bc2542b377699b207054a780ad117c313b57",
+    "add823ddaefe306bfed202e9a28cd3a25cf0e57c"
   ],
   "tasks": [
     {
@@ -513,7 +517,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": " Windows GPU workload admission source now observes NVIDIA GPU utilization and per-card VRAM used/total through bounded read-only nvidia-smi; malformed/unavailable metrics remain unknown. Fleet ranking penalizes stale automatic activity. No real host resource measurements. Sources ops/local_telemetry.py and ops/placement.py, deferred tests."
+      "finding": " Windows GPU workload admission source now observes NVIDIA GPU utilization and per-card VRAM used/total through bounded read-only nvidia-smi; malformed/unavailable metrics remain unknown. Fleet ranking penalizes stale automatic activity. No real host resource measurements. Sources ops/local_telemetry.py and ops/placement.py, deferred tests. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py."
     },
     {
       "id": "CA-3209",
@@ -840,7 +844,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": " Windows NVIDIA local telemetry reads measured utilization and per-card VRAM; unknowns never become claimed free GPU capacity. Live Venus/third GPU cold/warm, gaming, power and inference benchmarks still absent. Source ops/local_telemetry.py, tests deferred."
+      "finding": " Windows NVIDIA local telemetry reads measured utilization and per-card VRAM; unknowns never become claimed free GPU capacity. Live Venus/third GPU cold/warm, gaming, power and inference benchmarks still absent. Source ops/local_telemetry.py, tests deferred. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py."
     },
     {
       "id": "CA-6607",
