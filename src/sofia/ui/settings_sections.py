@@ -511,7 +511,9 @@ class SettingsSections:
         from queue import Empty, Queue
         from threading import Thread
         from sofia.distributed.capability import create_configured_remote_fleet_service
-        from sofia.ops.workshop_provision import preview_owner_hephaestus_plan
+        from sofia.ops.workshop_provision import (
+            preview_owner_hephaestus_plan, WorkshopPreviewStore,
+        )
 
         ttk.Label(
             frames["Fleet"],
@@ -583,6 +585,9 @@ class SettingsSections:
                         installer_image_sha256=inputs[3],
                         at=datetime.now(timezone.utc),
                     )
+                    # Persist only observed dry-run evidence in canonical
+                    # state for Sofía's read-only OPS planning tool.
+                    WorkshopPreviewStore(config.state_path).record(preview)
                     lab_result_queue.put(("ok", preview.readable()))
                 except Exception as exc:
                     lab_result_queue.put((
