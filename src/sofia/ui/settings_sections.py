@@ -47,6 +47,120 @@ class SettingsSections:
             ttk.Checkbutton(frames[section], text=label, variable=variable).pack(anchor="w", pady=5)
 
         boolean("NEURO", "neuro_competition_enabled", "Enable connectome-inspired attention (uncheck for deterministic salience)", runtime.neuro_competition_enabled)
+        boolean(
+            "NEURO", "neuro_association_enabled",
+            "Allow opt-in, audience-scoped associative memory reranking",
+            runtime.neuro_association_enabled,
+        )
+        from uuid import UUID, uuid4
+        from sofia.social.principals import local_sparks_principal
+        from sofia.neuro.connectome.association_store import ReviewedAssociationStore
+        from sofia.safe.operator_stop import OperatorStopStore
+
+        association_target = tk.StringVar(root, value="")
+        association_query = tk.StringVar(root, value="")
+        ttk.Label(
+            frames["NEURO"],
+            text="Teach a reviewed memory association (candidate UUID only)",
+        ).pack(anchor="w", pady=(8, 2))
+        ttk.Entry(frames["NEURO"], textvariable=association_target).pack(fill="x")
+        ttk.Label(
+            frames["NEURO"],
+            text="Query words that should favor this already-promoted memory",
+        ).pack(anchor="w", pady=(4, 2))
+        ttk.Entry(frames["NEURO"], textvariable=association_query).pack(fill="x")
+
+        def review_association():
+            # User interaction is a human control, not a cognitive tool. Raw
+            # query text is hashed to sparse units before canonical storage.
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator stop blocks associative learning")
+            if not RuntimeUserSettingsStore(config.state_path).load().neuro_association_enabled:
+                raise PermissionError(
+                    "Save the NEURO association opt-in in Settings first"
+                )
+            candidate_id = UUID(association_target.get().strip())
+            raw_query = association_query.get().strip()
+            if not raw_query or len(raw_query) > 500:
+                raise ValueError("bounded review query of 1..500 characters required")
+            from sofia.memory.provenance_store import DurableMemoryCandidateStore
+            from sofia.memory.provenance import CandidateStatus
+            candidate_store = DurableMemoryCandidateStore(config.state_path)
+            try:
+                candidate = candidate_store.get(candidate_id)
+                if (
+                    candidate is None
+                    or candidate_store.status(candidate_id) is not CandidateStatus.PROMOTED
+                ):
+                    raise PermissionError("only promoted MEM candidates can be taught")
+                principal = local_sparks_principal()
+                if (
+                    candidate.principal_id != principal.principal_id
+                    or candidate.audience_id not in (None, principal.audience_id)
+                ):
+                    raise PermissionError("reviewed memory scope does not match owner")
+                description = (
+                    "Reinforce retrieval tie-breaks for the reviewed memory?\n\n"
+                    f"Candidate: {candidate_id}\n"
+                    f"Principal: {principal.principal_id}\n"
+                    f"Audience: {principal.audience_id}\n"
+                    f"Words: {raw_query}\n\n"
+                    "The raw query will not be persisted by NEURO. "
+                    "This action cannot make a memory eligible or public."
+                )
+                if not self.messagebox.askyesno(
+                    "Approve one NEURO association?", description, parent=root,
+                ):
+                    return
+                ReviewedAssociationStore(config.state_path).reinforce_reviewed(
+                    principal_id=principal.principal_id,
+                    audience_id=principal.audience_id,
+                    candidate_id=candidate_id,
+                    query=raw_query,
+                    approval_ref="operator-ui:" + uuid4().hex,
+                    amount=0.1,
+                    at=datetime.now(timezone.utc),
+                )
+                self.messagebox.showinfo(
+                    "Association reviewed",
+                    "Bounded private tie-breaker saved in sofia.db.",
+                    parent=root,
+                )
+            finally:
+                candidate_store.close()
+
+        ttk.Button(
+            frames["NEURO"],
+            text="Review and reinforce promoted memory...",
+            command=self.guarded(review_association),
+        ).pack(anchor="w", pady=(5, 4))
+
+        def reset_reviewed_associations():
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator stop blocks associative reset")
+            principal = local_sparks_principal()
+            if not self.messagebox.askyesno(
+                "Reset reviewed associations?",
+                "Delete all learned NEURO association weights and teaching "
+                "receipts for this principal/audience? Reviewed MEM facts, "
+                "source transcripts and other principals remain unchanged.",
+                parent=root,
+            ):
+                return
+            deleted = ReviewedAssociationStore(config.state_path).reset_scope(
+                principal_id=principal.principal_id,
+                audience_id=principal.audience_id,
+            )
+            self.messagebox.showinfo(
+                "Association reset", f"Removed {deleted} scope-bound weights.",
+                parent=root,
+            )
+
+        ttk.Button(
+            frames["NEURO"],
+            text="Reset my reviewed associations",
+            command=self.guarded(reset_reviewed_associations),
+        ).pack(anchor="w", pady=(4, 8))
 
         def request_neuro_reset():
             # Only the single canonical runtime applies the generation change.
