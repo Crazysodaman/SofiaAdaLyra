@@ -76,7 +76,14 @@ def bridge_voluntary_life_outreach(
         return 0
     if presence.recent_life_project_outreach(now=now):
         return 0
-    moments = life.voluntary_project_updates(now=now, limit=4)
+    from sofia.social.principals import local_sparks_principal
+    owner = local_sparks_principal()
+    moments = tuple(
+        item for item in life.voluntary_project_updates(now=now, limit=16)
+        if presence.owner_life_update_feedback(
+            project_id=item["project_id"], principal=owner,
+        ) != "declined"
+    )
     if not moments:
         return 0
     # One event is sufficient; preference strength chooses which source
@@ -104,6 +111,10 @@ def bridge_voluntary_life_outreach(
     except ProjectOutreachChoiceError:
         return 0
     if not choice.share_now:
+        return 0
+    if presence.owner_life_update_feedback(
+        project_id=candidate["project_id"], principal=owner,
+    ) == "declined":
         return 0
     # A model turn may have been interrupted by the operator or the
     # original project being retired. Recheck the live source and user
@@ -133,7 +144,12 @@ def bridge_voluntary_life_outreach(
         or current_policy.recipient_id != SPARKS_PRINCIPAL_ID
     ):
         return 0
-    if presence.recent_life_project_outreach(now=now):
+    if (
+        presence.recent_life_project_outreach(now=now)
+        or presence.owner_life_update_feedback(
+            project_id=candidate["project_id"], principal=owner,
+        ) == "declined"
+    ):
         return 0
     event_id = "life-update:" + sha256(
         candidate["event_id"].encode("utf-8")
