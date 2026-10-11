@@ -66,7 +66,12 @@ class BackupEntry:
             or "." in logical.parts
             or self.logical_path in {".", ".."}
             or logical.as_posix() != self.logical_path
-            or any(PureWindowsPath(part).is_reserved() for part in logical.parts)
+            or any(
+                not part or part != part.rstrip(" .")
+                or any(ord(ch) < 32 for ch in part)
+                or PureWindowsPath(part).is_reserved()
+                for part in logical.parts
+            )
         ):
             raise ValueError("logical_path must be a safe relative path")
         payload = PurePosixPath(self.payload_name)
@@ -77,6 +82,8 @@ class BackupEntry:
             or payload.name != self.payload_name
             or self.payload_name in {".", ".."}
             or PureWindowsPath(self.payload_name).drive
+            or self.payload_name != self.payload_name.rstrip(" .")
+            or any(ord(ch) < 32 for ch in self.payload_name)
             or PureWindowsPath(self.payload_name).is_reserved()
         ):
             raise ValueError("payload_name must be a simple file name")
@@ -112,10 +119,13 @@ class BackupManifest:
             raise TypeError("entries must be a tuple")
         logical = [entry.logical_path for entry in self.entries]
         payload = [entry.payload_name for entry in self.entries]
-        if len(logical) != len(set(logical)):
-            raise ValueError("backup logical paths must be unique")
-        if len(payload) != len(set(payload)):
-            raise ValueError("backup payload names must be unique")
+        # Manifests may be created on a case-sensitive Linux host and later
+        # restored on case-insensitive Windows storage. Two different source
+        # names cannot safely resolve to the same recovery destination.
+        if len(logical) != len({name.casefold() for name in logical}):
+            raise ValueError("backup logical paths must be portable-unique")
+        if len(payload) != len({name.casefold() for name in payload}):
+            raise ValueError("backup payload names must be portable-unique")
 
     def canonical_bytes(self) -> bytes:
         document = {
