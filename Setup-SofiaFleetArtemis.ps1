@@ -165,6 +165,14 @@ function Prepare-OnVenus {
     Copy-Item (Join-Path $FleetRoot "artemis\artemis-server.pem") `
         (Join-Path $bundle "certs\artemis-server.pem") -Force
     $bundleKey = Join-Path $bundle "certs\artemis-server-key.pem"
+    # Protect the *entire* Prepare operation, including validation, build,
+    # hashed lock admission, SMB mapping, and remote key verification.
+    # A failure before the SMB try/finally must not strand this secret.
+    $offlineBundleReady = $false
+    try {
+    if (Test-Path -LiteralPath $bundleKey -PathType Leaf) {
+        Remove-Item -LiteralPath $bundleKey -Force -ErrorAction Stop
+    }
     Copy-Item (Join-Path $FleetRoot "artemis\artemis-server-key.pem") `
         $bundleKey -Force
     # The duplicated key must not inherit broad controller-directory ACLs.
@@ -263,6 +271,8 @@ function Prepare-OnVenus {
     Copy-Item -LiteralPath $approvedLock -Destination (Join-Path $bundle "agent-dependencies.lock") -Force
 
     if ($SkipCopy) {
+        # Deliberate offline-transfer opt-in, not an accidental failure leak.
+        $offlineBundleReady = $true
         Write-Host ""
         Write-Host "Preparation complete. -SkipCopy was specified, so Artemis was not modified."
         return
@@ -374,13 +384,6 @@ function Prepare-OnVenus {
     }
     finally {
         Remove-PSDrive -Name $psDriveName -Force -ErrorAction SilentlyContinue
-        # The original canonical PKI key remains untouched. The temporary
-        # duplicate is not a persistent runtime secret and is removed even
-        # after a failed copy. -SkipCopy deliberately keeps a restricted
-        # bundle for explicit operator-managed offline transfer.
-        if (Test-Path -LiteralPath $bundleKey -PathType Leaf) {
-            Remove-Item -LiteralPath $bundleKey -Force -ErrorAction Stop
-        }
     }
 
     Write-Host ""
@@ -392,6 +395,15 @@ function Prepare-OnVenus {
     Write-Host "  & '$RemoteRoot\Setup-SofiaFleetArtemis.ps1' -Phase Artemis -ArtemisHost '$ArtemisHost' -ControllerIp '<reviewed Venus IPv4>'"
     Write-Host ""
     Write-Host "Leave that window open when the foreground Fleet agent starts."
+    } finally {
+        # Canonical FleetRoot/artemis private key is never deleted. The
+        # copied bundle key is retained ONLY for a successfully completed,
+        # explicitly requested -SkipCopy offline transfer.
+        if (-not $offlineBundleReady -and
+            (Test-Path -LiteralPath $bundleKey -PathType Leaf)) {
+            Remove-Item -LiteralPath $bundleKey -Force -ErrorAction Stop
+        }
+    }
 }
 
 function Start-OnArtemis {

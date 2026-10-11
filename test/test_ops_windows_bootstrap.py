@@ -389,3 +389,27 @@ def test_windows_cim_bootstrap_refuses_wildcard_controller_and_unhashed_lock(tmp
     )
     with pytest.raises(ValueError, match="reviewed pinned hashes"):
         installer.prepare_stage(_package(wheel))
+
+
+def test_artemis_prepare_cleans_duplicated_tls_key_on_any_failed_preflight():
+    """Failing build/lock/SMB admission cannot leave a controller bundle key."""
+    script = (
+        (Path(__file__).resolve().parents[1] / "Setup-SofiaFleetArtemis.ps1")
+        .read_text(encoding="utf-8")
+    )
+    prepare = script.split("function Prepare-OnVenus {", 1)[1].split(
+        "function Start-OnArtemis {", 1
+    )[0]
+    start = prepare.index('$bundleKey = Join-Path $bundle "certs\\artemis-server-key.pem"')
+    scope = prepare.index("$offlineBundleReady = $false", start)
+    copying = prepare.index('Copy-Item (Join-Path $FleetRoot "artemis\\artemis-server-key.pem")', scope)
+    locking = prepare.index("if (-not $AgentDependencyLock)", copying)
+    sending = prepare.index('Write-Step "Copy canary package to Artemis"', locking)
+    finally_scope = prepare.rindex("} finally {")
+    assert start < scope < copying < locking < sending < finally_scope
+    assert '$offlineBundleReady = $true' in prepare
+    assert 'if (-not $offlineBundleReady -and' in prepare
+    assert 'Remove-Item -LiteralPath $bundleKey -Force -ErrorAction Stop' in prepare
+    assert prepare.index('if (-not $offlineBundleReady -and') > sending
+    # Never scrub the root canonical certificate during temporary staging.
+    assert 'Remove-Item -LiteralPath (Join-Path $FleetRoot "artemis\\artemis-server-key.pem")' not in prepare
