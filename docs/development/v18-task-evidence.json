@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "4a772feaf1d9f70fc09890340c22c4f470371b7e",
+  "reviewed_main_sha": "0cf40c354d58f7c1b6c13c2ac3d982fba821257b",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2467,7 +2467,9 @@
         "test/test_safe_permission_owner_auth.py",
         "src/sofia/ui/tray_agent.py",
         "test/test_ui_tray_model_roles.py",
-        "test/test_ui_tray_lifecycle.py"
+        "test/test_ui_tray_lifecycle.py",
+        "src/sofia/ui/settings_sections.py",
+        "test/test_ui_workshop_owner_webauthn.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -2584,7 +2586,10 @@
         "6f361e66181e37d2db178bc9bf45954070ad478a",
         "13a96eba74c750fde0d45a48ec95a9de3dafd223",
         "1bc4b93d088b026615824622bbe5f2fffad93400",
-        "dd2236b22526bb5354952fa3f939df5c2d207bff"
+        "dd2236b22526bb5354952fa3f939df5c2d207bff",
+        "2de108e2ed4dc6f0c1730e923e2581c3b0312003",
+        "417d603abd40a69d18660dbd810494092ffeed3b",
+        "53b65de323091ff79a5a68d8288ed625334364f8"
       ],
       "accepted": false,
       "coding_update": {
@@ -2783,6 +2788,23 @@
           ],
           "fulfilled_slice": "Standing-grant and Level-5 permission readers recompute the original signed approval fingerprint from current canonical scope and flags. Post-approval modifications cannot inherit an otherwise valid credential binding.",
           "remaining": "SQLite/cross-service tamper and crash-consistency host tests deferred, missing independent recovery, physical FIDO2 attestation and full effect consumer inventory. No CI or hardware acceptance."
+        },
+        {
+          "source_review_sha": "4a772feaf1d9f70fc09890340c22c4f470371b7e",
+          "commits": [
+            "2de108e2ed4dc6f0c1730e923e2581c3b0312003",
+            "417d603abd40a69d18660dbd810494092ffeed3b",
+            "53b65de323091ff79a5a68d8288ed625334364f8"
+          ],
+          "source_paths": [
+            "src/sofia/ui/settings_sections.py",
+            "src/sofia/ops/workshop_network_stage.py",
+            "src/sofia/ops/workshop_guest_bootstrap.py",
+            "test/test_ui_workshop_owner_webauthn.py"
+          ],
+          "production_route": "Human reviewed Hephaestus host network or Debian installer target → local FIDO2 credential selection on UI thread → signed exact one-use WebAuthn approval in existing worker → pinned mTLS Fleet remote inspect/proof → host-specific handler repeats exact SAFE grant matching → guarded host effect with uncertain-outcome receipt and no automatic replay.",
+          "fulfilled_slice": "Replaced both remaining Workshop Settings actor-only ExecutionApproval constructions with signed FIDO2 challenges; preserved existing no-retry UNCERTAIN semantics; static production caller regressions authored.",
+          "remaining": "End-to-end Hyper-V/Artemis host acceptance, physical owner key, workshop isolation and all deferred tests; signed remote principal migration still open. Never executed host operations."
         }
       ]
     },
