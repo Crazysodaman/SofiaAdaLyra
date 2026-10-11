@@ -2098,6 +2098,46 @@ class SelfDirectedLifeCoordinator:
             )
             raise
 
+    def _draft_authority_still_current(
+        self, project: LifeProject, *, now: datetime,
+    ) -> bool:
+        """Recheck original private LIFE and GOALS after untrusted model latency.
+
+        This is an admission precheck only, not a grant or execution permit.
+        schedule_artifact and the later RUN/SAFE capability gateway remain
+        the authoritative final enforcement boundaries.
+        """
+        aware(now, "draft admission time")
+        if (
+            self.operator_stop.current().active
+            or project.scope is not ProjectScope.PERSONAL_PRIVATE
+            or project.goal_id is None
+        ):
+            return False
+        try:
+            current = self._project(project.project_id)
+        except (KeyError, LookupError, PermissionError):
+            return False
+        if (
+            current.status is not ProjectStatus.ACTIVE
+            or current.revision != project.revision
+            or current.goal_id != project.goal_id
+            or current.brief != project.brief
+        ):
+            return False
+        goal = next((
+            value for value in self.goals.list_visible(local_sparks_principal())
+            if value.id == project.goal_id
+        ), None)
+        return bool(
+            goal is not None
+            and goal.status is GoalStatus.ACTIVE
+            and goal.origin is GoalOrigin.SELF
+            and goal.owner_principal_id == SOFIA_GOAL_OWNER_ID
+            and goal.scope_audience == project.audience_id
+            and (goal.expires_at is None or now < goal.expires_at)
+        )
+
     def schedule_artifact(
         self, project_id: str, *, artifact_kind: ArtifactKind,
         title: str, specification: Mapping[str, object], evidence_ref: str,
@@ -2954,6 +2994,11 @@ class SelfDirectedLifeCoordinator:
             )
         except ProjectDraftGenerationError:
             return 0, "revision_draft_failed_unverified"
+        if not self._draft_authority_still_current(project, now=now):
+            # Original LIFE/GOALS authority may change during model latency.
+            # Do not mint a new creative observation or RUN job from the
+            # previously eligible but now stale revision intent.
+            return 0, "revision_authority_changed"
         observation = self.record_observation(
             kind="independent-revision",
             source="life:artifact-objectives",
@@ -2974,6 +3019,12 @@ class SelfDirectedLifeCoordinator:
             # A concurrently running canonical LIFE tick won admission.
             # The winner's original job/permission must be left unchanged.
             return 0, "waiting_on_existing_work"
+        except (ValueError, PermissionError):
+            # An actual GOALS/LIFE revocation can race even the fresh
+            # precheck. Do not disguise unrelated programmer/schema errors.
+            if self._draft_authority_still_current(project, now=now):
+                raise
+            return 0, "revision_authority_changed"
         return 1, "revision_scheduled"
 
     def _settle_retired_optional_interests(self, *, now: datetime) -> int:
@@ -3694,6 +3745,20 @@ class SelfDirectedLifeCoordinator:
             "retired_interest_projects_settled": retired_settled,
                         "review_queue": self.pending_work_review(limit=16),
                     }
+                if not self._draft_authority_still_current(project, now=now):
+                    return {
+                        "selection": selection.kind.value,
+                        "project_id": selection.project_id,
+                        "scheduled": 0,
+                        "jobs_started": self.manager.tick(
+                            now=now, busy=busy, resource_pressure=resource_pressure,
+                        ),
+                        "draft_status": "authority_changed_during_draft",
+                        "terminal_run_projects_settled": terminal_settled,
+                        "goal_lifecycle_projects_settled": goal_settled,
+                        "retired_interest_projects_settled": retired_settled,
+                        "review_queue": self.pending_work_review(limit=16),
+                    }
                 # Do not leave a misleading creative-work evidence record
                 # when there is no authorized original draft to submit.
                 evidence_ref = self.record_observation(
@@ -3710,6 +3775,12 @@ class SelfDirectedLifeCoordinator:
                     )
                 except ProjectWorkPending:
                     follow_through = "waiting_on_existing_work"
+                except (ValueError, PermissionError):
+                    # A second authority change can happen between the
+                    # post-model check and atomic RUN submission.
+                    if self._draft_authority_still_current(project, now=now):
+                        raise
+                    follow_through = "authority_changed_during_draft"
                 else:
                     scheduled = 1
         started = self.manager.tick(
