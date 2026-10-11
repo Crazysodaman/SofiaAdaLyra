@@ -402,6 +402,36 @@ Commits:
 CA relevance: CA-6302, CA-6304, CA-6306, CA-4111 and CA-6312.
 No host deployment or CA acceptance is claimed.
 
+### Durable device-scoped Main read cursors (Phase 04/05)
+
+Production path: `MainActivity.loadMainHistory` displays canonical
+newest-first page in chronological UI order → `SofiaApi.acknowledgeMainSeen`
+→ narrow authenticated `POST /v1/mobile/main/seen` →
+`MobileCompanionServer` per-device bearer verification →
+`MobileCompanionGateway.dispatch_authenticated` second auth and
+audience/generation binding → `MobileMainSeenStore.acknowledge` →
+canonical `lifelong_thread_event` + `conversation_messages` +
+`social_session_principal` original source-audience validation →
+atomic monotonic SQLite `mobile_main_seen` cursor in the **same** sofia.db.
+Response `/v1/mobile/main/page` now includes `last_seen` for the exact
+device, private/standard mode, and pairing generation; older page replays
+do not regress the cursor. A revoked or re-paired device cannot inherit
+prior bearer generation's read status or mark another audience's messages.
+Client clock is not used for order. Legacy history without a canonical
+sequence is never asserted as read. No source message content is copied.
+
+Committed:
+- `d440b3db33c04b99d21cce04d41c7aa5759b71f9` canonical read receipt owner.
+- `6a703192a23260c8b4332746c94e9bbc6fd25f75` gateway production composition.
+- `0d0e72c467052f7a910a0b6516f183c28f6b2bdf` Android API.
+- `3e22ed697979734a160136d9242583f613f3bd8d` Android UI after display.
+- `7edee6397bc92e7c82a73aaf626ccb0d43288a4f` deferred regression cases.
+
+CA relevance: CA-4109, CA-6302, CA-6304, CA-5303,
+CA-5304 and CA-4111. Still partial per-ID evidence until
+device/server tests and concurrency acceptance are run. Project-thread
+read cursors and non-Android clients remain outstanding.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
