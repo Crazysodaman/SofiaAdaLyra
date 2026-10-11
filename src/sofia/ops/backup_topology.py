@@ -235,6 +235,9 @@ class MultiHostBackupCoordinator:
                 rotate_backups(
                     target.root,
                     keep=self.policy.keep_per_target,
+                    verifier=self.engine.verify,
+                    expected_source_host_id=manifest.source_host_id,
+                    expected_failure_domain=manifest.failure_domain,
                 )
                 copies.append(
                     BackupCopyResult(
