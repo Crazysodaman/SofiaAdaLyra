@@ -164,6 +164,173 @@ def test_two_distinct_real_checked_projects_promote_nonexecutable_procedure(
         life.close()
 
 
+def _independent_post_quarantine_project(life, original, now, suffix):
+    """A separately originated private work item, never historical replay."""
+    observation = life.record_observation(
+        kind="independent-skill-recovery",
+        source=f"test:independent-recovery-{suffix}",
+        assertion=f"Distinct genuine creative trial {suffix} was observed.",
+        now=now,
+    )
+    idea = ProjectIdea(
+        f"idea:verified-creative-recovery-{suffix}",
+        f"New Foxfire Recovery Trial {suffix}",
+        "Independently author and verify a new bounded creative artifact.",
+        original.originating_interest,
+        ("text_contains:Foxfire",), (),
+        "text", (observation,), 0.85, 0.89, now,
+    )
+    project = life.invent_project(
+        idea, scope=ProjectScope.PERSONAL_PRIVATE,
+    )
+    project = life.propose_project(
+        project.project_id, reason="New post-quarantine independent trial.",
+        evidence_refs=(observation,), now=now + timedelta(seconds=1),
+    )
+    project = life.activate_project(
+        project.project_id,
+        reason="Independent original governed creative trial.",
+        evidence_refs=(observation,), now=now + timedelta(seconds=2),
+    )
+    return project, observation
+
+
+def test_hybrid_quarantine_requires_new_nonexecutable_verified_generation(
+    tmp_path,
+):
+    """Quarantined v1 never revives; two fresh source projects earn v2."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        original, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        first_job, first_receipt = _original_authorized_completion(
+            life, original, evidence, now,
+        )
+        assert life._reconcile_procedure_catalog(
+            now=now + timedelta(seconds=7),
+        ) == 1
+        other_at = now + timedelta(minutes=1)
+        second, second_evidence = _second_same_capability_project(
+            life, original, other_at,
+        )
+        second_job, second_receipt = _original_authorized_completion(
+            life, second, second_evidence, other_at,
+        )
+        assert life._reconcile_procedure_catalog(
+            now=other_at + timedelta(seconds=7),
+        ) == 1
+        old = life.procedures.available_for_project(original)[0]
+        assert old.version == 1
+        quarantined_at = now + timedelta(minutes=2)
+        assert life.procedures.quarantine(
+            old.procedure_id, reason="The original version needs fresh proof.",
+            now=quarantined_at,
+        )
+        assert life.procedures.available_for_project(original) == ()
+
+        # An old proof may not be laundered into the fresh generation,
+        # even if its original bytes and RUN receipt still validate.
+        with pytest.raises(ValueError, match="post-quarantine"):
+            life.procedures.record_verified_attempt(
+                project=life._project(second.project_id),
+                job_id=second_job.job_id,
+                original_run_evidence_ref=second_receipt,
+                now=quarantined_at + timedelta(seconds=1),
+            )
+        third_at = now + timedelta(minutes=3)
+        third, third_evidence = _independent_post_quarantine_project(
+            life, original, third_at, "third",
+        )
+        _original_authorized_completion(life, third, third_evidence, third_at)
+        assert life._reconcile_procedure_catalog(
+            now=third_at + timedelta(seconds=7),
+        ) == 1
+        assert life.procedures.available_for_project(original) == ()
+        fourth_at = now + timedelta(minutes=4)
+        fourth, fourth_evidence = _independent_post_quarantine_project(
+            life, original, fourth_at, "fourth",
+        )
+        _original_authorized_completion(life, fourth, fourth_evidence, fourth_at)
+        assert life._reconcile_procedure_catalog(
+            now=fourth_at + timedelta(seconds=7),
+        ) == 1
+
+        replacement = life.procedures.available_for_project(original)
+        assert len(replacement) == 1
+        assert replacement[0].version == 2
+        assert replacement[0].procedure_id != old.procedure_id
+        assert replacement[0].verified_projects == 2
+        assert life._verified_procedure_origins_current(
+            (third.project_id, fourth.project_id),
+            procedure_id=replacement[0].procedure_id,
+            now=fourth_at + timedelta(seconds=8),
+        )
+        with sqlite3.connect(life.path) as db:
+            recorded = db.execute(
+                "SELECT status,version,quarantine_reason "
+                "FROM life_procedure_catalog WHERE procedure_id=?",
+                (old.procedure_id,),
+            ).fetchone()
+            assert recorded[0] == "quarantined"
+            assert recorded[1] == 1
+            assert recorded[2] == "The original version needs fresh proof."
+            successor = db.execute(
+                "SELECT quarantined_predecessor_id,disposition "
+                "FROM life_procedure_replacement WHERE successor_id=?",
+                (replacement[0].procedure_id,),
+            ).fetchone()
+            assert successor == (
+                old.procedure_id, "auto_nonexecutable_creative_knowledge",
+            )
+            assert db.execute(
+                "SELECT COUNT(*) FROM life_procedure_proof "
+                "WHERE procedure_id=? AND project_id IN (?,?)",
+                (
+                    replacement[0].procedure_id,
+                    original.project_id, second.project_id,
+                ),
+            ).fetchone()[0] == 0
+        assert first_job.job_id != second_job.job_id
+        assert first_receipt != second_receipt
+    finally:
+        life.close()
+
+
+@pytest.mark.parametrize("blocked", ["remote_tool", "new_capability", "new_audience"])
+def test_hybrid_automatic_recovery_excludes_remote_and_powerful_skills(
+    tmp_path, blocked,
+):
+    """Non-creative/remote/cross-audience skills cannot auto-recover."""
+    from dataclasses import replace
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        assert LifeProcedureCatalog._auto_recovery_eligible(project)
+        if blocked == "remote_tool":
+            changed = replace(
+                project, brief=replace(
+                    project.brief,
+                    required_tools=project.brief.required_tools + ("fleet:remote",),
+                ),
+            )
+        elif blocked == "new_capability":
+            changed = replace(
+                project, brief=replace(
+                    project.brief,
+                    permission_requirements=(
+                        "creative.artifact.create", "fleet.remote.execute",
+                    ),
+                ),
+            )
+        else:
+            changed = replace(project, audience_id="other:private")
+        assert not LifeProcedureCatalog._auto_recovery_eligible(changed)
+    finally:
+        life.close()
+
+
 def test_procedure_catalog_refuses_fabricated_job_and_source_receipt(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
