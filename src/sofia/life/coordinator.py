@@ -784,6 +784,29 @@ class SelfDirectedLifeCoordinator:
             not objective_results or any(result is not True for result in objective_results.values())
         ):
             raise ValueError("technical validity requires every declared objective check to pass")
+        # Repeated ticks/restarts must not promote the same artifact revision
+        # into multiple independent judgments or memory/preference updates.
+        # A changed judgment requires an explicit reviewed correction path.
+        existing = tuple(
+            item for item in self.store.evaluations(project_id)
+            if item.artifact_id == artifact_id
+            and item.artifact_revision == revision.revision
+        )
+        if existing:
+            prior = existing[-1]
+            if (
+                prior.technical_outcome is technical_outcome
+                and prior.personal_judgment is personal_judgment
+                and dict(prior.objective_results) == dict(objective_results)
+                and prior.evidence_refs == evidence_refs
+                and prior.preserve_for_research is preserve_for_research
+                and prior.reason == reason
+            ):
+                return prior
+            raise ValueError(
+                "artifact revision already reviewed; conflicting correction "
+                "requires a separately authorized, evidence-linked revision"
+            )
         value = ArtifactEvaluation(
             f"evaluation:{uuid4()}", project_id, artifact_id, revision.revision,
             technical_outcome, personal_judgment, objective_results, reason,
