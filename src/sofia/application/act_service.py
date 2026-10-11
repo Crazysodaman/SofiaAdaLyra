@@ -15,7 +15,7 @@ from sofia.act.delivery import (
     DeliveryRunResult,
     SendResult,
 )
-from sofia.act.outreach import Importance, OutreachCategory, Policy
+from sofia.act.outreach import Decision, Importance, OutreachCategory, Policy
 from sofia.act.system_notice import SystemNoticeQueue
 from sofia.act.diagnostics import OutreachTraceStore
 from sofia.interaction.goal_journal import GoalJournal
@@ -220,6 +220,19 @@ class SofiaActService:
             bridged += 1
         return bridged
 
+    def _fresh_delivery_decision(self) -> Decision:
+        """Re-read human stop/opt-out at the last local transport boundary."""
+        from sofia.config.user_settings import RuntimeUserSettingsStore
+        if OperatorStopStore(self.state_path).current().active:
+            return Decision.STOPPED
+        outreach = RuntimeUserSettingsStore(self.state_path).load().outreach
+        if outreach is not None:
+            if not outreach.enabled:
+                return Decision.DISABLED
+            if outreach.mute:
+                return Decision.MUTED
+        return Decision.ELIGIBLE_FOR_AUTHORIZATION
+
     def deliver_one(
         self,
         *,
@@ -246,6 +259,7 @@ class SofiaActService:
             policy=policy,
             now=now,
             busy=busy,
+            pre_send_decision=self._fresh_delivery_decision,
         )
         if notice_result is not None:
             return notice_result
@@ -265,6 +279,7 @@ class SofiaActService:
                 policy=policy,
                 now=now,
                 busy=busy,
+                pre_send_decision=self._fresh_delivery_decision,
             )
             if result.claim_result.status not in (
                 "not_queued",
