@@ -308,6 +308,43 @@ def stage_verified_state_home(
             raise BackupError("verified staging claim has no canonical database")
         if not (staging / "protected" / "identity.json").is_file():
             raise BackupError("verified staging claim has no protected identity")
+        # The deletion journal is external to the backup and may gain new
+        # authenticated erasures after BackupEngine.restore returned. Check
+        # that EVERY signed deletion is absent from this candidate, then pin
+        # that exact observed journal sequence for the final rename gate.
+        # This is an offline recovery check, not an authority to erase data.
+        from sofia.memory.deletion_ledger import (
+            MemoryDeletionLedger, MemoryErasureError,
+        )
+        ledger = MemoryDeletionLedger(erasure_journal_path, backup_engine.cipher)
+        try:
+            reviewed_erasures = ledger.entries()
+            ledger.verify_applied(staging / "sofia.db")
+            if ledger.entries() != reviewed_erasures:
+                raise BackupError(
+                    "external deletion journal changed during candidate verification"
+                )
+        except MemoryErasureError as exc:
+            raise BackupError(
+                "staged restore did not prove all current authenticated erasures"
+            ) from exc
+
+        def final_authority_and_erasure_check() -> bool:
+            # A negative privileged witness cannot be repaired by the local
+            # SQLite or journal check: publish only after both are still valid.
+            if independently_verify_authorization(proof) is not True:
+                return False
+            try:
+                if ledger.entries() != reviewed_erasures:
+                    raise BackupError(
+                        "external deletion journal advanced before candidate publication"
+                    )
+            except MemoryErasureError as exc:
+                raise BackupError(
+                    "external deletion journal unavailable before publication"
+                ) from exc
+            return True
+
         # Recheck all destination ancestry before publication, never
         # silently replace a previously existing home. A host-privileged
         # cutover/fencing broker is still necessary for adversarial races.
@@ -322,7 +359,7 @@ def stage_verified_state_home(
             )
         _publish_new_home_without_replacing(
             staging, destination,
-            recheck_authorization=lambda: independently_verify_authorization(proof),
+            recheck_authorization=final_authority_and_erasure_check,
         )
         published = True
     finally:
