@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import logging
 import re
+import sqlite3
 from uuid import uuid4
 
 from sofia.authorization.evaluator import (
@@ -1458,7 +1459,7 @@ class ConversationService(ConversationMatrixMixin):
                             limit=_MAX_SPECIFIC_RETRIEVAL_MESSAGES,
                             user_only=user_only,
                         )
-                except (OSError, RuntimeError, ValueError) as exc:
+                except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
                     _LOG.warning(
                         "Optional full-text conversation retrieval unavailable: %s",
                         type(exc).__name__,
