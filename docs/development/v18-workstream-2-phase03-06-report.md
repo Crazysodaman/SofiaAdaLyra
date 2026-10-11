@@ -3896,3 +3896,115 @@ state checks, source freshness, interrupted cutover recovery,
 time-scoped approval, and actual clean-host RPO/RTO proof. Phase 04–06 are
 not asserted complete. No CI, pytest, isolated drills, physical host changes,
 state migrations, signed pointer changes or source data deletion were run.
+
+
+## Continuation 2: further Phase 03 production-hardening slices
+
+These are **source-only** changes committed directly on `main` with
+`[skip ci]`. All tests were authored and **never executed**, no CI was
+started, and no active state, machine, key or remote writer was modified.
+Original CA requirement status remains unaccepted until source-to-sink
+coverage and independent verification are complete. This report does not
+mutate the WS1-owned 700-task ledger.
+
+### CA-6810 / CA-5202 / CA-6108: final restored SQLite relational integrity
+
+The real operator-only offline restore route
+`BackupEngine.restore` → authenticated `BackupManifest` and AES-GCM
+payloads → consistent SQLite staging → signed deletion-journal replay →
+component-schema and SQLiteStatePlane admission → *new read-only
+`PRAGMA foreign_key_check`* → guarded file publication now refuses a
+recoverable SQLite image with broken declared foreign keys before any
+restored file becomes visible. Source commit
+`65d06c81ff455171f07243b712026981f1c05306`;
+synthetic orphaned-FK regression at
+`test/test_ws2_restore_foreign_key_integrity.py`,
+commit `eda064119cc24167d40a2d29712d3754731f09d0`.
+This is not complete cross-host restore/cutover acceptance.
+
+### CA-6805 / CA-6804: signed active-location bounded reads
+
+`read_verified_state_home` now reads at most 33 trust-key bytes
+and 16,385 signed-pointer bytes even if a prior stat was stale.
+Host/epoch binding, trusted HMAC verification and no implicit
+creation are unchanged. Source commit
+`7e78bff3fd83a2a3334db94656193f3f5dff4d8b`;
+three deferred tests in `test/test_state_home_pointer_redirects.py`,
+commit `f341280ebc0367d4f18624e228637b52d057009b`.
+A signed pointer is not physical writer fencing.
+
+### CA-6807 / CA-6804: missing/unreadable source in Settings preflight
+
+`SettingsSections.advanced_panel` → `relocation_preflight_text`
+→ `inspect_state_relocation` now captures one guarded source
+stat; an unreadable/vanished original produces a blocker,
+not a later unchecked stat exception or fresh identity.
+Source commit `a60e032a4f4ac868a203ff2580722e6bf1df4cde`.
+Deferred fixture commit
+`ca3753e0993e46435e07af8be00da521b2526f0c`.
+No destination created or data moved.
+
+### CA-5207 / CA-6107 / CA-5203: verified two-snapshot auto-retention
+
+Existing scheduled/explicit backup-create production path
+`MultiHostBackupCoordinator.run` or `backup_cli._create`
+→ `BackupEngine.create` → `BackupEngine.verify` →
+`rotate_backups(verifier=engine.verify, expected_source_host_id=...,
+expected_failure_domain=...)` now checks all candidate
+backups before deleting an old generation. Corrupt and wrong-source
+archives block automatic rotation; the files are kept for operator
+inspection. Manual direct rotation without a verifier remains a
+different, operator-initiated contract and does not claim authenticated
+retention. Source commits
+`e543106bf7df7fa2332ccf5bfea1fe9651dde01e`,
+`9163cf19182feecf1c6d179a190f2e6bd0d9bd45`,
+`a4996863919c402e2919ca3a851a0090d0c649fa`.
+Deferred tests in `test/test_backup_two_snapshot_policy.py`,
+`5bf517d5112245792c3c914a5ec2f1d7b1a6ce70`.
+Verifying two on-disk archives on one target does not prove
+physical failure-domain independence, independent decryption-key
+recovery or measured RPO/RTO.
+
+### CA-3704 / CA-6809 / CA-6811 / CA-6813: exact offline authority lineage
+
+The existing nonactivating route
+`stage_verified_state_home(RelocationAuthorization)` →
+independent callback gate → verified encrypted stage →
+`prepare_pending_state_pointer` →
+independent callback gate → signed *pending*, not active,
+pointer requires `protected_operation_id`,
+`operator_principal_id`, and `source_writer_epoch`,
+with `next_writer_epoch > source_writer_epoch >= 1`.
+These inputs are carried provenance, not self-authenticating
+physical lease certificates. Production commits:
+`65e67681f4da7babcaf63fd93c8157a53cec5a6e`,
+`fdeb51ea757e6e987ff198d2d571bd2f22a342c3`.
+Both existing isolated fixtures were updated
+(`fbe3db50aa9af062145ff9c14a688f8a23f77500`,
+`44a23a870d03e538e225ec813f0634105b6dc016`);
+deferred failed-epoch/absent-operation regressions:
+`e3f25da451cc56d853914abf36a8fccdee79bf64`,
+`e6a47a6826df779652e5302c00b009f56e57aafa`.
+Production source remains nonactivating. Without a genuinely
+independent host-level fence, one-use authenticated approval,
+externally monotonic durable epoch and verified guest identity,
+new writer activation is forbidden.
+
+### Classification, untested gates and owner decisions
+
+Local review now covers at least **20 of 46** Phase 03 IDs:
+the 18 previously ledger-partial requirements plus additional
+source inspection of CA-6806 and CA-6810. This is a conservative
+local source-audit count; no new original requirement is accepted
+or claimed entirely code-present. The shared ledger remains
+WS1-owned and may have changed concurrently.
+
+The nonactivating state-machine and Option-A-first/Option-B-later
+owner decision are recorded, but a privileged independent
+cross-host fencing witness does not exist as verified production
+evidence; old-writer stale-restart prevention, monotonic epoch
+issuance, complete external archive/asset coherence and operator
+rollback/forward-recovery remain required. Phases 04, 05 and 06
+are not declared complete. No tests, drills, production backups,
+pointer switches, FIDO2 approvals, or VM operations were performed.
+
