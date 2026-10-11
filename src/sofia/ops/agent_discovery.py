@@ -297,6 +297,15 @@ class ScopedHostPresenceDiscoverySource:
                 raise ValueError(
                     f"invalid Fleet discovery scope: {raw}"
                 ) from exc
+            # Reject enormous CIDRs *before* network.hosts() is expanded.
+            # IPv4 excludes at most network/broadcast, and IPv6 excludes
+            # at most the subnet-router anycast address; +2 is a safe
+            # conservative bound for both, including /31 and /127.
+            if network.num_addresses > self.max_hosts_per_scope + 2:
+                raise ValueError(
+                    "Fleet discovery scope exceeds max_hosts_per_scope: "
+                    f"{raw} has too many addresses"
+                )
             hosts = tuple(str(value) for value in network.hosts())
             if len(hosts) > self.max_hosts_per_scope:
                 raise ValueError(
@@ -423,6 +432,15 @@ class ScopedMtlsAgentDiscoverySource:
                 raise ValueError(
                     f"invalid Fleet discovery scope: {raw}"
                 ) from exc
+            # Reject enormous CIDRs *before* network.hosts() is expanded.
+            # IPv4 excludes at most network/broadcast, and IPv6 excludes
+            # at most the subnet-router anycast address; +2 is a safe
+            # conservative bound for both, including /31 and /127.
+            if network.num_addresses > self.max_hosts_per_scope + 2:
+                raise ValueError(
+                    "Fleet discovery scope exceeds max_hosts_per_scope: "
+                    f"{raw} has too many addresses"
+                )
             hosts = tuple(str(value) for value in network.hosts())
             if len(hosts) > self.max_hosts_per_scope:
                 raise ValueError(
