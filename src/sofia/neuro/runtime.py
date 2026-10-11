@@ -81,9 +81,26 @@ class NeuroRuntime:
 
     def read_workspace(
         self, *, consumer: str, at: datetime,
+        expected_snapshot: NeuroStateSnapshot | None = None,
     ) -> WorkspaceBroadcast | None:
-        """Record one genuine downstream read, never publish new evidence."""
+        """Record a read of the *same* workspace evidence the consumer uses."""
         broadcast = self._workspace.read(consumer=consumer, at=at)
+        if broadcast is not None and expected_snapshot is not None:
+            if not isinstance(expected_snapshot, NeuroStateSnapshot):
+                raise TypeError("expected_snapshot must be a NEURO snapshot")
+            expected_items = tuple(
+                item for item in (
+                    expected_snapshot.focus, *expected_snapshot.secondary
+                ) if item is not None
+            )[:3]
+            if (
+                broadcast.published_at != expected_snapshot.generated_at
+                or broadcast.selection_method != expected_snapshot.selection_method
+                or broadcast.items != expected_items
+            ):
+                # A newer subsystem update replaced the shared workspace.
+                # Do not claim downstream use of a different observation.
+                return None
         if broadcast is not None and self._observability is not None:
             try:
                 self._observability.record_workspace_read(
