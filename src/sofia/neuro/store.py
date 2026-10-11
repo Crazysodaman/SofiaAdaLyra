@@ -372,7 +372,7 @@ def neuro_observability_text(state_path: str | Path) -> str:
     store = NeuroObservabilityStore(state_path)
     current = store.current()
     if current is None:
-        return "\\n".join((
+        return "\n".join((
             "NEURO has not recorded a production snapshot yet.",
             *neuro_connectome_diagnostics(state_path),
             "Observed fallback: UNKNOWN (no selection receipt)",
