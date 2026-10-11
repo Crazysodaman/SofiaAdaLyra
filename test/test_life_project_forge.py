@@ -64,7 +64,22 @@ def infrastructure(tmp_path, *, authorized=True, share_callback=None):
     return life, goals, now
 
 
-def active_project(life, now, *, name="A Foxfire Atlas", scope=ProjectScope.PERSONAL_PRIVATE):
+def authored_foxfire_text(request):
+    """Test provider returns an actual structured original draft, never a template."""
+    assert request.allow_tools is False
+    return CognitiveResponse(content=json.dumps({
+        "content": (
+            "Foxfire lanterns glimmer beyond the painted ridgeline. "
+            "A violet field atlas follows their light through the imagined "
+            "valley, its landmarks named for curious travelers."
+        ),
+    }))
+
+
+def active_project(
+    life, now, *, name="A Foxfire Atlas",
+    scope=ProjectScope.PERSONAL_PRIVATE, objectives=None,
+):
     evidence = life.record_observation(
         kind="curiosity", source="test:recorded-reflection",
         assertion="A recorded curiosity about mapping imagined foxfire colors exists.",
@@ -79,7 +94,7 @@ def active_project(life, now, *, name="A Foxfire Atlas", scope=ProjectScope.PERS
         "idea:foxfire-atlas", name,
         "Build a small atlas pairing invented foxfire colors with short observations.",
         interest.interest_id,
-        ("Design an original color vocabulary.", "Create an inspectable first edition."),
+        objectives or ("Design an original color vocabulary.", "Create an inspectable first edition."),
         ("The document opens and contains both sections.",),
         "text", (evidence,), 0.92, 0.88, now,
     )
@@ -234,7 +249,7 @@ def test_novel_project_uses_goal_run_capability_and_real_artifact(tmp_path):
         ) if goal.id == project.goal_id)
         assert goal.status is GoalStatus.ACTIVE
 
-        result = life.tick(now=now + timedelta(seconds=3))
+        result = life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         assert result["selection"] == "project"
         assert result["scheduled"] == 1
         job_id = life.store.jobs(project.project_id)[0]
@@ -250,24 +265,27 @@ def test_novel_project_uses_goal_run_capability_and_real_artifact(tmp_path):
         life.close()
 
 
-def test_technical_success_can_be_disliked_without_failure_or_emotion(tmp_path):
+def test_personal_dislike_does_not_invent_independent_technical_success(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
         project, evidence = active_project(life, now)
-        life.tick(now=now + timedelta(seconds=3))
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         job_id = life.store.jobs(project.project_id)[0]
         assert wait_for_job(life, job_id).status is WorkStatus.COMPLETED
         artifact_id, _revision = life.store.artifacts(project.project_id)[0]
         evaluation = life.evaluate_artifact(
             project.project_id, artifact_id=artifact_id,
-            technical_outcome=TechnicalOutcome.VALID,
+            technical_outcome=TechnicalOutcome.INCONCLUSIVE,
             personal_judgment=PersonalJudgment.DISLIKE,
-            objective_results={"opens": True, "contains_sections": True},
+            objective_results={
+                "Design an original color vocabulary.": None,
+                "Create an inspectable first edition.": None,
+            },
             reason="The structure works, but the result feels too tidy and predictable.",
             evidence_refs=(evidence,), preserve_for_research=True,
             now=now + timedelta(seconds=5),
         )
-        assert evaluation.technical_outcome is TechnicalOutcome.VALID
+        assert evaluation.technical_outcome is TechnicalOutcome.INCONCLUSIVE
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
         preference = life.preferences.current(
             subject=PreferenceSubject.SOFIA, category="creation",
@@ -334,7 +352,7 @@ def test_private_project_space_and_real_creation_can_enter_world(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
         project, evidence = active_project(life, now)
-        life.tick(now=now + timedelta(seconds=3))
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         assert wait_for_job(life, life.store.jobs(project.project_id)[0]).status is WorkStatus.COMPLETED
         artifact_id, _revision = life.store.artifacts(project.project_id)[0]
         space_id = life.create_project_space(
@@ -403,14 +421,17 @@ def test_unsatisfactory_artifact_can_be_revised_and_opinion_changes(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
         project, evidence = active_project(life, now)
-        life.tick(now=now + timedelta(seconds=3))
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         first_job = wait_for_job(life, life.store.jobs(project.project_id)[0])
         artifact_id = str(first_job.result["artifact_id"])
         life.evaluate_artifact(
             project.project_id, artifact_id=artifact_id,
-            technical_outcome=TechnicalOutcome.VALID,
+            technical_outcome=TechnicalOutcome.INCONCLUSIVE,
             personal_judgment=PersonalJudgment.DISLIKE,
-            objective_results={"opens": True}, reason="The first draft is too rigid.",
+            objective_results={
+                "Design an original color vocabulary.": None,
+                "Create an inspectable first edition.": None,
+            }, reason="The first draft is too rigid.",
             evidence_refs=(evidence,), preserve_for_research=True,
             now=now + timedelta(seconds=4),
         )
@@ -427,9 +448,12 @@ def test_unsatisfactory_artifact_can_be_revised_and_opinion_changes(tmp_path):
         ).revision == 2
         life.evaluate_artifact(
             project.project_id, artifact_id=artifact_id,
-            technical_outcome=TechnicalOutcome.VALID,
+            technical_outcome=TechnicalOutcome.INCONCLUSIVE,
             personal_judgment=PersonalJudgment.LIKE,
-            objective_results={"opens": True},
+            objective_results={
+                "Design an original color vocabulary.": None,
+                "Create an inspectable first edition.": None,
+            },
             reason="The field-note structure now leaves enough room for surprise.",
             evidence_refs=(evidence,), preserve_for_research=False,
             now=now + timedelta(seconds=7),
@@ -515,16 +539,16 @@ def test_independent_nickname_still_requires_recipient_acceptance(tmp_path):
 def test_completion_archival_and_private_experience_projection(tmp_path):
     life, goals, now = infrastructure(tmp_path)
     try:
-        project, evidence = active_project(life, now)
-        life.tick(now=now + timedelta(seconds=3))
+        project, evidence = active_project(life, now, objectives=("text_contains:Foxfire",))
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         job = wait_for_job(life, life.store.jobs(project.project_id)[0])
         artifact_id = str(job.result["artifact_id"])
         life.evaluate_artifact(
             project.project_id, artifact_id=artifact_id,
             technical_outcome=TechnicalOutcome.VALID,
             personal_judgment=PersonalJudgment.LIKE,
-            objective_results={"opens": True},
-            reason="The inspected artifact satisfies the chosen completion option.",
+            objective_results={"text_contains:Foxfire": True},
+            reason="The original text criterion independently passed.",
             evidence_refs=(str(job.result["evidence_ref"]),),
             preserve_for_research=False, now=now + timedelta(seconds=4),
         )
@@ -658,7 +682,7 @@ def test_permission_denial_blocks_work_without_negative_emotion_or_fake_success(
     life, _goals, now = infrastructure(tmp_path, authorized=False)
     try:
         project, _evidence = active_project(life, now)
-        result = life.tick(now=now + timedelta(seconds=3))
+        result = life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         job = wait_for_job(life, life.store.jobs(project.project_id)[0])
         assert result["jobs_started"] == 1
         assert job.status is WorkStatus.BLOCKED
