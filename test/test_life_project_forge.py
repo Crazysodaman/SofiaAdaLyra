@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from threading import Event
 from types import SimpleNamespace
 import json
+import sqlite3
 import time
 
 import pytest
@@ -237,6 +238,58 @@ def test_grounded_experience_updates_interest_once_across_restart_safe_ticks(tmp
         assert life.store.interest_by_id(
             project.originating_interest, audience_id=project.audience_id,
         ).revision == 2
+    finally:
+        life.close()
+
+
+def test_interest_learning_rechecks_original_source_inside_atomic_commit(
+    tmp_path, monkeypatch,
+):
+    """An altered LIFE observation cannot earn an interest update at commit."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        experience = record_interest_signal(
+            life, project, evidence_ref=evidence,
+            judgment=PersonalJudgment.LIKE,
+            when=now + timedelta(seconds=3),
+        )
+        original_record = life.store.record_interest_learning
+        mutated = []
+
+        def change_source_between_inspection_and_commit(**kwargs):
+            if kwargs["outcome"] == "applied" and not mutated:
+                # Simulate another writer changing the original experience
+                # AFTER source verification, before the final interest CAS.
+                with sqlite3.connect(life.path) as db:
+                    db.execute(
+                        "UPDATE life_experience SET summary=? WHERE experience_id=?",
+                        ("Changed after the review snapshot.", experience.experience_id),
+                    )
+                mutated.append(True)
+            return original_record(**kwargs)
+
+        monkeypatch.setattr(
+            life.store, "record_interest_learning",
+            change_source_between_inspection_and_commit,
+        )
+        with pytest.raises(
+            RuntimeError, match="original source experience changed before learning",
+        ):
+            life.learn_from_experiences(now=now + timedelta(seconds=4))
+        assert mutated == [True]
+        assert life.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        ).revision == 1
+        assert any(
+            item.experience_id == experience.experience_id
+            for item in life.store.pending_interest_experiences()
+        )
+        with sqlite3.connect(life.path) as db:
+            assert db.execute(
+                "SELECT COUNT(*) FROM life_interest_learning WHERE experience_id=?",
+                (experience.experience_id,),
+            ).fetchone()[0] == 0
     finally:
         life.close()
 
