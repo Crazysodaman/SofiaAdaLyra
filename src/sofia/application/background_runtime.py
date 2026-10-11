@@ -120,12 +120,15 @@ def bridge_voluntary_life_outreach(
     # original project being retired. Recheck the live source and user
     # stop/mute boundary before queuing any real notice.
     refreshed = life.voluntary_project_updates(now=now, limit=16)
-    if not any(
-        item["event_id"] == candidate["event_id"]
-        and item["project_id"] == candidate["project_id"]
-        and item["moment_kind"] == candidate["moment_kind"]
-        for item in refreshed
-    ):
+    # A model choice applies to one exact original LIFE milestone snapshot.
+    # The same event ID may survive corrections to source refs, project
+    # wording, salience, time, or audience while the model was thinking.
+    # Refuse an obsolete snapshot instead of queuing old facts to ACT.
+    if not any(item == candidate for item in refreshed):
+        return 0
+    if act_service.delivery_route != route:
+        # A destination changed during cognitive latency. Reassess on the
+        # next background tick rather than sending private context elsewhere.
         return 0
     from sofia.safe.operator_stop import OperatorStopStore
     if OperatorStopStore(act_service.state_path).current().active:
