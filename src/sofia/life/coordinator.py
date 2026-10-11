@@ -641,6 +641,10 @@ class SelfDirectedLifeCoordinator:
                 )
             except (LookupError, OSError, ValueError, PermissionError):
                 continue
+            except RuntimeError as exc:
+                if "failed preview integrity check" not in str(exc):
+                    raise
+                continue
             if (
                 report.revision == evaluation.artifact_revision
                 and report.eligible_for_independent_completion
