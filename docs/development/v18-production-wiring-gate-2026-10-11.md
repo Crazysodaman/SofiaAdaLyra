@@ -35,6 +35,14 @@ For each coded/tests-only task, `production_wiring` records a real entrypoint, c
 
 **No claim is made** that a specific feature works in a deployed host; six are *source-traced coding-complete candidates*, not production-accepted.
 
+## Current Phase 09 production-reachable additions
+
+The original 300-second application LIFE background callback now reaches a source-verifying milestone reconciler, which checks the actual stored artifact and canonical successful RUN evidence before writing original objective milestones with the existing SQLite CAS. Interrupted writes are retried by the same production tick without a second scheduler or new creative job. `test/test_life_verified_milestone_production.py` records real-job, restart and foreign-evidence regression contracts, not executed.
+
+Auto-created projects now require an original tool-free TEXT/STORY authoring response. The old `_initial_specification` boilerplate is removed from autonomous scheduling. No model or unsupported native media yields an explicit unavailable result and **zero** creative jobs, artifacts or fabricated authoring receipts. Manual Project Forge approval remains a separate path. Other media need real authoring integration before CA-2202 can be considered coded-complete. Tests are authored, not run.
+
+The stricter ledger after this wave is **6** coded/tests-only candidates, **64** partial/not coded-complete, **630** not yet individually inspected and **0** production accepted. **Job 5 remains open.**
+
 ## Strict handling of known unfinished areas
 
 - CA-101: The committed experience-interest loop covers reviewed LIFE artifact evaluations, not every eligible ordinary observation or experience; **NOT CODING-COMPLETE**.
