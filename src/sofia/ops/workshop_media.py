@@ -54,6 +54,8 @@ class PreparedOfflineInstaller:
     iso_contains_password_verifier: bool = True
     os_installed: bool = False
     hyperv_guest_verified: bool = False
+    owner_signed: bool = False
+    manifest_path: str | None = None
 
     def __post_init__(self) -> None:
         if self.policy_version != MEDIA_POLICY_VERSION:
@@ -62,6 +64,8 @@ class PreparedOfflineInstaller:
             raise ValueError("output media SHA-256 must be observed")
         if not _DIGEST.fullmatch(self.reviewed_debian_source_sha256):
             raise ValueError("original Debian source digest must be pinned")
+        if self.owner_signed and not self.manifest_path:
+            raise ValueError("signed ISO must carry its owner attestation manifest")
         if any((
             self.initial_ssh_enabled,
             self.passwordless_sudo,
@@ -245,12 +249,16 @@ def _private_write(path: Path, data: str) -> None:
 def prepare_offline_debian_installer(
     *, source_iso: Path | str, expected_source_sha256: str,
     output_iso: Path | str,
+    signing_key_file: Path | str,
 ) -> PreparedOfflineInstaller:
     """Owner-invoked ISO builder; never initiates Hyper-V/guest actions."""
     if platform.system() != "Linux":
         raise EnvironmentError(
             "use a local Linux or WSL environment with xorriso and openssl"
         )
+    from sofia.ops.workshop_media_attestation import sign_prepared_media
+    if not isinstance(signing_key_file,(str,Path)) or not str(signing_key_file):
+        raise PermissionError("local encrypted owner signing key is required")
     source = Path(source_iso).resolve(strict=True)
     output = Path(output_iso).resolve(strict=False)
     if (
@@ -328,11 +336,23 @@ def prepare_offline_debian_installer(
             os.chmod(generated, 0o600)
             # Same-filesystem exclusive link does not overwrite existing output.
             os.link(generated, output)
+            try:
+                signed=sign_prepared_media(
+                    iso_path=output,
+                    base_sha256=expected_source_sha256,
+                    signing_key_file=signing_key_file,
+                )
+            except Exception:
+                # Unattested output must not be mistaken for boot-ready media.
+                output.unlink(missing_ok=True)
+                raise
             return PreparedOfflineInstaller(
                 media_path=str(output),
                 media_sha256=media_digest,
                 reviewed_debian_source_sha256=expected_source_sha256,
                 policy_version=MEDIA_POLICY_VERSION,
+                owner_signed=True,
+                manifest_path=signed["manifest_path"],
             )
     finally:
         os.umask(previous_umask)
@@ -343,17 +363,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source-iso",required=True,type=Path)
     parser.add_argument("--source-sha256",required=True)
     parser.add_argument("--output-iso",required=True,type=Path)
+    parser.add_argument("--signing-key-file",required=True,type=Path,
+                        help="Local owner encrypted Ed25519 private key; never copy to Artemis")
     args=parser.parse_args(argv)
     result=prepare_offline_debian_installer(
         source_iso=args.source_iso,
         expected_source_sha256=args.source_sha256,
         output_iso=args.output_iso,
+        signing_key_file=args.signing_key_file,
     )
     print(json.dumps({
         "media_path":result.media_path,
         "media_sha256":result.media_sha256,
         "source_sha256":result.reviewed_debian_source_sha256,
         "policy":result.policy_version,
+        "owner_signed":result.owner_signed,
+        "signed_manifest_path":result.manifest_path,
         "guest_admin":result.guest_admin,
         "guest_worker":result.worker,
         "initial_ssh_enabled":False,
