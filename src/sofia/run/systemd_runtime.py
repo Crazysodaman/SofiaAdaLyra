@@ -103,6 +103,17 @@ def run_headless(*, stop_event: Event) -> None:
         raise RuntimeError("headless systemd runtime requires Linux")
     if not isinstance(stop_event, Event):
         raise TypeError("stop_event must be a threading.Event")
+    # EnvironmentFile settings can override systemd Environment entries.
+    # Reject that explicitly rather than permitting first-bootstrap mode or
+    # an untrusted runtime mode on the future sole-writer VM.
+    if (
+        os.environ.get("SOFIA_RUNTIME_MODE") != "production"
+        or os.environ.get("SOFIA_IDENTITY_BOOTSTRAP_MODE") != "require_existing"
+    ):
+        raise PermissionError(
+            "canonical headless service requires production and "
+            "require_existing identity modes"
+        )
     if not os.environ.get("SOFIA_STATE_HOME_POINTER", "").strip():
         raise PermissionError(
             "headless production runtime requires operator-approved signed "
