@@ -2,6 +2,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from test.owner_auth_fixture import (
+    grant_with_signed_owner, revoke_with_signed_owner,
+    private_with_signed_owner,
+)
+
 from sofia.safe.permissions import (
     AdultPrivateAuthority,
     PermissionLevel,
@@ -32,8 +37,8 @@ def test_unknown_capability_fails_closed_as_protected():
 def test_standing_grant_is_scoped_and_revocable(tmp_path):
     store = PermissionStore(tmp_path / "sofia.db")
     now = datetime(2026, 10, 4, 18, 0, tzinfo=timezone.utc)
-    grant = store.grant(
-        "portainer.container.restart",
+    grant = grant_with_signed_owner(
+        store, "portainer.container.restart",
         scope={"container_id": "mealie"},
         now=now,
         grant_id="grant-mealie",
@@ -50,8 +55,8 @@ def test_standing_grant_is_scoped_and_revocable(tmp_path):
         now=now,
     )
 
-    revoked = store.revoke(
-        grant.grant_id,
+    revoked = revoke_with_signed_owner(
+        store, grant.grant_id,
         now=now + timedelta(seconds=1),
     )
     assert revoked.revoked_at is not None
@@ -65,8 +70,8 @@ def test_standing_grant_is_scoped_and_revocable(tmp_path):
 
 def test_standing_grants_compare_json_types_including_nested_values(tmp_path):
     store = PermissionStore(tmp_path / "sofia.db")
-    store.grant(
-        "storage.mkdir",
+    grant_with_signed_owner(
+        store, "storage.mkdir",
         scope={"root_index": 1, "metadata": {"enabled": True, "level": 1}},
         grant_id="exact-json-values",
     )
@@ -96,7 +101,7 @@ def test_nonfinite_or_oversized_scope_cannot_be_granted(tmp_path):
 
 def test_nonfinite_request_cannot_match_legacy_standing_scope(tmp_path):
     store = PermissionStore(tmp_path / "sofia.db")
-    store.grant("storage.mkdir", scope={"root_index": 1})
+    grant_with_signed_owner(store, "storage.mkdir", scope={"root_index": 1})
     assert not store.allows_standing("storage.mkdir", {"root_index": float("inf")})
 
 def test_protected_capability_rejects_standing_grant(tmp_path):
@@ -134,8 +139,8 @@ def test_private_adult_defaults_fail_closed_for_adult_content(tmp_path):
 def test_private_adult_authority_is_durable(tmp_path):
     path = tmp_path / "sofia.db"
     store = PermissionStore(path)
-    updated = store.set_private_adult_authority(
-        private_chat=True,
+    updated = private_with_signed_owner(
+        store, private_chat=True,
         adult_chat=True,
         adult_avatar=True,
         adult_external_delivery=False,
@@ -161,8 +166,8 @@ def test_external_adult_delivery_cannot_be_enabled_without_adult_authority(tmp_p
 def test_expired_grant_does_not_authorize(tmp_path):
     store = PermissionStore(tmp_path / "sofia.db")
     now = datetime(2026, 10, 4, 18, 0, tzinfo=timezone.utc)
-    store.grant(
-        "local.service.restart",
+    grant_with_signed_owner(
+        store, "local.service.restart",
         scope={"name": "SofiaAdaLyra"},
         now=now,
         expires_at=now + timedelta(minutes=5),
