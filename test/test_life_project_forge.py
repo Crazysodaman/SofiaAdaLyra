@@ -6,6 +6,8 @@ import time
 
 import pytest
 
+from test.owner_auth_fixture import resume_with_signed_owner_proof
+
 from sofia.capability import CapabilityProposal, CapabilityResultKind, CapabilitySystem
 from sofia.capability.gateway import CapabilityGateway
 from sofia.creative import (
@@ -125,7 +127,9 @@ def test_operator_stop_blocks_life_tick_schedule_and_direct_executor(tmp_path):
         )
         assert guarded.status is WorkStatus.BLOCKED
         assert "operator_stop" in guarded.reason
-        operator.set(active=False, updated_by="Sparks", reason="resume personal projects")
+        resume_with_signed_owner_proof(
+            operator, reason="resume personal projects",
+        )
         assert life.select_activity(
             now=now + timedelta(seconds=11), busy=False, resource_pressure=0.0,
         ).kind.value == "project"
