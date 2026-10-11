@@ -168,6 +168,14 @@ def test_host_power_shell_restricts_new_internal_switch_to_exact_guest():
     ):
         assert prohibited not in command
     assert command.index("NAT_OVERLAPS_GUEST_SUBNET")<command.index("New-VMSwitch")
+    assert command.index("STAGED_HOST_IP_NOT_EXACT") < command.index(
+        "Connect-VMNetworkAdapter"
+    )
+    assert command.index("STAGED_HOST_FORWARDING_NOT_DISABLED") < command.index(
+        "Connect-VMNetworkAdapter"
+    )
+    assert "Get-NetIPInterface -InterfaceAlias $alias" in command
+    assert "Get-NetIPAddress -InterfaceAlias $alias" in command
 
 
 def test_stage_cannot_authorize_a_different_vm_or_unrecognized_policy(tmp_path):
