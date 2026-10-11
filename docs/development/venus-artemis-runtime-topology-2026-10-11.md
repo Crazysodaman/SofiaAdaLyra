@@ -1,6 +1,6 @@
 # Sofía canonical runtime and GPU inference topology
 
-**Owner decision:** 2026-10-11. **Guest OS confirmed: Debian 13 Stable (Trixie), minimal headless install, dedicated VM `Sofia` on Artemis.** **Deployment status:** design/source only; no OS installation, state move, host change, model installation, enrollment or live verification performed.
+**Owner decision:** 2026-10-11. **Guest OS confirmed: Debian 13 Stable (Trixie), minimal headless install, dedicated VM `Sofia` on Artemis.** **Deployment status:** owner reports Debian 13 guest installation is currently in progress; neither successful OS installation nor guest readiness is independently verified. This coding session has not deployed services, moved data or modified the VM.
 
 ## Two-stage location decision
 
@@ -18,11 +18,11 @@ The runtime and the language-model inference engine are separate. Artemis does *
 
 ## Operator-reported provisioning status (2026-10-11)
 
-- **REPORTED BY OWNER:** The Hyper-V VM named `Sofia` has been created on Artemis. **Debian is not installed in that VM.** This statement is operator-supplied, not independently observed VM identity, disk, firmware, network or guest operating-system proof.
+- **REPORTED BY OWNER:** The Hyper-V VM named `Sofia` has been created on Artemis. **Debian installation is currently in progress, according to the owner; completion has not been verified.** This statement is operator-supplied, not independently observed VM identity, disk, firmware, network or guest operating-system proof.
 - **NOT YET VERIFIED:** Actual VM GUID, Generation 2 firmware, CPU/RAM, attached VHDX/storage filesystem, selected virtual switch, ISO integrity, guest hostname/OS, Fleet enrollment, mTLS connection, protected credentials, running application, trusted backup or any state migration.
-- **CURRENT WRITER:** Venus still owns the active canonical runtime and `sofia.db`; an empty VM on Artemis has **no production writer authority**. Installing Debian by itself will not change this. The separate research/test VM remains isolated.
+- **CURRENT WRITER:** Venus still owns the active canonical runtime and `sofia.db`; a guest still being provisioned on Artemis has **no production writer authority**. Installing Debian by itself will not change this. The separate research/test VM remains isolated.
 - **READ-ONLY PRODUCTION INSPECTION:** `HyperVAdapter.sofia_guest_inventory()` is callable through the existing Level-1 `hyperv.sofia.inspect` local integration or the new Level-1 `remote.vm.sofia.inspect` tool, which routes exact `vm.inspect / sofia_preflight` over the existing pinned-mTLS Fleet transport. It observes exact VM `Sofia` host metadata and reports blockers for missing disks/unknown networking while always leaving guest OS readiness, writer activity and activation **unverified/unauthorized**. This method does not start VMs, attach ISOs, install Debian, grant credentials or switch state ownership. Its availability does not mean a live inspection has been performed.
-- **NEXT HUMAN-SUPERVISED INSTALL MILESTONE:** After reviewing guest hardware/network and Debian 13 install-media authenticity, the owner or independently approved host operator installs Debian 13 minimal headless. Only then can guest OS identity, non-root service setup and signed pointer preflight be tested against that guest. Production DB restore and sole-writer activation are a later, separately approved operation.
+- **NEXT HUMAN-SUPERVISED MILESTONE:** Complete the ongoing Debian 13 minimal headless installation. Then independently verify guest OS identity, non-root service setup and signed pointer preflight. Production DB restore and sole-writer activation require a separate, independently authenticated and fenced cutover. Production DB restore and sole-writer activation are a later, separately approved operation.
 
 ## Dedicated production VM versus experiment VM
 
