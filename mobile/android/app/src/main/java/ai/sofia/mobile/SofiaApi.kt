@@ -107,6 +107,31 @@ class SofiaApi(private val settings: SecureSettings) {
         return post("/v1/mobile/main/page", body)
     }
 
+    fun visibleThreads(limit: Int = 30): JSONObject {
+        require(limit in 1..50) { "A bounded list of project threads is required" }
+        val config = settings.load()
+        return post("/v1/mobile/threads", JSONObject()
+            .put("device_id", settings.deviceId)
+            .put("private_mode", config.privateMode)
+            .put("limit", limit))
+    }
+
+    fun projectThreadPage(
+        threadId: String, before: JSONObject? = null, limit: Int = 30,
+    ): JSONObject {
+        require(threadId.length in 8..128) {
+            "A canonical project thread ID is required"
+        }
+        require(limit in 1..50) { "Project history page must be bounded" }
+        val config = settings.load()
+        return post("/v1/mobile/thread/page", JSONObject()
+            .put("device_id", settings.deviceId)
+            .put("private_mode", config.privateMode)
+            .put("thread_id", threadId)
+            .put("before", before ?: JSONObject.NULL)
+            .put("limit", limit))
+    }
+
     fun acknowledgeMainSeen(message: JSONObject): JSONObject {
         val config = settings.load()
         val sequence = message.getLong("canonical_sequence")
