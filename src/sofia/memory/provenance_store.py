@@ -6,6 +6,7 @@ source conversation records.
 """
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
@@ -98,6 +99,16 @@ class DurableMemoryCandidateStore:
                         REFERENCES memory_candidate(candidate_id)
                 )
                 """
+            )
+            # Canonical indexes support bounded keyset search without a
+            # second memory database or an unreviewed semantic copy.
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS memory_candidate_order_idx "
+                "ON memory_candidate(status,created_at,candidate_id)"
+            )
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS memory_candidate_principal_order_idx "
+                "ON memory_candidate(status,principal_id,created_at,candidate_id)"
             )
             db.commit()
 
@@ -211,6 +222,70 @@ class DurableMemoryCandidateStore:
             principal_id=row[2],
             audience_id=row[3],
         )
+
+    def iter_promoted_summaries(
+        self,
+        *,
+        principal_id: str | None = None,
+        audience_id: str | None = None,
+        batch_size: int = 128,
+    ) -> Iterator[tuple[UUID, str]]:
+        """Stream eligible promoted content in stable chronological keyset order.
+
+        Only candidate IDs and derived text are read during relevance ranking.
+        Full original-source provenance is loaded only for selected matches.
+        Each bounded SQLite page releases the lock before yielding. Concurrent
+        revocation is handled by the final memory projection status rechecks.
+        """
+        if principal_id is not None and (
+            not isinstance(principal_id, str) or not principal_id.strip()
+        ):
+            raise ValueError("principal_id must be None or nonempty")
+        if audience_id is not None and (
+            not isinstance(audience_id, str) or not audience_id.strip()
+        ):
+            raise ValueError("audience_id must be None or nonempty")
+        if audience_id is not None and principal_id is None:
+            raise ValueError("audience_id requires principal_id")
+        if type(batch_size) is not int or not 1 <= batch_size <= 512:
+            raise ValueError("batch_size must be 1..512")
+
+        clauses = ["status=?"]
+        scope: list[str] = [CandidateStatus.PROMOTED.value]
+        if principal_id is not None:
+            clauses.append("principal_id=?")
+            scope.append(principal_id)
+            if audience_id is None:
+                clauses.append("audience_id IS NULL")
+            else:
+                clauses.append("(audience_id IS NULL OR audience_id=?)")
+                scope.append(audience_id)
+
+        after: tuple[str, str] | None = None
+        while True:
+            where = list(clauses)
+            args = list(scope)
+            if after is not None:
+                where.append(
+                    "(created_at > ? OR "
+                    "(created_at = ? AND candidate_id > ?))"
+                )
+                args.extend((after[0], after[0], after[1]))
+            args.append(batch_size)
+            with self._lock:
+                rows = self._require_db().execute(
+                    "SELECT candidate_id,content,created_at "
+                    "FROM memory_candidate WHERE " + " AND ".join(where)
+                    + " ORDER BY created_at ASC,candidate_id ASC LIMIT ?",
+                    tuple(args),
+                ).fetchall()
+            if not rows:
+                return
+            after = (rows[-1][2], rows[-1][0])
+            for candidate_id, content, _created_at in rows:
+                yield UUID(candidate_id), content
+            if len(rows) < batch_size:
+                return
 
     def list_ids(
         self,
