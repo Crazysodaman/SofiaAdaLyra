@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "d440b3db33c04b99d21cce04d41c7aa5759b71f9",
+  "reviewed_main_sha": "92186da292093de45ea2d64cb1f65fdaa2f2dd63",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 release gate CA-914 now requires full ordered commands and stable Git HEAD; all source-only, regression unexecuted. Other WS1 CA-3010/3011/3012, CA-1904/1907/6507 etc remain partial; operator identity and host acceptance blockers recorded. Other workstreams' current ledger evidence preserved.",
+  "notice": "WS1 production LIFE/ACT/Settings emergency-stop wiring committed. New task source audit marks CA-1102/1907/6507 partial, no tests run per user. All other workstream entries and prior statuses preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1674,10 +1674,29 @@
       "phase": "02",
       "source_topic": "11",
       "master_line": 263,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "test/test_life_project_forge.py",
+        "src/sofia/ui/settings_window.py",
+        "src/sofia/application/act_service.py",
+        "test/test_act_runtime_wiring.py"
+      ],
+      "evidence_commits": [
+        "481438c6c0bd402647712ae2bcdc98182b780341",
+        "a690a0a17bbd28bb8aeef8f07e59e4af6b9d6574",
+        "54bb9d5d1122c7507ebe7c4fa1a5ef43473cc798",
+        "bd97361e9dddc297f24f23905958041e66e7b2ad",
+        "e911471c9258de82e8900582d597b62f4326eecd",
+        "b98ed5f70062060020be2ae352a2ec214fa89a59",
+        "49840bddd064cf12fea5fab918ca0c0d6ae92cde"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "92186da292093de45ea2d64cb1f65fdaa2f2dd63",
+        "depth": "production_life_act_settings_stop_path",
+        "interpretation": "Existing canonical SAFE stop is now consumed in production LIFE tick/selection/activation/schedule/executor and ACT reflection admission and exposed through existing desktop Settings. Previously ACTION delivery and integration handlers check stop. Regression source authored, not run. Full override matrix, authenticated operator identity, in-flight process cancellation, domain block, muting/reject-project are outstanding."
+      }
     },
     {
       "id": "CA-1103",
@@ -1844,7 +1863,12 @@
         "test/test_permission_runtime_wiring.py",
         "src/sofia/dev/capability.py",
         "src/sofia/capability/system.py",
-        "test/test_capability_system.py"
+        "test/test_capability_system.py",
+        "src/sofia/life/coordinator.py",
+        "test/test_life_project_forge.py",
+        "src/sofia/ui/settings_window.py",
+        "src/sofia/application/act_service.py",
+        "test/test_act_runtime_wiring.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -1854,13 +1878,20 @@
         "80b1d7d236c9144c9a488a6b621910b82abb2136",
         "bb85d08430596d76888eb05be8b08ad1d0ad6da2",
         "cf5f1467231465da5dad9e69ef03a9799c2ee842",
-        "7821a7c381d3567d5ea84da74c0fa6657b46d05b"
+        "7821a7c381d3567d5ea84da74c0fa6657b46d05b",
+        "481438c6c0bd402647712ae2bcdc98182b780341",
+        "a690a0a17bbd28bb8aeef8f07e59e4af6b9d6574",
+        "54bb9d5d1122c7507ebe7c4fa1a5ef43473cc798",
+        "bd97361e9dddc297f24f23905958041e66e7b2ad",
+        "e911471c9258de82e8900582d597b62f4326eecd",
+        "b98ed5f70062060020be2ae352a2ec214fa89a59",
+        "49840bddd064cf12fea5fab918ca0c0d6ae92cde"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "0a036177f72a91d40fb585a7edbc256785aa4956",
-        "depth": "production_authorization_result_and_effect_boundary",
-        "interpretation": "Pre-handler PermissionError is reported as UNAUTHORIZED; handler errors remain FAILED because effects may have occurred. Earlier generic approval/standing scope/revocation checks retained. Source and regression authored, tests deferred. Full task remains partial."
+        "at_sha": "92186da292093de45ea2d64cb1f65fdaa2f2dd63",
+        "depth": "production_life_act_settings_stop_path",
+        "interpretation": "Existing canonical SAFE stop is now consumed in production LIFE tick/selection/activation/schedule/executor and ACT reflection admission and exposed through existing desktop Settings. Previously ACTION delivery and integration handlers check stop. Regression source authored, not run. Full override matrix, authenticated operator identity, in-flight process cancellation, domain block, muting/reject-project are outstanding."
       }
     },
     {
@@ -2024,19 +2055,31 @@
         "src/sofia/integrations/capabilities.py",
         "src/sofia/safe/operator_stop.py",
         "test/test_permission_runtime_wiring.py",
-        "src/sofia/dev/capability.py"
+        "src/sofia/dev/capability.py",
+        "src/sofia/life/coordinator.py",
+        "test/test_life_project_forge.py",
+        "src/sofia/ui/settings_window.py",
+        "src/sofia/application/act_service.py",
+        "test/test_act_runtime_wiring.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
         "5b56f88c234b61aacfbeb5ef5282a1e49d4fcb93",
         "80b1d7d236c9144c9a488a6b621910b82abb2136",
-        "bb85d08430596d76888eb05be8b08ad1d0ad6da2"
+        "bb85d08430596d76888eb05be8b08ad1d0ad6da2",
+        "481438c6c0bd402647712ae2bcdc98182b780341",
+        "a690a0a17bbd28bb8aeef8f07e59e4af6b9d6574",
+        "54bb9d5d1122c7507ebe7c4fa1a5ef43473cc798",
+        "bd97361e9dddc297f24f23905958041e66e7b2ad",
+        "e911471c9258de82e8900582d597b62f4326eecd",
+        "b98ed5f70062060020be2ae352a2ec214fa89a59",
+        "49840bddd064cf12fea5fab918ca0c0d6ae92cde"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "bb85d08430596d76888eb05be8b08ad1d0ad6da2",
-        "depth": "runtime_integration_and_dev_execution_boundary",
-        "interpretation": "Direct integration and DEV operations check canonical durable operator stop at local effect boundaries; generic standing-scope revocation is rechecked before effect. Tests authored, not executed. Other domains and in-flight external cancellation remain open."
+        "at_sha": "92186da292093de45ea2d64cb1f65fdaa2f2dd63",
+        "depth": "production_life_act_settings_stop_path",
+        "interpretation": "Existing canonical SAFE stop is now consumed in production LIFE tick/selection/activation/schedule/executor and ACT reflection admission and exposed through existing desktop Settings. Previously ACTION delivery and integration handlers check stop. Regression source authored, not run. Full override matrix, authenticated operator identity, in-flight process cancellation, domain block, muting/reject-project are outstanding."
       }
     },
     {
