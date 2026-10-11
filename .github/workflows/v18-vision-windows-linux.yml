@@ -1,0 +1,39 @@
+name: V18 Screen Windows Linux
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/sofia/vision/**'
+      - 'test/test_vision_cross_platform.py'
+      - 'test/test_vision_desktop_control.py'
+      - '.github/workflows/v18-vision-windows-linux.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v18-vision-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  platform-vision:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . pytest
+      - name: Python source integrity
+        run: python -m compileall -q src/sofia/vision test/test_vision_cross_platform.py test/test_vision_desktop_control.py
+      - name: Synthetic cross-platform desktop safety contracts
+        run: python -m pytest -q test/test_vision_cross_platform.py test/test_vision_desktop_control.py
+      - name: No real desktop was actuated
+        run: echo 'CI does not exercise physical FIDO2, OS screen pickers, uinput, GDI pixels or gaming anti-cheat guarantees.'
