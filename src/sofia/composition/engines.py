@@ -1,5 +1,6 @@
 """Compose local, lifecycle-managed and fleet-routed cognitive engines."""
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 import os
 from sofia.cognition.activity import CognitiveModelActivityStore
 from sofia.cognition.llm_engine import LLMCognitiveEngine
@@ -129,26 +130,47 @@ def create_model_lifecycle(
     ):
         return None
     gaming_observer = None
+    idle_observer = None
     if ops_service is not None and local_host_id:
+        def activity_signal():
+            state=ops_service.activity.state(local_host_id)
+            if state.override is ActivityMode.AUTO:
+                # A dead tray is not evidence that a desktop stayed idle.
+                if state.observed_at is None:
+                    return None
+                age=datetime.now(timezone.utc)-state.observed_at
+                if not timedelta(0)<=age<=timedelta(seconds=120):
+                    return None
+            return state.effective
+
         def observe_gaming() -> bool | None:
-            mode = ops_service.activity.state(local_host_id).effective
-            if mode is ActivityMode.UNKNOWN:
-                return None
-            return mode is ActivityMode.GAMING
-        gaming_observer = observe_gaming
+            mode=activity_signal()
+            return None if mode is None or mode is ActivityMode.UNKNOWN else mode is ActivityMode.GAMING
+
+        def observe_idle() -> bool | None:
+            mode=activity_signal()
+            return None if mode is None or mode is ActivityMode.UNKNOWN else mode is ActivityMode.IDLE
+
+        gaming_observer=observe_gaming
+        idle_observer=observe_idle
     def observe_policy():
         settings = RuntimeUserSettingsStore(configuration.state_path).load()
         mode = os.environ.get(
             "SOFIA_COGNITION_MODEL_RESIDENCY_MODE",
             settings.cognitive_model_residency_mode,
         ).strip().casefold()
-        return replace(configuration.model_lifecycle, residency_mode=mode)
+        return replace(
+            configuration.model_lifecycle,
+            residency_mode=mode,
+            idle_preload_seconds=settings.cognitive_model_idle_preload_seconds,
+        )
     return ModelLifecycleManager(
         selection=selection,
         policy=configuration.model_lifecycle,
         backend=OllamaAdapter(),
         resource_observer=collect_local_telemetry,
         gaming_observer=gaming_observer,
+        idle_observer=idle_observer,
         runtime_state_store=runtime_state_store,
         local_host_id=local_host_id,
         policy_observer=observe_policy,
