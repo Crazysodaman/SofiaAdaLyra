@@ -145,6 +145,9 @@ def create_default_agent_dispatcher(
         workshop_image_root=os.environ.get(
             "SOFIA_WORKSHOP_IMAGE_ROOT",""
         ).strip()
+        workshop_owner_public_key=os.environ.get(
+            "SOFIA_WORKSHOP_MEDIA_OWNER_PUBKEY",""
+        ).strip()
         if workshop_image_root:
             def reviewed_media_digest(parameters):
                 if tuple(parameters) != ("image_path",):
@@ -162,10 +165,31 @@ def create_default_agent_dispatcher(
                     raise PermissionError(
                         "media outside host-approved offline image root"
                     )
+                # SHA-256 alone does NOT prove console-admin/SSH policy.
+                # Pinned Ed25519 owner signature is checked on Artemis and
+                # the full ISO digest is independently verified.
+                if media.suffix.casefold()==".iso":
+                    if not workshop_owner_public_key:
+                        raise PermissionError(
+                            "owner media signing key not pinned on Artemis"
+                        )
+                    from sofia.ops.workshop_media_attestation import (
+                        verify_prepared_media,
+                    )
+                    evidence=verify_prepared_media(
+                        iso_path=media,
+                        trusted_public_key_file=workshop_owner_public_key,
+                        verify_full_iso=True,
+                    )
+                    return {
+                        **evidence,
+                        "bytes":media.stat().st_size,
+                    }
                 return {
                     "sha256":hyperv.workshop_image_sha256(str(media)),
                     "bytes":media.stat().st_size,
                     "kind":media.suffix.casefold(),
+                    "owner_signed":False,
                 }
             dispatcher.register(
                 "workshop.inspect","media",
@@ -227,10 +251,25 @@ def create_default_agent_dispatcher(
                     or source.stat().st_size < 100*(1024**2)
                 ):
                     raise PermissionError("unattended ISO outside approved offline root")
-                # Verify before entering the host action; the exact PowerShell
-                # operation independently checks the hash again before boot.
-                if hyperv.workshop_image_sha256(str(source))!=media_sha:
-                    raise PermissionError("offline ISO content hash mismatch")
+                # The boot endpoint checks the actual signed account and
+                # network policy, even if the caller bypassed Settings.
+                if not workshop_owner_public_key:
+                    raise PermissionError("host has no pinned media signing key")
+                from sofia.ops.workshop_media_attestation import (
+                    verify_prepared_media, POLICY as REQUIRED_INSTALL_POLICY,
+                )
+                signed=verify_prepared_media(
+                    iso_path=source,
+                    trusted_public_key_file=workshop_owner_public_key,
+                    verify_full_iso=True,
+                )
+                if (
+                    signed.get("sha256")!=media_sha
+                    or signed.get("policy_version")!=REQUIRED_INSTALL_POLICY
+                    or signed.get("owner_signed") is not True
+                ):
+                    raise PermissionError("approved console-admin ISO policy not met")
+                # Host command also rehashes immediately before DVD/start.
                 return _plain(hyperv.bootstrap_existing_hephaestus(
                     vm_id=vm_id,os_disk_path=disk_path,
                     iso_path=str(source),iso_sha256=media_sha,
