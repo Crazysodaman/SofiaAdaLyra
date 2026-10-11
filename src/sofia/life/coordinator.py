@@ -1805,11 +1805,6 @@ class SelfDirectedLifeCoordinator:
                     if tool.startswith("artifact-kind:")
                 ), "artifact-kind:text")
                 kind = ArtifactKind(kind_tool.split(":")[-1])
-                evidence_ref = self.record_observation(
-                    kind="project-selection", source="life:selection",
-                    assertion=f"{project.project_id} selected within resource budget",
-                    now=now, payload={"selection_id": selection.selection_id},
-                )
                 if kind not in {ArtifactKind.TEXT, ArtifactKind.STORY} or generate is None:
                     # No canned brief, hashed color, oscillator sample or
                     # serialized concept may masquerade as autonomous work.
@@ -1855,6 +1850,13 @@ class SelfDirectedLifeCoordinator:
                         "draft_status": "failed_unverified",
                         "review_queue": self.pending_work_review(limit=16),
                     }
+                # Do not leave a misleading creative-work evidence record
+                # when there is no authorized original draft to submit.
+                evidence_ref = self.record_observation(
+                    kind="project-selection", source="life:selection",
+                    assertion=f"Original authored draft admitted for {project.project_id}.",
+                    now=now, payload={"selection_id": selection.selection_id},
+                )
                 try:
                     self.schedule_artifact(
                         project.project_id, artifact_kind=kind,
