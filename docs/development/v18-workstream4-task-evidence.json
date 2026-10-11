@@ -116,7 +116,8 @@
     "24f53e2e368a10be3b97638b7130bd9cf16c072d",
     "6885ed01366228d64deaba477003daa776a9a38c",
     "9d4e88447f4e71cd61e7616f78990fb92feee7a2",
-    "159d012c9f741ff29bb0bf8e4b6647899f183a94"
+    "159d012c9f741ff29bb0bf8e4b6647899f183a94",
+    "bdaa4e6059e2f3f8a2e8a0d53403bd2a3302c98c"
   ],
   "tasks": [
     {
@@ -1992,11 +1993,12 @@
       "phase": "15",
       "master_line": 1161,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production NEURO science registry persists null, refuted and adverse outcomes plus explicit control/limitation fields; typed review rejects subjective-experience claims and the Settings report explicitly prevents functional/supported behavioral results from becoming a consciousness assertion or badge. Source test authored, unrun."
     },
     {
       "id": "CA-2007",
