@@ -375,7 +375,8 @@ class PermissionStore:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical SAFE permission state missing or redirected")
         self.audit = AuditChain(self.path)
         with closing(self._connect()) as db, db:
             db.execute(
@@ -421,7 +422,11 @@ class PermissionStore:
                 )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical SAFE permission state unavailable")
+        db = sqlite3.connect(
+            self.path.absolute().as_uri() + "?mode=rw", uri=True, timeout=10,
+        )
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db
