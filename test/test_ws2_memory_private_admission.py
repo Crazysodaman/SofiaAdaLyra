@@ -35,6 +35,24 @@ def test_secret_or_credential_message_does_not_auto_propose(text):
     assert reason == "private credential or identity data is not auto-proposed"
 
 
+
+
+@pytest.mark.parametrize("text", (
+    "In this roleplay, I prefer blue trains",
+    "As my character, I like travelling between fictional stations",
+    "Pretend I live in the castle for the scene",
+    "Hypothetically, I want to run away to Mars",
+    "Remember that in this roleplay I am a train dispatcher",
+    "I love the fantasy railroad in this fictional story",
+))
+def test_explicitly_fictional_context_does_not_create_autobiographical_candidate(
+    text,
+):
+    accepted, reason = ConversationLearningCoordinator._is_learnable(text)
+    assert accepted is False
+    assert reason == "explicit fiction or roleplay is not autobiographical evidence"
+
+
 @pytest.mark.parametrize("text", (
     "Remember that I prefer quieter trains",
     "I prefer blue locomotives",
