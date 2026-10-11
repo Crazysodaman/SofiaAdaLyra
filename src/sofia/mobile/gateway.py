@@ -133,6 +133,23 @@ class MobileCompanionGateway:
                     "ALTER TABLE mobile_turn_receipt ADD COLUMN "
                     "credential_generation INTEGER NOT NULL DEFAULT 1"
                 )
+            if "server_sequence" not in receipt_fields:
+                db.execute(
+                    "ALTER TABLE mobile_turn_receipt ADD COLUMN "
+                    "server_sequence INTEGER"
+                )
+            if "server_received_at" not in receipt_fields:
+                db.execute(
+                    "ALTER TABLE mobile_turn_receipt ADD COLUMN "
+                    "server_received_at TEXT"
+                )
+            db.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS mobile_turn_authoritative_order
+                ON mobile_turn_receipt(
+                    device_id,presentation_mode,credential_generation,
+                    server_sequence
+                ) WHERE server_sequence IS NOT NULL
+            """)
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(
@@ -412,13 +429,25 @@ class MobileCompanionGateway:
                     raise MobileDeliveryUncertain(
                         "a prior mobile delivery is not independently settled"
                     )
+                # A local phone clock is never used for causality. Allocate
+                # one monotonically increasing admission sequence while this
+                # canonical SQLite writer transaction is held. Uncertain
+                # attempts keep their sequence, never backfilled or reused.
+                sequence = int(db.execute(
+                    "SELECT COALESCE(MAX(server_sequence),0)+1 "
+                    "FROM mobile_turn_receipt "
+                    "WHERE device_id=? AND presentation_mode=? "
+                    "AND credential_generation=?",
+                    (device, mode, generation),
+                ).fetchone()[0])
                 db.execute(
                     "INSERT INTO mobile_turn_receipt "
                     "(request_id,device_id,presentation_mode,content_sha256,"
-                    "status,response_json,created_at,updated_at,credential_generation) "
-                    "VALUES(?,?,?,?,?,?,?,?,?)",
+                    "status,response_json,created_at,updated_at,"
+                    "credential_generation,server_sequence,server_received_at) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                     (request_id, device, mode, digest, "processing", None,
-                     now, now, generation),
+                     now, now, generation, sequence, now),
                 )
 
             # Do NOT hold an open SQLite writer transaction over model work.
@@ -435,6 +464,15 @@ class MobileCompanionGateway:
                     conversation, response=response.content,
                     principal=principal, private_mode=private_mode,
                 )
+                result["delivery_receipt"] = {
+                    "request_id": request_id,
+                    "origin_device_id": device,
+                    "presentation_mode": mode,
+                    "credential_generation": generation,
+                    "server_received_at": now,
+                    "canonical_sequence": sequence,
+                    "logical_status": "completed",
+                }
                 encoded = json.dumps(result, ensure_ascii=False, sort_keys=True)
                 if len(encoded.encode("utf-8")) > 256_000:
                     raise ValueError("mobile delivery response exceeds durable receipt bound")
