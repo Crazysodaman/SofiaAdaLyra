@@ -456,19 +456,36 @@ class TrayAgentApplication:
             action,
             **model_kwargs,
         )
-        now = datetime.now(timezone.utc)
-        approval = ExecutionApproval(
-            approval_id=str(uuid4()),
-            capability=capability,
-            request_fingerprint=execution_fingerprint(
-                capability,
-                parameters,
-            ),
-            approved_by="Sparks",
-            approved_at=now,
-            expires_at=now + timedelta(seconds=60),
+        from sofia.safe.owner_approval_ui import (
+            active_owner_credentials, select_owner_credential,
         )
-        self._execution_approvals.record(approval)
+        from sofia.safe.owner_browser import authorize_exact_action
+        from sofia.safe.permissions import (
+            PermissionLevel, capability_permission_policy,
+        )
+
+        level = capability_permission_policy(capability).level
+        kind = (
+            "security_key" if level >= PermissionLevel.PROTECTED
+            else "platform"
+        )
+        # A supervised external key may stand in for Windows Hello,
+        # never the other way around for protected operations.
+        if (
+            kind == "platform"
+            and not active_owner_credentials(self.config.state_path, kind=kind)
+        ):
+            kind = "security_key"
+        credential = select_owner_credential(
+            self.config.state_path, kind=kind, parent=None,
+        )
+        approval = authorize_exact_action(
+            self.config.state_path,
+            capability=capability,
+            parameters=parameters,
+            credential_id=credential,
+            expires_seconds=90,
+        )
         execute_kwargs = {
             "approval_id": approval.approval_id,
             "llm_model": llm_model,
@@ -641,6 +658,27 @@ class TrayAgentApplication:
 
         Thread(target=run, name="sofia-model-control", daemon=True).start()
 
+    def _queue_service_control(self, operation) -> None:
+        """Run a supervised WebAuthn challenge off the tray's event loop."""
+        with self._model_control_lock:
+            if self._model_control_active:
+                raise RuntimeError("another service/model control is already pending")
+            self._model_control_active = True
+
+        def run() -> None:
+            try:
+                operation()
+                self._last_error = None
+            except Exception as exc:
+                self._last_error = f"{type(exc).__name__}: {exc}"
+            finally:
+                with self._model_control_lock:
+                    self._model_control_active = False
+
+        Thread(
+            target=run, name="sofia-fido2-service-control", daemon=True,
+        ).start()
+
     def _set_residency_mode(self, mode: str) -> None:
         store = RuntimeUserSettingsStore(self.config.state_path)
         store.save(replace(store.load(), cognitive_model_residency_mode=mode))
@@ -669,11 +707,14 @@ class TrayAgentApplication:
             elif command is TrayCommand.GAME_OFF:
                 self._set_game_mode(GameMode.OFF)
             elif command is TrayCommand.LLM_START:
-                self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.START)
+                self._queue_service_control(lambda: self._service_action(
+                    ServiceKind.LLM_ENGINE, ServiceAction.START))
             elif command is TrayCommand.LLM_STOP:
-                self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.STOP)
+                self._queue_service_control(lambda: self._service_action(
+                    ServiceKind.LLM_ENGINE, ServiceAction.STOP))
             elif command is TrayCommand.LLM_RESTART:
-                self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.RESTART)
+                self._queue_service_control(lambda: self._service_action(
+                    ServiceKind.LLM_ENGINE, ServiceAction.RESTART))
             elif command is TrayCommand.LLM_INSTALL_PRIMARY:
                 self._queue_model_control(
                     lambda: self._service_action(
@@ -747,11 +788,14 @@ class TrayAgentApplication:
             elif command is TrayCommand.LLM_VIEW_ERRORS:
                 self._open_settings("Models")
             elif command is TrayCommand.RUNTIME_START:
-                self._service_action(ServiceKind.SOFIA_RUNTIME, ServiceAction.START)
+                self._queue_service_control(lambda: self._service_action(
+                    ServiceKind.SOFIA_RUNTIME, ServiceAction.START))
             elif command is TrayCommand.RUNTIME_STOP:
-                self._service_action(ServiceKind.SOFIA_RUNTIME, ServiceAction.STOP)
+                self._queue_service_control(lambda: self._service_action(
+                    ServiceKind.SOFIA_RUNTIME, ServiceAction.STOP))
             elif command is TrayCommand.RUNTIME_RESTART:
-                self._service_action(ServiceKind.SOFIA_RUNTIME, ServiceAction.RESTART)
+                self._queue_service_control(lambda: self._service_action(
+                    ServiceKind.SOFIA_RUNTIME, ServiceAction.RESTART))
             elif command is TrayCommand.DIAGNOSTICS:
                 self._open_settings("Advanced")
             elif command is TrayCommand.EXIT_UI:
