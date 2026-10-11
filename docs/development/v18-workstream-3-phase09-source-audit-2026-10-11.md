@@ -755,3 +755,10 @@
 - **CA-102/106/108/110/114/1604/1606:** expired SELF goals can no longer admit optional creative RUN jobs while the GOALS expiry sweep is delayed. Motivation selection rejects overdue ACTIVE status before model wake, operator dependency projections report a deadline blocker and GOALS→LIFE reconciliation pauses overdue projects without forging a GOALS status change. See code commits `a66cc92d`, `7b77fe7a`; regressions authored only.
 - **CA-106/204/2402/2407/2408:** `LifeStore.exact_original_run_outcome` now requires exact original reason as well as event/job/status/time and rejects backdated, timezone-naive or malformed derived observed timestamps without crashing reconciliation. See production commits `2ab07ca1`, `3cfbb41f`; regression code authored, not run.
 - **Remaining:** every original CA clause still requires exact-source production tracing; standalone reviewed documents are not accepted tasks. No tests, models, CI or real hosts were exercised by these changes.
+
+
+## 2026-10-11 production follow-up: RUN source chronology and all-job operator projections
+
+- Original `LifeStore.reconcile_run_outcomes` now delays future original RUN timestamps and refuses malformed source timestamps before inserting the derived LIFE event, preventing a permanently backdated/invalid observation. Partial IDs CA-106/202/204/2402/2407. Production `88aea96c`; deferred regression `2a56be34`.
+- Original `SelfDirectedLifeCoordinator.motivation_signals` and `goal_dependency_view` now consider all linked RUN jobs, so an earlier UNCERTAIN/BLOCKED/FAILED/CANCELLED job cannot vanish behind a newer work item. Review keys and operator action references identify the actual unsafe source job. Partial IDs CA-106/110/1301/1303/1602/1604/1606/2402/2408. Production `4ff1522d`; deferred regression `dcb3648e`.
+- Read-only source commits are not accepted tasks. Tests/CI/lived host verification remain deferred.
