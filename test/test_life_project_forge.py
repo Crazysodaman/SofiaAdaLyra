@@ -2400,3 +2400,48 @@ def test_retired_interest_never_abandons_unsettled_run_effect(tmp_path):
         assert life.store.artifacts(project.project_id) == ()
     finally:
         life.close()
+
+
+def test_unknown_original_objective_pauses_project_without_revisions(tmp_path):
+    """Unsupported subjective brief yields PAUSE, not fabricated progress."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, _ = active_project(
+            life, now, objectives=("Write a personally moving story.",),
+        )
+        initial = life.tick(
+            now=now + timedelta(seconds=3),
+            generate=authored_foxfire_text,
+        )
+        assert initial["scheduled"] == 1
+        job = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        assert job.status is WorkStatus.COMPLETED
+        settled = life.tick(
+            now=now + timedelta(seconds=4),
+            generate=authored_foxfire_text,
+        )
+        assert settled["follow_through"] == "needs_independent_objective_review"
+        assert settled["scheduled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert len(life.store.artifacts(project.project_id)) == 1
+        assert len(life.store.evaluations(project.project_id)) == 1
+        assert len(life.store.jobs(project.project_id)) == 1
+        goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        )
+        assert goal.status is GoalStatus.PAUSED
+        assert any(
+            item["project_id"] == project.project_id
+            and item["disposition"] == "needs_independent_objective_review"
+            for item in life.pending_work_review()
+        )
+        later = life.tick(
+            now=now + timedelta(seconds=5),
+            generate=authored_foxfire_text,
+        )
+        assert later["scheduled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert len(life.store.jobs(project.project_id)) == 1
+    finally:
+        life.close()
