@@ -1621,6 +1621,38 @@ CA-6303, CA-6311. **Source hardening only**, not independently
 accepted task completion or a physical writer fence. No tests/CI,
 pairing, mobile request or host action executed.
 
+
+
+### Phase 03 item 52: Serialize signed deletion append against restored-home publication
+
+Previously, `stage_verified_state_home` verified the current authenticated
+external `MemoryDeletionLedger` both after restore and immediately before
+`RENAME_NOREPLACE`, but a separate operator-authorized deletion could append
+a signed record between the final check and the candidate directory rename.
+The deletion owner's canonical `MemoryDeletionLedger.request` already uses
+`_exclusive()` OS file locking across append and fsync.
+
+Production `src/sofia/ops/state_relocation.py` now takes **that exact
+existing journal append lock** around the final privileged-fence + erasure
+recheck AND non-activated directory publication. Thus cooperating local
+erasure writers cannot add an instruction after the final freshness check
+and before the new candidate becomes visible. No second journal, grant,
+new erasure authority, or alternate state owner was added.
+
+- Production `576ac9c9f46a5ea0b0a93856ca74f9d289e6ef5a` (`[skip ci]`).
+- Deferred fixture lock-root preparation
+  `1910cc6cabe6fd002c2d811061242b93ad36233a` (`[skip ci]`).
+- Deferred original `MemoryDeletionLedger._exclusive` lock-observation
+  regression `test/test_ws2_state_relocation_erasure_lock.py`:
+  `01da7dffa5ac6f238184ea879cc6d72c6159ba81` (`[skip ci]`).
+
+Original CA relevance: CA-5202, CA-5204, CA-6105, CA-6311, CA-6404.
+This is **cooperating OS-local** journal serialization, NOT independent
+remote-host fencing, global journal freshness proof or a writer cutover.
+Published candidate remains inactive. Original CA tasks not marked complete.
+Tests/CI deliberately unrun; no actual deletion, restore, migration, host
+state, certificate or network changed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
