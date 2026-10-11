@@ -3,7 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import conftest
+from test import conftest
 
 from sofia.verify.package_selection import (
     PackageSelectionProbe, expected_packages,
