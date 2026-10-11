@@ -1375,6 +1375,37 @@ CA-5603, CA-5803, CA-5808, CA-5901, CA-5904,
 CA-5906, CA-5909. Low-level manually promoted legacy facts
 need separate human-reviewed adoption; no live user memory modified.
 
+### Phase 03 item 46: Debian persistent-home filesystem positively classified
+
+The real read-only relocation preflight `_filesystem_kind` previously
+categorized **every Linux filesystem not explicitly identified as
+network-backed as `local`**, including `tmpfs`, RAM disks, ephemeral
+container overlay mounts and unknown FUSE/storage layers. A state-home
+candidate on such media could appear eligible even though its canonical
+SQLite bytes disappear on reboot or storage provenance is unverified.
+
+Linux mountinfo detection now reports `local` **only** for recognized
+persistent host-local filesystem families such as ext4, xfs, btrfs,
+f2fs and zfs; known SMB/NFS/SSHFS still report `remote`, memory/overlay
+and read-only image layers report `volatile`, and unknown/unapproved
+drivers report `unknown`. Both the existing
+`inspect_state_relocation` and plaintext-recovery export local-output
+boundary require the affirmative `local` classification.
+The real physical disk, Hyper-V VHDX/checkpoint chain, encryption,
+UPS and host storage durability still require privileged operator review;
+a filesystem type cannot *prove* persistent hardware.
+
+Production: `df188d617c702483700984f1a4c677a8b1733e0f`.
+Deferred Linux synthetic mount-table and state preflight regressions:
+`26c404dbb0a1d138a31a9a0122f459454972dde1`.
+Portable-export synthetic fixtures explicitly model local approved disks
+under Docker/CI's inherently untrusted overlay scratch volume:
+`65a1b231528a53cb2f15367bba94289553a4aa98` and
+`229206f11fe8e64582224ded6f2ec24084432b15`.
+CA relevance: CA-3701, CA-3704, CA-5201, CA-5204, CA-6101,
+CA-6401, CA-6807. Tests/CI unexecuted. No disk/VM/host configuration
+or live database was altered.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
