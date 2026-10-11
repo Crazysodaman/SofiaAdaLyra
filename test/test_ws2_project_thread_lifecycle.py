@@ -101,24 +101,59 @@ def test_project_metadata_cannot_be_mutated_from_another_private_audience(tmp_pa
         originals.close()
 
 
-def test_source_free_project_and_main_cannot_be_mutated_as_project(tmp_path):
-    _state, originals, threads, _session, _other = _source(tmp_path)
+def test_source_free_project_uses_attested_creation_audience_not_cross_channel(tmp_path):
+    state, originals, threads, _session, _other = _source(tmp_path)
     owner = _identity()
+    foreign = _identity("discord:private")
     try:
         free = threads.get_or_create(
             owner=owner, kind="project", name="No Originals Yet",
         )
+        assert any(
+            item.thread_id == free.thread_id
+            for item in threads.list_visible_threads(owner=owner)
+        )
+        assert all(
+            item.thread_id != free.thread_id
+            for item in threads.list_visible_threads(owner=foreign)
+        )
         with pytest.raises(PermissionError, match="audience access"):
-            threads.set_project_archived(
-                principal=owner, thread_id=free.thread_id, archived=True,
+            threads.rename_project(
+                principal=foreign, thread_id=free.thread_id, new_name="Foreign",
             )
+        archived = threads.set_project_archived(
+            principal=owner, thread_id=free.thread_id, archived=True,
+        )
+        assert archived.archived_at is not None
+        assert all(
+            item.thread_id != free.thread_id
+            for item in threads.list_visible_threads(owner=owner)
+        )
+        assert any(
+            item.thread_id == free.thread_id
+            for item in threads.list_visible_threads(
+                owner=owner, include_archived=True,
+            )
+        )
+        assert threads.set_project_archived(
+            principal=owner, thread_id=free.thread_id, archived=False,
+        ).archived_at is None
         main = threads.get_or_create(owner=owner)
         with pytest.raises(PermissionError, match="audience access"):
             threads.rename_project(
                 principal=owner, thread_id=main.thread_id, new_name="Not Main",
             )
-        visible = threads.list_visible_threads(owner=owner)
-        assert any(item.kind == "main" for item in visible)
+        # Old unbound source-free metadata has NO creator evidence.
+        with sqlite3.connect(state) as db:
+            db.execute(
+                "UPDATE lifelong_thread SET project_audience_id=NULL,"
+                "project_audience_kind=NULL WHERE thread_id=?",
+                (free.thread_id,),
+            )
+        with pytest.raises(PermissionError, match="audience access"):
+            threads.set_project_archived(
+                principal=owner, thread_id=free.thread_id, archived=True,
+            )
     finally:
         originals.close()
 
