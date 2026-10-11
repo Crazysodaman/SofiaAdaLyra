@@ -642,3 +642,9 @@
 ## 2026-10-11 production follow-up: original Presence evidence freshness at final ACT send
 
 The application-owned last send authorization now rechecks original OBSERVED/KNOWN status, numeric confidence ≥ 0.6, event/observation chronology, and observation lifetime covering the queued notice. A later downgraded or corrupt original source is AUTHORIZATION_UNAVAILABLE rather than an eligible notification. Relevant partial CA IDs: CA-404/405/410/1007/2407/2602. Production commit `e1dac928`; six deferred regression cases `9ad3a092`. Actual Desktop/Discord receipt campaigns and all original acceptance remain open.
+
+## Follow-up: pre-ACT LIFE project moment consistency after cognition (2026-10-11)
+
+- **Original CA IDs:** CA-403, CA-404, CA-405, CA-408, CA-410, CA-1007 and CA-2407; still partial, with final acceptance deferred.
+- **Found:** the voluntary LIFE outreach bridge compared only three source fields after model latency and did not re-assert the originally approved exact route. Source-backed interest eligibility was also not checked for candidate updates after a source disappeared.
+- **Production correction:** the existing original LIFE update projection checks current principal/audience/fresh original interest refs; the real background bridge requires exact refreshed original moment and private route equality before its existing Presence/ACT enqueue call. No competing sender or social scheduler. Source commits `e5a7c78`, `375f9b8`; regression `bd17015` authored but unexecuted. There is no evidence of actual delivery, user view or renderer acknowledgement.
