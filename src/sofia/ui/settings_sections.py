@@ -1188,6 +1188,103 @@ class SettingsSections:
         self.sql_panel(frames["EVOLVE"], "Improvement diagnostics", "autonomous_improvement_diagnostic")
         self.sql_panel(frames["EVOLVE"], "Development candidates", "state_plane_record", where="namespace='dev-candidate'")
         ttk.Label(frames["EVOLVE"], text="Inspect recorded revision evidence and configuration authority above. Changes to governed configuration continue through the reviewed EVOLVE approval workflow.", wraplength=660).pack(anchor="w", pady=8)
+        # Actual owner-only data-use review, NOT training permission.
+        # File paths and dataset rows never flow into the cognitive tool.
+        from sofia.evolve.training_sources import (
+            TrainingDatasetStore,inspect_public_dataset,TRAINING_METHODS,
+            SOURCE_CLASSES,LICENSES,
+        )
+        training_source=tk.StringVar(root,value="")
+        training_kind=tk.StringVar(root,value="owner_original_nonprivate")
+        training_license=tk.StringVar(root,value="OWNER-ORIGINAL")
+        training_provenance=tk.StringVar(root,value="owner-source:")
+        training_summary={"value":json.dumps(TRAINING_METHODS,indent=2)}
+        training_view=self.viewer(
+            frames["EVOLVE"],
+            "Training methods, admitted public source receipts and training limitations",
+            lambda:training_summary["value"],
+        )
+        ttk.Label(
+            frames["EVOLVE"],
+            text=(
+                "Prompt/Modelfile changes no weights; LoRA/QLoRA needs "
+                "reviewed public dataset and independent evaluation; "
+                "training from scratch is not available on OS-less Hephaestus. "
+                "Raw chat, Discord, journals, screen/voice and private MEM are "
+                "NOT allowed as weight-training sources. Review is NOT an "
+                "approval to run training or switch models."
+            ),wraplength=660,
+        ).pack(anchor="w",pady=(10,5))
+        for label,var in (
+            ("Locally owned PUBLIC instruction/response .jsonl path",training_source),
+            ("Owner source provenance receipt (owner-source:... or public-source:...)",
+             training_provenance),
+        ):
+            ttk.Label(frames["EVOLVE"],text=label).pack(anchor="w",pady=(5,2))
+            ttk.Entry(frames["EVOLVE"],textvariable=var).pack(fill="x")
+        ttk.Label(frames["EVOLVE"],text="Source category").pack(anchor="w")
+        ttk.Combobox(frames["EVOLVE"],textvariable=training_kind,
+                     values=tuple(sorted(SOURCE_CLASSES)),state="readonly").pack(fill="x")
+        ttk.Label(frames["EVOLVE"],text="Reviewed rights/license").pack(anchor="w")
+        ttk.Combobox(frames["EVOLVE"],textvariable=training_license,
+                     values=tuple(sorted(LICENSES)),state="readonly").pack(fill="x")
+
+        def review_training_source():
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator STOP forbids new EVOLVE approvals")
+            from uuid import uuid4
+            path=training_source.get().strip()
+            source_class=training_kind.get()
+            license_id=training_license.get()
+            provenance=training_provenance.get().strip()
+            if not self.messagebox.askyesno(
+                "Review PUBLIC dataset provenance, not training authorization",
+                (
+                    "I confirm this is PUBLIC or my own NONPRIVATE work, "
+                    "that the source/license rights are accurate, and "
+                    "that the text contains NO private personal details.\n\n"
+                    f"File: {path}\n"
+                    f"Class: {source_class}\n"
+                    f"License: {license_id}\n"
+                    f"Provenance: {provenance}\n\n"
+                    "This review scans a local JSONL dataset, stores digest/"
+                    "rights metadata, and NEVER pulls, trains or deploys a model."
+                ),parent=root,
+            ):
+                return
+            review=inspect_public_dataset(
+                path=path,source_class=source_class,license_id=license_id,
+                source_ref=provenance,
+                approval_ref="owner-ui:"+uuid4().hex,
+                at=datetime.now(timezone.utc),
+            )
+            TrainingDatasetStore(config.state_path).record(review)
+            training_summary["value"]=json.dumps(
+                TrainingDatasetStore(config.state_path).model_brief(),
+                indent=2,default=str,
+            )
+            training_view.refresh()
+
+        ttk.Button(
+            frames["EVOLVE"],
+            text="Review public training DATA only (no training)",
+            command=self.guarded(review_training_source),
+        ).pack(anchor="w",pady=(5,8))
+        ttk.Button(
+            frames["EVOLVE"],
+            text="Refresh methods and reviewed source receipts",
+            command=self.guarded(lambda:(
+                training_summary.__setitem__(
+                    "value",
+                    json.dumps(
+                        TrainingDatasetStore(config.state_path).model_brief(),
+                        indent=2,default=str,
+                    )
+                ),
+                training_view.refresh(),
+            )),
+        ).pack(anchor="w",pady=(3,8))
+
         self.safety_panel(frames["Safety & Authority"])
         self.advanced_panel(frames["Advanced"])
 
