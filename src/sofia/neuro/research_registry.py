@@ -216,6 +216,20 @@ class ResearchEvidenceRegistry:
                 raise ValueError(
                     "a negative or null measured finding requires observations"
                 )
+            # A source receipt is one independent measurement, not an
+            # unlimited number of votes or contradictory outcome labels.
+            # Keep old results intact; a subsequent correction requires a
+            # distinct linked evidence receipt and remains visible.
+            reused=db.execute(
+                "SELECT 1 FROM neuro_research_result WHERE protocol_id=? "
+                "AND json_extract(outcome_json,'$.evidence_ref')=? LIMIT 1",
+                (outcome.protocol_id,outcome.evidence_ref),
+            ).fetchone()
+            if reused is not None:
+                raise PermissionError(
+                    "reviewed scientific evidence reference already submitted "
+                    "for this preregistered study"
+                )
             db.execute(
                 "INSERT INTO neuro_research_result VALUES(?,?,?,?)",
                 (
