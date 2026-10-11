@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "f7e142d111c3e0102554eca8e2fa6ec2eaac3c94",
+  "reviewed_main_sha": "9a8c8364855f79af47d2711652b0c8801028ea9e",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 release gate dirty-start/untracked source and ACT pre-send owner stop/mute fixes source committed, tests deferred by user. All affected CA tasks remain partial; sibling workstream records preserved.",
+  "notice": "WS1 source-only ACT transport veto and release clean-start gate wired; regression fixtures corrected for non-quiet policy and canonical GoalJournal schema. Tests not run; task acceptance remains pending. Other workstream entries retained.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1719,7 +1719,8 @@
         "a3f6383babc160842beac1ba80e95621134ac062",
         "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
         "8503f42a90ade16cd767e497c5a047b26b918d1d",
-        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f",
+        "9a8c8364855f79af47d2711652b0c8801028ea9e"
       ],
       "accepted": false,
       "audit_observation": {
@@ -1964,7 +1965,8 @@
         "a3f6383babc160842beac1ba80e95621134ac062",
         "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
         "8503f42a90ade16cd767e497c5a047b26b918d1d",
-        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f",
+        "9a8c8364855f79af47d2711652b0c8801028ea9e"
       ],
       "accepted": false,
       "audit_observation": {
@@ -2061,7 +2063,8 @@
         "a3f6383babc160842beac1ba80e95621134ac062",
         "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
         "8503f42a90ade16cd767e497c5a047b26b918d1d",
-        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f",
+        "9a8c8364855f79af47d2711652b0c8801028ea9e"
       ],
       "accepted": false,
       "audit_observation": {
