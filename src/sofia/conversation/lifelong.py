@@ -54,6 +54,7 @@ class HistoricalImportPreview:
     eligible_message_ids: tuple[str, ...]
     already_linked_ids: tuple[str, ...]
     original_timestamps: tuple[str, ...]
+    next_cursor: tuple[str, str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -744,13 +745,13 @@ class LifelongThreadStore:
     def preview_historical_import(
         self, *, principal: PrincipalContext, session_id: str,
         limit: int = 128,
+        after: tuple[str, str] | None = None,
     ) -> HistoricalImportPreview:
-        """Preview at most one bounded source batch without changing history.
+        """Page reviewed source candidates without automatic import.
 
-        Selection is restricted to the CURRENT original session binding.
-        A principal ID match alone cannot import another transport audience.
-        An operator can review a longer session in additional explicit
-        batches rather than silently importing years of private content.
+        The cursor is the original (stored timestamp, message ID) returned
+        in the preceding preview. This is an ordering cursor, not authority:
+        each page independently checks the exact CURRENT source audience.
         """
         if not isinstance(principal, PrincipalContext):
             raise TypeError("authenticated owner principal required")
@@ -758,6 +759,12 @@ class LifelongThreadStore:
             raise ValueError("exact source session ID required")
         if type(limit) is not int or not 1 <= limit <= 128:
             raise ValueError("bounded source import preview limit required")
+        if after is not None and (
+            not isinstance(after, tuple) or len(after) != 2
+            or any(not isinstance(value, str) or not 1 <= len(value) <= 256
+                   for value in after)
+        ):
+            raise ValueError("bounded historical source cursor required")
         with closing(self._connect()) as db:
             source = db.execute(
                 "SELECT principal_id,audience_id,audience_kind "
@@ -769,6 +776,16 @@ class LifelongThreadStore:
                 principal.audience_kind.value,
             ):
                 raise PermissionError("source session audience is not authenticated")
+            cursor_clause = (
+                "" if after is None else
+                " AND (m.created_at>? OR "
+                "(m.created_at=? AND m.id>?))"
+            )
+            arguments: tuple[object, ...] = (
+                principal.principal_id, principal.audience_id, session_id,
+            )
+            if after is not None:
+                arguments += (after[0], after[0], after[1])
             rows = db.execute(
                 "SELECT m.id,m.created_at, "
                 "EXISTS(SELECT 1 FROM lifelong_thread_event AS e "
@@ -779,17 +796,23 @@ class LifelongThreadStore:
                 "AND e.source_audience_id=? "
                 "AND e.visibility='source_audience') AS already "
                 "FROM conversation_messages AS m "
-                "WHERE m.session_id=? ORDER BY m.created_at,m.id LIMIT ?",
-                (principal.principal_id, principal.audience_id,
-                 session_id, limit),
+                "WHERE m.session_id=?" + cursor_clause +
+                " ORDER BY m.created_at,m.id LIMIT ?",
+                (*arguments, limit + 1),
             ).fetchall()
+        has_more = len(rows) > limit
+        batch = rows[:limit]
         return HistoricalImportPreview(
             session_id=session_id,
             owner_principal_id=principal.principal_id,
             source_audience_id=principal.audience_id,
-            eligible_message_ids=tuple(row["id"] for row in rows),
-            already_linked_ids=tuple(row["id"] for row in rows if row["already"]),
-            original_timestamps=tuple(row["created_at"] for row in rows),
+            eligible_message_ids=tuple(row["id"] for row in batch),
+            already_linked_ids=tuple(row["id"] for row in batch if row["already"]),
+            original_timestamps=tuple(row["created_at"] for row in batch),
+            next_cursor=(
+                (batch[-1]["created_at"], batch[-1]["id"])
+                if has_more else None
+            ),
         )
 
     def apply_historical_import(
