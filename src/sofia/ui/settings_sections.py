@@ -1285,6 +1285,93 @@ class SettingsSections:
             )),
         ).pack(anchor="w",pady=(3,8))
 
+        # Phase 11 owner control of the ONE application RUN background budget.
+        # These are reservation credits, never asserted hardware usage.
+        from sofia.application.optional_budget import (
+            OptionalAutonomyBudget,OptionalBudgetLimits,
+        )
+        autonomy_budget=OptionalAutonomyBudget(config.state_path)
+        owner_caps,owner_caps_revision=autonomy_budget.limits()
+        budget_revision={"value":owner_caps_revision}
+        budget_values={}
+        ttk.Label(
+            frames["Models"],text="Optional autonomy global daily budget (UTC)",
+        ).pack(anchor="w",pady=(12,2))
+        ttk.Label(
+            frames["Models"],
+            text=(
+                "One RUN coordinator shares reserved token, CPU, GPU, storage "
+                "and occupied-latency credits across optional LIFE, reflection, "
+                "NEURO and background tasks. These are conservative RESERVATIONS, "
+                "not measured device usage; foreground conversation is never "
+                "charged to this optional budget."
+            ),wraplength=660,
+        ).pack(anchor="w",pady=(3,5))
+        for field,label in (
+            ("tokens","Daily reserved LLM tokens"),
+            ("cpu_ms","Daily reserved CPU milliseconds"),
+            ("gpu_ms","Daily reserved GPU milliseconds"),
+            ("storage_bytes","Daily reserved storage bytes"),
+            ("occupied_latency_ms","Daily reserved occupied-latency ms"),
+        ):
+            ttk.Label(frames["Models"],text=label).pack(anchor="w",pady=(3,2))
+            var=tk.StringVar(root,value=str(getattr(owner_caps,field)))
+            ttk.Entry(frames["Models"],textvariable=var).pack(fill="x")
+            budget_values[field]=var
+        budget_snapshot={"value":json.dumps(
+            autonomy_budget.report(now=datetime.now(timezone.utc)),indent=2,
+        )}
+        budget_view=self.viewer(
+            frames["Models"],"Global optional work budget and actual reservations",
+            lambda:budget_snapshot["value"],
+        )
+
+        def update_optional_budget():
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator STOP blocks resource policy changes")
+            proposed=OptionalBudgetLimits(**{
+                name:int(var.get().strip())
+                for name,var in budget_values.items()
+            })
+            if not self.messagebox.askyesno(
+                "Approve new global OPTIONAL compute limits?",
+                (
+                    "This modifies only optional background work credits. "
+                    "It cannot throttle foreground chat, install models, "
+                    "grant permissions or claim CPU/VRAM measurements.\n\n"
+                    +json.dumps({
+                        field:getattr(proposed,field)
+                        for field in budget_values
+                    },indent=2)
+                ),parent=root,
+            ):
+                return
+            autonomy_budget.update_owner_limits(
+                proposed,expected_revision=budget_revision["value"],
+            )
+            _,budget_revision["value"]=autonomy_budget.limits()
+            budget_snapshot["value"]=json.dumps(
+                autonomy_budget.report(now=datetime.now(timezone.utc)),indent=2,
+            )
+            budget_view.refresh()
+
+        ttk.Button(
+            frames["Models"],text="Review and apply optional daily limits",
+            command=self.guarded(update_optional_budget),
+        ).pack(anchor="w",pady=(4,7))
+        ttk.Button(
+            frames["Models"],text="Refresh actual reservation ledger",
+            command=self.guarded(lambda:(
+                budget_snapshot.__setitem__(
+                    "value",json.dumps(
+                        autonomy_budget.report(now=datetime.now(timezone.utc)),
+                        indent=2,
+                    )
+                ),
+                budget_view.refresh(),
+            )),
+        ).pack(anchor="w",pady=(2,6))
+
         self.safety_panel(frames["Safety & Authority"])
         self.advanced_panel(frames["Advanced"])
 
