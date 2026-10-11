@@ -42,6 +42,11 @@ def infrastructure(tmp_path, *, authorized=True, share_callback=None):
     path = tmp_path / "sofia.db"
     from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(path)
+    # The real application bootstraps conversation storage before ACT/INTERACT;
+    # LIFE-only tests compose those services directly and must preserve that
+    # precondition rather than weakening GoalJournal's fail-closed check.
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE IF NOT EXISTS conversation_messages(id TEXT PRIMARY KEY, role TEXT)")
     plane = SQLiteStatePlane(path)
     goals = GoalService(
         GoalStore(plane), evidence_verifier=GoalEvidenceIndex(path),
