@@ -36,18 +36,31 @@ def _print_manifest(manifest: BackupManifest) -> None:
 
 
 def _create(args) -> int:
+    # Owner policy: retain the newest two verified encrypted snapshots at
+    # EACH destination root. Never prune until the new archive has passed
+    # its existing authenticated verification. Journals/keys outside that
+    # backup root are not part of the rotation candidates.
+    if type(args.keep) is not int or args.keep < 1:
+        raise ValueError("backup retention count must be positive")
     state_path = Path(args.state_path) if args.state_path else production_state_path()
-    backup_dir, evidence = _engine(Path(args.key)).create(
+    destination = Path(args.destination)
+    engine = _engine(Path(args.key))
+    backup_dir, evidence = engine.create(
         state_path=state_path,
-        destination_root=Path(args.destination),
+        destination_root=destination,
         source_host_id=args.source_host or socket.gethostname(),
         failure_domain=args.failure_domain,
         now=datetime.now(timezone.utc),
     )
+    manifest = engine.verify(backup_dir)
+    if manifest.backup_id != evidence.backup_id or manifest.digest != evidence.content_digest:
+        raise RuntimeError("new backup authentication disagrees with original creation receipt")
+    removed = rotate_backups(destination, keep=args.keep)
     print(
         f"backup created: {backup_dir} "
         f"backup_id={evidence.backup_id} "
-        f"sha256={evidence.content_digest}"
+        f"sha256={evidence.content_digest} "
+        f"retained_per_destination={args.keep} rotated={len(removed)}"
     )
     return 0
 
@@ -160,6 +173,8 @@ def main(argv: list[str] | None = None) -> int:
     create.add_argument("--failure-domain", required=True)
     create.add_argument("--state-path")
     create.add_argument("--source-host")
+    create.add_argument("--keep", type=int, default=2,
+                        help="verified snapshots per destination (owner default: 2)")
     create.set_defaults(handler=_create)
 
     verify = sub.add_parser("verify")
@@ -198,7 +213,8 @@ def main(argv: list[str] | None = None) -> int:
 
     rotate = sub.add_parser("rotate")
     rotate.add_argument("--root", required=True)
-    rotate.add_argument("--keep", type=int, required=True)
+    rotate.add_argument("--keep", type=int, default=2,
+                        help="snapshots retained in this root (owner default: 2)")
     rotate.set_defaults(handler=_rotate)
 
     sub.add_parser("objectives")
