@@ -161,3 +161,63 @@ def test_untrusted_input_receipt_cannot_self_verify_its_effect():
             capture_service=cap, input_service=inp
         ).perform(prepared(), **approvals())
     assert len(cap.calls) == 1
+
+
+def test_staged_owner_ceremony_issues_approvals_just_before_each_effect():
+    cap, inp = CaptureStub(), InputStub()
+    sequence = []
+    def authorise_capture(request):
+        sequence.append(("approve-capture", request.permit.permit_id))
+        return f"approved-capture-{len(sequence)}"
+    def authorise_input(action):
+        sequence.append(("approve-input", action.operation))
+        assert len(cap.calls) == 1
+        return "approved-input"
+    result = ScreenActionWorkflow(
+        capture_service=cap, input_service=inp
+    ).perform_staged(
+        prepared(), approve_capture=authorise_capture,
+        approve_input=authorise_input,
+    )
+    assert result.status == "submitted_visual_change_unattributed"
+    assert not result.desired_effect_verified
+    assert [kind for kind, _ in sequence] == [
+        "approve-capture", "approve-input", "approve-capture",
+    ]
+    assert cap.calls[0][1] == "approved-capture-1"
+    assert cap.calls[1][1] == "approved-capture-3"
+    assert inp.calls[0][1] == "approved-input"
+
+
+def test_staged_authorization_cancel_before_first_capture_never_injects():
+    cap, inp = CaptureStub(), InputStub()
+    def deny(_request):
+        raise PermissionError("owner declined screenshot")
+    with pytest.raises(PermissionError, match="declined"):
+        ScreenActionWorkflow(
+            capture_service=cap, input_service=inp
+        ).perform_staged(
+            prepared(), approve_capture=deny,
+            approve_input=lambda _: "not-authorized",
+        )
+    assert cap.calls == [] and inp.calls == []
+
+
+def test_staged_post_action_denial_reports_uncertain_and_never_retries():
+    cap, inp = CaptureStub(), InputStub()
+    count = [0]
+    def authorize_capture(_request):
+        count[0] += 1
+        if count[0] == 2:
+            raise PermissionError("owner cancelled post-capture")
+        return "fresh-first-capture"
+    result = ScreenActionWorkflow(
+        capture_service=cap, input_service=inp
+    ).perform_staged(
+        prepared(), approve_capture=authorize_capture,
+        approve_input=lambda _: "fresh-input",
+    )
+    assert result.status == "uncertain_after_submission"
+    assert result.input_submitted
+    assert not result.desired_effect_verified
+    assert len(inp.calls) == 1 and len(cap.calls) == 1
