@@ -2,6 +2,14 @@
 **Date:** 2026-10-11  **Base GitHub main:** `1925361e1362520c11980987167a410a6635deb0`  **Method:** read-only static source/tree and original task-by-task metadata; no tests, CI, deployment or live-host exercise.
 **Authority:** original unchanged 700-ID, 17-phase V18 master. Evidence ledger is not an implementation oracle.
 
+## Strict production-wiring interpretation (owner requirement)
+
+**Coding-complete means fully wired into the real production path, with only tests/CI/live evidence left.** A partial implementation, dormant module, unused adapter, test fixture, research contract or uncalled helper is **NOT coded-complete**, regardless of code volume. The [enforced production-wiring standard](v18-production-wiring-gate-2026-10-11.md) now requires an explicit application/CI entrypoint, actual composition, calling path, implementation, side-effect/output path and exact reviewed revision before any `code_present_unverified` label is allowed.
+
+**The six code-present tasks** have source-traced candidate production paths but are not tested or deployed. **All 63 partial tasks are coding-incomplete under this stricter definition.** Their existence is not counted as finished implementation. The 631 unassessed tasks are genuinely unknown and must not be called placeholders simply because they have not been traced.
+
+**Progress reporting must not infer an overall coding-done percentage from the 6/63/631 counts.** The 6 are fully-wired source candidates, not accepted; the remaining 694 are a mixture of unfinished, unknown and research/verification requirements, not a validated list of 694 missing features.
+
 ## What the numbers MEAN
 
 - **700 / 700** original stable IDs and phases reconciled to the GitHub ledger. This is **inventory coverage**, not full semantic implementation inspection.
