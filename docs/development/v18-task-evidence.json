@@ -4530,9 +4530,19 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 444,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/lifelong.py",
+        "test/test_ws2_project_thread_lifecycle.py"
+      ],
+      "evidence_commits": [
+        "fc45a510e966cc558e8b40bce8f7adc5d59f51ef",
+        "a49b75446d430d2698487f7d19337e25ad49a4aa",
+        "bb4f1be5ac5c94063faba95d264ce8f7cec1d797",
+        "655079bdb9186a19d726db1c04d4661c366fc326",
+        "70e0487812ca95af49d0297c457ddcfc60705b42",
+        "3d31dcf8369f4eeb67088f3eb3bff261e5ac3d50"
+      ],
       "accepted": false
     },
     {
@@ -4799,9 +4809,21 @@
       "phase": "05",
       "source_topic": "55",
       "master_line": 465,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/lifelong.py",
+        "src/sofia/mobile/gateway.py",
+        "test/test_ws2_project_thread_creation_scope.py",
+        "test/test_ws2_project_thread_lifecycle.py"
+      ],
+      "evidence_commits": [
+        "fc45a510e966cc558e8b40bce8f7adc5d59f51ef",
+        "a49b75446d430d2698487f7d19337e25ad49a4aa",
+        "bb4f1be5ac5c94063faba95d264ce8f7cec1d797",
+        "655079bdb9186a19d726db1c04d4661c366fc326",
+        "70e0487812ca95af49d0297c457ddcfc60705b42",
+        "3d31dcf8369f4eeb67088f3eb3bff261e5ac3d50"
+      ],
       "accepted": false
     },
     {
