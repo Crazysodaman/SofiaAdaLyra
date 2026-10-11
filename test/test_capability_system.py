@@ -173,6 +173,38 @@ def test_missing_authorization_checker_denies_execution():
     assert executed is False
 
 
+
+def test_authorization_exception_is_a_denial_before_handler_execution():
+    events = []
+
+    def refuse(_request):
+        events.append("authorize")
+        raise PermissionError("operator stop is active")
+
+    system = CapabilitySystem(authorization_checker=refuse)
+    system.register(make_capability(), lambda _request: events.append("execute"))
+    result = system.execute(make_request())
+
+    assert result.kind is CapabilityResultKind.UNAUTHORIZED
+    assert result.evidence is None
+    assert "operator stop is active" in result.error
+    assert events == ["authorize"]
+
+
+def test_handler_permission_error_is_not_treated_as_no_effect():
+    system = CapabilitySystem(authorization_checker=lambda _request: True)
+
+    def handler(_request):
+        # A handler may already have performed an effect before its error.
+        raise PermissionError("remote host refused late-stage operation")
+
+    system.register(make_capability(), handler)
+    result = system.execute(make_request())
+
+    assert result.kind is CapabilityResultKind.FAILED
+    assert result.evidence is None
+    assert "remote host refused" in result.error
+
 def test_capability_failure_becomes_structured_result():
     def handler(request):
         raise RuntimeError("inspection exploded")
