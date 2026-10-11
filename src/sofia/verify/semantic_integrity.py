@@ -10,6 +10,7 @@ import sqlite3
 from sofia.dev.release_store import ReleaseStateStore
 from sofia.safe.audit import AuditChain
 from sofia.state.plane import StatePlane
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class IntegritySeverity(str, Enum):
@@ -52,9 +53,10 @@ class SemanticIntegrityVerifier:
         if not isinstance(state_plane, StatePlane):
             raise TypeError("state_plane must be a StatePlane")
         self.state_plane = state_plane
+        self._guard = CanonicalSQLiteGuard(self.path)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db
@@ -91,6 +93,7 @@ class SemanticIntegrityVerifier:
                 )
 
             self._memory_findings(db, findings)
+            self._memory_correction_findings(db, findings)
             self._social_findings(db, findings)
             self._chatgpt_findings(db, findings)
             self._fleet_findings(db, findings)
@@ -231,6 +234,60 @@ class SemanticIntegrityVerifier:
                         f"candidate {source['candidate_id']} source no longer matches original",
                     )
                 )
+
+    def _memory_correction_findings(
+        self, db: sqlite3.Connection, findings: list[IntegrityFinding],
+    ) -> None:
+        """Validate optional reviewed correction lineage without mutating state."""
+        if not self._table(db, "memory_candidate_correction"):
+            return
+        if not self._table(db, "memory_candidate"):
+            findings.append(IntegrityFinding(
+                "memory.correction.orphan_table", IntegritySeverity.ERROR,
+                "correction lineage exists without candidate authority",
+            ))
+            return
+        rows = db.execute(
+            "SELECT c.new_candidate_id,c.old_candidate_id,"
+            "n.status AS new_status,o.status AS old_status,"
+            "n.principal_id AS new_principal,o.principal_id AS old_principal,"
+            "n.audience_id AS new_audience,o.audience_id AS old_audience "
+            "FROM memory_candidate_correction c "
+            "LEFT JOIN memory_candidate n ON n.candidate_id=c.new_candidate_id "
+            "LEFT JOIN memory_candidate o ON o.candidate_id=c.old_candidate_id"
+        ).fetchall()
+        for row in rows:
+            replacement, previous = row["new_candidate_id"], row["old_candidate_id"]
+            if row["new_status"] is None or row["old_status"] is None:
+                findings.append(IntegrityFinding(
+                    "memory.correction.source_missing", IntegritySeverity.ERROR,
+                    f"correction {replacement} → {previous} has a missing candidate",
+                ))
+                continue
+            if (
+                row["new_principal"] != row["old_principal"]
+                or row["new_audience"] != row["old_audience"]
+            ):
+                findings.append(IntegrityFinding(
+                    "memory.correction.cross_scope", IntegritySeverity.ERROR,
+                    f"correction {replacement} → {previous} crosses owner/audience",
+                ))
+            if (
+                row["new_status"] == "promoted"
+                and row["old_status"] != "revoked"
+            ):
+                findings.append(IntegrityFinding(
+                    "memory.correction.not_settled", IntegritySeverity.ERROR,
+                    f"correction {replacement} promoted without revoking {previous}",
+                ))
+            elif (
+                row["new_status"] == "proposed"
+                and row["old_status"] == "revoked"
+            ):
+                findings.append(IntegrityFinding(
+                    "memory.correction.interrupted", IntegritySeverity.WARNING,
+                    f"correction {replacement} is pending but {previous} was revoked",
+                ))
 
     def _social_findings(
         self,
