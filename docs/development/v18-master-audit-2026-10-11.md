@@ -317,3 +317,32 @@ campaign, **44 still partial**, **6 coded/unverified**, **650 individually
 unaudited**, and **0 production accepted**. The exact GitHub source
 reference audit found zero missing code paths. All newly authored
 tests remain unexecuted and no host has been touched.
+
+## Phase 03 source-safety continuation on main, 2026-10-11
+
+The 700 original CA checklist lines remain unchanged. This review located an
+additional **production defect**, not a new authority system: SQLite stores
+that checked for `sofia.db` only in their constructors could still recreate
+a missing canonical database on their subsequent default-create connections.
+
+Source commits: `d4576b9` LIFE, `31f29e7` lifelong Main, `a30e27f`
+GOALS evidence, `b77bac1` Presence observations/outreach; authored
+regression cases `9639985` corrected at `c45289a`. Source report:
+`docs/development/phase03-canonical-state-no-resurrection-2026-10-11.md`.
+They now require an existing non-symlink canonical file and use SQLite
+URI `mode=rw` (GOALS index remains read-only) at these selected paths.
+All these source changes are **not tested or production accepted**.
+
+**CA-6804, CA-5201, CA-6101 remain partial**: this reduces accidental
+resurrection only at inspected boundaries; audit the other SQLite writers,
+bootstrap, epoch/identity validation, owned-writer fencing and complete
+restore before claiming a safe canonical-state migration. In particular,
+`ConversationStore.open()` still permits first-install seeding and needs a
+separate post-start state-loss review, not an unreviewed global change.
+Neither Venus nor Artemis has been chosen as the write host. No service,
+database, mobile device, model or Fleet node has been modified live.
+
+The ledger's **6 coded-unverified / 44 partially wired / 650 unassessed /
+0 accepted** counts are retained as conservative audited statuses. Newly
+committed safety code does not silently close an entire multi-criterion
+CA task or provide the missing exact-SHA CI and host acceptance receipts.
