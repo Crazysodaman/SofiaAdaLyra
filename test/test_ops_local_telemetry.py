@@ -84,13 +84,13 @@ def test_windows_3060_gpu_snapshot_reports_real_single_gpu_bytes(monkeypatch):
     }
 
 
-def test_windows_nvidia_capacity_never_sums_two_separate_gpu_cards(monkeypatch):
+def test_windows_nvidia_capacity_never_guesses_between_gpu_cards(monkeypatch):
     monkeypatch.setattr(telemetry_module.shutil, "which", lambda _: "nvidia-smi")
     observed = telemetry_module._windows_nvidia_gpu_snapshot(
         runner=lambda argv: "8192, 4096, 40\n4096, 0, 5\n",
     )
-    assert observed["vram_total_bytes"] == 4096 * 1024 * 1024
-    assert observed["vram_used_bytes"] == 0
+    # No pinned device index from the configured inference executor.
+    assert observed is None
 
 
 @pytest.mark.parametrize("raw", [
