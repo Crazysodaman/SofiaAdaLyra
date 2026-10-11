@@ -1,3 +1,4 @@
+from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner
 from datetime import datetime, timedelta, timezone
 import json
 import sqlite3
@@ -454,7 +455,7 @@ def test_mutation_next_step_blocks_until_exact_existing_permission(tmp_path):
     assert blocked.run_state is GoalRunState.BLOCKED_APPROVAL
     assert mutations == []
 
-    PermissionStore(path).grant(
+    grant_with_signed_owner(PermissionStore(path), 
         "local.service.restart", scope={"name": "Docker"},
         granted_by="Sparks", now=NOW + timedelta(hours=2, minutes=1),
     )
