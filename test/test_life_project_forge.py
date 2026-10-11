@@ -1462,3 +1462,56 @@ def test_goal_pause_propagates_to_private_life_without_goal_mutation(tmp_path):
         ).status is GoalStatus.PAUSED
     finally:
         life.close()
+
+
+def test_atomic_life_evaluation_experience_rolls_back_on_conflict(tmp_path):
+    """A failing experience insert must not strand a lone evaluation row."""
+    import sqlite3
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        occurred = now + timedelta(seconds=3)
+        base = {
+            "schema": 1,
+            "originating_interest": project.originating_interest,
+            "confidence": project.confidence,
+        }
+        conflicting = ExperienceRecord(
+            "experience:atomic-conflict", project.project_id,
+            "artifact_evaluated", "Existing, unrelated retained experience.",
+            (evidence,), project.audience_id, True, occurred, occurred,
+            {"interest_learning": {**base, "evaluation_id": "evaluation:old"}},
+        )
+        life.store.record_experience(conflicting)
+        candidate = ArtifactEvaluation(
+            "evaluation:atomic-candidate", project.project_id,
+            "artifact:uncommitted", 1, TechnicalOutcome.INCONCLUSIVE,
+            PersonalJudgment.UNKNOWN,
+            {objective: None for objective in project.brief.objectives},
+            "An intentional failed atomic insertion.", (evidence,), False,
+            occurred,
+        )
+        colliding = ExperienceRecord(
+            conflicting.experience_id, project.project_id,
+            "artifact_evaluated", "A different event must not replace the first.",
+            (evidence,), project.audience_id, True, occurred, occurred,
+            {"interest_learning": {
+                **base, "evaluation_id": candidate.evaluation_id,
+            }},
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            life.store.record_evaluation_with_experience(candidate, colliding)
+        assert all(
+            item.evaluation_id != candidate.evaluation_id
+            for item in life.store.evaluations(project.project_id)
+        )
+        assert any(
+            item.experience_id == conflicting.experience_id
+            and item.summary == conflicting.summary
+            for item in life.store.experiences(
+                audience_id=project.audience_id, include_private=True,
+            )
+        )
+    finally:
+        life.close()
