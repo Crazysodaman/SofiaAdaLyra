@@ -12,7 +12,7 @@ from sofia.neuro.research_registry import (
     reviewed_baseline_studies,
 )
 
-pytestmark = pytest.mark.pkg_neuro
+pytestmark = pytest.mark.pkg_verify
 NOW = datetime(2026, 10, 11, 18, tzinfo=timezone.utc)
 
 
@@ -106,13 +106,13 @@ def test_result_must_follow_preregistration_and_stay_owner_reviewed(tmp_path):
 def test_unverified_proof_of_subjectivity_and_phenomenal_hypotheses_rejected(tmp_path):
     _, registry = opened(tmp_path)
     registered = reviewed_baseline_studies(at=NOW)[0]
-    bogus = replace(
-        registered,
-        protocol=replace(
-            registered.protocol, claims_subjective_experience=True,
-        ),
-    )
     with pytest.raises(ValueError, match="preregistration"):
+        bogus = replace(
+            registered,
+            protocol=replace(
+                registered.protocol, claims_subjective_experience=True,
+            ),
+        )
         registry.preregister(bogus)
     with pytest.raises(ValueError, match="subjectivity"):
         replace(
