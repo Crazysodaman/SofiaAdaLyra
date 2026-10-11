@@ -1267,7 +1267,11 @@ class SettingsSections:
     def memory_panel(self, parent):
         from sofia.memory.provenance import CandidateStatus
         from sofia.memory.provenance_store import DurableMemoryCandidateStore
-        from sofia.social.principals import SPARKS_PRINCIPAL_ID
+        from sofia.application.memory_review import MemoryReviewService
+        from sofia.conversation.store import ConversationStore
+        from sofia.social.principals import (
+            SPARKS_PRINCIPAL_ID, local_sparks_principal,
+        )
         from uuid import UUID
         self.ttk.Label(
             parent,
@@ -1306,10 +1310,14 @@ class SettingsSections:
 
         def refresh():
             ids, promoted = candidates(lambda store: (
-                store.list_ids(principal_id=SPARKS_PRINCIPAL_ID),
+                store.list_ids(
+                    principal_id=SPARKS_PRINCIPAL_ID,
+                    audience_id="local:text",
+                ),
                 store.list_ids(
                     status=CandidateStatus.PROMOTED,
                     principal_id=SPARKS_PRINCIPAL_ID,
+                    audience_id="local:text",
                 ),
             ))
             choices = tuple(str(value) for value in ids)
@@ -1357,10 +1365,25 @@ class SettingsSections:
                 def transition(store):
                     key = UUID(choice.get())
                     if key not in store.list_ids(
-                        principal_id=SPARKS_PRINCIPAL_ID
+                        principal_id=SPARKS_PRINCIPAL_ID,
+                        audience_id="local:text",
                     ):
                         raise PermissionError("Candidate is outside owner scope")
-                    getattr(store, action)(key)
+                    if action == "promote":
+                        originals = ConversationStore(self.config.state_path)
+                        try:
+                            review = MemoryReviewService(
+                                conversation_store=originals,
+                                candidate_store=store,
+                                state_path=self.config.state_path,
+                            )
+                            review.promote(
+                                key, approved_by=local_sparks_principal(),
+                            )
+                        finally:
+                            originals.close()
+                    else:
+                        getattr(store, action)(key)
                 candidates(transition)
                 self.messagebox.showinfo(
                     "Memory review", "Review recorded durably. Refresh to see its status.",
@@ -1382,10 +1405,12 @@ class SettingsSections:
                     replacement_id not in store.list_ids(
                         status=CandidateStatus.PROPOSED,
                         principal_id=SPARKS_PRINCIPAL_ID,
+                        audience_id="local:text",
                     )
                     or old_id not in store.list_ids(
                         status=CandidateStatus.PROMOTED,
                         principal_id=SPARKS_PRINCIPAL_ID,
+                        audience_id="local:text",
                     )
                 ):
                     raise PermissionError("Correction candidates are not eligible")
@@ -1429,6 +1454,7 @@ class SettingsSections:
                 if candidate_id not in store.list_ids(
                     status=CandidateStatus.PROMOTED,
                     principal_id=SPARKS_PRINCIPAL_ID,
+                    audience_id="local:text",
                 ):
                     raise PermissionError("Only reviewed, promoted owner memory can expire")
                 return store.get(candidate_id).content
