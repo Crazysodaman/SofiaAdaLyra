@@ -84,7 +84,7 @@ def test_reviewed_public_sources_can_qualify_but_osless_guest_never_trains(tmp_p
     assert any("no trained-adapter GPU" in text for text in judgment.hard_blockers)
     assert reviewed_plan.manifest()["guest_admin"]=="sofia-admin"
     assert reviewed_plan.manifest()["guest_worker"]=="sofia-worker"
-    assert reviewed_plan.manifest()["network_mode"]=="offline_private"
+    assert reviewed_plan.manifest()["network_mode"]=="internal_host_guest_no_lan"
     assert reviewed_plan.manifest()["canonical_db_mount"] is False
     assert reviewed_plan.manifest()["guest_root_execution"] is False
     status=TrainingLabReviewStore(state)
