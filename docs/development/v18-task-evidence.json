@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "c95921aa135d91e1ff5e83beff77f88777acacc2",
+  "reviewed_main_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1: strict permission scope exception handling, canonical LIFE/ACT/Settings operator controls and UI fail-closed state startup source committed. Tests deferred per user, no acceptance claims. Preserve other workstreams.",
+  "notice": "WS1 Phase02: ACT durable pre-send stop/mute release wired across SystemNoticeQueue, ActOutbox/ActDeliveryRunner and SofiaActService; regression sources unexecuted. CA-1102/1105/1904/1907/2707 partial pending other engineering. Preserve other workstreams' records.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1693,7 +1693,11 @@
         "test/test_life_project_forge.py",
         "src/sofia/ui/settings_window.py",
         "src/sofia/application/act_service.py",
-        "test/test_act_runtime_wiring.py"
+        "test/test_act_runtime_wiring.py",
+        "src/sofia/act/system_notice.py",
+        "src/sofia/act/delivery.py",
+        "test/test_act_system_notice.py",
+        "test/test_act_delivery.py"
       ],
       "evidence_commits": [
         "481438c6c0bd402647712ae2bcdc98182b780341",
@@ -1707,13 +1711,19 @@
         "5dc4fdd850dde05590d675801bea5c8f2121bc5d",
         "5a5886d547da4a42a584df5dddbe895fc3db6bd0",
         "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
-        "5c3420e27bcd73f8693b1889478daa4da579a1bd"
+        "5c3420e27bcd73f8693b1889478daa4da579a1bd",
+        "2ec9ca1d87eb4ea70b45eb8d9f0a723564e87d30",
+        "2606916281e9a7d654e4c4e2c94fe286860d232c",
+        "a3f6383babc160842beac1ba80e95621134ac062",
+        "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
+        "8503f42a90ade16cd767e497c5a047b26b918d1d",
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
-        "depth": "operator_stop_and_outreach_runtime_source",
-        "interpretation": "LIFE optional project tick/schedule/worker/idea generation, ACT reflection admission and dynamic delivery mute, and Settings pause/mute UI all check canonical owner state. Test source committed unrun. Domain blocking, authenticated operator identity, in-flight cancellation and complete multi-domain override remain open."
+        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
+        "depth": "production_pre_send_reevaluation_and_durable_release",
+        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
       }
     },
     {
@@ -1741,10 +1751,29 @@
       "phase": "02",
       "source_topic": "11",
       "master_line": 266,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/act/system_notice.py",
+        "src/sofia/act/delivery.py",
+        "src/sofia/application/act_service.py",
+        "test/test_act_system_notice.py",
+        "test/test_act_delivery.py",
+        "test/test_act_runtime_wiring.py"
+      ],
+      "evidence_commits": [
+        "2ec9ca1d87eb4ea70b45eb8d9f0a723564e87d30",
+        "2606916281e9a7d654e4c4e2c94fe286860d232c",
+        "a3f6383babc160842beac1ba80e95621134ac062",
+        "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
+        "8503f42a90ade16cd767e497c5a047b26b918d1d",
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
+        "depth": "production_pre_send_reevaluation_and_durable_release",
+        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
+      }
     },
     {
       "id": "CA-1106",
@@ -1813,7 +1842,13 @@
         "test/test_safe_permissions.py",
         "src/sofia/integrations/capabilities.py",
         "src/sofia/capability/system.py",
-        "test/test_capability_system.py"
+        "test/test_capability_system.py",
+        "src/sofia/act/system_notice.py",
+        "src/sofia/act/delivery.py",
+        "src/sofia/application/act_service.py",
+        "test/test_act_system_notice.py",
+        "test/test_act_delivery.py",
+        "test/test_act_runtime_wiring.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -1831,7 +1866,13 @@
         "e14e44a5073277536d48ab245b17e078ae8cf363",
         "cf5f1467231465da5dad9e69ef03a9799c2ee842",
         "7821a7c381d3567d5ea84da74c0fa6657b46d05b",
-        "c95921aa135d91e1ff5e83beff77f88777acacc2"
+        "c95921aa135d91e1ff5e83beff77f88777acacc2",
+        "2ec9ca1d87eb4ea70b45eb8d9f0a723564e87d30",
+        "2606916281e9a7d654e4c4e2c94fe286860d232c",
+        "a3f6383babc160842beac1ba80e95621134ac062",
+        "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
+        "8503f42a90ade16cd767e497c5a047b26b918d1d",
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
       ],
       "accepted": false,
       "coding_update": {
@@ -1840,9 +1881,9 @@
         "acceptance": "deferred"
       },
       "audit_observation": {
-        "at_sha": "c95921aa135d91e1ff5e83beff77f88777acacc2",
-        "depth": "production_scope_and_operator_stop_source",
-        "interpretation": "Scoped permission serialization now keeps precise oversize error outside JSON exception handler, type-strict comparison and last-moment revocation checks preserved. LIFE and ACT/Settings durable stop paths source-wired, no tests run; full auth boundary and external side-effect cancellation remain open."
+        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
+        "depth": "production_pre_send_reevaluation_and_durable_release",
+        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
       },
       "operator_authentication_blocker": {
         "at_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
@@ -1888,7 +1929,11 @@
         "src/sofia/ui/settings_window.py",
         "src/sofia/application/act_service.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/safe/permissions.py"
+        "src/sofia/safe/permissions.py",
+        "src/sofia/act/system_notice.py",
+        "src/sofia/act/delivery.py",
+        "test/test_act_system_notice.py",
+        "test/test_act_delivery.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -1911,13 +1956,19 @@
         "5a5886d547da4a42a584df5dddbe895fc3db6bd0",
         "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
         "5c3420e27bcd73f8693b1889478daa4da579a1bd",
-        "c95921aa135d91e1ff5e83beff77f88777acacc2"
+        "c95921aa135d91e1ff5e83beff77f88777acacc2",
+        "2ec9ca1d87eb4ea70b45eb8d9f0a723564e87d30",
+        "2606916281e9a7d654e4c4e2c94fe286860d232c",
+        "a3f6383babc160842beac1ba80e95621134ac062",
+        "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
+        "8503f42a90ade16cd767e497c5a047b26b918d1d",
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "c95921aa135d91e1ff5e83beff77f88777acacc2",
-        "depth": "production_scope_and_operator_stop_source",
-        "interpretation": "Scoped permission serialization now keeps precise oversize error outside JSON exception handler, type-strict comparison and last-moment revocation checks preserved. LIFE and ACT/Settings durable stop paths source-wired, no tests run; full auth boundary and external side-effect cancellation remain open."
+        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
+        "depth": "production_pre_send_reevaluation_and_durable_release",
+        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
       }
     },
     {
@@ -1991,20 +2042,30 @@
         "src/sofia/application/act_service.py",
         "src/sofia/ui/settings_window.py",
         "test/test_life_project_forge.py",
-        "test/test_act_runtime_wiring.py"
+        "test/test_act_runtime_wiring.py",
+        "src/sofia/act/system_notice.py",
+        "src/sofia/act/delivery.py",
+        "test/test_act_system_notice.py",
+        "test/test_act_delivery.py"
       ],
       "evidence_commits": [
         "c65ea31e9dc4e81f85f85b1d89efa459e87c1413",
         "5dc4fdd850dde05590d675801bea5c8f2121bc5d",
         "5a5886d547da4a42a584df5dddbe895fc3db6bd0",
         "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
-        "5c3420e27bcd73f8693b1889478daa4da579a1bd"
+        "5c3420e27bcd73f8693b1889478daa4da579a1bd",
+        "2ec9ca1d87eb4ea70b45eb8d9f0a723564e87d30",
+        "2606916281e9a7d654e4c4e2c94fe286860d232c",
+        "a3f6383babc160842beac1ba80e95621134ac062",
+        "cda4add6e4ff1e8b4da0f38ea5cd9f65f98365c7",
+        "8503f42a90ade16cd767e497c5a047b26b918d1d",
+        "05df436675c5b4c0651d1b19aa39cbd283a9908f"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
-        "depth": "operator_stop_and_outreach_runtime_source",
-        "interpretation": "LIFE optional project tick/schedule/worker/idea generation, ACT reflection admission and dynamic delivery mute, and Settings pause/mute UI all check canonical owner state. Test source committed unrun. Domain blocking, authenticated operator identity, in-flight cancellation and complete multi-domain override remain open."
+        "at_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
+        "depth": "production_pre_send_reevaluation_and_durable_release",
+        "interpretation": "Canonical ACT SystemNoticeQueue and INTERACT ActOutbox now re-evaluate live operator stop/mute from SofiaActService after durable claim but before actual sender invocation. Host-verified veto reverses unsent claim, preserves queue, and does not burn delivery attempts; rejection trace persists. Regressions written, not executed. Broader CA requirement remains partial including external in-flight cancellation and authenticated operator authority."
       }
     },
     {
