@@ -166,3 +166,31 @@ def test_training_plan_expires_and_never_acquires_permanent_rights(tmp_path):
     assert "training plan expired" in expired.hard_blockers
     assert expired.training_authorized is False
     assert expired.gpu_lease_granted is False
+
+
+
+def test_option_b_unverified_internal_network_blocks_training_lab_even_if_ids_match(
+    tmp_path,monkeypatch,
+):
+    from sofia.ops.workshop_handoff import WorkshopHandoffStore
+    state,ds,training,heldout=model_and_sources(tmp_path)
+    proposed=plan(training,heldout)
+    handoff=WorkshopHandoffStore(state)
+    monkeypatch.setattr(
+        WorkshopHandoffStore,"read_model_brief",
+        lambda self:{
+            "status":"reviewed_read_only",
+            "artemis_node_id":str(ARTEMIS),
+            "vm_guid":str(HEPHAESTUS),
+            "guest_name":"Hephaestus",
+            "ready_for_bootstrap_review":False,
+            "internal_isolation_observed":False,
+        },
+    )
+    result=assess_training_lab(
+        proposed,dataset_store=ds,
+        workshop_handoff_store=handoff,at=NOW,
+    )
+    assert result.source_review_eligible is True
+    assert not result.runtime_ready
+    assert any("Internal network isolation" in msg for msg in result.hard_blockers)
