@@ -206,8 +206,7 @@ class MemorySystem:
             if (
                 candidate.principal_id != principal.principal_id
                 or candidate.audience_id not in (None, principal.audience_id)
-                or candidate_store.status(candidate.candidate_id)
-                is not CandidateStatus.PROMOTED
+                or not candidate_store.is_recall_eligible(candidate.candidate_id)
             ):
                 continue
 
