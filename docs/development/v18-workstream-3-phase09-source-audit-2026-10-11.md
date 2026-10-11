@@ -789,3 +789,9 @@
 - **Confirmed gap:** Existing original-evidence rechecking around `ProjectIdeaAgent` did not detect a correction to `life_experience.summary` or `metadata_json` when evidence IDs themselves remained valid.
 - **Active production patch:** exact scoped `LifeStore.experience_by_id` plus post-model canonical digest comparison and continued original evidence-current check, performed before the real `invent_project` path. Source `bfba8ea` and `a607ed9`; regression `6c92979` authored only, not executed.
 - **Remaining:** source-level correction/deletion replay into already learned long-term interest revisions, optional ordinary experience admission, research/acceptance matrix and independent benchmarks. No completion promotion from this fix alone.
+
+## Follow-up: private causal history requires original source chronology (2026-10-11)
+
+- **Original CA IDs:** CA-107 and CA-2407 plus Phase 07 CA-3402/3404/3406, partial source-only.
+- **Finding:** read-only `SelfDirectedLifeCoordinator.project_causal_trace` checked evidence observation against query clock, but not the event's own time. A future original could appear as a cause of earlier LIFE intention, evaluation or experience, and corrupt original timestamps could break projection.
+- **Correction:** original scoped source and temporal eligibility guard at each causal link; historically later, wrong-scope, malformed or missing originals are labelled UNKNOWN. Source `35ebe59`, regression `e337cef` authored only, not run.
