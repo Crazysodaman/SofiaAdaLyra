@@ -224,6 +224,33 @@ Commits:
 CA relevance: CA-5201, CA-5603, CA-4204, CA-4206, CA-6306. This only
 closes a directly observed connection/file-identity failure slice.
 
+### Imported memory originals and operator-reviewed promotion fencing (Phase 06)
+
+Production route: source import CLI → `ChatGPTMemoryImportStore`
+(original payload + source IDs) →
+`ChatGPTMemoryMigrationService.propose_batch` →
+`DurableMemoryCandidateStore` (same sofia.db) →
+reviewed `promote/promote_batch` → canonical candidate status →
+`MemorySystem.recall_relevant` scoped cognitive projection.
+
+`ChatGPTMemoryImportStore` now pins its originally opened SQLite file
+and checks its identity before reading/writing through its long-lived
+connection. `ChatGPTMemoryMigrationService` similarly uses a pinned
+`CanonicalSQLiteGuard` for its short-lived promotion mapping connections.
+Replacement and loss cannot silently transplant a reviewed decision into
+a different database after runtime initialization. Initial fixture/import
+database creation remains compatible, requiring separate first-install
+bootstrap policy consolidation.
+
+Commits:
+- `d416be97284bfb8d2cda528b22a39918d64924fc` imported originals owner.
+- `e22553b45052de7c233ce4521ee6c8ad010fee2a` reviewed promotion mapping.
+- `d48688c4e107a19d9a3f624833ff0e2f5adc9e80` deferred regressions
+  including safe Windows lock handling.
+
+CA relevance: CA-5201, CA-5603, CA-4204, CA-1703, CA-6306.
+No tests executed, no promoted facts changed, no CA status accepted.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
