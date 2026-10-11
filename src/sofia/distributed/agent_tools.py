@@ -210,6 +210,48 @@ def create_default_agent_dispatcher(
         pinned_disk=os.environ.get(
             "SOFIA_WORKSHOP_BOOTSTRAP_OS_DISK",""
         ).strip()
+        # Owner-created Hephaestus network preparation is a distinct,
+        # Level-4 single-use host mutation. A design decision alone never
+        # registers this capability. Administrator pins VM GUID on Artemis.
+        network_stage_enabled=os.environ.get(
+            "SOFIA_WORKSHOP_NETWORK_STAGE_ENABLED",""
+        ).strip()=="1"
+        network_vm=os.environ.get(
+            "SOFIA_WORKSHOP_NETWORK_VM_ID",""
+        ).strip()
+        if network_stage_enabled:
+            if not network_vm:
+                raise PermissionError(
+                    "Artemis administrator must pin existing Hephaestus VM GUID "
+                    "before allowing protected Internal switch staging"
+                )
+            network_exact_vm=str(UUID(network_vm))
+            from sofia.ops.workshop_network import network_policy_digest
+            network_digest=network_policy_digest()
+
+            def guarded_internal_link_stage(parameters):
+                if set(parameters)!={
+                    "vm_id","network_policy_digest","approval_id",
+                }:
+                    raise PermissionError(
+                        "exact one-use Internal-link stage request required"
+                    )
+                supplied=str(UUID(str(parameters["vm_id"])))
+                if (
+                    supplied!=network_exact_vm
+                    or parameters["network_policy_digest"]!=network_digest
+                    or not isinstance(parameters["approval_id"],str)
+                    or not parameters["approval_id"].strip()
+                ):
+                    raise PermissionError(
+                        "network stage VM identity or host-only /30 policy changed"
+                    )
+                return _plain(hyperv.stage_hephaestus_internal_link(
+                    vm_id=supplied,
+                ))
+            dispatcher.register(
+                "workshop.network","stage",guarded_internal_link_stage,
+            )
         if bootstrap_enabled:
             if not pinned_vm or not pinned_disk or not workshop_image_root:
                 raise PermissionError(
