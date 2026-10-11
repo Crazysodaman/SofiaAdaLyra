@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+  "reviewed_main_sha": "a7de797b5a4b3c875da2e9de9638d3c4a58f41c0",
   "audit_date_utc": "2026-10-11",
-  "notice": "Individual source-path crosswalk reviewed through main 1805a8a. Partial wiring does not prove a whole task coded. No CI, tests, mobile build, state relocation, host deployment, or multi-device acceptance run. All 700 task acceptance receipts remain open.",
+  "notice": "700 immutable V18 tasks; source evidence crosswalk through a7de797. Production gate now has installed-wheel-only mode, not executed. No tests/CI/Android build or host acceptance has run. Partial source paths are NOT full task completion.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1010,9 +1010,14 @@
       "phase": "01",
       "source_topic": "23",
       "master_line": 206,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/gate.py",
+        ".github/workflows/release-candidate.yml"
+      ],
+      "evidence_commits": [
+        "a7de797b5a4b3c875da2e9de9638d3c4a58f41c0"
+      ],
       "accepted": false
     },
     {
@@ -1155,10 +1160,13 @@
       "code_paths": [
         ".github/workflows/release-candidate.yml",
         "src/sofia/verify/source_provenance.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/verify/gate.py",
+        "src/sofia/verify/package_selection.py",
+        "test/conftest.py"
       ],
       "evidence_commits": [
-        "a9ec36e94c4e55347d607f337e182d15b4120f03"
+        "a9ec36e94c4e55347d607f337e182d15b4120f03",
+        "a7de797b5a4b3c875da2e9de9638d3c4a58f41c0"
       ],
       "accepted": false
     },

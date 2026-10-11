@@ -172,3 +172,20 @@ of the canonical state files against concurrent startup overwrites.
   be promoted by model text.
 - No Android build, GitHub CI run, Windows production proof or Fleet host
   test was executed. Per earlier instruction testing remains postponed.
+
+## Source audit continuation through a7de797, October 11, 2026
+
+The release gate at parent `93614b6` could run pytest with `src/`
+added to the source import path. A wheel package check under that policy
+could test the checkout rather than the artifact that would ship. Commit
+`a7de797` corrects that in installed-wheel-only mode: isolated venv
+origin check, pytest source-path override, conftest runtime assertion and
+GitHub release workflow binding, without changing normal editable tests.
+This adds source evidence to CA-3004 and CA-2302. Both remain **partial**
+until independently confirmed CI evidence and installed-wheel smoke checks.
+
+After the update the ledger classifies **6**
+source-coded/unverified, **35** partially wired,
+**659** not individually reviewed, **0** accepted. These
+are conservative source-audit states, not progress through production
+acceptance or a percentage of remaining implementation.
