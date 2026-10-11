@@ -707,3 +707,11 @@ Original CA task ledger coverage for all 175 assigned IDs remains incomplete and
 - **Observed additional gap:** although direct RUN scheduling now rejects overdue GOALS, `motivation_signals` still evaluated an ACTIVE-but-expired SELF goal as eligible and could cause an unnecessary background model wake. The operator dependency view omitted that deadline blocker; GOALS→LIFE reconciliation waited for the separate GOALS status transition.
 - **Source correction:** motivation blockers include `canonical_goal_expired` before any optional project or model selection; read-only `goal_dependency_view` reports `goal_expired` with a REST next action and no new-work eligibility. GOALS-to-LIFE reconciliation PAUSES overdue projects without claiming canonical GOALS status changed, preserving distinct authoritative expiry sweeps and any unsettled RUN effects. No synthetic deadline, memory or permission event is minted as success.
 - **Deferred regression:** overdue-but-status-ACTIVE GOALS yields zero model calls, no RUN job, source-backed paused LIFE, an accurate read-only diagnostic and unchanged authoritative GOALS status pending sweep. No tests or live effects executed.
+
+
+## Phase 09 exact RUN receipt reason and temporal consistency (2026-10-11)
+
+- **Original IDs:** CA-106, CA-204, CA-2402, CA-2407/2408 (partial requirements).
+- **Source audit:** `LifeStore.exact_original_run_outcome` already joined the derived LIFE event to original `autonomous_work_event` by event ID, job, status and event timestamp, but omitted original `reason` equality and allowed a derived `observed_at` predating the original event. A forged/stale derived reason could be repeated in LIFE failure/uncertainty diagnostics as if original RUN evidence supported it.
+- **Production correction:** require original RUN `event.reason` equality in the exact source join, reject untrustworthy/naive or inverted observation chronology before returning evidence, and retain existing bounded exact RUN query. A corrupted derived row cannot justify LIFE terminal transition or retry. No new work, grants, or separate event store.
+- **Deferred regression:** original RUN BLOCKED with altered derived reason, and UNCERTAIN with backdated derived observation; both fail closed and do not alter project status. Authored, not executed.
