@@ -723,6 +723,35 @@ class ConversationService(ConversationMatrixMixin):
             principal=principal,
         )
 
+    def _link_main_lifelong_message(
+        self, message: ConversationMessage,
+        principal: PrincipalContext | None,
+    ) -> None:
+        """Index an authentic message as a Main-thread source event.
+
+        Failure is diagnostic only: the source message remains saved and
+        the active conversation is not discarded. Original audience binding
+        determines what another channel may read or disclose.
+        """
+        if principal is None:
+            return
+        try:
+            from sofia.conversation.lifelong import LifelongThreadStore
+            store = getattr(self, "_lifelong_thread_store", None)
+            if store is None:
+                store = LifelongThreadStore(self._conversation_store.database_path)
+                self._lifelong_thread_store = store
+            thread = store.get_or_create(owner=principal)
+            store.link_message(
+                thread_id=thread.thread_id,
+                source_message_id=message.id,
+                principal=principal,
+            )
+            self._last_lifelong_index_error = None
+        except Exception as exc:
+            self._last_lifelong_index_error = type(exc).__name__
+            _LOG.exception("Lifelong source-link indexing failed; original message is durable")
+
     def _after_user_message_saved(
         self,
         *,
@@ -736,6 +765,7 @@ class ConversationService(ConversationMatrixMixin):
         habit, or relationship bookkeeping fault into a conversation outage.
         """
         errors: list[str] = []
+        self._link_main_lifelong_message(message, principal)
 
         learning = getattr(self, "_learning_coordinator", None)
         if learning is not None:
@@ -1209,6 +1239,11 @@ class ConversationService(ConversationMatrixMixin):
         )
 
         self._conversation_store.save(assistant_message)
+        social = getattr(self, "_social_store", None)
+        bound_principal = (
+            None if social is None else social.get(assistant_message.session_id)
+        )
+        self._link_main_lifelong_message(assistant_message, bound_principal)
 
         self._session = (
             self._conversation_store.get_session(
