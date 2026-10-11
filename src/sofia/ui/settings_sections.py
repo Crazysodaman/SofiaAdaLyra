@@ -2370,9 +2370,10 @@ class SettingsSections:
             # verified staging publisher must use an ABSENT final name.
             # Choose an existing parent, then preview a distinct new child;
             # no directory, file, grant or state pointer is created here.
-            import re
             from tkinter import simpledialog
-            from sofia.ops.state_mobility import relocation_preflight_text
+            from sofia.ops.state_mobility import (
+                relocation_preflight_text, proposed_state_home_from_parent,
+            )
 
             parent_directory = filedialog.askdirectory(
                 parent=self.root,
@@ -2390,26 +2391,16 @@ class SettingsSections:
             )
             if folder is None:
                 return
-            reserved = {
-                "CON", "PRN", "AUX", "NUL",
-                *(f"COM{i}" for i in range(1, 10)),
-                *(f"LPT{i}" for i in range(1, 10)),
-            }
-            if (
-                re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}", folder)
-                is None
-                or folder.endswith((" ", "."))
-                or folder.split(".", 1)[0].upper() in reserved
-            ):
+            try:
+                destination = proposed_state_home_from_parent(
+                    Path(parent_directory), folder,
+                )
+            except (ValueError, PermissionError, FileExistsError) as exc:
                 self.messagebox.showerror(
-                    "Invalid state-home folder",
-                    "Choose a simple 1–64 character folder name "
-                    "without path separators, reserved device names, "
-                    "or a trailing dot/space.",
+                    "Invalid state-home destination", str(exc),
                     parent=self.root,
                 )
                 return
-            destination = Path(parent_directory) / folder
             self.messagebox.showinfo(
                 "Sofía state relocation preflight (read only)",
                 relocation_preflight_text(
