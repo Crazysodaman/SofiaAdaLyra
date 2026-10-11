@@ -670,6 +670,10 @@ class MobileCompanionGateway:
         mode = "private" if private_mode else "standard"
         with self._lock:
             with closing(self._connect()) as db:
+                # Pin one SQLite read snapshot across credential AND receipt
+                # lookup. Merely reusing a connection in autocommit mode
+                # does not prevent a pairing rotation between SELECTs.
+                db.execute("BEGIN")
                 # Credential check and receipt read use one SQLite snapshot.
                 # After rotation/revocation, an old phone cannot recover
                 # private assistant output under its former pairing.
