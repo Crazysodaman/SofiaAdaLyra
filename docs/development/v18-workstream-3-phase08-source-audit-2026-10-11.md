@@ -637,3 +637,8 @@
 - CA-409/2504: real follow-up usefulness/commitment signals without equating silence to rejection or pressure.
 
 **No source-only claim that these are 56 coding-complete tasks.** Further per-function audit and coding is required before updating global acceptance.
+
+
+## 2026-10-11 production follow-up: original Presence evidence freshness at final ACT send
+
+The application-owned last send authorization now rechecks original OBSERVED/KNOWN status, numeric confidence ≥ 0.6, event/observation chronology, and observation lifetime covering the queued notice. A later downgraded or corrupt original source is AUTHORIZATION_UNAVAILABLE rather than an eligible notification. Relevant partial CA IDs: CA-404/405/410/1007/2407/2602. Production commit `e1dac928`; six deferred regression cases `9ad3a092`. Actual Desktop/Discord receipt campaigns and all original acceptance remain open.
