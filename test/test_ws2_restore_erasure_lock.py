@@ -30,7 +30,7 @@ def test_file_by_file_restore_publication_keeps_erasure_append_fenced(
     held = [False]
     published_while_locked = []
     underlying_lock = journal_module.MemoryDeletionLedger._exclusive
-    underlying_replace = os.replace
+    underlying_link = os.link
 
     @contextmanager
     def observe_lock(self):
@@ -42,17 +42,15 @@ def test_file_by_file_restore_publication_keeps_erasure_append_fenced(
             finally:
                 held[0] = False
 
-    def observe_replace(source, target):
-        if destination.parent in target.parents:
+    def observe_link(source, target):
+        if destination.parent in target.parents or target == destination:
             published_while_locked.append(held[0])
-        elif target == destination:
-            published_while_locked.append(held[0])
-        return underlying_replace(source, target)
+        return underlying_link(source, target)
 
     monkeypatch.setattr(
         journal_module.MemoryDeletionLedger, "_exclusive", observe_lock,
     )
-    monkeypatch.setattr(backup_module.os, "replace", observe_replace)
+    monkeypatch.setattr(backup_module.os, "link", observe_link)
 
     receipt = engine.restore(
         backup_dir=archive,
