@@ -2,6 +2,7 @@
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 import sqlite3
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 from sofia.application.background import BackgroundBudget
 from sofia.application.optional_budget import (
@@ -12,7 +13,7 @@ pytestmark=pytest.mark.pkg_run
 T=datetime(2026,10,11,12,tzinfo=timezone.utc)
 
 def test_global_background_claim_spends_atomic_reservations_without_double_counting(tmp_path):
-    path=tmp_path/"sofia.db"
+    path=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     budget=BackgroundBudget(path)
     actual=OptionalAutonomyBudget(path)
     settings,revision=actual.limits()
@@ -34,7 +35,7 @@ def test_global_background_claim_spends_atomic_reservations_without_double_count
 
 
 def test_owner_budget_limit_denies_optional_model_wakeup_but_not_foreground(tmp_path):
-    path=tmp_path/"sofia.db"
+    path=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     optional=OptionalAutonomyBudget(path)
     _,rev=optional.limits()
     optional.update_owner_limits(
@@ -54,7 +55,7 @@ def test_owner_budget_limit_denies_optional_model_wakeup_but_not_foreground(tmp_
 
 
 def test_quota_accumulates_across_two_coordinators_and_is_day_scoped(tmp_path):
-    path=tmp_path/"sofia.db"
+    path=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     optional=OptionalAutonomyBudget(path)
     _,rev=optional.limits()
     quoted=reserve_profile("reflection")
@@ -83,7 +84,7 @@ def test_quota_accumulates_across_two_coordinators_and_is_day_scoped(tmp_path):
 
 
 def test_stale_claim_recovery_fails_claim_reservation_not_recharge_same_work(tmp_path):
-    path=tmp_path/"sofia.db"
+    path=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     budget=BackgroundBudget(path,claim_timeout=timedelta(minutes=3))
     claim=budget.claim("reflection",now=T)
     assert claim is not None
@@ -103,7 +104,7 @@ def test_stale_claim_recovery_fails_claim_reservation_not_recharge_same_work(tmp
 
 
 def test_owner_cannot_update_resource_caps_from_stale_settings_revision(tmp_path):
-    store=OptionalAutonomyBudget(tmp_path/"sofia.db")
+    store=OptionalAutonomyBudget(bootstrap_canonical_sqlite(tmp_path/"sofia.db"))
     _,revision=store.limits()
     store.update_owner_limits(OptionalBudgetLimits(tokens=12_000),expected_revision=revision)
     with pytest.raises(PermissionError,match="changed"):
@@ -126,7 +127,7 @@ def test_unclassified_optional_tasks_are_never_cost_free():
 
 
 def test_optional_budget_never_accounts_without_one_sqlite_transaction(tmp_path):
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     coordinator=BackgroundBudget(state)
     accounting=coordinator.optional_resources
     with sqlite3.connect(state) as db:
