@@ -6,6 +6,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class SocialSessionStore:
@@ -13,10 +14,13 @@ class SocialSessionStore:
 
     def __init__(self, database_path: Path | str) -> None:
         self._database_path = Path(database_path)
+        # Social bindings are canonical authority, not an independent DB.
+        # Never create a replacement state on source loss/recovery.
+        self._guard = CanonicalSQLiteGuard(self._database_path)
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(str(self._database_path), timeout=5.0)
+        connection = self._guard.connect(timeout=5.0)
         connection.row_factory = sqlite3.Row
         return connection
 
