@@ -161,6 +161,8 @@ def reviewed_handoff_from_store(state_path:Path|str,*,plan_id:str,
         handoff.plan_id!=plan_id or handoff.fingerprint!=row[0]
         or payload["review"]["fingerprint"]!=handoff.fingerprint
         or not payload["review"]["ready_for_owner_bootstrap_review"]
+        or payload.get("owner_approved_media_policy")
+           != "hephaestus-debian13-console-admin-v1"
         or not handoff.created_at<=now<handoff.expires_at
     ):
         raise PermissionError("handoff expired, modified or not eligible")
@@ -232,12 +234,17 @@ def start_owner_approved_installer(
     ):
         raise PermissionError("approved unattended media unavailable")
     digest=json.loads(media["message"])
+    from sofia.ops.workshop_media_attestation import POLICY
     if (
         not isinstance(digest,dict)
         or digest.get("sha256")!=handoff.installer_sha256
         or digest.get("kind")!=".iso"
+        or digest.get("owner_signed") is not True
+        or digest.get("policy_version")!=POLICY
     ):
-        raise PermissionError("installer media digest/type has changed")
+        raise PermissionError("signed console-admin installer policy or media digest changed")
+    if previous.get("owner_approved_media_policy")!=POLICY:
+        raise PermissionError("saved owner review lacks approved signed first-boot policy")
     parameters={
         "artemis_node_id":node,
         "vm_id":str(handoff.hyperv_vm_id),
