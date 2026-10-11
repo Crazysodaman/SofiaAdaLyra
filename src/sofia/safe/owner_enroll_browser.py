@@ -91,8 +91,8 @@ document.getElementById('enroll').addEventListener('click',async()=>{
 </script></body></html>"""
 
 
-def require_venus_interactive_windows() -> str:
-    """Return the actual Windows access-token SID in an attended Venus session.
+def require_venus_interactive_windows(*, require_terminal: bool = True) -> str:
+    """Return the Windows token SID from an attended, non-service Venus session.
 
     Never infer the owner's OS account from USERNAME, a display name or
     human-supplied `approved_by`; the OS owns that security identity.
@@ -101,8 +101,10 @@ def require_venus_interactive_windows() -> str:
         raise PermissionError("attended owner enrollment requires Windows on Venus")
     if socket.gethostname().split(".", 1)[0].casefold() != "venus":
         raise PermissionError("owner credential bootstrap must run on Venus")
-    if not sys.stdin.isatty():
-        raise PermissionError("owner enrollment requires an interactive terminal")
+    if type(require_terminal) is not bool:
+        raise TypeError("require_terminal must be bool")
+    if require_terminal and not sys.stdin.isatty():
+        raise PermissionError("initial owner enrollment requires an interactive terminal")
     session_id = ctypes.c_ulong()
     pid = ctypes.windll.kernel32.GetCurrentProcessId()
     ok = ctypes.windll.kernel32.ProcessIdToSessionId(
@@ -133,7 +135,9 @@ def require_owner_windows_account(state_path: Path | str) -> str:
     Future Debian-hosted approval must use a separately authenticated
     remote-client protocol, never a copied SQLite file or self-stated username.
     """
-    sid = require_venus_interactive_windows()
+    # Tkinter/Tray starts without a console. Pinned SID and the subsequent
+    # signed WebAuthn assertion remain mandatory, but a terminal does not.
+    sid = require_venus_interactive_windows(require_terminal=False)
     verifier = OwnerWebAuthnVerifier(
         state_path, rp_id="localhost", origin="http://localhost:39872",
     )
