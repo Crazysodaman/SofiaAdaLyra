@@ -3504,6 +3504,30 @@ without further work. No tests,
 actual plaintext export, clean
 host recovery or live changes.
 
+
+
+### Phase 03 original task evidence: Three newly partial, one enriched
+
+The original V18 evidence ledger was reconciled only
+where audited implementation exists. Of four Phase 03
+IDs checked, CA-6104 (portable versioned export),
+CA-6802 (read-only Settings storage inspection) and
+CA-6812 (typed crash/uncertain relocation recovery)
+now have `partial_wiring` evidence. CA-5205
+(portable disaster recovery format) was already
+partial and gained the independently readable
+checksum validator. No original task became
+`accepted` or `code_complete`.
+
+Ledger commit:
+`16c5761c060fd2e0aaa101d31354913c881ef5b5`
+(`[skip ci]`). The remaining original design
+requirements and actual privileged writer
+fencing are still open. The Phase 03 operator
+cutover ADR supplies researched decisions but
+does not pretend their entire production
+implementation was finished.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
