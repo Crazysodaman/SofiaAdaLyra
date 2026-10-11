@@ -52,6 +52,19 @@ def _reject_redirected_restore_path(path: Path) -> None:
             )
 
 
+def _reject_redirected_backup_input(path: Path) -> None:
+    """Backup inputs must not escape their selected state/archive home.
+
+    A protected-root junction, payload symlink, or archive-directory redirect
+    can otherwise cause backup/verification to read unrelated host files.
+    """
+    for component in (path, *path.parents):
+        if component.is_symlink() or getattr(component, "is_junction", lambda: False)():
+            raise BackupError(
+                "backup source or archive contains a symbolic link or junction"
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class BackupEntry:
     logical_path: str
@@ -269,19 +282,26 @@ class BackupEngine:
         result: list[tuple[str, Path]] = [("sofia.db", sqlite_snapshot)]
 
         protected = layout.protected_root
+        # A protected directory can itself be a junction even though no
+        # enumerated child is a symlink. Inspect the selected root first.
+        _reject_redirected_backup_input(state_path)
+        _reject_redirected_backup_input(protected)
         if protected.exists():
             for path in sorted(protected.rglob("*")):
                 if path.is_symlink():
                     raise BackupError(f"protected state may not contain symlink: {path}")
                 if path.is_file():
+                    _reject_redirected_backup_input(path)
                     logical = Path("protected") / path.relative_to(protected)
                     result.append((logical.as_posix(), path))
 
         for path in (layout.personality_path, layout.avatar_path):
+            _reject_redirected_backup_input(path)
             if path.is_file():
                 result.append((path.name, path))
 
         release_pointer = state_path.parent / "release-runtime" / "active-release.json"
+        _reject_redirected_backup_input(release_pointer)
         if release_pointer.is_file():
             result.append(("release-runtime/active-release.json", release_pointer))
 
@@ -328,6 +348,7 @@ class BackupEngine:
             for index, (logical, source) in enumerate(
                 self._collect_files(state_path, snapshot)
             ):
+                _reject_redirected_backup_input(source)
                 plaintext = source.read_bytes()
                 digest = sha256(plaintext).hexdigest()
                 payload_name = f"{index:04d}.bin"
@@ -370,12 +391,15 @@ class BackupEngine:
     def verify(self, backup_dir: Path) -> BackupManifest:
         if not isinstance(backup_dir, Path) or not backup_dir.is_dir():
             raise FileNotFoundError("backup directory does not exist")
+        _reject_redirected_backup_input(backup_dir)
         manifest_path = backup_dir / "manifest.json"
         manifest_mac_path = backup_dir / "manifest.hmac"
         if not manifest_path.is_file():
             raise BackupError("backup manifest is missing")
         if not manifest_mac_path.is_file():
             raise BackupError("backup manifest authentication is missing")
+        _reject_redirected_backup_input(manifest_path)
+        _reject_redirected_backup_input(manifest_mac_path)
         manifest_bytes = manifest_path.read_bytes()
         if not self.cipher.verify_manifest_mac(
             manifest_bytes,
@@ -386,6 +410,7 @@ class BackupEngine:
         payload_dir = backup_dir / "payload"
         for entry in manifest.entries:
             payload = payload_dir / entry.payload_name
+            _reject_redirected_backup_input(payload)
             if not payload.is_file():
                 raise BackupError(f"backup payload missing: {entry.payload_name}")
             aad = f"{manifest.backup_id}:{entry.logical_path}".encode("utf-8")
@@ -435,9 +460,13 @@ class BackupEngine:
             staging = Path(temp_dir)
             payload_dir = backup_dir / "payload"
             for entry in manifest.entries:
+                payload = payload_dir / entry.payload_name
+                # Revalidate on the second read after verify(). Restore
+                # never follows a payload that changed into a symlink.
+                _reject_redirected_backup_input(payload)
                 aad = f"{manifest.backup_id}:{entry.logical_path}".encode("utf-8")
                 plaintext = self.cipher.decrypt(
-                    (payload_dir / entry.payload_name).read_bytes(),
+                    payload.read_bytes(),
                     nonce=b64decode(entry.nonce_b64),
                     aad=aad,
                 )
