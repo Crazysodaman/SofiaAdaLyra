@@ -78,3 +78,45 @@ def test_file_mutated_between_stat_and_open_is_denied(tmp_path, monkeypatch):
     with pytest.raises(PermissionError, match="changed before inspection"):
         inspect(data)
     assert raced["done"] is True
+
+
+@pytest.mark.parametrize("source_class,license_id,source_ref", [
+    ("licensed_public", "OWNER-ORIGINAL", "public-source:claimed-rights"),
+    ("owner_original_nonprivate", "CC0-1.0", "owner-source:claimed-rights"),
+    ("licensed_public", "CC0-1.0", "owner-source:wrong-origin"),
+    ("owner_original_nonprivate", "OWNER-ORIGINAL", "public-source:wrong-origin"),
+    ("synthetic_nonsensitive", "OWNER-ORIGINAL", "public-source:mismatch"),
+])
+def test_training_rights_labels_must_match_provenance_origin(
+    tmp_path,source_class,license_id,source_ref,
+):
+    data=tmp_path/"legit.jsonl"
+    write_rows(data)
+    with pytest.raises(PermissionError,match="rights class"):
+        inspect_public_dataset(
+            path=data,source_class=source_class,license_id=license_id,
+            source_ref=source_ref,approval_ref="owner-ui:reviewed",
+            at=NOW,
+        )
+
+
+def test_valid_explicit_public_rights_class_still_scans(tmp_path):
+    data=tmp_path/"public.jsonl"
+    write_rows(data)
+    reviewed=inspect_public_dataset(
+        path=data,source_class="licensed_public",license_id="CC0-1.0",
+        source_ref="public-source:checked-by-owner",
+        approval_ref="owner-ui:checked-by-owner",
+        at=NOW,
+    )
+    assert reviewed.source_class=="licensed_public"
+    assert reviewed.training_authorized is False
+
+
+def test_blank_instruction_cannot_be_admitted_as_training_example(tmp_path):
+    data=tmp_path/"blank.jsonl"
+    write_rows(data)
+    with data.open("a",encoding="utf-8") as out:
+        out.write(json.dumps({"instruction":"   ","response":"Public text"})+"\n")
+    with pytest.raises(PermissionError,match="unsafe source"):
+        inspect(data)
