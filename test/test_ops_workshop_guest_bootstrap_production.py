@@ -321,10 +321,12 @@ def test_postboot_observation_preserves_unknown_guest_os_and_isolated_internal_r
     from sofia.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
     state,plan,approval,at,_=reviewed_state(tmp_path)
     service,calls=fake_service(state,at)
+    # The fake Artemis boot receipt is observed at at+2s; avoid making
+    # that independently observed fact future-dated relative to the request.
     receipt=start_owner_approved_installer(
         state_path=state,remote_service=service,
         plan_id=plan.plan_id,approval_id=approval.approval_id,
-        now=at+timedelta(seconds=1),
+        now=at+timedelta(seconds=2),
     )
     assert receipt.status=="INSTALLER_BOOT_STARTED"
     timestamp=datetime.now(timezone.utc)
