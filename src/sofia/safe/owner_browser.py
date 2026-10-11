@@ -166,7 +166,10 @@ def authorize_exact_action(
                 )
                 done.put_nowait(approval)
                 self._respond(200, b'{"status":"verified"}', "application/json")
-            except (OSError, TypeError, ValueError, RuntimeError, PermissionError) as exc:
+            except Exception as exc:
+                # No parse/transport/SQLite/crypto error may leave a local
+                # listener waiting or be reinterpreted as owner consent.
+                # Do not echo details to the browser or permit a retry.
                 done.put_nowait(exc)
                 self._respond(403, b'{"status":"denied"}', "application/json")
 
