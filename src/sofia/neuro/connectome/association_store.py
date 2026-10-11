@@ -28,6 +28,8 @@ _RECEIPT = re.compile(r"^[A-Za-z0-9_.:/-]{1,120}$")
 def _units(text: str) -> tuple[int, ...]:
     if not isinstance(text, str):
         raise TypeError("association query must be text")
+    if len(text) > 500:
+        raise ValueError("association query must be at most 500 characters")
     # Feature tokens are hashed before persistence and never exported as prose.
     tokens = sorted({
         token.casefold() for token in _TOKENS.findall(text)
@@ -124,8 +126,12 @@ class ReviewedAssociationStore:
             raise PermissionError("opt-in NEURO association learning is disabled")
         if not isinstance(candidate_id, UUID):
             raise TypeError("reviewed candidate UUID required")
-        if not isinstance(approval_ref, str) or not _RECEIPT.fullmatch(approval_ref):
-            raise ValueError("one bounded operator approval receipt required")
+        if (
+            not isinstance(approval_ref, str)
+            or not _RECEIPT.fullmatch(approval_ref)
+            or not approval_ref.startswith("operator-ui:")
+        ):
+            raise ValueError("one explicit owner UI review receipt required")
         if (
             type(amount) not in {int, float} or not math.isfinite(amount)
             or not -0.1 <= amount <= 0.1 or amount == 0
@@ -147,6 +153,15 @@ class ReviewedAssociationStore:
                 or candidate[2] not in (None, audience_id)
             ):
                 raise PermissionError("memory is not promoted for this audience")
+            reviewed_events = db.execute(
+                "SELECT COUNT(*) FROM neuro_association_event "
+                "WHERE principal_id=? AND audience_id=? AND candidate_id=?",
+                (principal_id, audience_id, str(candidate_id)),
+            ).fetchone()[0]
+            if reviewed_events >= 64:
+                raise PermissionError(
+                    "per-memory reinforcement budget exhausted; reset/review required"
+                )
             for unit in units:
                 db.execute(
                     "INSERT INTO neuro_association_weight "
