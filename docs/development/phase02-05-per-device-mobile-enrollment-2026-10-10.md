@@ -58,3 +58,28 @@ Android build, database move, CI or hardware validation was performed.
 state relocation; actual device enrollment/re-pairing is an owner action
 later; Phase 05's offline causal ordering, long-horizon cross-channel
 migration and live acceptance remain separate work.
+
+## Follow-up: startup adapter and notification cache audit
+
+The HTTP server requires a `main_history` method; the real
+`_WorkerMobileGateway` lacked it despite the canonical gateway implementing
+it. This caused production worker startup to reject the mobile adapter.
+The method now forwards through the existing owner-thread command queue
+rather than opening an unauthorized parallel conversation connection.
+
+The notification endpoint previously sent the entire notification `content`
+field even when only `preview` was masked under host PRIVATE/SAFE delivery
+policy. Android cached the full content in encrypted unopened notices, so
+a later screen mode or credential switch could reveal content that had never
+been approved for delivery. The server now redacts BOTH `content` and
+`preview` unless the established full-preview grant is current, and Android
+clears the cached unopened notices on privacy/credential/endpoint changes.
+The background notification receiver checks the pairing and mode it used
+to fetch a notification immediately before caching and display, rejecting
+late responses from a former pairing.
+
+For operator invocations use `python -m sofia.mobile` as the stable CLI
+entry point. This avoids Python's double-import warning when executing
+`pairing.py` directly after the package initializer has loaded it.
+No automatic enrollment, cutover or live host changes were made. Host
+tests, Android builds, and full production acceptance remain deferred.

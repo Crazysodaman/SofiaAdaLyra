@@ -173,7 +173,7 @@ class MobileDeviceCredentialStore:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m sofia.mobile.pairing",
+        prog="python -m sofia.mobile",
         description="LOCAL OPERATOR command; never a remote pairing endpoint.",
     )
     parser.add_argument("--state-path", type=Path, required=True)

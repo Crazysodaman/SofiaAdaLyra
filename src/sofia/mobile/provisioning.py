@@ -47,7 +47,7 @@ class MobileProvisioning:
         if enabled and os.environ.get("SOFIA_MOBILE_TOKEN", "").strip():
             raise ValueError(
                 "SOFIA_MOBILE_TOKEN was retired; operator must enroll each phone "
-                "using python -m sofia.mobile.pairing"
+                "using python -m sofia.mobile"
             )
         # The server may listen with zero enrolled devices so the operator
         # can securely pair later. Unenrolled requests always receive 401.

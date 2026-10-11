@@ -25,9 +25,11 @@ a second identity or grant Sofía control of the phone.
   recipient checks, and evidence requirements. They are acknowledged only
   after Android accepts the notification for display; an interrupted claim is
   retried. The app stores unopened message bodies encrypted.
-- Lock-screen previews are generic unless Private Mode and the host's separate
-  adult/private external-delivery permission are both enabled. Android still
-  marks the notification itself private.
+- Notification previews AND transported notification content are generic
+  unless Private Mode and the host's separate adult/private external-delivery
+  permission are both enabled. Android still marks notifications private.
+  Switching pairing credentials, endpoint or privacy mode erases cached
+  unopened notification bodies from the previous audience.
 
 ## Host configuration
 
@@ -55,11 +57,11 @@ following commands locally with owner-controlled access to the canonical
 `sofia.db`. **Do not select or relocate the writer host just to pair a phone.**
 
 ```powershell
-python -m sofia.mobile.pairing --state-path "C:\\path\\to\\canonical\\sofia.db" enroll --device-id "android-DEVICE_ID_FROM_APP" --owner-approved
-python -m sofia.mobile.pairing --state-path "C:\\path\\to\\canonical\\sofia.db" list
-python -m sofia.mobile.pairing --state-path "C:\\path\\to\\canonical\\sofia.db" revoke --device-id "android-DEVICE_ID_FROM_APP" --owner-approved
+python -m sofia.mobile --state-path "C:\\path\\to\\canonical\\sofia.db" enroll --device-id "android-DEVICE_ID_FROM_APP" --owner-approved
+python -m sofia.mobile --state-path "C:\\path\\to\\canonical\\sofia.db" list
+python -m sofia.mobile --state-path "C:\\path\\to\\canonical\\sofia.db" revoke --device-id "android-DEVICE_ID_FROM_APP" --owner-approved
 # To re-pair, issue a fresh secret. The prior secret is invalidated:
-python -m sofia.mobile.pairing --state-path "C:\\path\\to\\canonical\\sofia.db" enroll --device-id "android-DEVICE_ID_FROM_APP" --rotate --owner-approved
+python -m sofia.mobile --state-path "C:\\path\\to\\canonical\\sofia.db" enroll --device-id "android-DEVICE_ID_FROM_APP" --rotate --owner-approved
 ```
 
 Enrollment prints the new token **only once** at the operator console. Transfer

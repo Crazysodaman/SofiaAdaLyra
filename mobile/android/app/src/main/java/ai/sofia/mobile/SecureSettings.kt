@@ -116,6 +116,12 @@ class SecureSettings(private val context: Context) {
             .apply()
     }
 
+    fun clearIncoming() {
+        // A previous server/token/privacy mode cannot leave encrypted
+        // unopened content that later resurfaces in the new audience UI.
+        prefs.edit().remove("incoming_messages").commit()
+    }
+
     fun consumeIncoming(): List<String> {
         val encrypted = prefs.getString("incoming_messages", "") ?: ""
         if (encrypted.isBlank()) return emptyList()

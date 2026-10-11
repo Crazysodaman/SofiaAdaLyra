@@ -414,16 +414,18 @@ class MobileCompanionGateway:
             and authority.private_chat
             and authority.adult_external_delivery
         )
+        visible_content = (
+            notification.content if full_preview
+            else "Sofía has something she wants to share with you."
+        )
         return {
             "notification": {
                 "id": notification.notification_id,
                 "title": notification.title,
-                "content": notification.content,
-                "preview": (
-                    notification.content
-                    if full_preview
-                    else "Sofía has something she wants to share with you."
-                ),
+                # Never send the unapproved notification body to Android
+                # while merely masking its lock-screen preview.
+                "content": visible_content,
+                "preview": visible_content,
                 "full_preview_authorized": full_preview,
                 "created_at": notification.created_at.isoformat(),
             }

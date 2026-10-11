@@ -71,7 +71,7 @@ class SensorSyncService : Service(), SensorEventListener, LocationListener {
                             val notification = runCatching {
                                 api.claimNotification()
                             }.getOrNull() ?: break
-                            if (display(notification)) {
+                            if (display(notification, config)) {
                                 runCatching { api.acknowledgeNotification(notification.id) }
                                 delivered += 1
                             } else {
@@ -115,7 +115,19 @@ class SensorSyncService : Service(), SensorEventListener, LocationListener {
                 this, Manifest.permission.POST_NOTIFICATIONS,
             ) == PackageManager.PERMISSION_GRANTED
 
-    private fun display(notification: ProactiveNotification): Boolean {
+    private fun display(
+        notification: ProactiveNotification, original: CompanionSettings,
+    ): Boolean {
+        val current = settings.load()
+        if (
+            current.baseUrl != original.baseUrl ||
+            current.token != original.token ||
+            current.privateMode != original.privateMode
+        ) {
+            // A response initiated under an older paired device audience
+            // cannot be displayed or cached after credentials switch.
+            return false
+        }
         settings.storeIncoming(notification.id, notification.content)
         val launch = PendingIntent.getActivity(
             this,

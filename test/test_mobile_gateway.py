@@ -159,8 +159,9 @@ def test_proactive_notification_preview_requires_external_authority(tmp_path):
         device_id="android-owner",
         private_mode=True,
     )["notification"]
-    assert claimed["content"] == "A private thought for Sparks."
-    assert claimed["preview"] != claimed["content"]
+    assert claimed["content"] == claimed["preview"]
+    assert claimed["content"] == "Sofía has something she wants to share with you."
+    assert "A private thought for Sparks." not in str(claimed)
     assert claimed["full_preview_authorized"] is False
     assert gateway.acknowledge_notification(
         device_id="android-owner",

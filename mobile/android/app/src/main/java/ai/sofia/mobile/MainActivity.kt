@@ -91,6 +91,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (next.token != config.token || next.baseUrl != config.baseUrl) {
             // Old server/audience material must not appear under a newly
             // paired credential. Keep only the owner's unsent local draft.
+            secure.clearIncoming()
             messages.clear()
             mainHistory.clear()
             historyCursor = null
@@ -114,7 +115,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (next.privateMode != config.privateMode) {
-            // The previous mode's transcript must not remain on a shared screen.
+            // The previous mode's transcript and unopened notification
+            // bodies must not remain on a shared screen.
+            secure.clearIncoming()
             messages.clear()
             mainHistory.clear()
             historyCursor = null

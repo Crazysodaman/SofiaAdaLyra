@@ -360,7 +360,9 @@ def test_worker_marshals_mobile_requests_onto_application_thread(
     claimed = json.loads(claim_response.read())["notification"]
     connection.close()
     assert claim_response.status == 200
-    assert claimed["content"] == "Worker-routed proactive message."
+    assert claimed["content"] == claimed["preview"]
+    assert claimed["content"] == "Sofía has something she wants to share with you."
+    assert "Worker-routed proactive message." not in str(claimed)
 
     connection = HTTPConnection(host, port, timeout=30)
     connection.request(
