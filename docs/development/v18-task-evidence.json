@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "0d7dc0a6d961a6fb3d51f3252d59d9cddf37874e",
+  "reviewed_main_sha": "4135c1586eba49409716e4f27b5ffe646816132a",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2538,10 +2538,30 @@
       "phase": "02",
       "source_topic": "19",
       "master_line": 272,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/discord/inbound.py",
+        "src/sofia/discord/ingress.py",
+        "src/sofia/integrations/github.py",
+        "src/sofia/integrations/home_assistant.py",
+        "src/sofia/integrations/portainer.py",
+        "src/sofia/memory/chatgpt_import.py",
+        "src/sofia/knowledge/retrieval.py",
+        "src/sofia/personality/reflection.py",
+        "src/sofia/interaction/world_store.py",
+        "src/sofia/cognition/tools.py",
+        "docs/development/v18-ws1-untrusted-input-boundary-inventory-2026-10-11.md"
+      ],
+      "evidence_commits": [
+        "8f34325fecfa8a0e4c81ababa17fbcf863fcd8b6"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Enumerated live source-level external text entrypoints for Discord, GitHub repository data, imported files, HA attributes, Portainer logs, model-authored reflections and world labels. Authenticated sender or stored source does not convert untrusted text into SAFE authority. Source-path and threat-boundary audit document committed on main.",
+        "missing": "Full taint propagation and denial through planner, memory, NEURO, ACT and final effect checks have not been independently traced; CA-1902/1903/1906 and injection regressions remain unassessed. No tests run.",
+        "acceptance": "source-partial, not accepted"
+      }
     },
     {
       "id": "CA-1902",
