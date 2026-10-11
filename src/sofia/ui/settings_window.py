@@ -1017,7 +1017,8 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     resume_busy = {"active": False}
 
     def change_operator_stop(*, active: bool) -> None:
-        if resume_busy["active"]:
+        # Another PAUSE must always be possible while Resume auth is pending.
+        if resume_busy["active"] and not active:
             return
         operation = "PAUSE" if active else "RESUME"
         if not active and not messagebox.askyesno(
@@ -1049,6 +1050,9 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
             credential_id = select_security_key_for_settings(
                 config.state_path, parent=root,
             )
+            expected_updated_at = (
+                operator_stop_store.current().updated_at.isoformat()
+            )
             resume_busy["active"] = True
             status.set("Waiting for fresh FIDO2 approval to resume optional work")
 
@@ -1057,12 +1061,16 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                     approval = authorize_exact_action(
                         config.state_path,
                         capability="operator.stop.resume",
-                        parameters={"active": False, "reason": reason},
+                        parameters={
+                            "active": False, "reason": reason,
+                            "expected_updated_at": expected_updated_at,
+                        },
                         credential_id=credential_id, expires_seconds=90,
                     )
                     operator_stop_store.set(
                         active=False, updated_by="Sparks", reason=reason,
                         approval_id=approval.approval_id,
+                        expected_updated_at=expected_updated_at,
                     )
                     stop_feedback.put(("success", "Operator stop cleared with signed FIDO2 approval"))
                 except Exception as exc:
