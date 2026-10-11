@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "a7de797b5a4b3c875da2e9de9638d3c4a58f41c0",
+  "reviewed_main_sha": "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
   "audit_date_utc": "2026-10-11",
-  "notice": "700 immutable V18 tasks; source evidence crosswalk through a7de797. Production gate now has installed-wheel-only mode, not executed. No tests/CI/Android build or host acceptance has run. Partial source paths are NOT full task completion.",
+  "notice": "Source audit only, exact 700 V18 tasks. Approved owner decision: require independently enrolled/revocable per-phone credentials; canonical writer host remains UNDECIDED. Changes f06224c/e961de6/e3b92c2 integrate operator CLI, desktop worker, mobile server and Android. No tests, build, pairing, host DB cutover or deployment have been performed. Code path presence never implies complete acceptance.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1492,10 +1492,14 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/safe/permissions.py"
+        "src/sofia/safe/permissions.py",
+        "src/sofia/mobile/server.py"
       ],
       "evidence_commits": [
-        "bb116083a774ab3c4f00492e367c718775cca8c1"
+        "bb116083a774ab3c4f00492e367c718775cca8c1",
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
       ],
       "accepted": false
     },
@@ -2190,13 +2194,17 @@
         "src/sofia/conversation/lifelong.py",
         "src/sofia/mobile/gateway.py",
         "src/sofia/mobile/server.py",
-        "mobile/android/app/src/main/java/ai/sofia/mobile/SofiaApi.kt"
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SofiaApi.kt",
+        "src/sofia/mobile/pairing.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
       ],
       "accepted": false
     },
@@ -2439,9 +2447,17 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 434,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/pairing.py",
+        "src/sofia/mobile/server.py",
+        "src/sofia/ui/desktop_worker.py"
+      ],
+      "evidence_commits": [
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+      ],
       "accepted": false
     },
     {
@@ -2449,9 +2465,17 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 435,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/pairing.py",
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/social/store.py"
+      ],
+      "evidence_commits": [
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+      ],
       "accepted": false
     },
     {
@@ -2496,10 +2520,14 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/conversation/lifelong.py"
+        "src/sofia/conversation/lifelong.py",
+        "src/sofia/mobile/server.py"
       ],
       "evidence_commits": [
-        "bb116083a774ab3c4f00492e367c718775cca8c1"
+        "bb116083a774ab3c4f00492e367c718775cca8c1",
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
       ],
       "accepted": false
     },
@@ -2522,13 +2550,17 @@
       "code_paths": [
         "src/sofia/mobile/gateway.py",
         "src/sofia/conversation/lifelong.py",
-        "test/test_mobile_delivery.py"
+        "test/test_mobile_delivery.py",
+        "src/sofia/ui/desktop_worker.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
       ],
       "accepted": false
     },
@@ -2556,9 +2588,17 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 442,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/server.py",
+        "src/sofia/mobile/pairing.py",
+        "src/sofia/mobile/provisioning.py"
+      ],
+      "evidence_commits": [
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+      ],
       "accepted": false
     },
     {
@@ -2636,13 +2676,18 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/social/store.py"
+        "src/sofia/social/store.py",
+        "src/sofia/mobile/pairing.py",
+        "src/sofia/mobile/server.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
       ],
       "accepted": false
     },
@@ -2678,9 +2723,17 @@
       "phase": "05",
       "source_topic": "53",
       "master_line": 455,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/pairing.py",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+      ],
+      "evidence_commits": [
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+      ],
       "accepted": false
     },
     {
@@ -2754,12 +2807,16 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/conversation/lifelong.py"
+        "src/sofia/conversation/lifelong.py",
+        "src/sofia/mobile/pairing.py"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
       ],
       "accepted": false
     },
@@ -2791,12 +2848,16 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SensorSyncService.kt"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
+        "e961de6b69c67238408d466d855aed2dbef19b3a",
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
       ],
       "accepted": false
     },

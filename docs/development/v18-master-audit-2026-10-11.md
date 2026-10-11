@@ -189,3 +189,37 @@ source-coded/unverified, **35** partially wired,
 **659** not individually reviewed, **0** accepted. These
 are conservative source-audit states, not progress through production
 acceptance or a percentage of remaining implementation.
+
+
+## Owner-approved pairing decision and audited production code through e3b92c2
+
+The owner intentionally **did not select Venus or Artemis** as the future
+canonical SQLite writer. Production code must not infer one from current host
+configuration, the Fleet canary, or a copied database. No live cutover was
+performed.
+
+The owner **approved individual mobile device credentials and accepted
+re-pairing**. Commit `f06224c` replaces the shared bearer token with
+per-device `sm1_` credentials. One current SHA-256 verifier per enrolled device
+is stored in the existing canonical `sofia.db` with rotation and revocation
+audit events. The local operator-only CLI issues each secret once; remote
+clients cannot enroll. Every server request verifies the bearer, resolves
+its recorded device, and rejects a mismatched JSON device ID. Android uses
+existing Keystore-backed settings and shows its device ID for enrollment.
+The ACT channel reports readiness only with at least one active enrollment.
+
+Commit `e961de6` repairs a pre-existing startup failure: desktop worker's
+mobile HTTP proxy lacked required `main_history`. It now forwards via the
+canonical application thread. Commit `e3b92c2` closes a notification leak
+where only the lock-screen preview was redacted yet full notification
+`content` traveled to Android; both fields now follow the host-approved
+external delivery policy. The Android client clears previous unopened
+notifications when switching privacy or pairing contexts. The stable
+operator command is `python -m sofia.mobile`.
+
+The 700 original CA IDs remain unchanged. Individually inspected source
+states now count **6 coded but unverified, 39 partially wired, 655 not
+individually audited, 0 accepted**. Phase 02/05 pairing is source-coded
+but complete multi-surface identity linking, offline synchronization and
+actual Android/Windows evidence remain open. No full phase was declared
+finished, no tests executed, and no live machine was touched.
