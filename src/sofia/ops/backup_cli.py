@@ -65,6 +65,7 @@ def _restore(args) -> int:
         verifier=args.verifier,
         replace_existing=args.replace_existing,
         now=datetime.now(timezone.utc),
+        erasure_journal=Path(args.erasure_journal),
     )
     print(
         f"restore verified: backup_id={result.backup_id} "
@@ -86,6 +87,7 @@ def _rehearse(args) -> int:
             verifier=args.verifier,
             replace_existing=False,
             now=datetime.now(timezone.utc),
+            erasure_journal=Path(args.erasure_journal),
         )
         if not target.is_file():
             raise RuntimeError("restore rehearsal produced no state database")
@@ -118,6 +120,7 @@ def _export_jsonl(args) -> int:
             verifier="operator-portable-jsonl-export",
             replace_existing=False,
             now=datetime.now(timezone.utc),
+            erasure_journal=Path(args.erasure_journal),
         )
         exported = export_portable_conversations(
             state_path=state, destination=destination,
@@ -169,6 +172,8 @@ def main(argv: list[str] | None = None) -> int:
     restore.add_argument("--backup-dir", required=True)
     restore.add_argument("--target-state", required=True)
     restore.add_argument("--verifier", required=True)
+    restore.add_argument("--erasure-journal", required=True,
+                         help="absolute operator-held journal external to backups")
     restore.add_argument("--replace-existing", action="store_true")
     restore.set_defaults(handler=_restore)
 
@@ -176,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     rehearse.add_argument("--key", required=True)
     rehearse.add_argument("--backup-dir", required=True)
     rehearse.add_argument("--verifier", required=True)
+    rehearse.add_argument("--erasure-journal", required=True)
     rehearse.set_defaults(handler=_rehearse)
 
     portable = sub.add_parser(
