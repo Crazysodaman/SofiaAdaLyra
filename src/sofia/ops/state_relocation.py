@@ -47,6 +47,7 @@ def stage_verified_state_home(
     backup_engine: BackupEngine,
     encrypted_backup_root: Path,
     failure_domain: str,
+    erasure_journal_path: Path,
 ) -> StagedStateHome:
     """Copy/verify state after independently proven exclusive-writer fencing.
 
@@ -60,6 +61,13 @@ def stage_verified_state_home(
         raise TypeError("independent control-plane approval verifier required")
     if not isinstance(backup_engine, BackupEngine):
         raise TypeError("existing encrypted BackupEngine required")
+    if (
+        not isinstance(erasure_journal_path, Path)
+        or not erasure_journal_path.is_absolute()
+    ):
+        raise ValueError(
+            "current external memory deletion journal required for relocated state"
+        )
     if not isinstance(encrypted_backup_root, Path) or not encrypted_backup_root.is_absolute():
         raise ValueError("absolute operator-approved encrypted backup root required")
     if any(not isinstance(v, str) or not v.strip() for v in (
@@ -153,6 +161,7 @@ def stage_verified_state_home(
             target_state_path=staging / "sofia.db",
             verifier=f"approved-relocation:{proof.operator_approval_ref}",
             replace_existing=False,
+            erasure_journal=erasure_journal_path,
         )
         if not restored.succeeded or restored.backup_id != manifest.backup_id:
             raise BackupError("staged restore did not match its verified manifest")
