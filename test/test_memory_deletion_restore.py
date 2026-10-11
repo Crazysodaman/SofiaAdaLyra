@@ -40,6 +40,22 @@ def _prepare(tmp_path):
                 reviewed_at TEXT NOT NULL,reviewed_by TEXT NOT NULL,
                 reason TEXT NOT NULL
             );
+            CREATE TABLE memory_candidate_source_review (
+                candidate_id TEXT PRIMARY KEY,
+                source_session_id TEXT NOT NULL,
+                principal_id TEXT NOT NULL, audience_id TEXT NOT NULL,
+                audience_kind TEXT NOT NULL, reviewed_at TEXT NOT NULL,
+                FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
+            );
+            CREATE TABLE neuro_association_weight (
+                candidate_id TEXT NOT NULL, feature_unit INTEGER NOT NULL,
+                principal_id TEXT NOT NULL, audience_id TEXT NOT NULL,
+                weight REAL NOT NULL, PRIMARY KEY(candidate_id,feature_unit)
+            );
+            CREATE TABLE neuro_association_event (
+                candidate_id TEXT NOT NULL, approval_ref TEXT PRIMARY KEY,
+                feature_units_json TEXT NOT NULL
+            );
         """)
         db.execute(
             "INSERT INTO memory_candidate VALUES(?,?,?,?,?,?)",
@@ -54,6 +70,19 @@ def _prepare(tmp_path):
         db.execute(
             "INSERT INTO memory_candidate_validity VALUES(?,?,?,?,?)",
             (str(CANDIDATE), None, NOW.isoformat(), "person:sparks", "approved"),
+        )
+        db.execute(
+            "INSERT INTO memory_candidate_source_review VALUES(?,?,?,?,?,?)",
+            (str(CANDIDATE), "session:one", "person:sparks",
+             "local:text", "private", NOW.isoformat()),
+        )
+        db.execute(
+            "INSERT INTO neuro_association_weight VALUES(?,?,?,?,?)",
+            (str(CANDIDATE), 1447, "person:sparks", "local:text", 0.8),
+        )
+        db.execute(
+            "INSERT INTO neuro_association_event VALUES(?,?,?)",
+            (str(CANDIDATE), "operator-ui:reviewed", "[1447]"),
         )
     operator = tmp_path / "separate-operator-journal"
     operator.mkdir()
@@ -93,6 +122,16 @@ def _assert_no_deleted_candidate(db_path):
             "SELECT * FROM memory_candidate_validity WHERE candidate_id=?",
             (str(CANDIDATE),),
         ).fetchone() is None
+        for table in (
+            "memory_candidate_source_review",
+            "neuro_association_weight",
+            "neuro_association_event",
+        ):
+            assert db.execute(
+                f"SELECT 1 FROM {table} WHERE candidate_id=?",
+                (str(CANDIDATE),),
+            ).fetchone() is None
+        assert db.execute("PRAGMA foreign_key_check").fetchall() == []
 
 
 def test_deletion_replayed_before_older_backup_is_published(
