@@ -90,8 +90,12 @@ document.getElementById('enroll').addEventListener('click',async()=>{
 </script></body></html>"""
 
 
-def require_venus_interactive_windows() -> None:
-    """Bootstrap authority must originate from an attended Venus user session."""
+def require_venus_interactive_windows() -> str:
+    """Return the actual Windows access-token SID in an attended Venus session.
+
+    Never infer the owner's OS account from USERNAME, a display name or
+    human-supplied `approved_by`; the OS owns that security identity.
+    """
     if os.name != "nt" or sys.platform != "win32":
         raise PermissionError("attended owner enrollment requires Windows on Venus")
     if socket.gethostname().split(".", 1)[0].casefold() != "venus":
@@ -105,6 +109,21 @@ def require_venus_interactive_windows() -> None:
     )
     if not ok or session_id.value == 0:
         raise PermissionError("service/session-0 enrollment is forbidden")
+    try:
+        import win32api
+        import win32security
+        token = win32security.OpenProcessToken(
+            win32api.GetCurrentProcess(), win32security.TOKEN_QUERY,
+        )
+        sid, _attributes = win32security.GetTokenInformation(
+            token, win32security.TokenUser,
+        )
+        value = win32security.ConvertSidToStringSid(sid)
+    except (ImportError, OSError) as exc:
+        raise PermissionError("cannot verify Windows owner token SID") from exc
+    if not isinstance(value, str) or not value.startswith("S-1-5-"):
+        raise PermissionError("untrusted Windows token SID")
+    return value
 
 
 def enroll_attended(
