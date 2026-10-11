@@ -10,6 +10,7 @@ from sofia.conversation.model import (
     ConversationSession,
 )
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.social.model import PrincipalContext
 
 
 class ConversationStore:
@@ -349,14 +350,14 @@ class ConversationStore:
         exclude_message_id: str = "",
         user_only: bool = False,
         limit: int = 6,
+        authorized_principal: PrincipalContext,
     ) -> tuple[ConversationMessage, ...]:
-        """Search ALL durable messages in the already-authorized session.
+        """Search original rows only under the original *current* audience.
 
-        SQL performs the ranking and LIMIT before rows enter Python. This
-        corrects the old "newest 256 matching rows" recall blind spot.
-        No session or audience access is granted here; that remains the
-        ConversationService/SocialSessionStore boundary. Full-text indexing
-        is a separate optimization, not a reason to omit older evidence.
+        The SQL join with social_session_principal validates source scope
+        in the same read statement that fetches message text. A session ID
+        or a stale pre-query authorization alone must not grant recall.
+        Results remain SQL-ranked and bounded before entering Python.
         """
         if not isinstance(session_id, str) or not session_id.strip():
             raise ValueError("nonempty session ID required")
@@ -364,32 +365,44 @@ class ConversationStore:
             raise ValueError("bounded evidence limit required")
         if not isinstance(exclude_message_id, str):
             raise TypeError("exclude_message_id must be text")
+        if not isinstance(authorized_principal, PrincipalContext):
+            raise PermissionError("current authenticated recall principal required")
         if not isinstance(terms, tuple) or len(terms) > 8 or any(
             not isinstance(term, str) or not term.isascii()
             or not term.isalnum() or not 2 <= len(term) <= 48
             for term in terms
         ):
             raise ValueError("up to 8 bounded alphanumeric search terms required")
-        predicates = ["session_id = ?", "id <> ?"]
-        arguments: list[object] = [session_id, exclude_message_id]
+        predicates = [
+            "m.session_id = ?", "m.id <> ?",
+            "s.principal_id = ?", "s.audience_id = ?", "s.audience_kind = ?",
+        ]
+        arguments: list[object] = [
+            session_id, exclude_message_id,
+            authorized_principal.principal_id,
+            authorized_principal.audience_id,
+            authorized_principal.audience_kind.value,
+        ]
         if user_only:
-            predicates.append("role = 'user'")
+            predicates.append("m.role = 'user'")
         if terms:
-            expressions = ["instr(lower(content), ?) > 0" for _ in terms]
+            expressions = ["instr(lower(m.content), ?) > 0" for _ in terms]
             predicates.append("(" + " OR ".join(expressions) + ")")
             arguments.extend(term.lower() for term in terms)
             scores = [
-                "(CASE WHEN instr(lower(content), ?) > 0 THEN 1 ELSE 0 END)"
+                "(CASE WHEN instr(lower(m.content), ?) > 0 THEN 1 ELSE 0 END)"
                 for _ in terms
             ]
-            order = " + ".join(scores) + " DESC, created_at DESC, id DESC"
+            order = " + ".join(scores) + " DESC, m.created_at DESC, m.id DESC"
             arguments.extend(term.lower() for term in terms)
         else:
-            order = "created_at DESC, id DESC"
+            order = "m.created_at DESC, m.id DESC"
         arguments.append(limit)
         sql = (
-            "SELECT id, session_id, role, content, created_at FROM "
-            "conversation_messages WHERE " + " AND ".join(predicates)
+            "SELECT m.id, m.session_id, m.role, m.content, m.created_at FROM "
+            "conversation_messages AS m "
+            "JOIN social_session_principal AS s ON s.session_id=m.session_id "
+            "WHERE " + " AND ".join(predicates)
             + " ORDER BY " + order + " LIMIT ?"
         )
         with self._lock:
