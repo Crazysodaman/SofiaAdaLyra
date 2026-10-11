@@ -1552,7 +1552,7 @@ class SelfDirectedLifeCoordinator:
             for procedure_id, source_project_ids
             in verified_procedure_sources.items()
             if self._verified_procedure_origins_current(
-                source_project_ids, now=now,
+                source_project_ids, procedure_id=procedure_id, now=now,
             )
         }
         for project in projects[:limit]:
@@ -3317,24 +3317,72 @@ class SelfDirectedLifeCoordinator:
         return settled
 
     def _verified_procedure_origins_current(
-        self, project_ids: tuple[str, ...], *, now: datetime,
+        self, project_ids: tuple[str, ...], *, procedure_id: str,
+        now: datetime,
     ) -> bool:
-        """A reusable procedure must retain two independently sound origins."""
+        """Recheck the exact historic job and receipt behind each skill proof.
+
+        A completed project might have several creative attempts. An
+        unrelated successful artifact must never validate a corrupted
+        procedure-proof row naming a different job or receipt.
+        """
         if len(set(project_ids)) < 2:
             return False
-        for project_id in project_ids:
+        proofs = self.procedures.proof_receipts_for_procedure(procedure_id)
+        if (
+            not proofs
+            or len({project_id for project_id, _, _ in proofs}) < 2
+            or {project_id for project_id, _, _ in proofs} != set(project_ids)
+        ):
+            return False
+        for project_id, job_id, evidence_ref in proofs:
             try:
                 original = self._project(project_id)
-            except (LookupError, PermissionError):
+                definition, _environment = LifeProcedureCatalog._definition(original)
+                job = self.work_store.get(job_id)
+            except (LookupError, KeyError, PermissionError, ValueError):
                 return False
+            result = job.result if isinstance(job.result, dict) else {}
+            artifact_id, revision = result.get("artifact_id"), result.get("revision")
             if (
-                original.scope is not ProjectScope.PERSONAL_PRIVATE
+                definition != procedure_id
+                or original.scope is not ProjectScope.PERSONAL_PRIVATE
                 or original.status not in {
                     ProjectStatus.COMPLETED, ProjectStatus.ARCHIVED,
                 }
-                or not self._current_verified_objective_completion(
-                    original, now=now,
+                or job.status is not WorkStatus.COMPLETED
+                or not isinstance(artifact_id, str)
+                or type(revision) is not int
+                or result.get("evidence_ref") != evidence_ref
+                or not self._confirmed_artifact_run_receipt(
+                    original, artifact_id=artifact_id,
+                    revision=revision, evidence_ref=evidence_ref, now=now,
                 )
+                or not any(
+                    evaluation.artifact_id == artifact_id
+                    and evaluation.artifact_revision == revision
+                    and evaluation.technical_outcome is TechnicalOutcome.VALID
+                    and evidence_ref in evaluation.evidence_refs
+                    and set(evaluation.objective_results) ==
+                    set(original.brief.objectives)
+                    and all(value is True for value in evaluation.objective_results.values())
+                    for evaluation in self.store.evaluations(project_id)
+                )
+            ):
+                return False
+            try:
+                report = self.inspect_artifact_objectives(
+                    project_id, artifact_id=artifact_id,
+                )
+            except (LookupError, PermissionError, OSError, ValueError):
+                return False
+            except RuntimeError as exc:
+                if "failed preview integrity check" not in str(exc):
+                    raise
+                return False
+            if (
+                report.revision != revision
+                or not report.eligible_for_independent_completion
             ):
                 return False
         return True
@@ -3356,7 +3404,7 @@ class SelfDirectedLifeCoordinator:
             limit=limit,
         ):
             if self._verified_procedure_origins_current(
-                project_ids, now=now,
+                project_ids, procedure_id=procedure_id, now=now,
             ):
                 continue
             self.procedures.quarantine(
@@ -3390,7 +3438,8 @@ class SelfDirectedLifeCoordinator:
                 procedure=precedent, project=project,
             )
             if self._verified_procedure_origins_current(
-                original_project_ids, now=now,
+                original_project_ids,
+                procedure_id=precedent.procedure_id, now=now,
             ):
                 eligible.append(precedent)
         return tuple(eligible)
