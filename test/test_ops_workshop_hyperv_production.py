@@ -132,7 +132,7 @@ def test_missing_capacity_image_collision_and_external_switch_all_block():
     assert "RAM" in issues
     assert "disk" in issues
     assert "collision" in issues
-    assert "non-private" in issues
+    assert "wrong network type" in issues
     assert "hash" in issues
 
 
