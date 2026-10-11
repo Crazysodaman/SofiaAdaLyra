@@ -35,7 +35,11 @@ def _plan(tmp_path, *, source="Venus", target="Artemis"):
     )
 
 
-def _stage(proof, tmp_path, monkeypatch, *, manifest_source="Venus", approve=True):
+def _stage(
+    proof, tmp_path, monkeypatch, *,
+    manifest_source="Venus", approve=True,
+    fail_restore=False, omit_identity=False,
+):
     engine = BackupEngine(BackupCipher(b"k" * 32))
     calls = []
 
@@ -55,11 +59,14 @@ def _stage(proof, tmp_path, monkeypatch, *, manifest_source="Venus", approve=Tru
         staging = kwargs["target_state_path"].parent
         staging.mkdir(parents=True, exist_ok=True)
         kwargs["target_state_path"].write_bytes(b"isolated-stage-fixture")
+        if fail_restore:
+            raise BackupError("simulated interrupted protected-file recovery")
         protected = staging / "protected"
         protected.mkdir(exist_ok=True)
-        (protected / "identity.json").write_text(
-            '{"name":"Sofia fixture"}', encoding="utf-8",
-        )
+        if not omit_identity:
+            (protected / "identity.json").write_text(
+                '{"name":"Sofia fixture"}', encoding="utf-8",
+            )
         return RestoreVerification(
             backup_id="isolated-archive", verified_at=NOW,
             verifier=kwargs["verifier"], succeeded=True,
@@ -134,3 +141,32 @@ def test_rejected_writer_fence_never_creates_backup(
     with pytest.raises(PermissionError, match="fencing"):
         _stage(proof, tmp_path, monkeypatch, approve=False)
     assert not proof.destination_root.exists()
+
+
+def test_failed_restore_does_not_publish_partial_state_home(tmp_path, monkeypatch):
+    proof = _plan(tmp_path)
+    with pytest.raises(BackupError, match="interrupted protected-file"):
+        _stage(proof, tmp_path, monkeypatch, fail_restore=True)
+    assert not proof.destination_root.exists()
+    assert not list(tmp_path.glob(".artemis-staged.restore-*"))
+    assert proof.source_state_path.read_bytes() == b"isolated-original-fixture"
+
+
+def test_missing_protected_identity_never_publishes_staging(tmp_path, monkeypatch):
+    proof = _plan(tmp_path)
+    with pytest.raises(BackupError, match="protected identity"):
+        _stage(proof, tmp_path, monkeypatch, omit_identity=True)
+    assert not proof.destination_root.exists()
+    assert not list(tmp_path.glob(".artemis-staged.restore-*"))
+
+
+def test_existing_even_empty_destination_is_not_replaced(tmp_path, monkeypatch):
+    proof = _plan(tmp_path)
+    proof.destination_root.mkdir()
+    sentinel = proof.destination_root / "owner-marker"
+    sentinel.write_bytes(b"keep-existing-directory")
+    with pytest.raises(FileExistsError, match="fresh absent destination"):
+        _stage(proof, tmp_path, monkeypatch)
+    assert sentinel.read_bytes() == b"keep-existing-directory"
+    assert not (proof.destination_root / "sofia.db").exists()
+    assert not list(tmp_path.glob(".artemis-staged.restore-*"))
