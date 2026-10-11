@@ -1721,7 +1721,12 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
             raise ValueError(f"{label} must be positive")
         return parsed
 
-    def save() -> None:
+    private_save_feedback = Queue()
+    private_save_busy = {"active": False}
+
+    def save(*, approved_private: tuple[str, tuple[bool, ...]] | None = None) -> None:
+        if private_save_busy["active"] and approved_private is None:
+            return
         try:
             selected_game_mode = GameMode(game_mode.get())
             updated = DesktopControlSettings(
@@ -1943,16 +1948,62 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 requested_private_authority
                 != existing_private_authority
             )
-            if private_authority_changed and not messagebox.askyesno(
-                "Change protected private/adult authority?",
-                (
-                    "This changes durable Level-5 authority controlled by "
-                    "Sparks. Apply the selected private/adult permissions?"
-                ),
-                parent=root,
-            ):
-                return
+            if private_authority_changed and approved_private is None:
+                if not messagebox.askyesno(
+                    "Change protected private/adult authority?",
+                    "Changing Level-5 authority requires a fresh physical "
+                    "FIDO2 security-key approval for these exact values.",
+                    parent=root,
+                ):
+                    return
+                from sofia.safe.owner_approval_ui import select_security_key_for_settings
+                from sofia.safe.owner_browser import authorize_exact_action
+                from sofia.safe.permissions import private_authority_parameters
 
+                credential = select_security_key_for_settings(
+                    config.state_path, parent=root,
+                )
+                flags = private_authority_parameters(
+                    private_chat=requested_private_authority[0],
+                    adult_chat=requested_private_authority[1],
+                    adult_avatar=requested_private_authority[2],
+                    adult_external_delivery=requested_private_authority[3],
+                )
+                private_save_busy["active"] = True
+                status.set("Waiting for signed FIDO2 Level-5 permission approval")
+
+                def approve_in_worker() -> None:
+                    try:
+                        receipt = authorize_exact_action(
+                            config.state_path,
+                            capability="safe.permission.private_authority.change",
+                            parameters=flags,
+                            credential_id=credential,
+                            expires_seconds=120,
+                        )
+                        private_save_feedback.put((
+                            "approved", receipt.approval_id,
+                            requested_private_authority,
+                        ))
+                    except Exception as exc:
+                        private_save_feedback.put((
+                            "error", f"{type(exc).__name__}: {exc}", None,
+                        ))
+
+                Thread(
+                    target=approve_in_worker,
+                    name="sofia-fido2-private-authority-change",
+                    daemon=False,
+                ).start()
+                return
+            if approved_private is not None:
+                if (
+                    not private_authority_changed
+                    or approved_private[1] != requested_private_authority
+                ):
+                    raise PermissionError(
+                        "private authority changed while FIDO2 approval was pending"
+                    )
             secret_changes = {}
             for key, token_value, clear in (("discord-token", discord_token_value, discord_clear_token.get()), ("home-assistant-token", ha_token_value, ha_clear_token.get())):
                 if token_value:
@@ -1965,6 +2016,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                     private_chat=requested_private_authority[0], adult_chat=requested_private_authority[1],
                     adult_avatar=requested_private_authority[2], adult_external_delivery=requested_private_authority[3],
                     updated_by="Sparks", now=datetime.now(timezone.utc),
+                    approval_id=approved_private[0],
                 )
 
             discord_token.set("")
@@ -1988,6 +2040,24 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 f"{type(exc).__name__}: {exc}",
                 parent=root,
             )
+
+    def poll_private_save_receipt() -> None:
+        try:
+            outcome, value, approved_flags = private_save_feedback.get_nowait()
+        except Empty:
+            pass
+        else:
+            private_save_busy["active"] = False
+            if outcome == "approved":
+                # Re-evaluate GUI values and refuse any changed Level-5 flags.
+                save(approved_private=(value, approved_flags))
+            else:
+                status.set("Level-5 authority change denied: " + value)
+                messagebox.showerror("Authority not changed", value, parent=root)
+        if root.winfo_exists():
+            root.after(250, poll_private_save_receipt)
+
+    root.after(250, poll_private_save_receipt)
 
     ttk.Button(
         bottom,
