@@ -2084,6 +2084,55 @@ generic PII classifiers still require separate scoped audit and
 acceptance. No tests/CI, live messages or user data changed.
 The original requirements are **not** accepted.
 
+
+
+### Phase 06 item 63: Bounded normal-turn wardrobe history
+
+Live `ConversationService._respond_once` had an unconditional
+`ConversationStore.list_messages(session_id)` after every source user
+turn, independent of the already bounded `_build_request` LLM
+window. The result was scanned only for earlier user/assistant
+utterances used by wardrobe generation and clothing resolution,
+so it needlessly materialized an entire potentially multi-decade
+session for ordinary conversation. Production replaced that hot-path
+read with `recent_messages(session_id, limit=64)`, reusing indexed,
+audience-preserving canonical SQLite storage without deleting,
+summarizing or replacing original messages.
+
+Production `03ff01b5d9103322ff91246cb368b357c1f54b76`
+(`[skip ci]`); deferred long-session regression source
+`test/test_ws2_bounded_wardrobe_context.py`
+`02d191832272a514a7a822f4fa663d484920428e`
+(`[skip ci]`). The synthetic fixture asserts no hot
+`list_messages` call and the unchanged prior-user follow-up.
+Original relevance: CA-4201, CA-4207, CA-5001, CA-5601, CA-5603.
+No tests/CI or live conversation was executed. Explicit full
+transcript exports remain separate owner-directed behavior.
+
+### Phase 06 requirement-level audit: 16 inspected, 15 newly partially assessed
+
+The Phase 06 task ledger now has fresh source evidence for
+CA-301, CA-302, CA-303, CA-304, CA-305, CA-307, CA-310,
+CA-4201, CA-4204, CA-4207, CA-5001, CA-5002, CA-5603,
+CA-5604, CA-5803 and CA-5805. Of these 16 original IDs,
+15 were previously unassessed and now have **partial_wiring**
+evidence, while CA-5603 was already partial and received the
+new hot-path fix. The verified code and explicit missing gates
+are detailed in:
+
+- `docs/development/ws2-phase06-requirement-audit-2026-10-11.md`
+  (`52667896b70110978e656eaeccd404f705eca57c`);
+- `docs/development/ws2-phase06-episodes-source-audit-batch2-2026-10-11.md`
+  (`f8808d5d07402bb8760e287bdc938b2aec001dbe`);
+- ledger update commits `dcd372c61ee59a08919bee5a3644f3ab750f64e6`,
+  `474130216b413e898a22affbdeb50c0e07030bc0` and
+  `f3f2744e67a843314a4cc6810009206018dad610`.
+
+Neither a source audit nor the two Phase 06 production changes
+make these complete or accepted original V18 tasks. Remaining
+Phase 06 tasks must each be traced to runtime composition and
+effect/receipt/persistence before the user-led test campaign.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
