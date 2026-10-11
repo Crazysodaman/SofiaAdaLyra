@@ -80,7 +80,11 @@ class ReplyModelOriginStore:
             "session_id": session_id,
             "principal_id": principal.principal_id if principal else None,
             "audience_id": principal.audience_id if principal else None,
-            "origin_kind": "model" if steps else "unknown",
+            "origin_kind": (
+                "model"
+                if any(step.succeeded and step.model for step in steps)
+                else "unknown"
+            ),
             "routing_serial": None if execution is None else execution.serial,
             "actual_route": None if execution is None else execution.actual_route,
             "steps_json": json.dumps(
