@@ -384,6 +384,10 @@ def test_remote_inference_does_not_use_expired_gpu_telemetry(tmp_path):
                 telemetry=replace(
                     _host("remote",cpu=5,node_id=remote_node).telemetry,
                     observed_at=NOW-timedelta(minutes=10),
+                    ram_total_bytes=32*1024**3,
+                    ram_used_bytes=4*1024**3,
+                    vram_total_bytes=8*1024**3,
+                    vram_used_bytes=1*1024**3,
                 ),
             ),
         ),
