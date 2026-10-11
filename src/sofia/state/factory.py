@@ -134,7 +134,9 @@ def create_state_plane(state_path: Path | str) -> StatePlane:
             "replication requires SOFIA_STATE_WITNESS_PATH and SOFIA_STATE_REPLICAS"
         )
 
-    witness_path = Path(witness_raw).resolve()
+    # Keep the configured path spelling so a symlink/junction cannot be
+    # normalized away before the independent witness guard inspects it.
+    witness_path = Path(witness_raw).absolute()
     specs = _replica_specs(replicas_raw)
     if not specs:
         raise RuntimeError("replication requires at least one replica target")
@@ -151,7 +153,7 @@ def create_state_plane(state_path: Path | str) -> StatePlane:
     if _enabled("SOFIA_STATE_REPLICATION_AUTO_SEED", False):
         for _, path in specs:
             primary_guard.validate()
-            _seed_sqlite(primary_path, path.resolve())
+            _seed_sqlite(primary_path, path.absolute())
             primary_guard.validate()
 
     targets: dict[str, StatePlane] = {"primary": SQLiteStatePlane(primary_path)}
