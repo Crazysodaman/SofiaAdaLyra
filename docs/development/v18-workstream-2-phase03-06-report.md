@@ -923,6 +923,25 @@ Production commits: `b8f177c83cc9d5f98b69d8a34beed3bc0b3ac23e`,
 contracts: `ca5610d597a2c820cd8e78348315a8e10ec8ce90`.
 No CI/test run, no witness bootstrap outside fixtures, no live host changes.
 
+### Phase 03 optional replica seed refuses redirected targets and orphaned sources
+
+Production path: explicit `SOFIA_STATE_REPLICATION_AUTO_SEED=true` →
+`create_state_plane` existing canonical/witness preflight →
+`_seed_sqlite` pins the current primary `CanonicalSQLiteGuard` file
+identity, refuses any symlink/junction ancestor of a prospective replica
+destination *before* mkdir, verifies the source still matches during and
+after an SQLite backup read, validates the staged SQLite integrity, and
+rechecks source identity and redirected ancestors immediately before
+create-if-absent hard-link publication. The destination is never
+overwritten; a replaced original cannot authorize a new standby copy.
+Automatic seeding remains disabled by default and is **not** whole-file
+failover, witness promotion or Artemis deployment.
+
+Source: `778c6e6920ee9a5d02c3255a94673de7a98fd37c`.
+Deferred redirected ancestor/source-swap regressions:
+`b63602e74ef6d661c723cf9ccf594b943c7a7e68`.
+No replica was seeded on live machines.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
