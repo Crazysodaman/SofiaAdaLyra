@@ -194,6 +194,61 @@ class ExecutionApprovalVerifier:
                     capabilities.append(capability)
         return tuple(capabilities)
 
+    def matches_unconsumed(
+        self,
+        *,
+        approval_id: str | None,
+        capability: str,
+        parameters: dict,
+        now: datetime,
+    ) -> bool:
+        """Check exact operator authorization without consuming its one-use receipt.
+
+        This is a preflight for the host capability gate, not execution
+        authority by itself. The effect handler must still atomically consume
+        the approval before performing the side effect.
+        """
+        if not isinstance(approval_id, str) or not approval_id.strip():
+            return False
+        if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
+            return False
+        try:
+            expected = execution_fingerprint(capability, parameters)
+        except (TypeError, ValueError):
+            return False
+        with closing(self._connect()) as db:
+            db.row_factory = sqlite3.Row
+            db.execute("PRAGMA busy_timeout=10000")
+            row = db.execute(
+                """
+                SELECT capability, request_fingerprint, approved_by,
+                       approved_at, expires_at, consumed_at
+                FROM safe_execution_approval
+                WHERE approval_id = ?
+                """,
+                (approval_id,),
+            ).fetchone()
+        if row is None or row["consumed_at"] is not None:
+            return False
+        try:
+            approval = ExecutionApproval(
+                approval_id=approval_id,
+                capability=row["capability"],
+                request_fingerprint=row["request_fingerprint"],
+                approved_by=row["approved_by"],
+                approved_at=datetime.fromisoformat(row["approved_at"]),
+                expires_at=datetime.fromisoformat(row["expires_at"]),
+            )
+        except (PermissionError, TypeError, ValueError):
+            return False
+        moment = now.astimezone(timezone.utc)
+        return (
+            approval.capability == capability
+            and approval.request_fingerprint == expected
+            and approval.approved_at.astimezone(timezone.utc) <= moment
+            and moment < approval.expires_at.astimezone(timezone.utc)
+        )
+
     def consume(
         self,
         *,
