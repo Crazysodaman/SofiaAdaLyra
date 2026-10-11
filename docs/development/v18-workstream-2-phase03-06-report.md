@@ -3816,3 +3816,83 @@ migration acceptance remain separate implementation/verification gates.
   are reserved for coordinated non-conflicting integration.
 - Avoid calling any task complete without entrypoint → composition → execution
   → effect/receipt → durable persistence trace and appropriate test evidence.
+
+
+## Continuation 2: operator decision and fail-closed Phase 03 source slices
+
+Date: 2026-10-11. **Option A** (initial operator-supervised Venus to Artemis
+migration) was explicitly selected. **Option B** (independently privileged,
+host-controlled failover) is a possible separately approved upgrade, not
+activated now. Recorded at
+`docs/development/ws2-phase03-operator-cutover-contract-2026-10-11.md`,
+commit `1015c39bcd5211cad7d92dadf8fc258eac8c8d03`.
+The same nine-stage contract remains. Nothing in a signed pending pointer,
+local SQLite guard, backup or unprivileged receipt proves independent
+old-writer fencing. No active pointer publication is authorized.
+
+### Original-source audit: CA-6806, CA-5202 and CA-6105
+
+Real source route: operator-controlled
+`state_relocation.stage_verified_state_home` →
+`state_mobility.inspect_state_relocation` →
+`_inventory_persistent_state_files` (new) →
+`BackupEngine.create` authenticated encrypted files →
+`BackupEngine.verify` →
+complete source-vs-manifest inventory check →
+`BackupEngine.restore` with external signed erasure replay →
+reviewed nonactive state-home publication.
+Before this fix a special filesystem entry or a nested Windows junction
+under the source home could be quietly skipped during the manifest check;
+a named pipe could be encountered during source collection. The source
+inventory also was not compared before and after an encrypted snapshot.
+The new guard rejects symlinks/junctions and any file that is neither a
+regular file nor directory *before* collecting the backup, and refuses to
+publish if the persistent source inventory changed while collecting it.
+
+Source commit `5c672827692bd600b9e02f879c087cb083395a61`.
+Deferred regression commit `8a2e95a7840fd62079c59987d761f61a63797fa5`:
+special files, linked protected directory, mid-backup inventory drift.
+**No regression execution**. A stable file inventory is not a cryptographic
+whole-bundle snapshot epoch, and it does not prove external asset catalogs,
+privileged host fencing, or permission to activate Artemis. CA-6806 has
+additional source-review evidence but cannot be promoted to code complete.
+
+### Existing CA-6803 / CA-6804 / CA-6807 discovery race review
+
+Real read-only caller: desktop Advanced Settings →
+`SettingsSections.advanced_panel` →
+`state_mobility.describe_state_candidates` →
+`discover_local_state_candidates` →
+bounded guessed/owner-selected roots, SQLite header and query-only schema
+checks, comparison against protected original identity bytes. The previous
+read path checked the original identity's size but then called
+`Path.read_bytes()`; a file growing after `stat()` could force unbounded
+input despite a 64-KiB policy. Both configured and candidate identity
+reads now cap the actual bytes consumed at 64 KiB plus one sentinel byte,
+and oversized candidates never assert matching identity.
+
+Source commit `cbbc61d8c5886dd9a629963dffa65f29f43763e7`.
+Deferred regression commits
+`6f6c23b26b750d5ac5c5f966e60752997d23df91`,
+`9200d6f87c2f88a1451a5212400dae025dd5ce60`.
+This is a candidate *discovery* read, not proof of signed identity,
+runtime authority or epoch. No candidate activated. All tests authored,
+not run.
+
+### Scope and remaining dependency
+
+Original 46 Phase 03 tasks: the shared WS1-owned ledger last read showed
+18 partial, 28 unassessed and 0 accepted. **CA-6806** has additionally
+received direct source/manifest-to-publication inspection here
+(local working audit coverage 19/46), but its ledger classification remains
+`unassessed` until WS1's serialized reconciliation. This is review
+coverage, not the number of source-complete or tested requirements.
+CA-6803/6804/6807/5202/6105 remain partial in existing records.
+
+Remaining high-risk gaps: verified independent old-writer and restart fence,
+host-broker authorization, monotonic exclusive epoch handoff, source/guest
+transport for complete protected assets, foreign-key and semantic restored
+state checks, source freshness, interrupted cutover recovery,
+time-scoped approval, and actual clean-host RPO/RTO proof. Phase 04–06 are
+not asserted complete. No CI, pytest, isolated drills, physical host changes,
+state migrations, signed pointer changes or source data deletion were run.
