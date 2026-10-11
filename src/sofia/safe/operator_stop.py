@@ -32,8 +32,7 @@ class OperatorStopStore:
 
     def __init__(self,state_path:Path|str)->None:
         self.path=Path(state_path)
-        self.path.parent.mkdir(parents=True,exist_ok=True)
-        with closing(sqlite3.connect(self.path,timeout=10)) as db, db:
+        with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS safe_operator_stop (
@@ -58,8 +57,18 @@ class OperatorStopStore:
                     "initial inactive operator stop",
                 ))
 
+    def _connect(self) -> sqlite3.Connection:
+        # Failure to find the canonical stop ledger is a STOP condition,
+        # not permission to create another unlocked operator authority.
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical operator stop state unavailable")
+        return sqlite3.connect(
+            self.path.absolute().as_uri() + "?mode=rw",
+            timeout=10, uri=True,
+        )
+
     def current(self)->OperatorStopState:
-        with closing(sqlite3.connect(self.path,timeout=10)) as db, db:
+        with closing(self._connect()) as db, db:
             row=db.execute("""
                 SELECT active,updated_at,updated_by,reason
                 FROM safe_operator_stop WHERE singleton=1
@@ -92,9 +101,9 @@ class OperatorStopStore:
         moment=at or datetime.now(timezone.utc)
         if moment.tzinfo is None or moment.utcoffset() is None:
             raise ValueError("at must be timezone-aware")
-        with closing(sqlite3.connect(self.path,timeout=10)) as db, db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            db.execute("""
+            changed = db.execute("""
                 UPDATE safe_operator_stop
                 SET active=?,updated_at=?,updated_by=?,reason=?
                 WHERE singleton=1
@@ -104,5 +113,7 @@ class OperatorStopStore:
                 updated_by,
                 reason.strip(),
             ))
+            if changed.rowcount != 1:
+                raise RuntimeError("operator stop row missing; refusal to imply a successful stop")
             db.commit()
         return self.current()
