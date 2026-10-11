@@ -187,7 +187,8 @@ class ScreenJourneyReceiptStore:
         with closing(self._guard.connect(timeout=10)) as db,db:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS vision_observed_frame("
-                "permit_id TEXT PRIMARY KEY,journey TEXT NOT NULL,"
+                "receipt_id TEXT PRIMARY KEY,permit_id TEXT NOT NULL,"
+                "journey TEXT NOT NULL,"
                 "audience_id TEXT NOT NULL,device_id TEXT NOT NULL,"
                 "target_hash TEXT NOT NULL,digest_sha256 TEXT NOT NULL,"
                 "observed_at TEXT NOT NULL,has_pixels INTEGER NOT NULL DEFAULT 0)"
@@ -196,26 +197,31 @@ class ScreenJourneyReceiptStore:
         if not isinstance(evidence,ScreenFrameEvidence):
             raise TypeError("real approved frame receipt required")
         target_hash=sha256(evidence.receipt.target_id.encode()).hexdigest()
+        receipt_id=sha256((
+            evidence.receipt.permit_id+"|"
+            +evidence.observed_at.astimezone(timezone.utc).isoformat()+"|"
+            +evidence.receipt.digest_sha256
+        ).encode("utf-8")).hexdigest()
         with closing(self._guard.connect(timeout=10)) as db,db:
             db.execute("BEGIN IMMEDIATE")
             existing=db.execute(
-                "SELECT digest_sha256 FROM vision_observed_frame WHERE permit_id=?",
-                (evidence.receipt.permit_id,),
+                "SELECT digest_sha256 FROM vision_observed_frame WHERE receipt_id=?",
+                (receipt_id,),
             ).fetchone()
             if existing is not None:
                 if existing[0]!=evidence.receipt.digest_sha256:
                     raise PermissionError("observation evidence cannot be rewritten")
                 return
             db.execute(
-                "INSERT INTO vision_observed_frame VALUES(?,?,?,?,?,?,?,0)",
-                (evidence.receipt.permit_id,evidence.journey.value,
+                "INSERT INTO vision_observed_frame VALUES(?,?,?,?,?,?,?,?,0)",
+                (receipt_id,evidence.receipt.permit_id,evidence.journey.value,
                  evidence.audience_id,evidence.device_id,
                  target_hash,evidence.receipt.digest_sha256,
                  evidence.observed_at.astimezone(timezone.utc).isoformat()),
             )
             db.execute(
-                "DELETE FROM vision_observed_frame WHERE permit_id NOT IN "
-                "(SELECT permit_id FROM vision_observed_frame "
+                "DELETE FROM vision_observed_frame WHERE receipt_id NOT IN "
+                "(SELECT receipt_id FROM vision_observed_frame "
                 "ORDER BY observed_at DESC LIMIT 256)"
             )
     def status(self,*,audience_id:str)->dict:
