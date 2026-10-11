@@ -306,3 +306,9 @@ These outcomes supersede the earlier statement that only authored tests exist. A
 4. Provision and authenticate isolated Hephaestus Debian guest; prove real host quotas, blocked network and one nonprivileged worker canary before Phase 13 execution acceptance. This session has not modified any real host.
 
 **Coding status:** the selected 209 original tasks are not all implemented; no task is elevated to `accepted` by this audit. The tracked blockers above remain open.
+
+## Focused Phase 08/09/12/13 CI milestone: 163 / 164
+
+- Windows focused test run at `4f9b5d1477da413bc603d23ec18e140eb6d45989` completed with **163 passed, 1 failed** in 204.68 seconds: [run 38175216585](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/38175216585). The single failure was `test_revision_abstains_if_goal_pauses_during_generator`, whose fixture asked for `deferred_daily_draft_limit` while not supplying any new generation callback. Production correctly returned `revision_requires_native_drafting` because none was available. A test correction `077735e2349de9aac729401fb9359c84984bf848` now supplies a model candidate so the original same-day draft-budget gate can be exercised, with no relaxation of production autonomy controls.
+- From the original 89 passed / 74 failed, this confirms **74 to 1** fewer failing checks and **163 passing** checks in the focused suite before the last test correction. Do not claim final green until the new SHA test run completes.
+- The checked-in main code changes have not been proven on a physical gaming Venus desktop or OS-installed Hephaestus guest. CI synthetic success, if later achieved, remains separate from the original acceptance requirements.
