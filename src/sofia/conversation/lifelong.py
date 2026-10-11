@@ -506,15 +506,47 @@ class LifelongThreadStore:
         self, *, admission: CanonicalTurnAdmission,
         interrupted: bool, now: datetime,
     ) -> None:
+        if not isinstance(admission, CanonicalTurnAdmission):
+            raise TypeError("typed original canonical admission required")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("uncertainty timestamp must be timezone-aware")
+        # A stale runtime must never mutate the receipt associated with an
+        # unrelated claim, even if another path accidentally reused its event
+        # ID. Match the entire immutable original admission identity.
         with closing(self._connect()) as db, db:
-            db.execute(
+            db.execute("BEGIN IMMEDIATE")
+            changed = db.execute(
                 """UPDATE canonical_conversation_turn SET status=?,settled_at=?
-                WHERE event_id=? AND status='processing'""",
+                WHERE event_id=? AND canonical_sequence=?
+                AND user_message_id=? AND assistant_message_id=?
+                AND status='processing'""",
                 (
                     "interrupted" if interrupted else "uncertain",
-                    now.astimezone(timezone.utc).isoformat(), admission.event_id,
+                    now.astimezone(timezone.utc).isoformat(),
+                    admission.event_id, admission.canonical_sequence,
+                    admission.user_message_id, admission.assistant_message_id,
                 ),
             )
+            if changed.rowcount != 1:
+                row = db.execute(
+                    "SELECT status,canonical_sequence,user_message_id,"
+                    "assistant_message_id FROM canonical_conversation_turn "
+                    "WHERE event_id=?", (admission.event_id,),
+                ).fetchone()
+                if row is None or (
+                    row["canonical_sequence"] != admission.canonical_sequence
+                    or row["user_message_id"] != admission.user_message_id
+                    or row["assistant_message_id"] != admission.assistant_message_id
+                ):
+                    raise CanonicalTurnUncertain(
+                        "canonical turn admission identity changed before uncertainty"
+                    )
+                # A completed or already-uncertain receipt is authoritative:
+                # never regress it to a different status on stale failure.
+                if row["status"] not in {"completed", "interrupted", "uncertain"}:
+                    raise CanonicalTurnUncertain(
+                        "canonical turn could not settle uncertainty"
+                    )
 
     @staticmethod
     def _decode(row: sqlite3.Row) -> LifelongThread:
