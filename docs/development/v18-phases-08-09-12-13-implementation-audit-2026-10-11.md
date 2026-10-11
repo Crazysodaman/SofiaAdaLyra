@@ -269,3 +269,21 @@ Global status: {"unassessed":63}.
 ## Results boundary
 
 This audit maps **209** task IDs, but is **not** a claim that all 209 requirements were completely implemented or that any task passed its live acceptance gate. Workstream 3/4 source audits have not been replaced.
+
+## Executed CI evidence and unresolved defects (2026-10-11)
+
+These outcomes supersede the earlier statement that only authored tests exist. Actual Windows CI jobs ran on exact GitHub revisions. All task acceptances remain false.
+
+- Windows focused Phase 08/09/12/13 source-and-regression gate at revision `8cafe53555d8ce8b753da5a1ed98a2de4f304264`, run [38174115143](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/38174115143): **89 passed, 74 failed** in 154.19 seconds. The new `test_vision_desktop_control.py` and `test_v18_presence_private_life_scope.py` cases did not appear in the failed-test list. The failures were 26 `test_presence_initiative`, 8 `test_life_autonomous_followthrough`, 3 `test_life_verified_milestone_production`, 5 `test_life_atomic_admission`, 2 `test_life_postrun_verification`, 17 `test_life_goal_run_resume_fence`, and 13 `test_life_run_outcome_reconciliation`. Earlier focused run `21cbe442...` was 73 passed/83 failed. The new counts reflect bootstrap fixture progress, not overall readiness.
+- The broader matrix at revision `8cafe535...`, run [38174115133](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/38174115133), was **416 passed, 54 failed**, including additional canonical SQLite fixture issues and Windows platform-specific source path failures. The old OS bootstrap `fsync` read-handle issue was fixed in `1c09facab58ef1ffe632bb6fb1d10f443739ff3b`.
+- Manual verification and cross-platform checks failed at that revision, partly due the package-selection test importing `conftest` as a bare module. Source fix `9f64bb6cbab004ae67e7895986334c923fd7ad3e` imports it through its `test` package. The Windows immutable roadmap byte checker now accepts **only** canonical LF or the exact CRLF checkout equivalent; substantive text edits remain rejected (`dd5bac997f80d8084b5dde6c73cefb8c2483a890`, regression `094d2ebca2a0702cca28eafaf1a3b5792ceac089`).
+- The release candidate workflow at revision `8cafe535...`, run [38174115123](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/38174115123), rejected newly added `.gitattributes` source archive bytes, so the attributes file was removed at `5f01e3c28047f56d6b10fb625ca5e0214c2bde5f`; release acceptance remains **unproven** until a subsequent complete green run.
+- Genuine FIDO2 enrollment/consumption with physical owner hardware, game start/pause/cancel tests, interactive Windows mouse/keyboard behavior and any Hephaestus guest job were **not** executed. Real acceptance is not reproducible in ephemeral GitHub runner without those hosts or enrolled key.
+
+### Follow-up source hardening
+
+- Win32 exact input path uses the existing SYSTEM process inspector (no undeclared optional psutil dependency), refuses incomplete process evidence, checks the actual approved HWND and Win32 click hit-testing before input. Production source changes include `7809c77f31e2eb23e07c5c7dac5a907dbe0d5d1d` and `2cae7702efb79261738d2884d158b64d2c689ba5`. Each operation requires independently authenticated FIDO2 `screen.act_exact` receipt and STOP clearance.
+- Private `task_completed` LIFE outreach now refuses implicit audiences or unapproved recipients instead of republishing source events. Production source `254aa3756ab80cf29e23d2fbc0aab7ad94fedfe4`, tests `f82e11ecf9d952a1dfb264b7dafc733d5038412a`.
+- The user-facing CLI and original limitation guide are at `src/sofia/vision/desktop_control_cli.py` and `docs/development/v18-phase12-owner-input-operation-2026-10-11.md`. No automatic model-controlled GUI use is claimed.
+
+**Final rule:** 209 assigned tasks are not yet coding-complete or test-accepted. Original master IDs preserved; eight additional source-grounded items marked partial only. Phase 13 live implementation remains blocked on an OS-installed, operator-authorized Hephaestus guest and verified physical isolation.
