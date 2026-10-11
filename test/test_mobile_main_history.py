@@ -19,6 +19,7 @@ from sofia.conversation.store import ConversationStore
 from sofia.mobile.gateway import MobileCompanionGateway
 from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
 from sofia.safe.permissions import PermissionStore
+from test.owner_auth_fixture import private_with_signed_owner
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
@@ -61,7 +62,7 @@ def _setup(tmp_path):
 
 
 def _allow_private_main(path):
-    PermissionStore(path).set_private_adult_authority(
+    private_with_signed_owner(PermissionStore(path), 
         private_chat=True, adult_chat=False,
         adult_avatar=False, adult_external_delivery=False,
     )
