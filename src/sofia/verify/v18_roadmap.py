@@ -141,7 +141,7 @@ def validate_repository(repo_root: Path) -> dict[str, object]:
             _within(repo, path)
         if status in {"partial_wiring", "code_present_unverified", "accepted"} and not paths:
             raise RoadmapIntegrityError(f"task claims code without source paths: {key}")
-        if status == "code_present_unverified":
+        if status in {"code_present_unverified", "accepted"}:
             # A source file, a unit test or an unused class is not a
             # production implementation. Only reachable, composed code with
             # an identified actual effect may be counted as tests-only.
