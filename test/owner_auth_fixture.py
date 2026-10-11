@@ -79,3 +79,29 @@ def record_verified_owner_approval(
         approval,
         authentication_event_id=receipt["authentication_event_id"],
     )
+
+
+def resume_with_signed_owner_proof(store, *, reason: str, now=None):
+    """Use a genuine synthetic FIDO2 challenge to clear a test-only stop."""
+    from datetime import datetime, timezone
+    from sofia.safe.execution_approval import execution_fingerprint
+    from sofia.safe.operator_stop import OperatorStopStore
+
+    if not isinstance(store, OperatorStopStore):
+        raise TypeError("durable operator stop store required")
+    moment = now or datetime.now(timezone.utc)
+    approval = ExecutionApproval(
+        approval_id=str(uuid4()), capability="operator.stop.resume",
+        request_fingerprint=execution_fingerprint(
+            "operator.stop.resume", {"active": False, "reason": reason},
+        ),
+        approved_by="Sparks", approved_at=moment,
+        expires_at=moment + timedelta(minutes=5),
+    )
+    record_verified_owner_approval(
+        ExecutionApprovalVerifier(store.path), approval,
+    )
+    return store.set(
+        active=False, updated_by="Sparks", reason=reason,
+        at=moment, approval_id=approval.approval_id,
+    )
