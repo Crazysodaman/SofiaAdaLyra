@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 from pathlib import Path
+import sqlite3
 from typing import Callable, Mapping
 from uuid import uuid4
 
@@ -138,6 +139,41 @@ class SelfDirectedLifeCoordinator:
             value, expected_revision=None if existing is None else existing.revision,
         )
         return value
+
+    def _original_interest_evidence_current(
+        self, interest: InterestRecord, *, now: datetime,
+    ) -> bool:
+        """Fail closed on unavailable original evidence for optional LIFE.
+
+        The immutable goal evidence index is the source, not the learned
+        interest or model narrative. This read-only gate never erases memory,
+        changes GOALS, or represents a correction as an operator instruction.
+        """
+        if (
+            interest.audience_id != LOCAL_AUDIENCE
+            or interest.recorded_at > now
+            or not interest.evidence_refs
+        ):
+            return False
+        principal = local_sparks_principal().principal_id
+        try:
+            for ref in interest.evidence_refs:
+                source = self.evidence_index.lookup(ref)
+                if (
+                    source is None
+                    or source.principal_id != principal
+                    or source.audience != interest.audience_id
+                    or not source.source
+                    or source.observed_at.tzinfo is None
+                    or source.observed_at.utcoffset() is None
+                    or source.observed_at > now
+                    or source.observed_at > interest.recorded_at
+                ):
+                    return False
+        except (OSError, RuntimeError, ValueError, TypeError,
+                OverflowError, sqlite3.Error):
+            return False
+        return True
 
     @staticmethod
     def _experience_digest(experience: ExperienceRecord) -> str:
@@ -748,10 +784,15 @@ class SelfDirectedLifeCoordinator:
                 float(usage["wall_seconds"]) / budget.daily_seconds,
                 int(usage["storage_bytes"]) / budget.storage_bytes,
             )), 6)
+            interest_evidence_current = (
+                interest is not None
+                and self._original_interest_evidence_current(interest, now=now)
+            )
             curiosity = (
                 round(interest.strength * interest.confidence, 6)
                 if interest is not None
                 and interest.status is InterestStatus.ACTIVE
+                and interest_evidence_current
                 else 0.0
             )
             goal_importance = (
@@ -806,6 +847,8 @@ class SelfDirectedLifeCoordinator:
                 blockers.append("not_optional_private_work")
             if interest is None or interest.status is not InterestStatus.ACTIVE:
                 blockers.append("original_interest_not_active")
+            elif not interest_evidence_current:
+                blockers.append("originating_interest_evidence_unavailable")
             if resource_cost >= 1.0:
                 blockers.append("daily_budget_exhausted")
             if unresolved_run:
@@ -2030,6 +2073,7 @@ class SelfDirectedLifeCoordinator:
         interests = tuple(
             item for item in self.store.active_interests(audience_id=LOCAL_AUDIENCE)
             if item.confidence >= 0.6 and item.strength >= 0.5
+            and self._original_interest_evidence_current(item, now=now)
             and not cooling_down(item)
         )[:8]
         if not interests:
@@ -2066,7 +2110,21 @@ class SelfDirectedLifeCoordinator:
             )
             if selected_interest is None:
                 raise ValueError("suggestion has no eligible original interest")
-            evidence_refs = selected_interest.evidence_refs[:32]
+            current_interest = self.store.interest_by_id(
+                selected_interest.interest_id, audience_id=LOCAL_AUDIENCE,
+            )
+            if (
+                current_interest is None
+                or current_interest != selected_interest
+                or current_interest.status is not InterestStatus.ACTIVE
+                or not self._original_interest_evidence_current(
+                    current_interest, now=now,
+                )
+            ):
+                raise ValueError(
+                    "original interest or its evidence changed during model suggestion"
+                )
+            evidence_refs = current_interest.evidence_refs[:32]
             deterministic_accept = (
                 suggestion.pursue
                 and suggestion.confidence >= 0.65
@@ -2152,6 +2210,15 @@ class SelfDirectedLifeCoordinator:
             or current.brief != project.brief
         ):
             return False
+        interest = self.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        )
+        if (
+            interest is None
+            or interest.status is not InterestStatus.ACTIVE
+            or not self._original_interest_evidence_current(interest, now=now)
+        ):
+            return False
         goal = next((
             value for value in self.goals.list_visible(local_sparks_principal())
             if value.id == project.goal_id
@@ -2181,6 +2248,17 @@ class SelfDirectedLifeCoordinator:
             or expected_project_revision != project.revision
         ):
             raise ValueError("original LIFE project revision changed before scheduling")
+        interest = self.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        )
+        if (
+            interest is None
+            or interest.status is not InterestStatus.ACTIVE
+            or not self._original_interest_evidence_current(interest, now=now)
+        ):
+            raise PermissionError(
+                "optional LIFE origin interest evidence is unavailable or inactive"
+            )
         self._verify_evidence((evidence_ref,))
         if artifact_kind not in self._native_probe.supported_kinds:
             raise RuntimeError("artifact kind lacks a verified native adapter")
@@ -2302,6 +2380,13 @@ class SelfDirectedLifeCoordinator:
             or type(original_goal_revision) is not int
             or original_goal_revision != goal.revision
             or goal.expires_at is not None and started >= goal.expires_at
+            or not (
+                (interest := self.store.interest_by_id(
+                    project.originating_interest, audience_id=project.audience_id,
+                )) is not None
+                and interest.status is InterestStatus.ACTIVE
+                and self._original_interest_evidence_current(interest, now=started)
+            )
         ):
             self.store.cancel_artifact_authorization(
                 str(job.payload["parameters"]["request_id"]),
