@@ -320,6 +320,17 @@ class MemoryDeletionLedger:
         return {"signed_deletions": len(entries), "verified_absent": examined}
 
     def apply_to_sqlite(self, state_path: Path) -> int:
+        """Replay a fixed signed journal epoch under its append-owner lock.
+
+        The external journal is the deletion source of truth. Another process
+        must not append a new approved erasure between our authenticated scan
+        and the canonical SQLite replay commit. This is a local cooperating
+        lock, not a global cross-host lease for the external journal.
+        """
+        with self._exclusive():
+            return self._apply_to_sqlite_under_lock(state_path)
+
+    def _apply_to_sqlite_under_lock(self, state_path: Path) -> int:
         """Physical, idempotent removal of candidates and copied provenance.
 
         This is deliberately narrow: deleting a candidate does not delete
