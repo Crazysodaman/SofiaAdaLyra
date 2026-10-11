@@ -300,6 +300,7 @@ class TrayCommand(str, Enum):
     LLM_MODE_FAST = "llm_mode_fast_always_resident"
     LLM_MODE_DUAL = "llm_mode_dual_resident"
     LLM_MODE_RESOURCE = "llm_mode_resource_aware"
+    LLM_MODE_HYBRID = "llm_mode_hybrid_gaming_idle"
     LLM_REFRESH = "llm_refresh"
     LLM_VIEW_ERRORS = "llm_view_errors"
     RUNTIME_START = "runtime_start"
@@ -334,6 +335,7 @@ def tray_menu_labels(status: TrayStatus) -> tuple[tuple[TrayCommand, str], ...]:
         (TrayCommand.LLM_UNLOAD_PRIMARY, "Unload primary model"),
         (TrayCommand.LLM_UNLOAD_SECONDARY, "Unload secondary model"),
         (TrayCommand.LLM_UNLOAD_BOTH, unload_label),
+        (TrayCommand.LLM_MODE_HYBRID, "Mode: Gaming / idle hybrid"),
         (TrayCommand.LLM_REFRESH, "Refresh actual model status"),
         (TrayCommand.RUNTIME_START, "Start Sofía runtime"),
         (TrayCommand.RUNTIME_STOP, "Stop Sofía runtime"),
