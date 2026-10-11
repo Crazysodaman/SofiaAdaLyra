@@ -10,6 +10,7 @@ from sofia.environment.service import EnvironmentService
 from sofia.mobile.model import MobileSensorReport
 from sofia.mobile.sensors import MobileSensorProvider, MobileSensorStore
 from sofia.mobile.pairing import MobileDeviceCredentialStore
+from sofia.state.canonical_sqlite import CanonicalStateUnavailable
 
 
 NOW = datetime(2026, 10, 5, 20, 0, tzinfo=timezone.utc)
@@ -123,7 +124,7 @@ def test_mobile_sensors_cannot_resurrect_deleted_canonical_database(tmp_path):
     state.touch()
     store = MobileSensorStore(state)
     state.unlink()
-    with pytest.raises(sqlite3.OperationalError):
+    with pytest.raises(CanonicalStateUnavailable):
         store.latest()
     assert not state.exists()
 
