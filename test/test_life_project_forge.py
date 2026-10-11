@@ -1265,3 +1265,40 @@ def test_life_interest_learning_refuses_unlinked_credible_evaluation(tmp_path):
         assert after.revision == before.revision
     finally:
         life.close()
+
+
+def test_life_waiting_approval_is_visible_without_execution(tmp_path):
+    """Approval-gated RUN work must appear in the canonical LIFE review queue."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Approval-gated draft",
+            specification={"content": "A proposed, not yet authorized artifact."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.WAITING_APPROVAL,
+            reason="Separate SAFE operator decision needed",
+            now=now + timedelta(seconds=4),
+        )
+        reviews = life.pending_work_review()
+        assert any(
+            item["project_id"] == project.project_id
+            and item["job_id"] == job.job_id
+            and item["status"] == WorkStatus.WAITING_APPROVAL.value
+            and item["disposition"] == "awaiting_separate_operator_approval"
+            for item in reviews
+        )
+        busy = life.tick(now=now + timedelta(seconds=5), busy=True)
+        assert busy["scheduled"] == 0
+        assert any(
+            item["job_id"] == job.job_id for item in busy["review_queue"]
+        )
+        assert life.work_store.get(job.job_id).status is WorkStatus.WAITING_APPROVAL
+        assert life.store.artifacts(project.project_id) == ()
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+    finally:
+        life.close()
