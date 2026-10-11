@@ -247,3 +247,95 @@ def test_verified_procedure_quarantined_when_original_bytes_change(tmp_path):
         assert life._project(second.project_id).status is ProjectStatus.COMPLETED
     finally:
         life.close()
+
+
+def test_original_life_draft_cites_only_current_twice_verified_procedure(
+    tmp_path,
+):
+    """The third creative project sees source proof, never implicit tool rights."""
+    from sofia.cognition.model import CognitiveResponse
+    from sofia.life.draft_agent import ProjectDraftAgent
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, evidence, now)
+        second_start = now + timedelta(minutes=1)
+        second, second_evidence = _second_same_capability_project(
+            life, first, second_start,
+        )
+        _original_authorized_completion(
+            life, second, second_evidence, second_start,
+        )
+        assert life._reconcile_procedure_catalog(
+            now=second_start + timedelta(seconds=8),
+        ) == 2
+        third_start = now + timedelta(minutes=2)
+        third, _source = _second_same_capability_project(
+            life, first, third_start,
+        )
+        original = life._current_verified_procedures_for_draft(
+            third, now=third_start + timedelta(seconds=3),
+        )
+        assert len(original) == 1
+        assert original[0].verified_projects == 2
+        captured = []
+        def model(request):
+            captured.append(request)
+            return CognitiveResponse(content=json.dumps({
+                "content": (
+                    "Foxfire is a new original story authored with an explicit "
+                    "creative objective; this is not a copied prior artifact."
+                ),
+            }))
+        specification = ProjectDraftAgent(model).draft(
+            third, ArtifactKind.TEXT, verified_precedents=original,
+        )
+        assert "Foxfire" in specification["content"]
+        assert captured[0].allow_tools is False
+        assert "verified_precedents_non_authoritative" in captured[0].messages[1].content
+        assert original[0].procedure_id in captured[0].messages[1].content
+        assert "reproduce_original_work" in captured[0].messages[1].content
+        assert life.store.jobs(third.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_procedure_source_rot_is_not_reused_for_subsequent_life_draft(
+    tmp_path,
+):
+    """Current source invalidation withdraws precedents before model use."""
+    from sofia.life.draft_agent import ProjectDraftAgent
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        first_job, _ = _original_authorized_completion(
+            life, first, evidence, now,
+        )
+        second_start = now + timedelta(minutes=1)
+        second, evidence2 = _second_same_capability_project(
+            life, first, second_start,
+        )
+        _original_authorized_completion(life, second, evidence2, second_start)
+        assert life._reconcile_procedure_catalog(
+            now=second_start + timedelta(seconds=8),
+        ) == 2
+        third, _ = _second_same_capability_project(
+            life, first, now + timedelta(minutes=2),
+        )
+        first_path, _media = life.creative_explorer.verified_preview(
+            str(first_job.result["artifact_id"]),
+            owner_principal_id="sofia", audience_id="local:text",
+        )
+        first_path.write_text("Changed content invalidates the prior proof.")
+        assert life._current_verified_procedures_for_draft(
+            third, now=now + timedelta(minutes=2, seconds=4),
+        ) == ()
+        assert life.store.jobs(third.project_id) == ()
+    finally:
+        life.close()
