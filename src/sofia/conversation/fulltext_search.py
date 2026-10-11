@@ -161,6 +161,16 @@ class ConversationFullTextSearch:
                     "UPDATE conversation_fts_meta SET indexed_source_count=?,"
                     "is_ready=1 WHERE singleton=1", (count,),
                 )
+                # An indexed backfill may be long on a decades-old Main.
+                # A formerly valid privileged approval is not authority to
+                # publish after it has been revoked while we indexed rows.
+                # This is still one SQLite writer transaction: denied
+                # final approval rolls back the FTS rebuild, trigger upgrade
+                # and readiness marker together.
+                if independently_verify_fenced_approval(authorization) is not True:
+                    raise PermissionError(
+                        "privileged index rebuild approval expired before commit"
+                    )
                 db.commit()
             except BaseException:
                 db.rollback()
