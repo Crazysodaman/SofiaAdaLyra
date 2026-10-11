@@ -135,6 +135,10 @@ def _restrict_new_windows_file(path: Path) -> None:
             str(path), win32security.DACL_SECURITY_INFORMATION,
         )
         sd.SetSecurityDescriptorDacl(1, acl, 0)
+        # Protect private file DACL from broad inherited Users/Everyone ACEs.
+        sd.SetSecurityDescriptorControl(
+            win32security.SE_DACL_PROTECTED, win32security.SE_DACL_PROTECTED,
+        )
         win32security.SetFileSecurity(
             str(path), win32security.DACL_SECURITY_INFORMATION, sd,
         )
