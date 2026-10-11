@@ -371,9 +371,12 @@ def stage_verified_state_home(
             )
             published = True
     finally:
-        if not published:
-            # Deleting only our randomly created workdir never overwrites
-            # the owner-selected destination or modifies the old writer.
+        if not published and staging.is_dir() and not staging.is_symlink():
+            # The rename can already have published the destination when a
+            # later parent-directory fsync fails. In that case staging is
+            # ABSENT: never replace the original StateHomePublicationUncertain
+            # with FileNotFoundError or touch the visible candidate.
+            # Only discard our still-present random staging directory.
             shutil.rmtree(staging)
     # Neither the bootstrap state pointer nor the active writer is touched.
     # A reviewed host-privileged cutover is independently required.
