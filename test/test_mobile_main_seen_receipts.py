@@ -170,6 +170,7 @@ def test_rotated_token_cannot_write_into_new_generation_mid_dispatch(
         assert gateway.credentials.authenticate(rotated[0]) == "android-owner"
         assert gateway.main_seen.current(
             device_id="android-owner", private_mode=False, generation=2,
+            principal=gateway._principal("android-owner", private_mode=False),
         ) is None
 
         monkeypatch.setattr(gateway.main_seen, "acknowledge", original)
@@ -197,7 +198,39 @@ def test_raw_main_read_cursor_requires_current_bearer_fingerprint(tmp_path):
             )
         assert gateway.main_seen.current(
             device_id="android-owner", private_mode=False, generation=1,
+            principal=gateway._principal("android-owner", private_mode=False),
         ) is None
         assert _seen(gateway, token)["acknowledged"] is True
+    finally:
+        source.close()
+
+
+def test_deleted_or_rebound_source_cannot_leave_visible_last_seen_hint(tmp_path):
+    path, source, social, app, gateway = _setup(tmp_path)
+    token = gateway.credentials.enroll("android-owner")
+    try:
+        _record(
+            source, social, gateway, private_mode=False,
+            text="Source subject to erasure", number=1,
+        )
+        _canonical(path, "source-1", 1)
+        assert _seen(gateway, token)["last_seen"]["canonical_sequence"] == 1
+        with sqlite3.connect(path) as db:
+            db.execute(
+                "DELETE FROM lifelong_thread_event WHERE source_message_id=?",
+                ("source-1",),
+            )
+            db.commit()
+        # Durable receipt survives for audit, but no longer authorizes a
+        # visible cursor into deleted or audience-withdrawn conversation.
+        assert gateway.main_history(
+            device_id="android-owner", private_mode=False,
+        )["last_seen"] is None
+        with sqlite3.connect(path) as db:
+            row = db.execute(
+                "SELECT canonical_sequence FROM mobile_main_seen "
+                "WHERE device_id='android-owner'"
+            ).fetchone()
+        assert row == (1,)
     finally:
         source.close()
