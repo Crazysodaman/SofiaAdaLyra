@@ -38,7 +38,12 @@
     "c2ce1d373b3fde1331b60ccab67e30af3b442cd5",
     "4ce3bb16f10269bf9e1f962a7d1b0fd0c8940d0d",
     "6a741d975c0cd94eca6d747ef5cc06c77e3a5deb",
-    "305395ae9cebd01195960afc2ddd35c78cb26cf7"
+    "305395ae9cebd01195960afc2ddd35c78cb26cf7",
+    "a19e622fa3c83c8a20113c29aee3cb22a76cf483",
+    "45d9f40ec643ae1e038405e6390ec34de27c488f",
+    "c31f5622083d41b637faa98aaf2992e86026832e",
+    "bdbc06b8493d885c684fc00180ffcc22592ab2f7",
+    "2f6ee3eab6d0e445a769235233d70ee4da49ec73"
   ],
   "tasks": [
     {
@@ -544,7 +549,7 @@
       "master_line": 955,
       "global_ledger_before": "unassessed",
       "source_review": "partially_implemented_unverified",
-      "finding": "No automatic startup downloads; legacy bulk/install config flag permanently inert; explicit lifecycle pull now requires callback verifying exact role/model/operator receipt, and Settings no longer offers auto install. Host SAFE broker and full promotion approval policy remain open. Source tests authored, unexecuted.",
+      "finding": "No automatic startup installs or legacy policy bypass. Owner Settings now offers a real local Ollama download with exact canonical one-time SAFE approval consumed before pull, verified host identity/role/model, operator-stop, backend inventory confirmation and append-only outcome audit. Full model change host broker, no-cloud/fallback policy and bounded scheduling still pending; source regressions unexecuted.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
@@ -1793,11 +1798,12 @@
       "phase": "15",
       "master_line": 1148,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "One shared production NEURO runtime retains bounded/decaying eligible external signals, discards prior foreground/domain signals on each user turn, and now explicitly prioritizes new conversation subject/correction before competition; channel-switch regression authored, not run."
     },
     {
       "id": "CA-711",
