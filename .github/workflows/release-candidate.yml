@@ -50,11 +50,9 @@ jobs:
           "SOFIA_RELEASE_VENV=$(Join-Path $env:RUNNER_TEMP 'sofia-release-venv')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "SOFIA_RELEASE_EVIDENCE=$(Join-Path $env:RUNNER_TEMP 'source-provenance.json')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "SOFIA_VERIFICATION_EVIDENCE=$(Join-Path $env:RUNNER_TEMP 'verification-evidence.json')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          New-Item -ItemType Directory -Force "$sourceRoot" | Out-Null
-          $archive = Join-Path $env:RUNNER_TEMP "sofia-tracked-source.tar"
-          git archive --format=tar HEAD -o "$archive"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          tar -xf "$archive" -C "$sourceRoot"
+          # Stage raw reviewed Git objects. A Windows tar extraction can
+          # rewrite text newlines and break HEAD-to-wheel byte provenance.
+          python src/sofia/verify/stage_release_source.py --checkout "$env:GITHUB_WORKSPACE" --target "$sourceRoot"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify exact hashed runtime lock
