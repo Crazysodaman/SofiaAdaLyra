@@ -7,14 +7,70 @@ Never rewrites a bootstrap pointer, switches active writers or starts Sofia.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import errno
 import os
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 from typing import Callable
 
 from sofia.ops.backup import BackupEngine, BackupError
 from sofia.ops.state_mobility import inspect_state_relocation
+
+
+def _publish_new_home_without_replacing(staging: Path, destination: Path) -> None:
+    """Atomically publish ONLY when the entire destination name is absent.
+
+    A pre-rename Path.exists check alone cannot protect an empty owner home
+    concurrently created between preflight and publication. Linux uses the
+    kernel's RENAME_NOREPLACE, while Windows directory rename does not
+    replace an existing destination. Unsupported platforms fail closed.
+    """
+    if not isinstance(staging, Path) or not isinstance(destination, Path):
+        raise TypeError("staged and destination home must be Paths")
+    if not staging.is_dir():
+        raise FileNotFoundError("verified staging directory is missing")
+    if destination.exists() or destination.is_symlink():
+        raise FileExistsError("destination home already exists")
+    if sys.platform.startswith("linux"):
+        import ctypes
+
+        try:
+            libc = ctypes.CDLL(None, use_errno=True)
+            renameat2 = libc.renameat2
+        except AttributeError as exc:
+            raise RuntimeError(
+                "atomic RENAME_NOREPLACE unavailable; manual broker required"
+            ) from exc
+        renameat2.argtypes = (
+            ctypes.c_int, ctypes.c_char_p,
+            ctypes.c_int, ctypes.c_char_p, ctypes.c_uint,
+        )
+        renameat2.restype = ctypes.c_int
+        # AT_FDCWD = -100, RENAME_NOREPLACE = 1 on Linux.
+        result = renameat2(
+            -100, os.fsencode(staging),
+            -100, os.fsencode(destination), 1,
+        )
+        if result != 0:
+            err = ctypes.get_errno()
+            if err == errno.EEXIST:
+                raise FileExistsError(
+                    err, "destination home appeared during atomic publication",
+                    os.fspath(destination),
+                )
+            raise OSError(
+                err, os.strerror(err), os.fspath(destination),
+            )
+        return
+    if os.name == "nt":
+        # Windows' os.rename rejects existing destination directories.
+        os.rename(staging, destination)
+        return
+    raise RuntimeError(
+        "no guaranteed non-replacing directory publish on this platform"
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,7 +237,7 @@ def stage_verified_state_home(
             raise BackupError(
                 "destination was replaced, redirected or left local storage"
             )
-        os.rename(staging, destination)
+        _publish_new_home_without_replacing(staging, destination)
         published = True
     finally:
         if not published:
