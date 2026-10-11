@@ -1088,6 +1088,17 @@ class SelfDirectedLifeCoordinator:
                 )
                 specification = self._initial_specification(project, kind)
                 if generate is not None and kind in {ArtifactKind.TEXT, ArtifactKind.STORY}:
+                    if not self.store.claim_daily_draft_attempt(project.project_id, now=now):
+                        return {
+                            "selection": selection.kind.value,
+                            "project_id": selection.project_id,
+                            "scheduled": 0,
+                            "jobs_started": self.manager.tick(
+                                now=now, busy=busy, resource_pressure=resource_pressure,
+                            ),
+                            "draft_status": "deferred_daily_limit",
+                            "review_queue": self.pending_work_review(limit=16),
+                        }
                     try:
                         specification = ProjectDraftAgent(generate).draft(project, kind)
                     except ProjectDraftGenerationError:
