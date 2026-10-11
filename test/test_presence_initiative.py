@@ -341,7 +341,7 @@ def test_verified_personal_life_work_can_start_owner_conversation(tmp_path):
             row = db.execute(
                 "SELECT trigger_kind,recipient_id,notice_id,status "
                 "FROM presence_initiative_opportunity "
-                "WHERE event_id LIKE 'life-complete:%'",
+                "WHERE event_id LIKE 'life-update:%'",
             ).fetchone()
         assert row is not None
         assert row[0] == "task_completed"
@@ -516,5 +516,98 @@ def test_life_celebration_expires_instead_of_announcing_old_work(tmp_path):
             now=later, busy=False,
         ) == 0
         assert service.has_pending() is False
+    finally:
+        life.close()
+
+
+def test_life_reviewed_draft_can_be_shared_without_claiming_objective_success(
+    tmp_path,
+):
+    """Sofía can mention an actual draft before calling the project successful."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from test.test_life_project_forge import (
+        infrastructure, active_project, authored_foxfire_text, wait_for_job,
+    )
+    from sofia.run.work import WorkStatus
+    from sofia.life import ProjectStatus
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(
+            life, now,
+            objectives=("Create a personally moving original story.",),
+        )
+        first = life.tick(
+            now=now + timedelta(seconds=3),
+            generate=authored_foxfire_text,
+        )
+        assert first["scheduled"] == 1
+        job = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        assert job.status is WorkStatus.COMPLETED
+        reviewed = life.tick(now=now + timedelta(seconds=8))
+        assert reviewed["follow_through"] == "needs_independent_objective_review"
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        stamp = now + timedelta(seconds=8)
+        candidates = life.voluntary_project_updates(now=stamp)
+        assert len(candidates) == 1
+        assert candidates[0]["moment_kind"] == "reviewed_draft"
+        presence, service, _sent = _owner_only_outreach(life)
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=stamp, busy=False,
+        ) == 1
+        import sqlite3
+        with sqlite3.connect(life.path) as db:
+            row = db.execute(
+                "SELECT predicate,value_json FROM presence_world_observation "
+                "WHERE observation_id LIKE 'life-observed:%'",
+            ).fetchone()
+            message = db.execute(
+                "SELECT content FROM act_system_notice "
+                "WHERE notice_id LIKE 'presence:%'",
+            ).fetchone()[0]
+        assert row is not None
+        assert row[0] == "original_project.verified_draft"
+        import json
+        assert json.loads(row[1])["independent_objectives_verified"] is False
+        assert "draft" in message.lower()
+        assert "checks passed" not in message.lower()
+        assert "finished and verified" not in message.lower()
+        assert "artifact:" not in message
+        assert service.has_pending()
+    finally:
+        life.close()
+
+
+def test_life_reviewed_draft_wont_share_corrupt_bytes(tmp_path):
+    """An original completed RUN is not enough after creative bytes are altered."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from test.test_life_project_forge import (
+        infrastructure, active_project, authored_foxfire_text, wait_for_job,
+    )
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(
+            life, now, objectives=("Write a personally enjoyable story.",),
+        )
+        life.tick(
+            now=now + timedelta(seconds=3), generate=authored_foxfire_text,
+        )
+        job = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        life.tick(now=now + timedelta(seconds=8))
+        artifact_id = str(job.result["artifact_id"])
+        path, _media = life.creative_explorer.verified_preview(
+            artifact_id, owner_principal_id="sofia", audience_id="local:text",
+        )
+        path.write_text("An edited file with no original digest match.")
+        presence, service, _sent = _owner_only_outreach(life)
+        stamp = now + timedelta(seconds=9)
+        assert life.voluntary_project_updates(now=stamp) == ()
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=stamp, busy=False,
+        ) == 0
+        assert not service.has_pending()
     finally:
         life.close()
