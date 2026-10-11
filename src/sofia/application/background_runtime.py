@@ -59,7 +59,11 @@ def bridge_voluntary_life_outreach(
     # Desktop's owner tray or a separately authenticated pinned owner DM.
     # Home Assistant notify targets and general channels have no proven
     # one-to-one private project audience mapping.
-    if route is None or route[0] not in {"desktop", "discord"}:
+    if (
+        route is None
+        or route[0] not in {"desktop", "discord"}
+        or (route[0] == "desktop" and route[1] != "tray")
+    ):
         return 0
     policy = act_service.policy
     if policy is None or not policy.enabled or policy.mute or policy.stop:
@@ -98,7 +102,10 @@ def bridge_voluntary_life_outreach(
             "original_project.verified_completion" if completed
             else "original_project.verified_draft"
         ),
-        source_id="life:canonical_project_event",
+        source_id=(
+            "life:canonical_project_event" if completed
+            else "life:canonical_artifact_evaluation"
+        ),
         observed_at=candidate["verified_at"],
         expires_at=candidate["expires_at"],
         confidence=1.0,
@@ -106,7 +113,8 @@ def bridge_voluntary_life_outreach(
         availability=WorldAvailability.NOT_APPLICABLE,
         value={
             "project_id": candidate["project_id"],
-            "completion_event_id": candidate["event_id"],
+            "source_record_id": candidate["event_id"],
+            "source_record_kind": candidate["moment_kind"],
             "source_evidence_refs": candidate["source_evidence_refs"],
             "independent_objectives_verified": completed,
             "original_artifact_bytes_verified": True,
@@ -114,7 +122,14 @@ def bridge_voluntary_life_outreach(
         },
         audience_id="local:text",
     )
-    name = candidate["title"]
+    # Model-authored project names are low-trust content. Strip control
+    # characters and Discord mention/markup delimiters before a private
+    # outbound message can ever hit a configured transport.
+    safe_title = "".join(
+        char if char.isprintable() and char not in "<>@`" else " "
+        for char in candidate["title"]
+    )
+    name = " ".join(safe_title.split())[:120].strip() or "my creative project"
     # Vary the conversational invitation using a stable source identifier,
     # not randomized nagging or fabricated emotional events.
     style = int(event_id[-2:], 16) % 3
