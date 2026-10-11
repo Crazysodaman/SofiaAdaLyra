@@ -565,9 +565,25 @@ class SystemNoticeQueue:
                 )
                 return None
 
-        # Only a notice that passed both final authority checks may
-        # enter the transport attempt trace. A policy deferral or explicit
-        # owner decline above must never claim that the sender was invoked.
+        # The project-specific callback may perform database I/O while
+        # owner mute/stop changes. Recheck global consent AFTER that work,
+        # as close as possible to the actual sender boundary.
+        if pre_send_decision is not None:
+            try:
+                final_decision = pre_send_decision()
+                if not isinstance(final_decision, Decision):
+                    raise TypeError("pre_send_decision must return Decision")
+            except Exception:
+                final_decision = Decision.AUTHORIZATION_UNAVAILABLE
+            if final_decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                self._release_claim_before_send(
+                    payload=payload, reason=final_decision.value, at=moment,
+                )
+                return None
+
+        # Only a notice that passed both project and final global authority
+        # checks may enter the transport-attempt trace. Suppression never
+        # reports an actual send attempt.
         with closing(self._connect()) as db:
             with db:
                 db.execute("BEGIN IMMEDIATE")
