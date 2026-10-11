@@ -2566,3 +2566,94 @@ def test_optional_life_selector_does_not_reselect_blocked_run(tmp_path):
         assert life.store.jobs(project.project_id) == (job.job_id,)
     finally:
         life.close()
+
+
+def test_canonical_life_motivation_is_derived_without_another_owner(tmp_path):
+    """Original GOALS, interest and resource records supply selection signals."""
+    from sofia.life import MotivationSignal
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        before_events = life.store.events(
+            project.project_id, owner_principal_id=project.owner_principal_id,
+            audience_id=project.audience_id,
+        )
+        signals = life.motivation_signals(
+            now=now + timedelta(seconds=3),
+            busy=False, resource_pressure=0.1,
+        )
+        assert len(signals) == 1
+        signal = signals[0]
+        assert isinstance(signal, MotivationSignal)
+        assert signal.project_id == project.project_id
+        assert signal.goal_id == project.goal_id
+        assert signal.eligible is True
+        assert signal.goal_importance > 0
+        assert signal.curiosity > 0
+        assert signal.novelty == 1
+        assert signal.verified_learning_progress == 0
+        assert 0 <= signal.score <= 1
+        assert signal.evidence_refs
+        assert life.motivation_signals(
+            now=now + timedelta(seconds=3),
+            busy=False, resource_pressure=0.1,
+        ) == signals
+        assert life.store.events(
+            project.project_id, owner_principal_id=project.owner_principal_id,
+            audience_id=project.audience_id,
+        ) == before_events
+        selected = life.select_activity(
+            now=now + timedelta(seconds=4),
+            busy=False, resource_pressure=0.1,
+        )
+        assert selected.project_id == project.project_id
+        assert selected.kind.value == "project"
+    finally:
+        life.close()
+
+
+def test_motivation_budget_and_operator_authority_outrank_curiosity(tmp_path):
+    """A high interest score is neither permission nor extra work budget."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        busy = life.motivation_signals(
+            now=now + timedelta(seconds=3), busy=True,
+            resource_pressure=0.2,
+        )[0]
+        assert busy.eligible is False
+        assert busy.interruption_cost == 1
+        assert life.select_activity(
+            now=now + timedelta(seconds=3), busy=True,
+            resource_pressure=0.2,
+        ).kind.value == "inactivity"
+        budget = project.brief.resource_budget
+        life.store.add_usage(
+            project_id=project.project_id,
+            usage_day=now.astimezone(timezone.utc).date(),
+            cpu_seconds=0, gpu_seconds=0,
+            wall_seconds=budget.daily_seconds,
+            storage_bytes=0,
+        )
+        exhausted = life.motivation_signals(
+            now=now + timedelta(seconds=4),
+            busy=False, resource_pressure=0.0,
+        )[0]
+        assert exhausted.resource_cost == 1
+        assert exhausted.eligible is False
+        assert "daily_budget_exhausted" in exhausted.reason
+        life.operator_stop.set(
+            active=True, updated_by="Sparks",
+            reason="Pause all optional source-derived activity.",
+            at=now + timedelta(seconds=5),
+        )
+        stopped = life.motivation_signals(
+            now=now + timedelta(seconds=6),
+            busy=False, resource_pressure=0.0,
+        )[0]
+        assert stopped.eligible is False
+        assert "operator_stop" in stopped.reason
+        assert life.store.jobs(project.project_id) == ()
+    finally:
+        life.close()
