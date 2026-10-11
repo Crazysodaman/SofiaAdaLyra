@@ -1128,6 +1128,33 @@ No tests/CI run; no channel messages emitted, grants updated or host
 modified. CA relevance: CA-4103, CA-4105, CA-4107, CA-4109, CA-5304,
 CA-6304, CA-6310.
 
+### Phase 03: Destructive backup retention cannot follow redirected roots
+
+`rotate_backups(root, keep=N)` is a production deletion path called by
+backup CLI/topology, separate from archive verification. Previously it
+enumerated a caller-supplied root with `Path.iterdir()` and
+`shutil.rmtree` without rejecting a symlink/junction *root*, so a
+filesystem redirect could cause archive rotation to delete backup-looking
+directories outside the operator-selected root. It also lacked a
+pre-deletion check for symlinks/junctions within expired archives.
+
+Rotation now refuses redirected ancestors of the selected backup root,
+refuses redirected candidate archive directories/manifest paths,
+preflights every nested path in **all selected expired backup
+directories before the first delete**, and rechecks a candidate before
+`rmtree`. A suspicious path fails closed instead of deleting a partial
+backup generation. Normal, unredirected archive rotation retains its
+explicit `keep` contract and descending name order. This is not an
+atomic OS directory-handle fence against a malicious process swapping
+a path at nanosecond intervals, and it does not authenticate archive
+ciphertext without keys.
+
+Production: `341edcc66b5c0587f499751a8f3de14cd96cf181`.
+Deferred redirected root/candidate/nested-source and normal retention
+regressions: `af2c69b5a349688e8e72dba000ec41fe2bc0d136`.
+No retention command or test was executed; no real backup deleted.
+Original CA relevance: CA-5204, CA-5207, CA-6105, CA-6404.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
