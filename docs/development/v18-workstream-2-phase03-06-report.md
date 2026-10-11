@@ -2573,6 +2573,43 @@ remain unaccepted. This is preliminary candidate filtering,
 not full bitemporal claim truth or an alternative memory store.
 No tests/CI, live source rewrites or model invocations.
 
+
+
+### Phase 06 item 75: Revoked privilege aborts offline FTS rebuild commit
+
+The real optional `ConversationFullTextSearch.rebuild_offline`
+revalidates a typed independently fenced owner approval at
+admission, then runs a potentially long FTS5 source backfill,
+trigger upgrade and metadata update inside canonical SQLite
+`BEGIN IMMEDIATE`. Previously it could commit all index and
+schema effects even if the external owner approval was revoked
+during that long maintenance operation.
+
+Production `src/sofia/conversation/fulltext_search.py`
+now performs a second independent approval verification
+**after the full FTS5 backfill and readiness count** but
+**before `db.commit()`**. A revoked approval raises
+`PermissionError` and rolls back this one transaction,
+including temporary FTS DDL/trigger work. If an earlier
+approved index already exists, the denied update must leave
+its preexisting transactionally committed state intact.
+No model text or in-process boolean self-authorizes an
+index rebuild.
+
+- Production `a664b3ab0b8542001a0b0950e16aacb3d2108b0c`
+  (`[skip ci]`).
+- Deferred synthetic SQLite approval-revocation regression
+  `test/test_ws2_fts_rebuild_revocation.py`,
+  `64ea019c88dbfa55f318611c299a59a2bdc9b735`
+  (`[skip ci]`).
+
+Original CA relevance: CA-5002, CA-5603,
+CA-5608, CA-6311. Actual privileged host fencing
+and first-owner authorization issuance remain external
+and must be independently verified during final acceptance.
+No real index rebuild, tests, CI, backup or host
+actions executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
