@@ -2142,12 +2142,18 @@ class SelfDirectedLifeCoordinator:
         self, project_id: str, *, artifact_kind: ArtifactKind,
         title: str, specification: Mapping[str, object], evidence_ref: str,
         now: datetime, artifact_id: str | None = None,
+        expected_project_revision: int | None = None,
     ) -> WorkJob:
         if self.operator_stop.current().active:
             raise PermissionError("operator stop blocks optional LIFE scheduling")
         project = self._project(project_id)
         if project.status is not ProjectStatus.ACTIVE or project.goal_id is None:
             raise ValueError("only an active goal-backed project can schedule artifacts")
+        if expected_project_revision is not None and (
+            type(expected_project_revision) is not int
+            or expected_project_revision != project.revision
+        ):
+            raise ValueError("original LIFE project revision changed before scheduling")
         self._verify_evidence((evidence_ref,))
         if artifact_kind not in self._native_probe.supported_kinds:
             raise RuntimeError("artifact kind lacks a verified native adapter")
@@ -2213,6 +2219,7 @@ class SelfDirectedLifeCoordinator:
                 db, project_id=project.project_id, job_id=candidate.job_id,
                 request_id=str(parameters["request_id"]), artifact_id=artifact_key,
                 request_digest=creative_request_digest(parameters), now=now,
+                expected_project_revision=project.revision,
             ),
         )
         return job
@@ -3014,6 +3021,7 @@ class SelfDirectedLifeCoordinator:
                 project.project_id, artifact_kind=kind,
                 title=project.name, specification=draft,
                 evidence_ref=observation, now=now,
+                expected_project_revision=project.revision,
             )
         except ProjectWorkPending:
             # A concurrently running canonical LIFE tick won admission.
@@ -3821,6 +3829,7 @@ class SelfDirectedLifeCoordinator:
                         title=project.name,
                         specification=specification,
                         evidence_ref=evidence_ref, now=now,
+                        expected_project_revision=project.revision,
                     )
                 except ProjectWorkPending:
                     follow_through = "waiting_on_existing_work"
