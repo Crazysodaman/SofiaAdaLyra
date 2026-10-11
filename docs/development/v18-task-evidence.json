@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "9a8c8364855f79af47d2711652b0c8801028ea9e",
+  "reviewed_main_sha": "61c4773ab9c64f9040d11e6fecc32754653035d3",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 source-only ACT transport veto and release clean-start gate wired; regression fixtures corrected for non-quiet policy and canonical GoalJournal schema. Tests not run; task acceptance remains pending. Other workstream entries retained.",
+  "notice": "WS1: canonical-source guard wired through INTERACT GoalJournal, DesktopControlSettings, detached desktop and Settings transaction/query/UI panels. Regression cases authored; all tests deferred per user. CA-003/1107/1905 remain partial, other workstream records preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -36,18 +36,35 @@
       "code_paths": [
         "src/sofia/ui/settings_window.py",
         "src/sofia/ui/tray_agent.py",
-        "test/test_ui_settings_persistence.py"
+        "test/test_ui_settings_persistence.py",
+        "src/sofia/interaction/goal_journal.py",
+        "src/sofia/ui/control_center.py",
+        "src/sofia/ui/desktop_application.py",
+        "src/sofia/ui/settings_service.py",
+        "src/sofia/ui/settings_sections.py",
+        "test/test_interaction_goal_journal.py",
+        "test/test_ui_control_center.py",
+        "test/test_ui_desktop_storage_authority.py"
       ],
       "evidence_commits": [
         "664bfc02b518620085300fb7c2c04a6821e4ad45",
         "b06d86b2cfc81f649e47939ab84eb80e6a4eb2e1",
-        "d7f8c94243c0cd7e35b33815005b6dec3a26c2f1"
+        "d7f8c94243c0cd7e35b33815005b6dec3a26c2f1",
+        "71dcd2c550c5a28574ef1caa97d5328d0f4b0428",
+        "102b12cf86aa5e3dca8782effea5c3a5856a152d",
+        "41d2c3db65c0ef76d024c9988431a286e1e3b422",
+        "b5d59050ce7e5a9a621d0a2002afd4460fd88e26",
+        "8ff4d5d38067cbd600a3bf2cf6d751b264236c92",
+        "30e6e7d252ff03eab0c592015d854fa78f690b91",
+        "7dbe8511a795e890b475b23467aae5fc523908cf",
+        "a57fb3bbfb012be68f6461c2bc2aa86f8c48837d",
+        "3e1cfc4b15d9cabd84666dfe0206163e9c4740cf"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
-        "depth": "canonical_state_ui_startup_source",
-        "interpretation": "Independent tray/Settings no longer directly creates an empty SQLite state; both require existing canonical regular path. Configuration bootstrap still owns first-install creation; full cross-host fencing/promotion acceptance remains open."
+        "at_sha": "61c4773ab9c64f9040d11e6fecc32754653035d3",
+        "depth": "production_canonical_state_source_and_regression",
+        "interpretation": "INTERACT GoalJournal and desktop/tray/Settings control owners now use canonical SQLite inode/symlink guard, no implicit database creation or replacement reads/writes. Regression tests authored but not run. This covers these UI/INTERACT paths only, not all packages nor selected host failover and split-brain fencing."
       }
     },
     {
@@ -1793,10 +1810,35 @@
       "phase": "02",
       "source_topic": "11",
       "master_line": 268,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/interaction/goal_journal.py",
+        "src/sofia/ui/control_center.py",
+        "src/sofia/ui/desktop_application.py",
+        "src/sofia/ui/settings_service.py",
+        "src/sofia/ui/settings_sections.py",
+        "test/test_interaction_goal_journal.py",
+        "test/test_ui_control_center.py",
+        "test/test_ui_desktop_storage_authority.py",
+        "test/test_ui_settings_persistence.py"
+      ],
+      "evidence_commits": [
+        "71dcd2c550c5a28574ef1caa97d5328d0f4b0428",
+        "102b12cf86aa5e3dca8782effea5c3a5856a152d",
+        "41d2c3db65c0ef76d024c9988431a286e1e3b422",
+        "b5d59050ce7e5a9a621d0a2002afd4460fd88e26",
+        "8ff4d5d38067cbd600a3bf2cf6d751b264236c92",
+        "30e6e7d252ff03eab0c592015d854fa78f690b91",
+        "7dbe8511a795e890b475b23467aae5fc523908cf",
+        "a57fb3bbfb012be68f6461c2bc2aa86f8c48837d",
+        "3e1cfc4b15d9cabd84666dfe0206163e9c4740cf"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "61c4773ab9c64f9040d11e6fecc32754653035d3",
+        "depth": "production_canonical_state_source_and_regression",
+        "interpretation": "INTERACT GoalJournal and desktop/tray/Settings control owners now use canonical SQLite inode/symlink guard, no implicit database creation or replacement reads/writes. Regression tests authored but not run. This covers these UI/INTERACT paths only, not all packages nor selected host failover and split-brain fencing."
+      }
     },
     {
       "id": "CA-1901",
@@ -1899,10 +1941,35 @@
       "phase": "02",
       "source_topic": "19",
       "master_line": 276,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/interaction/goal_journal.py",
+        "src/sofia/ui/control_center.py",
+        "src/sofia/ui/desktop_application.py",
+        "src/sofia/ui/settings_service.py",
+        "src/sofia/ui/settings_sections.py",
+        "test/test_interaction_goal_journal.py",
+        "test/test_ui_control_center.py",
+        "test/test_ui_desktop_storage_authority.py",
+        "test/test_ui_settings_persistence.py"
+      ],
+      "evidence_commits": [
+        "71dcd2c550c5a28574ef1caa97d5328d0f4b0428",
+        "102b12cf86aa5e3dca8782effea5c3a5856a152d",
+        "41d2c3db65c0ef76d024c9988431a286e1e3b422",
+        "b5d59050ce7e5a9a621d0a2002afd4460fd88e26",
+        "8ff4d5d38067cbd600a3bf2cf6d751b264236c92",
+        "30e6e7d252ff03eab0c592015d854fa78f690b91",
+        "7dbe8511a795e890b475b23467aae5fc523908cf",
+        "a57fb3bbfb012be68f6461c2bc2aa86f8c48837d",
+        "3e1cfc4b15d9cabd84666dfe0206163e9c4740cf"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "61c4773ab9c64f9040d11e6fecc32754653035d3",
+        "depth": "production_canonical_state_source_and_regression",
+        "interpretation": "INTERACT GoalJournal and desktop/tray/Settings control owners now use canonical SQLite inode/symlink guard, no implicit database creation or replacement reads/writes. Regression tests authored but not run. This covers these UI/INTERACT paths only, not all packages nor selected host failover and split-brain fencing."
+      }
     },
     {
       "id": "CA-1906",
