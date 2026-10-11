@@ -144,3 +144,83 @@ def test_malformed_or_unbounded_tag_inventory_never_claims_empty_machine():
             selection=selection(), backend=adapter,
             host_id="venus", at=NOW,
         )
+
+
+def test_run_owned_readonly_discovery_uses_reviewed_local_ollama_roles(
+    tmp_path, monkeypatch,
+):
+    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).save(
+        RuntimeUserSettings(
+            cognitive_primary_model="primary:stable",
+            cognitive_secondary_model="secondary:missing",
+        )
+    )
+    adapter=LocalOllama()
+    rows=refresh_local_model_inventory(
+        state_path=state,host_id="venus",at=NOW,
+        details_limit=1,backend=adapter,
+    )
+    assert len(rows)==3
+    # The only metadata /show goes to the configured primary, not to an
+    # unreviewed installed candidate that happens to sort first.
+    assert adapter.calls == ["tags","version","show:primary:stable"]
+    secondary=next(row for row in rows if row.model=="secondary:missing")
+    assert secondary.installed is False
+    unconfigured=next(row for row in rows if row.model=="orphan:old")
+    assert unconfigured.details_error=="details_deferred_budget"
+    candidates=ModelInventoryStore(state).candidate_review(host_id="venus")
+    assert "orphan:old" in candidates
+    assert "primary:stable" not in candidates
+    assert "suitability=unverified" in candidates
+
+
+def test_failed_unattended_scan_keeps_prior_confirmed_inventory(tmp_path):
+    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).save(
+        RuntimeUserSettings(
+            cognitive_primary_model="primary:stable",
+            cognitive_secondary_model="secondary:missing",
+        )
+    )
+    refresh_local_model_inventory(
+        state_path=state,host_id="venus",at=NOW,
+        details_limit=1,backend=LocalOllama(),
+    )
+    backend=LocalOllama()
+    def offline():
+        raise ConnectionError("local Ollama is unavailable")
+    backend.models=offline
+    with pytest.raises(ConnectionError):
+        refresh_local_model_inventory(
+            state_path=state,host_id="venus",at=NOW,
+            details_limit=1,backend=backend,
+        )
+    assert "primary:stable" in ModelInventoryStore(state).readable(
+        host_id="venus",
+    )
+
+
+def test_unreviewed_model_never_gets_a_rank_or_role_from_discovery(tmp_path):
+    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).save(
+        RuntimeUserSettings(
+            cognitive_primary_model="primary:stable",
+            cognitive_secondary_model="secondary:missing",
+        )
+    )
+    refresh_local_model_inventory(
+        state_path=state,host_id="venus",at=NOW,
+        details_limit=0,backend=LocalOllama(),
+    )
+    decision=ModelInventoryStore(state).candidate_review(host_id="venus")
+    assert "DISCOVERY ONLY" in decision
+    assert "license" in decision
+    assert "unverified" in decision
+    assert "switch" not in decision.casefold()
