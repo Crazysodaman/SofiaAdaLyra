@@ -48,6 +48,35 @@ def _utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def ensure_owner_webauthn_schema(db: sqlite3.Connection) -> None:
+    """Idempotent canonical schema shared by runtime SAFE and enrollment.
+
+    A never-enrolled application must be able to inspect ordinary approvals
+    without missing-table errors; no keys are enrolled by this schema creation.
+    """
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS safe_owner_credential (
+            credential_id TEXT PRIMARY KEY,
+            public_key_der BLOB NOT NULL,
+            credential_kind TEXT NOT NULL CHECK(credential_kind IN ('platform','security_key')),
+            sign_count INTEGER NOT NULL CHECK(sign_count >= 0),
+            enrolled_at TEXT NOT NULL,
+            revoked_at TEXT
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS safe_owner_challenge (
+            challenge_digest TEXT PRIMARY KEY,
+            credential_id TEXT NOT NULL,
+            action_fingerprint TEXT NOT NULL,
+            issued_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            consumed_at TEXT,
+            FOREIGN KEY(credential_id) REFERENCES safe_owner_credential(credential_id)
+        )
+    """)
+
+
 class OwnerWebAuthnVerifier:
     """Verify one-use registered ES256 assertion and commit replay/audit atomically."""
 
@@ -65,27 +94,7 @@ class OwnerWebAuthnVerifier:
         self._guard = CanonicalSQLiteGuard(state_path)
         self.audit = AuditChain(state_path)
         with closing(self._db()) as db, db:
-            db.execute("""
-                CREATE TABLE IF NOT EXISTS safe_owner_credential (
-                    credential_id TEXT PRIMARY KEY,
-                    public_key_der BLOB NOT NULL,
-                    credential_kind TEXT NOT NULL CHECK(credential_kind IN ('platform','security_key')),
-                    sign_count INTEGER NOT NULL CHECK(sign_count >= 0),
-                    enrolled_at TEXT NOT NULL,
-                    revoked_at TEXT
-                )
-            """)
-            db.execute("""
-                CREATE TABLE IF NOT EXISTS safe_owner_challenge (
-                    challenge_digest TEXT PRIMARY KEY,
-                    credential_id TEXT NOT NULL,
-                    action_fingerprint TEXT NOT NULL,
-                    issued_at TEXT NOT NULL,
-                    expires_at TEXT NOT NULL,
-                    consumed_at TEXT,
-                    FOREIGN KEY(credential_id) REFERENCES safe_owner_credential(credential_id)
-                )
-            """)
+            ensure_owner_webauthn_schema(db)
 
     def _db(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
