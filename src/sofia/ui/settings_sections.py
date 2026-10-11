@@ -44,6 +44,7 @@ class SettingsSections:
             self.variables[field] = variable
             ttk.Checkbutton(frames[section], text=label, variable=variable).pack(anchor="w", pady=5)
 
+        boolean("NEURO", "neuro_competition_enabled", "Enable connectome-inspired attention (uncheck for deterministic salience)", runtime.neuro_competition_enabled)
         boolean("Chat", "adaptive_theme", "Adapt desktop colors to Sofía’s state", runtime.adaptive_theme)
         boolean("Sofía", "idle_reflections_enabled", "Enable idle reflection", runtime.idle_reflections_enabled if runtime.idle_reflections_enabled is not None else os.environ.get("SOFIA_IDLE_REFLECTIONS", "").lower() not in ("0", "false", "off"))
         boolean("Sofía", "habit_learning_enabled", "Learn habits from supported observations", runtime.habit_learning_enabled if runtime.habit_learning_enabled is not None else os.environ.get("SOFIA_HABIT_LEARNING", "1").lower() in ("1", "true", "on"))
