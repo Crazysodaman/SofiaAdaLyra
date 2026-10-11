@@ -35,7 +35,7 @@ from sofia.social.principals import local_sparks_principal
 
 from .model import (
     PROJECT_TRANSITIONS, ArtifactEvaluation, ExperienceRecord, InterestRecord,
-    InterestStatus, LifeProject, LifeSelection, MilestoneStatus,
+    InterestStatus, LifeProject, LifeSelection, MilestoneStatus, MotivationSignal,
     PersonalJudgment, ProjectBrief, ProjectEvent, ProjectIdea, ProjectMilestone,
     ProjectScope, ProjectStatus, ResourceBudget, SelectionKind,
     TechnicalOutcome, aware, identifier, text,
@@ -699,6 +699,158 @@ class SelfDirectedLifeCoordinator:
         self.store.record_selection(selection)
         return selection
 
+    def motivation_signals(
+        self, *, now: datetime, busy: bool,
+        resource_pressure: float, limit: int = 32,
+    ) -> tuple[MotivationSignal, ...]:
+        """Project source-grounded optional motivation, never new authority.
+
+        The score is a bounded heuristic over original LIFE interests and
+        projects, GOALS, RUN receipts, and real resource usage. Verified
+        progress is zero unless the original work still passes the closed
+        validator and has a linked completed RUN receipt. This neither
+        persists motivation nor learns a subjective reward from model text.
+        """
+        aware(now, "motivation inspection time")
+        if type(busy) is not bool:
+            raise TypeError("busy must be boolean")
+        if (
+            isinstance(resource_pressure, bool)
+            or not isinstance(resource_pressure, (int, float))
+            or not 0.0 <= resource_pressure <= 1.0
+        ):
+            raise ValueError("resource pressure must be bounded")
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("motivation limit must be between 1 and 100")
+        visible = {
+            item.id: item
+            for item in self.goals.list_visible(local_sparks_principal())
+            if item.origin is GoalOrigin.SELF
+            and item.owner_principal_id == SOFIA_GOAL_OWNER_ID
+            and item.scope_audience == LOCAL_AUDIENCE
+        }
+        projects = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+            statuses=(ProjectStatus.ACTIVE,),
+        )
+        stopped = self.operator_stop.current().active
+        quiet = self.store.quiet_until(now=now) is not None
+        source: list[MotivationSignal] = []
+        for project in projects[:limit]:
+            goal = visible.get(project.goal_id)
+            interest = self.store.interest_by_id(
+                project.originating_interest, audience_id=project.audience_id,
+            )
+            jobs = tuple(
+                self.work_store.get(job_id)
+                for job_id in self.store.jobs(project.project_id)
+            )
+            latest = jobs[-1] if jobs else None
+            usage = self.store.usage(
+                project.project_id, now.astimezone(timezone.utc).date(),
+            )
+            budget = project.brief.resource_budget
+            resource_cost = round(min(1.0, max(
+                float(usage["wall_seconds"]) / budget.daily_seconds,
+                int(usage["storage_bytes"]) / budget.storage_bytes,
+            )), 6)
+            curiosity = (
+                round(interest.strength * interest.confidence, 6)
+                if interest is not None
+                and interest.status is InterestStatus.ACTIVE
+                else 0.0
+            )
+            goal_importance = (
+                round((goal.base_priority + project.priority) / 2, 6)
+                if goal is not None else 0.0
+            )
+            artifacts = self.store.artifacts(project.project_id)
+            novelty = round(1.0 / (1 + len(artifacts)), 6)
+            unfinished = 1.0 if any(
+                milestone.status in {
+                    MilestoneStatus.PLANNED, MilestoneStatus.ACTIVE,
+                }
+                for milestone in self.store.milestones(project.project_id)
+            ) else 0.0
+            verified_progress = (
+                1.0 if artifacts and self._current_verified_objective_completion(
+                    project, now=now,
+                ) else 0.0
+            )
+            unresolved_run = latest is not None and latest.status in {
+                WorkStatus.QUEUED, WorkStatus.RUNNING,
+                WorkStatus.WAITING_APPROVAL, WorkStatus.BLOCKED,
+                WorkStatus.UNCERTAIN,
+                WorkStatus.FAILED, WorkStatus.CANCELLED,
+            }
+            uncertainty = (
+                1.0 if latest is not None and latest.status in {
+                    WorkStatus.UNCERTAIN, WorkStatus.BLOCKED,
+                }
+                else 0.65 if latest is not None
+                and latest.status is WorkStatus.COMPLETED
+                and verified_progress == 0
+                else 0.25
+            )
+            risk = (
+                0.45 if len(project.brief.required_tools) > 2
+                else 0.15
+            )
+            interruption_cost = 1.0 if busy else float(resource_pressure)
+            blockers = []
+            if stopped:
+                blockers.append("operator_stop")
+            if quiet:
+                blockers.append("voluntary_quiet")
+            if busy or resource_pressure >= 0.75:
+                blockers.append("foreground_or_resource_priority")
+            if goal is None or goal.status is not GoalStatus.ACTIVE:
+                blockers.append("canonical_goal_not_active")
+            if project.scope is not ProjectScope.PERSONAL_PRIVATE:
+                blockers.append("not_optional_private_work")
+            if interest is None or interest.status is not InterestStatus.ACTIVE:
+                blockers.append("original_interest_not_active")
+            if resource_cost >= 1.0:
+                blockers.append("daily_budget_exhausted")
+            if unresolved_run:
+                blockers.append("prior_run_needs_settlement")
+            # Utility is a conservative explanatory heuristic, not a new
+            # GOALS priority, permission, emotional experience or source
+            # success oracle. High uncertainty/cost always reduces score.
+            score = round(max(0.0, min(1.0,
+                0.35 * goal_importance
+                + 0.20 * curiosity
+                + 0.12 * novelty
+                + 0.12 * unfinished
+                + 0.12 * verified_progress
+                - 0.12 * resource_cost
+                - 0.12 * uncertainty
+                - 0.08 * risk
+                - 0.20 * interruption_cost
+            )), 6)
+            evidence_refs = tuple(dict.fromkeys(
+                (() if interest is None else interest.evidence_refs)
+                + (() if goal is None else goal.evidence_refs)
+            ))[:32]
+            source.append(MotivationSignal(
+                project_id=project.project_id, goal_id=project.goal_id,
+                evidence_refs=evidence_refs,
+                goal_importance=goal_importance, curiosity=curiosity,
+                verified_learning_progress=verified_progress,
+                novelty=novelty, unfinished_commitment=unfinished,
+                uncertainty=uncertainty, resource_cost=resource_cost,
+                risk=risk, interruption_cost=interruption_cost,
+                score=score, eligible=not blockers,
+                reason=(
+                    "Eligible bounded evidence-derived optional project."
+                    if not blockers
+                    else "Ineligible: " + ", ".join(blockers)
+                ),
+                observed_at=now,
+            ))
+        return tuple(source)
+
     def select_activity(
         self, *, now: datetime, busy: bool, resource_pressure: float,
     ) -> LifeSelection:
@@ -715,59 +867,23 @@ class SelfDirectedLifeCoordinator:
         elif resource_pressure >= 0.75:
             reason = "Optional personal work paused for resource pressure."
         else:
-            candidates = self.store.list_scope(
-                owner_principal_id=SOFIA_PROJECT_OWNER, audience_id=LOCAL_AUDIENCE,
-                statuses=(ProjectStatus.ACTIVE,),
+            signals = self.motivation_signals(
+                now=now, busy=busy, resource_pressure=resource_pressure,
             )
-            # LIFE projects are not a grant. The canonical scoped GOALS
-            # lifecycle may change independently between background ticks.
-            # A disconnected/unknown GOALS record is an abstention, not
-            # evidence of consent or a reason to create a substitute goal.
-            visible_goals = {
-                goal.id: goal
-                for goal in self.goals.list_visible(local_sparks_principal())
-                if goal.origin is GoalOrigin.SELF
-                and goal.owner_principal_id == SOFIA_GOAL_OWNER_ID
-                and goal.scope_audience == LOCAL_AUDIENCE
-            }
-            for candidate in candidates:
-                goal = visible_goals.get(candidate.goal_id)
-                if (
-                    candidate.scope is not ProjectScope.PERSONAL_PRIVATE
-                    or goal is None
-                    or goal.status is not GoalStatus.ACTIVE
-                ):
-                    continue
-                usage = self.store.usage(candidate.project_id, now.astimezone(timezone.utc).date())
-                if (
-                    float(usage["wall_seconds"]) >= candidate.brief.resource_budget.daily_seconds
-                    or int(usage["storage_bytes"]) >= candidate.brief.resource_budget.storage_bytes
-                ):
-                    continue
-                jobs = tuple(
-                    self.work_store.get(job_id)
-                    for job_id in self.store.jobs(candidate.project_id)
+            eligible = tuple(item for item in signals if item.eligible)
+            if eligible:
+                selected = max(
+                    eligible,
+                    key=lambda item: (
+                        item.score, item.goal_importance, item.project_id,
+                    ),
                 )
-                # A terminal failure or cancellation needs the original RUN
-                # reconciliation before any optional activity is eligible.
-                # Completed work still needs its independent LIFE review.
-                if jobs and jobs[-1].status in {
-                    WorkStatus.FAILED, WorkStatus.CANCELLED,
-                    WorkStatus.BLOCKED, WorkStatus.UNCERTAIN,
-                }:
-                    continue
-                open_jobs = sum(
-                    job.status in {
-                        WorkStatus.QUEUED, WorkStatus.RUNNING,
-                        WorkStatus.WAITING_APPROVAL,
-                    }
-                    for job in jobs
+                project = self._project(selected.project_id)
+                kind = SelectionKind.PROJECT
+                reason = (
+                    "Selected an original GOALS-authorized private project "
+                    "by evidence-derived bounded motivation and resource score."
                 )
-                if open_jobs >= candidate.brief.resource_budget.concurrent_jobs:
-                    continue
-                kind, project = SelectionKind.PROJECT, candidate
-                reason = "Selected the highest-priority eligible personal project within current budgets."
-                break
         # The background worker may observe identical inactivity on every
         # 300-second tick. Reuse a recent exact idle decision instead of
         # producing indefinite duplicate durable rows and false activity.
