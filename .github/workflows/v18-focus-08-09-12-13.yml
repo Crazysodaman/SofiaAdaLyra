@@ -1,0 +1,57 @@
+name: V18 Focus 08 09 12 13
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/sofia/vision/**'
+      - 'src/sofia/application/presence.py'
+      - 'src/sofia/application/background_runtime.py'
+      - 'src/sofia/life/**'
+      - 'src/sofia/ops/workshop_*.py'
+      - 'src/sofia/ops/digital_twin.py'
+      - 'test/test_vision_*.py'
+      - 'test/test_screen_capability_authority.py'
+      - 'test/test_presence_initiative.py'
+      - 'test/test_life_*.py'
+      - 'test/test_ops_workshop_vm_separation.py'
+      - 'test/test_ops_digital_twin_production.py'
+      - '.github/workflows/v18-focus-08-09-12-13.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-and-unit:
+    name: Phase 08 09 12 13 Windows 3.12
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact main source
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install exact checkout for tests
+        run: python -m pip install -e . pytest
+      - name: Compile production source and tests
+        run: python -m compileall -q src/sofia test
+      - name: Source-level unit and deterministic integration gates
+        run: >
+          pytest -q
+          test/test_vision_desktop_control.py
+          test/test_vision_journeys_production.py
+          test/test_screen_capability_authority.py
+          test/test_presence_initiative.py
+          test/test_life_autonomous_followthrough.py
+          test/test_life_verified_milestone_production.py
+          test/test_life_atomic_admission.py
+          test/test_life_postrun_verification.py
+          test/test_life_goal_run_resume_fence.py
+          test/test_life_run_outcome_reconciliation.py
+          test/test_ops_workshop_vm_separation.py
+          test/test_ops_digital_twin_production.py
+      - name: Explicit hardware acceptance boundary
+        run: echo "No real input, game, FIDO2, or Artemis VM was exercised; live acceptance remains open."
