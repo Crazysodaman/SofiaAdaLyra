@@ -31,6 +31,16 @@ class ObservedOllama:
 
 def setup(tmp_path, monkeypatch):
     import sofia.integrations.ollama as ollama
+    import sofia.machine.discovery as discovery
+    from types import SimpleNamespace
+    monkeypatch.setattr(
+        discovery, "create_machine_discovery",
+        lambda: SimpleNamespace(
+            discover=lambda: SimpleNamespace(
+                identity=SimpleNamespace(machine_id=HOST)
+            ),
+        ),
+    )
     state = tmp_path / "sofia.db"
     RuntimeUserSettingsStore(state).save(
         RuntimeUserSettings(cognitive_primary_model=MODEL)
@@ -74,6 +84,9 @@ def test_exact_owner_approved_model_is_pulled_once_and_inventory_confirmed(tmp_p
     assert result.model == MODEL
     assert result.state.value == "unloaded"
     assert backend.pulls == [MODEL]
+    from sofia.safe.audit import AuditChain
+    valid, violation = AuditChain(state).verify()
+    assert valid and violation is None
     with pytest.raises(PermissionError, match="already consumed"):
         ExecutionApprovalVerifier(state).consume(
             approval_id=receipt,
@@ -125,3 +138,11 @@ def test_operator_stop_denies_install_without_consuming_approval(tmp_path, monke
         parameters={"role": "primary", "model": MODEL, "host_id": HOST},
         now=datetime.now(timezone.utc),
     )
+
+
+def test_cannot_claim_remote_host_approval_on_local_machine(tmp_path, monkeypatch):
+    state, backend = setup(tmp_path, monkeypatch)
+    receipt = approve(state, host="artemis-remote")
+    with pytest.raises(PermissionError, match="this local machine"):
+        attempt(state, receipt, host="artemis-remote")
+    assert backend.pulls == []
