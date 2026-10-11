@@ -265,3 +265,67 @@ def test_artemis_canary_staged_tls_key_is_protected_before_operator_start():
     assert '-RemoteAddress $ControllerIp' in script
     assert '-Profile Private' in script
     assert '-RemoteAddress LocalSubnet' not in script
+
+
+def test_windows_cim_bootstrap_cleans_private_stage_on_launcher_failure(tmp_path: Path):
+    bundle, wheel = _bundle(tmp_path)
+    stage = tmp_path / "stage"
+
+    def failed_launcher(*_):
+        active = installer._active_controller_stage_directory
+        assert active is not None
+        assert (active / "certs" / "artemis-server-key.pem").is_file()
+        raise RuntimeError("remote bootstrap launch refused")
+
+    installer = WindowsCimBootstrapInstaller(
+        host="Artemis",
+        credential_user=r"Artemis\Administrator",
+        bundle_directory=bundle,
+        wheel_path=wheel,
+        controller_stage_directory=stage,
+        remote_stage_path=r"H:\Fleet\Artemis",
+        node_id=NODE_ID,
+        launcher=failed_launcher,
+        timeout_seconds=1,
+    )
+    with pytest.raises(RuntimeError, match="remote bootstrap launch refused"):
+        installer.install(_candidate(), _package(wheel))
+    assert installer._active_controller_stage_directory is not None
+    assert not installer._active_controller_stage_directory.exists()
+    assert (bundle / "certs" / "artemis-server-key.pem").is_file()
+
+
+def test_windows_cim_bootstrap_cleans_private_stage_after_bad_receipt(tmp_path: Path):
+    bundle, wheel = _bundle(tmp_path)
+
+    def wrong_node_launcher(*_):
+        active = installer._active_controller_stage_directory
+        assert active is not None
+        (active / "bootstrap-receipt.json").write_text(
+            json.dumps({
+                "status": "verified",
+                "host_id": "Artemis",
+                "node_id": "11111111-1111-1111-1111-111111111111",
+                "package_sha256": sha256_file(wheel),
+                "process_id": 1234,
+                "listen_port": 7443,
+                "python_version": "Python 3.14.2",
+            }),
+            encoding="utf-8",
+        )
+
+    installer = WindowsCimBootstrapInstaller(
+        host="Artemis",
+        credential_user=r"Artemis\Administrator",
+        bundle_directory=bundle,
+        wheel_path=wheel,
+        controller_stage_directory=tmp_path / "stage",
+        remote_stage_path=r"H:\Fleet\Artemis",
+        node_id=NODE_ID,
+        launcher=wrong_node_launcher,
+        timeout_seconds=1,
+    )
+    with pytest.raises(RuntimeError, match="node identity mismatch"):
+        installer.install(_candidate(), _package(wheel))
+    assert installer._active_controller_stage_directory is not None
+    assert not installer._active_controller_stage_directory.exists()
