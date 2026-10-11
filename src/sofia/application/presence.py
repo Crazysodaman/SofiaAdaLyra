@@ -325,6 +325,16 @@ class PresenceInitiativeEngine:
                     updated_at TEXT NOT NULL,
                     PRIMARY KEY(principal_id,project_id)
                 );
+                CREATE TABLE IF NOT EXISTS presence_life_update_feedback_event (
+                    feedback_event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    principal_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL,
+                    feedback TEXT NOT NULL CHECK(
+                        feedback IN ('declined','welcomed')
+                    ),
+                    original_event_id TEXT NOT NULL,
+                    recorded_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -546,20 +556,31 @@ class PresenceInitiativeEngine:
                 "WHERE principal_id=? AND project_id=?",
                 (principal.principal_id, project_id),
             ).fetchone()
-            if existing is not None:
-                if existing["feedback"] != feedback:
-                    # A change of mind is a separate governed owner setting,
-                    # not a way to override an earlier clear 'no' from a
-                    # model-proposed or unsolicited followup.
-                    raise PermissionError(
-                        "existing owner feedback requires a separate reviewed change"
-                    )
+            if existing is not None and existing["feedback"] == feedback:
                 return
+            # The current-state row is only a projection of explicit
+            # reviewed human preferences. Every accepted change is also
+            # preserved as a source-linked event; no model task can
+            # silently change a prior decline.
+            stamped = self._utc(at).isoformat()
             db.execute(
-                "INSERT INTO presence_life_update_feedback VALUES(?,?,?,?,?)",
+                "INSERT INTO presence_life_update_feedback_event"
+                "(principal_id,project_id,feedback,original_event_id,recorded_at)"
+                " VALUES(?,?,?,?,?)",
                 (
                     principal.principal_id, project_id, feedback,
-                    original_event_id, self._utc(at).isoformat(),
+                    original_event_id, stamped,
+                ),
+            )
+            db.execute(
+                """INSERT INTO presence_life_update_feedback VALUES(?,?,?,?,?)
+                   ON CONFLICT(principal_id,project_id)
+                   DO UPDATE SET feedback=excluded.feedback,
+                     original_event_id=excluded.original_event_id,
+                     updated_at=excluded.updated_at""",
+                (
+                    principal.principal_id, project_id, feedback,
+                    original_event_id, stamped,
                 ),
             )
 
