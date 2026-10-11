@@ -35,7 +35,8 @@
     "2026-10-11 Workstream4 further audit: Phase12 existing UI screen requests/receipts had audience-only history visibility, no principal partition and inclusive exact-expiry permits. Production receipts now record principal, filter principal+audience, quarantine pre-migration unscoped rows and reject frames exactly at consent expiry. Existing UI consumes the scoped path and focused regressions were authored. No OS picker/capture adapter, no screen observation, tests/CI or host changes. Original 6206/6207/6208 remain partial, not code ready.",
     "2026-10-11 Workstream4 Phase14 source audit: production assess_registered_adaptation now independently checks train versus held-out instruction overlap including case/Unicode/whitespace normalization, rereads exact dataset SHA-256 and checks that rights have not been revoked. Canonical training review refuses re-recording permanently revoked digests. Deferred targeted tests authored; no training, host actions, tests or CI. CA-6703 stays coded candidate/test pending; CA-6706/6708 partial.",
     "2026-10-11 WS4 NEURO memory-derived state audit: canonical neuro_association_* tables already cleaned revoked and deleted candidates; new installed SQLite trigger also erases prior association weights and teaching receipts when promoted memory content, principal or audience changes in place. Focused regression source authored, not run. CA-705/711 remain prior code-ready candidates with tests pending, no new accepted task.",
-    "2026-10-11 W4 Phase11 CA-6608 source hardening: model promotion now uses the existing RuntimeUserSettingsStore pinned CanonicalSQLiteGuard for each transaction, denies another role transition while any previous promotion remains applying/uncertain, and refuses replaying historical accepted receipts if current canonical settings no longer match the accepted model mapping. Focused regressions authored, no tests/CI or live model changes. CA-6608 remains partial: no independent host broker/role drain/provider health acceptance yet."
+    "2026-10-11 W4 Phase11 CA-6608 source hardening: model promotion now uses the existing RuntimeUserSettingsStore pinned CanonicalSQLiteGuard for each transaction, denies another role transition while any previous promotion remains applying/uncertain, and refuses replaying historical accepted receipts if current canonical settings no longer match the accepted model mapping. Focused regressions authored, no tests/CI or live model changes. CA-6608 remains partial: no independent host broker/role drain/provider health acceptance yet.",
+    "2026-10-11 W4 Phase16: owner-reviewed scientific positive outcomes now require preregistered sample floor, negative/null measured findings require observations, and complete canonical outcome counts by type include old adverse/refuted/null records beyond the last 128 recent examples. Test source authored and bootstrap fixture corrected, no study or test run. CA-806/812 remain code-path candidates, zero accepted."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -270,7 +271,9 @@
     "265527c07e76813faaa8febd1dccd759f7bf0a7a",
     "417d6af852f30d70e221c33c17012830c737973e",
     "256e2bc9f1103b36a1ebf3dd99fb754e220d4baa",
-    "0ec29038da9cb7394bba9827cf5450479e321214"
+    "0ec29038da9cb7394bba9827cf5450479e321214",
+    "29b3b371d081adcd87999d736724565ebe214bce",
+    "2606bf368c93ca1cf4351c4d99d2f5373280744b"
   ],
   "tasks": [
     {
@@ -2269,7 +2272,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Existing StudyReview never reports proof of consciousness; production canonical research report now explicitly states supported functional results cannot establish phenomenal consciousness and retains adverse/null findings. Owner input is required for independent result records. Source tests written, not executed."
+      "finding": "Existing StudyReview never reports proof of consciousness; production canonical research report now explicitly states supported functional results cannot establish phenomenal consciousness and retains adverse/null findings. Owner input is required for independent result records. Source tests written, not executed. Follow-up protects result honesty: supported outcomes must meet original preregistered sample size; null/refuted require actual samples; full negative/adverse/refuted historical counts are rendered even if recent examples are truncated. Source src/sofia/neuro/research_registry.py, deferred tests test/test_neuro_consciousness_registry_production.py. No new scientific observation or experiment claimed."
     },
     {
       "id": "CA-807",
@@ -2338,7 +2341,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Canonical append-only-by-API NEURO research protocol and reviewed result tables retain baseline/control rules, evidence references, null/refuted/adverse/protocol-violation outcomes and limitations. Owner Settings offers preregistration and evidence-reviewed results; public report prohibits phenomenal proof claims. Tests authored, unrun."
+      "finding": "Canonical append-only-by-API NEURO research protocol and reviewed result tables retain baseline/control rules, evidence references, null/refuted/adverse/protocol-violation outcomes and limitations. Owner Settings offers preregistration and evidence-reviewed results; public report prohibits phenomenal proof claims. Tests authored, unrun. Follow-up protects result honesty: supported outcomes must meet original preregistered sample size; null/refuted require actual samples; full negative/adverse/refuted historical counts are rendered even if recent examples are truncated. Source src/sofia/neuro/research_registry.py, deferred tests test/test_neuro_consciousness_registry_production.py. No new scientific observation or experiment claimed."
     }
   ]
 }
