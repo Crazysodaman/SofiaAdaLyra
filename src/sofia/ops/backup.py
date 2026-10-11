@@ -39,6 +39,10 @@ from sofia.constitution.store import (
 )
 
 
+_MAX_BACKUP_MANIFEST_BYTES = 16 * 1024 * 1024
+_AESGCM_TAG_BYTES = 16
+
+
 class BackupError(RuntimeError):
     pass
 
@@ -373,6 +377,8 @@ class BackupEngine:
                 entries=tuple(entries),
             )
             manifest_bytes = manifest.canonical_bytes()
+            if len(manifest_bytes) > _MAX_BACKUP_MANIFEST_BYTES:
+                raise BackupError("backup manifest exceeds bounded archive size")
             (staging / "manifest.json").write_bytes(manifest_bytes)
             (staging / "manifest.hmac").write_text(
                 self.cipher.manifest_mac(manifest_bytes) + "\n",
@@ -400,7 +406,14 @@ class BackupEngine:
             raise BackupError("backup manifest authentication is missing")
         _reject_redirected_backup_input(manifest_path)
         _reject_redirected_backup_input(manifest_mac_path)
-        manifest_bytes = manifest_path.read_bytes()
+        if manifest_path.stat().st_size > _MAX_BACKUP_MANIFEST_BYTES:
+            raise BackupError("backup manifest exceeds bounded archive size")
+        # Even if a file grew after stat, the capped reader never allocates
+        # unbounded memory from an untrusted/corrupted backup medium.
+        with manifest_path.open("rb") as source:
+            manifest_bytes = source.read(_MAX_BACKUP_MANIFEST_BYTES + 1)
+        if len(manifest_bytes) > _MAX_BACKUP_MANIFEST_BYTES:
+            raise BackupError("backup manifest exceeds bounded archive size")
         if not self.cipher.verify_manifest_mac(
             manifest_bytes,
             manifest_mac_path.read_text(encoding="ascii"),
@@ -413,9 +426,21 @@ class BackupEngine:
             _reject_redirected_backup_input(payload)
             if not payload.is_file():
                 raise BackupError(f"backup payload missing: {entry.payload_name}")
+            # AES-GCM ciphertext is exactly plaintext bytes + 16-byte tag.
+            # Refuse truncation/oversizing before materializing a payload.
+            if payload.stat().st_size != entry.size + _AESGCM_TAG_BYTES:
+                raise BackupError(
+                    f"backup encrypted payload size mismatch: {entry.logical_path}"
+                )
             aad = f"{manifest.backup_id}:{entry.logical_path}".encode("utf-8")
+            with payload.open("rb") as source:
+                ciphertext = source.read(entry.size + _AESGCM_TAG_BYTES + 1)
+            if len(ciphertext) != entry.size + _AESGCM_TAG_BYTES:
+                raise BackupError(
+                    f"backup encrypted payload size mismatch: {entry.logical_path}"
+                )
             plaintext = self.cipher.decrypt(
-                payload.read_bytes(),
+                ciphertext,
                 nonce=b64decode(entry.nonce_b64),
                 aad=aad,
             )
@@ -464,9 +489,19 @@ class BackupEngine:
                 # Revalidate on the second read after verify(). Restore
                 # never follows a payload that changed into a symlink.
                 _reject_redirected_backup_input(payload)
+                if payload.stat().st_size != entry.size + _AESGCM_TAG_BYTES:
+                    raise BackupError(
+                        f"restore encrypted payload size mismatch: {entry.logical_path}"
+                    )
                 aad = f"{manifest.backup_id}:{entry.logical_path}".encode("utf-8")
+                with payload.open("rb") as source:
+                    ciphertext = source.read(entry.size + _AESGCM_TAG_BYTES + 1)
+                if len(ciphertext) != entry.size + _AESGCM_TAG_BYTES:
+                    raise BackupError(
+                        f"restore encrypted payload size mismatch: {entry.logical_path}"
+                    )
                 plaintext = self.cipher.decrypt(
-                    payload.read_bytes(),
+                    ciphertext,
                     nonce=b64decode(entry.nonce_b64),
                     aad=aad,
                 )
