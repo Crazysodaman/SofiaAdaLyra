@@ -134,7 +134,7 @@ def test_candidate_identity_reads_are_bounded_even_if_stat_is_stale(
 
     def stale_stat(self, *args, **kwargs):
         if self == oversized:
-            return SimpleNamespace(st_size=1)
+            return SimpleNamespace(st_size=1, st_mode=original_stat(self, *args, **kwargs).st_mode)
         return original_stat(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "stat", stale_stat)
