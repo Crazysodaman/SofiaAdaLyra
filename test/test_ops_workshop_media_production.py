@@ -153,5 +153,6 @@ def test_media_build_never_autopulls_tool_or_launches_host(monkeypatch, tmp_path
             source_iso=source,
             expected_source_sha256=media._sha256_file(source),
             output_iso=output,
+            signing_key_file=tmp_path / "owner-private-key.pem",
         )
     assert not output.exists()
