@@ -328,3 +328,12 @@ All changes are in the actual application-owned LIFE, GOALS and RUN source on Gi
 - `2b123bdf`: Unexecuted stop regressions cover a previously queued job and a stop occurring mid-model suggestion. No real operator permissions/stop settings or hosts were changed.
 
 These source-coded increments move parts of CA-102, CA-105/108, CA-110/114, CA-606, CA-1301/1303 and CA-2402 forward, but cannot be counted as fully complete until each original requirement is source-traced end to end. They do not finish the 175-ID workstream or original Phase 09/Job 5. The shared ledger remains for Workstream 1. No tests, CI, deployment or Gaia hardware operations were executed.
+
+## Interest initiative restraint and voluntary retirement continuation
+
+- `649cabad`: In the existing `consider_new_project` host selection policy, project history provides a seven-day cooldown for unchanged active interests whose recent optional projects are REJECTED, ABANDONED or FAILED. An independently recorded newer `InterestRecord` revision after the decision lifts the cooldown. No parallel motivation database, synthetic emotion, forced work or extra model wakeup is introduced.
+- `239de8bc`: Two unexecuted regressions validate avoidance of immediate self-replacement after voluntary abandonment and renewed eligibility after genuinely new interest evidence.
+- `8537ae1f`: The recurring canonical LIFE tick now settles a PAUSED, PERSONAL_PRIVATE project as ABANDONED only if a strictly newer, evidence-resolvable `InterestStatus.RETIRED` source record exists, and only without QUEUED/RUNNING/WAITING_APPROVAL/BLOCKED/UNCERTAIN original RUN work or active operator stop. The existing LIFE transition reconciles the original GOALS status and records a source-backed terminal project event without replacement work or invented feelings.
+- `505bd027`: Two unexecuted regressions protect idempotent private retirement and preservation of unsettled RUN effects.
+
+These are source-coded slices, not blanket completion of CA-105, CA-107, CA-108, CA-1301, CA-1306 or the 66 original Phase 09 IDs. Full interdisciplinary audits, correction/forgetting propagation (WS2), subjective independent critique, multi-stage curricula, source races, platform acceptance and user-facing UI remain outstanding. Tests, CI, model execution and live host/robot actions remain deferred.
