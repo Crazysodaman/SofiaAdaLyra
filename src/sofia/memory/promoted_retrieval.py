@@ -43,7 +43,7 @@ def project_promoted_memories(store: DurableMemoryCandidateStore, candidate_ids,
         if candidate_id in seen:
             continue
         seen.add(candidate_id)
-        if store.status(candidate_id) is not CandidateStatus.PROMOTED:
+        if not store.is_recall_eligible(candidate_id):
             inactive.append(candidate_id); continue
         memory=store.get(candidate_id)
         if memory is None:
