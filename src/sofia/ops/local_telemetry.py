@@ -104,7 +104,10 @@ def _windows_nvidia_gpu_snapshot(*, runner=None) -> dict[str, int | float] | Non
         if not isinstance(output, str) or len(output) > 4096:
             return None
         lines = output.strip().splitlines()
-        if not 1 <= len(lines) <= 8:
+        # A model executor has no pinned GPU index at this layer. More
+        # than one device makes 'the usable GPU' ambiguous, even though
+        # individual metrics can be inspected separately. Never guess.
+        if len(lines) != 1:
             return None
         cards = []
         for line in lines:
@@ -118,11 +121,8 @@ def _windows_nvidia_gpu_snapshot(*, runner=None) -> dict[str, int | float] | Non
             ):
                 return None
             cards.append((total - used, total, used, percent))
-        # The selected GPU represents a single independent placement target.
-        # Prefer greatest free VRAM, then lower utilization.
-        free, total, used, percent = max(
-            cards, key=lambda card: (card[0], -card[3])
-        )
+        # One independently identified GPU; never sum separate cards.
+        _free, total, used, percent = cards[0]
         mib = 1024 * 1024
         return {
             "gpu_percent": float(percent),
