@@ -296,3 +296,72 @@ def test_preexisting_unverified_protected_approval_is_fenced_at_all_readers(tmp_
             "SELECT consumed_at FROM safe_execution_approval WHERE approval_id=?",
             (approval_id,),
         ).fetchone() == (None,)
+
+
+def test_revoked_security_key_cannot_issue_or_preserve_unused_protected_approvals(
+    tmp_path,
+):
+    from uuid import uuid4
+    from sofia.safe.execution_approval import (
+        ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
+    )
+
+    state, verifier, signer, credential = setup(tmp_path)
+    args = {"host_id": "Artemis", "node_id": "reviewed"}
+    fingerprint = execution_fingerprint("fleet.enroll", args)
+    challenge = verifier.issue(
+        credential_id=credential, action_fingerprint=fingerprint, now=NOW,
+    )
+    proof = verifier.verify(
+        challenge=challenge["challenge"], credential_id=credential,
+        action_fingerprint=fingerprint, security_key_required=True,
+        now=NOW + timedelta(seconds=1),
+        **sign(signer, challenge["challenge"]),
+    )
+    first = ExecutionApproval(
+        approval_id=str(uuid4()), capability="fleet.enroll",
+        request_fingerprint=fingerprint, approved_by="Sparks",
+        approved_at=NOW + timedelta(seconds=2),
+        expires_at=NOW + timedelta(minutes=5),
+    )
+    approvals = ExecutionApprovalVerifier(state)
+    approvals.record(
+        first, authentication_event_id=proof["authentication_event_id"],
+    )
+    assert approvals.matches_unconsumed(
+        approval_id=first.approval_id,
+        capability="fleet.enroll", parameters=args,
+        now=NOW + timedelta(seconds=3),
+    )
+
+    # The production revocation endpoint requires FIDO2 authorization.
+    # Test fixture simulates only its resulting canonical revoked_at state.
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE safe_owner_credential SET revoked_at=? WHERE credential_id=?",
+            ((NOW + timedelta(seconds=3)).isoformat(), credential),
+        )
+    assert "fleet.enroll" not in approvals.active_capabilities(
+        now=NOW + timedelta(seconds=4),
+    )
+    assert not approvals.matches_unconsumed(
+        approval_id=first.approval_id,
+        capability="fleet.enroll", parameters=args,
+        now=NOW + timedelta(seconds=4),
+    )
+    with pytest.raises(PermissionError, match="verified owner"):
+        approvals.consume(
+            approval_id=first.approval_id,
+            capability="fleet.enroll", parameters=args,
+            now=NOW + timedelta(seconds=4),
+        )
+    with pytest.raises(PermissionError, match="revoked"):
+        approvals.record(
+            ExecutionApproval(
+                approval_id=str(uuid4()), capability="fleet.enroll",
+                request_fingerprint=fingerprint, approved_by="Sparks",
+                approved_at=NOW + timedelta(seconds=4),
+                expires_at=NOW + timedelta(minutes=6),
+            ),
+            authentication_event_id=proof["authentication_event_id"],
+        )
