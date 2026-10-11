@@ -377,3 +377,8 @@
 ## Audit follow-up: operator view exact-source correction (2026-10-11)
 
 Previously a stale global `verified_proof_projects(limit=64)` page limited `goal_dependency_view` even after drafting was corrected to use exact scoped proof. Production changed to exact per-project lookup with request-local bounded memoization, preserving source receipt and typed objective revalidation before displaying a verified skill. Regression authored, unexecuted. CA-1403 and CA-1405 remain partial full requirements.
+
+
+## Continued implementation evidence: exact native creative toolchain (2026-10-11)
+
+Production `LifeProcedureCatalog.record_verified_attempt` now requires a current `NativeCreativeAdapter.probe` plus exact original creative `tool_id` and `tool_version` agreement in the durable `ArtifactRevision` and RUN evidence. `SelfDirectedLifeCoordinator._verified_procedure_origins_current` enforces the identical read-only predicate for real draft reuse and rotating source audit. Stale native version/ID fails closed and can be quarantined. This **narrows** the original CA-1404/2606 gap, but does not record independently authenticated historical Fleet node identity, remote tool versions, or every host capability. It must not be described as cross-host portable skills, nor as passing tests. Production commits `fcd7cdfa`, `1f77114b`; deferred regression source `e7fdba91`.
