@@ -132,15 +132,18 @@ def _restrict_new_windows_file(path: Path) -> None:
             win32security.ConvertStringSidToSid("S-1-5-18"),
         )
         sd = win32security.GetFileSecurity(
-            str(path), win32security.DACL_SECURITY_INFORMATION,
+            str(path), win32security.OWNER_SECURITY_INFORMATION |
+            win32security.DACL_SECURITY_INFORMATION,
         )
+        sd.SetSecurityDescriptorOwner(sid, False)
         sd.SetSecurityDescriptorDacl(1, acl, 0)
         # Protect private file DACL from broad inherited Users/Everyone ACEs.
         sd.SetSecurityDescriptorControl(
             win32security.SE_DACL_PROTECTED, win32security.SE_DACL_PROTECTED,
         )
         win32security.SetFileSecurity(
-            str(path), win32security.DACL_SECURITY_INFORMATION, sd,
+            str(path), win32security.OWNER_SECURITY_INFORMATION |
+            win32security.DACL_SECURITY_INFORMATION, sd,
         )
         _assert_owner_private_path(path, directory=False)
     except Exception as exc:
