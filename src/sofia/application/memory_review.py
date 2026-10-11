@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sofia.conversation.store import ConversationStore
-from sofia.memory.originals import ConversationOriginalRetriever
+from sofia.memory.originals import ConversationOriginalRetriever, OriginalRetrievalRequest
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.reviewed_workflow import ReviewedMemoryWorkflow
@@ -28,10 +28,10 @@ class MemoryReviewService:
         if not isinstance(candidate_store, DurableMemoryCandidateStore):
             raise TypeError("candidate_store must be DurableMemoryCandidateStore")
         self._candidates = candidate_store
+        self._originals = ConversationOriginalRetriever(conversation_store)
+        self._social = SocialSessionStore(state_path)
         self._workflow = ReviewedMemoryWorkflow(
-            ConversationOriginalRetriever(conversation_store),
-            candidate_store,
-            SocialSessionStore(state_path),
+            self._originals, candidate_store, self._social,
         )
 
     def propose(
@@ -74,6 +74,44 @@ class MemoryReviewService:
         approved_by: PrincipalContext,
     ) -> None:
         self._require_sparks_reviewer(approved_by)
+        candidate = self._candidates.get(candidate_id)
+        if candidate is None:
+            raise LookupError("candidate does not exist")
+        # The owner may approve only evidence in the actual current
+        # authenticated review audience. Shared owner ID does not grant
+        # private Android or Discord source text to the desktop panel.
+        if (
+            candidate.principal_id != approved_by.principal_id
+            or candidate.audience_id not in (None, approved_by.audience_id)
+        ):
+            raise PermissionError(
+                "candidate is outside the current private review audience"
+            )
+        if len(candidate.sources) > 64:
+            raise ValueError("memory review requires at most 64 exact originals")
+        original_session = candidate.sources[0].session_id
+        current_binding = self._social.get(original_session)
+        if (
+            current_binding is None
+            or current_binding.principal_id != approved_by.principal_id
+            or current_binding.audience_id != approved_by.audience_id
+            or current_binding.audience_kind != approved_by.audience_kind
+        ):
+            raise PermissionError("memory source session binding has changed")
+        requested_ids = tuple(s.message_id for s in candidate.sources)
+        projection = self._originals.retrieve(OriginalRetrievalRequest(
+            session_id=original_session, message_ids=requested_ids,
+            budget_characters=2**31 - 1,
+        ))
+        if projection.missing_ids or projection.omitted_ids:
+            raise LookupError("reviewed memory original was removed or unavailable")
+        if projection.selected != candidate.sources:
+            raise PermissionError(
+                "reviewed memory source bytes, role, order or timestamps changed"
+            )
+        # Review is authoritative only after *current* immutable original
+        # evidence checks. DurableMemoryCandidateStore still owns the
+        # transactional lifecycle and atomic correction/revocation.
         self._candidates.promote(candidate_id)
 
     def reject(
