@@ -46,3 +46,33 @@ def test_redirected_parent_cannot_approve_a_new_home(tmp_path):
     with pytest.raises(PermissionError, match="unredirected"):
         proposed_state_home_from_parent(redirected, "Sofia")
     assert not (real / "Sofia").exists()
+
+
+def test_unreadable_canonical_source_produces_a_blocker_not_a_crash(
+    tmp_path, monkeypatch,
+):
+    """Read-only relocation inspection cannot bootstrap a missing/wrong DB."""
+    from pathlib import Path
+    from sofia.ops import state_mobility
+
+    original = tmp_path / "original" / "sofia.db"
+    original.parent.mkdir()
+    original.write_bytes(b"synthetic-only")
+    destination = tmp_path / "new-absent-home"
+    original_stat = Path.stat
+
+    def unreadable_source(self, *args, **kwargs):
+        if self == original:
+            raise PermissionError("synthetic host lock")
+        return original_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", unreadable_source)
+    monkeypatch.setattr(
+        state_mobility, "_filesystem_kind", lambda _path: "local",
+    )
+    inspected = inspect_state_relocation(original, destination)
+    assert inspected.source_database_exists is False
+    assert inspected.source_bytes == 0
+    assert "canonical_state_database_missing" in inspected.blockers
+    assert inspected.ready_for_automatic_cutover is False
+    assert not destination.exists()
