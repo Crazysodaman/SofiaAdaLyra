@@ -2,7 +2,7 @@
 
 from .model import (
     ArtifactEvaluation, ExperienceRecord, InterestRecord, InterestStatus,
-    LifeProject, LifeSelection, MilestoneStatus, PersonalJudgment,
+    LifeProject, LifeSelection, MilestoneStatus, MotivationSignal, PersonalJudgment,
     ProjectBrief, ProjectEvent, ProjectIdea, ProjectMilestone, ProjectScope,
     ProjectStatus, ResourceBudget, SelectionKind, TechnicalOutcome,
 )
@@ -14,7 +14,7 @@ from .idea_agent import (
 
 __all__ = [
     "ArtifactEvaluation", "ExperienceRecord", "InterestRecord", "InterestStatus",
-    "LifeProject", "LifeSelection", "MilestoneStatus", "PersonalJudgment",
+    "LifeProject", "LifeSelection", "MilestoneStatus", "MotivationSignal", "PersonalJudgment",
     "ProjectBrief", "ProjectEvent", "ProjectIdea", "ProjectMilestone",
     "ProjectScope", "ProjectStatus", "ResourceBudget", "SelectionKind",
     "TechnicalOutcome", "LifeStore", "SelfDirectedLifeCoordinator",
