@@ -429,3 +429,41 @@ def test_expired_active_goal_cannot_resume_goals_derived_life_pause(tmp_path):
         assert life.store.jobs(project.project_id) == ()
     finally:
         life.close()
+
+
+def test_expired_active_goal_is_ineligible_before_model_wakeup(tmp_path):
+    """No optional model wake or authoring occurs before delayed GOALS expiry."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        goal = _goal(goals, project)
+        assert goal.expires_at is not None
+        late = goal.expires_at + timedelta(seconds=1)
+        signal = next(
+            signal for signal in life.motivation_signals(
+                now=late, busy=False, resource_pressure=0,
+            ) if signal.project_id == project.project_id
+        )
+        assert signal.eligible is False
+        assert "canonical_goal_expired" in signal.reason
+        comparison = life.compare_optional_choices(
+            now=late, busy=False, resource_pressure=0,
+        )
+        assert comparison["recommendation"] == "postpone"
+        diagnostics = next(
+            row for row in life.goal_dependency_view(now=late)
+            if row["project_id"] == project.project_id
+        )
+        assert "goal_expired" in diagnostics["blockers"]
+        assert diagnostics["eligible_for_new_work"] is False
+        invoked = []
+        result = life.tick(
+            now=late, generate=lambda request: invoked.append(request),
+        )
+        assert result["scheduled"] == 0
+        assert invoked == []
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert _goal(goals, project).status is GoalStatus.ACTIVE
+        assert life.store.jobs(project.project_id) == ()
+    finally:
+        life.close()
