@@ -71,6 +71,21 @@ This gate is **not** a writer election, not a replacement for a verified
 state-home pointer and not permission to modify hosts. The explicit writer
 fence remains a separate recovery-control obligation.
 
+## Staged migration identity evidence
+
+`RelocationAuthorization` distinguishes
+`source_writer_host_id` (Venus, current owner) from
+`writer_host_id` (Artemis, the proposed next owner). The existing
+`stage_verified_state_home` passes **Venus** as the source of its encrypted
+backup and verifies that the authenticated backup manifest reports the same
+source. The pending writer pointer still names **Artemis** and the approved
+next epoch. Any mismatch aborts staging before restoration. A trusted host
+controller must still independently verify the exact physical source,
+exclusive writer fence, operator consent and destination, as before.
+
+This is evidence correctness, not permission to stage production data,
+promote a pointer, restart Venus or activate Artemis.
+
 ## Verification deferred
 
 Tests are written for missing/bad role and host IDs, unauthorized workers,
