@@ -624,6 +624,161 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         wraplength=690,
     ).pack(anchor="w")
 
+    # Install the model configured in canonical settings, never arbitrary text.
+    # This button is a host-owner operation, not a cognitive tool or scheduler.
+    from queue import Empty, Queue
+    from threading import Thread
+
+    install_role = tk.StringVar(value="primary")
+    installation_feedback = Queue()
+    installing_model = {"active": False}
+    install_controls = ttk.Frame(lifecycle_frame)
+    install_controls.pack(fill="x", pady=(8, 0))
+    ttk.Label(
+        install_controls,
+        text="Explicit owner-approved model download",
+    ).pack(anchor="w")
+    ttk.Combobox(
+        install_controls,
+        textvariable=install_role,
+        values=("primary", "secondary"),
+        state="readonly",
+        width=16,
+    ).pack(side="left", padx=(0, 8))
+
+    def approve_model_installation() -> None:
+        if installing_model["active"]:
+            return
+        try:
+            from sofia.config.cognitive_models import CognitiveModelSelection
+            from sofia.cognition.model_lifecycle import CognitiveModelRole
+            from sofia.safe.operator_stop import OperatorStopStore
+
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator stop forbids model installation")
+            effective = create_production_configuration(
+                state_path=config.state_path
+            )
+            selection = CognitiveModelSelection.from_configuration(effective)
+            role = CognitiveModelRole(install_role.get())
+            provider = (
+                selection.primary
+                if role is CognitiveModelRole.PRIMARY
+                else selection.secondary
+            )
+            if provider is None or provider.provider != "ollama":
+                raise ValueError(
+                    "the selected role is not configured for local Ollama"
+                )
+            entered = (
+                cognitive_primary_model.get().strip()
+                if role is CognitiveModelRole.PRIMARY
+                else cognitive_secondary_model.get().strip()
+            )
+            if entered != provider.model:
+                raise ValueError(
+                    "model settings differ from the saved configuration; "
+                    "save and restart Sofía before installing"
+                )
+            host_id = _local_host_id()
+            exact = {
+                "role": role.value,
+                "model": provider.model,
+                "host_id": host_id,
+            }
+            if not messagebox.askyesno(
+                "Approve exact Ollama download?",
+                (
+                    "Download this exact model to the LOCAL machine?\n\n"
+                    f"Role: {role.value}\n"
+                    f"Model: {provider.model}\n"
+                    f"Host: {host_id}\n\n"
+                    "This may consume disk, network, RAM and GPU resources. "
+                    "No model role is switched automatically. "
+                    "This is a one-time approval, not standing permission."
+                ),
+                parent=root,
+            ):
+                return
+            approved_at = datetime.now(timezone.utc)
+            approval = ExecutionApproval(
+                approval_id=str(uuid4()),
+                capability="cognition.model.install",
+                request_fingerprint=execution_fingerprint(
+                    "cognition.model.install", exact,
+                ),
+                approved_by="Sparks",
+                approved_at=approved_at,
+                expires_at=approved_at + timedelta(minutes=15),
+            )
+            execution_approvals.record(approval)
+            installing_model["active"] = True
+            install_button.configure(state="disabled")
+            status.set(
+                f"Owner-approved local download submitted: {provider.model}"
+            )
+
+            def install_in_worker() -> None:
+                try:
+                    from .settings_service import (
+                        install_approved_configured_model,
+                    )
+                    result = install_approved_configured_model(
+                        config.state_path,
+                        role=role.value,
+                        expected_model=provider.model,
+                        host_id=host_id,
+                        approval_id=approval.approval_id,
+                    )
+                    installation_feedback.put(
+                        ("success", f"{result.model}: {result.state.value}")
+                    )
+                except Exception as exc:
+                    installation_feedback.put(
+                        ("error", f"{type(exc).__name__}: {exc}")
+                    )
+
+            # This thread is not a background autonomous install; it executes
+            # exactly one explicit, one-use owner click and exits.
+            Thread(
+                target=install_in_worker,
+                name="sofia-approved-model-install",
+                daemon=False,
+            ).start()
+        except Exception as exc:
+            messagebox.showerror(
+                "Model install denied",
+                f"{type(exc).__name__}: {exc}",
+                parent=root,
+            )
+
+    install_button = ttk.Button(
+        install_controls,
+        text="Review & install locally...",
+        command=approve_model_installation,
+    )
+    install_button.pack(side="left")
+
+    def poll_install_receipt():
+        try:
+            outcome, detail = installation_feedback.get_nowait()
+        except Empty:
+            pass
+        else:
+            installing_model["active"] = False
+            install_button.configure(state="normal")
+            status.set(f"Model installation {outcome}: {detail}")
+            if outcome == "error":
+                messagebox.showerror("Model installation failed", detail, parent=root)
+            else:
+                messagebox.showinfo(
+                    "Model installation verified", detail, parent=root,
+                )
+        if root.winfo_exists():
+            root.after(250, poll_install_receipt)
+
+    root.after(250, poll_install_receipt)
+
     integrations = frames["Integrations"]
     integration_tabs = ttk.Notebook(integrations)
     integration_tabs.pack(fill="both", expand=True)
