@@ -139,6 +139,7 @@ class ModelLifecycleConfiguration:
     enabled: bool = False
     auto_install_missing: bool = False
     idle_unload_seconds: int = 1800
+    idle_preload_seconds: int = 1800
     keep_alive: str = "10m"
     residency_mode: str = "resource_aware"
 
@@ -155,6 +156,11 @@ class ModelLifecycleConfiguration:
                 "model lifecycle idle_unload_seconds must be in 1..86400"
             )
         if (
+            type(self.idle_preload_seconds) is not int
+            or not 60 <= self.idle_preload_seconds <= 86400
+        ):
+            raise ValueError("desktop idle preload threshold must be 60..86400 seconds")
+        if (
             not isinstance(self.keep_alive, str)
             or not self.keep_alive.strip()
             or len(self.keep_alive) > 64
@@ -167,10 +173,11 @@ class ModelLifecycleConfiguration:
             "fast_always_resident",
             "dual_resident",
             "resource_aware",
+            "hybrid_gaming_idle",
         }:
             raise ValueError(
                 "model lifecycle residency_mode must be on_demand, "
-                "fast_always_resident, dual_resident, or resource_aware"
+                "fast_always_resident, dual_resident, resource_aware, or hybrid_gaming_idle"
             )
 
 
