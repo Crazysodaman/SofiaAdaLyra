@@ -139,7 +139,7 @@ class MemoryDeletionLedger:
                 import msvcrt
                 # msvcrt locks need one addressable byte on the file.
                 if os.fstat(descriptor).st_size == 0:
-                    os.write(descriptor, b"\\x00")
+                    os.write(descriptor, bytes((0,)))
                 os.lseek(descriptor, 0, os.SEEK_SET)
                 msvcrt.locking(descriptor, msvcrt.LK_LOCK, 1)
             else:
@@ -279,4 +279,5 @@ class MemoryDeletionLedger:
             violations = db.execute("PRAGMA foreign_key_check").fetchall()
             if violations:
                 raise MemoryErasureError("foreign key violation after replay")
+            db.commit()  # publish the deletion before releasing the database
         return removed
