@@ -87,6 +87,37 @@ class MobileNotificationStore:
         return sha256(device.encode("utf-8")).hexdigest()
 
     @staticmethod
+    def _verify_optional_pairing(
+        db: sqlite3.Connection, *, device_id: str,
+        generation: int | None, credential_sha256: str | None,
+    ) -> None:
+        """Fence remote notification effects within their SQLite writer txn.
+
+        Both values are supplied by the actual bearer-authenticated gateway.
+        A direct trusted host caller may omit both, but a remote operation
+        may never downgrade to a partial or unverified scope.
+        """
+        if generation is None and credential_sha256 is None:
+            return
+        if (
+            type(generation) is not int or generation < 1
+            or not isinstance(credential_sha256, str)
+            or len(credential_sha256) != 64
+            or any(ch not in "0123456789abcdef" for ch in credential_sha256)
+        ):
+            raise PermissionError("exact authenticated notification epoch required")
+        present = db.execute(
+            "SELECT 1 FROM mobile_device_credential "
+            "WHERE device_id=? AND generation=? AND token_sha256=? "
+            "AND status='active'",
+            (device_id, generation, credential_sha256),
+        ).fetchone()
+        if present is None:
+            raise PermissionError(
+                "mobile pairing changed before notification transaction"
+            )
+
+    @staticmethod
     def _record(row: sqlite3.Row) -> MobileNotification:
         return MobileNotification(
             notification_id=row["notification_id"],
@@ -177,12 +208,18 @@ class MobileNotificationStore:
         *,
         device_id: str,
         now: datetime,
+        generation: int | None = None,
+        credential_sha256: str | None = None,
     ) -> MobileNotification | None:
         device = self._device(device_id)
         moment = self._time(now)
         expired = moment - _CLAIM_LEASE
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            self._verify_optional_pairing(
+                db, device_id=device_id, generation=generation,
+                credential_sha256=credential_sha256,
+            )
             db.execute(
                 "UPDATE mobile_notification SET status='queued', "
                 "claimed_at=NULL, claimed_device=NULL "
@@ -219,11 +256,18 @@ class MobileNotificationStore:
         *,
         device_id: str,
         now: datetime,
+        generation: int | None = None,
+        credential_sha256: str | None = None,
     ) -> None:
         key = self._text(notification_id, "notification_id", 200)
         device = self._device(device_id)
         moment = self._time(now)
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            self._verify_optional_pairing(
+                db, device_id=device_id, generation=generation,
+                credential_sha256=credential_sha256,
+            )
             row = db.execute(
                 "SELECT status,claimed_device FROM mobile_notification "
                 "WHERE notification_id=?",
