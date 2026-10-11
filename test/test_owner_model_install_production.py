@@ -4,6 +4,8 @@ from uuid import uuid4
 
 import pytest
 
+from test.owner_auth_fixture import record_verified_owner_approval
+
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
@@ -63,7 +65,7 @@ def approve(state, *, model=MODEL, host=HOST, role="primary"):
         approved_at=now,
         expires_at=now + timedelta(minutes=15),
     )
-    ExecutionApprovalVerifier(state).record(approval)
+    record_verified_owner_approval(ExecutionApprovalVerifier(state), approval)
     return approval.approval_id
 
 
