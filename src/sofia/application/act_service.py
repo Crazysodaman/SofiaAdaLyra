@@ -4,6 +4,7 @@ from contextlib import closing
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+import math
 import json
 import os
 import sqlite3
@@ -258,8 +259,12 @@ class SofiaActService:
             # UNKNOWN and must not silently become permission to send.
             original = db.execute(
                 """SELECT o.event_id,o.trigger_kind,o.status,o.recipient_id,
-                          o.observation_id,w.audience_id,w.value_json
+                          o.observation_id,o.created_at AS event_created_at,
+                          w.audience_id,w.value_json,w.observed_at,
+                          w.expires_at AS source_expires_at,w.confidence,
+                          w.epistemic_state,n.expires_at AS notice_expires_at
                    FROM presence_initiative_opportunity AS o
+                   JOIN act_system_notice AS n ON n.notice_id=o.notice_id
                    LEFT JOIN presence_world_observation AS w
                      ON w.observation_id=o.observation_id
                    WHERE o.notice_id=?""",
@@ -289,6 +294,48 @@ class SofiaActService:
                 # eligible local audience must still match the precise
                 # ACT envelope. No cross-channel rebroadcast after a source
                 # correction, invalidation or untrusted row substitution.
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            # Presence originally queues only OBSERVED/KNOWN evidence with
+            # >=0.6 confidence, a source timestamp no later than the event,
+            # and an original expiry at least as long as the queued notice.
+            # Recheck those exact premises: a source that was downgraded,
+            # backdated, corrupted or given a shorter lifetime must not
+            # inherit its earlier outreach approval. The ACT queue itself
+            # remains responsible for actual deliver-at expiration.
+            try:
+                source_at = datetime.fromisoformat(original["observed_at"])
+                event_at = datetime.fromisoformat(original["event_created_at"])
+                notice_expires_at = datetime.fromisoformat(
+                    original["notice_expires_at"]
+                )
+                expires_value = original["source_expires_at"]
+                source_expires_at = (
+                    datetime.fromisoformat(expires_value)
+                    if expires_value is not None else None
+                )
+                confidence = float(original["confidence"])
+                source_current = (
+                    all(
+                        dt.tzinfo is not None and dt.utcoffset() is not None
+                        for dt in (source_at, event_at, notice_expires_at)
+                    )
+                    and (
+                        source_expires_at is None
+                        or source_expires_at.tzinfo is not None
+                        and source_expires_at.utcoffset() is not None
+                    )
+                    and math.isfinite(confidence)
+                    and 0.6 <= confidence <= 1.0
+                    and original["epistemic_state"] in {"observed", "known"}
+                    and source_at <= event_at < notice_expires_at
+                    and (
+                        source_expires_at is None
+                        or source_expires_at >= notice_expires_at
+                    )
+                )
+            except (ValueError, TypeError, OverflowError):
+                source_current = False
+            if not source_current:
                 return Decision.AUTHORIZATION_UNAVAILABLE
             if not original["event_id"].startswith("life-update:"):
                 return Decision.ELIGIBLE_FOR_AUTHORIZATION
