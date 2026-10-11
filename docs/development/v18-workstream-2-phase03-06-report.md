@@ -3442,6 +3442,68 @@ This document is a source-grounded design
 deliverable, not an LLM authority grant.
 No tests/CI/live commands executed.
 
+
+
+### Phase 03 item 91: Standalone recovery JSONL checksum and schema validator
+
+The existing `export_portable_conversations`
+already produced a sensitive plaintext
+`sofia.portable-conversations.v1` JSONL
+archive with original message and
+audience-binding records, thread
+catalog/links, exact record counts
+and a SHA-256 footer over the preceding
+physical UTF-8 lines. However the
+repo lacked an **independent, read-only
+validation utility** that an operator
+could use on a clean OS without
+installing Sofía, SQLite, its LLM or
+its production application dependencies.
+
+The new standalone standard-library
+`scripts/verify_sofia_portable_export.py`
+checks exact header/footer schema,
+sensitive privacy labels, bounded
+UTF-8 JSONL record size, correct
+type ordering, required original
+source keys, booleans and record
+counts. It computes the exact
+preceding-line SHA-256, detects
+truncation, corruption, missing/
+duplicate footers and trailing data,
+and prints **counts and digest only**,
+never original text. It does
+**not** load a state database,
+grant channel access, edit a file
+or treat the export SHA as a
+cryptographic signature. The
+original verified encrypted backup
+MAC and independent erasure head
+remain the source authenticity
+and anti-resurrection authorities.
+
+- Independent script
+  `401cc215aa5c346275b0425f755519b602f2b134`
+  (`[skip ci]`).
+- Deferred synthetic valid/tampered,
+  missing footer, count drift,
+  junk/trailing record and bounded
+  read cases
+  `test/test_ws2_portable_export_validator.py`
+  `b97de071e9c9114bd017e112ebdc7661b81f825f`
+  and fixture refinement
+  `a7b5b9f049236930ee2672c92c07b63334b332ed`
+  (`[skip ci]`).
+
+Original CA relevance: CA-5205,
+CA-5207, CA-6104, CA-6107,
+CA-6810. This does not validate
+an entire cold archive, media,
+secret escrow or future schema
+without further work. No tests,
+actual plaintext export, clean
+host recovery or live changes.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
