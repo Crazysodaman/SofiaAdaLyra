@@ -3437,10 +3437,19 @@ class SelfDirectedLifeCoordinator:
                     or not report.eligible_for_independent_completion
                 ):
                     continue
-                self.procedures.record_verified_attempt(
-                    project=project, job_id=job_id,
-                    original_run_evidence_ref=receipt_ref, now=now,
-                )
+                try:
+                    self.procedures.record_verified_attempt(
+                        project=project, job_id=job_id,
+                        original_run_evidence_ref=receipt_ref, now=now,
+                    )
+                except (ValueError, LookupError, OSError):
+                    # The catalog independently rechecks exact source bytes,
+                    # original goal/RUN receipts and original project state.
+                    # A source can be revoked or corrupt after this caller's
+                    # earlier read; that attempt is no longer proof. Leave
+                    # the original authoring history intact and continue
+                    # reconciling other completed work next tick.
+                    continue
                 inserted += 1
                 break
         return inserted
