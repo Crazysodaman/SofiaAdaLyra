@@ -120,6 +120,13 @@ def create_default_agent_dispatcher(
         # Read-only, static Hyper-V host preflight over the already-pinned
         # Fleet mTLS transport. No guest write or generic PowerShell route.
         dispatcher.register(
+            "workshop.inspect","installer_status",
+            lambda p:_plain(hyperv.workshop_installer_status())
+            if not p else (_ for _ in ()).throw(
+                ValueError("installer status observation accepts no parameters")
+            ),
+        )
+        dispatcher.register(
             "workshop.inspect","blank_vm",
             lambda p:_plain(hyperv.workshop_handoff_vm())
             if not p else (_ for _ in ()).throw(
