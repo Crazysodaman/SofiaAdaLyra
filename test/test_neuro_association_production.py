@@ -224,3 +224,72 @@ def test_schema_migrates_to_disabled_opt_in():
     assert RuntimeUserSettingsStore._decode(
         json.dumps(values)
     ).neuro_association_enabled is False
+
+
+def test_content_revision_purges_features_for_previous_memory_claim(tmp_path):
+    state, memories, _, assoc, _ = prepare(tmp_path, opted_in=True)
+    item = candidate("A model railroad uses controller A", 1)
+    memories.propose(item)
+    memories.promote(item.candidate_id)
+    teach(assoc, item, query="controller hardware")
+    assert assoc.scores(
+        principal_id="person:sparks", audience_id="local:text",
+        query="controller hardware", eligible_ids=(item.candidate_id,),
+    )
+    with sqlite3.connect(state) as db:
+        # An in-place source revision cannot inherit old training association.
+        db.execute(
+            "UPDATE memory_candidate SET content=? WHERE candidate_id=?",
+            ("Corrected fact about controller B", str(item.candidate_id)),
+        )
+        derived = db.execute(
+            "SELECT (SELECT COUNT(*) FROM neuro_association_weight "
+            "WHERE candidate_id=?),"
+            "(SELECT COUNT(*) FROM neuro_association_event "
+            "WHERE candidate_id=?)",
+            (str(item.candidate_id), str(item.candidate_id)),
+        ).fetchone()
+    assert derived == (0, 0)
+    assert assoc.scores(
+        principal_id="person:sparks", audience_id="local:text",
+        query="controller hardware", eligible_ids=(item.candidate_id,),
+    ) == {}
+    memories.close()
+
+
+def test_principal_audience_revision_clears_teaching_even_when_still_promoted(tmp_path):
+    state, memories, _, assoc, _ = prepare(tmp_path, opted_in=True)
+    item = candidate("A locally reviewed train layout", 1)
+    memories.propose(item)
+    memories.promote(item.candidate_id)
+    teach(assoc, item, query="train layout")
+    with sqlite3.connect(state) as db:
+        # A no-op update must not spuriously delete valid teaching.
+        db.execute(
+            "UPDATE memory_candidate SET audience_id=audience_id "
+            "WHERE candidate_id=?", (str(item.candidate_id),),
+        )
+        count = db.execute(
+            "SELECT COUNT(*) FROM neuro_association_event "
+            "WHERE candidate_id=?", (str(item.candidate_id),),
+        ).fetchone()[0]
+    assert count == 1
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE memory_candidate SET audience_id=? WHERE candidate_id=?",
+            ("discord:dm:9999", str(item.candidate_id)),
+        )
+        remaining = db.execute(
+            "SELECT COUNT(*) FROM neuro_association_event "
+            "WHERE candidate_id=?", (str(item.candidate_id),),
+        ).fetchone()[0]
+    assert remaining == 0
+    assert assoc.scores(
+        principal_id="person:sparks", audience_id="local:text",
+        query="train layout", eligible_ids=(item.candidate_id,),
+    ) == {}
+    assert assoc.scores(
+        principal_id="person:sparks", audience_id="discord:dm:9999",
+        query="train layout", eligible_ids=(item.candidate_id,),
+    ) == {}
+    memories.close()
