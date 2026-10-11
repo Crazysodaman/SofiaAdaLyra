@@ -6,12 +6,15 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
+import re
+import secrets
 import sqlite3
 
 from sofia.act.diagnostics import OutreachTraceStore
 
 
 _CLAIM_LEASE = timedelta(minutes=5)
+_DELIVERY_HANDLE = re.compile(r"mn1_[A-Za-z0-9_-]{24,72}\Z")
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +50,12 @@ class MobileNotificationStore:
                 );
                 CREATE INDEX IF NOT EXISTS mobile_notification_pending
                     ON mobile_notification(status,created_at);
+                CREATE TABLE IF NOT EXISTS mobile_notification_delivery_handle (
+                    handle TEXT PRIMARY KEY,
+                    notification_id TEXT NOT NULL UNIQUE,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(notification_id) REFERENCES mobile_notification(notification_id)
+                );
                 """
             )
 
@@ -119,6 +128,47 @@ class MobileNotificationStore:
                 (key,),
             ).fetchone()
         return self._record(row)
+
+    def delivery_handle(self, notification_id: str) -> str:
+        """Return stable random client ID, never an original ACT notice ID.
+
+        These remain stable across claim lease expiries. Existing historical
+        notifications obtain their handles on first claim.
+        """
+        key = self._text(notification_id, "notification_id", 200)
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            existing = db.execute(
+                "SELECT handle FROM mobile_notification_delivery_handle "
+                "WHERE notification_id=?", (key,),
+            ).fetchone()
+            if existing is not None:
+                return str(existing[0])
+            if db.execute(
+                "SELECT 1 FROM mobile_notification WHERE notification_id=?",
+                (key,),
+            ).fetchone() is None:
+                raise KeyError("notification does not exist")
+            handle = "mn1_" + secrets.token_urlsafe(24)
+            db.execute(
+                "INSERT INTO mobile_notification_delivery_handle "
+                "(handle,notification_id,created_at) VALUES(?,?,?)",
+                (handle, key, datetime.now(timezone.utc).isoformat()),
+            )
+        return handle
+
+    def resolve_delivery_handle(self, handle: str) -> str:
+        """Resolve ONLY an opaque mobile handle to the original queued notice."""
+        if not isinstance(handle, str) or _DELIVERY_HANDLE.fullmatch(handle) is None:
+            raise PermissionError("opaque mobile notification handle required")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT notification_id FROM mobile_notification_delivery_handle "
+                "WHERE handle=?", (handle,),
+            ).fetchone()
+        if row is None:
+            raise PermissionError("unknown mobile notification handle")
+        return str(row[0])
 
     def claim_next(
         self,

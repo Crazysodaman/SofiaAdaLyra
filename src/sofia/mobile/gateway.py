@@ -494,8 +494,12 @@ class MobileCompanionGateway:
         )
         return {
             "notification": {
-                "id": notification.notification_id,
-                "title": notification.title,
+                # Original ACT IDs may contain source project references.
+                # Send only a stable random, non-semantic delivery handle.
+                "id": self.notifications.delivery_handle(
+                    notification.notification_id
+                ),
+                "title": notification.title if full_preview else "Sofía",
                 # Never send the unapproved notification body to Android
                 # while merely masking its lock-screen preview.
                 "content": visible_content,
@@ -511,8 +515,11 @@ class MobileCompanionGateway:
         device = self._device(device_id)
         if not isinstance(notification_id, str):
             raise TypeError("notification_id must be a string")
+        internal_id = self.notifications.resolve_delivery_handle(
+            notification_id
+        )
         self.notifications.acknowledge(
-            notification_id,
+            internal_id,
             device_id=device,
             now=datetime.now(timezone.utc),
         )

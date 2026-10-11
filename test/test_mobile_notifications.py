@@ -89,3 +89,49 @@ def test_same_notification_id_cannot_change_content(tmp_path):
             content="Replacement",
             created_at=NOW,
         )
+
+
+def test_delivery_handles_are_opaque_stable_and_not_source_act_ids(tmp_path):
+    store = _store(tmp_path)
+    source_id = "act:secret-project-and-attention-topic"
+    store.enqueue(
+        notification_id=source_id, title="Private title",
+        content="Protected event", created_at=NOW,
+    )
+    handle = store.delivery_handle(source_id)
+    assert handle.startswith("mn1_")
+    assert source_id not in handle
+    assert store.delivery_handle(source_id) == handle
+    assert store.resolve_delivery_handle(handle) == source_id
+    with pytest.raises(PermissionError, match="opaque"):
+        store.resolve_delivery_handle(source_id)
+    with pytest.raises(PermissionError, match="unknown"):
+        store.resolve_delivery_handle("mn1_" + "A" * 32)
+
+
+def test_delivery_handle_survives_notification_reclaim_and_receipt(tmp_path):
+    store = _store(tmp_path)
+    store.enqueue(
+        notification_id="act:stable-claim",
+        title="Sofía", content="Audited delivery",
+        created_at=NOW,
+    )
+    first = store.claim_next(device_id="phone-first", now=NOW)
+    assert first is not None
+    handle = store.delivery_handle(first.notification_id)
+    second = store.claim_next(
+        device_id="phone-second", now=NOW + timedelta(minutes=6),
+    )
+    assert second is not None and second.notification_id == first.notification_id
+    assert store.delivery_handle(second.notification_id) == handle
+    with pytest.raises(PermissionError):
+        store.acknowledge(
+            store.resolve_delivery_handle(handle),
+            device_id="phone-first",
+            now=NOW + timedelta(minutes=7),
+        )
+    store.acknowledge(
+        store.resolve_delivery_handle(handle),
+        device_id="phone-second",
+        now=NOW + timedelta(minutes=7),
+    )

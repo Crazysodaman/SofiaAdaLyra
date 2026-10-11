@@ -149,8 +149,8 @@ def test_sensor_ingestion_invalidates_live_environment(tmp_path):
 def test_proactive_notification_preview_requires_external_authority(tmp_path):
     _, gateway = _gateway(tmp_path)
     gateway.notifications.enqueue(
-        notification_id="act:private-idea",
-        title="Sofía",
+        notification_id="act:secret-foxfire-project",
+        title="Private foxfire surprise",
         content="A private thought for Sparks.",
         created_at=datetime.now(timezone.utc),
     )
@@ -163,6 +163,10 @@ def test_proactive_notification_preview_requires_external_authority(tmp_path):
     assert claimed["content"] == "Sofía has something she wants to share with you."
     assert "A private thought for Sparks." not in str(claimed)
     assert claimed["full_preview_authorized"] is False
+    assert claimed["title"] == "Sofía"
+    assert claimed["id"].startswith("mn1_")
+    assert "foxfire" not in str(claimed)
+    assert "Private foxfire surprise" not in str(claimed)
     assert gateway.acknowledge_notification(
         device_id="android-owner",
         notification_id=claimed["id"],
@@ -176,7 +180,7 @@ def test_proactive_notification_preview_requires_external_authority(tmp_path):
     )
     gateway.notifications.enqueue(
         notification_id="act:private-idea-2",
-        title="Sofía",
+        title="Allowed sensitive title",
         content="Another private thought.",
         created_at=datetime.now(timezone.utc),
     )
@@ -193,6 +197,7 @@ def test_proactive_notification_preview_requires_external_authority(tmp_path):
         private_mode=True,
     )["notification"]
     assert allowed["preview"] == allowed["content"]
+    assert allowed["title"] == "Allowed sensitive title"
     assert allowed["full_preview_authorized"] is True
 
 
