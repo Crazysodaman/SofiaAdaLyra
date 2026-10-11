@@ -2432,6 +2432,41 @@ this does not introduce a privileged host fencing broker,
 license live host migration or certify one-use grant behavior.
 No tests/CI, import, rollback or live owner approval performed.
 
+
+
+### Phase 05 item 72: Protect independently adopted canonical turn links from import rollback
+
+`LifelongThreadStore.rollback_historical_import` correctly
+allows operator-reviewed reversal only for Main links originally
+introduced by that exact import review ID. However, it previously
+deleted a matching `lifelong_thread_event` solely by original
+`(thread,source_message,session,audience)` even if the link had
+since acquired separate `canonical_sequence` or
+`turn_position` metadata representing a canonical Main turn.
+The historical import approval does not own later independently
+admitted canonical turns.
+
+The actual rollback loop now inspects the canonical ordering fields
+under its existing `BEGIN IMMEDIATE` transaction and **fails
+closed** if an import-owned source link has become an independently
+ordered canonical turn. The physical deletion statement also
+requires both ordering fields remain `NULL`. Pure historical
+import links retain their approved rollback behavior; no original
+`conversation_messages` row is ever erased.
+
+- Production `src/sofia/conversation/lifelong.py`
+  `9b12131a88228c4e3a4c681863a02053c87ef083`
+  (`[skip ci]`).
+- Deferred regression `test/test_ws2_historical_import_adopted_canonical.py`
+  `0cf40c354d58f7c1b6c13c2ac3d982fba821257b`
+  (`[skip ci]`): adopted canonical link persists, pure historical
+  links still roll back, original source remains unchanged.
+
+Original CA relevance: CA-5502, CA-5505, CA-5506,
+CA-6306. A full historical batch/source deletion and separate
+canonical turn migration strategy still need independent policy
+and acceptance. No tests/CI/live rollback executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
