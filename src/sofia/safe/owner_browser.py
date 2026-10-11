@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from html import escape
 import json
 from pathlib import Path
 from queue import Empty, Queue
@@ -28,8 +29,8 @@ _PAGE = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sofía secure owner approval</title>
 <body><main><h1>Sofía: approve one action</h1>
-<p>This authentication is for the exact action shown in the terminal or app.
-Neither Windows Hello nor a physical security key grants standing permission.</p>
+<p>Review the exact action and target below. No standing permission is granted.</p>
+<pre id="action">__ACTION__</pre>
 <button id="approve">Verify using passkey or security key</button>
 <pre id="status">No approval has been issued.</pre></main>
 <script>
@@ -171,22 +172,31 @@ def authorize_exact_action(
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     server.daemon_threads = True
-    origin = f"http://localhost:{server.server_port}"
-    verifier = OwnerWebAuthnVerifier(
-        state_path, rp_id="localhost", origin=origin,
-    )
-    challenge = verifier.issue(
-        credential_id=credential_id, action_fingerprint=exact,
-        ttl_seconds=min(120, timeout_seconds),
-    )
-    options = {**challenge, "finish": "/finish?token=" + nonce}
-    page = _PAGE.replace("__OPTIONS__", json.dumps(options).replace("<", "\\u003c"))
-    holder.update({"page": page.encode("utf-8"), "verifier": verifier,
-                   "challenge": challenge, "origin": origin})
-    worker = Thread(target=server.serve_forever, name="sofia-owner-auth-local",
-                    daemon=True)
-    worker.start()
+    worker = None
     try:
+        origin = f"http://localhost:{server.server_port}"
+        verifier = OwnerWebAuthnVerifier(
+            state_path, rp_id="localhost", origin=origin,
+        )
+        challenge = verifier.issue(
+            credential_id=credential_id, action_fingerprint=exact,
+            ttl_seconds=min(120, timeout_seconds),
+        )
+        options = {**challenge, "finish": "/finish?token=" + nonce}
+        review = json.dumps(
+            {"capability": capability, "parameters": parameters,
+             "action_fingerprint": exact},
+            sort_keys=True, indent=2, ensure_ascii=False, allow_nan=False,
+        )
+        page = (
+            _PAGE.replace("__OPTIONS__", json.dumps(options).replace("<", "\\u003c"))
+            .replace("__ACTION__", escape(review, quote=True))
+        )
+        holder.update({"page": page.encode("utf-8"), "verifier": verifier,
+                       "challenge": challenge, "origin": origin})
+        worker = Thread(target=server.serve_forever, name="sofia-owner-auth-local",
+                        daemon=True)
+        worker.start()
         url = origin + "/?token=" + nonce
         opener = open_browser or webbrowser.open
         if opener(url) is False:
@@ -199,6 +209,8 @@ def authorize_exact_action(
             raise PermissionError("owner authentication denied") from result
         return result
     finally:
-        server.shutdown()
+        if worker is not None:
+            server.shutdown()
         server.server_close()
-        worker.join(timeout=2)
+        if worker is not None:
+            worker.join(timeout=2)
