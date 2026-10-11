@@ -5,6 +5,7 @@ Fixtures simulate Fleet and Hyper-V; no VM, network, installer or CI run.
 from datetime import datetime,timedelta,timezone
 from uuid import uuid4
 import json
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 
 from sofia.config.user_settings import RuntimeUserSettingsStore
@@ -29,7 +30,7 @@ VM=uuid4()
 
 
 def approved_source(tmp_path):
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).load()
     scope={
         "artemis_node_id":str(NODE),
