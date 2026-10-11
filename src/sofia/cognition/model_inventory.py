@@ -10,12 +10,15 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone, timedelta
 from hashlib import sha256
 import json
+import re
 from pathlib import Path
 import sqlite3
 from typing import Mapping
 
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,7 +142,11 @@ def collect_local_model_inventory(
         details = entry.get("details") if entry is not None else None
         details = details if isinstance(details, Mapping) else {}
         quant = _string(details.get("quantization_level"), limit=120)
-        digest = _string(entry.get("digest"), limit=200) if entry else None
+        reported_digest = _string(entry.get("digest"), limit=200) if entry else None
+        # Ollama's advertised digest is untrusted metadata. Never treat an
+        # invalid string or an unavailable digest as content-addressed proof.
+        digest = (reported_digest if reported_digest is not None
+                  and _SHA256.fullmatch(reported_digest) else None)
         size = _positive_size(entry.get("size")) if entry else None
         caps = ()
         context_limit = None
@@ -360,6 +367,7 @@ class ModelInventoryStore:
             ).fetchall()
         candidate_rows = []
         stale_observations = 0
+        digest_unknown = 0
         for (raw,) in rows:
             row = json.loads(raw)
             try:
@@ -379,6 +387,13 @@ class ModelInventoryStore:
                 or row.get("configured_roles")
             ):
                 continue
+            candidate_digest=row.get("digest")
+            if (
+                not isinstance(candidate_digest,str)
+                or _SHA256.fullmatch(candidate_digest) is None
+            ):
+                digest_unknown+=1
+                continue
             candidate_rows.append(row)
         if not candidate_rows:
             return (
@@ -386,11 +401,13 @@ class ModelInventoryStore:
                 "Historical observations may remain visible in read-only "
                 "inventory, but a new local scan is required before any "
                 "candidate suitability review. "
-                f"Stale/invalid observations: {stale_observations}."
+                f"Stale/invalid observations: {stale_observations}; "
+                f"installed without SHA-256 identity: {digest_unknown}."
             )
         lines = [
             "DISCOVERY ONLY: FRESH observed install, NOT approved for a role.",
             "Only source-observed within the past 15 minutes; no future clocks.",
+            "Candidate identity requires a SHA-256 digest observed from Ollama.",
             "Independent capability benchmarks, licensing, operator approval,",
             "resource budgeting and rollback evidence are required before use.",
         ]
