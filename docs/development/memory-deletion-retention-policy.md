@@ -21,11 +21,14 @@
    the staging database first. Other backup data still receives existing
    manifest authentication, schema, identity and Constitution checks.
 5. Previously generated encrypted backup snapshots are **not modified or
-   rewritten**; they are removed by the existing operator-selected
-   `rotate --keep N` retention policy, under its safe archive-path checks.
-   There is deliberately no silently imposed backup expiration date or
-   autonomous destructive timer. Choose and document `N` and schedule
-   rotation through the existing approved operator RUN/scheduler path.
+   rewritten**. The owner has explicitly selected **2 snapshots per backup
+   target / destination root**. The ordinary backup topology and operator
+   `backup_cli create` retain the newest two encrypted generations after
+   successful source snapshot creation and manifest verification, using
+   existing safe archive-path rotation checks. There is no day-based
+   expiration or autonomous destructive timer. A different retention count
+   requires an explicit configuration override. The externally authenticated
+   deletion journal is **not** rotated with backup snapshots.
 6. "Forget memory candidate" does **not** mean delete the authoritative
    original conversation, media attachments, cloud copies, social messages,
    other candidates paraphrasing that fact or a remote service's backups.
@@ -87,15 +90,37 @@ A rehearsal uses the same `--erasure-journal`. Staged state relocation
 receives `erasure_journal_path` from the independently authorized operator.
 Do not repurpose the journal path into any migrated/restored state root.
 
-The existing retention command keeps the most recent **N** operator-chosen
-backups and prunes older archives; N is a count, **not days**:
+**Approved production retention: 2 encrypted snapshots per backup target
+or destination root.** This means two generations per configured backup
+location, **not** two total copies across all failure domains, and not two
+days. The minimum-two independent-host backup topology requirement remains
+unchanged. The default is applied on successful normal backup creation:
 
 ```powershell
-python -m sofia.ops.backup_cli rotate --root "<BACKUP_ROOT>" --keep 14
+python -m sofia.ops.backup_cli create --key "<KEY_PATH>" --destination "<BACKUP_ROOT>" --failure-domain "<FAILURE_DOMAIN>" --state-path "<SOFIA_DB_PATH>"
 ```
 
-`14` is illustrative only, **not** an approved default. Backup retention
-must be set by the operator with a documented restoration-window requirement.
+The command authenticates the new encrypted backup before retiring older
+generations. If verification fails, it does **not** rotate existing recovery
+snapshots. To apply retention to an existing backup directory without creating
+a new snapshot, the operator can explicitly run:
+
+```powershell
+python -m sofia.ops.backup_cli rotate --root "<BACKUP_ROOT>" --keep 2
+```
+
+Normal `rotate` also defaults to `--keep 2`. The multi-target backup
+policy defaults to `keep_per_target=2`, including
+`SOFIA_BACKUP_KEEP_PER_TARGET` when that environment variable is absent.
+If a deployment previously set it explicitly to another count, update it to
+`SOFIA_BACKUP_KEEP_PER_TARGET=2` on the managed runtime service as a
+**separate approved host configuration change**. This code commit does not
+rewrite running services or delete backups on Venus, Artemis or Eos.
+
+Each backup target must use its own dedicated destination root so rotation
+does not mix unrelated backup series. Keep the deletion journal and its key
+on protected storage outside every rotating backup root.
+
 The external journal MUST outlive **all** backups and clones of their source
 state, including offsite or offline media. Retention alone does not enforce
 a request until the prior snapshots expire.
