@@ -62,6 +62,43 @@ def test_standing_grant_is_scoped_and_revocable(tmp_path):
     )
 
 
+
+def test_standing_grants_compare_json_types_including_nested_values(tmp_path):
+    store = PermissionStore(tmp_path / "sofia.db")
+    store.grant(
+        "storage.mkdir",
+        scope={"root_index": 1, "metadata": {"enabled": True, "level": 1}},
+        grant_id="exact-json-values",
+    )
+    assert store.allows_standing(
+        "storage.mkdir",
+        {"root_index": 1, "metadata": {"level": 1, "enabled": True}},
+    )
+    # Python considers these equal. JSON permission scopes must not.
+    assert not store.allows_standing(
+        "storage.mkdir",
+        {"root_index": True, "metadata": {"enabled": True, "level": 1}},
+    )
+    assert not store.allows_standing(
+        "storage.mkdir",
+        {"root_index": 1, "metadata": {"enabled": 1, "level": True}},
+    )
+
+
+def test_nonfinite_or_oversized_scope_cannot_be_granted(tmp_path):
+    store = PermissionStore(tmp_path / "sofia.db")
+    with pytest.raises(ValueError, match="JSON-serializable"):
+        store.grant("storage.mkdir", scope={"root_index": float("nan")})
+    with pytest.raises(ValueError, match="64-KiB"):
+        store.grant("storage.mkdir", scope={"path": "x" * 70_000})
+    assert store.grants() == ()
+
+
+def test_nonfinite_request_cannot_match_legacy_standing_scope(tmp_path):
+    store = PermissionStore(tmp_path / "sofia.db")
+    store.grant("storage.mkdir", scope={"root_index": 1})
+    assert not store.allows_standing("storage.mkdir", {"root_index": float("inf")})
+
 def test_protected_capability_rejects_standing_grant(tmp_path):
     store = PermissionStore(tmp_path / "sofia.db")
     with pytest.raises(PermissionError, match="does not permit standing grants"):
