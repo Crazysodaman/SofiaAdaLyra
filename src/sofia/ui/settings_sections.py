@@ -1751,7 +1751,10 @@ class SettingsSections:
                 "Observed frame receipts: "
                 +str(len(ScreenJourneyReceiptStore(
                     config.state_path,
-                ).status(audience_id=local_sparks_principal().audience_id)["observations"]))
+                ).status(
+                    principal_id=local_sparks_principal().principal_id,
+                    audience_id=local_sparks_principal().audience_id,
+                )["observations"]))
                 +" (metadata only; zero pixels retained)."
             ),
         ).pack(anchor="w",pady=(3,7))
