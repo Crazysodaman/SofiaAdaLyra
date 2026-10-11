@@ -1541,6 +1541,9 @@ class SelfDirectedLifeCoordinator:
         )
         halted = self.operator_stop.current().active
         view: list[dict[str, object]] = []
+        verified_procedure_sources = dict(
+            self.procedures.verified_proof_projects(limit=64)
+        )
         for project in projects[:limit]:
             goal = visible.get(project.goal_id)
             milestone_rows = self.store.milestones(project.project_id)
@@ -1741,8 +1744,17 @@ class SelfDirectedLifeCoordinator:
                 "parent_goal_id": None if goal is None else goal.parent_goal_id,
                 "priority": project.priority,
                 "verified_procedures": (
-                    tuple(item.procedure_id for item in
-                        self.procedures.available_for_project(project))
+                    tuple(
+                        entry.procedure_id
+                        for entry in self.procedures.available_for_project(project)
+                        if (
+                            entry.procedure_id in verified_procedure_sources
+                            and self._verified_procedure_origins_current(
+                                verified_procedure_sources[entry.procedure_id],
+                                now=now,
+                            )
+                        )
+                    )
                     if project.scope is ProjectScope.PERSONAL_PRIVATE
                     and project.goal_id is not None
                     else ()
@@ -3242,6 +3254,60 @@ class SelfDirectedLifeCoordinator:
             settled += 1
         return settled
 
+    def _verified_procedure_origins_current(
+        self, project_ids: tuple[str, ...], *, now: datetime,
+    ) -> bool:
+        """A reusable procedure must retain two independently sound origins."""
+        if len(set(project_ids)) < 2:
+            return False
+        for project_id in project_ids:
+            try:
+                original = self._project(project_id)
+            except (LookupError, PermissionError):
+                return False
+            if (
+                original.scope is not ProjectScope.PERSONAL_PRIVATE
+                or original.status not in {
+                    ProjectStatus.COMPLETED, ProjectStatus.ARCHIVED,
+                }
+                or not self._current_verified_objective_completion(
+                    original, now=now,
+                )
+            ):
+                return False
+        return True
+
+    def _audit_procedure_sources(
+        self, *, now: datetime, limit: int = 16,
+    ) -> int:
+        """Quarantine formerly verified knowledge after original proof loss.
+
+        A missing original is UNKNOWN from an evidence perspective but
+        UNSUITABLE for verified automatic recommendation. This never
+        removes an original project, starts a RUN action or grants powers.
+        """
+        if self.operator_stop.current().active:
+            return 0
+        aware(now, "procedure proof audit")
+        invalidated = 0
+        for procedure_id, project_ids in self.procedures.verified_proof_projects(
+            limit=limit,
+        ):
+            if self._verified_procedure_origins_current(
+                project_ids, now=now,
+            ):
+                continue
+            self.procedures.quarantine(
+                procedure_id,
+                reason=(
+                    "Original independently validated source is unavailable, "
+                    "out of scope, revoked, corrupted or no longer current."
+                ),
+                now=now,
+            )
+            invalidated += 1
+        return invalidated
+
     def _reconcile_procedure_catalog(
         self, *, now: datetime, limit: int = 64,
     ) -> int:
@@ -3367,6 +3433,7 @@ class SelfDirectedLifeCoordinator:
         # history before optional work. This is descriptive learning only,
         # with no grant, executor, extra scheduler or model wake.
         procedure_receipts = self._reconcile_procedure_catalog(now=now)
+        procedures_quarantined = self._audit_procedure_sources(now=now)
         # Completion verification is a settlement of an ALREADY STARTED
         # canonical RUN job, not permission to spend new creation budget.
         # A finished artifact must not be orphaned forever merely because
