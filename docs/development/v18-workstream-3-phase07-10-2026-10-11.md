@@ -306,3 +306,12 @@ This reduces unnecessary long-absence SQLite writes and is one bounded CA-108/CA
 - `0ff83e65`: Regression source covers a conflicting second direct evaluation and a conflicting atomic evaluation/experience pair, both without duplicate durable review or orphan experience. Tests deliberately unexecuted.
 
 **Scope:** This protects currently verified LIFE critique and preference settlement. It does not accept all Phase 09 task IDs, approve qualitative judgments, or provide correction/revocation propagation across MEM/NEURO. The 175 original task ledger remains owned by Workstream 1. No tests, CI, models, live hosts or robot hardware were executed or changed.
+
+## Source-coded Phase 09 recovery and budget continuation
+
+- `8599699a`: An original GOALS ACTIVE transition can release only a previous GOALS-derived LIFE PAUSED status. Voluntary LIFE rest, blocked or uncertain RUN outcomes cannot be overridden. The original GOALS authority and existing application background tick remain the only owners.
+- `3f066975`: Unexecuted regressions cover original GOALS pause→resume and deliberate personal inactivity.
+- `557bbd77`: Direct `schedule_artifact` submission now rejects exhausted recorded daily wall-time as well as exhausted storage; RUN admission deadline is limited to the remaining daily interval. Existing UTC-recorded creative usage now uses consistent UTC day lookups in selection, scheduling and follow-through. Deadline admission alone is not OS-level CPU/memory isolation or a worker hard timeout.
+- `92186da2`: Unexecuted regressions cover direct-budget bypass denial and a shorter remaining-interval deadline.
+
+All changes are in the actual application-owned LIFE, GOALS and RUN source on GitHub `main`; no new scheduler, shadow authority, live host, model or hardware execution. Testing, concurrency acceptance, full source audit and the shared ledger reconciliation remain deferred and open.
