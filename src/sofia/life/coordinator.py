@@ -1727,8 +1727,24 @@ class SelfDirectedLifeCoordinator:
                 }
                 existing = evaluations.get((artifact_id, revision))
                 if existing is not None:
+                    # Crash recovery must be able to replay a source-verified
+                    # milestone that was not committed after evaluation.
+                    # Never require another LLM draft or new work budget for
+                    # this reconciliation. The actual objective still needs a
+                    # fresh original-byte check in _settle_personal_project.
+                    incomplete = {
+                        milestone.title
+                        for milestone in self.store.milestones(candidate.project_id)
+                        if milestone.status in {
+                            MilestoneStatus.PLANNED, MilestoneStatus.ACTIVE,
+                        }
+                    }
+                    needs_milestone_replay = any(
+                        existing.objective_results.get(objective) is True
+                        for objective in incomplete
+                    )
                     if existing.technical_outcome is TechnicalOutcome.VALID:
-                        if not (
+                        auto_completion = (
                             existing.personal_judgment is PersonalJudgment.UNKNOWN
                             and set(existing.objective_results) == set(
                                 candidate.brief.objectives
@@ -1737,19 +1753,20 @@ class SelfDirectedLifeCoordinator:
                                 item is True
                                 for item in existing.objective_results.values()
                             )
-                        ):
+                        )
+                        if not auto_completion and not needs_milestone_replay:
                             continue
                     elif existing.technical_outcome is TechnicalOutcome.INVALID:
-                        if (
-                            not within_budget or generate is None
-                            or self.store.has_daily_draft_attempt(
+                        can_revise = (
+                            within_budget and generate is not None
+                            and not self.store.has_daily_draft_attempt(
                                 candidate.project_id, now=now,
                             )
-                        ):
+                        )
+                        if not can_revise and not needs_milestone_replay:
                             continue
-                    else:
-                        # Inconclusive independent evidence requires a
-                        # revised criterion, not repeated background guesses.
+                    elif not needs_milestone_replay:
+                        # Unverifiable criteria do not justify retries.
                         continue
                 # Independent grading may still complete an existing
                 # artifact. A new revision may only be drafted inside
