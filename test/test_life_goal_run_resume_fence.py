@@ -125,3 +125,48 @@ def test_goal_can_resume_after_goals_pause_without_unfinished_run(tmp_path):
         assert life.store.jobs(project.project_id) == ()
     finally:
         life.close()
+
+
+
+def test_atomic_run_admission_rejects_original_life_revision_change(
+    tmp_path, monkeypatch,
+):
+    """A pause/resume race must not admit a stale drafted RUN artifact job."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        original_submit = life.manager.submit
+        def competing_pause_and_resume(**kwargs):
+            life.pause(
+                project.project_id,
+                reason="Concurrently pause optional work before RUN enqueue.",
+                evidence_refs=(evidence,),
+                now=now + timedelta(seconds=4),
+            )
+            life.resume(
+                project.project_id,
+                reason="Resume with a new canonical project revision.",
+                evidence_refs=(evidence,),
+                now=now + timedelta(seconds=5),
+            )
+            return original_submit(**kwargs)
+        monkeypatch.setattr(
+            life.manager, "submit", competing_pause_and_resume,
+        )
+        with pytest.raises(RuntimeError, match="revision changed"):
+            life.schedule_artifact(
+                project.project_id,
+                artifact_kind=ArtifactKind.TEXT,
+                title="Stale project authoring",
+                specification={"content": "Outdated creative instructions"},
+                evidence_ref=evidence,
+                now=now + timedelta(seconds=6),
+                expected_project_revision=project.revision,
+            )
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        assert life._project(project.project_id).revision > project.revision
+        assert life.store.jobs(project.project_id) == ()
+        assert life.store.artifacts(project.project_id) == ()
+        assert life.work_store.open_count() == 0
+    finally:
+        life.close()
