@@ -693,6 +693,72 @@ class DurableMemoryCandidateStore:
                 "stored memory candidate has invalid lifecycle status"
             ) from exc
 
+    @staticmethod
+    def _verify_reviewed_originals_in_writer(
+        db: sqlite3.Connection, candidate_id: UUID,
+    ) -> None:
+        """Final current-source proof inside the SAME promotion transaction.
+
+        A source review attestation proves an earlier observation, not that
+        its original survived unchanged until publication. Historic low-level
+        unattested imports retain their existing separate compatibility
+        policy; this guard never promotes or authenticates them.
+        """
+        key = str(candidate_id)
+        reviewed = db.execute(
+            "SELECT r.source_session_id,r.principal_id,r.audience_id,"
+            "r.audience_kind,c.principal_id,c.audience_id "
+            "FROM memory_candidate_source_review AS r "
+            "JOIN memory_candidate AS c ON c.candidate_id=r.candidate_id "
+            "WHERE r.candidate_id=?", (key,),
+        ).fetchone()
+        if reviewed is None:
+            return
+        if reviewed[1] != reviewed[4] or reviewed[5] not in (None, reviewed[2]):
+            raise PermissionError("reviewed memory owner or audience changed")
+        rows = db.execute(
+            "SELECT src.session_id,src.role,src.content,src.created_at,"
+            "m.id,m.role,m.content,m.created_at,"
+            "s.principal_id,s.audience_id,s.audience_kind "
+            "FROM memory_candidate_source AS src "
+            "LEFT JOIN conversation_messages AS m "
+            "ON m.id=src.message_id AND m.session_id=src.session_id "
+            "LEFT JOIN social_session_principal AS s ON s.session_id=m.session_id "
+            "WHERE src.candidate_id=? ORDER BY src.ordinal",
+            (key,),
+        ).fetchall()
+        if not 1 <= len(rows) <= 64:
+            raise PermissionError("reviewed memory exact originals unavailable")
+        for source in rows:
+            if (
+                source[0] != reviewed[0]
+                or source[4] is None
+                or source[1] != source[5]
+                or source[2] != source[6]
+                or source[8] != reviewed[1]
+                or source[9] != reviewed[2]
+                or source[10] != reviewed[3]
+            ):
+                raise PermissionError(
+                    "reviewed memory original bytes or audience changed before promotion"
+                )
+            try:
+                earlier = datetime.fromisoformat(source[3])
+                current = datetime.fromisoformat(source[7])
+            except (TypeError, ValueError) as exc:
+                raise PermissionError(
+                    "reviewed memory original timestamp is unavailable"
+                ) from exc
+            if (
+                earlier.tzinfo is None or earlier.utcoffset() is None
+                or current.tzinfo is None or current.utcoffset() is None
+                or earlier.astimezone(timezone.utc)
+                != current.astimezone(timezone.utc)
+            ):
+                raise PermissionError(
+                    "reviewed memory original time changed before promotion"
+                )
+
     def promote(self, candidate_id: UUID) -> None:
         """Operator-reviewed promotion, atomically superseding a corrected fact."""
         if not isinstance(candidate_id, UUID):
@@ -701,6 +767,7 @@ class DurableMemoryCandidateStore:
             db = self._require_db()
             with db:
                 db.execute("BEGIN IMMEDIATE")
+                self._verify_reviewed_originals_in_writer(db, candidate_id)
                 link = db.execute(
                     "SELECT old_candidate_id FROM memory_candidate_correction "
                     "WHERE new_candidate_id=?", (str(candidate_id),),
