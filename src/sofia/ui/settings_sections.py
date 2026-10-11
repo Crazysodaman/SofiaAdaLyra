@@ -1522,6 +1522,119 @@ class SettingsSections:
             ),
         ).pack(anchor="w",pady=(3,7))
 
+        # Owner-reviewed Hephaestus training lab is a NON-EXECUTING PLAN.
+        # The owner's VM is currently OS-less and Artemis has no verified
+        # independent GPU training lease. This UI must not start a trainer.
+        from sofia.evolve.training_lab import (
+            TrainingLabPlan,TrainingLabReviewStore,assess_training_lab,
+        )
+        from datetime import timedelta
+        from uuid import UUID,uuid4
+        training_vm=tk.StringVar(root,value="")
+        training_artemis=tk.StringVar(root,value="")
+        training_base_sha=tk.StringVar(root,value="")
+        training_train_sha=tk.StringVar(root,value="")
+        training_eval_sha=tk.StringVar(root,value="")
+        training_training_approval=tk.StringVar(root,value="")
+        training_method=tk.StringVar(root,value="lora")
+        training_gpu=tk.StringVar(root,value="none")
+        ttk.Label(
+            frames["EVOLVE"],text="Hephaestus: bounded training LAB plan only",
+        ).pack(anchor="w",pady=(12,2))
+        ttk.Label(
+            frames["EVOLVE"],
+            text=(
+                "Owner-created Hyper-V VM has no Debian OS or attested worker. "
+                "Research review is possible, but NO training runs, model "
+                "promotion, SSH, LAN, NAS, host credential, canonical DB mount "
+                "or independent Venus GPU lease are authorized."
+            ),wraplength=660,
+        ).pack(anchor="w",pady=(3,5))
+        for text,var in (
+            ("Exact Artemis enrolled Fleet node UUID",training_artemis),
+            ("Exact owner-created Hephaestus VM GUID",training_vm),
+            ("Reviewed base model SHA-256",training_base_sha),
+            ("Owner-reviewed training JSONL SHA-256",training_train_sha),
+            ("Independent held-out JSONL SHA-256",training_eval_sha),
+            ("Exact training dataset owner-ui approval receipt",training_training_approval),
+        ):
+            ttk.Label(frames["EVOLVE"],text=text).pack(anchor="w",pady=(3,1))
+            ttk.Entry(frames["EVOLVE"],textvariable=var).pack(fill="x")
+        ttk.Label(frames["EVOLVE"],text="Adapter method").pack(anchor="w")
+        ttk.Combobox(frames["EVOLVE"],textvariable=training_method,
+                     values=("lora","qlora"),state="readonly").pack(fill="x")
+        ttk.Label(
+            frames["EVOLVE"],text="GPU training host (requires independent later approval)",
+        ).pack(anchor="w")
+        ttk.Combobox(
+            frames["EVOLVE"],textvariable=training_gpu,
+            values=("none","venus_separately_approved"),
+            state="readonly",
+        ).pack(fill="x")
+        training_lab_summary={"value":"No reviewed Hephaestus training lab plan."}
+        training_lab_view=self.viewer(
+            frames["EVOLVE"],"Source-reviewed training lab blockers (no executor)",
+            lambda:training_lab_summary["value"],
+        )
+
+        def review_training_lab():
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator STOP blocks new lab research review")
+            now=datetime.now(timezone.utc)
+            plan=TrainingLabPlan(
+                plan_id="train:"+uuid4().hex,
+                artemis_node_id=UUID(training_artemis.get().strip()),
+                hephaestus_vm_id=UUID(training_vm.get().strip()),
+                base_model_sha256=training_base_sha.get().strip().lower(),
+                training_data_sha256=training_train_sha.get().strip().lower(),
+                heldout_data_sha256=training_eval_sha.get().strip().lower(),
+                data_use_approval_ref=training_training_approval.get().strip(),
+                method=training_method.get(),
+                seed=42,cpu_cores=2,ram_mb=4096,
+                scratch_disk_gib=12,max_wall_seconds=3600,
+                max_gpu_seconds=0 if training_gpu.get()=="none" else 3600,
+                max_gpu_vram_mb=0 if training_gpu.get()=="none" else 8192,
+                max_external_cost_usd_cents=0,
+                gpu_worker=training_gpu.get(),
+                created_at=now,expires_at=now+timedelta(minutes=15),
+                owner_review_receipt="owner-ui:"+uuid4().hex,
+            )
+            if not self.messagebox.askyesno(
+                "Review isolated Hephaestus training PLAN only?",
+                (
+                    "No VM OS exists and this will not start training.\n"
+                    "The plan is for exactly one owner-created Hyper-V VM "
+                    "with offline private networking, no root, SSH or real "
+                    "machine access. A future Venus GPU job needs a separate "
+                    "explicit lease and hard resource limits.\n\n"
+                    f"Fingerprint: {plan.fingerprint}\n"
+                    f"Method: {plan.method}\n"
+                    f"GPU source: {plan.gpu_worker}\n"
+                    f"Training data: {plan.training_data_sha256}\n"
+                    f"Heldout: {plan.heldout_data_sha256}"
+                ),parent=root,
+            ):
+                return
+            reviewed=assess_training_lab(
+                plan,dataset_store=TrainingDatasetStore(config.state_path),
+                guest_debian_attested=False,venus_gpu_job_approved=False,at=now,
+            )
+            TrainingLabReviewStore(config.state_path).record(plan,reviewed)
+            training_lab_summary["value"]=json.dumps({
+                "fingerprint":plan.fingerprint,
+                "source_eligible":reviewed.source_review_eligible,
+                "blockers":reviewed.hard_blockers,
+                "actual_training_executed":False,
+                "weights_generated":False,
+                "deployment_authorized":False,
+            },indent=2)
+            training_lab_view.refresh()
+
+        ttk.Button(
+            frames["EVOLVE"],text="Review isolated trainer resource limits (no execution)",
+            command=self.guarded(review_training_lab),
+        ).pack(anchor="w",pady=(5,8))
+
         self.safety_panel(frames["Safety & Authority"])
         self.advanced_panel(frames["Advanced"])
 
