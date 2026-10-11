@@ -214,6 +214,70 @@ class MemoryDeletionLedger:
                 os.fsync(handle.fileno())
             return True
 
+    def verify_applied(self, state_path: Path) -> dict[str, int]:
+        """Read-only witness that signed deletions propagated into all owners.
+
+        Verification uses exact candidate UUIDs, not a lexical memory search.
+        A missing/invalid external journal or a surviving derived row fails
+        closed before restored state can be published.
+        """
+        entries = self.entries()
+        if (
+            not isinstance(state_path, Path)
+            or not state_path.is_file()
+            or state_path.is_symlink()
+        ):
+            raise MemoryErasureError("source state unavailable for erasure verification")
+        tables_to_check = (
+            ("memory_candidate", "candidate_id"),
+            ("memory_candidate_source", "candidate_id"),
+            ("memory_candidate_source_review", "candidate_id"),
+            ("memory_candidate_validity", "candidate_id"),
+            ("memory_candidate_validity_event", "candidate_id"),
+            ("memory_candidate_correction", "old_candidate_id"),
+            ("memory_candidate_correction", "new_candidate_id"),
+            ("neuro_association_weight", "candidate_id"),
+            ("neuro_association_event", "candidate_id"),
+        )
+        examined = 0
+        with closing(sqlite3.connect(
+            state_path.as_uri() + "?mode=ro", uri=True, timeout=10,
+        )) as db:
+            present = {
+                row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            if entries and (
+                "memory_candidate" not in present
+                or "memory_deletion_guard" not in present
+            ):
+                raise MemoryErasureError("restore lacks active deletion guard schema")
+            for record in entries:
+                candidate_id = record["candidate_id"]
+                guarded = db.execute(
+                    "SELECT principal_id,audience_id FROM memory_deletion_guard "
+                    "WHERE candidate_id=?", (candidate_id,),
+                ).fetchone()
+                if guarded != (
+                    record["principal_id"], record["audience_id"],
+                ):
+                    raise MemoryErasureError(
+                        "active deletion guard differs from original signed scope"
+                    )
+                for table, column in tables_to_check:
+                    if table not in present:
+                        continue
+                    if db.execute(
+                        f"SELECT 1 FROM {table} WHERE {column}=? LIMIT 1",
+                        (candidate_id,),
+                    ).fetchone() is not None:
+                        raise MemoryErasureError(
+                            "forgotten candidate or derived evidence is still readable"
+                        )
+                examined += 1
+        return {"signed_deletions": len(entries), "verified_absent": examined}
+
     def apply_to_sqlite(self, state_path: Path) -> int:
         """Physical, idempotent removal of candidates and copied provenance.
 
