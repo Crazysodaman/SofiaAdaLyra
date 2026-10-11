@@ -192,13 +192,23 @@ class LifelongThreadStore:
             ).fetchone()
             if row is None or row["owner_principal_id"] != principal.principal_id:
                 raise PermissionError("thread not accessible to caller")
+            # Re-validate the current source session binding on every read.
+            # An index entry is not a grant: a deleted source, changed binding,
+            # different audience kind or another principal must not surface.
             rows = db.execute(
-                "SELECT source_message_id,source_session_id,source_audience_id,"
-                "visibility,linked_at FROM lifelong_thread_event "
-                "WHERE thread_id=? AND source_audience_id=? "
-                "AND visibility='source_audience' "
-                "ORDER BY linked_at DESC, source_message_id DESC LIMIT ?",
-                (thread_id, principal.audience_id, limit),
+                "SELECT e.source_message_id,e.source_session_id,"
+                "e.source_audience_id,e.visibility,e.linked_at "
+                "FROM lifelong_thread_event AS e "
+                "JOIN conversation_messages AS m "
+                "ON m.id=e.source_message_id AND m.session_id=e.source_session_id "
+                "JOIN social_session_principal AS s ON s.session_id=m.session_id "
+                "WHERE e.thread_id=? AND e.source_audience_id=? "
+                "AND e.visibility='source_audience' "
+                "AND s.principal_id=? AND s.audience_id=? "
+                "AND s.audience_kind=? "
+                "ORDER BY e.linked_at DESC,e.source_message_id DESC LIMIT ?",
+                (thread_id, principal.audience_id, principal.principal_id,
+                 principal.audience_id, principal.audience_kind.value, limit),
             ).fetchall()
         return tuple(
             ThreadEvent(r["source_message_id"], r["source_session_id"],
