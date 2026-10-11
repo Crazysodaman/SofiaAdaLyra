@@ -44,14 +44,17 @@ def _restrict_owner_test_folder(path):
         win32security.ConvertStringSidToSid("S-1-5-18"),
     )
     sd = win32security.GetFileSecurity(
-        str(path), win32security.DACL_SECURITY_INFORMATION,
+        str(path), win32security.OWNER_SECURITY_INFORMATION |
+        win32security.DACL_SECURITY_INFORMATION,
     )
+    sd.SetSecurityDescriptorOwner(sid, False)
     sd.SetSecurityDescriptorDacl(1, acl, 0)
     sd.SetSecurityDescriptorControl(
         win32security.SE_DACL_PROTECTED, win32security.SE_DACL_PROTECTED,
     )
     win32security.SetFileSecurity(
-        str(path), win32security.DACL_SECURITY_INFORMATION, sd,
+        str(path), win32security.OWNER_SECURITY_INFORMATION |
+        win32security.DACL_SECURITY_INFORMATION, sd,
     )
 
 
@@ -176,14 +179,17 @@ def test_generation_requires_private_owner_key_dir(tmp_path,monkeypatch):
             win32security.ConvertStringSidToSid("S-1-1-0"),
         )
         sd = win32security.GetFileSecurity(
-            str(folder), win32security.DACL_SECURITY_INFORMATION,
+            str(folder), win32security.OWNER_SECURITY_INFORMATION |
+            win32security.DACL_SECURITY_INFORMATION,
         )
+        sd.SetSecurityDescriptorOwner(user, False)
         sd.SetSecurityDescriptorDacl(1, acl, 0)
         sd.SetSecurityDescriptorControl(
             win32security.SE_DACL_PROTECTED, win32security.SE_DACL_PROTECTED,
         )
         win32security.SetFileSecurity(
-            str(folder), win32security.DACL_SECURITY_INFORMATION, sd,
+            str(folder), win32security.OWNER_SECURITY_INFORMATION |
+            win32security.DACL_SECURITY_INFORMATION, sd,
         )
     else:
         folder.chmod(0o777)
