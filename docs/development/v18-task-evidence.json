@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "401ad77c94dc266957f9b3aff8ae7ceef69aa682",
+  "reviewed_main_sha": "a3287558dfe609ca6c1268e2bb03390e6ff83ab0",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2326,7 +2326,17 @@
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/act/outreach.py"
+        "src/sofia/act/outreach.py",
+        "src/sofia/safe/owner_webauthn.py",
+        "src/sofia/safe/owner_browser.py",
+        "src/sofia/safe/approve_execution.py",
+        "test/test_safe_owner_webauthn.py",
+        "test/test_safe_owner_browser.py",
+        "test/owner_auth_fixture.py",
+        "test/test_ops_fleet_discovery_permissions.py",
+        "test/test_owner_model_install_production.py",
+        "test/test_ops_workshop_guest_bootstrap_production.py",
+        "docs/development/hybrid-owner-authentication-2026-10-11.md"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -2355,7 +2365,28 @@
         "ea319410e0942d64e1587b81fdee94488b58f1e8",
         "73434f93619f1557ddddf824c8e999c3b11d0241",
         "ec6bb304db62d630b26d8d6835bcece74e188a8c",
-        "62ada59108356658ab8c8f9bab2d818921bec21f"
+        "62ada59108356658ab8c8f9bab2d818921bec21f",
+        "cd768517fd6446e2a06f1b5d062bd901b77d48d8",
+        "30982e28add8093b78310c57588d759e3652ee53",
+        "4b961172bdcee8d298ce264a6895ac059b9002f0",
+        "3fcdf57233cca24610d1b0fed130d86b11ee106d",
+        "13c13377a7b6def30fd3023d250e7b11d2723a61",
+        "f48859d8cd6ed48fc867d12b9fc62b4243bbd817",
+        "a9d721f960e569e718e3eb6df781a67f3de09b14",
+        "2ab4e255767a67f71c51df57e44c266112f1e31a",
+        "1ef55fe0dc3673b2e486a95f40b7bb33786ec089",
+        "30a2c69b2e52f62b5fe67b36d81d5d2cacd1a69f",
+        "934b9e4e791d2ff48763c678565e52a9a90b7f51",
+        "e54b3f4d1d715353a811cb3481de2cc08679e876",
+        "3169ed6366b30b9e3e9c009371d3e3370e3dc084",
+        "1fb998751f23daf20eebc9261d15ebff9fa72c96",
+        "e86cd2cace08a60ccfe75d3d85d42bcff4c11fa9",
+        "d22daccaa9cf5cd25e8475a97392d7dc9fa6373d",
+        "574d4759e6ab60f05ff3b126ee5195392cc85a18",
+        "d809bcd2694de6fb33b1458f189249a7e28cd6de",
+        "731fad0f15d49fbecb26e6ae38dfdecdc311a4eb",
+        "4701e5a69ae44f237a49f3f422600255cdb617f7",
+        "09acbad83cf449bfc504081a49239425c0a67059"
       ],
       "accepted": false,
       "coding_update": {
@@ -2372,7 +2403,51 @@
         "at_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
         "kind": "operator_decision_and_host_isolation",
         "explanation": "PermissionStore and permissions_cli/approve_execution CLI accept literal actor string Sparks; actor equality is not cryptographic/OS authenticated owner identity. A separately authenticated operator UI/IPC or protected host principal is not yet selected. Do not claim full approval authority enforcement until service/operator trust boundary is designed and tested."
-      }
+      },
+      "latest_coding_slices": [
+        {
+          "source_review_sha": "401ad77c94dc266957f9b3aff8ae7ceef69aa682",
+          "commits": [
+            "cd768517fd6446e2a06f1b5d062bd901b77d48d8",
+            "30982e28add8093b78310c57588d759e3652ee53",
+            "4b961172bdcee8d298ce264a6895ac059b9002f0",
+            "3fcdf57233cca24610d1b0fed130d86b11ee106d",
+            "13c13377a7b6def30fd3023d250e7b11d2723a61",
+            "f48859d8cd6ed48fc867d12b9fc62b4243bbd817",
+            "a9d721f960e569e718e3eb6df781a67f3de09b14",
+            "2ab4e255767a67f71c51df57e44c266112f1e31a",
+            "1ef55fe0dc3673b2e486a95f40b7bb33786ec089",
+            "30a2c69b2e52f62b5fe67b36d81d5d2cacd1a69f",
+            "934b9e4e791d2ff48763c678565e52a9a90b7f51",
+            "e54b3f4d1d715353a811cb3481de2cc08679e876",
+            "3169ed6366b30b9e3e9c009371d3e3370e3dc084",
+            "1fb998751f23daf20eebc9261d15ebff9fa72c96",
+            "e86cd2cace08a60ccfe75d3d85d42bcff4c11fa9",
+            "d22daccaa9cf5cd25e8475a97392d7dc9fa6373d",
+            "574d4759e6ab60f05ff3b126ee5195392cc85a18",
+            "d809bcd2694de6fb33b1458f189249a7e28cd6de",
+            "731fad0f15d49fbecb26e6ae38dfdecdc311a4eb",
+            "4701e5a69ae44f237a49f3f422600255cdb617f7",
+            "09acbad83cf449bfc504081a49239425c0a67059"
+          ],
+          "source_paths": [
+            "src/sofia/safe/owner_webauthn.py",
+            "src/sofia/safe/owner_browser.py",
+            "src/sofia/safe/approve_execution.py",
+            "test/test_safe_owner_webauthn.py",
+            "test/test_safe_owner_browser.py",
+            "test/owner_auth_fixture.py",
+            "test/test_safe_execution_action_fingerprint.py",
+            "test/test_ops_fleet_discovery_permissions.py",
+            "test/test_owner_model_install_production.py",
+            "test/test_ops_workshop_guest_bootstrap_production.py",
+            "docs/development/hybrid-owner-authentication-2026-10-11.md"
+          ],
+          "production_route": "Existing local protected approve_execution CLI -> one-shot loopback WebAuthn ceremony -> canonical owner challenge -> ES256 UP/UV signed assertion + exact action -> atomic SAFE audit -> one-time proof-bound ExecutionApprovalVerifier.record -> existing preflight/consume reject unbound legacy protected approvals -> actual capability boundary.",
+          "fulfilled_slice": "Protected approvals refuse unauthenticated actor-only minting via SAFE, while the explicit CLI now uses signed browser WebAuthn challenge verification; owner-proof replay and stale legacy admission are denied in the canonical execution approval store.",
+          "remaining": "NOT fully coded: first independently trusted Hello/FIDO2 credential enrollment and physical attestation policy; native Desktop/Tray and Level-5 owner grant integration; other approval stores; operator resume; secure recovery, remote principal binding and real host acceptance. Tests authored not executed. No deployment."
+        }
+      ]
     },
     {
       "id": "CA-1905",
