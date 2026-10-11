@@ -101,7 +101,11 @@
     "cda34cb6afc2f1056f280afb892a55e135d548ec",
     "d6eec17d800f8e2c60c07ad73b1387aefaa49b56",
     "a273aadaa21d7dd6dff8fd32707348e1dfb34eda",
-    "7bc4c541cb903e799e407141b6d7d006b560b8c6"
+    "7bc4c541cb903e799e407141b6d7d006b560b8c6",
+    "87114ac009aabcec5b1f4a32bc4ded0e68f06c73",
+    "680bc02f65b902625bfb65aa1dd4f482c50a7bb6",
+    "41c8440d332e39ac347d634ecdf9d3ccf7798590",
+    "08d472d0fea0f2fb44de5b144dc0f7900e0c14cc"
   ],
   "tasks": [
     {
@@ -1829,11 +1833,12 @@
       "phase": "15",
       "master_line": 1145,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Four-way actual-source verification harness now measures observed precision, false disclosure, focus switches, six-signal noise stress and CPU/wall latency. Still needs genuine Venus model wakeups, VRAM, thermals and real hardware acceptance. Not code-ready under all requested dimensions."
     },
     {
       "id": "CA-715",
@@ -1887,11 +1892,12 @@
       "phase": "15",
       "master_line": 1150,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Executable python -m sofia.verify.neuro_ablation uses real production NeuroRuntime, MemorySystem and canonical audience-scoped associations with disposable SQLite source fixtures. Four paired conditions compare selection accuracy, false memory eligibility, switches, signal noise, CPU/p50/p95 latency and unknown real GPU/wake data. Owner tests/host acceptance deferred."
     },
     {
       "id": "CA-713",
