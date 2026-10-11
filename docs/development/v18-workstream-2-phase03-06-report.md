@@ -1495,6 +1495,45 @@ Venus, no promotion or pointer activation is allowed, and the original
 tasks remain only partially coded. Tests/CI **not run**, no live hosts or
 runtime/database/credentials changed.
 
+
+
+### Phase 03 item 49: Recheck external memory-erasure instructions before recovery publish
+
+Option B deletion authority deliberately lives outside the backed-up home.
+The existing `BackupEngine.restore` authenticates and replays erasures,
+but the operator-guided `stage_verified_state_home` previously had a
+window **after** restoration, through inventory/fsync/publication, in
+which a new authenticated erasure could be appended while an older
+candidate continued toward publication.
+
+The actual restoration path now creates the existing
+`MemoryDeletionLedger` with the operator-held backup cipher and external
+journal; before final staging it verifies every **currently authenticated**
+candidate deletion against the restored SQLite via the existing read-only
+`verify_applied`. It requires the same authenticated journal sequence
+before and after this verification. The final privileged-fence check
+(item 48) now **also** re-reads the external journal after all Linux
+file/directory fsync operations and immediately before atomic
+no-replace publication. Any newly appended instruction or inaccessible,
+unauthenticated journal fails closed, preserving the source and not
+publishing the stale candidate. No journal is created or erased here.
+
+Production `src/sofia/ops/state_relocation.py`:
+`a1187fb56ae31fa8ef834c68a398f23db8850782` (`[skip ci]`).
+Deferred source-synthetic relocation regressions:
+`test/test_venus_artemis_relocation_evidence.py`, commit
+`6e498c3036ffdbe225897f2a25fc785942986cac` (`[skip ci]`),
+covering candidate with unapplied signed deletion and authenticated
+journal advancing after candidate verification.
+
+Original task relevance: CA-5202, CA-5204, CA-6105, CA-6311, CA-6404.
+This reduces a late-deletion resurrection window but does **not** prove
+the external journal's globally newest generation, provide a cross-host
+atomic lock between a journal append and the kernel rename, or enforce
+independently privileged writer-host shutdown. A published *candidate*
+still has no activation authority. No tests/CI, deletion, migration,
+backup pruning or live host operation performed. Task statuses unchanged.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
