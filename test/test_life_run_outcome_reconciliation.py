@@ -284,3 +284,72 @@ def test_unverified_older_run_failure_never_overrides_newer_work(tmp_path):
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
     finally:
         life.close()
+
+
+def test_terminal_run_proof_refuses_mismatched_original_reason(tmp_path):
+    """An actual RUN status cannot launder a false derived failure reason."""
+    import sqlite3
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, job = _queued_job(life, now)
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.BLOCKED, reason="original SAFE denied this job",
+            now=now + timedelta(seconds=4),
+        )
+        receipt = life.store.reconcile_run_outcomes(
+            now=now + timedelta(seconds=5),
+        )[0]
+        assert receipt.reason == "original SAFE denied this job"
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE life_run_outcome_observation SET run_reason=? "
+                "WHERE run_event_id=?",
+                ("false operator approval occurred", receipt.run_event_id),
+            )
+        assert life.store.exact_original_run_outcome(
+            project_id=project.project_id, job_id=job.job_id, status="blocked",
+        ) is None
+        assert life._reconcile_terminal_run_projects(
+            now=now + timedelta(seconds=6),
+        ) == 0
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_terminal_run_proof_refuses_observation_predating_original_event(
+    tmp_path,
+):
+    """A derived observation cannot truthfully precede its source event."""
+    import sqlite3
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, job = _queued_job(life, now)
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.UNCERTAIN, reason="original effect unknown",
+            now=now + timedelta(seconds=4),
+        )
+        receipt = life.store.reconcile_run_outcomes(
+            now=now + timedelta(seconds=5),
+        )[0]
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE life_run_outcome_observation SET observed_at=? "
+                "WHERE run_event_id=?",
+                ((now + timedelta(seconds=3)).isoformat(),
+                 receipt.run_event_id),
+            )
+        assert life.store.exact_original_run_outcome(
+            project_id=project.project_id, job_id=job.job_id, status="uncertain",
+        ) is None
+        assert life._reconcile_terminal_run_projects(
+            now=now + timedelta(seconds=6),
+        ) == 0
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+    finally:
+        life.close()
