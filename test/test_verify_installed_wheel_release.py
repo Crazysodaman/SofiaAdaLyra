@@ -159,8 +159,8 @@ def test_release_workflow_invocation_and_fail_closed_build_tools():
     for command in (
         "-m pip install --require-hashes -r requirements.lock.windows-py312.txt",
         "-m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt",
-        '-m pip wheel --no-deps --wheel-dir "$distA"',
-        '-m pip wheel --no-deps --wheel-dir "$distB"',
+        '-m pip wheel --no-build-isolation --no-deps --wheel-dir "$distA"',
+        '-m pip wheel --no-build-isolation --no-deps --wheel-dir "$distB"',
     ):
         start = pipeline.index(command)
         assert "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }" in pipeline[
