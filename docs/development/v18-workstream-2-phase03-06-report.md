@@ -2869,6 +2869,55 @@ full Android instrumentation acceptance or tests/CI.
 No running Android device, live schema, database,
 service or host was changed.
 
+
+
+### Phase 06 item 81: Recheck reviewed memory originals inside atomic promotion
+
+The actual `MemoryReviewService.promote` authorizes the
+private source audience, rereads exact original messages,
+checks their bytes/roles/timestamps and creates durable
+`memory_candidate_source_review` provenance before
+calling `DurableMemoryCandidateStore.promote`. A
+source deletion, content change, audience rebind or
+original timestamp edit could occur **after**
+application review but **before** the store's
+independent SQLite promotion transaction. The existing
+recall guard would eventually suppress stale promoted
+memory, but the stale candidate still gained an
+incorrect promoted status.
+
+Production `src/sofia/memory/provenance_store.py`
+now rechecks every **reviewed** candidate's exact
+current source message, source role, text, UTC instant
+and `social_session_principal` inside the same
+`BEGIN IMMEDIATE` transaction as promotion.
+The guard executes **before** either ordinary
+`PROPOSED → PROMOTED` or a reviewed correction's
+atomic old-fact revocation/new-fact promotion.
+If original evidence changed, no candidate status
+is mutated, and the former correction target
+remains promoted until independently reviewed
+replacement evidence really exists.
+Historic low-level unattested candidates retain
+their separate compatibility policy, not an
+unjustified new source-review signature.
+
+- Production `3af195fbaf303bde7cb9083e425f022839f3db59`
+  (`[skip ci]`).
+- Deferred synthetic original delete/content/time/
+  audience-change and correction atomicity coverage
+  `test/test_ws2_atomic_reviewed_memory_promotion.py`,
+  `fb63731ca1bc891ccecf9463fdc264ee7784f0f5`
+  (`[skip ci]`).
+
+Original CA relevance: CA-4204, CA-5803, CA-5805,
+CA-5903, CA-5907, CA-5908.
+This closes one promotion race, **not** complete
+bitemporal semantics, derived-cache invalidation,
+cross-channel owner grants or physical deletion.
+No tests/CI, live memory, consent grant or
+database migration executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
