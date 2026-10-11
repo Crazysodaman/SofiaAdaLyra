@@ -45,6 +45,8 @@ def create_application(
     personality_path: Path,
     state_path: Path,
 ) -> SofiaApplication:
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state_path)
     configuration = SofiaConfiguration(
         constitution_path=str(CONSTITUTION_PATH),
         constitution_hash_path=str(HASH_PATH),
