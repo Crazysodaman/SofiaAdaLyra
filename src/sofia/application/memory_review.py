@@ -67,26 +67,37 @@ class MemoryReviewService:
                 "memory review requires authenticated private Sparks review"
             )
 
+    def _require_current_review_scope(
+        self, candidate_id: UUID, approved_by: PrincipalContext,
+    ) -> MemoryCandidate:
+        """An authenticated owner is not universal cross-audience access.
+
+        The durable candidate's original principal/audience identifies the
+        authority of all lifecycle writes, not only promotions. Legacy
+        principal-owned unscoped candidates retain the existing exception.
+        """
+        self._require_sparks_reviewer(approved_by)
+        candidate = self._candidates.get(candidate_id)
+        if candidate is None:
+            raise LookupError("candidate does not exist")
+        if (
+            candidate.principal_id != approved_by.principal_id
+            or candidate.audience_id not in (None, approved_by.audience_id)
+        ):
+            raise PermissionError(
+                "memory candidate is outside current private review audience"
+            )
+        return candidate
+
     def promote(
         self,
         candidate_id: UUID,
         *,
         approved_by: PrincipalContext,
     ) -> None:
-        self._require_sparks_reviewer(approved_by)
-        candidate = self._candidates.get(candidate_id)
-        if candidate is None:
-            raise LookupError("candidate does not exist")
-        # The owner may approve only evidence in the actual current
-        # authenticated review audience. Shared owner ID does not grant
-        # private Android or Discord source text to the desktop panel.
-        if (
-            candidate.principal_id != approved_by.principal_id
-            or candidate.audience_id not in (None, approved_by.audience_id)
-        ):
-            raise PermissionError(
-                "candidate is outside the current private review audience"
-            )
+        candidate = self._require_current_review_scope(
+            candidate_id, approved_by,
+        )
         if len(candidate.sources) > 64:
             raise ValueError("memory review requires at most 64 exact originals")
         original_session = candidate.sources[0].session_id
@@ -130,7 +141,7 @@ class MemoryReviewService:
         *,
         approved_by: PrincipalContext,
     ) -> None:
-        self._require_sparks_reviewer(approved_by)
+        self._require_current_review_scope(candidate_id, approved_by)
         self._candidates.reject(candidate_id)
 
     def revoke(
@@ -139,7 +150,7 @@ class MemoryReviewService:
         *,
         approved_by: PrincipalContext,
     ) -> None:
-        self._require_sparks_reviewer(approved_by)
+        self._require_current_review_scope(candidate_id, approved_by)
         self._candidates.revoke(candidate_id)
 
     def link_correction(
@@ -147,7 +158,8 @@ class MemoryReviewService:
         approved_by: PrincipalContext,
     ) -> None:
         """Stage source-linked correction; approval to promote stays separate."""
-        self._require_sparks_reviewer(approved_by)
+        self._require_current_review_scope(replacement_id, approved_by)
+        self._require_current_review_scope(superseded_id, approved_by)
         self._candidates.link_correction(replacement_id, superseded_id)
 
     def set_expiration(
@@ -155,7 +167,7 @@ class MemoryReviewService:
         reason: str, approved_by: PrincipalContext,
     ) -> None:
         """Time-limit a reviewed fact; never erase or infer a new source."""
-        self._require_sparks_reviewer(approved_by)
+        self._require_current_review_scope(candidate_id, approved_by)
         self._candidates.set_expiration(
             candidate_id, expires_at=expires_at,
             reviewed_by=approved_by.principal_id, reason=reason,
