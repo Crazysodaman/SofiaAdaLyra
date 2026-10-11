@@ -103,8 +103,12 @@ def test_new_device_pairing_epoch_cannot_adopt_old_last_seen(tmp_path):
         assert gateway.main_history(
             device_id="android-owner", private_mode=False,
         )["last_seen"] is None
-        with pytest.raises(PermissionError):
-            _seen(gateway, second)
+        from sofia.mobile.gateway import MobileCredentialRevoked
+        with pytest.raises(MobileCredentialRevoked):
+            _seen(gateway, first)
+        # A newly authenticated pairing begins with no inherited progress,
+        # but may acknowledge its OWN visible canonical source messages.
+        assert _seen(gateway, second)["last_seen"]["canonical_sequence"] == 1
     finally:
         source.close()
 
