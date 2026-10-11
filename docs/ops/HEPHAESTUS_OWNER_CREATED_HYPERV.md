@@ -2,6 +2,22 @@
 
 **Architecture decision, 2026-10-11:** The owner has already created the **Hephaestus** Hyper-V virtual machine on Artemis, with **no operating system installed**. Sofía must **not** create or adopt another VM. This is the production v1 path on `main`.
 
+## Option B (owner decision): Dedicated Internal host-to-guest link
+
+**Chosen October 11, 2026:** Keep the existing Hyper-V **Hephaestus** VM, with **no OS yet**. Replace the old Private-switch requirement with the dedicated host-only `Sofia-Hephaestus-Internal` switch. No generic Default Switch, External bridge, routing or NAT. This choice is an architecture approval only; **not** approval to change the running Artemis host.
+
+Microsoft documents that an Internal switch connects the host to its VMs; it can also underpin a separately configured NAT network. A switch of type Internal by itself is **not isolation evidence**. The host-side inspector must produce matching, fresh evidence of:
+
+- Artemis vEthernet adapter named `vEthernet (Sofia-Hephaestus-Internal)`, with **only 172.30.250.1/30**; no host-side DNS resolver or default gateway.
+- Host IPv4 **and** IPv6 forwarding disabled; no overlapping WinNAT subnet; **Windows Internet Connection Sharing disabled**.
+- Exactly one guest vNIC and **no sibling VM** on that Internal switch.
+- An actual Debian guest fixed at **172.30.250.2/30**, without gateway/DNS/routes to external networks, once installed. That guest configuration must be independently observed later.
+- No automated routing, DNS relay, firewall exceptions to the LAN, model-directed Hyper-V switch changes or Fleet trust.
+
+**Before boot or guest enrollment:** The owner or separately approved Artemis administrator must configure the existing VM's vNIC to that Internal switch and apply the dedicated host-only IP and forwarding/no-ICS restrictions. The protected installer-start endpoint **never configures networking**; it refuses to boot if this verified source state is absent or stale. If the old Private switch is currently attached, the new preflight will report blockers until this is done. Do not convert or delete a shared switch, change the canonical Sofia VM, overwrite the host default route or remove existing unrelated NAT configurations.
+
+**Source inspection is not a firewall or penetration test.** Verification must also demonstrate in the final operator test campaign that guest-to-LAN and guest-to-Internet traffic fails, while Artemis-to-Hephaestus communication works as explicitly approved.
+
 ## Ownership
 
 - Owner: Creates the named VM and confirms the reviewed OS VHDX is empty. Supplies an independently verified, **unattended**, offline Debian installation ISO. Sets any host-only agent scope and authorizes the exact operation.
@@ -15,7 +31,7 @@
 2. The VM must be **Hephaestus**, Hyper-V **Generation 2**, with an exact verified VM GUID. The separate canonical VM **Sofia** must never be the target.
 3. Provisional VM bounds: **2–4 vCPU, 4–8 GiB RAM, 60–128 GiB VHDX**. VM must be **Off** when reviewed and before installation.
 4. Exactly **one** existing VHDX at the owner-reviewed path. The owner confirms that disk is blank. Hyper-V metadata alone cannot prove disk emptiness. No other attached DVD ISO is accepted.
-5. Exactly one vNIC on the dedicated **Private** switch `Sofia-Hephaestus-Private`. **Default Switch, Internal, NAT, external bridge and home LAN are not acceptable substitutes.** No VM network changes are part of the installer boot permission.
+5. Exactly one vNIC on the dedicated **Internal** switch `Sofia-Hephaestus-Internal`. **Default Switch, External, NAT, ICS, bridges, other guest VMs and home LAN are forbidden.** The reviewed host-side link is 172.30.250.1/30 (Artemis) and 172.30.250.2/30 (Hephaestus), with no default gateway or DNS. The installer boot permission never modifies a network.
 6. Windows/Hyper-V firmware boot order and Secure Boot configuration are observed before mutation. Only a reviewed Linux-compatible Gen2 mode is accepted.
 7. The boot medium must be an explicitly reviewed **unattended Debian installer ISO** inside the host-admin offline image directory, with an independently pinned exact SHA-256 digest. A plain interactive Debian ISO is **not** a completed unattended installer.
 8. The observed VM ID, disk, resource settings, network, firmware and media SHA-256 are rechecked before any approved mutation. Changes require **another owner review**.
@@ -85,14 +101,14 @@ Use **Tray Settings → Fleet → Hephaestus: owner-created blank VM handoff**.
 - Review the actual blockers and immutable handoff fingerprint.
 - Select **Review & approve one Debian installer boot (protected)** only when ready. That creates a one-use, exact, time-limited SAFE receipt, issues a short exact-node Fleet grant and invokes `workshop.bootstrap/start`. Both must pass.
 - At the remote boundary, SAFE consumes the one-time approval **before** transport. The Artemis agent separately requires its host-admin enable flag, pinned VM GUID and disk, and verified offline ISO.
-- Hyper-V's host command then rechecks VM identity, stopped state, Gen2, CPU/RAM/disk bounds, exact Private switch, Secure Boot, empty DVD slot and ISO hash. Only then may it attach the ISO, set **DVD first**, and start the exact existing VM.
+- Hyper-V's host command then rechecks VM identity, stopped state, Gen2, CPU/RAM/disk bounds, exact Internal switch, host 172.30.250.1/30 NIC, disabled IPv4/IPv6 forwarding, no default route/DNS, no overlapping WinNAT, no ICS or other VMs, Secure Boot, empty DVD slot and ISO hash. Only then may it attach the ISO, set **DVD first**, and start the exact existing VM.
 
 The host result may be `INSTALLER_BOOT_STARTED` or `UNCERTAIN`. **Neither means Debian is installed.** A timeout/exception may hide a successful boot. Never retry automatically or reuse the same approval. Check Artemis' actual VM/DVD state and the Fleet request ledger before reconciling.
 
 ## Mandatory next acceptance and separation
 
 The owner verification campaign, deferred until all coding, must independently observe:
-- Hyper-V VM GUID unchanged, sibling VMs unharmed, one private NIC with no LAN/NAS/router/Internet route, no privileged host mounts.
+- Hyper-V VM GUID unchanged, sibling VMs unharmed, one dedicated Internal NIC with observed no forwarding, ICS, NAT, LAN/NAS/router/Internet route, no privileged host mounts.
 - Debian installation actually finished on the pinned disk; approved installer media removed and OS disk boot restored via a **separate reviewed cleanup/recovery** operation.
 - Non-root worker identity exists, passwordless sudo is disabled, no host secrets, no automatic network or OS package installs.
 - Guest-side authenticated identity proof, OS and service heartbeat, and compatibility evidence prior to any **separately approved `fleet.enroll`**.
