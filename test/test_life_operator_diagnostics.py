@@ -222,6 +222,7 @@ def test_life_goal_dependency_completed_run_requires_independent_review(tmp_path
         row = life.goal_dependency_view(now=now + timedelta(seconds=5))[0]
         assert row["latest_run_status"] == "completed"
         assert row["next_action_candidate"] == "verify"
+        assert row["eligible_for_new_work"] is False
         assert row["next_action_source_job_id"] == job.job_id
         assert row["unresolved_milestones"]
         assert "Completed RUN receipt" in row["next_action_reason"]
