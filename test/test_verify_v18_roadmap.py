@@ -81,3 +81,35 @@ def test_v18_original_wording_is_immutable(tmp_path):
     master.write_text(value.replace("CA-001 [VERIFY]", "CA-001 [DONE]"), encoding="utf-8")
     with pytest.raises(RoadmapIntegrityError, match="source bytes changed"):
         validate_repository(tmp_path)
+
+
+def test_v18_tests_only_claim_requires_production_entrypoint_to_effect_path(tmp_path):
+    _, ledger, records = _fixture(tmp_path)
+    coded = next(item for item in records["tasks"] if item["status"] == "code_present_unverified")
+    assert coded["production_wiring"]["remaining"] == "tests_only"
+    coded["production_wiring"].pop("caller_path")
+    ledger.write_text(json.dumps(records), encoding="utf-8")
+    with pytest.raises(RoadmapIntegrityError, match="caller_path"):
+        validate_repository(tmp_path)
+
+
+def test_v18_unreachable_test_file_cannot_masquerade_as_production_effect(tmp_path):
+    _, ledger, records = _fixture(tmp_path)
+    coded = next(item for item in records["tasks"] if item["status"] == "code_present_unverified")
+    coded["production_wiring"]["effect_path"] = "test/test_life_atomic_admission.py"
+    coded["code_paths"].append("test/test_life_atomic_admission.py")
+    source = tmp_path / "test/test_life_atomic_admission.py"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text("# fixture only\n", encoding="utf-8")
+    ledger.write_text(json.dumps(records), encoding="utf-8")
+    with pytest.raises(RoadmapIntegrityError, match="only at tests/docs"):
+        validate_repository(tmp_path)
+
+
+def test_v18_partial_source_cannot_be_relabelled_tests_only_without_wiring(tmp_path):
+    _, ledger, records = _fixture(tmp_path)
+    partial = next(item for item in records["tasks"] if item["status"] == "partial_wiring")
+    partial["status"] = "code_present_unverified"
+    ledger.write_text(json.dumps(records), encoding="utf-8")
+    with pytest.raises(RoadmapIntegrityError, match="production-wired claim"):
+        validate_repository(tmp_path)
