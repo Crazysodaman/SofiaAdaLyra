@@ -2467,6 +2467,36 @@ CA-6306. A full historical batch/source deletion and separate
 canonical turn migration strategy still need independent policy
 and acceptance. No tests/CI/live rollback executed.
 
+
+
+### Phase 05 topology source audit: Five additional partially wired original tasks
+
+The actual `ConversationStore`, `ConversationService.start`,
+`SocialSessionStore` and `LifelongThreadStore` source paths
+were checked against original CA-4101, CA-4102, CA-4112,
+CA-5301 and CA-5501. The source proves an existing canonical
+session store, explicit session resumption, one independent
+principal-owned logical Main ID with optional project IDs,
+immutable original audience/session links and an independently
+reviewed historical import/rollback interface. It does **not**
+prove the complete user-facing cross-device, thread lifecycle
+or privilege separation acceptance requirements.
+
+- Original source-to-sink and missing-gates audit:
+  `docs/development/ws2-phase05-topology-audit-batch1-2026-10-11.md`
+  commit `a3f344abd1bfc53985353f753b3dc70b770f9838`
+  (`[skip ci]`).
+- Evidence ledger moves **five** original IDs from
+  `unassessed` to `partial_wiring`, retaining
+  `accepted=false`, commit
+  `d4d4f249d42a9a2cbe02a01de065cbcd69e16ddb`
+  (`[skip ci]`).
+
+This is not five newly completed original requirements.
+Items 69–72 are the distinct code changes documented above.
+No tests/CI, approved imports, server processes, network,
+clients, source messages or live host state changed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
