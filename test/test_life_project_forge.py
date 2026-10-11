@@ -896,6 +896,73 @@ def test_project_ideation_filters_experiences_with_missing_original_evidence(
         life.close()
 
 
+@pytest.mark.parametrize("changed_field", ["summary", "metadata_json"])
+def test_ideation_rejects_original_experience_snapshot_changed_during_model(
+    tmp_path, changed_field,
+):
+    """Original evidence ID alone cannot validate model-stale episode content."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        source = life.record_observation(
+            kind="curiosity", source="test:source-backed-episode",
+            assertion="Original grounded field notes were recorded.", now=now,
+        )
+        life.revise_interest(
+            name="field-notes", context="creative", strength=0.88,
+            confidence=0.91, reason="Independently recorded design curiosity.",
+            evidence_refs=(source,), now=now,
+        )
+        from sofia.life.model import ExperienceRecord
+        original_id = "experience:source-bound-ideation"
+        life.store.record_experience(ExperienceRecord(
+            original_id, None, "ordinary_observation",
+            "A grounded note about a tiny fictional atlas.", (source,),
+            "local:text", True, now, now,
+            {"review": "original"},
+        ))
+        observed = []
+
+        def source_changes_during_model(request):
+            observed.append(request)
+            import sqlite3
+            with sqlite3.connect(life.path) as db:
+                if changed_field == "summary":
+                    db.execute(
+                        "UPDATE life_experience SET summary=? WHERE experience_id=?",
+                        ("An entirely different corrected observation.", original_id),
+                    )
+                else:
+                    db.execute(
+                        "UPDATE life_experience SET metadata_json=? "
+                        "WHERE experience_id=?",
+                        ('{"review":"corrected"}', original_id),
+                    )
+            return CognitiveResponse(json.dumps({
+                "name": "The Atlas of Moss",
+                "description": "Make an original fictional field guide.",
+                "objectives": ["Write an original field guide"],
+                "optional_success_criteria": ["Readable work"],
+                "artifact_kind": "story",
+                "confidence": 0.9, "curiosity": 0.9, "pursue": True,
+                "reason": "Grounded interest was suitable before source correction.",
+            }))
+
+        with pytest.raises(
+            ValueError, match="original LIFE experience snapshot changed",
+        ):
+            life.consider_new_project(
+                generate=source_changes_during_model,
+                now=now + timedelta(seconds=1),
+                busy=False, resource_pressure=0.0,
+            )
+        assert len(observed) == 1
+        assert life.store.list_scope(
+            owner_principal_id="sofia:self", audience_id="local:text",
+        ) == ()
+    finally:
+        life.close()
+
+
 def test_model_suggests_but_host_policy_invents_and_activates_project(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
