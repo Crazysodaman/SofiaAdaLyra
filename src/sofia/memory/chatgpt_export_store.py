@@ -10,6 +10,7 @@ import sqlite3
 from sofia.memory.chatgpt_export import ChatGPTExportBatch
 from sofia.memory.historical import HistoricalConversationEvidence
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _SEARCH_TOKEN = re.compile(r"[A-Za-z0-9À-ÿ']+")
@@ -58,6 +59,9 @@ class ChatGPTExportEvidenceStore:
 
     def __init__(self, database_path: Path | str) -> None:
         self.path = Path(database_path)
+        # Preserve the explicit first-import fixture path, but never follow
+        # replacement or disappearance after the first opened database.
+        self._guard = CanonicalSQLiteGuard(self.path) if self.path.is_file() else None
         with closing(self._connect()) as db:
             with db:
                 db.executescript(
@@ -145,7 +149,11 @@ class ChatGPTExportEvidenceStore:
                 )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        if self._guard is None:
+            db = sqlite3.connect(self.path, timeout=10)
+            self._guard = CanonicalSQLiteGuard(self.path)
+        else:
+            db = self._guard.connect(timeout=10)
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA busy_timeout=10000")
         return db
