@@ -663,8 +663,10 @@ class SettingsSections:
             frames["Fleet"],
             text=(
                 "First, you create an OFF, Generation-2 VM named Hephaestus "
-                "with one 60-128 GiB empty VHDX and a PRIVATE switch named "
-                "Sofia-Hephaestus-Private. Then Sofía can inspect it. "
+                "with one 60-128 GiB empty VHDX and a host-to-guest INTERNAL switch named "
+                "Sofia-Hephaestus-Internal, isolated from LAN/Internet. The host must "
+                "have no routing, NAT or Internet Connection Sharing for this "
+                "dedicated link. Then Sofía can inspect it. "
                 "Booting/installing Debian requires a separate Level-4 approval; "
                 "Fleet enrollment is separate after verified OS installation. "
                 "The ISO must carry an owner-signed first-boot policy with "
