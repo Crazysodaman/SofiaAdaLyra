@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "53540ae115b28977568390e528f66c32e80f96d1",
+  "reviewed_main_sha": "979fb44cd0faeedd7e508850555c35d20f8dca29",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -206,10 +206,27 @@
       "phase": "00",
       "source_topic": "12",
       "master_line": 75,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "test/test_life_state_graph_contract.py",
+        "src/sofia/life/model.py",
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "src/sofia/run/work.py",
+        "src/sofia/goals/coordinator.py"
+      ],
+      "evidence_commits": [
+        "61181f6c0fd1e413277324cc9fcb1be46b508fc0",
+        "979fb44cd0faeedd7e508850555c35d20f8dca29"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing ProjectStatus/PROJECT_TRANSITIONS and RUN WorkStatus/DurableWorkStore support canonical transitions; LIFE coordinator pending_work_review and next_action projection route WAITING_APPROVAL to ask, UNCERTAIN to no-auto-retry, completed work to objective-specific artifact/GOALS validation; source contract updated.",
+        "missing": "No complete versioned serialized replay/dedupe/correction and expected effect predicate implementation across all optional actions, or executed restart/failure tests.",
+        "acceptance": "partial source wiring/contract and unexecuted static regression; no tests, CI or host outcomes."
+      }
     },
     {
       "id": "CA-1203",
@@ -428,10 +445,27 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 88,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "test/test_life_state_graph_contract.py",
+        "src/sofia/life/model.py",
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "src/sofia/run/work.py",
+        "src/sofia/goals/coordinator.py"
+      ],
+      "evidence_commits": [
+        "61181f6c0fd1e413277324cc9fcb1be46b508fc0",
+        "979fb44cd0faeedd7e508850555c35d20f8dca29"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing ProjectStatus/PROJECT_TRANSITIONS and RUN WorkStatus/DurableWorkStore support canonical transitions; LIFE coordinator pending_work_review and next_action projection route WAITING_APPROVAL to ask, UNCERTAIN to no-auto-retry, completed work to objective-specific artifact/GOALS validation; source contract updated.",
+        "missing": "Full witnessed state matrix over all project+RUN+GOALS statuses, reversible review UX, failure/correction/restart and verified objective completion evidence.",
+        "acceptance": "partial source wiring/contract and unexecuted static regression; no tests, CI or host outcomes."
+      }
     },
     {
       "id": "CA-3105",
