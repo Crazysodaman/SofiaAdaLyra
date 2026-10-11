@@ -619,6 +619,7 @@ class MobileCompanionGateway:
                     )
                 page_limit = max(1, page_limit // 2)
         first = page[0] if page else None
+        active_generation = self.credentials.active_generation(device)
         return {
             "messages": messages,
             "next_before": (
@@ -636,9 +637,11 @@ class MobileCompanionGateway:
                 )
             ),
             "has_more": len(page) == page_limit,
-            "last_seen": self.main_seen.current(
-                device_id=device, private_mode=private_mode,
-                generation=self.credentials.active_generation(device) or 1,
+            "last_seen": (
+                None if active_generation is None else self.main_seen.current(
+                    device_id=device, private_mode=private_mode,
+                    generation=active_generation,
+                )
             ),
             "audience_id": principal.audience_id,
             "audience_kind": principal.audience_kind.value,
