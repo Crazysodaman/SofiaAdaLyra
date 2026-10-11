@@ -11,6 +11,9 @@ class OllamaAdapter:
         self.unload_timeout=60.0
     def models(self)->Any:
         return self.http.request("GET","/api/tags")
+    def version(self)->Any:
+        """Read the local Ollama service version without inference or writes."""
+        return self.http.request("GET","/api/version")
     def running(self)->Any:
         return self.http.request("GET","/api/ps")
     def show(self,name:str)->Any:
