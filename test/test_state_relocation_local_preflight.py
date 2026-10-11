@@ -101,3 +101,36 @@ def test_linux_tmpfs_candidate_state_is_not_review_eligible(tmp_path, monkeypatc
     assert not result.eligible_for_review
     assert "destination_filesystem_not_proven_local:volatile" in result.blockers
     assert result.ready_for_automatic_cutover is False
+
+
+@pytest.mark.parametrize("existing", ("empty-directory", "occupied-directory", "file"))
+def test_preflight_rejects_any_existing_atomic_stage_destination(
+    tmp_path, monkeypatch, existing,
+):
+    source, dest = _paths(tmp_path)
+    monkeypatch.setattr(mobility, "_filesystem_kind", lambda _path: "local")
+    if existing == "file":
+        dest.write_bytes(b"operator-owned")
+    else:
+        dest.mkdir()
+        if existing == "occupied-directory":
+            (dest / "important-owner-file").write_bytes(b"keep")
+    result = mobility.inspect_state_relocation(source, dest)
+    assert not result.eligible_for_review
+    assert "destination_must_be_absent_for_atomic_stage" in result.blockers
+    assert dest.exists()
+    assert source.exists()
+
+
+def test_preflight_accepts_absent_candidate_path_for_further_review_only(
+    tmp_path, monkeypatch,
+):
+    source, dest = _paths(tmp_path)
+    monkeypatch.setattr(mobility, "_filesystem_kind", lambda _path: "local")
+    result = mobility.inspect_state_relocation(source, dest)
+    assert (
+        "destination_must_be_absent_for_atomic_stage" not in result.blockers
+    )
+    # The absence check does not grant publishing or active writer authority.
+    assert result.ready_for_automatic_cutover is False
+    assert not dest.exists()
