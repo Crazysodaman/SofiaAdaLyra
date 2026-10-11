@@ -267,7 +267,9 @@ def test_presence_notice_expires_with_original_observation(state):
     assert sent == []
 
 
-def _verified_private_project_for_unprompted_sharing(tmp_path):
+def _verified_private_project_for_unprompted_sharing(
+    tmp_path, *, name="A Foxfire Atlas",
+):
     from test.test_life_project_forge import (
         infrastructure, active_project, authored_foxfire_text, wait_for_job,
     )
@@ -276,7 +278,7 @@ def _verified_private_project_for_unprompted_sharing(tmp_path):
 
     life, _goals, now = infrastructure(tmp_path)
     project, _evidence = active_project(
-        life, now, objectives=("text_contains:Foxfire",),
+        life, now, name=name, objectives=("text_contains:Foxfire",),
     )
     initial = life.tick(
         now=now + timedelta(seconds=3), generate=authored_foxfire_text,
@@ -609,5 +611,33 @@ def test_life_reviewed_draft_wont_share_corrupt_bytes(tmp_path):
             now=stamp, busy=False,
         ) == 0
         assert not service.has_pending()
+    finally:
+        life.close()
+
+
+def test_life_outreach_does_not_pass_through_untrusted_project_mentions(tmp_path):
+    """A model-authored title cannot become Discord mentions or rich markup."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    import sqlite3
+
+    life, _project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path, name="@everyone <@123456> `Foxfire` Project",
+    )
+    try:
+        presence, service, _sent = _owner_only_outreach(life)
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False,
+        ) == 1
+        with sqlite3.connect(life.path) as db:
+            content = db.execute(
+                "SELECT content FROM act_system_notice "
+                "WHERE notice_id LIKE 'presence:%'",
+            ).fetchone()[0]
+        assert "Foxfire" in content
+        assert "@everyone" not in content
+        assert "<@123456>" not in content
+        assert chr(96) not in content
+        assert "\n" not in content
     finally:
         life.close()
