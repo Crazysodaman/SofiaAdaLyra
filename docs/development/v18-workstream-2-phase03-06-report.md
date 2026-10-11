@@ -1923,6 +1923,47 @@ CA-6404, CA-6807, CA-6810. No tests, CI, active host restore,
 database move, backup replacement or activation performed. No
 original V18 task formally accepted.
 
+
+
+### Phase 04 item 60: Mobile read requests cannot migrate between credential epochs
+
+The owner-authenticated `MobileCompanionGateway.dispatch_authenticated`
+gateway originally authenticated a phone bearer first, then each
+independent read handler (`state`, Main page, project-thread metadata
+and history, last-seen, notification flow, etc.) could query the
+current device generation later. An operator could rotate a pairing
+while a request was queued or reading Main. The old caller could
+resolve the **new** credential generation's audience or obtain a
+private response after its own token was revoked. The earlier item 51
+covered chat cognition but not these normal authenticated read paths.
+
+Production `src/sofia/mobile/gateway.py` now takes an atomic
+`mobile_device_credential` row observation matching the **actual
+bearer digest, device and active generation** at request entry.
+A per-request `ContextVar` pins that exact generation for session,
+principal, chat admission, Main paging cursors and Main read receipts;
+direct trusted host calls outside the HTTP dispatcher preserve their
+existing current-generation contract. The entire real route dispatch
+runs in this scope. Before returning ANY result, it rechecks that the
+exact original bearer and generation are still active and fails
+closed on a rotation or revocation. The existing `MobileMainSeenStore`
+still independently verifies credential hash and epoch in the same
+canonical write transaction as acknowledgment.
+
+Production: `23480791f9b59fc95d4f580ee21e383b0565b09a`
+(`[skip ci]`). Deferred canonical SQLite regression:
+`test/test_ws2_mobile_read_epoch_pin.py`,
+`1418acc7bc89f1742416a0a59ac2b9044775d73e`
+(`[skip ci]`). Covers mid-query rotation (old bearer denied
+and old audience pinned) and stable original-bearer Main replay.
+
+Original CA relevance: CA-4103, CA-4104, CA-4107, CA-4109,
+CA-5303, CA-5304, CA-6304, CA-6310, CA-6311.
+This is request-level authentication and presentation hardening, not
+an atomic HTTP byte-send plus credential-revocation transaction,
+revocation of already rendered content or an accepted full Phase 04.
+Tests/CI and live phone/host pairing or database operations unrun.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
