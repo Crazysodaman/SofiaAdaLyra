@@ -48,6 +48,25 @@ class WindowsWindowCapture:
             raise RuntimeError("native Windows window capture unavailable")
         self.user32 = user32 or ctypes.WinDLL("user32", use_last_error=True)
         self.gdi32 = gdi32 or ctypes.WinDLL("gdi32", use_last_error=True)
+        # Win64 HANDLE/HDC/HBITMAP values cannot use ctypes' default 32-bit
+        # return value. Explicit ABI declarations prevent pointer truncation.
+        signatures = (
+            (self.user32.GetDC, [wintypes.HWND], wintypes.HDC),
+            (self.user32.ReleaseDC, [wintypes.HWND, wintypes.HDC], ctypes.c_int),
+            (self.user32.IsWindowVisible, [wintypes.HWND], wintypes.BOOL),
+            (self.user32.GetWindowRect,
+             [wintypes.HWND, ctypes.POINTER(wintypes.RECT)], wintypes.BOOL),
+            (self.gdi32.CreateCompatibleDC, [wintypes.HDC], wintypes.HDC),
+            (self.gdi32.CreateCompatibleBitmap,
+             [wintypes.HDC, ctypes.c_int, ctypes.c_int], wintypes.HBITMAP),
+            (self.gdi32.SelectObject,
+             [wintypes.HDC, wintypes.HGDIOBJ], wintypes.HGDIOBJ),
+            (self.gdi32.DeleteObject, [wintypes.HGDIOBJ], wintypes.BOOL),
+            (self.gdi32.DeleteDC, [wintypes.HDC], wintypes.BOOL),
+        )
+        for fn, args, result in signatures:
+            fn.argtypes = args
+            fn.restype = result
 
     def select_and_capture(self, *, exact_window: int, exact_pid: int, recheck) -> bytes:
         recheck()
