@@ -21,7 +21,8 @@
     "2026-10-11: Operator selected Microsoft Hyper-V on Artemis. W4 implemented SAFE Level-4 separation, typed Hyper-V Hephaestus planning, read-only mTLS host and bounded offline image observation, owner Fleet preview and read-only model OPS status; tests and host actions deferred.",
     "2026-10-11 operator has already created the Hyper-V Hephaestus VM but NO OS. Production path now exclusively owner-created exact GUID with pinned offline unattended Debian installer start, one-use SAFE+Fleet grants and UNCERTAIN outcomes. No actual VM/host action, installs, tests or CI occurred.",
     "2026-10-11 continuation: Hephaestus VM exists OS-less. One-time owner-approved, host-admin pinned Hyper-V unattended ISO boot and read-only installer status are integrated with real Artemis Fleet; Debian installation not attempted; no completed guest OS or Fleet enrollment asserted. Source regressions written, none run.",
-    "2026-10-11: Eight Phase-13 digital-twin design/research items source-wired through real OPS and Fleet Settings with bounded synthetic scenarios, immutable reproducibility capsules, abandonment and explicit Gaia/JMRI no-actuation boundaries. No simulations/tests were executed."
+    "2026-10-11: Eight Phase-13 digital-twin design/research items source-wired through real OPS and Fleet Settings with bounded synthetic scenarios, immutable reproducibility capsules, abandonment and explicit Gaia/JMRI no-actuation boundaries. No simulations/tests were executed.",
+    "2026-10-11: Operator selected first-boot local console admin with password-required sudo, SSH disabled, root locked, non-login worker no sudo. Offline Debian13 UEFI DVD-1 remaster and owner-signed Ed25519 policy plus pinned Artemis verified media gates coded on main. No password/media generated, no VM installed, no tests/CI/host writes. CA-4303 code-ready only; actual OS hardening/untrusted-worker attestation tasks still incomplete."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -194,7 +195,22 @@
     "d9b151c1cf05b100767ee2216be898d6743db415",
     "9bda111764fb2dc4bebdb1808051451f5f44aae0",
     "cb1ae4d4a746b169946c82c3ee784003030f5363",
-    "b9ac448fdf1fced60414314ed04162a55bef52a8"
+    "b9ac448fdf1fced60414314ed04162a55bef52a8",
+    "b867a9955088134a386ccc055c7f6114a849ae95",
+    "401ad77c94dc266957f9b3aff8ae7ceef69aa682",
+    "06383e8e4cd515fb8784dac0fb23c2315e8e97b6",
+    "2b5f2c3905154cf4dce14b9920fbbf99414c9c14",
+    "83ca5949d8bd78c475d8f7c976a61f37bb39a4f5",
+    "e3e119a37fc9fbf656c300f29bf1e1e2d0c5ec27",
+    "4588f4d7c81706bc8476be0198607dcc66b1c04b",
+    "e4ffd7f9bb3288b3f3352a135eacbe95eabe5f19",
+    "e766083a5bed630964fdbec9e080bc2a9be39f52",
+    "041e081358df55f645b386c9af9cba4251799295",
+    "b08f3ad58a7925cc0e42550cfeb503c1cd922264",
+    "1cb5de5c3b7ad9d84f7e7e5ff9752d9c1cff89c0",
+    "98b649fbae6140f19c4433279500373666d84854",
+    "3036b778030385d0d185c60c0a48e2308c6745bb",
+    "0f5df0aa077a522a806feae25d6d67b33de7cebd"
   ],
   "tasks": [
     {
@@ -1080,11 +1096,12 @@
       "phase": "13",
       "master_line": 1026,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Signed, hash-pinned owner ISO generation and Debian first-boot admin/worker/SSH policy source-coded, with Artemis signature checks. Missing actual boot/guest attestation, proven non-root worker, cryptographic media removal/password rotation after OS install, independent snapshot and production host canary. No tests or live VM action yet; do not count ready for final acceptance."
     },
     {
       "id": "CA-2808",
@@ -1392,12 +1409,12 @@
       "phase": "13",
       "master_line": 1057,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
+      "finding": "Signed, hash-pinned owner ISO generation and Debian first-boot admin/worker/SSH policy source-coded, with Artemis signature checks. Missing actual boot/guest attestation, proven non-root worker, cryptographic media removal/password rotation after OS install, independent snapshot and production host canary. No tests or live VM action yet; do not count ready for final acceptance."
     },
     {
       "id": "CA-2912",
@@ -1671,24 +1688,24 @@
       "phase": "13",
       "master_line": 1087,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false,
-      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
+      "code_ready_for_tests": true,
+      "finding": "Operator-selected owner-created Hyper-V Gen2 VM now has a production offline Debian 13 DVD-1 ISO remaster path: owner compares cloud-image/NoCloud, manual and preseed ISO alternatives in architecture guide; actual signed UEFI GRUB automatic-installer media builder uses independently pinned Debian DVD SHA, locally entered SHA-512 crypt password, password-required console admin, locked root/nonlogin worker, SSH masked, no network mirror and halt-on-install. Artemis Fleet checks an independently pinned owner Ed25519 manifest and actual ISO digest before preflight or protected boot. Regression tests authored not run; final Hyper-V UEFI/installer completion still unverified."
     },
     {
       "id": "CA-4304",
       "phase": "13",
       "master_line": 1088,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
+      "finding": "Signed, hash-pinned owner ISO generation and Debian first-boot admin/worker/SSH policy source-coded, with Artemis signature checks. Missing actual boot/guest attestation, proven non-root worker, cryptographic media removal/password rotation after OS install, independent snapshot and production host canary. No tests or live VM action yet; do not count ready for final acceptance."
     },
     {
       "id": "CA-4305",
