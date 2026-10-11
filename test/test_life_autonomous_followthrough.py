@@ -212,3 +212,128 @@ def test_life_restart_recovers_completed_artifact_and_finishes_once(tmp_path):
         assert len(restarted.store.evaluations(project.project_id)) == 1
     finally:
         restarted.close()
+
+
+
+def test_background_draft_does_not_schedule_after_goals_pause_during_model(
+    tmp_path,
+):
+    """A model reply is not permission that survives a GOALS revocation."""
+    from sofia.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
+    from sofia.social.principals import local_sparks_principal
+
+    life, goals, now = infrastructure(tmp_path)
+    project = typed_active_project(
+        life, now, objectives=("text_contains:Foxfire",),
+    )
+    try:
+        def paused_during_draft(_request):
+            goal = next(
+                item for item in goals.list_visible(local_sparks_principal())
+                if item.id == project.goal_id
+            )
+            goals.transition(
+                goal_id=goal.id,
+                principal_id=goal.scope_principal_id,
+                audience=goal.scope_audience,
+                expected_status=GoalStatus.ACTIVE,
+                next_status=GoalStatus.PAUSED,
+                actor_principal_id=SOFIA_GOAL_OWNER_ID,
+                now=now + timedelta(seconds=4),
+                evidence_refs=(),
+            )
+            return _draft(
+                "Foxfire flows through the imagined hills of this original "
+                "fictional landscape with independently readable colors."
+            )
+
+        result = life.tick(
+            now=now + timedelta(seconds=5), generate=paused_during_draft,
+        )
+        assert result["scheduled"] == 0
+        assert result["draft_status"] == "authority_changed_during_draft"
+        assert life.store.jobs(project.project_id) == ()
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_background_draft_respects_operator_stop_during_model(tmp_path):
+    """A late stop suppresses newly drafted optional work."""
+    from sofia.safe.operator_stop import OperatorStopStore
+
+    life, _goals, now = infrastructure(tmp_path)
+    project = typed_active_project(
+        life, now, objectives=("text_contains:Foxfire",),
+    )
+    try:
+        def stop_during_draft(_request):
+            OperatorStopStore(life.path).set(
+                active=True, updated_by="Sparks",
+                reason="Pause personal work before authoring dispatch.",
+            )
+            return _draft(
+                "Foxfire collects around the winding path of an original "
+                "landscape that is still only uncommitted text."
+            )
+        result = life.tick(
+            now=now + timedelta(seconds=3), generate=stop_during_draft,
+        )
+        assert result["draft_status"] == "authority_changed_during_draft"
+        assert result["scheduled"] == 0
+        assert life.store.jobs(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_revision_abstains_if_goal_pauses_during_generator(tmp_path):
+    """The old completed artifact is retained; no new RUN effect is minted."""
+    from sofia.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
+    from sofia.social.principals import local_sparks_principal
+
+    life, goals, now = infrastructure(tmp_path)
+    project = typed_active_project(
+        life, now, objectives=("text_contains:Foxfire",),
+    )
+    try:
+        first = life.tick(
+            now=now + timedelta(seconds=3),
+            generate=lambda _request: _draft(
+                "The ordinary moon illuminated a little imaginary valley "
+                "without the required named experimental phenomenon."
+            ),
+        )
+        assert first["scheduled"] == 1
+        original_job = life.store.jobs(project.project_id)[0]
+        assert wait_for_job(life, original_job).status is WorkStatus.COMPLETED
+        initial_review = life.tick(now=now + timedelta(seconds=7))
+        assert initial_review["follow_through"] == "deferred_daily_draft_limit"
+
+        next_day = now + timedelta(days=1)
+        def pause_during_revision(_request):
+            goal = next(
+                item for item in goals.list_visible(local_sparks_principal())
+                if item.id == project.goal_id
+            )
+            goals.transition(
+                goal_id=goal.id,
+                principal_id=goal.scope_principal_id,
+                audience=goal.scope_audience,
+                expected_status=GoalStatus.ACTIVE,
+                next_status=GoalStatus.PAUSED,
+                actor_principal_id=SOFIA_GOAL_OWNER_ID,
+                now=next_day, evidence_refs=(),
+            )
+            return _draft(
+                "Foxfire now finally appears in an otherwise original "
+                "second creative story, but its grant was revoked."
+            )
+
+        result = life.tick(now=next_day, generate=pause_during_revision)
+        assert result["follow_through"] == "revision_authority_changed"
+        assert result["scheduled"] == 0
+        assert life.store.jobs(project.project_id) == (original_job,)
+        assert len(life.store.artifacts(project.project_id)) == 1
+        assert len(life.store.evaluations(project.project_id)) == 1
+    finally:
+        life.close()
