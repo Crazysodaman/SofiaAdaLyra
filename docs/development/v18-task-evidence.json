@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "2134be86c492c7550f39f2763e95090d64b88a66",
+  "reviewed_main_sha": "f7e142d111c3e0102554eca8e2fa6ec2eaac3c94",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 Phase02: ACT durable pre-send stop/mute release wired across SystemNoticeQueue, ActOutbox/ActDeliveryRunner and SofiaActService; regression sources unexecuted. CA-1102/1105/1904/1907/2707 partial pending other engineering. Preserve other workstreams' records.",
+  "notice": "WS1 release gate dirty-start/untracked source and ACT pre-send owner stop/mute fixes source committed, tests deferred by user. All affected CA tasks remain partial; sibling workstream records preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -875,13 +875,15 @@
         "83746a777f4703fdfbd6eec14f18bcf58a72d69e",
         "0464dfac3cd73d833985cd5d016230f7e16549d4",
         "5389450b21c243ab01485951ba1f985e80677dcf",
-        "c36fcb2dc4239658253841d601d343cf151ef0ca"
+        "c36fcb2dc4239658253841d601d343cf151ef0ca",
+        "0993e5199ff25dc4a51a76b2cab0abb41741d9bc",
+        "6d7d72151b7c7569ce6d53bbc410f4b0f8c45a78"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "d440b3db33c04b99d21cce04d41c7aa5759b71f9",
-        "depth": "revision_pinned_full_phase_gate_source_and_regression",
-        "interpretation": "VerificationEvidence.accepted rejects absent/reordered/substituted command manifest or nonzero result; run_gate pins initial Git HEAD and records revision_stable=false on changed HEAD even if all subcommands passed. Regression authored; no tests/CI/live promotion performed. Full task still partial."
+        "at_sha": "f7e142d111c3e0102554eca8e2fa6ec2eaac3c94",
+        "depth": "production_source_release_gate_acceptance",
+        "interpretation": "Release verification now captures initial clean Git working-tree state plus final state, including untracked nonignored source, and refuses a green gate if release run started dirty. Ordered manifest and stable Git revision checks retained. Tests written not executed, release/host evidence outstanding."
       }
     },
     {
@@ -2080,13 +2082,15 @@
       ],
       "evidence_commits": [
         "83746a777f4703fdfbd6eec14f18bcf58a72d69e",
-        "0464dfac3cd73d833985cd5d016230f7e16549d4"
+        "0464dfac3cd73d833985cd5d016230f7e16549d4",
+        "0993e5199ff25dc4a51a76b2cab0abb41741d9bc",
+        "6d7d72151b7c7569ce6d53bbc410f4b0f8c45a78"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
-        "depth": "production_revision_bound_release_gate_acceptance_logic",
-        "interpretation": "VerificationEvidence.accepted now requires full phase manifest in order, exact subcommands/approved installed-wheel pytest override, clean release revision and zero exit results. Regression cases authored not run. Phase promotion and external live receipts still unaccepted."
+        "at_sha": "f7e142d111c3e0102554eca8e2fa6ec2eaac3c94",
+        "depth": "production_source_release_gate_acceptance",
+        "interpretation": "Release verification now captures initial clean Git working-tree state plus final state, including untracked nonignored source, and refuses a green gate if release run started dirty. Ordered manifest and stable Git revision checks retained. Tests written not executed, release/host evidence outstanding."
       }
     },
     {
