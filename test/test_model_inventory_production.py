@@ -258,3 +258,32 @@ def test_old_or_future_inventory_does_not_offer_models_for_current_role_review(
         store.candidate_review(
             host_id="venus",at=NOW.replace(tzinfo=None),
         )
+
+
+def test_model_without_content_address_is_only_historical_inventory(tmp_path):
+    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
+        cognitive_primary_model="primary:stable",
+        cognitive_secondary_model="secondary:missing",
+    ))
+    adapter=LocalOllama()
+    real_tags=adapter.models
+    def malformed_digest_tags():
+        payload=real_tags()
+        payload["models"][1]["digest"]="not-a-sha256"
+        return payload
+    adapter.models=malformed_digest_tags
+    result=refresh_local_model_inventory(
+        state_path=state,host_id="venus",at=NOW,
+        details_limit=0,backend=adapter,
+    )
+    orphan=next(row for row in result if row.model=="orphan:old")
+    assert orphan.installed is True
+    assert orphan.digest is None
+    store=ModelInventoryStore(state)
+    candidate=store.candidate_review(host_id="venus",at=NOW)
+    assert "No FRESH" in candidate
+    assert "without SHA-256 identity: 1" in candidate
+    assert "orphan:old" in store.readable(host_id="venus")
