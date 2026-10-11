@@ -146,3 +146,23 @@ def test_release_artifacts_do_not_dirty_exact_sha_checkout_before_gate():
     assert 'Copy-Item $WheelA.FullName $WheelA.Name' not in pipeline
     assert '--evidence "$env:SOFIA_RELEASE_EVIDENCE"' in pipeline
     assert '--evidence-path "$env:SOFIA_VERIFICATION_EVIDENCE"' in pipeline
+
+
+def test_release_workflow_invocation_and_fail_closed_build_tools():
+    """Release candidate refuses a failed dependency or wheel subprocess."""
+    pipeline = (
+        (Path(__file__).resolve().parents[1] / ".github/workflows/release-candidate.yml")
+        .read_text(encoding="utf-8")
+    )
+    assert '& & "$env:SOFIA_RELEASE_VENV' not in pipeline
+    assert '& "$env:SOFIA_RELEASE_VENV\\Scripts\\python.exe" @Args' in pipeline
+    for command in (
+        "-m pip install --require-hashes -r requirements.lock.windows-py312.txt",
+        "-m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt",
+        '-m pip wheel --no-deps --wheel-dir "$distA"',
+        '-m pip wheel --no-deps --wheel-dir "$distB"',
+    ):
+        start = pipeline.index(command)
+        assert "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }" in pipeline[
+            start : start + 180
+        ]

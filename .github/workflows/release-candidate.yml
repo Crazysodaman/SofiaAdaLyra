@@ -63,7 +63,9 @@ jobs:
           python -m venv "$env:SOFIA_RELEASE_VENV"
           # Keep the interpreter-bundled pip; do not fetch an unpinned toolchain.
           & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip install --require-hashes -r requirements.lock.windows-py312.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build wheel twice and require reproducibility
         shell: pwsh
@@ -74,7 +76,9 @@ jobs:
           $distB = Join-Path $env:RUNNER_TEMP "sofia-dist-b"
           New-Item -ItemType Directory -Force $distA,$distB | Out-Null
           & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-deps --wheel-dir "$distA" "$env:SOFIA_RELEASE_SOURCE"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-deps --wheel-dir "$distB" "$env:SOFIA_RELEASE_SOURCE"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $WheelA = Get-ChildItem -LiteralPath $distA -Filter *.whl -File | Select-Object -First 1
           $WheelB = Get-ChildItem -LiteralPath $distB -Filter *.whl -File | Select-Object -First 1
           if ($null -eq $WheelA -or $null -eq $WheelB) { throw "reproducibility build did not create both wheels" }
@@ -139,7 +143,7 @@ jobs:
             $Args += @("--parent-release-id",$env:PARENT_RELEASE_ID)
             $Args += @("--parent-manifest-sha256",$env:PARENT_MANIFEST_SHA256)
           }
-          & & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" @Args
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" @Args
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.dev.release_cli verify --release-dir release-evidence
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
