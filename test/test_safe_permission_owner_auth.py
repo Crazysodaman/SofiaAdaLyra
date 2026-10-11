@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
+import sqlite3
 
 import pytest
 
@@ -149,3 +150,59 @@ def test_existing_ui_wires_level3_and_level5_to_signed_owner_approval():
     assert 'capability="safe.permission.private_authority.change"' in saving
     assert 'approval_id=approved_private[0]' in saving
     assert 'approved_private[1] != requested_private_authority' in saving
+
+
+def test_legacy_actor_only_standing_grant_is_quarantined_without_erasing_history(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = PermissionStore(state)
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "INSERT INTO safe_permission_grant "
+            "(grant_id,capability,scope_json,granted_by,granted_at,"
+            "expires_at,revoked_at) VALUES(?,?,?,?,?,?,NULL)",
+            ("legacy-grant", "storage.mkdir", '{"root_index":0}',
+             "Sparks", NOW.isoformat(), None),
+        )
+    grants = store.grants()
+    assert len(grants) == 1
+    assert grants[0].owner_authenticated is False
+    assert grants[0].is_active_at(NOW + timedelta(seconds=1)) is False
+    assert store.grants(active_only=True) == ()
+    assert store.allows_standing(
+        "storage.mkdir", {"root_index": 0}, now=NOW + timedelta(seconds=1),
+    ) is False
+
+
+def test_revoking_signing_owner_key_invalidates_existing_standing_grant(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = PermissionStore(state)
+    grant = grant_with_signed_owner(
+        store, "storage.mkdir", scope={"root_index": 0},
+        grant_id="owner-bound-grant", now=NOW,
+    )
+    assert grant.owner_authenticated is True
+    assert store.allows_standing(
+        "storage.mkdir", {"root_index": 0}, now=NOW + timedelta(seconds=1),
+    ) is True
+    with sqlite3.connect(state) as db:
+        credential = db.execute(
+            "SELECT ch.credential_id FROM safe_permission_owner_auth_binding b "
+            "JOIN safe_execution_owner_auth_binding auth "
+            "ON auth.approval_id=b.approval_id "
+            "JOIN safe_owner_challenge ch "
+            "ON auth.authentication_event_id="
+            "('owner-webauthn:' || ch.challenge_digest) "
+            "WHERE b.grant_id=?",
+            (grant.grant_id,),
+        ).fetchone()
+        assert credential is not None
+        # Only model the already-authorized revocation's durable result.
+        db.execute(
+            "UPDATE safe_owner_credential SET revoked_at=? "
+            "WHERE credential_id=?",
+            ((NOW + timedelta(seconds=2)).isoformat(), credential[0]),
+        )
+    assert store.grants()[0].owner_authenticated is False
+    assert store.allows_standing(
+        "storage.mkdir", {"root_index": 0}, now=NOW + timedelta(seconds=3),
+    ) is False
