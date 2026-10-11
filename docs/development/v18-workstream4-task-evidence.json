@@ -16,7 +16,8 @@
     "2026-10-11: Fleet cognition fallback default changed to disabled (opt-in explicit). Read-only model discovery now hard-bounds /tags, /version and /show JSON responses. No tests run.",
     "2026-10-11: Phase 15 CA-704/705/711 production-wired and source-regression-authored. Coarse-grain owner reset is the rollback-to-baseline path; no biological synapse model, live bench, tests or CI executed.",
     "2026-10-11: Phase 16 falsifiable research study preregistration and negative/adverse result registry source-coded in canonical state and owner Settings. No study/data collection was actually performed; tests/CI deferred.",
-    "2026-10-11: CA-808 bounded one-NEURO workspace published and consumed by real chat/personality paths; bounded read receipts, expiry and snapshot identity guarded. No functional scientific result or test execution claimed."
+    "2026-10-11: CA-808 bounded one-NEURO workspace published and consumed by real chat/personality paths; bounded read receipts, expiry and snapshot identity guarded. No functional scientific result or test execution claimed.",
+    "2026-10-11: Artemis hypervisor confirmed by operator as Hyper-V. Phase 13 SAFE levels fixed in real policy; no actual host inventory, VM provisioning or testing executed."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -117,7 +118,9 @@
     "6885ed01366228d64deaba477003daa776a9a38c",
     "9d4e88447f4e71cd61e7616f78990fb92feee7a2",
     "159d012c9f741ff29bb0bf8e4b6647899f183a94",
-    "bdaa4e6059e2f3f8a2e8a0d53403bd2a3302c98c"
+    "bdaa4e6059e2f3f8a2e8a0d53403bd2a3302c98c",
+    "b4f6b4614f0f29beed62ecc62cc7ea3e5f3bd030",
+    "05be4f0d6c41b51858e8af51f7bbde97b5408d3d"
   ],
   "tasks": [
     {
@@ -1232,11 +1235,12 @@
       "phase": "13",
       "master_line": 1050,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "SAFE five-level production classification now explicitly exposes workshop.vm.inspect and workshop.vm.plan as Level 1 observation, workshop.vm.provision/quarantine/cleanup, workshop.network.create and workshop.guest.bootstrap as Level 4 protected without standing grants, with independent fleet.enroll Level 4 and permissions.grant Level 5. Existing authority engine applies these classifications. Regression tests authored but not executed; no Hyper-V action performed."
     },
     {
       "id": "CA-2905",
