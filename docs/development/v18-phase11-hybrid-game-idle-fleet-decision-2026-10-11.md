@@ -14,11 +14,13 @@
 
 ## Extra 4–6 GiB GPU host
 
-The owner mentioned an additional, not yet enrolled or identified machine with approximately **4–6 GiB** of VRAM. Its actual hostname, operating system, GPU model, driver, measured usable VRAM, network trust, available disk/RAM and model inventory are unknown. Do **not** insert guessed host entries, endpoints, VRAM values, model choices or approvals.
+The owner subsequently clarified the additional machine's **owner-reported hardware** as an **NVIDIA GeForce RTX 3060 with 8 GB VRAM and 32 GB system RAM**. This supersedes the initial 4–6 GiB estimate. Hostname is unknown; operating system has not been supplied. The card's reported installed VRAM is **not** measured free headroom. GPU driver, installed Ollama models, usable context limits, actual resource telemetry, network trust and Fleet enrollment are also unverified. Do **not** create a guessed host identity, endpoint, GPU-capacity receipt, model selection or owner approval.
+
+Phase 11 source hardening now rejects placement where a workload requires RAM/VRAM but actual host telemetry is missing, or where observed remote telemetry is stale (>120 seconds) or future-dated beyond 30 seconds. The production Fleet inference path checks current observations; unit fixtures inject a frozen clock, and `test/test_phase11_fleet_gpu_admission.py` uses *synthetic* 8-GiB-VRAM/32-GiB-RAM values to exercise trust, freshness and **free** headroom rejection. No actual PC discovery or benchmarks have occurred.
 
 Reuse `src/sofia/cognition/fleet_engine.py` and `src/sofia/ops/placement.py`, which already use authenticated Fleet identity, trust/lifecycle checks, telemetry and gaming-related interactive pressure. Enroll the extra host separately using the approved owner-supervised mTLS enrollment path. A remote model must already be installed or separately approved for exact installation; **no silent download, provider role substitution or cloud fallback**. Only place workloads after independently measured VRAM and policy requirements are satisfied; never assume the primary 9B model fits 4–6 GiB.
 
-The GPU host may serve a *small/quantized fast role* if later verified, with full prompt-routing security, model license, throughput and context-window checks. A failed remote request remains a known failure unless the existing owner-approved local-fallback policy expressly allows recovery.
+The GPU host may serve a *small/quantized fast role* if later verified, with full prompt-routing security, model license, throughput and context-window checks. A physical RTX 3060 8GB is not by itself proof that the configured primary or secondary model fits in GPU VRAM with its requested context length. A failed remote request remains a known failure unless the existing owner-approved local-fallback policy expressly allows recovery.
 
 ## Explicit boundaries
 
