@@ -196,3 +196,39 @@ def test_quiet_hours_persist_and_project_into_policy(tmp_path):
     policy = saved.policy("person:sparks")
     assert policy.quiet_start_local == 20
     assert policy.quiet_end_local == 6
+
+
+def test_settings_and_tray_do_not_bootstrap_missing_canonical_state(tmp_path):
+    from sofia.ui.settings_window import _ensure_state_database
+    from sofia.ui.tray_agent import _ensure_state
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    missing = tmp_path / "state" / "sofia.db"
+    for consumer_startup in (_ensure_state_database, _ensure_state):
+        with pytest.raises(CanonicalStateUnavailable, match="unavailable"):
+            consumer_startup(missing)
+        assert not missing.exists()
+        assert not missing.parent.exists()
+
+    missing.parent.mkdir()
+    missing.touch()
+    _ensure_state_database(missing)
+    _ensure_state(missing)
+
+
+def test_settings_and_tray_reject_symlinked_state_path(tmp_path):
+    from sofia.ui.settings_window import _ensure_state_database
+    from sofia.ui.tray_agent import _ensure_state
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    canonical = tmp_path / "canonical.db"
+    canonical.touch()
+    redirected = tmp_path / "redirected.db"
+    try:
+        redirected.symlink_to(canonical)
+    except (NotImplementedError, OSError):
+        pytest.skip("Windows symlink privilege unavailable")
+    for consumer_startup in (_ensure_state_database, _ensure_state):
+        with pytest.raises(CanonicalStateUnavailable, match="symbolic link"):
+            consumer_startup(redirected)
+    assert canonical.is_file()
