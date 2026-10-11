@@ -1668,3 +1668,76 @@ def test_old_life_critique_never_overwrites_later_preference(tmp_path, monkeypat
         assert len(life.preferences.history(**scope)) == 1
     finally:
         life.close()
+
+
+def test_life_store_rejects_competing_evaluations_for_same_revision(tmp_path):
+    """Two writers cannot turn one revision into two independent opinions."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        evaluations = [
+            ArtifactEvaluation(
+                f"evaluation:competing-{ordinal}", project.project_id,
+                "artifact:competing-revision", 1, TechnicalOutcome.INCONCLUSIVE,
+                PersonalJudgment.UNKNOWN,
+                {objective: None for objective in project.brief.objectives},
+                f"Decision by instance {ordinal}.", (evidence,), False,
+                now + timedelta(seconds=3),
+            )
+            for ordinal in range(2)
+        ]
+        life.store.record_evaluation(evaluations[0])
+        with pytest.raises(RuntimeError, match="canonical evaluation"):
+            life.store.record_evaluation(evaluations[1])
+        actual = life.store.evaluations(project.project_id)
+        assert len(actual) == 1
+        assert actual[0].evaluation_id == evaluations[0].evaluation_id
+    finally:
+        life.close()
+
+
+def test_atomic_life_pair_rejects_second_revision_critique_without_experience(
+    tmp_path,
+):
+    """Contending critique cannot mint orphan LIFE learning evidence."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        original = ArtifactEvaluation(
+            "evaluation:first-canonical", project.project_id,
+            "artifact:shared-revision", 1, TechnicalOutcome.INCONCLUSIVE,
+            PersonalJudgment.UNKNOWN,
+            {objective: None for objective in project.brief.objectives},
+            "Source review one.", (evidence,), False,
+            now + timedelta(seconds=3),
+        )
+        life.store.record_evaluation(original)
+        competing = ArtifactEvaluation(
+            "evaluation:second-canonical", project.project_id,
+            original.artifact_id, original.artifact_revision,
+            TechnicalOutcome.INCONCLUSIVE, PersonalJudgment.UNKNOWN,
+            dict(original.objective_results), "Conflicting second review.",
+            (evidence,), False, now + timedelta(seconds=4),
+        )
+        experience = ExperienceRecord(
+            "experience:should-not-commit", project.project_id,
+            "artifact_evaluated", "A competing critique.",
+            (evidence,), project.audience_id, True,
+            competing.evaluated_at, competing.evaluated_at,
+            {"interest_learning": {
+                "schema": 1, "evaluation_id": competing.evaluation_id,
+            }},
+        )
+        with pytest.raises(RuntimeError, match="canonical evaluation"):
+            life.store.record_evaluation_with_experience(competing, experience)
+        assert not any(
+            item.experience_id == experience.experience_id
+            for item in life.store.experiences(
+                audience_id=project.audience_id, include_private=True,
+            )
+        )
+        assert [item.evaluation_id for item in life.store.evaluations(
+            project.project_id,
+        )] == [original.evaluation_id]
+    finally:
+        life.close()
