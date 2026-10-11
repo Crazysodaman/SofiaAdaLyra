@@ -31,10 +31,15 @@ class VerificationEvidence:
     generated_at: str
     commands: tuple[GateCommandEvidence, ...]
     revision_stable: bool = True
+    source_clean_at_start: bool = True
 
     @property
     def accepted(self) -> bool:
         if self.revision_stable is not True:
+            return False
+        if type(self.source_clean_at_start) is not bool:
+            return False
+        if not self.source_clean_at_start and self.phase != "candidate":
             return False
         expected = _PHASES.get(self.phase)
         if expected is None or len(self.commands) != len(expected):
@@ -136,16 +141,21 @@ def _git_revision(repo_root: Path) -> str:
 
 
 def _tracked_tree_clean(repo_root: Path) -> bool:
-    """Require executed code and tracked files to equal the reported revision."""
+    """Verify no tracked changes OR untracked files can alter reviewed source.
 
+    Respect .gitignore (build/cache outputs), but reject real untracked source
+    files which could be imported or executed without appearing in the commit.
+    """
     result = subprocess.run(
-        ("git", "diff", "--quiet", "HEAD", "--"),
+        ("git", "status", "--porcelain=v1", "--untracked-files=all", "--"),
         cwd=repo_root,
+        capture_output=True,
+        text=True,
         check=False,
     )
-    if result.returncode not in {0, 1}:
-        raise RuntimeError("could not determine tracked worktree state")
-    return result.returncode == 0
+    if result.returncode != 0:
+        raise RuntimeError("could not determine Git working-tree state")
+    return not result.stdout.strip()
 
 
 def _assert_installed_wheel_origin(repo: Path) -> None:
@@ -195,6 +205,7 @@ def run_gate(
         _assert_installed_wheel_origin(repo)
 
     starting_revision = _git_revision(repo)
+    source_clean_at_start = _tracked_tree_clean(repo)
     commands: list[GateCommandEvidence] = []
     for name, args in _PHASES[phase]:
         command = (sys.executable, *args)
@@ -236,6 +247,7 @@ def run_gate(
         generated_at=datetime.now(timezone.utc).isoformat(),
         commands=tuple(commands),
         revision_stable=(starting_revision == ending_revision),
+        source_clean_at_start=source_clean_at_start,
     )
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     temp = evidence_path.with_suffix(evidence_path.suffix + ".tmp")
