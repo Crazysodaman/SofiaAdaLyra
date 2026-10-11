@@ -6,6 +6,8 @@ source-coding campaign. They must run in the final exact-revision CI gate.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
+from datetime import datetime, timezone
 
 import pytest
 
@@ -36,9 +38,7 @@ def _read(store):
         return store.lookup("missing-test-ref")
     return store.record(
         kind="reviewed_evidence",
-        observed_at=__import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc
-        ),
+        observed_at=datetime.now(timezone.utc),
         source="local:test",
         assertion="A local test fact",
     )
@@ -56,8 +56,8 @@ def test_missing_state_is_not_created_during_store_start(tmp_path, store_class):
 @pytest.mark.parametrize("store_class", OWNERS)
 def test_lost_canonical_state_cannot_be_resurrected_after_start(tmp_path, store_class):
     path = tmp_path / "sofia.db"
-    with sqlite3.connect(path):
-        pass
+    with closing(sqlite3.connect(path)) as db:
+        db.execute("PRAGMA user_version")
     owner = store_class(path)
     path.unlink()  # No store retains a live connection here.
     with pytest.raises((FileNotFoundError, sqlite3.OperationalError)):
@@ -68,8 +68,8 @@ def test_lost_canonical_state_cannot_be_resurrected_after_start(tmp_path, store_
 @pytest.mark.parametrize("store_class", OWNERS)
 def test_redirected_canonical_path_rejected_at_initialization(tmp_path, store_class):
     actual = tmp_path / "copy.db"
-    with sqlite3.connect(actual):
-        pass
+    with closing(sqlite3.connect(actual)) as db:
+        db.execute("PRAGMA user_version")
     path = tmp_path / "sofia.db"
     try:
         path.symlink_to(actual)
@@ -86,10 +86,10 @@ def test_symlink_swap_cannot_redirect_subsequent_canonical_reads(
 ):
     path = tmp_path / "sofia.db"
     copied = tmp_path / "stale.db"
-    with sqlite3.connect(path):
-        pass
-    with sqlite3.connect(copied):
-        pass
+    with closing(sqlite3.connect(path)) as db:
+        db.execute("PRAGMA user_version")
+    with closing(sqlite3.connect(copied)) as db:
+        db.execute("PRAGMA user_version")
     owner = store_class(path)
     path.unlink()
     try:
