@@ -93,6 +93,7 @@ class OperatorStopStore:
         reason:str,
         at:datetime|None=None,
         approval_id:str|None=None,
+        expected_updated_at:str|None=None,
     )->OperatorStopState:
         if not isinstance(active,bool):
             raise TypeError("active must be boolean")
@@ -110,21 +111,33 @@ class OperatorStopStore:
             # requires a new, exact, FIDO2-authenticated SAFE approval.
             # A username literal or Tk confirmation cannot resume autonomy.
             from sofia.safe.execution_approval import ExecutionApprovalVerifier
-            if not approval_id:
-                raise PermissionError("operator resume requires fresh authenticated approval")
+            if not approval_id or not expected_updated_at:
+                raise PermissionError(
+                    "operator resume requires FIDO2 approval bound to exact stop revision"
+                )
+            # Reject a changed stop even before consuming the one-time owner
+            # approval. A second check under BEGIN IMMEDIATE closes the race.
+            observed = self.current()
+            if observed.updated_at.astimezone(timezone.utc).isoformat() != expected_updated_at:
+                raise PermissionError("operator stop changed since resume was requested")
             ExecutionApprovalVerifier(self.path).consume(
                 approval_id=approval_id,
                 capability="operator.stop.resume",
-                parameters={"active": False, "reason": reason.strip()},
+                parameters={
+                    "active": False, "reason": reason.strip(),
+                    "expected_updated_at": expected_updated_at,
+                },
                 now=moment,
             )
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             previous = db.execute(
-                "SELECT active FROM safe_operator_stop WHERE singleton=1"
+                "SELECT active,updated_at FROM safe_operator_stop WHERE singleton=1"
             ).fetchone()
             if previous is None:
                 raise RuntimeError("operator stop row missing; cannot audit transition")
+            if not active and previous[1] != expected_updated_at:
+                raise PermissionError("new operator stop revision superseded resume approval")
             changed = db.execute("""
                 UPDATE safe_operator_stop
                 SET active=?,updated_at=?,updated_by=?,reason=?
