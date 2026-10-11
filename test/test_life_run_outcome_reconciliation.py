@@ -353,3 +353,35 @@ def test_terminal_run_proof_refuses_observation_predating_original_event(
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
     finally:
         life.close()
+
+
+def test_original_run_source_rejects_malformed_observation_timestamp(tmp_path):
+    """A corrupted timestamp is unknown evidence, not an exception or a grant."""
+    import sqlite3
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, job = _queued_job(life, now)
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.BLOCKED, reason="safe policy blocked execution",
+            now=now + timedelta(seconds=4),
+        )
+        receipt = life.store.reconcile_run_outcomes(
+            now=now + timedelta(seconds=5),
+        )[0]
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE life_run_outcome_observation SET observed_at=? "
+                "WHERE run_event_id=?",
+                ("not-an-ISO-timestamp", receipt.run_event_id),
+            )
+        assert life.store.exact_original_run_outcome(
+            project_id=project.project_id, job_id=job.job_id, status="blocked",
+        ) is None
+        assert life._reconcile_terminal_run_projects(
+            now=now + timedelta(seconds=6),
+        ) == 0
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+    finally:
+        life.close()
