@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
+  "reviewed_main_sha": "d440b3db33c04b99d21cce04d41c7aa5759b71f9",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1: CA-914/CA-2708 source release-gate acceptance integrity reinforced, tests unrun; CA-1904 persistent operator-authentication blocker recorded without inventing a credential. CA-3010/3011/3012 Fleet input and Windows-host acceptance blockers remain. All source tasks not production accepted; preserve other workstreams.",
+  "notice": "WS1 release gate CA-914 now requires full ordered commands and stable Git HEAD; all source-only, regression unexecuted. Other WS1 CA-3010/3011/3012, CA-1904/1907/6507 etc remain partial; operator identity and host acceptance blockers recorded. Other workstreams' current ledger evidence preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -860,13 +860,15 @@
       ],
       "evidence_commits": [
         "83746a777f4703fdfbd6eec14f18bcf58a72d69e",
-        "0464dfac3cd73d833985cd5d016230f7e16549d4"
+        "0464dfac3cd73d833985cd5d016230f7e16549d4",
+        "5389450b21c243ab01485951ba1f985e80677dcf",
+        "c36fcb2dc4239658253841d601d343cf151ef0ca"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
-        "depth": "production_revision_bound_release_gate_acceptance_logic",
-        "interpretation": "VerificationEvidence.accepted now requires full phase manifest in order, exact subcommands/approved installed-wheel pytest override, clean release revision and zero exit results. Regression cases authored not run. Phase promotion and external live receipts still unaccepted."
+        "at_sha": "d440b3db33c04b99d21cce04d41c7aa5759b71f9",
+        "depth": "revision_pinned_full_phase_gate_source_and_regression",
+        "interpretation": "VerificationEvidence.accepted rejects absent/reordered/substituted command manifest or nonzero result; run_gate pins initial Git HEAD and records revision_stable=false on changed HEAD even if all subcommands passed. Regression authored; no tests/CI/live promotion performed. Full task still partial."
       }
     },
     {
