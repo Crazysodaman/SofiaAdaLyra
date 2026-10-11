@@ -1186,7 +1186,12 @@ class SelfDirectedLifeCoordinator:
                 "next_action_review_id": (
                     None if latest_review is None else latest_review.evaluation_id
                 ),
-                "eligible_for_new_work": not constraints,
+                # New-work eligibility is narrower than a lack of SAFE
+                # blockers: COMPLETED but unverified work still needs
+                # verification, not another RUN creative submission.
+                "eligible_for_new_work": (
+                    not constraints and next_action == "explore"
+                ),
                 "source": "canonical_life_goals_run_projection",
             })
         return tuple(view)
