@@ -466,6 +466,32 @@ memory conflict *detection*, external preference/connecome invalidation,
 operator accessibility and temporal validity chronology need separate work.
 No existing facts were changed in the running system.
 
+### Production composition refuses missing/redirected canonical state (Phase 03)
+
+Before the change `compose(configuration)` entered `create_state_plane` →
+`SQLiteStatePlane` initialization, which can create a missing SQLite
+database through ordinary connection setup. On a production host configured
+with `IdentityBootstrapMode.REQUIRE_EXISTING`, a lost canonical
+`sofia.db` could therefore be replaced with a new empty authority before
+memory, identity and other owners had a chance to reject it.
+
+The production composition now calls `CanonicalSQLiteGuard(state_path)`
+before `create_state_plane` or any other store if identity bootstrap mode
+is `REQUIRE_EXISTING`. This refuses missing files, symlink redirection
+and an invalid file type. Explicit `FIRST_BOOTSTRAP` creation retains
+its existing path for development/first installation only. No host ID,
+writer candidate or relocation was selected.
+
+Commits:
+- `173c8e6732ec5660b502266759ad41d9e5514740` actual application
+  composition entrypoint.
+- `faeec5ea19a788db84cab235c0e31d68c00f6041` deferred production
+  no-resurrection and symlink tests, **not executed**.
+
+CA relevance: CA-5201, CA-6101, CA-6804, CA-6306 and CA-6404.
+This is a concrete safety gate, not complete operator-fenced failover or
+migrated whole-bundle restore.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
