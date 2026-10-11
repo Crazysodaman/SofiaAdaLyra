@@ -125,6 +125,14 @@ class ProjectIdeaAgent:
         ))
         if not isinstance(response, CognitiveResponse) or response.tool_calls:
             raise ProjectIdeaGenerationError("project ideation requires text-only model output")
+        # Even text-only model replies are untrusted. Reject oversized
+        # responses before JSON parsing or persistence to prevent a model
+        # loop from consuming unlimited parsing/memory budget.
+        if (
+            not isinstance(response.content, str)
+            or len(response.content.encode("utf-8")) > 16_384
+        ):
+            raise ProjectIdeaGenerationError("project idea reply exceeds bounded cognitive budget")
         try:
             value = json.loads(response.content)
         except (TypeError, ValueError) as exc:
