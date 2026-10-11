@@ -1197,3 +1197,53 @@ def test_presence_notice_rejects_altered_original_event_identity(state):
         row.stage != "transport_attempt"
         for row in OutreachTraceStore(state).history(notice_id=queued.notice_id)
     )
+
+
+
+@pytest.mark.parametrize(
+    ("column", "changed_value"),
+    (
+        ("confidence", 0.35),
+        ("epistemic_state", "inferred"),
+        ("expires_at", (NOW + timedelta(minutes=1)).isoformat()),
+        ("observed_at", (NOW + timedelta(minutes=1)).isoformat()),
+        ("observed_at", "malformed-source-time"),
+        ("expires_at", "malformed-expiry"),
+    ),
+)
+def test_presence_delivery_refuses_source_grounding_change_after_queue(
+    state, column, changed_value,
+):
+    """ACT must not inherit an old eligibility decision after source decay."""
+    import sqlite3
+
+    sent = []
+    service = configured(state, sent)
+    presence = PresenceInitiativeEngine(
+        state_path=state, act_service=service,
+    )
+    original = event(event_id="source-downgraded-after-queue")
+    decision = presence.consider(original)
+    assert decision.status == "queued"
+    assert column in {
+        "confidence", "epistemic_state", "expires_at", "observed_at",
+    }
+    with sqlite3.connect(state) as db:
+        db.execute(
+            f"UPDATE presence_world_observation SET {column}=? "
+            "WHERE observation_id=?",
+            (changed_value, original.observation.observation_id),
+        )
+    result = service.deliver_one(now=NOW + timedelta(minutes=2))
+    assert result is None
+    assert sent == []
+    traces = OutreachTraceStore(state).history(notice_id=decision.notice_id)
+    assert any(
+        trace.stage == "deferred"
+        and trace.reason == "authorization_unavailable"
+        for trace in traces
+    )
+    assert all(
+        trace.stage not in {"transport_attempt", "transport_accepted"}
+        for trace in traces
+    )
