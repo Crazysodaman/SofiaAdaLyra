@@ -855,6 +855,88 @@ class SelfDirectedLifeCoordinator:
             ))
         return tuple(source)
 
+    def compare_optional_choices(
+        self, *, now: datetime, busy: bool,
+        resource_pressure: float, limit: int = 32,
+    ) -> dict[str, object]:
+        """Counterfactual policy view, never observed outcome or tool authority.
+
+        Original GOALS/LIFE/SAFE and RUN budget eligibility is checked first
+        via the same signals used by select_activity. Alternative outcomes
+        are explicitly hypothetical; no private project is abandoned, no
+        owner is messaged, and nothing is persisted by this comparison.
+        """
+        signals = self.motivation_signals(
+            now=now, busy=busy,
+            resource_pressure=resource_pressure, limit=limit,
+        )
+        eligible = tuple(sorted(
+            (signal for signal in signals if signal.eligible),
+            key=lambda signal: (
+                -signal.score, -signal.goal_importance, signal.project_id,
+            ),
+        ))
+        blocked = tuple(signal for signal in signals if not signal.eligible)
+        primary = eligible[0] if eligible else None
+        alternate = eligible[1] if len(eligible) > 1 else None
+        blocked_review = any(
+            "prior_run_needs_settlement" in signal.reason
+            or "canonical_goal_not_active" in signal.reason
+            for signal in blocked
+        )
+        cases: list[dict[str, object]] = []
+        for choice, signal, permitted, evidence in (
+            (
+                "continue", primary, primary is not None,
+                "Original LIFE/GOALS eligibility and bounded motivation score.",
+            ),
+            (
+                "switch", alternate, alternate is not None,
+                "Alternative already-eligible private project; no new grant.",
+            ),
+            (
+                "postpone", None, True,
+                "No optional execution is required; inactivity is always valid.",
+            ),
+            (
+                "ask", None, blocked_review,
+                "Blocked canonical state needs independent operator review.",
+            ),
+            (
+                "abandon", None, False,
+                "Terminating a private project needs its own evidence-linked LIFE decision.",
+            ),
+        ):
+            cases.append({
+                "choice": choice,
+                "project_id": None if signal is None else signal.project_id,
+                "eligible": permitted,
+                "hypothetical": True,
+                "estimated_utility": 0.0 if signal is None else signal.score,
+                "estimated_risk": 0.0 if signal is None else signal.risk,
+                "estimated_interruption_cost": (
+                    0.0 if signal is None else signal.interruption_cost
+                ),
+                "uncertainty": (
+                    0.0 if signal is None else signal.uncertainty
+                ),
+                "reason": evidence,
+            })
+        recommendation = (
+            "continue" if primary is not None
+            else "postpone"
+        )
+        return {
+            "as_of": now.astimezone(timezone.utc).isoformat(),
+            "recommendation": recommendation,
+            "selected_project_id": (
+                None if primary is None else primary.project_id
+            ),
+            "source": "canonical_life_goal_run_motivation_projection",
+            "choices": tuple(cases),
+            "simulation_only": True,
+        }
+
     def select_activity(
         self, *, now: datetime, busy: bool, resource_pressure: float,
     ) -> LifeSelection:
@@ -871,22 +953,16 @@ class SelfDirectedLifeCoordinator:
         elif resource_pressure >= 0.75:
             reason = "Optional personal work paused for resource pressure."
         else:
-            signals = self.motivation_signals(
+            alternatives = self.compare_optional_choices(
                 now=now, busy=busy, resource_pressure=resource_pressure,
             )
-            eligible = tuple(item for item in signals if item.eligible)
-            if eligible:
-                selected = max(
-                    eligible,
-                    key=lambda item: (
-                        item.score, item.goal_importance, item.project_id,
-                    ),
-                )
-                project = self._project(selected.project_id)
+            chosen = alternatives["selected_project_id"]
+            if alternatives["recommendation"] == "continue" and chosen is not None:
+                project = self._project(chosen)
                 kind = SelectionKind.PROJECT
                 reason = (
                     "Selected an original GOALS-authorized private project "
-                    "by evidence-derived bounded motivation and resource score."
+                    "after bounded, explicitly hypothetical alternatives."
                 )
         # The background worker may observe identical inactivity on every
         # 300-second tick. Reuse a recent exact idle decision instead of
