@@ -819,6 +819,43 @@ contracts. **No tests or live host changes**. Other temporal requirements,
 including conflict arbitration and future scheduling, remain separate CA
 acceptance slices.
 
+### Phase 03/04 future Artemis-runtime, Venus-inference fail-closed composition
+
+The owner has selected **Venus as the active single writer today** and
+**Artemis as the future single writer**, subject to a separately approved,
+verified migration. Remote GPU inference remains on Venus. No code in this
+workstream moves the existing database or authorizes an active writer switch.
+
+Production configuration path: explicitly operator-provisioned
+`SOFIA_SPLIT_INFERENCE_ROLE=artemis_runtime` plus exact observed runtime
+and worker Fleet host IDs →
+`selected_split_deployment` →
+`validate_split_inference_runtime` at
+`create_model_lifecycle` **before local model initialization** and
+`create_cognitive_engine` **before model routing** →
+existing `FleetPlacedCognitiveEngine` with the exact Venus allowlist,
+GPU requirement, `local_fallback=False`, `auto_provision_models=False`
+and no alternate-model fallback →
+concrete `ConfiguredRemoteInferenceClient` →
+already pinned-mTLS Fleet inference transport and exact worker operation
+grants. An unavailable or denied Venus worker produces a cognitive error,
+not local/generated output. Artemis's canonical state and unrelated
+non-LLM services remain independent of GPU inference readiness.
+Absent explicit role variables, the current Venus path is unchanged.
+
+Source commits: `0ad327e0cc1d6374acc1b517425c36a96d3062ed` role parser;
+`e86a2be44361f1c2cee35622b7f1571d1baa94bb` pre-lifecycle gate;
+`268ab2f307f87c74a223d665e082b9839928a98a` engine wiring;
+`3d6cd477752ee1d452f1b147fa25444698912db8` pinned transport/GPU
+restrictions. Regression contracts:
+`5a7b1ac262635424cdae674ecd437486b5968503`,
+`7c79dc9fa067f45e1cdbbac40131d4062bc5ed30`.
+Full decision and future operator configuration:
+`docs/development/v18-venus-artemis-topology-decision.md`.
+All tests, host startup, model requests, worker enrollment, recovery
+cutover and deployment remain deferred. The role gate **does not** supply
+cross-host writer fencing or complete whole-bundle failback by itself.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
