@@ -130,6 +130,46 @@ class HyperVAdapter:
             raise HyperVError("wrong Hyper-V VM identity observed")
         return result
 
+    def workshop_installer_status(self) -> dict[str, Any]:
+        """Source-observed VM status only; NEVER assert guest OS is installed."""
+        command=(
+            "$ErrorActionPreference='Stop'; "
+            "$v=Get-VM -Name 'Hephaestus' -ErrorAction Stop; "
+            "if($v.Name -cne 'Hephaestus') {throw 'WRONG_VM'}; "
+            "$dvd=@(Get-VMDvdDrive -VMName 'Hephaestus' "
+            "-ErrorAction Stop | Where-Object {$_.Path} | "
+            "ForEach-Object {[string]$_.Path}); "
+            "$services=@(Get-VMIntegrationService -VMName 'Hephaestus' "
+            "-ErrorAction Stop | ForEach-Object { "
+            "[pscustomobject]@{Name=[string]$_.Name; "
+            "Enabled=[bool]$_.Enabled; "
+            "PrimaryStatus=[string]$_.PrimaryStatusDescription}}); "
+            "$fw=Get-VMFirmware -VMName 'Hephaestus' -ErrorAction Stop; "
+            "[pscustomobject]@{Name=[string]$v.Name; "
+            "VmId=[string]$v.Id; State=[string]$v.State; "
+            "Generation=[int]$v.Generation; "
+            "Media=$dvd; Services=$services; "
+            "BootOrder=@($fw.BootOrder | ForEach-Object { "
+            "[string]$_.BootType }); "
+            "ObservedAtUtc=[DateTime]::UtcNow.ToString('o'); "
+            "OsInstalled=$null; FleetEnrolled=$null; "
+            "Note='Hyper-V cannot by itself attest successful Debian setup'} "
+            "| ConvertTo-Json -Depth 5 -Compress"
+        )
+        raw=self._runner(command)
+        try:
+            status=json.loads(raw)
+        except (ValueError,TypeError) as exc:
+            raise HyperVError("installer status observation is unparseable") from exc
+        if (
+            not isinstance(status,dict)
+            or status.get("Name")!="Hephaestus"
+            or status.get("OsInstalled") is not None
+            or status.get("FleetEnrolled") is not None
+        ):
+            raise HyperVError("untrusted Hyper-V installer status payload")
+        return status
+
     def bootstrap_existing_hephaestus(
         self, *, vm_id: str, os_disk_path: str,
         iso_path: str, iso_sha256: str,
