@@ -1769,6 +1769,12 @@ class SofiaApplication:
                 bundle = getattr(self, "_presentation_bundle", None)
                 if bundle is not None:
                     bundle.store.save(bundle.authority)
+                # Normal shutdown must release the same canonical SQLite
+                # handles that failed-start rollback already closes.
+                # A transaction context does not close a sqlite connection;
+                # Windows otherwise retains a lock on disposable sofia.db.
+                self._conversation_service.close()
+                self._ui_draft_store.close()
                 self._runtime.shutdown()
             except (
                 SofiaRuntimeError,
