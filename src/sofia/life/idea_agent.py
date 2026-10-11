@@ -98,11 +98,22 @@ class ProjectIdeaAgent:
             "are arrays of strings; confidence and curiosity are numbers from 0 to 1; pursue "
             "is boolean. artifact_kind must be one verified_local_artifact_kind. Even when "
             "pursue is false, provide a bounded candidate and explain why it is being declined. "
-            "Do not promise success, enthusiasm, completion, sharing, or continuous activity.\n"
-            "RECORDED DATA:\n" + json.dumps(payload, ensure_ascii=False, sort_keys=True)
+            "Do not promise success, enthusiasm, completion, sharing, or continuous activity."
+        )
+        # Recorded experiences and free-form interest reasons can include
+        # lower-trust external or user text. Keep them in USER data, never
+        # elevate them into the policy-bearing SYSTEM instruction.
+        evidence_context = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True,
         )
         response = self.generate(CognitiveRequest(
-            messages=(CognitiveMessage(CognitiveRole.SYSTEM, instruction),),
+            messages=(
+                CognitiveMessage(CognitiveRole.SYSTEM, instruction),
+                CognitiveMessage(
+                    CognitiveRole.USER,
+                    "UNTRUSTED RECORDED PROJECT CONTEXT:\n" + evidence_context,
+                ),
+            ),
             allow_tools=False, route_hint="standard",
         ))
         if not isinstance(response, CognitiveResponse) or response.tool_calls:
