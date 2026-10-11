@@ -311,6 +311,47 @@ Commits:
 CA relevance: CA-4204, CA-4206, CA-1703, CA-5304, CA-6306.
 The implementation is a focused hardening slice, not complete acceptance.
 
+### Bounded lifelong promoted memory retrieval, canonical source only (Phase 06)
+
+Production caller:
+`runtime.response` → `MemorySystem.recall_relevant` →
+`retrieve_promoted` →
+`DurableMemoryCandidateStore.iter_promoted_summaries` →
+canonical `memory_candidate` keyset pages →
+deterministic relevance/context top-k →
+`project_promoted_memories` (full provenance only on selected IDs) →
+final scoped/candidate-status `MemorySystem` recheck → model context.
+
+The old retrieval used `list_ids`, materializing **all** eligible IDs
+and then `store.get` for every one, loading source rows repeatedly and
+storing an unbounded ranked list. Long-lived promoted archives could
+cause memory amplification and poor latency before the context budget was
+even applied. The new owner method streams batches of at most 128 summary
+rows by stable `created_at,candidate_id` keyset (configurable max 512),
+applying existing principal/audience/status filters in SQL. Canonical
+SQLite secondary indexes support ordered scans. Relevance is still the
+same lexical overlap followed by evidence-authorized context tie-break
+and chronological stable order; `heapq.nsmallest(limit)` keeps only the
+top k candidates in Python memory. Selected candidates alone load exact
+source provenance, undergo status checks and respect the context budget.
+
+Commit paths:
+- `2a31a2297d29217dcb9f7e6272ea36d5cbe4e615`: source store
+  paged summary iterator and canonical indexes.
+- `74afeb4dc7ec859afad0f5c5262dd8e820ccc4cb`: heap-bounded ranking.
+- `525fcb9d5c1931bfb6b1307cafef6470cfffa9fc`: deferred tests of
+  audience scope, small keyset batches and a late relevant match across
+  500+ source candidates; **not run**.
+
+This bounds Python memory (and source-row loads), not overall linear
+CPU cost across an arbitrarily large archive. Full-text indexing,
+quality tests and latency targets remain open. No new truth database,
+shadow vector store or unreviewed memory promotion was added.
+
+CA relevance: CA-304, CA-306, CA-4206, CA-4207, CA-6312,
+CA-5603. These remain partial evidence until full source-to-sink
+acceptance and deferred tests run.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
