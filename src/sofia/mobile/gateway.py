@@ -672,7 +672,7 @@ class MobileCompanionGateway:
             "last_seen": (
                 None if active_generation is None else self.main_seen.current(
                     device_id=device, private_mode=private_mode,
-                    generation=active_generation,
+                    generation=active_generation, principal=principal,
                 )
             ),
             "audience_id": principal.audience_id,
