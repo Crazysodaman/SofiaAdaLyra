@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from uuid import uuid4
 
 from sofia.act.history import delivery_history
@@ -44,8 +46,7 @@ class SystemNoticeQueue:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("existing application state database required")
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db:
             with db:
                 db.executescript(
@@ -95,7 +96,7 @@ class SystemNoticeQueue:
                         )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db

@@ -7,6 +7,10 @@ import shutil
 import tempfile
 
 from sofia.identity.model import IdentityBootstrapMode
+from sofia.state.canonical_sqlite import (
+    bootstrap_canonical_sqlite,
+    require_existing_sqlite,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +149,11 @@ class RuntimeStorageLayout:
         therefore cannot silently replace an established identity, Constitution,
         personality, or avatar with a newer release's seed copy.
         """
+        if self.identity_bootstrap_mode is IdentityBootstrapMode.REQUIRE_EXISTING:
+            # Normal/recovery startup must not create even the configured
+            # directory when canonical state is missing or unmounted.
+            require_existing_sqlite(self.state_path)
+
         self.state_root.mkdir(parents=True, exist_ok=True)
         self.protected_root.mkdir(parents=True, exist_ok=True)
 
@@ -181,6 +190,9 @@ class RuntimeStorageLayout:
                 target,
                 protected=protected,
             )
+
+        if self.identity_bootstrap_mode is IdentityBootstrapMode.FIRST_BOOTSTRAP:
+            bootstrap_canonical_sqlite(self.state_path)
 
     @staticmethod
     def _seed_file(

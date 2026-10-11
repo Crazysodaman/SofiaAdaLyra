@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 @dataclass(frozen=True, slots=True)
 class SchemaCompatibility:
     current_revision: int
@@ -69,7 +71,7 @@ class StateSchemaCoordinator:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db, db:
             db.execute(
                 """
@@ -86,7 +88,7 @@ class StateSchemaCoordinator:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db

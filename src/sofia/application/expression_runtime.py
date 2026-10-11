@@ -10,6 +10,8 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 from sofia.cognition.matrix import EmbodiedExpressionPlan
 from sofia.personality.influence import ContinuityInfluence
 from sofia.social.model import PrincipalContext
@@ -58,6 +60,7 @@ class ExpressionRuntime:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS expression_decision (
@@ -95,7 +98,7 @@ class ExpressionRuntime:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA busy_timeout=10000")

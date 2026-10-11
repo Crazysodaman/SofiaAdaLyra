@@ -12,6 +12,7 @@ from typing import Any
 from uuid import uuid4
 
 from sofia.safe.audit import AuditChain
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class PermissionLevel(IntEnum):
@@ -375,8 +376,7 @@ class PermissionStore:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file() or self.path.is_symlink():
-            raise FileNotFoundError("canonical SAFE permission state missing or redirected")
+        self._guard = CanonicalSQLiteGuard(self.path)
         self.audit = AuditChain(self.path)
         with closing(self._connect()) as db, db:
             db.execute(
@@ -422,11 +422,7 @@ class PermissionStore:
                 )
 
     def _connect(self) -> sqlite3.Connection:
-        if not self.path.is_file() or self.path.is_symlink():
-            raise FileNotFoundError("canonical SAFE permission state unavailable")
-        db = sqlite3.connect(
-            self.path.absolute().as_uri() + "?mode=rw", uri=True, timeout=10,
-        )
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db

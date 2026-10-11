@@ -9,6 +9,7 @@ from sofia.conversation.model import (
     ConversationRole,
     ConversationSession,
 )
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class ConversationStore:
@@ -27,6 +28,7 @@ class ConversationStore:
         database_path: Path | str,
     ) -> None:
         self._database_path = Path(database_path)
+        self._guard = CanonicalSQLiteGuard(self._database_path)
         self._connection: sqlite3.Connection | None = None
         self._lock = RLock()
 
@@ -48,8 +50,7 @@ class ConversationStore:
             if self._connection is not None:
                 return
 
-            self._connection = sqlite3.connect(
-                str(self._database_path),
+            self._connection = self._guard.connect(
                 timeout=5.0,
                 check_same_thread=False,
             )
@@ -411,6 +412,7 @@ class ConversationStore:
             self._connection = None
 
     def _require_connection(self) -> sqlite3.Connection:
+        self._guard.validate()
         if self._connection is None:
             raise RuntimeError(
                 "ConversationStore must be opened before use."

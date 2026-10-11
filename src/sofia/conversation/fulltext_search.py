@@ -14,6 +14,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,11 +38,10 @@ class ConversationFullTextSearch:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("canonical conversation database required")
+        self._guard = CanonicalSQLiteGuard(self.path)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=30)
+        db = self._guard.connect(timeout=30)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=30000")
         return db

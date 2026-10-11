@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import sqlite3
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 from .contracts import (
     ConversationFocus,
     FocusReference,
@@ -29,7 +31,7 @@ class SQLiteConversationFocusStore:
 
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db, db:
             db.execute(
                 """
@@ -65,7 +67,7 @@ class SQLiteConversationFocusStore:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10.0)
+        db = self._guard.connect(timeout=10.0)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db

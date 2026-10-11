@@ -14,6 +14,7 @@ from sofia.run.periodic import (
     OpportunityPolicy,
     PeriodicThoughtGate,
 )
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class BackgroundBudget:
@@ -39,6 +40,7 @@ class BackgroundBudget:
         ):
             raise ValueError("claim_timeout must be in (0, 1 day]")
         self.path = state_path
+        self._guard = CanonicalSQLiteGuard(self.path)
         self.max_attempts_per_utc_day = max_attempts_per_utc_day
         self.claim_timeout = claim_timeout
         with closing(self._connect()) as db:
@@ -60,7 +62,7 @@ class BackgroundBudget:
                 )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 

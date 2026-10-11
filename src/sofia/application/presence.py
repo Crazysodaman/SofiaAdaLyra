@@ -21,6 +21,7 @@ from typing import Callable
 from sofia.act.outreach import Importance, OutreachCategory
 from sofia.application.act_service import SofiaActService
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
@@ -263,8 +264,7 @@ class PresenceInitiativeEngine:
         neuro_priority: Callable[[str], float] | None = None,
     ) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file() or self.path.is_symlink():
-            raise FileNotFoundError("existing nonredirected application state database required")
+        self._guard = CanonicalSQLiteGuard(self.path)
         if not isinstance(act_service, SofiaActService):
             raise TypeError("act_service must be SofiaActService")
         if neuro_priority is not None and not callable(neuro_priority):
@@ -320,12 +320,7 @@ class PresenceInitiativeEngine:
     def _connect(self) -> sqlite3.Connection:
         # A vanished owner state cannot become an invented second observation
         # and outreach history during background refresh or reconnection.
-        if not self.path.is_file() or self.path.is_symlink():
-            raise FileNotFoundError("canonical Presence state missing or redirected")
-        db = sqlite3.connect(
-            self.path.absolute().as_uri() + "?mode=rw",
-            timeout=10, uri=True,
-        )
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db

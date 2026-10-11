@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import sqlite3
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 from .model import NeuralSignal, NeuroRoutingDecision, NeuroStateSnapshot
 
 
@@ -17,8 +19,8 @@ class NeuroObservabilityStore:
         if type(max_events) is not int or not 16 <= max_events <= 4096:
             raise ValueError("max_events must be an integer in 16..4096")
         self.path = Path(state_path)
+        self._guard = CanonicalSQLiteGuard(self.path)
         self.max_events = max_events
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS neuro_snapshot (
@@ -58,7 +60,7 @@ class NeuroObservabilityStore:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 

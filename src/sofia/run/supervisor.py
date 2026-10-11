@@ -16,6 +16,7 @@ import sqlite3
 from typing import Callable
 
 from .lease import LocalRunLeaseStore, RunLease
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 def _utc(value: datetime) -> datetime:
@@ -110,8 +111,7 @@ class LocalRuntimeSupervisor:
     ) -> None:
         if not isinstance(state_path, Path):
             raise TypeError("state_path must be a Path")
-        if not state_path.is_file():
-            raise FileNotFoundError("existing application state database required")
+        self._guard = CanonicalSQLiteGuard(state_path)
         if not isinstance(lease_store, LocalRunLeaseStore):
             raise TypeError("LocalRunLeaseStore required")
         if lease_store.path.resolve() != state_path.resolve():
@@ -154,7 +154,7 @@ class LocalRuntimeSupervisor:
                 )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.state_path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 

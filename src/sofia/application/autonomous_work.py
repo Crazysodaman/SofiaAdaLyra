@@ -20,6 +20,7 @@ from sofia.evolve.orchestrator import CodeEvolutionOrchestrator
 from sofia.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkJob, WorkResult, WorkStatus,
 )
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +64,7 @@ class AutonomousWorkCoordinator:
         max_workers: int = 2,
     ) -> None:
         self.path = Path(state_path)
+        self._guard = CanonicalSQLiteGuard(self.path)
         self.workspace = workspace.resolve()
         if not self.workspace.is_dir():
             raise ValueError("engineering workspace must exist")
@@ -112,7 +114,7 @@ class AutonomousWorkCoordinator:
         )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db

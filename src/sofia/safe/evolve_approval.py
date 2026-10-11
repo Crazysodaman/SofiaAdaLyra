@@ -19,6 +19,7 @@ from sofia.evolve.approval import (
     ApprovalVerifier,
 )
 from sofia.safe.audit import AuditChain
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from sofia.evolve.revision import (
     RevisionApproval,
@@ -120,7 +121,7 @@ class DurableEvolutionApprovalVerifier(
         trusted_keys: dict[str, Path | bytes] | None = None,
     ) -> None:
         self.path = Path(state_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._guard = CanonicalSQLiteGuard(self.path)
         self.audit = AuditChain(self.path)
         sources = configured_evolution_public_keys() if trusted_keys is None else trusted_keys
         self._trusted_keys: dict[str, Ed25519PublicKey] = {}
@@ -134,7 +135,7 @@ class DurableEvolutionApprovalVerifier(
             if not isinstance(key, Ed25519PublicKey):
                 raise TypeError("EVOLVE trusted approval key must be Ed25519")
             self._trusted_keys[key_id] = key
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(self._guard.connect(timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
                 """
@@ -263,7 +264,7 @@ class DurableEvolutionApprovalVerifier(
         except InvalidSignature as exc:
             raise PermissionError("EVOLVE approval signature is invalid") from exc
         signature_digest = sha256(signature).hexdigest()
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(self._guard.connect(timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
                 """
@@ -337,7 +338,7 @@ class DurableEvolutionApprovalVerifier(
         except InvalidSignature as exc:
             raise PermissionError("EVOLVE revocation signature is invalid") from exc
         signature_digest = sha256(signature).hexdigest()
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(self._guard.connect(timeout=10)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -400,7 +401,7 @@ class DurableEvolutionApprovalVerifier(
     ) -> bool:
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(self._guard.connect(timeout=10)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 """
@@ -472,7 +473,7 @@ class DurableEvolutionApprovalVerifier(
 
         if not isinstance(approval_id, str) or not approval_id.strip():
             raise ValueError("approval_id must be nonempty")
-        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+        with closing(self._guard.connect(timeout=10)) as db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 "SELECT * FROM safe_evolve_approval WHERE approval_id=?",
@@ -507,7 +508,7 @@ class DurableEvolutionApprovalVerifier(
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
         moment = now.astimezone(timezone.utc)
-        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+        with closing(self._guard.connect(timeout=10)) as db:
             db.row_factory = sqlite3.Row
             rows = db.execute(
                 "SELECT * FROM safe_evolve_approval WHERE revoked=0 "

@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 
 @dataclass(frozen=True,slots=True)
 class OperatorStopState:
@@ -32,6 +34,7 @@ class OperatorStopStore:
 
     def __init__(self,state_path:Path|str)->None:
         self.path=Path(state_path)
+        self._guard=CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
@@ -60,12 +63,7 @@ class OperatorStopStore:
     def _connect(self) -> sqlite3.Connection:
         # Failure to find the canonical stop ledger is a STOP condition,
         # not permission to create another unlocked operator authority.
-        if not self.path.is_file() or self.path.is_symlink():
-            raise FileNotFoundError("canonical operator stop state unavailable")
-        return sqlite3.connect(
-            self.path.absolute().as_uri() + "?mode=rw",
-            timeout=10, uri=True,
-        )
+        return self._guard.connect(timeout=10)
 
     def current(self)->OperatorStopState:
         with closing(self._connect()) as db, db:

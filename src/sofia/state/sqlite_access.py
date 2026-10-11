@@ -9,6 +9,7 @@ from threading import BoundedSemaphore, Lock, RLock
 from weakref import WeakValueDictionary
 
 from sofia.cognition.performance import record_sqlite
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 @dataclass(frozen=True)
@@ -44,8 +45,8 @@ class SQLiteAccess:
     """Per-database access policy; stores retain their own schemas/authority."""
 
     def __init__(self, path: Path | str, *, max_readers: int = 8) -> None:
-        self.path = Path(path).resolve()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._guard = CanonicalSQLiteGuard(path)
+        self.path = self._guard.canonical_path
         if type(max_readers) is not int or max_readers < 1:
             raise ValueError("max_readers must be a positive integer")
         self._readers = BoundedSemaphore(max_readers)
@@ -61,8 +62,8 @@ class SQLiteAccess:
         self._readers.acquire()
         db: _ObservedConnection | None = None
         try:
-            db = sqlite3.connect(
-                str(self.path), timeout=10.0, check_same_thread=False,
+            db = self._guard.connect(
+                timeout=10.0, check_same_thread=False,
                 factory=_ObservedConnection,
             )
             # The connection owns the semaphore as soon as SQLite opens.

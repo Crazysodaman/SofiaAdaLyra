@@ -10,6 +10,7 @@ import re
 import sqlite3
 
 from sofia.safe.audit import AuditChain
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 
@@ -82,10 +83,7 @@ class ExecutionApprovalVerifier:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file() or self.path.is_symlink():
-            raise FileNotFoundError(
-                "SAFE approvals require the existing canonical state database"
-            )
+        self._guard = CanonicalSQLiteGuard(self.path)
         self.audit = AuditChain(self.path)
         with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
@@ -105,14 +103,7 @@ class ExecutionApprovalVerifier:
 
     def _connect(self) -> sqlite3.Connection:
         """Never manufacture a new approval/audit authority after state loss."""
-        if not self.path.is_file() or self.path.is_symlink():
-            raise FileNotFoundError(
-                "canonical SAFE authority database missing or redirected"
-            )
-        return sqlite3.connect(
-            self.path.absolute().as_uri() + "?mode=rw",
-            uri=True, timeout=10,
-        )
+        return self._guard.connect(timeout=10)
 
     def record(self, approval: ExecutionApproval) -> None:
         if not isinstance(approval, ExecutionApproval):

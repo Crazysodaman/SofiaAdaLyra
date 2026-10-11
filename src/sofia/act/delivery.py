@@ -14,6 +14,8 @@ from enum import Enum
 from pathlib import Path
 import re
 import sqlite3
+
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from typing import Callable
 
 from .history import delivery_history
@@ -127,8 +129,7 @@ class ActOutbox:
         if not isinstance(state_path, (str, Path)) or not str(state_path).strip():
             raise ValueError("state_path is required")
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("existing application state database required")
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db:
             table = db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='interact_queued_messages'"
@@ -172,7 +173,7 @@ class ActOutbox:
                 ensure_outreach_trace_schema(db)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 

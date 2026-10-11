@@ -12,6 +12,8 @@ import json
 from pathlib import Path
 import re
 import sqlite3
+
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from typing import Callable
 
 _REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$")
@@ -72,8 +74,7 @@ class PeriodicThoughtGate:
         if not isinstance(state_path, (str, Path)) or not str(state_path).strip():
             raise ValueError("state database path required")
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("existing Sofía state database required")
+        self._guard = CanonicalSQLiteGuard(self.path)
         self.policy = policy
         with closing(self._connect()) as db:
             with db:
@@ -92,7 +93,7 @@ class PeriodicThoughtGate:
                 )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 

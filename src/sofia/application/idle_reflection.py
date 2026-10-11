@@ -12,6 +12,8 @@ from pathlib import Path
 import sqlite3
 from typing import TYPE_CHECKING
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 if TYPE_CHECKING:
     from sofia.application.emotional_conversation import EmotionalConversationService
 
@@ -36,6 +38,7 @@ class IdleReflectionWorker:
                 raise ValueError(f"{label} seconds must be in (0, 3600].")
         self._service = service
         self._path = state_path
+        self._guard = CanonicalSQLiteGuard(self._path)
         self._idle_seconds = float(idle_seconds)
         self._retry_seconds = float(retry_seconds)
         self.last_error: str | None = None
@@ -51,7 +54,7 @@ class IdleReflectionWorker:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self._path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 

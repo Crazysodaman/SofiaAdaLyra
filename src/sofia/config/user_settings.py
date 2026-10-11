@@ -23,6 +23,7 @@ from sofia.config.model_catalog import (
 from sofia.environment.model import LocationSubject
 from sofia.config.model import FleetCognitionConfiguration, FleetBootstrapConfiguration
 from sofia.act.outreach import Policy
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 8
@@ -499,7 +500,7 @@ class RuntimeUserSettingsStore:
 
     def __init__(self, state_path: str | Path) -> None:
         self.path = Path(state_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db, db:
             db.execute(
                 """
@@ -512,7 +513,7 @@ class RuntimeUserSettingsStore:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 

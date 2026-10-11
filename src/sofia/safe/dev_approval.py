@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
 from sofia.safe.audit import AuditChain
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 def dev_approval_signature_payload(approval: DevApproval) -> bytes:
@@ -65,7 +66,7 @@ class DevApprovalVerifier:
         trusted_keys: dict[str, Path | bytes] | None = None,
     ) -> None:
         self.path = Path(state_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._guard = CanonicalSQLiteGuard(self.path)
         self.audit = AuditChain(self.path)
         sources = configured_dev_public_keys() if trusted_keys is None else trusted_keys
         self._trusted_keys: dict[str, Ed25519PublicKey] = {}
@@ -113,7 +114,7 @@ class DevApprovalVerifier:
                         )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db
