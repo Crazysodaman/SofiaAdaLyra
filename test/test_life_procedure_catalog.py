@@ -800,3 +800,82 @@ def test_goal_dependency_view_keeps_exact_provenance_without_global_newest_page(
         assert life.store.jobs(future.project_id) == ()
     finally:
         life.close()
+
+
+def test_verified_skill_refuses_stale_native_tool_version_and_quarantines(
+    tmp_path,
+):
+    """Two authentic prior successes are not permission to assume new tools."""
+    from sofia.creative import NativeCreativeAdapter
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, evidence, now)
+        second_at = now + timedelta(minutes=1)
+        second, second_evidence = _second_same_capability_project(
+            life, first, second_at,
+        )
+        _original_authorized_completion(
+            life, second, second_evidence, second_at,
+        )
+        assert life._reconcile_procedure_catalog(
+            now=second_at + timedelta(seconds=8),
+        ) == 2
+        third, _ = _second_same_capability_project(
+            life, first, now + timedelta(minutes=2),
+        )
+        assert len(life._current_verified_procedures_for_draft(
+            third, now=now + timedelta(minutes=2, seconds=3),
+        )) == 1
+        source_job = life.work_store.get(life.store.jobs(first.project_id)[0])
+        original_artifact = source_job.result["artifact_id"]
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE creative_artifact_revision SET tool_version=? "
+                "WHERE artifact_id=? AND revision=?",
+                ("obsolete-native-version", original_artifact,
+                 source_job.result["revision"]),
+            )
+        assert life._current_verified_procedures_for_draft(
+            third, now=now + timedelta(minutes=2, seconds=4),
+        ) == ()
+        assert life._audit_procedure_sources(
+            now=now + timedelta(minutes=2, seconds=5),
+        ) == 1
+        assert life.procedures.available_for_project(third) == ()
+        assert life.store.jobs(third.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_procedure_promotion_requires_original_current_native_tool_version(
+    tmp_path,
+):
+    """Actual source output metadata cannot claim a stale or missing adapter."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        job, receipt = _original_authorized_completion(
+            life, project, evidence, now,
+        )
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE creative_artifact_revision SET tool_id=? "
+                "WHERE artifact_id=? AND revision=?",
+                ("creative.unverified-other-host",
+                 job.result["artifact_id"], job.result["revision"]),
+            )
+        with pytest.raises(ValueError, match="tool ID/version"):
+            life.procedures.record_verified_attempt(
+                project=life._project(project.project_id),
+                job_id=job.job_id, original_run_evidence_ref=receipt,
+                now=now + timedelta(seconds=9),
+            )
+        assert not life.procedures.has_source_project(project.project_id)
+    finally:
+        life.close()
