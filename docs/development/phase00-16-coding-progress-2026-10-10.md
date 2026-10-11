@@ -24,6 +24,16 @@
 | 15 NEURO | Existing prototype circuit motifs reused, read-only provenance/ablation inventory | Real experimental ablations, measurable outcome comparisons and resource budgets |
 | 16 Research | Falsifiable preregistration checks without claims of achieved consciousness | Actual research protocol, independently reviewed results; subjective experience not guaranteed |
 
+## Current coding checkpoint (2026-10-10 evening, later main-only pass)
+
+- Database candidate discovery now checks the exact SQLite magic header and looks for the original conversation and authenticated social-session schema in a **read-only** database connection. It compares protected identity digests without exposing identity contents. The active configured state home remains authoritative.
+- Model-role swaps have a review-only proposal function using current `RuntimeUserSettings` and existing independently measured `ModelTrialEvidence`; the current model is retained as the rollback target. The proposal **does not install/switch/save** any model.
+- Main/project timeline views and lifetime-message lists are exposed through canonical `SofiaApplication` methods; the original source audience remains the read boundary. Concurrent Git collaborators also added authenticated session-aware paging and source checks, reused here rather than duplicated.
+- Historical recall uses bounded source SQL and opt-in, host-approved SQLite FTS5. An FTS rebuild requires an externally verified operator approval and fenced writer, not an LLM-supplied boolean.
+- Signed state-home pointers are prepared as nonactive `*.pending.json` files; no automatic cutover. Protected backup completeness checks were added to staging.
+- LIFE success requires actual independent source byte validation for every original project objective. Unsupported subjective criteria remain unverified.
+- **No tests, CI workflows, deployments, canonical DB moves, model changes or host changes were performed.** No claim of production acceptance.
+
 ## Follow-up coding slice: 2026-10-10 evening, no tests
 
 - **P02 SAFE:** Settings audits the complete statically grantable catalog, configured standing capabilities and orphaned grants rather than only already-configured standing names. Runtime execution acceptance remains open.
