@@ -101,4 +101,42 @@ def test_local_and_remote_guest_inspection_is_explicit_read_only_authority():
         "hyperv.sofia.inspect",
     ).level is PermissionLevel.OBSERVE_READ
     assert remote_operation_is_read_only("vm.inspect", "sofia_preflight")
+    assert capability_permission_policy(
+        "remote.vm.sofia.inspect",
+    ).level is PermissionLevel.OBSERVE_READ
     assert not remote_operation_is_read_only("vm.manage", "start")
+
+
+def test_actual_remote_tool_routes_exact_guest_inspection_through_fleet(
+    monkeypatch, tmp_path,
+):
+    from sofia.distributed import capability as remote_module
+    calls = []
+
+    class FakeFleet:
+        def invoke(self, node_id, capability, operation, params):
+            calls.append((node_id, capability, operation, params))
+            return {"source": "enrolled-agent", "status": "unverified"}
+
+    monkeypatch.setattr(
+        remote_module, "create_configured_remote_fleet_service",
+        lambda state_path: FakeFleet(),
+    )
+    registered = {
+        item.capability.name: item
+        for item in remote_module.create_configured_remote_fleet_tools(
+            tmp_path / "sofia.db",
+        )
+    }
+    bound = registered["remote.vm.sofia.inspect"]
+    from sofia.capability.model import CapabilityRequest
+    request = CapabilityRequest(
+        capability=bound.capability,
+        parameters={"node_id": VM_ID},
+        requested_scope=None,
+        rationale="Read only guest installation planning",
+    )
+    assert bound.handler(request) == {
+        "source": "enrolled-agent", "status": "unverified",
+    }
+    assert calls == [(VM_ID, "vm.inspect", "sofia_preflight", {})]
