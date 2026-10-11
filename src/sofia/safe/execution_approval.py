@@ -359,7 +359,13 @@ class ExecutionApprovalVerifier:
         capability: str,
         parameters: dict,
         now: datetime,
+        _transaction_db: sqlite3.Connection | None = None,
     ) -> ExecutionApproval:
+        """Consume a one-use approval, optionally inside a caller's open write transaction.
+
+        Internal SAFE call sites may pass a canonical BEGIN IMMEDIATE connection
+        to atomically commit approval, state mutation and audit together.
+        """
         if not isinstance(approval_id, str) or not approval_id.strip():
             raise PermissionError("side-effect capability requires approval_id")
         if not isinstance(capability, str) or not capability.strip():
@@ -371,10 +377,16 @@ class ExecutionApprovalVerifier:
         moment = now.astimezone(timezone.utc)
         expected = execution_fingerprint(capability, parameters)
 
-        with closing(self._connect()) as db, db:
+        from contextlib import nullcontext
+        own_connection = _transaction_db is None
+        context = closing(self._connect()) if own_connection else nullcontext(_transaction_db)
+        with context as db:
+            if not own_connection and not db.in_transaction:
+                raise RuntimeError("shared SAFE approval consumption requires open transaction")
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA busy_timeout=10000")
-            db.execute("BEGIN IMMEDIATE")
+            if own_connection:
+                db.execute("BEGIN IMMEDIATE")
             row = db.execute(
                 """
                 SELECT capability, request_fingerprint, approved_by,
@@ -448,5 +460,6 @@ class ExecutionApprovalVerifier:
                 occurred_at=moment,
                 event_id=f"execution-approval-consumed:{approval.approval_id}",
             )
-            db.commit()
+            if own_connection:
+                db.commit()
             return approval
