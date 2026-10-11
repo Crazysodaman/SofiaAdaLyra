@@ -2112,12 +2112,21 @@ class SelfDirectedLifeCoordinator:
                 experience_summaries=tuple(item.summary for item in experiences),
                 now=now,
             )
+            # The LLM saw these exact summaries and metadata, not merely
+            # their evidence IDs. A source correction during model latency
+            # invalidates the entire idea even when the same evidence refs
+            # still resolve. No stale anecdote may seed a durable project.
             if any(
-                not self._original_experience_evidence_current(item, now=now)
+                (current := self.store.experience_by_id(
+                    item.experience_id, audience_id=item.audience_id,
+                )) is None
+                or LifeStore.experience_digest(current)
+                != LifeStore.experience_digest(item)
+                or not self._original_experience_evidence_current(current, now=now)
                 for item in experiences
             ):
                 raise ValueError(
-                    "original LIFE experience evidence changed during model suggestion"
+                    "original LIFE experience snapshot changed during model suggestion"
                 )
             # A model can take time. Operator stop may have been asserted
             # while the unprivileged suggestion was being produced.
