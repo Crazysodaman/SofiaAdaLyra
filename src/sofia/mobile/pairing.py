@@ -60,7 +60,10 @@ class MobileDeviceCredentialStore:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.state_path, timeout=10)
+        db = sqlite3.connect(
+            self.state_path.absolute().as_uri() + "?mode=rw",
+            uri=True, timeout=10,
+        )
         db.execute("PRAGMA busy_timeout=10000")
         return db
 

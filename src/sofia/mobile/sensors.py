@@ -29,7 +29,8 @@ def _source_id(device_id: str) -> str:
 class MobileSensorStore:
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("existing canonical state database required for mobile sensors")
         with self._connect() as db:
             db.execute("""
                 CREATE TABLE IF NOT EXISTS mobile_sensor_latest (
@@ -41,7 +42,11 @@ class MobileSensorStore:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        # mode=rw refuses to create a second SQLite file if the canonical
+        # state disappears while the mobile environment worker is running.
+        db = sqlite3.connect(
+            self.path.absolute().as_uri() + "?mode=rw", uri=True, timeout=10,
+        )
         db.execute("PRAGMA busy_timeout=10000")
         return db
 

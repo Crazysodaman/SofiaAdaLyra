@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from http.client import HTTPConnection
 import json
+import pytest
 from types import SimpleNamespace
 
 from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
@@ -80,6 +81,9 @@ class FakeApplication:
 
 def _gateway(tmp_path):
     app = FakeApplication()
+    # Source fixture supplies an already-selected canonical DB file.
+    # Mobile infrastructure must never manufacture one by accident.
+    (tmp_path / "state.db").touch()
     gateway = MobileCompanionGateway(app, state_path=tmp_path / "state.db")
     PermissionStore(tmp_path / "state.db").set_private_adult_authority(
         private_chat=True,
@@ -309,3 +313,13 @@ def test_private_mobile_http_denied_as_403_without_exposing_message(tmp_path):
         assert app.conversation.calls == []
     finally:
         server.close()
+
+
+def test_gateway_refuses_missing_canonical_database_without_file_or_folder_creation(
+    tmp_path,
+):
+    state = tmp_path / "unexpected-secondary-home" / "sofia.db"
+    with pytest.raises(FileNotFoundError, match="existing canonical"):
+        MobileCompanionGateway(FakeApplication(), state_path=state)
+    assert not state.parent.exists()
+    assert not state.exists()

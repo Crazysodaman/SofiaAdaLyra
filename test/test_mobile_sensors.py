@@ -1,5 +1,6 @@
 """Authenticated phone observations become bounded ENVIRONMENT evidence."""
 from datetime import datetime, timedelta, timezone
+import sqlite3
 
 import pytest
 
@@ -35,6 +36,8 @@ def payload(**changes):
 
 
 def test_mobile_report_is_durable_and_projects_without_coordinates(tmp_path):
+    (tmp_path / "state.db").touch()
+    (tmp_path / "state.db").touch()
     store = MobileSensorStore(tmp_path / "state.db")
     report = MobileSensorReport.from_payload(payload())
     store.record(report, received_at=NOW)
@@ -60,6 +63,7 @@ def test_mobile_report_is_durable_and_projects_without_coordinates(tmp_path):
 
 
 def test_stale_mobile_report_is_retained_but_not_presented_as_current(tmp_path):
+    (tmp_path / "state.db").touch()
     store = MobileSensorStore(tmp_path / "state.db")
     old = NOW - timedelta(minutes=20)
     store.record(
@@ -92,9 +96,28 @@ def test_invalid_mobile_sensor_values_fail_closed(changes):
 
 
 def test_store_rejects_future_timestamp(tmp_path):
+    (tmp_path / "state.db").touch()
     store = MobileSensorStore(tmp_path / "state.db")
     report = MobileSensorReport.from_payload(
         payload(observed_at=(NOW + timedelta(minutes=6)).isoformat())
     )
     with pytest.raises(ValueError, match="future"):
         store.record(report, received_at=NOW)
+
+
+def test_mobile_sensors_refuse_missing_writer_state_and_never_create_it(tmp_path):
+    state = tmp_path / "prohibited-auto-state" / "sofia.db"
+    with pytest.raises(FileNotFoundError, match="existing canonical"):
+        MobileSensorStore(state)
+    assert not state.exists()
+    assert not state.parent.exists()
+
+
+def test_mobile_sensors_cannot_resurrect_deleted_canonical_database(tmp_path):
+    state = tmp_path / "sofia.db"
+    state.touch()
+    store = MobileSensorStore(state)
+    state.unlink()
+    with pytest.raises(sqlite3.OperationalError):
+        store.latest()
+    assert not state.exists()

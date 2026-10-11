@@ -51,10 +51,12 @@ class MobileCompanionGateway:
             raise TypeError("application must open channel conversations")
         self.application = application
         self.state_path = Path(state_path)
+        # Validate the one configured writer database BEFORE any
+        # convenience/sensor layer can seed tables or directories.
+        self.credentials = MobileDeviceCredentialStore(self.state_path)
         self.sensors = MobileSensorStore(self.state_path)
         self.notifications = MobileNotificationStore(self.state_path)
         self.permissions = PermissionStore(self.state_path)
-        self.credentials = MobileDeviceCredentialStore(self.state_path)
         self.private_grants = PrivatePresentationGrantResolver(
             state_path=self.state_path
         )
@@ -107,7 +109,10 @@ class MobileCompanionGateway:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.state_path, timeout=10)
+        db = sqlite3.connect(
+            self.state_path.absolute().as_uri() + "?mode=rw",
+            uri=True, timeout=10,
+        )
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
