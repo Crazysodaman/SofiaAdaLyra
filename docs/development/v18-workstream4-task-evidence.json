@@ -18,7 +18,8 @@
     "2026-10-11: Phase 16 falsifiable research study preregistration and negative/adverse result registry source-coded in canonical state and owner Settings. No study/data collection was actually performed; tests/CI deferred.",
     "2026-10-11: CA-808 bounded one-NEURO workspace published and consumed by real chat/personality paths; bounded read receipts, expiry and snapshot identity guarded. No functional scientific result or test execution claimed.",
     "2026-10-11: Artemis hypervisor confirmed by operator as Hyper-V. Phase 13 SAFE levels fixed in real policy; no actual host inventory, VM provisioning or testing executed.",
-    "2026-10-11: Operator selected Microsoft Hyper-V on Artemis. W4 implemented SAFE Level-4 separation, typed Hyper-V Hephaestus planning, read-only mTLS host and bounded offline image observation, owner Fleet preview and read-only model OPS status; tests and host actions deferred."
+    "2026-10-11: Operator selected Microsoft Hyper-V on Artemis. W4 implemented SAFE Level-4 separation, typed Hyper-V Hephaestus planning, read-only mTLS host and bounded offline image observation, owner Fleet preview and read-only model OPS status; tests and host actions deferred.",
+    "2026-10-11 operator has already created the Hyper-V Hephaestus VM but NO OS. Production path now exclusively owner-created exact GUID with pinned offline unattended Debian installer start, one-use SAFE+Fleet grants and UNCERTAIN outcomes. No actual VM/host action, installs, tests or CI occurred."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -1010,7 +1011,8 @@
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
     },
     {
       "id": "CA-2806",
@@ -1344,7 +1346,8 @@
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
     },
     {
       "id": "CA-2912",
@@ -1377,7 +1380,8 @@
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
     },
     {
       "id": "CA-2915",
@@ -1582,22 +1586,24 @@
       "phase": "13",
       "master_line": 1085,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Typed owner-created blank Hephaestus handoff binds exact Artemis pinned-mTLS node UUID, Hyper-V VM GUID, existing VHDX, Gen2/CPU/RAM/disk, Private NIC, observed boot order, Linux-compatible Secure Boot and hash-pinned offline installer. Host INSPECT path plus owner Fleet Settings preview/source receipts are real production wiring, with unexecuted regressions."
     },
     {
       "id": "CA-4302",
       "phase": "13",
       "master_line": 1086,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "No-OS bootstrap paradox implemented: independent Artemis Hyper-V host side can read the exact blank VM before any guest agent. An opt-in, host-admin pinned VM/disk/ISO operation rechecks offline hash and starts only that VM's unattended Debian installer after one-use Level-4 grant. No in-guest calls or VM creation. Tests written, unexecuted; OS installation proof remains separate."
     },
     {
       "id": "CA-4303",
@@ -1608,7 +1614,8 @@
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
     },
     {
       "id": "CA-4304",
@@ -1619,18 +1626,20 @@
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
     },
     {
       "id": "CA-4305",
       "phase": "13",
       "master_line": 1089,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production Fleet Settings owner confirmation writes exact single-use SAFE receipt for Artemis node/VM GUID/VHDX/unattended ISO SHA/handoff fingerprint. RemoteFleetToolService consumes one-use approval before mTLS transport and requires exact protected Fleet grant; short scoped grant is revoked after attempt. Bootstrap records STARTED vs UNCERTAIN, never claims guest OS installed or authorizes future Fleet enrollment. Tests written, not run."
     },
     {
       "id": "CA-4306",
@@ -1641,18 +1650,20 @@
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Owner-created Hyper-V VM is present but OS-less. Source-coded protected installer-start and host handoff exists; actual unattended media, completed Debian installation, nonroot guest hardening, post-install attestation/heartbeat, independent networking and approved Fleet enrollment remain unverified/unfinished. Do not count this item ready for tests yet."
     },
     {
       "id": "CA-4307",
       "phase": "13",
       "master_line": 1091,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Owner decision to supply an already-created OS-less Hyper-V VM is implemented in production: Settings/OPS handoff now inspects instead of provisioning, installer operation cannot create new VMs or change networking, and documented comparison covers manually installed VM, cloud image and whole-VM self-provision alternatives; no live host writes yet."
     },
     {
       "id": "CA-6701",
