@@ -25,7 +25,9 @@
     "38706ecb3ca0b4176e8d9e1b35e3200200f1efc3",
     "7d938160f34f5aa07f293dd730ee827528f3edf5",
     "df10d915d725c7fe7cc23ac14d6ba306f30565fe",
-    "43f1e8b5020efe8bdedd0f8ad78597cac15fd669"
+    "43f1e8b5020efe8bdedd0f8ad78597cac15fd669",
+    "528193e98020bde34f89874a42acfb0a26e99f2b",
+    "c6d5680f34a022e4f90a78cc717219ebb82c9fa3"
   ],
   "tasks": [
     {
@@ -475,7 +477,7 @@
       "master_line": 954,
       "global_ledger_before": "partial_wiring",
       "source_review": "partially_implemented_unverified",
-      "finding": "Two-stage promotion policy/transaction exists, lacks verified end-to-end host broker+traffic+recovery acceptance.",
+      "finding": "Existing governed role promotion transaction now verifies exact durable row transition counts for accepted, uncertain and rolled-back status before reporting success. Concurrent ledger tampering returns uncertainty instead of fabricated acceptance. Regression tests written, unexecuted; trusted host broker and live traffic acceptance still missing.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false
