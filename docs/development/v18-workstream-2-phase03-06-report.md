@@ -523,6 +523,29 @@ Existing backups were **not** modified, no restore was executed, and
 tests are still deferred. Atomic whole-bundle restoration and Windows ACL
 recovery remain separate acceptance gaps.
 
+### Correction semantic verification and pinned recovery read (Phase 03/06)
+
+Production route: recovery `SemanticIntegrityVerifier.verify` →
+`CanonicalSQLiteGuard.connect` (refuses deleted/replaced state file) →
+SQLite integrity check → existing memory/source/social/ChatGPT/fleet/audit
+validators → new `_memory_correction_findings` over the canonical
+`memory_candidate_correction` lineage → existing read-only findings
+report. The verifier flags missing correction candidate rows, cross-principal
+or cross-audience links, and a correction promoted without revoking its
+superseded original. A manually revoked original with still-proposed
+replacement is explicitly a warning rather than silently successful
+promotion. Old databases lacking the optional correction table remain
+supported without making up replacement evidence.
+
+Production commits:
+- `6aad02ae34605d59bc2a1279685069cac22469d1` verifier source.
+- `fc4667b2d242f8fb6d499c66283ed0494a4a1c16` deferred
+  tampering/cross-audience/replacement tests.
+
+CA relevance: CA-5202, CA-5206, CA-6803, CA-1703,
+CA-4803 and CA-5802. **Tests not run.** This proves no recovery by
+silent database creation in this reader, not full restoration acceptance.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
