@@ -556,20 +556,47 @@ class MobileCompanionGateway:
                         (datetime.now(timezone.utc).isoformat(), request_id),
                     )
                 raise
+            credential_rotated = False
             with closing(self._connect()) as db, db:
-                changed = db.execute(
-                    "UPDATE mobile_turn_receipt SET status='completed',"
-                    "response_json=?,updated_at=? "
-                    "WHERE request_id=? AND status='processing' "
-                    "AND device_id=? AND presentation_mode=? AND content_sha256=? "
-                    "AND credential_generation=?",
-                    (encoded, datetime.now(timezone.utc).isoformat(),
-                     request_id, device, mode, digest, generation),
-                )
-                if changed.rowcount != 1:
-                    raise MobileDeliveryUncertain(
-                        "delivery receipt changed before it could be committed"
+                db.execute("BEGIN IMMEDIATE")
+                if credential is not None:
+                    live = db.execute(
+                        "SELECT 1 FROM mobile_device_credential "
+                        "WHERE device_id=? AND token_sha256=? "
+                        "AND generation=? AND status='active'",
+                        (device, fingerprint, generation),
+                    ).fetchone()
+                    if live is None:
+                        # Cognition may have already persisted the turn, so
+                        # its outcome is UNCERTAIN, not a fresh request or a
+                        # completed response disclosed to the rotated phone.
+                        db.execute(
+                            "UPDATE mobile_turn_receipt SET status='uncertain',"
+                            "updated_at=? WHERE request_id=? "
+                            "AND status='processing' "
+                            "AND device_id=? AND credential_generation=?",
+                            (datetime.now(timezone.utc).isoformat(),
+                             request_id, device, generation),
+                        )
+                        credential_rotated = True
+                if not credential_rotated:
+                    changed = db.execute(
+                        "UPDATE mobile_turn_receipt SET status='completed',"
+                        "response_json=?,updated_at=? "
+                        "WHERE request_id=? AND status='processing' "
+                        "AND device_id=? AND presentation_mode=? AND content_sha256=? "
+                        "AND credential_generation=?",
+                        (encoded, datetime.now(timezone.utc).isoformat(),
+                         request_id, device, mode, digest, generation),
                     )
+                    if changed.rowcount != 1:
+                        raise MobileDeliveryUncertain(
+                            "delivery receipt changed before it could be committed"
+                        )
+            if credential_rotated:
+                raise MobileCredentialRevoked(
+                    "chat bearer changed before original result settlement"
+                )
             return result
 
     def delivery_status(
