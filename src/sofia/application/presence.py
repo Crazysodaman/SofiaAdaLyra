@@ -615,15 +615,29 @@ class PresenceInitiativeEngine:
     def consider(self, event: InitiativeEvent) -> InitiativeDecision:
         if not isinstance(event, InitiativeEvent):
             raise TypeError("event must be InitiativeEvent")
-        self.observe(event.observation)
+        # Check the original decision BEFORE persisting an observation.
+        # Otherwise a replay can resurrect a source that was later deleted
+        # or pruned, turning a formerly unsupported queued ACT notice into a
+        # newly grounded one without any original-source authorization.
         with closing(self._connect()) as db:
             old = db.execute(
-                "SELECT status,reason,notice_id FROM presence_initiative_opportunity "
-                "WHERE event_id=?",
+                "SELECT observation_id,trigger_kind,recipient_id,"
+                "created_at,status,reason,notice_id "
+                "FROM presence_initiative_opportunity WHERE event_id=?",
                 (event.event_id,),
             ).fetchone()
         if old is not None:
-            return InitiativeDecision(event.event_id, old[0], old[1], old[2])
+            if (
+                old["observation_id"] != event.observation.observation_id
+                or old["trigger_kind"] != event.trigger_kind
+                or old["recipient_id"] != event.recipient_id
+                or old["created_at"] != self._utc(event.created_at).isoformat()
+            ):
+                raise ValueError("original Presence event ID reused for different source")
+            return InitiativeDecision(
+                event.event_id, old["status"], old["reason"], old["notice_id"],
+            )
+        self.observe(event.observation)
 
         status = "suppressed"
         reason = "unsupported_trigger"
@@ -694,15 +708,36 @@ class PresenceInitiativeEngine:
                 reason = "evidence_backed_candidate"
         decision = InitiativeDecision(event.event_id, status, reason, notice_id)
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            # Another canonical Presence worker may have won the same event
+            # while this one was evaluating ACT. Never replace a prior
+            # decision or leave a unique-key crash after idempotent enqueue.
             db.execute(
-                "INSERT INTO presence_initiative_opportunity VALUES(?,?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO presence_initiative_opportunity "
+                "VALUES(?,?,?,?,?,?,?,?)",
                 (
                     event.event_id, event.observation.observation_id,
                     event.trigger_kind, event.recipient_id, status, reason,
                     notice_id, self._utc(event.created_at).isoformat(),
                 ),
             )
-        return decision
+            persisted = db.execute(
+                "SELECT observation_id,trigger_kind,recipient_id,created_at,"
+                "status,reason,notice_id FROM presence_initiative_opportunity "
+                "WHERE event_id=?", (event.event_id,),
+            ).fetchone()
+            if (
+                persisted is None
+                or persisted["observation_id"] != event.observation.observation_id
+                or persisted["trigger_kind"] != event.trigger_kind
+                or persisted["recipient_id"] != event.recipient_id
+                or persisted["created_at"] != self._utc(event.created_at).isoformat()
+            ):
+                raise ValueError("concurrent Presence event source identity collision")
+            return InitiativeDecision(
+                event.event_id, persisted["status"],
+                persisted["reason"], persisted["notice_id"],
+            )
 
     def record_state(
         self,
