@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from contextlib import closing
-from dataclasses import fields
+from dataclasses import fields, replace
 import json
 import os
 import sqlite3
@@ -45,6 +45,29 @@ class SettingsSections:
             ttk.Checkbutton(frames[section], text=label, variable=variable).pack(anchor="w", pady=5)
 
         boolean("NEURO", "neuro_competition_enabled", "Enable connectome-inspired attention (uncheck for deterministic salience)", runtime.neuro_competition_enabled)
+
+        def request_neuro_reset():
+            # Only the single canonical runtime applies the generation change.
+            # This control does not remove inputs, memories or operator policy.
+            store = RuntimeUserSettingsStore(config.state_path)
+            current = store.load()
+            generation = (current.neuro_competition_reset_generation + 1) % 1_000_001
+            store.save(replace(
+                current, neuro_competition_reset_generation=generation,
+            ))
+            messagebox.showinfo(
+                "NEURO recurrence reset requested",
+                "Saved to canonical settings. The running runtime will restore "
+                "the bounded circuit's reviewed parameters on its next "
+                "foreground/background refresh. Trusted observations remain.",
+                parent=root,
+            )
+
+        ttk.Button(
+            frames["NEURO"],
+            text="Reset attention circuit parameters",
+            command=self.guarded(request_neuro_reset),
+        ).pack(anchor="w", pady=(4, 8))
         boolean("Chat", "adaptive_theme", "Adapt desktop colors to Sofía’s state", runtime.adaptive_theme)
         boolean("Sofía", "idle_reflections_enabled", "Enable idle reflection", runtime.idle_reflections_enabled if runtime.idle_reflections_enabled is not None else os.environ.get("SOFIA_IDLE_REFLECTIONS", "").lower() not in ("0", "false", "off"))
         boolean("Sofía", "habit_learning_enabled", "Learn habits from supported observations", runtime.habit_learning_enabled if runtime.habit_learning_enabled is not None else os.environ.get("SOFIA_HABIT_LEARNING", "1").lower() in ("1", "true", "on"))
