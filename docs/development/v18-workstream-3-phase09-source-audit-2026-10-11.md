@@ -762,3 +762,10 @@
 - Original `LifeStore.reconcile_run_outcomes` now delays future original RUN timestamps and refuses malformed source timestamps before inserting the derived LIFE event, preventing a permanently backdated/invalid observation. Partial IDs CA-106/202/204/2402/2407. Production `88aea96c`; deferred regression `2a56be34`.
 - Original `SelfDirectedLifeCoordinator.motivation_signals` and `goal_dependency_view` now consider all linked RUN jobs, so an earlier UNCERTAIN/BLOCKED/FAILED/CANCELLED job cannot vanish behind a newer work item. Review keys and operator action references identify the actual unsafe source job. Partial IDs CA-106/110/1301/1303/1602/1604/1606/2402/2408. Production `4ff1522d`; deferred regression `dcb3648e`.
 - Read-only source commits are not accepted tasks. Tests/CI/lived host verification remain deferred.
+
+## 2026-10-11 follow-up: original LIFE experience mutation during learning
+
+- **IDs:** CA-101, CA-107, CA-2407. **Original requirements remain partial.**
+- **Confirmed source race:** Before this fix, final `LifeStore.record_interest_learning` checked only whether a formerly verified `life_experience` row existed; it never rechecked the row's identity/digest under the canonical write lock.
+- **Source correction:** `LifeStore.experience_digest` is now the common original-source fingerprint for the LIFE coordinator and interest writer. A final same-transaction original-row comparison and audience fence prevent altered observations from earning revisions while still recording the old source digest. This is not ordinary unrelated experience ingestion, broad correction propagation or task-wide completion.
+- **Source commits:** `4d9eaa4`, `f86ba54`; **regression authored** `17e68da`, unexecuted. No tests/CI/deployment/host effects.
