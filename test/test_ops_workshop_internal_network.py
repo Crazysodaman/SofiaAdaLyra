@@ -136,6 +136,7 @@ def test_host_power_on_script_rechecks_ip_route_ics_and_nat_before_dvd_mutations
             "VmId":vm_id,"Name":"Hephaestus","Outcome":"installer_boot_started",
             "State":"Running","MediaSha256":"a"*64,
             "OsInstalled":False,"FleetEnrolled":False,
+            "ObservedAtUtc":datetime.now(timezone.utc).isoformat(),
         })
     ))
     adapter.bootstrap_existing_hephaestus(
