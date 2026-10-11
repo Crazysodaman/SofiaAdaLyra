@@ -477,20 +477,50 @@ class LifeStore:
             rows = db.execute("SELECT job_id FROM life_project_job WHERE project_id=? ORDER BY linked_at", (project_id,)).fetchall()
         return tuple(row[0] for row in rows)
 
+    @staticmethod
+    def _insert_evaluation(db: sqlite3.Connection, value: ArtifactEvaluation) -> None:
+        db.execute(
+            "INSERT INTO life_artifact_evaluation VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                value.evaluation_id, value.project_id, value.artifact_id,
+                value.artifact_revision, value.technical_outcome.value,
+                value.personal_judgment.value,
+                json.dumps(dict(value.objective_results), sort_keys=True),
+                value.reason, json.dumps(value.evidence_refs),
+                int(value.preserve_for_research),
+                value.evaluated_at.astimezone(timezone.utc).isoformat(),
+            ),
+        )
+
     def record_evaluation(self, value: ArtifactEvaluation) -> None:
         with closing(self._connect()) as db, db:
-            db.execute(
-                "INSERT INTO life_artifact_evaluation VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                (
-                    value.evaluation_id, value.project_id, value.artifact_id,
-                    value.artifact_revision, value.technical_outcome.value,
-                    value.personal_judgment.value,
-                    json.dumps(dict(value.objective_results), sort_keys=True),
-                    value.reason, json.dumps(value.evidence_refs),
-                    int(value.preserve_for_research),
-                    value.evaluated_at.astimezone(timezone.utc).isoformat(),
-                ),
-            )
+            self._insert_evaluation(db, value)
+
+    def record_evaluation_with_experience(
+        self, evaluation: ArtifactEvaluation, experience: ExperienceRecord,
+    ) -> None:
+        """Atomically publish real critique and its LIFE learning observation.
+
+        An interrupted callback leaves both records committed or neither.
+        No independent evaluator, preference store or scheduler is created.
+        """
+        learning = experience.metadata.get("interest_learning")
+        if (
+            not isinstance(evaluation, ArtifactEvaluation)
+            or not isinstance(experience, ExperienceRecord)
+            or experience.kind != "artifact_evaluated"
+            or experience.project_id != evaluation.project_id
+            or experience.evidence_refs != evaluation.evidence_refs
+            or experience.occurred_at != evaluation.evaluated_at
+            or not isinstance(learning, dict)
+            or learning.get("schema") != 1
+            or learning.get("evaluation_id") != evaluation.evaluation_id
+        ):
+            raise ValueError("atomic LIFE critique requires matching experience provenance")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            self._insert_evaluation(db, evaluation)
+            self._insert_experience(db, experience)
 
     def evaluations(self, project_id: str) -> tuple[ArtifactEvaluation, ...]:
         with closing(self._connect()) as db:
@@ -505,18 +535,23 @@ class LifeStore:
             datetime.fromisoformat(row["evaluated_at"]),
         ) for row in rows)
 
+    @staticmethod
+    def _insert_experience(db: sqlite3.Connection, value: ExperienceRecord) -> None:
+        db.execute(
+            "INSERT INTO life_experience VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (
+                value.experience_id, value.project_id, value.kind, value.summary,
+                json.dumps(value.evidence_refs), value.audience_id,
+                int(value.private),
+                value.occurred_at.astimezone(timezone.utc).isoformat(),
+                value.recorded_at.astimezone(timezone.utc).isoformat(),
+                json.dumps(dict(value.metadata), sort_keys=True),
+            ),
+        )
+
     def record_experience(self, value: ExperienceRecord) -> None:
         with closing(self._connect()) as db, db:
-            db.execute(
-                "INSERT INTO life_experience VALUES(?,?,?,?,?,?,?,?,?,?)",
-                (
-                    value.experience_id, value.project_id, value.kind, value.summary,
-                    json.dumps(value.evidence_refs), value.audience_id,
-                    int(value.private), value.occurred_at.astimezone(timezone.utc).isoformat(),
-                    value.recorded_at.astimezone(timezone.utc).isoformat(),
-                    json.dumps(dict(value.metadata), sort_keys=True),
-                ),
-            )
+            self._insert_experience(db, value)
 
     def experiences(self, *, audience_id: str, include_private: bool, limit: int = 100) -> tuple[ExperienceRecord, ...]:
         if not 1 <= limit <= 500:
