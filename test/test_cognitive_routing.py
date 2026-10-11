@@ -608,6 +608,8 @@ def test_default_configuration_parses_fleet_cognition_policy(monkeypatch):
 
 def test_composition_wraps_both_routed_roles_for_fleet_cognition(tmp_path):
     state = tmp_path / "sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state)
     routing = CognitiveRoutingConfiguration(
         enabled=True,
         primary=ProviderConfiguration(
@@ -655,6 +657,8 @@ def test_composition_wraps_both_routed_roles_for_fleet_cognition(tmp_path):
 
 def test_fleet_cognition_fails_closed_without_remote_transport(tmp_path):
     state = tmp_path / "sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state)
     configuration = SofiaConfiguration(
         constitution_path=tmp_path / "constitution.md",
         constitution_hash_path=tmp_path / "constitution.sha256",
