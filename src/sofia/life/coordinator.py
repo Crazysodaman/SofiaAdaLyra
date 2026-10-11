@@ -21,6 +21,7 @@ from sofia.goals import (
     GoalRunState, GoalService, GoalStatus, SOFIA_GOAL_OWNER_ID,
 )
 from sofia.goals.evidence import GoalEvidenceIndex, GoalEvidenceLedger
+from sofia.goals.service import audience_scope
 from sofia.interaction.world_model import ObjectKind, SpaceKind, Transform
 from sofia.interaction.world_store import VirtualWorldStore
 from sofia.neuro.model import NeuralActivation
@@ -51,6 +52,10 @@ SOFIA_PROJECT_OWNER = "sofia:self"
 SOFIA_CREATIVE_OWNER = "sofia"
 SOFIA_CREATIVE_AUTHOR = "sofia"
 LOCAL_AUDIENCE = "local:text"
+# GOALS stores an authenticated principal-scoped audience. LIFE records its
+# local projection separately; never compare these differently typed strings.
+LOCAL_GOAL_AUDIENCE = audience_scope(local_sparks_principal())
+LOCAL_GOAL_PRINCIPAL = local_sparks_principal().principal_id
 
 
 ShareCallback = Callable[[LifeProject, str, tuple[str, ...], datetime], bool]
@@ -771,7 +776,8 @@ class SelfDirectedLifeCoordinator:
             for item in self.goals.list_visible(local_sparks_principal())
             if item.origin is GoalOrigin.SELF
             and item.owner_principal_id == SOFIA_GOAL_OWNER_ID
-            and item.scope_audience == LOCAL_AUDIENCE
+            and item.scope_audience == LOCAL_GOAL_AUDIENCE
+            and item.scope_principal_id == LOCAL_GOAL_PRINCIPAL
         }
         projects = self.store.list_scope(
             owner_principal_id=SOFIA_PROJECT_OWNER,
@@ -1584,7 +1590,8 @@ class SelfDirectedLifeCoordinator:
             for goal in self.goals.list_visible(local_sparks_principal())
             if goal.origin is GoalOrigin.SELF
             and goal.owner_principal_id == SOFIA_GOAL_OWNER_ID
-            and goal.scope_audience == LOCAL_AUDIENCE
+            and goal.scope_audience == LOCAL_GOAL_AUDIENCE
+            and goal.scope_principal_id == LOCAL_GOAL_PRINCIPAL
         }
         projects = self.store.list_scope(
             owner_principal_id=SOFIA_PROJECT_OWNER,
@@ -2269,7 +2276,9 @@ class SelfDirectedLifeCoordinator:
             and goal.status is GoalStatus.ACTIVE
             and goal.origin is GoalOrigin.SELF
             and goal.owner_principal_id == SOFIA_GOAL_OWNER_ID
-            and goal.scope_audience == project.audience_id
+            and project.audience_id == LOCAL_AUDIENCE
+            and goal.scope_audience == LOCAL_GOAL_AUDIENCE
+            and goal.scope_principal_id == LOCAL_GOAL_PRINCIPAL
             and (goal.expires_at is None or now < goal.expires_at)
         )
 
@@ -2348,7 +2357,9 @@ class SelfDirectedLifeCoordinator:
             goal is None
             or goal.origin is not GoalOrigin.SELF
             or goal.owner_principal_id != SOFIA_GOAL_OWNER_ID
-            or goal.scope_audience != project.audience_id
+            or project.audience_id != LOCAL_AUDIENCE
+            or goal.scope_audience != LOCAL_GOAL_AUDIENCE
+            or goal.scope_principal_id != LOCAL_GOAL_PRINCIPAL
             or goal.status is not GoalStatus.ACTIVE
             or goal.expires_at is None or now >= goal.expires_at
         ):
@@ -2415,7 +2426,9 @@ class SelfDirectedLifeCoordinator:
             project.status is not ProjectStatus.ACTIVE
             or goal is None or goal.status is not GoalStatus.ACTIVE
             or goal.owner_principal_id != SOFIA_GOAL_OWNER_ID
-            or goal.scope_audience != project.audience_id
+            or project.audience_id != LOCAL_AUDIENCE
+            or goal.scope_audience != LOCAL_GOAL_AUDIENCE
+            or goal.scope_principal_id != LOCAL_GOAL_PRINCIPAL
             or type(original_project_revision) is not int
             or original_project_revision != project.revision
             or type(original_goal_revision) is not int
@@ -3315,7 +3328,9 @@ class SelfDirectedLifeCoordinator:
             if (
                 goal.origin is not GoalOrigin.SELF
                 or goal.owner_principal_id != SOFIA_GOAL_OWNER_ID
-                or goal.scope_audience != project.audience_id
+                or project.audience_id != LOCAL_AUDIENCE
+            or goal.scope_audience != LOCAL_GOAL_AUDIENCE
+            or goal.scope_principal_id != LOCAL_GOAL_PRINCIPAL
             ):
                 continue  # scope mismatch requires separate operator audit
             status = goal.status
