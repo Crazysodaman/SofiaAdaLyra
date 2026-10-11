@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "a34e1eb3c1fc7bc74fc5c4684c225c13183379f1",
+  "reviewed_main_sha": "2c3b27b9e363c5285f24ea60222c7a3f91e42e17",
   "audit_date_utc": "2026-10-11",
-  "notice": "Original 700 V18 CA IDs, 44 original partial tasks prioritized. 15 source repairs this campaign, 29 not newly coded. All 44 remain partial pending tests and live acceptance; no host/model/pairing changes. Canonical writer host undecided.",
+  "notice": "Original V18 700 exact CA IDs. 19 of the original 44 partially wired tasks received production source repairs this coding campaign; 25 have not received new code this campaign. All 44 remain partially wired, zero accepted, 650 individually unaudited. No test/build/CI/host deployment or model swap. Canonical writer host remains undecided.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1561,15 +1561,23 @@
       "code_paths": [
         "src/sofia/mobile/gateway.py",
         "src/sofia/safe/permissions.py",
-        "src/sofia/mobile/server.py"
+        "src/sofia/mobile/server.py",
+        "src/sofia/safe/execution_approval.py",
+        "test/test_safe_execution_action_fingerprint.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "80bd5cb5f123972d13ed0ea22e3c0dfb1d0af909"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "80bd5cb5f123972d13ed0ea22e3c0dfb1d0af909",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-1905",
@@ -2112,7 +2120,9 @@
         "src/sofia/ops/state_mobility.py",
         "src/sofia/mobile/sensors.py",
         "src/sofia/mobile/pairing.py",
-        "src/sofia/mobile/gateway.py"
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/safe/execution_approval.py",
+        "test/test_safe_execution_action_fingerprint.py"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
@@ -2124,9 +2134,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "2c3b27b9e363c5285f24ea60222c7a3f91e42e17"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "2c3b27b9e363c5285f24ea60222c7a3f91e42e17",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-6805",
@@ -2542,7 +2558,9 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/sensors.py",
-        "src/sofia/mobile/model.py"
+        "src/sofia/mobile/model.py",
+        "src/sofia/application/presence.py",
+        "test/test_presence_cross_modal_provenance.py"
       ],
       "evidence_commits": [
         "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
@@ -2551,9 +2569,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "dc2e0b8d865db13e7888e77345f880c4a521e099"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "dc2e0b8d865db13e7888e77345f880c4a521e099",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-6406",
@@ -2948,7 +2972,9 @@
       "code_paths": [
         "src/sofia/mobile/pairing.py",
         "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt",
-        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt",
+        "src/sofia/mobile/gateway.py",
+        "test/test_mobile_continuation_scope.py"
       ],
       "evidence_commits": [
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
@@ -2960,9 +2986,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "a52d2be9e8990a848ced07ff6b712228830ffbcb"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "a52d2be9e8990a848ced07ff6b712228830ffbcb",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-5308",

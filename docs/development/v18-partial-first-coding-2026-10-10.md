@@ -1,8 +1,19 @@
+## Current partial-first coding wave through 2c3b27b
+
+**19 of the original 44 partial tasks** have a new source-code repair,
+**25 have not received new code in this wave**. All 44 remain **partial**,
+with zero production acceptance. Newest original task evidence:
+CA-1904 SAFE one-use grant common-boundary validation, CA-6405
+cross-modal observed-vs-inferred source receipts, CA-5307 Android
+per-device audience visibility and no mirroring, and CA-6804
+SAFE approval no-create behavior after canonical state loss.
+Source code is committed on `main`, tests authored but unexecuted.
+
 ## Partial-first source coding checkpoint, GitHub main a34e1eb
 
-**15 of the 44 original partially wired tasks** have received a new,
+**19 of the 44 original partially wired tasks** have received a new,
 committed production source repair in this coding campaign. The remaining
-**29 original partial IDs** have not received a new code repair in this
+**25 original partial IDs** have not received a new code repair in this
 campaign; some already possess reusable implementation and require
 targeted source audit, while some require new code or an external operator
 decision. **All 44 remain partial pending accepted tests/live evidence.**
@@ -37,14 +48,14 @@ change or database relocation occurred. No task has been marked accepted.
 
 ## Phase 02
 
-- **CA-1904**: CA-1904 [GAP] Require action-specific intent, target identity, expected effects, bounded arguments and a fresh permission decision immediately before approved execution; do not reuse an earlier plan as an authorization token.
+- **CA-1904** (new source repair: `80bd5cb`): CA-1904 [GAP] Require action-specific intent, target identity, expected effects, bounded arguments and a fresh permission decision immediately before approved execution; do not reuse an earlier plan as an authorization token.
 
 ## Phase 03
 
 - **CA-3702**: CA-3702 P0 [DESIGN/RESEARCH] Specify crash-only/uncertain action recovery for LIFE → RUN → VM → Fleet across each point of failure, especially where the command may have executed but its receipt is missing.
 - **CA-5201**: CA-5201 [DESIGN/RESEARCH] Identify active owner for `sofia.db`, canonical persistent-asset root and every secret-key authority; resolve Windows/Linux platform file paths and legitimate database access paths; forbid two competing writers after failover.
 - **CA-6101**: CA-6101 [DESIGN/RESEARCH] Design a single canonical write owner in `sofia.db`, with hot event metadata, active state, memory provenance, tombstones and archive catalog. Define WAL-on-one-host constraints and fenced owner failover; no multi-host SQLite WAL on SMB/NFS.
-- **CA-6804**: CA-6804 [DESIGN/RESEARCH] Define recovery behavior if existing state is missing/unmounted/locked: do not silently create a second identity or new empty canonical DB, never promote a stale read-only copy, present authenticated candidate choices, keep external actions blocked until verified.
+- **CA-6804** (new source repair: `2c3b27b`): CA-6804 [DESIGN/RESEARCH] Define recovery behavior if existing state is missing/unmounted/locked: do not silently create a second identity or new empty canonical DB, never promote a stale read-only copy, present authenticated candidate choices, keep external actions blocked until verified.
 - **CA-6807** (new source repair: `248dcb9a`): CA-6807 [DESIGN/RESEARCH] Define destination preflight: owner-specified local path, disk capacity/free growth, permissions/ACL, filesystem type, encryption, symlinks/reparse-point traversal, process access, case and path normalization, anti-rollback lineage and exact host ownership.
 
 ## Phase 04
@@ -53,7 +64,7 @@ change or database relocation occurred. No task has been marked accepted.
 - **CA-6303** (new source repair: `c387d67`): CA-6303 [DESIGN/RESEARCH] Compare safe choices for offline companion behavior: drafts-only (baseline) versus visibly provisional local inference against approved cached context. No separate authoritative Sofía, SAFE grant, relationship owner or unsupervised external action while disconnected.
 - **CA-6304** (new source repair: `2fe9c124`): CA-6304 [DESIGN/RESEARCH] Design reconnect conflict handling: server-confirmed order, no dropped or silently overwritten messages, explicit edits/tombstones, stale replies marked, project-thread versus Main routing, device presentation cursors, privacy partitions and owner-visible conflicts.
 - **CA-6306** (new source repair: `2fe9c124`): CA-6306 [DESIGN/RESEARCH] Define failure-mode ladder: full cognition, limited approved offline read-only/search, durable unsent draft capture, and safe unavailable state. For missing GPU/model, broken Fleet, stale database, disk-full, low-power and network outage, specify truthful UI/Discord messages and safe recovery.
-- **CA-6405**: CA-6405 [DESIGN/RESEARCH] Create one cross-modal observation receipt schema for voice transcription, screen sight, environmental conditions, Fleet sensors, app APIs and web results: trusted source, actual observation time, expiry, original data access, privacy, model interpretation confidence and 'not observed' representation. Explicitly separate inference from ground truth.
+- **CA-6405** (new source repair: `dc2e0b8`): CA-6405 [DESIGN/RESEARCH] Create one cross-modal observation receipt schema for voice transcription, screen sight, environmental conditions, Fleet sensors, app APIs and web results: trusted source, actual observation time, expiry, original data access, privacy, model interpretation confidence and 'not observed' representation. Explicitly separate inference from ground truth.
 
 ## Phase 05
 
@@ -68,7 +79,7 @@ change or database relocation occurred. No task has been marked accepted.
 - **CA-5302**: CA-5302 [DESIGN/RESEARCH] Model each message as an authenticated event: thread ID, channel/account/device, principal, original audience, per-audience visibility, monotonic sequence, signature/receipt where applicable, correction pointer and duplicate-delivery key.
 - **CA-5304**: CA-5304 [DESIGN/RESEARCH] Preserve channel-local security: a message sent from Discord gets Discord-scoped capabilities even if Sofía sees desktop history; no capability grant ever follows a copied chat event to a new device.
 - **CA-5306**: CA-5306 [DESIGN/RESEARCH] Define concurrent-turn arbitration, cancellation and dedup semantics for user submitting simultaneously from Discord, UI, Terra or phone; one authoritative turn ordering without global permanent lock on unrelated tasks.
-- **CA-5307**: CA-5307 [DESIGN/RESEARCH] Design 'continue on this device' UX: authenticated device pairing, visible current thread, audience visibility warnings, opt-in cross-channel mirroring, encryption in transit, push notification privacy and immediate revoke.
+- **CA-5307** (new source repair: `a52d2be`): CA-5307 [DESIGN/RESEARCH] Design 'continue on this device' UX: authenticated device pairing, visible current thread, audience visibility warnings, opt-in cross-channel mirroring, encryption in transit, push notification privacy and immediate revoke.
 - **CA-5502** (new source repair: `5688a35`): CA-5502 [DESIGN/RESEARCH] Specify a reversible migration of historical desktop, Discord and mobile session bindings into Main without changing the original audience-bound rows. Include overlap dedup, timestamps, source provenance, ability to preview/import/reject, partial migration rollback and exact before/after audits.
 - **CA-5503**: CA-5503 [DESIGN/RESEARCH] Decide and document the Main cross-device *view* policy: approved owners can read eligible Main events; locally protected material is redacted unless explicitly reclassified; never automatically copy Venus messages to Discord's platform history. Provide user-visible reason/controls when an excerpt is unavailable on a device.
 - **CA-5505**: CA-5505 [DESIGN/RESEARCH] Specify canonical event identity, server sequence, origin/receive times, client nonce/idempotency key, per-device cursor, device revocation and reauthentication. Resolve concurrent Discord/UI writes deterministically; client-side times and copied session IDs can never establish authority.

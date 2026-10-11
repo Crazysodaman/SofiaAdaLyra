@@ -297,3 +297,23 @@ percentages and none has passed the deferred CI/Windows/Android/Fleet
 acceptance campaign. Overall source classifications remain
 6 code-present/unverified, 44 partial, 650 unassessed, zero accepted.
 The single-writer host remains undecided and no live host was changed.
+
+## Partial-first source coding after original 15-task checkpoint
+
+Further production source changes:
+- `80bd5cb` **CA-1904**: one-use SAFE execution fingerprint and
+  owner attribution validation in the shared approval verifier; actual
+  independent human authentication still outstanding.
+- `dc2e0b8` **CA-6405**: typed cross-modal provenance/expiration/privacy
+  receipt stored atomically by the existing Presence owner.
+- `a52d2be` **CA-5307**: authenticated mobile current session/audience
+  shown on Android with explicit no-cross-channel-mirroring warning.
+- `2c3b27b` **CA-6804**: SAFE approval connections reject creation of a
+  fresh state database after missing/unmounted canonical state.
+
+The original V18 700-ID ledger therefore records **19** partially wired
+tasks with new source-coded repairs, **25** with no new repair this
+campaign, **44 still partial**, **6 coded/unverified**, **650 individually
+unaudited**, and **0 production accepted**. The exact GitHub source
+reference audit found zero missing code paths. All newly authored
+tests remain unexecuted and no host has been touched.
