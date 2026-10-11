@@ -2300,6 +2300,31 @@ memory-management privilege grant, nor end-to-end erasure of
 all caches, mobile copies or external providers.
 No tests/CI executed and no live candidate altered.
 
+
+
+### Phase 06 source-to-sink audit batch 3: Four additional partial requirements
+
+Audited original CA-4206, CA-5006, CA-4806 and CA-5903 against
+real `ConversationService`, canonical FTS/source fallback,
+`MemoryReviewService`, `ConversationLearningCoordinator` and
+`DurableMemoryCandidateStore`. All four were previously
+`unassessed` and now have source-grounded `partial_wiring`
+classifications. Real missing gates: cross-class retrieval,
+explicit no-evidence/archive permission, complete owner control
+over offline copies, and bitemporal correction invalidation
+beyond the existing atomic reviewed candidate supersession.
+
+- Exact route/gap analysis:
+  `docs/development/ws2-phase06-review-retrieval-audit-batch3-2026-10-11.md`
+  commit `2d6c648563559aaebc97ad47cfdfcd14ebc9ae10`.
+- Original 700-task evidence ledger update
+  `77c2cc13c47e17c2a8cc5eefc7b7af3a642c9862`
+  (`[skip ci]`), no task marked complete/accepted.
+- Source fixes from items 65–68 are separately documented above.
+
+No tests/CI executed and no live state, client, host
+or permissions changed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
