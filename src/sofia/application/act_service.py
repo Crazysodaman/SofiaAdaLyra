@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import closing
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 import json
 import os
 import sqlite3
@@ -252,18 +253,33 @@ class SofiaActService:
         from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
         with closing(CanonicalSQLiteGuard(self.state_path).connect(timeout=10)) as db:
             db.row_factory = sqlite3.Row
+            # A Presence notice has to retain its original event and world
+            # observation at transport time. A stale/deleted observation is
+            # UNKNOWN and must not silently become permission to send.
             original = db.execute(
-                """SELECT o.event_id,o.recipient_id,w.audience_id,w.value_json
+                """SELECT o.event_id,o.trigger_kind,o.status,o.recipient_id,
+                          o.observation_id,w.audience_id,w.value_json
                    FROM presence_initiative_opportunity AS o
-                   JOIN presence_world_observation AS w
+                   LEFT JOIN presence_world_observation AS w
                      ON w.observation_id=o.observation_id
-                   WHERE o.notice_id=? AND o.event_id LIKE 'life-update:%'""",
+                   WHERE o.notice_id=?""",
                 (payload.message_id,),
             ).fetchone()
-            if original is None:
+            if (
+                original is None
+                or original["status"] != "queued"
+                or original["value_json"] is None
+                or original["recipient_id"] != payload.recipient_id
+                or payload.evidence_id != "presence-evidence:" + sha256(
+                    original["observation_id"].encode("utf-8")
+                ).hexdigest()[:32]
+            ):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            if not original["event_id"].startswith("life-update:"):
                 return Decision.ELIGIBLE_FOR_AUTHORIZATION
             if (
-                original["recipient_id"] != SPARKS_PRINCIPAL_ID
+                original["trigger_kind"] != "task_completed"
+                or original["recipient_id"] != SPARKS_PRINCIPAL_ID
                 or payload.recipient_id != SPARKS_PRINCIPAL_ID
                 or original["audience_id"] != "local:text"
             ):
