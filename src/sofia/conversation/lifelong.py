@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from sofia.social.model import PrincipalContext
 from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.conversation.model import ConversationMessage, ConversationRole
 
 
 _NAME = re.compile(r"^[\w][\w .:/()-]{0,119}$", re.UNICODE)
@@ -137,6 +138,23 @@ class LifelongThreadStore:
             return LifelongThread(identifier, owner.principal_id, kind, name,
                                   datetime.fromisoformat(when))
 
+    def list_threads(
+        self, *, owner: PrincipalContext, limit: int = 30,
+    ) -> tuple[LifelongThread, ...]:
+        """Enumerate only canonical thread headers owned by authenticated user."""
+        if not isinstance(owner, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("bounded thread listing required")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM lifelong_thread WHERE owner_principal_id=? "
+                "ORDER BY CASE kind WHEN 'main' THEN 0 ELSE 1 END,"
+                "created_at DESC,thread_id LIMIT ?",
+                (owner.principal_id, limit),
+            ).fetchall()
+        return tuple(self._decode(row) for row in rows)
+
     def link_message(
         self, *, thread_id: str, source_message_id: str,
         principal: PrincipalContext,
@@ -226,6 +244,51 @@ class LifelongThreadStore:
                         r["source_audience_id"], datetime.fromisoformat(r["linked_at"]),
                         r["visibility"])
             for r in reversed(rows)
+        )
+
+    def visible_messages(
+        self, *, thread_id: str, principal: PrincipalContext,
+        limit: int = 100,
+    ) -> tuple[ConversationMessage, ...]:
+        """Resolve original source bytes, never a duplicated Main transcript.
+
+        Restricts principal, audience, audience KIND, original session
+        binding, source-message presence and thread ownership at read time.
+        This is an authenticated read API, not outbound permission to relay
+        messages across Discord/desktop/mobile audiences.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated principal required")
+        if not isinstance(thread_id, str) or not thread_id.strip():
+            raise ValueError("thread_id required")
+        if type(limit) is not int or not 1 <= limit <= 500:
+            raise ValueError("bounded source message limit required")
+        with closing(self._connect()) as db:
+            thread = db.execute(
+                "SELECT owner_principal_id FROM lifelong_thread WHERE thread_id=?",
+                (thread_id,),
+            ).fetchone()
+            if thread is None or thread["owner_principal_id"] != principal.principal_id:
+                raise PermissionError("thread not accessible to authenticated principal")
+            rows = db.execute(
+                "SELECT m.id,m.session_id,m.role,m.content,m.created_at "
+                "FROM lifelong_thread_event AS e "
+                "JOIN conversation_messages AS m ON m.id=e.source_message_id "
+                "AND m.session_id=e.source_session_id "
+                "JOIN social_session_principal AS s ON s.session_id=m.session_id "
+                "WHERE e.thread_id=? AND e.visibility='source_audience' "
+                "AND e.source_audience_id=? AND s.principal_id=? "
+                "AND s.audience_id=? AND s.audience_kind=? "
+                "ORDER BY m.created_at DESC,m.id DESC LIMIT ?",
+                (thread_id, principal.audience_id, principal.principal_id,
+                 principal.audience_id, principal.audience_kind.value, limit),
+            ).fetchall()
+        return tuple(
+            ConversationMessage(
+                id=row["id"], session_id=row["session_id"],
+                role=ConversationRole(row["role"]), content=row["content"],
+                created_at=datetime.fromisoformat(row["created_at"]),
+            ) for row in reversed(rows)
         )
 
     def visible_message_page(
