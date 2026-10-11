@@ -95,6 +95,18 @@ class LifeProcedureCatalog:
                 );
                 CREATE INDEX IF NOT EXISTS life_procedure_unique_projects
                 ON life_procedure_proof(procedure_id,project_id);
+                CREATE TABLE IF NOT EXISTS life_procedure_replacement (
+                    successor_id TEXT PRIMARY KEY,
+                    quarantined_predecessor_id TEXT NOT NULL UNIQUE,
+                    disposition TEXT NOT NULL CHECK(
+                        disposition='auto_nonexecutable_creative_knowledge'
+                    ),
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(successor_id)
+                        REFERENCES life_procedure_catalog(procedure_id),
+                    FOREIGN KEY(quarantined_predecessor_id)
+                        REFERENCES life_procedure_catalog(procedure_id)
+                );
                 CREATE TABLE IF NOT EXISTS life_procedure_scan_cursor (
                     owner_principal_id TEXT NOT NULL,
                     audience_id TEXT NOT NULL,
@@ -151,13 +163,17 @@ class LifeProcedureCatalog:
         ))
 
     @staticmethod
-    def _definition(project: LifeProject) -> tuple[str, str]:
+    def _definition(
+        project: LifeProject, *, version: int = 1,
+    ) -> tuple[str, str]:
         if (
             not isinstance(project, LifeProject)
             or project.scope is not ProjectScope.PERSONAL_PRIVATE
             or project.goal_id is None
         ):
             raise ValueError("only an actual scoped personal LIFE goal can describe a procedure")
+        if type(version) is not int or not 1 <= version <= 32:
+            raise ValueError("procedure revision must be a bounded positive integer")
         brief = project.brief
         if (
             not brief.required_tools or not brief.permission_requirements
@@ -173,12 +189,80 @@ class LifeProcedureCatalog:
             "required_tools": brief.required_tools,
             "exact_capabilities": brief.permission_requirements,
             "environment": environment,
-            "version": 1,
+            "version": version,
         }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         procedure_id = "life-procedure:" + sha256(
             canonical.encode("utf-8")
         ).hexdigest()[:32]
         return procedure_id, environment
+
+    @staticmethod
+    def _auto_recovery_eligible(project: LifeProject) -> bool:
+        """Only passive local creative reference knowledge can auto-activate.
+
+        Never interpret a learned workflow as permission to invoke its tools:
+        this catalog has no executor. Remote calls, device control, DEV,
+        installed code, expanded capabilities and cross-audience use have
+        no eligible automatic recovery path.
+        """
+        if not isinstance(project, LifeProject):
+            return False
+        tools = project.brief.required_tools
+        return bool(
+            project.scope is ProjectScope.PERSONAL_PRIVATE
+            and project.audience_id == "local:text"
+            and len(tools) == 2
+            and tools[0] == NativeCreativeAdapter().probe().adapter_id
+            and tools[1] in {"artifact-kind:text", "artifact-kind:story"}
+            and project.brief.permission_requirements
+            == ("creative.artifact.create",)
+        )
+
+    @classmethod
+    def _current_definition_under_lock(
+        cls, db: sqlite3.Connection, project: LifeProject,
+    ) -> tuple[str, str, int, sqlite3.Row | None]:
+        """Resolve current generation while preserving quarantined ancestors.
+
+        The original key remains permanently quarantined. On a next real
+        creative proof, only a *new* version may become a candidate; that
+        version must earn two distinct fresh verified source projects.
+        """
+        for version in range(1, 33):
+            key, environment = cls._definition(project, version=version)
+            existing = db.execute(
+                "SELECT procedure_id,version,status,updated_at FROM "
+                "life_procedure_catalog WHERE procedure_id=?", (key,),
+            ).fetchone()
+            if existing is None:
+                if version == 1:
+                    return key, environment, version, None
+                parent_key, _ = cls._definition(project, version=version - 1)
+                previous = db.execute(
+                    "SELECT procedure_id,version,status,updated_at FROM "
+                    "life_procedure_catalog WHERE procedure_id=?", (parent_key,),
+                ).fetchone()
+                if previous is None or previous["status"] != "quarantined":
+                    raise ValueError("missing immutable quarantined predecessor")
+                return key, environment, version, previous
+            if int(existing["version"]) != version:
+                raise ValueError("procedure version does not match immutable key")
+            if existing["status"] != "quarantined":
+                return key, environment, version, None
+        raise ValueError("procedure revision bound exhausted; owner review required")
+
+    def procedure_version(self, procedure_id: str) -> int | None:
+        """Return recorded original version for source-provenance comparison."""
+        if not isinstance(procedure_id, str) or not procedure_id.startswith(
+            "life-procedure:"
+        ):
+            raise ValueError("bounded original procedure ID required")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT version FROM life_procedure_catalog WHERE procedure_id=?",
+                (procedure_id,),
+            ).fetchone()
+        return None if row is None else int(row["version"])
 
     @staticmethod
     def _decode(row: sqlite3.Row, project_count: int) -> ProcedureRecord:
