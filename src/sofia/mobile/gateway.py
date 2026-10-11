@@ -1056,6 +1056,8 @@ class MobileCompanionGateway:
             # audience may observe its title or transcript.
             if not source.visible_events(
                 thread_id=thread_id, principal=principal, limit=1,
+            ) and not source.source_free_project_visible(
+                thread_id=thread_id, principal=principal,
             ):
                 raise PermissionError(
                     "project has no visible originals for this audience"
