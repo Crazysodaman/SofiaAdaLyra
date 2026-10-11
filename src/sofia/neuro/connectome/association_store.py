@@ -88,6 +88,20 @@ class ReviewedAssociationStore:
                     DELETE FROM neuro_association_weight WHERE candidate_id=OLD.candidate_id;
                     DELETE FROM neuro_association_event WHERE candidate_id=OLD.candidate_id;
                 END;
+                -- Editing a promoted memory in place is not a fresh teaching
+                -- event. Never apply features learned for its previous text
+                -- or previous principal/audience to the revised candidate.
+                CREATE TRIGGER IF NOT EXISTS neuro_association_revision_cleanup
+                AFTER UPDATE OF content,principal_id,audience_id ON memory_candidate
+                WHEN NEW.content IS NOT OLD.content
+                     OR NEW.principal_id IS NOT OLD.principal_id
+                     OR NEW.audience_id IS NOT OLD.audience_id
+                BEGIN
+                    DELETE FROM neuro_association_weight
+                     WHERE candidate_id=OLD.candidate_id;
+                    DELETE FROM neuro_association_event
+                     WHERE candidate_id=OLD.candidate_id;
+                END;
             """)
 
     def _connect(self):
