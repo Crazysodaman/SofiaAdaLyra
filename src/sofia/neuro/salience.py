@@ -26,6 +26,14 @@ class SalienceNetwork:
     arrives or a snapshot is requested.
     """
 
+    FEATURE_VERSION = "salience-feature-dictionary-v1"
+    FEATURE_WEIGHTS = (
+        ("urgency", 0.30),
+        ("novelty", 0.25),
+        ("confidence", 0.25),
+        ("value", 0.20),
+    )
+
     def __init__(
         self,
         *,
@@ -49,11 +57,9 @@ class SalienceNetwork:
         """Convert one bounded signal into a deterministic activation score."""
         return min(
             1.0,
-            (
-                0.30 * float(signal.urgency)
-                + 0.25 * float(signal.novelty)
-                + 0.25 * float(signal.confidence)
-                + 0.20 * float(signal.value)
+            sum(
+                float(getattr(signal, name)) * weight
+                for name, weight in SalienceNetwork.FEATURE_WEIGHTS
             ),
         )
 
