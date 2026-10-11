@@ -15,7 +15,8 @@
     "2026-10-11: CA-6604 source-coded production low-impact autonomous installed Ollama discovery through RUN, with no downloads or inferencing. Not tested.",
     "2026-10-11: Fleet cognition fallback default changed to disabled (opt-in explicit). Read-only model discovery now hard-bounds /tags, /version and /show JSON responses. No tests run.",
     "2026-10-11: Phase 15 CA-704/705/711 production-wired and source-regression-authored. Coarse-grain owner reset is the rollback-to-baseline path; no biological synapse model, live bench, tests or CI executed.",
-    "2026-10-11: Phase 16 falsifiable research study preregistration and negative/adverse result registry source-coded in canonical state and owner Settings. No study/data collection was actually performed; tests/CI deferred."
+    "2026-10-11: Phase 16 falsifiable research study preregistration and negative/adverse result registry source-coded in canonical state and owner Settings. No study/data collection was actually performed; tests/CI deferred.",
+    "2026-10-11: CA-808 bounded one-NEURO workspace published and consumed by real chat/personality paths; bounded read receipts, expiry and snapshot identity guarded. No functional scientific result or test execution claimed."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -105,7 +106,17 @@
     "87114ac009aabcec5b1f4a32bc4ded0e68f06c73",
     "680bc02f65b902625bfb65aa1dd4f482c50a7bb6",
     "41c8440d332e39ac347d634ecdf9d3ccf7798590",
-    "08d472d0fea0f2fb44de5b144dc0f7900e0c14cc"
+    "08d472d0fea0f2fb44de5b144dc0f7900e0c14cc",
+    "8e0c96dc8e9c326f00e3b63ba65c1bac288795e3",
+    "502c8f34e3f82f08785d99cc82bfb4f489bdbc79",
+    "2645384852a70dc426eb0c14b2fe9e04a038644e",
+    "1537ffe64d252aa963d7841466621fe9660c7fd6",
+    "333e47665e51f80081d1b0e2cf3823b4d08f8684",
+    "c55ce0b6f2851e96be460b58c492ba989708759f",
+    "24f53e2e368a10be3b97638b7130bd9cf16c072d",
+    "6885ed01366228d64deaba477003daa776a9a38c",
+    "9d4e88447f4e71cd61e7616f78990fb92feee7a2",
+    "159d012c9f741ff29bb0bf8e4b6647899f183a94"
   ],
   "tasks": [
     {
@@ -2084,11 +2095,12 @@
       "phase": "16",
       "master_line": 1187,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "One production NeuroRuntime broadcasts at most three existing eligible machine-safe activations to ephemeral workspace with 90s expiry. Actual conversation and PERSONALITY consumers check identical snapshot generation before reading; canonical NEURO store retains bounded per-consumer read receipts, with no new scheduler, memory eligibility or action rights. Typed tests authored not executed; functional outcomes still require host ablations."
     },
     {
       "id": "CA-809",
