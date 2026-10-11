@@ -473,7 +473,7 @@ class PresenceInitiativeEngine:
             row = db.execute(
                 """SELECT 1 FROM presence_initiative_opportunity
                    WHERE recipient_id=? AND trigger_kind='task_completed'
-                   AND event_id LIKE 'life-complete:%'
+                   AND event_id LIKE 'life-update:%'
                    AND status='queued' AND created_at>=?
                    LIMIT 1""",
                 (recipient_id, cutoff),
