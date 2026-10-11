@@ -270,9 +270,6 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     cognitive_model_auto_manage = tk.BooleanVar(
         value=runtime.cognitive_model_auto_manage
     )
-    cognitive_model_auto_install = tk.BooleanVar(
-        value=runtime.cognitive_model_auto_install
-    )
     cognitive_model_idle_unload_seconds = tk.StringVar(
         value=str(runtime.cognitive_model_idle_unload_seconds)
     )
@@ -547,10 +544,14 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         text="Automatically wake and unload configured models",
         variable=cognitive_model_auto_manage,
     ).pack(anchor="w", pady=(0, 4))
-    ttk.Checkbutton(
+    ttk.Label(
         lifecycle_frame,
-        text="Automatically install missing configured models",
-        variable=cognitive_model_auto_install,
+        text=(
+            "Model downloads are disabled by default and never happen at startup. "
+            "Installing a missing model requires a separately verified "
+            "operator approval for its exact role and identifier."
+        ),
+        wraplength=690,
     ).pack(anchor="w", pady=(0, 6))
     ttk.Label(lifecycle_frame, text="Residency policy").pack(anchor="w")
     ttk.Combobox(
@@ -1372,9 +1373,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 cognitive_model_auto_manage=bool(
                     cognitive_model_auto_manage.get()
                 ),
-                cognitive_model_auto_install=bool(
-                    cognitive_model_auto_install.get()
-                ),
+                cognitive_model_auto_install=False,
                 cognitive_model_idle_unload_seconds=_positive(
                     cognitive_model_idle_unload_seconds.get(),
                     "Model idle unload seconds",
