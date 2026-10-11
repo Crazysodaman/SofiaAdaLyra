@@ -965,3 +965,49 @@ def test_life_completion_rechecks_canonical_run_after_valid_evaluation(tmp_path)
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
     finally:
         life.close()
+
+
+def test_exhausted_independent_revisions_pause_even_without_model(tmp_path):
+    """The max-attempt terminal policy cannot be hidden by daily draft admission."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        objective = "text_contains:unreachable-objective"
+        project, evidence = active_project(
+            life, now, objectives=(objective,),
+        )
+        latest = None
+        for attempt in range(3):
+            at = now + timedelta(seconds=10 + 10 * attempt)
+            job = life.schedule_artifact(
+                project.project_id, artifact_kind=ArtifactKind.TEXT,
+                title=f"Honest attempt {attempt + 1}",
+                specification={
+                    "content": (
+                        "A verifiable original attempt with explicitly "
+                        f"unsatisfied criteria, revision {attempt + 1}."
+                    ),
+                },
+                evidence_ref=evidence, now=at,
+            )
+            life.manager.tick(now=at)
+            latest = wait_for_job(life, job.job_id)
+            assert latest.status is WorkStatus.COMPLETED
+        assert latest is not None
+        life.evaluate_artifact(
+            project.project_id, artifact_id=str(latest.result["artifact_id"]),
+            technical_outcome=TechnicalOutcome.INVALID,
+            personal_judgment=PersonalJudgment.UNKNOWN,
+            objective_results={objective: False},
+            reason="Independent exact text criterion remains unsatisfied.",
+            evidence_refs=(str(latest.result["evidence_ref"]),),
+            preserve_for_research=False,
+            now=now + timedelta(seconds=41),
+        )
+        result = life.tick(now=now + timedelta(seconds=42), generate=None)
+        assert result["follow_through"] == "revision_budget_exhausted_paused"
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert life.tick(
+            now=now + timedelta(seconds=43), generate=None,
+        )["scheduled"] == 0
+    finally:
+        life.close()
