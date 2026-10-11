@@ -79,12 +79,12 @@ def test_project_metadata_cannot_be_mutated_from_another_private_audience(tmp_pa
             thread_id=project.thread_id,
             source_message_id="original-1", principal=local,
         )
-        with pytest.raises(PermissionError, match="source audience"):
+        with pytest.raises(PermissionError, match="audience access"):
             threads.rename_project(
                 principal=foreign, thread_id=project.thread_id,
                 new_name="Hidden Local Rename",
             )
-        with pytest.raises(PermissionError, match="source audience"):
+        with pytest.raises(PermissionError, match="audience access"):
             threads.set_project_archived(
                 principal=foreign, thread_id=project.thread_id, archived=True,
             )
@@ -108,12 +108,12 @@ def test_source_free_project_and_main_cannot_be_mutated_as_project(tmp_path):
         free = threads.get_or_create(
             owner=owner, kind="project", name="No Originals Yet",
         )
-        with pytest.raises(PermissionError, match="source audience"):
+        with pytest.raises(PermissionError, match="audience access"):
             threads.set_project_archived(
                 principal=owner, thread_id=free.thread_id, archived=True,
             )
         main = threads.get_or_create(owner=owner)
-        with pytest.raises(PermissionError, match="source audience"):
+        with pytest.raises(PermissionError, match="audience access"):
             threads.rename_project(
                 principal=owner, thread_id=main.thread_id, new_name="Not Main",
             )
