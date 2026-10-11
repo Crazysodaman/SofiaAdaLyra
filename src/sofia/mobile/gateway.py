@@ -805,13 +805,12 @@ class MobileCompanionGateway:
             raise PermissionError("private thread list requires host private-chat grant")
         with self._lock:
             source = LifelongThreadStore(self.state_path)
-            headers = source.list_threads(owner=principal, limit=limit)
+            # Apply source-audience admission in canonical SQL BEFORE
+            # limiting the result. Otherwise >limit inaccessible project
+            # titles can starve the authorized phone's project list.
+            headers = source.list_visible_threads(owner=principal, limit=limit)
             visible = []
             for header in headers:
-                if header.kind != "main" and not source.visible_events(
-                    thread_id=header.thread_id, principal=principal, limit=1,
-                ):
-                    continue
                 visible.append({
                     "thread_id": header.thread_id,
                     "kind": header.kind,
