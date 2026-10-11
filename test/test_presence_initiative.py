@@ -267,6 +267,29 @@ def test_presence_notice_expires_with_original_observation(state):
     assert sent == []
 
 
+def _choose_to_share(request):
+    """The bounded cognition chooses, while Presence/ACT owns the facts."""
+    from sofia.cognition.model import CognitiveResponse
+
+    assert request.allow_tools is False
+    assert request.route_hint == "standard"
+    return CognitiveResponse(content=(
+        '{"share_now":true,"tone":"playful",'
+        '"reason":"A genuine creative milestone feels worth one update."}'
+    ))
+
+
+def _choose_silence(request):
+    """The optional model may decline to talk after genuine verified work."""
+    from sofia.cognition.model import CognitiveResponse
+
+    assert request.allow_tools is False
+    return CognitiveResponse(content=(
+        '{"share_now":false,"tone":"warm",'
+        '"reason":"This is a good time to enjoy the project privately."}'
+    ))
+
+
 def _verified_private_project_for_unprompted_sharing(
     tmp_path, *, name="A Foxfire Atlas",
 ):
@@ -332,7 +355,7 @@ def test_verified_personal_life_work_can_start_owner_conversation(tmp_path):
         )
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=now, busy=False,
+            now=now, busy=False, generate=_choose_to_share,
         ) == 1
         assert presence.recent_life_project_outreach(now=now) is True
         assert service.has_pending()
@@ -370,6 +393,7 @@ def test_verified_personal_life_work_can_start_owner_conversation(tmp_path):
         assert bridge_voluntary_life_outreach(
             life=life, presence=restarted, act_service=service,
             now=now + timedelta(minutes=5), busy=False,
+            generate=_choose_to_share,
         ) == 0
     finally:
         life.close()
@@ -393,6 +417,7 @@ def test_life_can_choose_silence_despite_verified_project(tmp_path, busy):
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
             now=now + timedelta(seconds=1), busy=busy,
+            generate=_choose_to_share,
         ) == 0
         assert service.has_pending() is False
     finally:
@@ -412,7 +437,7 @@ def test_life_project_outreach_never_uses_unverified_or_nonprivate_work(tmp_path
         assert life.voluntary_project_updates(now=now) == ()
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=now, busy=False,
+            now=now, busy=False, generate=_choose_to_share,
         ) == 0
         assert service.has_pending() is False
     finally:
@@ -439,7 +464,7 @@ def test_life_personal_story_cannot_escape_pinned_owner_routes(tmp_path, route):
         )
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=now, busy=False,
+            now=now, busy=False, generate=_choose_to_share,
         ) == 0
         assert sent == []
         assert service.has_pending() is False
@@ -466,7 +491,7 @@ def test_life_unprompted_conversation_respects_owner_outreach_mute(tmp_path):
         )
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=now, busy=False,
+            now=now, busy=False, generate=_choose_to_share,
         ) == 0
         assert service.has_pending() is False
         assert sent == []
@@ -494,7 +519,7 @@ def test_life_celebration_does_not_outlive_its_independent_proof(tmp_path):
         assert life.voluntary_project_updates(now=now) == ()
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=now, busy=False,
+            now=now, busy=False, generate=_choose_to_share,
         ) == 0
         assert service.has_pending() is False
         assert sent == []
@@ -515,7 +540,7 @@ def test_life_celebration_expires_instead_of_announcing_old_work(tmp_path):
         assert life.voluntary_project_updates(now=later) == ()
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=later, busy=False,
+            now=later, busy=False, generate=_choose_to_share,
         ) == 0
         assert service.has_pending() is False
     finally:
@@ -556,7 +581,7 @@ def test_life_reviewed_draft_can_be_shared_without_claiming_objective_success(
         presence, service, _sent = _owner_only_outreach(life)
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=stamp, busy=False,
+            now=stamp, busy=False, generate=_choose_to_share,
         ) == 1
         import sqlite3
         with sqlite3.connect(life.path) as db:
@@ -608,7 +633,7 @@ def test_life_reviewed_draft_wont_share_corrupt_bytes(tmp_path):
         assert life.voluntary_project_updates(now=stamp) == ()
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=stamp, busy=False,
+            now=stamp, busy=False, generate=_choose_to_share,
         ) == 0
         assert not service.has_pending()
     finally:
@@ -627,7 +652,7 @@ def test_life_outreach_does_not_pass_through_untrusted_project_mentions(tmp_path
         presence, service, _sent = _owner_only_outreach(life)
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=now, busy=False,
+            now=now, busy=False, generate=_choose_to_share,
         ) == 1
         with sqlite3.connect(life.path) as db:
             content = db.execute(
@@ -666,7 +691,7 @@ def test_life_social_update_uses_owner_bound_discord_route(tmp_path):
         )
         assert bridge_voluntary_life_outreach(
             life=life, presence=presence, act_service=service,
-            now=now, busy=False,
+            now=now, busy=False, generate=_choose_to_share,
         ) == 1
         with sqlite3.connect(life.path) as db:
             notice = db.execute(
