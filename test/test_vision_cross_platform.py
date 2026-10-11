@@ -65,7 +65,7 @@ def installed_capture(monkeypatch, *, stop=False, switched=False):
     from sofia.safe import execution_approval, operator_stop
     import sofia.vision.capture as cap
     import sofia.vision.linux_desktop as linux
-    cap.sys.platform = "linux"
+    monkeypatch.setattr(cap.sys, "platform", "linux")
     backend = FakeDesktop()
     backend.switch = switched
     used = []
