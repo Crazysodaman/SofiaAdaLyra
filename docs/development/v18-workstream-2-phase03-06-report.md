@@ -1767,6 +1767,46 @@ Original CA relevance: CA-5202, CA-5204, CA-6105, CA-6401, CA-6404,
 CA-6807. Original statuses remain partial/unassessed pending exact
 source-to-sink reconciliation and final acceptance.
 
+
+
+### Phase 03 item 56: Reject predictable temporary-restore symlink escapes
+
+Follow-on source audit of item 55 exposed a genuine write-through-path
+risk in the real `BackupEngine.restore` execution route: the original
+`shutil.copy2(source, destination.with_name("." + name + ".restore"))`
+wrote through a **predictable** pathname before performing the final
+destination-path checks. A preexisting symlink at that internal filename
+could redirect authenticated plaintext restore bytes to an unrelated
+host file outside the owner-selected offline recovery target.
+
+Production `src/sofia/ops/backup.py` no longer opens that alias.
+Each restored output uses `tempfile.mkstemp` inside the checked
+destination parent, with an unpredictable `*.restore-*.tmp` pathname,
+exclusive creation and a held file descriptor. The verified staging
+source is copied into that new file, flushed and fsynced **before** a
+final-path recheck and `os.replace`. Cleanup removes only this exact
+randomly created temporary file; a preexisting predictable symlink
+cannot receive any copied bytes. No restore destination is created
+from model output or linked to a live runtime.
+
+Production `06f90bc761cd75bbfa33c258b32b456ba1e80c9a`
+(`[skip ci]`). Deferred durability ordering regression updated for
+exclusive random temporary names in
+`test/test_ws2_backup_restore_durability.py`,
+`6dc7beb191ea61d30d2074f4494c2712387552e7` (`[skip ci]`).
+Additional synthetic hostile preexisting `.sofia.db.restore` symlink
+regression `test/test_ws2_backup_restore_temp_symlink.py`,
+`d9096d7024302c6d75120fb583e7de2c1336d6ff` (`[skip ci]`),
+verifies an unrelated outside file stays byte-for-byte unchanged while
+the real archive restores inside its selected local root.
+
+Original CA relevance: CA-5202, CA-5204, CA-6105, CA-6404, CA-6807.
+This closes the **predictable temp alias** in the actual offline
+restore route, not the broader adversarial host-privileged directory
+replacement problem (which still requires dirfd-based filesystem trust,
+offline operator fencing and real host acceptance). No tests/CI or live
+backup, migration, restore or deletion executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
