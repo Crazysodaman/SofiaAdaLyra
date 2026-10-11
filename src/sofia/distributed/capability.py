@@ -211,6 +211,32 @@ class RemoteFleetToolService:
                     },
                     now=now,
                 )
+            if capability=="workshop.network" and operation=="stage":
+                # Never accept a standing generic Fleet grant as permission
+                # to reconfigure Artemis networking. Exact one-use SAFE
+                # approval is consumed before the remote command is issued.
+                from sofia.safe.execution_approval import ExecutionApprovalVerifier
+                from sofia.ops.workshop_network import network_policy_digest
+                if set(parameters)!={
+                    "vm_id","network_policy_digest","approval_id",
+                }:
+                    raise PermissionError("exact Internal network stage fields required")
+                if (
+                    not isinstance(parameters.get("approval_id"),str)
+                    or not parameters["approval_id"].strip()
+                    or parameters["network_policy_digest"]!=network_policy_digest()
+                ):
+                    raise PermissionError("one-use host-only network approval mismatch")
+                ExecutionApprovalVerifier(self._state_path).consume(
+                    approval_id=parameters["approval_id"],
+                    capability="workshop.network.create",
+                    parameters={
+                        "artemis_node_id":str(node_id),
+                        "vm_id":parameters["vm_id"],
+                        "network_policy_digest":parameters["network_policy_digest"],
+                    },
+                    now=now,
+                )
             request=RemoteOperationRequest(
                 uuid4(),
                 node_id,
