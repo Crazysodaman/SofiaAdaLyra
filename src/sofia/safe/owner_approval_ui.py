@@ -31,26 +31,32 @@ def active_owner_credentials(
     return tuple(str(row["credential_id"]) for row in rows)
 
 
-def select_security_key_for_settings(state_path: Path | str, *, parent) -> str:
-    """Use one reviewed key, or ask the operator to identify which of many."""
+def select_owner_credential(
+    state_path: Path | str, *, kind: str, parent=None,
+) -> str:
+    """Choose an enrolled authenticator for the signed owner ceremony."""
     from tkinter import simpledialog
 
-    active = active_owner_credentials(state_path, kind="security_key")
+    active = active_owner_credentials(state_path, kind=kind)
     if not active:
         raise PermissionError(
-            "no supervised FIDO2 security key enrolled; use owner_enroll_cli "
-            "from the signed-in Venus desktop before protected approvals"
+            "no enrolled " + kind + " owner credential; enroll on Venus "
+            "from the independently authenticated operator CLI"
         )
     if len(active) == 1:
         return active[0]
     selected = simpledialog.askstring(
-        "Choose enrolled Sofía FIDO2 key",
-        "Multiple security keys are registered. Enter the exact credential ID "
-        "of the key you intend to use:\n\n" + "\n".join(active),
+        "Choose enrolled Sofía owner authenticator",
+        f"Choose an active {kind} credential ID:\n\n" + "\n".join(active),
         parent=parent,
     )
     if selected is None:
         raise PermissionError("operator canceled credential selection")
     if selected not in active:
-        raise PermissionError("selected FIDO2 credential is not active")
+        raise PermissionError("selected owner credential is not active")
     return selected
+
+
+def select_security_key_for_settings(state_path: Path | str, *, parent) -> str:
+    """Preserve the Settings API for physically supervised FIDO2 actions."""
+    return select_owner_credential(state_path, kind="security_key", parent=parent)
