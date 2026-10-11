@@ -3528,6 +3528,47 @@ cutover ADR supplies researched decisions but
 does not pretend their entire production
 implementation was finished.
 
+
+
+### Phase 03 item 92: Settings canonical database diagnostics use read-only SQLite
+
+The existing Windows Settings Advanced
+`database_diagnostics` reads the canonical
+database integrity and table catalog without
+writing SQL, but previously obtained its
+connection through the general-purpose
+`CanonicalSQLiteGuard.connect` method,
+which intentionally uses `mode=rw`.
+This granted write-capable file access
+for a read-only operator inspection,
+contrary to the requested inspection
+versus maintenance privilege separation.
+
+Production `src/sofia/ui/settings_service.py`
+now pins and revalidates the existing
+canonical file identity, opens
+`sqlite3.connect(...?mode=ro, uri=True)`,
+runs only `PRAGMA quick_check` and
+table enumeration, and checks the
+canonical inode identity again before
+returning output. A missing/replaced
+state raises instead of creating a new
+database. It grants no schema mutation,
+restore, migration or operator approval.
+
+- Production `a408cf42927bec855fd30fd3525939be8f41c563`
+  (`[skip ci]`).
+- Deferred read-only mode and absent
+  state checks
+  `test/test_ws2_storage_read_only_diagnostics.py`
+  `b25fb0fce3d98d17d920e3023c76ad162731f7ac`
+  (`[skip ci]`).
+
+Original CA relevance: CA-6802,
+CA-6815, CA-6817. No actual
+UI launch, CI, tests, live
+SQLite operations or host cutover.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
