@@ -44,7 +44,7 @@ class JsonHttpClient:
             with urlopen(req,timeout=float(effective_timeout)) as resp:
                 raw=resp.read(max_bytes+1)
         except HTTPError as exc:
-            body=exc.read().decode("utf-8",errors="replace")
+            body=exc.read(501).decode("utf-8",errors="replace")
             raise ServiceHTTPError(f"HTTP {exc.code}: {body[:500]}") from exc
         except URLError as exc:
             raise ServiceHTTPError(f"service request failed: {exc.reason}") from exc
@@ -62,9 +62,12 @@ class JsonHttpClient:
         query:Mapping[str,Any]|None=None,
         payload:Any=None,
         timeout:float|None=None,
-        max_bytes:int|None=None,
+        max_bytes:int=4 * 1024 * 1024,
     )->Any:
-        if max_bytes is not None and (
+        # Every JSON response must be bounded, not just callers that
+        # remember to supply a limit. Third-party service metadata is
+        # untrusted even when the HTTP connection was authenticated.
+        if (
             type(max_bytes) is not int
             or not 1 <= max_bytes <= 4 * 1024 * 1024
         ):
@@ -88,21 +91,17 @@ class JsonHttpClient:
             ):
                 raise ValueError("timeout must be a positive number")
             with urlopen(req,timeout=float(effective_timeout)) as resp:
-                raw=(
-                    resp.read()
-                    if max_bytes is None
-                    else resp.read(max_bytes + 1)
-                )
+                raw=resp.read(max_bytes + 1)
         except HTTPError as exc:
-            body=exc.read().decode("utf-8",errors="replace")
+            body=exc.read(501).decode("utf-8",errors="replace")
             raise ServiceHTTPError(f"HTTP {exc.code}: {body[:500]}") from exc
         except URLError as exc:
             raise ServiceHTTPError(f"service request failed: {exc.reason}") from exc
         except TimeoutError as exc:
             raise ServiceHTTPError("service request timed out") from exc
-        if max_bytes is not None and len(raw)>max_bytes:
+        if len(raw)>max_bytes:
             raise ServiceHTTPError("service JSON response exceeded max_bytes")
         if not raw: return None
         try: return json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError,json.JSONDecodeError) as exc:
+        except (UnicodeDecodeError,json.JSONDecodeError,RecursionError) as exc:
             raise ServiceHTTPError("service returned non-JSON response") from exc
