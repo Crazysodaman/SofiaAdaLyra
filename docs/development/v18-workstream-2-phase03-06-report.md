@@ -1078,6 +1078,35 @@ Production commits: `25556108fa82ddd753b5b7adbcab07864af215f9`
 No tests/CI executed, no archive/live host action. Relevance:
 CA-4107, CA-4109, CA-5304, CA-6304.
 
+### Phase 04/05: Mobile chat admission and settlement fenced to original bearer epoch
+
+The real HTTPS route `/v1/mobile/chat` supplies the **original bearer**
+through `MobileCompanionGateway.dispatch_authenticated` into its existing
+durable `chat` source path. The same canonical `BEGIN IMMEDIATE`
+transaction that reserves an at-most-once
+`mobile_turn_receipt` now verifies
+`mobile_device_credential(device_id, token_sha256, generation, active)`.
+A token rotated after the gateway's first check but before admission
+cannot start a new turn under the new credential epoch. The same check
+runs during the final receipt settlement. If the bearer rotated while
+a possibly externally effective LLM request was already in flight, its
+original receipt is left **uncertain** (durably), and no successful
+response is delivered through the now-stale pairing.
+
+This cannot abort effects already committed before mid-inference
+revocation. The worker must still support separate cancellation/
+compensation where appropriate, and HTTP performs its own final bearer
+check. Direct trusted in-process `gateway.chat` compatibility remains;
+all externally exposed HTTP dispatches require actual bearer fencing.
+
+Production source:
+`ade3330ea44e311bf84e2ecc586f5896e463cbe7`,
+`93e9796716bd69b56b946e758ed2cd657082eaa6`.
+Deferred pre-claim and mid-cognition rotation regressions:
+`61e4b9222a5b2a7868c2c6aec13de92bc55f6a8a`.
+Original CA relevance: CA-4103, CA-4104, CA-4110, CA-5304,
+CA-5306, CA-6302 and CA-6311. No tests run or live host changed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
