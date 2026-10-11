@@ -170,12 +170,10 @@ def promote_prepared_model_role(
     if not plan.proposed_settings or proposed_hash == expected:
         raise ValueError("candidate model settings did not change")
     stamp = at.astimezone(timezone.utc).isoformat()
-    sqlite_uri = settings_store.path.absolute().as_uri() + "?mode=rw"
-
     def connection() -> sqlite3.Connection:
-        db = sqlite3.connect(sqlite_uri, uri=True, timeout=10)
-        db.execute("PRAGMA busy_timeout=10000")
-        return db
+        # Reuse the existing canonical settings owner's pinned file identity.
+        # Direct sqlite3.connect(path) could follow a swapped sofia.db file.
+        return settings_store._connect()
 
     def existing_receipt(db: sqlite3.Connection):
         return db.execute(
@@ -199,6 +197,16 @@ def promote_prepared_model_role(
             "updated_at TEXT NOT NULL)"
         )
         old_receipt = existing_receipt(db)
+        if old_receipt is None:
+            unsettled = db.execute(
+                "SELECT approval_ref FROM cognitive_model_promotion "
+                "WHERE status IN ('applying','uncertain') LIMIT 1"
+            ).fetchone()
+            if unsettled is not None:
+                raise ModelPromotionUncertain(
+                    "another model promotion has unresolved effects; "
+                    "operator recovery required before a new role change"
+                )
         if old_receipt is not None:
             if tuple(old_receipt[:5]) != (
                 plan.role,plan.old_model,plan.new_model,
@@ -206,6 +214,21 @@ def promote_prepared_model_role(
             ):
                 raise PermissionError("approval reference is bound to a different plan")
             if old_receipt[5] == "accepted":
+                current = db.execute(
+                    "SELECT value_json FROM ui_runtime_settings "
+                    "WHERE settings_key=?", (settings_store._KEY,),
+                ).fetchone()
+                if (
+                    current is None
+                    or sha256(str(current[0]).encode("utf-8")).hexdigest()
+                    != proposed_hash
+                ):
+                    raise ModelPromotionUncertain(
+                        "historical accepted receipt is not the current "
+                        "canonical model mapping; do not replay"
+                    )
+                # This re-reads durable historical acceptance, not a fresh
+                # claim that a live Ollama provider was observed healthy.
                 return ModelPromotionReceipt(
                     plan.operator_approval_ref, plan.role,
                     plan.old_model, plan.new_model, "accepted",
