@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -47,6 +47,27 @@ class ExpressionReceipt:
     backend: str
     detail: str
     occurred_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ExpressionIntent:
+    """Read-only shared intent and independent cross-modal receipts.
+
+    The expression decision is an intention, never a simulated output.
+    A voice or avatar completion is true only after its own backend
+    acknowledged speech or rendered frames. No new state is persisted.
+    """
+
+    decision: ExpressionDecision
+    expires_at: datetime
+    fresh: bool
+    text_status: str
+    voice_status: str
+    avatar_status: str
+    text_acknowledged: bool
+    voice_acknowledged: bool
+    avatar_acknowledged: bool
+    receipt_ids: tuple[str, ...]
 
 
 class ExpressionRuntime:
@@ -267,6 +288,47 @@ class ExpressionRuntime:
                 datetime.fromisoformat(stored["occurred_at"]),
             )
         return persisted
+
+    def intent_projection(
+        self, message_id: str, *, now: datetime,
+    ) -> ExpressionIntent | None:
+        """Existing private turn's typed expression plus actual backend ACKs.
+
+        A queued avatar intent is not an animated tail. A voice prospect is
+        not audible speech. Renderer absence, mute and interruption remain
+        inspectable without synthesizing substitute output receipts.
+        """
+        moment = self._aware(now)
+        original = self.get_for_message(message_id)
+        if original is None:
+            return None
+        records = self.receipts(original.decision_id)
+        result = {}
+        for output in ("text", "voice", "avatar"):
+            scoped = tuple(item for item in records if item.output == output)
+            latest = scoped[-1] if scoped else None
+            result[output] = (
+                "unavailable" if latest is None else latest.status,
+                any(
+                    item.acknowledged
+                    and item.status in {
+                        "persisted", "spoken", "rendered",
+                    }
+                    for item in scoped
+                ),
+            )
+        expires_at = original.created_at + timedelta(minutes=5)
+        return ExpressionIntent(
+            decision=original, expires_at=expires_at,
+            fresh=original.created_at <= moment < expires_at,
+            text_status=result["text"][0],
+            voice_status=result["voice"][0],
+            avatar_status=result["avatar"][0],
+            text_acknowledged=result["text"][1],
+            voice_acknowledged=result["voice"][1],
+            avatar_acknowledged=result["avatar"][1],
+            receipt_ids=tuple(item.receipt_id for item in records),
+        )
 
     def receipts(self, decision_id: str) -> tuple[ExpressionReceipt, ...]:
         with closing(self._connect()) as db:
