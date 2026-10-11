@@ -42,6 +42,10 @@ def review_lab_experiment(spec: LaboratoryExperiment) -> LaboratoryAdmission:
         spec.experiment_id,spec.hypervisor_host_id,spec.guest_name
     )):
         issues.append("missing experiment/host/guest identity")
+    # The experimental guest must never impersonate the reserved canonical
+    # production runtime VM, even under a different case or trailing spaces.
+    if spec.guest_name.strip().casefold() == "sofia":
+        issues.append("workshop guest cannot use reserved canonical VM name Sofia")
     if _SHA.fullmatch(spec.guest_image_sha256) is None:
         issues.append("guest installer image not pinned by sha256")
     if type(spec.max_vcpu) is not int or not 1<=spec.max_vcpu<=16:
