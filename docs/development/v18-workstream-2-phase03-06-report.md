@@ -1210,6 +1210,54 @@ Deferred fixture contract updates:
 CA task relevance: CA-3704, CA-5202, CA-5204, CA-6101,
 CA-6311 (cross-writer handoff intent), CA-6404. Tests/CI unrun.
 
+### Phase 03 item 42: Model-independent, authenticated-backup portable conversation export
+
+**Scope:** CA-5205, CA-5208, CA-6104, CA-6401, CA-6402, CA-6307,
+CA-5503, CA-5603. This delivers working source code for ONE portable
+conversation/original-source artifact, not a full runtime archive or clean
+bare-metal restoration.
+
+Real invocation: `python -m sofia.ops.backup_cli export-jsonl`
+requires absolute new output path, 32-byte authenticated backup key,
+approved encrypted archive and affirmative
+`--approve-sensitive-plaintext` flag →
+`BackupEngine.restore` authenticates and verifies a complete offline
+temporary SQLite snapshot, never a live WAL filesystem copy →
+`export_portable_conversations` opens that snapshot in read-only SQLite,
+refuses symlink/junction and unverified remote plaintext destinations and
+creates a new `0600` file via exclusive creation →
+streams original `conversation_messages` with current
+`social_session_principal` binding labels in keyset batches, then
+`lifelong_thread` Main/project catalog metadata and separately
+`lifelong_thread_event` original source links. Every link is explicitly
+reference-only, with available/missing and current audience match flags;
+no stale link recreates a source or a cross-channel grant. Footer records
+counts and SHA-256 of all preceding exact UTF-8 JSONL bytes.
+
+The stand-alone `tools/verify_sofia_portable_jsonl.py` is **stdlib-only**
+(no Sofía runtime, model provider, CUDA, cryptography or network required).
+It checks schema, bounded line integrity, source record structure, original
+counts and SHA-256 footer. This unkeyed digest cannot authenticate a
+maliciously rewritten plaintext export; the original backup's MAC and
+AES-GCM verification remain the cryptographic origin gate.
+`docs/recovery/portable-conversation-export-v1.md` explains the explicit
+operator command, private-data hazard, offline verification and missing
+coverage (protected identity/assets, memory tombstones, goals, model/voice
+content, writer witness etc.).
+
+Code commits: `a4ab8f8306946d7d4df8212b354f5a764f7e96ea`
+(export), `86c564e2b7d295776527689a380098e83709a400`
+(CLI), `10c7405b26cfa0e9579c0b4d590754ddd2ef4380`
+(stand-alone verifier). Deferred regressions:
+`6b9c03cca5869c56013c6c74cf148a53bf1b0c96`,
+`e3c27a34cc1c4be0b3d90ba834b891ca12908df0`.
+Human runbook: `e0242ec7185fcb11ce21bd4712e02c3d1d02d66e`.
+
+No plaintext export, live backup, test/CI, database move, runtime
+startup, certificate or host setting was created/changed. Implementation
+awaits cold-restore acceptance on clean Windows/Debian, authenticated
+privacy review and full estate-integrity contracts.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
