@@ -1115,6 +1115,10 @@ class SelfDirectedLifeCoordinator:
         resource_pressure: float,
     ) -> LifeProject | None:
         """Run at most one daily LLM suggestion through deterministic host policy."""
+        # Production background_runtime invokes this independently of tick().
+        # Refuse before waking the cognitive provider or reserving a draft.
+        if self.operator_stop.current().active:
+            return None
         if busy or resource_pressure >= 0.65 or self.store.quiet_until(now=now) is not None:
             return None
         live = self.store.list_scope(
