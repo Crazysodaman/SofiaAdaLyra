@@ -49,3 +49,33 @@ def test_workshop_network_and_exact_operator_approval_still_required():
     )
     assert not review_lab_experiment(without_approval).review_eligible
     assert not review_lab_experiment(exposed).review_eligible
+
+
+@pytest.mark.parametrize("capability",[
+    "workshop.vm.inspect",
+    "workshop.vm.plan",
+])
+def test_hyperv_workshop_read_only_scopes_are_level_one(capability):
+    from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+    policy=capability_permission_policy(capability)
+    assert policy.level is PermissionLevel.OBSERVE_READ
+
+
+@pytest.mark.parametrize("capability",[
+    "workshop.vm.provision",
+    "workshop.vm.quarantine",
+    "workshop.vm.cleanup",
+    "workshop.network.create",
+    "workshop.guest.bootstrap",
+])
+def test_hyperv_workshop_mutations_are_protected_not_standing_grants(capability):
+    from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+    policy=capability_permission_policy(capability)
+    assert policy.level is PermissionLevel.PROTECTED
+    assert policy.standing_grant_allowed is False
+
+
+def test_workshop_enrollment_still_requires_separate_protected_owner_review():
+    from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+    assert capability_permission_policy("fleet.enroll").level is PermissionLevel.PROTECTED
+    assert capability_permission_policy("permissions.grant").level is PermissionLevel.NEVER_SELF_AUTHORIZED
