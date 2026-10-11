@@ -161,6 +161,10 @@ class SofiaActService:
         # last transport send. Do not mark paused reflections as bridged.
         if OperatorStopStore(self.state_path).current().active:
             return 0
+        from sofia.config.user_settings import RuntimeUserSettingsStore
+        outreach = RuntimeUserSettingsStore(self.state_path).load().outreach
+        if outreach is not None and (not outreach.enabled or outreach.mute):
+            return 0
         if not isinstance(scope, SocialScope):
             raise TypeError("scope must be SocialScope")
         if scope.kind not in (ScopeKind.RELATIONSHIP, ScopeKind.AUDIENCE):
@@ -227,6 +231,14 @@ class SofiaActService:
         policy = self._policy
         if policy is None:
             return None
+        # Saved owner mute/opt-out must be checked for every delivery, not
+        # only when the sender was composed at startup.
+        from sofia.config.user_settings import RuntimeUserSettingsStore
+        outreach = RuntimeUserSettingsStore(self.state_path).load().outreach
+        if outreach is not None:
+            policy = replace(
+                policy, enabled=outreach.enabled, mute=outreach.mute,
+            )
         if OperatorStopStore(self.state_path).current().active:
             policy = replace(policy, stop=True)
         notice_result = SystemNoticeQueue(self.state_path).deliver_one(
