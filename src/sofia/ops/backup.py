@@ -414,9 +414,15 @@ class BackupEngine:
             manifest_bytes = source.read(_MAX_BACKUP_MANIFEST_BYTES + 1)
         if len(manifest_bytes) > _MAX_BACKUP_MANIFEST_BYTES:
             raise BackupError("backup manifest exceeds bounded archive size")
+        if manifest_mac_path.stat().st_size > 256:
+            raise BackupError("backup manifest authentication record exceeds size limit")
+        with manifest_mac_path.open("rb") as source:
+            mac_bytes = source.read(257)
+        if len(mac_bytes) > 256:
+            raise BackupError("backup manifest authentication record exceeds size limit")
         if not self.cipher.verify_manifest_mac(
             manifest_bytes,
-            manifest_mac_path.read_text(encoding="ascii"),
+            mac_bytes.decode("ascii"),
         ):
             raise BackupError("backup manifest authentication failed")
         manifest = BackupManifest.from_bytes(manifest_bytes)
