@@ -662,6 +662,8 @@ class ActDeliveryRunner:
         busy: bool = False,
         pre_send_decision: Callable[[], Decision] | None = None,
     ) -> DeliveryRunResult:
+        if pre_send_decision is not None and not callable(pre_send_decision):
+            raise TypeError("pre_send_decision must be callable")
         claimed = self.outbox.claim(
             message_id=message_id,
             attempt_id=attempt_id,
@@ -675,11 +677,14 @@ class ActDeliveryRunner:
 
         payload = self.outbox.payload(claimed.claim)
         if pre_send_decision is not None:
-            if not callable(pre_send_decision):
-                raise TypeError("pre_send_decision must be callable")
-            decision = pre_send_decision()
-            if not isinstance(decision, Decision):
-                raise TypeError("pre_send_decision must return Decision")
+            try:
+                decision = pre_send_decision()
+                if not isinstance(decision, Decision):
+                    raise TypeError("pre_send_decision must return Decision")
+            except Exception:
+                # The callback may fail because canonical SAFE state has
+                # vanished. No sender ran, so release as a known refusal.
+                decision = Decision.AUTHORIZATION_UNAVAILABLE
             if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
                 self.outbox.release_claim_before_send(
                     claimed.claim, decision=decision, at=now,
