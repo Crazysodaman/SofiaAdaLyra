@@ -566,21 +566,44 @@ class MobileCompanionGateway:
         if private_mode and not self.permissions.private_adult_authority().private_chat:
             raise PermissionError("private Main history requires the host private-chat grant")
         with self._lock:
-            page = self.application.main_thread_page(
-                principal=principal, before=cursor, limit=limit,
-            )
-        messages = [
-            {
-                "id": item.message.id,
-                "role": item.message.role.value,
-                "content": item.message.content,
-                "created_at": item.message.created_at.isoformat(),
-                "linked_at": item.linked_at.isoformat(),
-                "canonical_sequence": item.canonical_sequence,
-                "turn_position": item.turn_position,
-            }
-            for item in page
-        ]
+            # Each request carries a stable keyset cursor; narrowing a large
+            # page must never discard or skip historical canonical messages.
+            page_limit = limit
+            while True:
+                try:
+                    page = self.application.main_thread_page(
+                        principal=principal, before=cursor, limit=page_limit,
+                    )
+                except ValueError as exc:
+                    if (
+                        page_limit <= 1
+                        or "lifelong page exceeds the 256-KiB display budget"
+                        not in str(exc)
+                    ):
+                        raise
+                    page_limit = max(1, page_limit // 2)
+                    continue
+                messages = [
+                    {
+                        "id": item.message.id,
+                        "role": item.message.role.value,
+                        "content": item.message.content,
+                        "created_at": item.message.created_at.isoformat(),
+                        "linked_at": item.linked_at.isoformat(),
+                        "canonical_sequence": item.canonical_sequence,
+                        "turn_position": item.turn_position,
+                    }
+                    for item in page
+                ]
+                # HttpsURLConnection has a 256-KB bounded reply reader.
+                # Include serialized JSON escapes and leave framing room.
+                if len(json.dumps(messages).encode("utf-8")) <= 192_000:
+                    break
+                if page_limit <= 1:
+                    raise ValueError(
+                        "one Main message exceeds the mobile display budget"
+                    )
+                page_limit = max(1, page_limit // 2)
         first = page[0] if page else None
         return {
             "messages": messages,
@@ -598,7 +621,7 @@ class MobileCompanionGateway:
                     }
                 )
             ),
-            "has_more": len(page) == limit,
+            "has_more": len(page) == page_limit,
             "audience_id": principal.audience_id,
             "audience_kind": principal.audience_kind.value,
             "cross_channel_mirroring": False,
