@@ -1439,12 +1439,42 @@ class ConversationService(ConversationMatrixMixin):
                 r"\bwhat\s+did\s+i\s+say\b|\bwhat\s+have\s+i\s+said\b",
                 current_user.content, re.IGNORECASE,
             ) is not None
-            candidates = self._conversation_store.search_messages(
-                self._session.id, terms=terms,
-                exclude_message_id=current_user.id,
-                user_only=user_only,
-                limit=_MAX_SPECIFIC_RETRIEVAL_MESSAGES,
-            )
+            # Use the optional host-built FTS5 source index when ready.
+            # The original SQL search remains authoritative fallback if the
+            # index is absent, incomplete, or no token match is found. Neither
+            # path widens the authenticated session or audience.
+            candidates = ()
+            if terms:
+                try:
+                    from sofia.conversation.fulltext_search import (
+                        ConversationFullTextSearch,
+                    )
+                    fulltext = ConversationFullTextSearch(
+                        self._conversation_store.database_path
+                    )
+                    if fulltext.status().ready:
+                        candidates = fulltext.keyword_search(
+                            session_id=self._session.id, terms=terms,
+                            limit=_MAX_SPECIFIC_RETRIEVAL_MESSAGES,
+                            user_only=user_only,
+                        )
+                except (OSError, RuntimeError, ValueError) as exc:
+                    _LOG.warning(
+                        "Optional full-text conversation retrieval unavailable: %s",
+                        type(exc).__name__,
+                    )
+            if not candidates:
+                candidates = self._conversation_store.search_messages(
+                    self._session.id, terms=terms,
+                    exclude_message_id=current_user.id,
+                    user_only=user_only,
+                    limit=_MAX_SPECIFIC_RETRIEVAL_MESSAGES,
+                )
+            else:
+                candidates = tuple(
+                    item for item in candidates
+                    if item.id != current_user.id
+                )
             retrieved = _retrieve_specific_conversation(
                 candidates,
                 current_message_id=current_user.id,
