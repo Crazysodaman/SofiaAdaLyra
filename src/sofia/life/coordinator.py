@@ -27,6 +27,7 @@ from sofia.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )
 from sofia.rel.nicknames import NicknameProposal, NicknameRegistry
+from sofia.safe.operator_stop import OperatorStopStore
 from sofia.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkJob, WorkResult, WorkStatus,
 )
@@ -69,6 +70,7 @@ class SelfDirectedLifeCoordinator:
             raise TypeError("canonical GoalService and CapabilityGateway required")
         self.path = Path(state_path)
         self.store = LifeStore(self.path)
+        self.operator_stop = OperatorStopStore(self.path)
         self.goals, self.gateway = goals, gateway
         self.creative_store, self.creative_explorer = creative_store, creative_explorer
         self.world, self.creative_world = world, creative_world
@@ -447,6 +449,8 @@ class SelfDirectedLifeCoordinator:
         self, project_id: str, *, reason: str, evidence_refs: tuple[str, ...],
         now: datetime, resource_pressure: float = 0.0,
     ) -> LifeProject:
+        if self.operator_stop.current().active:
+            raise PermissionError("operator stop blocks optional LIFE project activation")
         project = self._project(project_id)
         if project.status is not ProjectStatus.PROPOSED:
             raise ValueError("only a proposed project may be activated")
@@ -686,7 +690,9 @@ class SelfDirectedLifeCoordinator:
             raise ValueError("resource_pressure must be in 0..1")
         quiet = self.store.quiet_until(now=now)
         kind, project, reason = SelectionKind.INACTIVITY, None, "No optional activity is currently justified."
-        if quiet is not None:
+        if self.operator_stop.current().active:
+            reason = "Optional LIFE work paused by the operator stop."
+        elif quiet is not None:
             reason = f"Sofía chose quiet time until {quiet[0].isoformat()}: {quiet[1]}"
         elif busy:
             reason = "Foreground user activity has priority over optional personal work."
@@ -1090,6 +1096,8 @@ class SelfDirectedLifeCoordinator:
         title: str, specification: Mapping[str, object], evidence_ref: str,
         now: datetime, artifact_id: str | None = None,
     ) -> WorkJob:
+        if self.operator_stop.current().active:
+            raise PermissionError("operator stop blocks optional LIFE scheduling")
         project = self._project(project_id)
         if project.status is not ProjectStatus.ACTIVE or project.goal_id is None:
             raise ValueError("only an active goal-backed project can schedule artifacts")
@@ -1154,6 +1162,9 @@ class SelfDirectedLifeCoordinator:
         return job
 
     def _create_artifact(self, job: WorkJob, cancel) -> WorkResult:
+        if self.operator_stop.current().active:
+            self.store.cancel_artifact_authorization(str(job.payload["parameters"]["request_id"]))
+            return WorkResult(WorkStatus.BLOCKED, {}, "operator_stop_blocks_optional_creative_execution")
         if cancel.is_set():
             return WorkResult(WorkStatus.FAILED, {}, "cancelled_before_creative_execution")
         started = datetime.now(timezone.utc)
@@ -2106,6 +2117,23 @@ class SelfDirectedLifeCoordinator:
         observed = self.store.reconcile_run_outcomes(now=now)
         terminal_settled = self._reconcile_terminal_run_projects(now=now)
         goal_settled = self._reconcile_canonical_goal_lifecycle(now=now)
+        if self.operator_stop.current().active:
+            # Settling already-observed durable outcomes is bookkeeping,
+            # not a license to launch new optional work or wake the model.
+            selection = self.select_activity(
+                now=now, busy=busy, resource_pressure=resource_pressure,
+            )
+            return {
+                "selection": selection.kind.value,
+                "project_id": None,
+                "scheduled": 0,
+                "jobs_started": 0,
+                "stop_reason": "operator_stop_active",
+                "run_outcomes_observed": len(observed),
+                "terminal_run_projects_settled": terminal_settled,
+                "goal_lifecycle_projects_settled": goal_settled,
+                "review_queue": self.pending_work_review(limit=16),
+            }
         # Completion verification is a settlement of an ALREADY STARTED
         # canonical RUN job, not permission to spend new creation budget.
         # A finished artifact must not be orphaned forever merely because
