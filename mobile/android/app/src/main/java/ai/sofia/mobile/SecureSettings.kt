@@ -132,6 +132,86 @@ class SecureSettings(private val context: Context) {
                 .joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
+    /** One bounded read-only Main page, not an offline writer or local memory. */
+    fun saveMainCache(config: CompanionSettings, page: JSONObject) {
+        require(ready(config)) { "Paired client required to cache canonical history" }
+        val mode = if (config.privateMode) "private" else "shared"
+        val prefix = if (config.privateMode) "mobile:private:" else "mobile:standard:"
+        require(page.getString("audience_kind") == mode &&
+            page.getString("audience_id").startsWith(prefix)
+        ) { "Canonical Main page belongs to a different audience" }
+        val originals = page.getJSONArray("messages")
+        require(originals.length() <= 50) { "Offline Main cache exceeds message limit" }
+        val display = JSONArray()
+        for (index in 0 until originals.length()) {
+            val original = originals.getJSONObject(index)
+            val role = original.getString("role")
+            require(role == "user" || role == "assistant") {
+                "Offline Main may show conversation messages only"
+            }
+            display.put(
+                JSONObject().put("role", role)
+                    .put("content", original.getString("content"))
+            )
+        }
+        val snapshot = JSONObject()
+            .put("schema", "sofia-mobile-main-cache-v1")
+            .put("base_url", config.baseUrl.trimEnd('/'))
+            .put("token_fingerprint", tokenFingerprint(config.token))
+            .put("private_mode", config.privateMode)
+            .put("audience_id", page.getString("audience_id"))
+            .put("messages", display)
+            .put("cached_at_epoch_ms", System.currentTimeMillis())
+        val serialized = snapshot.toString()
+        require(serialized.toByteArray(Charsets.UTF_8).size <= 180_000) {
+            "Offline Main cache exceeds encrypted storage budget"
+        }
+        check(prefs.edit()
+            .putString("offline_main_page_v1", encrypt(serialized)).commit()
+        ) { "Main page was not durably saved for offline viewing" }
+    }
+
+    fun cachedMainPage(config: CompanionSettings): JSONObject? {
+        if (!ready(config)) return null
+        val ciphertext = prefs.getString("offline_main_page_v1", "") ?: ""
+        if (ciphertext.isBlank()) return null
+        val cleartext = decrypt(ciphertext)
+        require(cleartext.isNotBlank()) {
+            "Encrypted Main cache is unreadable; owner discard required"
+        }
+        val record = try {
+            JSONObject(cleartext)
+        } catch (failure: Exception) {
+            throw IllegalStateException("Encrypted Main cache is damaged", failure)
+        }
+        require(record.getString("schema") == "sofia-mobile-main-cache-v1") {
+            "Unrecognized offline Main cache schema"
+        }
+        if (
+            record.getString("base_url") != config.baseUrl.trimEnd('/') ||
+            record.getString("token_fingerprint") != tokenFingerprint(config.token) ||
+            record.getBoolean("private_mode") != config.privateMode
+        ) return null
+        val prefix = if (config.privateMode) "mobile:private:" else "mobile:standard:"
+        require(record.getString("audience_id").startsWith(prefix)) {
+            "Offline Main cache audience does not match pairing mode"
+        }
+        val messages = record.getJSONArray("messages")
+        require(messages.length() <= 50) {
+            "Offline Main cache exceeded stored message bounds"
+        }
+        require(cleartext.toByteArray(Charsets.UTF_8).size <= 180_000) {
+            "Offline Main cache exceeded stored byte budget"
+        }
+        return record
+    }
+
+    fun clearMainCache() {
+        check(prefs.edit().remove("offline_main_page_v1").commit()) {
+            "Encrypted Main cache could not be discarded"
+        }
+    }
+
     /** Explicit encrypted drafts-only offline storage, no network authority. */
     fun saveOfflineDraft(config: CompanionSettings, text: String) {
         require(text.isNotBlank() && text.length <= 12_000) {
