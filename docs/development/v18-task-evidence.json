@@ -4602,9 +4602,14 @@
       "phase": "06",
       "source_topic": "3",
       "master_line": 499,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/model.py",
+        "src/sofia/life/store.py"
+      ],
+      "evidence_commits": [
+        "52667896b70110978e656eaeccd404f705eca57c"
+      ],
       "accepted": false
     },
     {
@@ -4782,9 +4787,15 @@
       "phase": "06",
       "source_topic": "42",
       "master_line": 523,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/v2/contracts.py",
+        "src/sofia/cognition/v2/focus.py",
+        "src/sofia/application/conversation_service.py"
+      ],
+      "evidence_commits": [
+        "52667896b70110978e656eaeccd404f705eca57c"
+      ],
       "accepted": false
     },
     {
@@ -4812,9 +4823,15 @@
       "phase": "06",
       "source_topic": "42",
       "master_line": 526,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/conversation_learning.py",
+        "src/sofia/application/memory_review.py",
+        "src/sofia/memory/provenance_store.py"
+      ],
+      "evidence_commits": [
+        "52667896b70110978e656eaeccd404f705eca57c"
+      ],
       "accepted": false
     },
     {
@@ -4842,9 +4859,16 @@
       "phase": "06",
       "source_topic": "42",
       "master_line": 529,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/store.py",
+        "src/sofia/application/conversation_service.py",
+        "src/sofia/memory/originals.py"
+      ],
+      "evidence_commits": [
+        "52667896b70110978e656eaeccd404f705eca57c",
+        "03ff01b5d9103322ff91246cb368b357c1f54b76"
+      ],
       "accepted": false
     },
     {
@@ -4962,9 +4986,16 @@
       "phase": "06",
       "source_topic": "50",
       "master_line": 547,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/conversation_service.py",
+        "src/sofia/conversation/fulltext_search.py",
+        "src/sofia/conversation/store.py"
+      ],
+      "evidence_commits": [
+        "52667896b70110978e656eaeccd404f705eca57c",
+        "03ff01b5d9103322ff91246cb368b357c1f54b76"
+      ],
       "accepted": false
     },
     {
@@ -4972,9 +5003,14 @@
       "phase": "06",
       "source_topic": "50",
       "master_line": 548,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/conversation/fulltext_search.py",
+        "src/sofia/application/conversation_service.py"
+      ],
+      "evidence_commits": [
+        "52667896b70110978e656eaeccd404f705eca57c"
+      ],
       "accepted": false
     },
     {
@@ -5067,11 +5103,15 @@
         "src/sofia/conversation/store.py",
         "src/sofia/conversation/fulltext_search.py",
         "src/sofia/memory/originals.py",
-        "test/test_memory_conversation_originals.py"
+        "test/test_memory_conversation_originals.py",
+        "src/sofia/application/conversation_service.py",
+        "test/test_ws2_bounded_wardrobe_context.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
-        "720d416fb41a4f22b110758572afcfc2bc7a1715"
+        "720d416fb41a4f22b110758572afcfc2bc7a1715",
+        "52667896b70110978e656eaeccd404f705eca57c",
+        "03ff01b5d9103322ff91246cb368b357c1f54b76"
       ],
       "accepted": false,
       "coding_update": {
@@ -5085,9 +5125,15 @@
       "phase": "06",
       "source_topic": "56",
       "master_line": 561,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/conversation_service.py",
+        "src/sofia/conversation/fulltext_search.py",
+        "src/sofia/memory/originals.py"
+      ],
+      "evidence_commits": [
+        "52667896b70110978e656eaeccd404f705eca57c"
+      ],
       "accepted": false
     },
     {
@@ -5196,9 +5242,15 @@
       "phase": "06",
       "source_topic": "58",
       "master_line": 574,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/conversation_learning.py",
+        "src/sofia/application/memory_review.py",
+        "src/sofia/memory/provenance_store.py"
+      ],
+      "evidence_commits": [
+        "52667896b70110978e656eaeccd404f705eca57c"
+      ],
       "accepted": false
     },
     {
