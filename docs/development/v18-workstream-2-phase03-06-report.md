@@ -985,6 +985,31 @@ independently fenced and approved migration; remote-only approved GPU
 inference supplied by Venus**. The 182-ID original task ledger is still
 not a verified coding-completion measure.
 
+### Source-only backup archive size bounds (Phase 03 CA-5205/5207/6105/6404)
+
+Existing production `BackupEngine.create` rejects manifests larger than
+16 MiB instead of publishing an archive that verification will later reject.
+`BackupEngine.verify` checks manifest file size and uses a hard-capped
+read before JSON parsing, limits the manifest authentication/MAC record
+to 256 bytes, then checks each encrypted payload's on-disk byte size
+against the signed `BackupEntry.size + 16` AES-GCM tag before reading
+or decrypting. Reads have a final one-byte excess check to detect a
+concurrent file growth. `restore` enforces the identical ciphertext
+size condition on its second read even after a successful `verify`.
+The previous signed manifest, original asset hashes, authenticated AAD,
+candidate metadata and user-visible recovery claims remain unchanged.
+
+Production commits:
+`0988af6bbecb7a2e461d59219d797937437155e6`,
+`c1984077fbdc5a47f26ef64e8d149437023d3c6d`.
+Deferred corruption/oversize/re-read and valid-archive regression tests:
+`ad2718f4c156ce16da84b0439791190a627cda04`.
+
+The backup format still encrypts one whole file at a time; multi-gigabyte
+payload **streaming** and atomic group-level cutover remain unresolved.
+Neither source-only code nor authored tests is acceptance evidence.
+No live backup/archive or data-plane writer was touched.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
