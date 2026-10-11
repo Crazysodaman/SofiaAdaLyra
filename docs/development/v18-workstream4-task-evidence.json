@@ -14,7 +14,8 @@
     "2026-10-11: CA-707 cross-production wiring traced through conversation expression, ACT initiative, RUN task priority and LIFE; source regression for actual LIFE priority added without bypassing SAFE, marked code-ready for later tests.",
     "2026-10-11: CA-6604 source-coded production low-impact autonomous installed Ollama discovery through RUN, with no downloads or inferencing. Not tested.",
     "2026-10-11: Fleet cognition fallback default changed to disabled (opt-in explicit). Read-only model discovery now hard-bounds /tags, /version and /show JSON responses. No tests run.",
-    "2026-10-11: Phase 15 CA-704/705/711 production-wired and source-regression-authored. Coarse-grain owner reset is the rollback-to-baseline path; no biological synapse model, live bench, tests or CI executed."
+    "2026-10-11: Phase 15 CA-704/705/711 production-wired and source-regression-authored. Coarse-grain owner reset is the rollback-to-baseline path; no biological synapse model, live bench, tests or CI executed.",
+    "2026-10-11: Phase 16 falsifiable research study preregistration and negative/adverse result registry source-coded in canonical state and owner Settings. No study/data collection was actually performed; tests/CI deferred."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -86,7 +87,13 @@
     "c2e96a05d3d296913ddd409ed44de6f2358f34fc",
     "da2abe686009112dc45cd18c11f502803a028db1",
     "7c0e4f55576bda801b6bb1faab89e023a0a50091",
-    "74854bb0b00387c2ac0f12332f07e7a19a30d17d"
+    "74854bb0b00387c2ac0f12332f07e7a19a30d17d",
+    "43b15debbf84cf96936a001fc83d7d43275b18a1",
+    "4d1852e1b57d782e31d3c366dcac9c927a8ff0f8",
+    "d6dbcb450f49b1ec43b9d0b63fa639c8975fbeef",
+    "a4fe24697b63723d0d26216c881e0d9d72dbf203",
+    "72498e5d334cbec4516c3ecfc94abf707b371d3b",
+    "f7c1f90d6bfeabb7273bf078cb703e58b5af278f"
   ],
   "tasks": [
     {
@@ -1980,12 +1987,12 @@
       "phase": "16",
       "master_line": 1180,
       "global_ledger_before": "partial_wiring",
-      "source_review": "research_policy_only",
-      "finding": "Research preregistration type has no study runner or independent results/controls.",
+      "source_review": "code_path_integrated_unverified",
+      "finding": "Three explicit, falsifiable, owner-preregistered hypothesis protocols compare source-eligible attention, metacognitive calibration and bounded recurrence against independent controls, with sample counts, falsification rules and privacy/welfare bounds. Owner Settings writes reviewed protocols to canonical sofia.db; no research execution or consciousness claim. Tests authored, unrun.",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true
     },
     {
       "id": "CA-802",
@@ -2103,11 +2110,12 @@
       "phase": "16",
       "master_line": 1191,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Canonical append-only-by-API NEURO research protocol and reviewed result tables retain baseline/control rules, evidence references, null/refuted/adverse/protocol-violation outcomes and limitations. Owner Settings offers preregistration and evidence-reviewed results; public report prohibits phenomenal proof claims. Tests authored, unrun."
     }
   ]
 }
