@@ -742,3 +742,61 @@ def test_procedure_proof_check_rejects_original_job_mismatch(tmp_path):
         ) == ()
     finally:
         life.close()
+
+
+def test_goal_dependency_view_keeps_exact_provenance_without_global_newest_page(
+    tmp_path, monkeypatch,
+):
+    """Operator diagnostic agrees with safe LIFE drafting after catalog grows."""
+    import sqlite3
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, evidence, now)
+        second_now = now + timedelta(minutes=1)
+        second, second_evidence = _second_same_capability_project(
+            life, first, second_now,
+        )
+        _original_authorized_completion(
+            life, second, second_evidence, second_now,
+        )
+        assert life._reconcile_procedure_catalog(
+            now=second_now + timedelta(seconds=8),
+        ) == 2
+        future, _ = _second_same_capability_project(
+            life, first, now + timedelta(minutes=2),
+        )
+        record = life.procedures.available_for_project(future)[0]
+        def no_global_report(**_kwargs):
+            raise AssertionError("global newest-N procedure list cannot gate diagnostic")
+        monkeypatch.setattr(
+            life.procedures, "verified_proof_projects", no_global_report,
+        )
+        view = life.goal_dependency_view(
+            now=now + timedelta(minutes=2, seconds=4),
+        )
+        future_row = next(
+            row for row in view if row["project_id"] == future.project_id
+        )
+        assert future_row["verified_procedures"] == (record.procedure_id,)
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE life_procedure_proof SET evidence_ref=? "
+                "WHERE procedure_id=? AND project_id=?",
+                ("source-ref:revoked", record.procedure_id, first.project_id),
+            )
+        # The cache lives only for one view call; a future operator read
+        # must see the current revoked source and never a stale VERIFIED tag.
+        after = life.goal_dependency_view(
+            now=now + timedelta(minutes=2, seconds=5),
+        )
+        future_row = next(
+            row for row in after if row["project_id"] == future.project_id
+        )
+        assert future_row["verified_procedures"] == ()
+        assert life.store.jobs(future.project_id) == ()
+    finally:
+        life.close()
