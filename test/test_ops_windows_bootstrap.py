@@ -413,3 +413,23 @@ def test_artemis_prepare_cleans_duplicated_tls_key_on_any_failed_preflight():
     assert prepare.index('if (-not $offlineBundleReady -and') > sending
     # Never scrub the root canonical certificate during temporary staging.
     assert 'Remove-Item -LiteralPath (Join-Path $FleetRoot "artemis\\artemis-server-key.pem")' not in prepare
+
+
+def test_artemis_canary_failed_remote_stage_scrubs_new_secret_before_unmapping():
+    """Failed SMB copy/verification may not strand the newly transferred key."""
+    source = (
+        (Path(__file__).resolve().parents[1] / "Setup-SofiaFleetArtemis.ps1")
+        .read_text(encoding="utf-8")
+    )
+    begin = source.index('Write-Step "Copy canary package to Artemis"')
+    end = source.index('Write-Host "VENUS PREP COMPLETE"')
+    stage = source[begin:end]
+    assert '$remoteSecretTransferAttempted = $false' in stage
+    assert 'if (Test-Path -LiteralPath $remoteKey)' in stage
+    assert '$remoteSecretTransferAttempted = $true' in stage
+    assert 'if ($remoteSecretTransferAttempted -and $remoteKey -and' in stage
+    assert 'Remove-Item -LiteralPath $remoteKey -Force -ErrorAction Stop' in stage
+    assert stage.index("Remove-Item -LiteralPath $remoteKey") < stage.rindex(
+        "Remove-PSDrive -Name $psDriveName"
+    )
+    assert 'Remove-Item -LiteralPath (Join-Path $FleetRoot "artemis\\artemis-server-key.pem")' not in stage
