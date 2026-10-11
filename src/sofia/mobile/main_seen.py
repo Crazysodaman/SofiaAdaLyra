@@ -43,13 +43,40 @@ class MobileMainSeenStore:
 
     def current(
         self, *, device_id: str, private_mode: bool, generation: int,
+        principal: PrincipalContext,
     ) -> dict[str, object] | None:
+        """Expose a read marker only while its original is still visible.
+
+        The receipt remains durably recorded for reconciliation, but a
+        revoked/rebound/deleted source cannot be used as a cursor hint to a
+        phone that no longer has rights to its originating conversation.
+        """
         scope = self._scope(device_id, private_mode, generation)
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
         with closing(self._guard.connect(timeout=10)) as db:
             row = db.execute(
-                "SELECT canonical_sequence,turn_position,message_id "
-                "FROM mobile_main_seen WHERE device_id=? AND mode=? "
-                "AND credential_generation=?", scope,
+                "SELECT seen.canonical_sequence,seen.turn_position,"
+                "seen.message_id FROM mobile_main_seen AS seen "
+                "JOIN lifelong_thread_event AS e "
+                "ON e.canonical_sequence=seen.canonical_sequence "
+                "AND e.turn_position=seen.turn_position "
+                "AND e.source_message_id=seen.message_id "
+                "JOIN lifelong_thread AS t ON t.thread_id=e.thread_id "
+                "JOIN conversation_messages AS m "
+                "ON m.id=e.source_message_id AND m.session_id=e.source_session_id "
+                "JOIN social_session_principal AS s ON s.session_id=m.session_id "
+                "WHERE seen.device_id=? AND seen.mode=? "
+                "AND seen.credential_generation=? "
+                "AND t.kind='main' AND t.owner_principal_id=? "
+                "AND e.source_audience_id=? AND e.visibility='source_audience' "
+                "AND s.principal_id=? AND s.audience_id=? AND s.audience_kind=? "
+                "LIMIT 1",
+                (
+                    *scope, principal.principal_id, principal.audience_id,
+                    principal.principal_id, principal.audience_id,
+                    principal.audience_kind.value,
+                ),
             ).fetchone()
         return self._cursor(row)
 
