@@ -138,9 +138,16 @@ def test_two_distinct_real_checked_projects_promote_nonexecutable_procedure(
         assert first_receipt in procedure.provenance_refs
         assert second_receipt in procedure.provenance_refs
         assert "no_remote_replay_authorized" in procedure.preconditions
-        assert life.goal_dependency_view(
+        view = life.goal_dependency_view(
             now=second_start + timedelta(seconds=8),
-        ) == ()
+        )
+        assert {row["project_id"] for row in view} == {
+            first.project_id, second.project_id,
+        }
+        assert all(
+            procedure.procedure_id in row["verified_procedures"]
+            for row in view
+        )
         # Neither recording nor retrieval ever submits another RUN job.
         assert life.store.jobs(first.project_id) == (first_job.job_id,)
         assert life.store.jobs(second.project_id) == (second_job.job_id,)
