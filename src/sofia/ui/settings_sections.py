@@ -306,47 +306,144 @@ class SettingsSections:
         self.viewer(parent, "Public wardrobe presets", lambda: "\n\n".join(f"{plan.outfit_id}\nGarments: {', '.join(plan.item_ids)}" for plan in catalog.presets if not plan.private_only))
 
     def memory_panel(self, parent):
+        from sofia.memory.provenance import CandidateStatus
         from sofia.memory.provenance_store import DurableMemoryCandidateStore
         from sofia.social.principals import SPARKS_PRINCIPAL_ID
         from uuid import UUID
-        self.ttk.Label(parent, text="Review exact evidence before promoting a candidate. Reject and revoke preserve the conversation originals.", wraplength=660).pack(anchor="w")
+        self.ttk.Label(
+            parent,
+            text="Review original evidence before promotion. Corrections preserve "
+                 "both versions and atomically revoke the superseded fact.",
+            wraplength=660,
+        ).pack(anchor="w")
         choice = self.tk.StringVar(self.root)
         combo = self.ttk.Combobox(parent, textvariable=choice, state="readonly")
         combo.pack(fill="x", pady=8)
+        superseded_choice = self.tk.StringVar(self.root)
+        self.ttk.Label(
+            parent, text="Promoted fact to supersede with selected proposal"
+        ).pack(anchor="w")
+        original_combo = self.ttk.Combobox(
+            parent, textvariable=superseded_choice, state="readonly",
+        )
+        original_combo.pack(fill="x", pady=8)
+
         def candidates(action):
             store = DurableMemoryCandidateStore(self.config.state_path)
             try:
                 return action(store)
             finally:
                 store.close()
+
         def refresh():
-            ids = candidates(lambda store: store.list_ids(principal_id=SPARKS_PRINCIPAL_ID))
-            combo.configure(values=tuple(str(value) for value in ids))
-            if choice.get() not in tuple(str(value) for value in ids):
-                choice.set(str(ids[0]) if ids else "")
+            ids, promoted = candidates(lambda store: (
+                store.list_ids(principal_id=SPARKS_PRINCIPAL_ID),
+                store.list_ids(
+                    status=CandidateStatus.PROMOTED,
+                    principal_id=SPARKS_PRINCIPAL_ID,
+                ),
+            ))
+            choices = tuple(str(value) for value in ids)
+            combo.configure(values=choices)
+            if choice.get() not in choices:
+                choice.set(choices[0] if choices else "")
+            older = tuple(str(value) for value in promoted)
+            original_combo.configure(values=older)
+            if superseded_choice.get() not in older:
+                superseded_choice.set(older[0] if older else "")
             if not choice.get():
                 return "No owner memory candidates."
+
             def read(store):
                 key = UUID(choice.get())
                 candidate = store.get(key)
-                return f"Status: {store.status(key).value}\nContent: {candidate.content}\n\nOriginal evidence:\n" + "\n\n".join(f"{source.message_id} ({source.role})\n{source.content}" for source in candidate.sources)
+                lineage = store.correction_link(key)
+                return (
+                    f"Status: {store.status(key).value}\n"
+                    f"Content: {candidate.content}\n"
+                    f"Correction lineage: {lineage or 'none'}\n\n"
+                    "Original evidence:\n" +
+                    "\n\n".join(
+                        f"{source.message_id} ({source.role})\n{source.content}"
+                        for source in candidate.sources
+                    )
+                )
             return candidates(read)
+
         frame = self.viewer(parent, "Candidate and original evidence", refresh)
         combo.bind("<<ComboboxSelected>>", lambda event: frame.refresh())
+
         def change(action):
             refresh()
             if not choice.get():
                 raise ValueError("Select a candidate")
-            if self.messagebox.askyesno("Confirm memory review", f"{action.capitalize()} candidate {choice.get()}?\n\nReview the original evidence in the panel before confirming.", parent=self.root):
+            if self.messagebox.askyesno(
+                "Confirm memory review",
+                f"{action.capitalize()} candidate {choice.get()}?\n\n"
+                "Review the original evidence in the panel before confirming.",
+                parent=self.root,
+            ):
                 def transition(store):
                     key = UUID(choice.get())
-                    if key not in store.list_ids(principal_id=SPARKS_PRINCIPAL_ID):
+                    if key not in store.list_ids(
+                        principal_id=SPARKS_PRINCIPAL_ID
+                    ):
                         raise PermissionError("Candidate is outside owner scope")
                     getattr(store, action)(key)
                 candidates(transition)
-                self.messagebox.showinfo("Memory review", "Review recorded durably. Refresh to see its status.", parent=self.root)
+                self.messagebox.showinfo(
+                    "Memory review", "Review recorded durably. Refresh to see its status.",
+                    parent=self.root,
+                )
+
+        def link_correction():
+            refresh()
+            if not choice.get() or not superseded_choice.get():
+                raise ValueError("Select a proposed replacement and promoted original")
+            replacement_id = UUID(choice.get())
+            old_id = UUID(superseded_choice.get())
+            def evidence(store):
+                new = store.get(replacement_id)
+                old = store.get(old_id)
+                if new is None or old is None:
+                    raise LookupError("Correction source candidate is missing")
+                if (
+                    replacement_id not in store.list_ids(
+                        status=CandidateStatus.PROPOSED,
+                        principal_id=SPARKS_PRINCIPAL_ID,
+                    )
+                    or old_id not in store.list_ids(
+                        status=CandidateStatus.PROMOTED,
+                        principal_id=SPARKS_PRINCIPAL_ID,
+                    )
+                ):
+                    raise PermissionError("Correction candidates are not eligible")
+                return old.content, new.content
+            old_text, new_text = candidates(evidence)
+            if self.messagebox.askyesno(
+                "Review memory correction",
+                "Link these exact facts for atomic correction upon later promotion?\n\n"
+                f"CURRENT: {old_text[:700]}\n\n"
+                f"PROPOSED: {new_text[:700]}\n\n"
+                "No status changes occur until the replacement is promoted.",
+                parent=self.root,
+            ):
+                candidates(lambda store: store.link_correction(replacement_id, old_id))
+                self.messagebox.showinfo(
+                    "Memory correction",
+                    "Correction evidence linked. Promote the proposed replacement "
+                    "after final review to supersede the old fact atomically.",
+                    parent=self.root,
+                )
+
         for action in ("promote", "reject", "revoke"):
-            self.ttk.Button(frame, text=action.capitalize(), command=self.guarded(lambda action=action: change(action))).pack(side="left", padx=4)
+            self.ttk.Button(
+                frame, text=action.capitalize(),
+                command=self.guarded(lambda action=action: change(action)),
+            ).pack(side="left", padx=4)
+        self.ttk.Button(
+            frame, text="Link correction", command=self.guarded(link_correction),
+        ).pack(side="left", padx=4)
 
     def safety_panel(self, parent):
         from sofia.safe.operator_stop import OperatorStopStore
