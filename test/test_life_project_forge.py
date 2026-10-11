@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+from threading import Event
+from types import SimpleNamespace
 import json
 import time
 
@@ -25,6 +27,7 @@ from sofia.personality.preferences import (
 )
 from sofia.rel.nicknames import NicknameRegistry, NicknameStatus
 from sofia.run.work import WorkStatus
+from sofia.safe.operator_stop import OperatorStopStore
 from sofia.social.principals import local_sparks_principal
 from sofia.state.sqlite_plane import SQLiteStatePlane
 
@@ -63,6 +66,44 @@ def infrastructure(tmp_path, *, authorized=True, share_callback=None):
     capabilities.register(capability.capability, capability.execute)
     return life, goals, now
 
+
+
+
+def test_operator_stop_blocks_life_tick_schedule_and_direct_executor(tmp_path):
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        operator = OperatorStopStore(life.path)
+        operator.set(
+            active=True, updated_by="Sparks",
+            reason="suspend personal projects without disabling chat",
+        )
+        stopped = life.tick(now=now + timedelta(seconds=8), generate=authored_foxfire_text)
+        assert stopped["selection"] == "inactivity"
+        assert stopped["scheduled"] == 0
+        assert stopped["jobs_started"] == 0
+        assert stopped["stop_reason"] == "operator_stop_active"
+        assert "operator stop" in life.select_activity(
+            now=now + timedelta(seconds=9), busy=False, resource_pressure=0.0,
+        ).reason.lower()
+        with pytest.raises(PermissionError, match="operator stop"):
+            life.schedule_artifact(
+                project.project_id, artifact_kind=ArtifactKind.TEXT,
+                title="blocked original", specification={"content": "example"},
+                evidence_ref=evidence, now=now + timedelta(seconds=10),
+            )
+        guarded = life._create_artifact(
+            SimpleNamespace(payload={"parameters": {"request_id": "unused"}}),
+            Event(),
+        )
+        assert guarded.status is WorkStatus.BLOCKED
+        assert "operator_stop" in guarded.error
+        operator.set(active=False, updated_by="Sparks", reason="resume personal projects")
+        assert life.select_activity(
+            now=now + timedelta(seconds=11), busy=False, resource_pressure=0.0,
+        ).kind.value == "project"
+    finally:
+        life.close()
 
 def authored_foxfire_text(request):
     """Test provider returns an actual structured original draft, never a template."""
