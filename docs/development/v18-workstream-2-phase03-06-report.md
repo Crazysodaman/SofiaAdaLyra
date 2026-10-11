@@ -2045,6 +2045,45 @@ Original relevance: CA-4104, CA-4109, CA-5303,
 CA-5304, CA-6304, CA-6309, CA-6311.
 No live pairing, delivery, host cutover or test execution performed.
 
+
+
+### Phase 06 item 64: Privacy-first automatic memory candidate admission
+
+Source audit of the real `ConversationLearningCoordinator.observe_user_message`
+path found that `_is_learnable()` accepted exact user phrases matching
+`remember that` or `my ... is` without rejecting passwords, PINs,
+one-time login codes, recovery codes, API keys, private keys, access
+tokens, client secrets, bank-account numbers, or government identity
+numbers. The coordinator wrote a second durable `PROPOSED` memory
+candidate containing the original message bytes, even though final
+promotion still required authenticated private owner review.
+
+The existing coordinator now applies a bounded conservative
+sensitivity filter **before** auto-proposing a source-linked candidate.
+It declines automatic candidate creation for high-risk credential,
+authentication and identity strings while leaving the original
+authenticated conversation record in its existing retention/audience
+store. It neither deletes that record nor incorrectly claims to
+sanitize arbitrary messages or prevent an explicitly authorized
+manual review workflow. Ordinary first-person preferences and
+reviewable corrections still use the original existing coordinator.
+No new memory schema, independent memory owner, or model classifier
+was created.
+
+- Production `src/sofia/application/conversation_learning.py`
+  commits `0e80de8c952e8b57495f0c7b41d44097de2d9772` and
+  `7254eb6716bd7a727acffdee0400e0a23ce6ea4e` (`[skip ci]`).
+- Deferred source + synthetic canonical end-to-end regressions
+  `test/test_ws2_memory_private_admission.py`:
+  `d7844f34787559808b3470efd3e3a88a9dceeb5b` (`[skip ci]`).
+
+Original CA relevance: CA-5803, CA-5804, CA-4806, CA-4204.
+Sensitive third-party and medical material, already-written historical
+candidates, device-local caches, offline archives, file logs and
+generic PII classifiers still require separate scoped audit and
+acceptance. No tests/CI, live messages or user data changed.
+The original requirements are **not** accepted.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
