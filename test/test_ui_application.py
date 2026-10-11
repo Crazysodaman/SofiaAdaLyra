@@ -36,6 +36,8 @@ def configuration(tmp_path: Path) -> SofiaConfiguration:
         ),
         encoding="utf-8",
     )
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=CONSTITUTION_PATH,
         constitution_hash_path=HASH_PATH,
