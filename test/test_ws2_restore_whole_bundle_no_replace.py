@@ -7,7 +7,9 @@ import os
 import pytest
 
 import sofia.ops.backup as backup_module
-from sofia.ops.backup import BackupCipher, BackupEngine, BackupError
+from sofia.ops.backup import (
+    BackupCipher, BackupEngine, BackupError, RestorePublicationUncertain,
+)
 from test.test_ops_backup_restore import make_erasure_journal, make_state
 
 
@@ -62,7 +64,10 @@ def test_default_restore_never_replaces_file_created_during_publication(
         return original_link(source, destination)
 
     monkeypatch.setattr(backup_module.os, "link", create_intervening_file)
-    with pytest.raises(BackupError, match="never overwrite"):
+    # A protected asset can have been durably published before the
+    # collision at the canonical database name. Keep that distinction
+    # visible rather than reporting this as a cleanly aborted restore.
+    with pytest.raises(RestorePublicationUncertain, match="part of the protected bundle"):
         engine.restore(
             backup_dir=archive, target_state_path=target,
             verifier="offline-reviewed", erasure_journal=journal,
