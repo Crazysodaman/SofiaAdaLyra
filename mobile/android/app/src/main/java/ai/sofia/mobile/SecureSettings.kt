@@ -112,7 +112,7 @@ class SecureSettings(private val context: Context) {
         require(value.baseUrl.isBlank() || value.baseUrl.startsWith("https://")) {
             "The Sofía server URL must use HTTPS"
         }
-        prefs.edit()
+        check(prefs.edit()
             .putString("base_url", value.baseUrl.trimEnd('/'))
             .putString("token", encrypt(value.token))
             .putBoolean("private_mode", value.privateMode)
@@ -121,7 +121,8 @@ class SecureSettings(private val context: Context) {
             .putBoolean("share_location", value.shareLocation)
             .putBoolean("share_activity", value.shareActivity)
             .putBoolean("share_ambient", value.shareAmbient)
-            .apply()
+            .commit()
+        ) { "Paired settings could not be persisted; old pairing retained" }
     }
 
     companion object {
@@ -264,7 +265,12 @@ class SecureSettings(private val context: Context) {
     fun storeIncoming(notificationId: String, content: String) {
         require(notificationId.isNotBlank() && content.isNotBlank())
         val existing = decrypt(prefs.getString("incoming_messages", "") ?: "")
-        val current = runCatching { JSONArray(existing) }.getOrElse { JSONArray() }
+        // Corrupt protected inbox state is never treated as an empty inbox.
+        val current = if (existing.isBlank()) JSONArray() else try {
+            JSONArray(existing)
+        } catch (failure: Exception) {
+            throw IllegalStateException("Protected incoming cache is unreadable", failure)
+        }
         if ((0 until current.length()).any {
                 current.optJSONObject(it)?.optString("id") == notificationId
             }
@@ -274,26 +280,38 @@ class SecureSettings(private val context: Context) {
             retained.put(current.get(index))
         }
         retained.put(JSONObject().put("id", notificationId).put("content", content))
-        prefs.edit()
+        // Host acknowledgement is permitted only after durable local storage.
+        check(prefs.edit()
             .putString("incoming_messages", encrypt(retained.toString()))
-            .apply()
+            .commit()
+        ) { "Incoming message was not saved durably; do not acknowledge host" }
     }
 
     fun clearIncoming() {
         // A previous server/token/privacy mode cannot leave encrypted
         // unopened content that later resurfaces in the new audience UI.
-        prefs.edit().remove("incoming_messages").commit()
+        check(prefs.edit().remove("incoming_messages").commit()) {
+            "Protected incoming cache could not be cleared; do not change audience"
+        }
     }
 
     fun consumeIncoming(): List<String> {
         val encrypted = prefs.getString("incoming_messages", "") ?: ""
         if (encrypted.isBlank()) return emptyList()
-        val values = runCatching { JSONArray(decrypt(encrypted)) }
-            .getOrElse { JSONArray() }
+        val values = try {
+            JSONArray(decrypt(encrypted))
+        } catch (failure: Exception) {
+            throw IllegalStateException(
+                "Protected incoming messages are unreadable; retaining encrypted data",
+                failure,
+            )
+        }
         val content = (0 until values.length()).mapNotNull {
             values.optJSONObject(it)?.optString("content")?.takeIf(String::isNotBlank)
         }
-        prefs.edit().remove("incoming_messages").apply()
+        check(prefs.edit().remove("incoming_messages").commit()) {
+            "Protected incoming cache could not be acknowledged locally"
+        }
         return content
     }
 }
