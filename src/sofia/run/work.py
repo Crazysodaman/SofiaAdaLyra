@@ -247,6 +247,39 @@ class DurableWorkStore:
                 "SELECT COUNT(*) FROM autonomous_work_job WHERE status IN ('queued','running','blocked')"
             ).fetchone()[0])
 
+    def expire_unstarted(self, *, now: datetime, limit: int = 256) -> int:
+        """Settle only provably unstarted queued work, regardless of busy state.
+
+        A RUNNING, BLOCKED or WAITING_APPROVAL task may already have caused
+        external effects or a protected pending decision. Never relabel
+        those as clean failures merely because their deadline elapsed.
+        """
+        moment = _utc(now)
+        if type(limit) is not int or not 1 <= limit <= 1024:
+            raise ValueError("unstarted expiration limit must be 1..1024")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT job_id FROM autonomous_work_job "
+                "WHERE status='queued' AND deadline<=? "
+                "ORDER BY deadline,job_id LIMIT ?",
+                (moment.isoformat(), limit),
+            ).fetchall()
+        expired = 0
+        for row in rows:
+            try:
+                self.transition(
+                    row[0], expected=(WorkStatus.QUEUED,),
+                    status=WorkStatus.FAILED,
+                    reason="deadline_expired_before_start",
+                    now=moment,
+                )
+            except RuntimeError:
+                # A separate canonical RUN worker raced and claimed it.
+                # That worker's actual state wins; do not overwrite effects.
+                continue
+            expired += 1
+        return expired
+
     def create_plan(
         self, *, fingerprint: str, title: str, evidence_ref: str,
         now: datetime,
@@ -455,6 +488,10 @@ class TaskExecutionManager:
         if not 0.0 <= float(resource_pressure) <= 1.0:
             raise ValueError("resource_pressure must be in 0..1")
         self.poll(now=moment)
+        # Expire known-not-started requests even while a foreground user is
+        # busy, under resource pressure, or at full worker capacity.
+        # This never schedules or retries any new operation.
+        self.store.expire_unstarted(now=moment)
         if busy or resource_pressure >= 0.85:
             return 0
         with self._lock:
