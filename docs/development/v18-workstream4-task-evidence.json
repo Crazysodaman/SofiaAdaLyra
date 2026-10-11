@@ -13,7 +13,8 @@
     "2026-10-11: CA-6601 source-coded read-only local Ollama inventory and human license review in owner Settings; code-ready but intentionally untested and does not grant license acceptance.",
     "2026-10-11: CA-707 cross-production wiring traced through conversation expression, ACT initiative, RUN task priority and LIFE; source regression for actual LIFE priority added without bypassing SAFE, marked code-ready for later tests.",
     "2026-10-11: CA-6604 source-coded production low-impact autonomous installed Ollama discovery through RUN, with no downloads or inferencing. Not tested.",
-    "2026-10-11: Fleet cognition fallback default changed to disabled (opt-in explicit). Read-only model discovery now hard-bounds /tags, /version and /show JSON responses. No tests run."
+    "2026-10-11: Fleet cognition fallback default changed to disabled (opt-in explicit). Read-only model discovery now hard-bounds /tags, /version and /show JSON responses. No tests run.",
+    "2026-10-11: Phase 15 CA-704/705/711 production-wired and source-regression-authored. Coarse-grain owner reset is the rollback-to-baseline path; no biological synapse model, live bench, tests or CI executed."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -74,7 +75,18 @@
     "feeb556670572f2f7a04b1d6622f63151f30716d",
     "c0ea6a5473d3249607c780eb61fd19ebba11e6f1",
     "2e052f99a82544792c8d097f0b7d948e48b11e47",
-    "f7e142d111c3e0102554eca8e2fa6ec2eaac3c94"
+    "f7e142d111c3e0102554eca8e2fa6ec2eaac3c94",
+    "6f03f2cf68e70db287f2fa230823e6550b439650",
+    "e4292659db7c0f358d2f2928600c55894713b2d2",
+    "96ce0625dbe8fc10a6e8f872c5c8a8cbaa7d9180",
+    "cd95b97cfdb3f17d99b4802bfd016a5e7d961879",
+    "4406ce98f0a9c3bdc49de25f9b29d0bda6087f33",
+    "b2c6646d099ab96acc0e04c08286a1fce3c4d24e",
+    "80adaa45cee23fa9ea292061af8ed242d1e55325",
+    "c2e96a05d3d296913ddd409ed44de6f2358f34fc",
+    "da2abe686009112dc45cd18c11f502803a028db1",
+    "7c0e4f55576bda801b6bb1faab89e023a0a50091",
+    "74854bb0b00387c2ac0f12332f07e7a19a30d17d"
   ],
   "tasks": [
     {
@@ -1753,22 +1765,24 @@
       "phase": "15",
       "master_line": 1141,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Existing MEM retrieval now forms a principal/audience/promoted/query-overlap shortlist before optional NEURO sparse association scoring. Association may only rerank lexical/contextual ties, never append or unlock IDs. Source regression suite written, not run."
     },
     {
       "id": "CA-705",
       "phase": "15",
       "master_line": 1142,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Canonical opted-in audience-scoped reviewed association weights/receipt provenance, algorithm version, 64-event per-memory limit, +/-0.1 reinforcement cap, bounded score/decay and owner reset-to-baseline. No raw query persisted, and RUN schedules slow decay only while opted-in/not gaming. Tests written, not run."
     },
     {
       "id": "CA-706",
@@ -1844,11 +1858,12 @@
       "phase": "15",
       "master_line": 1149,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production one-state association table keyed by authenticated principal/audience/candidate, opt-in disabled by default with owner Settings controls, SQLite revoke/delete triggers and JOIN status rechecks prevent stale/corrected memories from surviving. Source tests written, not run."
     },
     {
       "id": "CA-712",
