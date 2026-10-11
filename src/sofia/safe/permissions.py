@@ -463,11 +463,11 @@ class PermissionStore:
                 ensure_ascii=False,
                 allow_nan=False,
             )
-            if len(encoded.encode("utf-8")) > 64_000:
-                raise ValueError("standing grant scope exceeds 64-KiB bound")
-            return encoded
         except (TypeError, ValueError) as exc:
             raise ValueError("scope must contain JSON-serializable values") from exc
+        if len(encoded.encode("utf-8")) > 64_000:
+            raise ValueError("standing grant scope exceeds 64-KiB bound")
+        return encoded
 
     def grant(
         self,
