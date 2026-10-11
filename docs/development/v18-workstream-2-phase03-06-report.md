@@ -3348,6 +3348,62 @@ or full clean-machine restore acceptance.
 No tests/CI, live backup, host change or
 active writer migration was executed.
 
+
+
+### Phase 03 item 90: Storage preview proposes an absent child, never an existing folder
+
+The existing Windows Tray Settings → Advanced
+`preview_relocation` used a directory picker to
+select the destination directory itself.
+Native directory pickers typically return
+**existing** paths, whereas the production
+`stage_verified_state_home` and repaired
+preflight (Item 88) require a strictly
+**absent** final destination for nonreplacing
+atomic publication. The UI consequently
+guided owners toward a path it must reject.
+
+The real Settings preview now selects an
+**existing parent** and asks the operator
+for a new child folder name. Production
+`proposed_state_home_from_parent` centralizes
+platform-safe bounded component validation,
+rejects `..`, path separators, Windows
+device-name aliases, redirected ancestry
+and any already-existing/symlinked destination,
+and performs **zero** filesystem mutation.
+The Settings control invokes that shared
+validator and displays the normal
+`relocation_preflight_text` evidence
+for the proposed absent path. Neither
+a model nor a UI button can stage,
+approve, activate, switch writer authority
+or make a new canonical identity
+through this read-only preview.
+
+- UI picker correction
+  `ab6efc80ba2c91027b716a53efbd66782b6eeba2`
+  (`[skip ci]`).
+- Reusable approved-name and path builder
+  `src/sofia/ops/state_mobility.py`
+  `f11a052ae89c5fd1c5f509496c47f56befbf88da`
+  (`[skip ci]`).
+- Shared UI composition
+  `842495ed95f2a2e8bca9480d53b791a2999b0f84`
+  (`[skip ci]`).
+- Deferred pure destination rules
+  `test/test_ws2_state_home_destination_builder.py`
+  `c99cad359f56c803572677fa06380f3cdedc3b8c`
+  (`[skip ci]`).
+
+Original CA relevance: CA-6802, CA-6807,
+CA-6812, CA-6817. This is a complete
+read-only path proposal/inspection slice,
+not the full owner-reviewed Move Sofía's
+Home wizard, host fencing or live cutover.
+No tests/CI, Windows UI execution,
+folder creation or production migration.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
