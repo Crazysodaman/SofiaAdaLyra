@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 def bridge_voluntary_life_outreach(
     *, life, presence: PresenceInitiativeEngine, act_service,
-    now: datetime, busy: bool,
+    now: datetime, busy: bool, generate,
 ) -> int:
     """Let Sofía optionally talk about her own verified private successes.
 
@@ -86,6 +86,40 @@ def bridge_voluntary_life_outreach(
         key=lambda row: (row["salience"], row["verified_at"], row["event_id"]),
     )
     if candidate["audience_id"] != "local:text":
+        return 0
+    # Sofía's model may choose to share or to remain quiet. It never
+    # writes the outgoing factual claims or gets additional authority.
+    from sofia.life.outreach_agent import (
+        ProjectOutreachChoiceAgent, ProjectOutreachChoiceError,
+    )
+    if not callable(generate):
+        return 0
+    try:
+        choice = ProjectOutreachChoiceAgent(generate).choose(
+            moment_kind=candidate["moment_kind"],
+            title=candidate["title"],
+            verified_at=candidate["verified_at"],
+            salience=candidate["salience"],
+        )
+    except ProjectOutreachChoiceError:
+        return 0
+    if not choice.share_now:
+        return 0
+    # A model turn may have been interrupted by the operator or the
+    # original project being retired. Recheck the live source and user
+    # stop/mute boundary before queuing any real notice.
+    refreshed = life.voluntary_project_updates(now=now, limit=16)
+    if not any(
+        item["event_id"] == candidate["event_id"]
+        and item["project_id"] == candidate["project_id"]
+        and item["moment_kind"] == candidate["moment_kind"]
+        for item in refreshed
+    ):
+        return 0
+    from sofia.safe.operator_stop import OperatorStopStore
+    if OperatorStopStore(act_service.state_path).current().active:
+        return 0
+    if presence.recent_life_project_outreach(now=now):
         return 0
     event_id = "life-update:" + sha256(
         candidate["event_id"].encode("utf-8")
@@ -132,7 +166,9 @@ def bridge_voluntary_life_outreach(
     name = " ".join(safe_title.split())[:120].strip() or "my creative project"
     # Vary the conversational invitation using a stable source identifier,
     # not randomized nagging or fabricated emotional events.
-    style = int(event_id[-2:], 16) % 3
+    style = {
+        "warm": 0, "playful": 1, "matter_of_fact": 2,
+    }[choice.tone]
     if completed:
         content = (
             f"I finished {name}, and its original checks passed. "
@@ -170,6 +206,15 @@ def bridge_voluntary_life_outreach(
     # Queued is not sent, received or read. ACT retains all delivery policy
     # and its own attempt/transport acknowledgement receipts.
     return int(decision.status == "queued")
+
+
+def _generate_private_life_outreach(application, request):
+    """Use the same authenticated owner model and application-wide lock."""
+    from sofia.social.principals import local_sparks_principal
+    with application._model_lock:
+        return application._runtime.respond(
+            request, principal=local_sparks_principal(),
+        )
 
 
 def create_background_coordinator(
@@ -477,6 +522,9 @@ def create_background_coordinator(
                 bridge_voluntary_life_outreach(
                     life=life, presence=application._presence,
                     act_service=act_service, now=now, busy=busy,
+                    generate=lambda request: _generate_private_life_outreach(
+                        application, request,
+                    ),
                 )
                 if act_delivery_enabled and act_service is not None else 0
             )
