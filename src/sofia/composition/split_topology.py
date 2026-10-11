@@ -10,6 +10,7 @@ import os
 from typing import Mapping
 
 from sofia.config.model import SofiaConfiguration
+from sofia.distributed.inference_client import ConfiguredRemoteInferenceClient
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,16 +73,18 @@ def validate_split_inference_runtime(
         raise PermissionError("Artemis may not fall back to local inference")
     if fleet.auto_provision_models:
         raise PermissionError("Artemis must not install or switch worker models")
+    if not fleet.gpu_required:
+        raise PermissionError("Venus GPU worker must be required for placement")
     if fleet.allowed_host_ids != (deployment.gpu_worker_host_id,):
         raise PermissionError("Artemis inference must target exactly approved Venus host")
     if deployment.runtime_host_id in fleet.allowed_host_ids:
         raise PermissionError("Artemis cannot select itself for GPU inference")
-    if require_transport and (
-        remote_inference_client is None or not callable(
-            getattr(remote_inference_client, "infer", None)
-        )
+    if require_transport and not isinstance(
+        remote_inference_client, ConfiguredRemoteInferenceClient
     ):
-        raise ValueError("pinned-mTLS authenticated remote inference client required")
+        raise ValueError(
+            "production pinned-mTLS remote inference client is required"
+        )
     if configuration.routing is not None and configuration.routing.enabled:
         routing = configuration.routing
         if routing.fallback_enabled:
