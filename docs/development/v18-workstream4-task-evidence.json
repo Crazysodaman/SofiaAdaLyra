@@ -12,7 +12,8 @@
     "2026-10-11 owner clarification: code_ready_for_tests means connected to production with authored regression tests but tests NOT EXECUTED; code_accepted remains false until user verification. Three Phase 15 scoped tasks meet coding-only gate. Models 6608/6609 remain partial pending host switch broker and lifecycle controls.",
     "2026-10-11: CA-6601 source-coded read-only local Ollama inventory and human license review in owner Settings; code-ready but intentionally untested and does not grant license acceptance.",
     "2026-10-11: CA-707 cross-production wiring traced through conversation expression, ACT initiative, RUN task priority and LIFE; source regression for actual LIFE priority added without bypassing SAFE, marked code-ready for later tests.",
-    "2026-10-11: CA-6604 source-coded production low-impact autonomous installed Ollama discovery through RUN, with no downloads or inferencing. Not tested."
+    "2026-10-11: CA-6604 source-coded production low-impact autonomous installed Ollama discovery through RUN, with no downloads or inferencing. Not tested.",
+    "2026-10-11: Fleet cognition fallback default changed to disabled (opt-in explicit). Read-only model discovery now hard-bounds /tags, /version and /show JSON responses. No tests run."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -64,7 +65,16 @@
     "185cc4e93868a1681edf5917c518f7c48234ca70",
     "fb1fc7d2f560af24261f90e88fb96c5c309aeb89",
     "0097d238fda871b1282aaa6daff151e1392992f4",
-    "75d8b334df8bc1579923ab50ecfbc9f306782bf2"
+    "75d8b334df8bc1579923ab50ecfbc9f306782bf2",
+    "870e4fa9433ec5b4fa7c381a7fab70daff461173",
+    "63ffb7ebc7df954334bc38de328d6362fafbf006",
+    "ee40715e9f35cb058d1abd87528d15c4d1102ac0",
+    "e225282aea7467d9a2a392ad1a28d70a824aeb7c",
+    "fe469b255e314f828567be8d83ab64986dea3af8",
+    "feeb556670572f2f7a04b1d6622f63151f30716d",
+    "c0ea6a5473d3249607c780eb61fd19ebba11e6f1",
+    "2e052f99a82544792c8d097f0b7d948e48b11e47",
+    "f7e142d111c3e0102554eca8e2fa6ec2eaac3c94"
   ],
   "tasks": [
     {
@@ -572,7 +582,7 @@
       "master_line": 955,
       "global_ledger_before": "unassessed",
       "source_review": "partially_implemented_unverified",
-      "finding": "No automatic startup installs or legacy policy bypass. Owner Settings now offers a real local Ollama download with exact canonical one-time SAFE approval consumed before pull, verified host identity/role/model, operator-stop, backend inventory confirmation and append-only outcome audit. Full model change host broker, no-cloud/fallback policy and bounded scheduling still pending; source regressions unexecuted.",
+      "finding": "Model source SAFE controls partial: owner Settings one-time exact local role/host install approval, canonical audit/outcome, operator stop and fail-closed inventory; remote Fleet placement defaults to no silent local failover and remote pulls still require exact grants. Full production role promotion host broker, resource scheduling and all cloud/model source policies remain open. Regression tests authored, not run.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
