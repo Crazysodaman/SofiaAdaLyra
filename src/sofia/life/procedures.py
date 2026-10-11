@@ -442,6 +442,39 @@ class LifeProcedureCatalog:
                 ).fetchone()[0]),
             ) for row in rows)
 
+    def proof_receipts_for_procedure(
+        self, procedure_id: str, *, limit: int = 64,
+    ) -> tuple[tuple[str, str, str], ...]:
+        """Read exact immutable-source references for independent rechecking.
+
+        This reads only the current catalog's named proof group. There is no
+        model-supplied source selection, implicit grant or work execution.
+        Oversized/corrupt proof sets fail closed instead of partial grading.
+        """
+        if (
+            not isinstance(procedure_id, str)
+            or not procedure_id.startswith("life-procedure:")
+            or type(limit) is not int or not 2 <= limit <= 128
+        ):
+            raise ValueError("bounded exact procedure proof required")
+        with closing(self._connect()) as db:
+            valid = db.execute(
+                "SELECT 1 FROM life_procedure_catalog "
+                "WHERE procedure_id=? AND status='verified'",
+                (procedure_id,),
+            ).fetchone()
+            if valid is None:
+                return ()
+            rows = db.execute(
+                "SELECT project_id,job_id,evidence_ref "
+                "FROM life_procedure_proof WHERE procedure_id=? "
+                "ORDER BY project_id,job_id LIMIT ?",
+                (procedure_id, limit + 1),
+            ).fetchall()
+        if len(rows) > limit:
+            return ()
+        return tuple((row[0], row[1], row[2]) for row in rows)
+
     def source_projects_for_compatible_precedent(
         self, *, procedure: ProcedureRecord, project: LifeProject,
         limit: int = 64,
