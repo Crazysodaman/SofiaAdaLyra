@@ -27,6 +27,10 @@ from sofia.integrations.ollama import OllamaAdapter
 from sofia.ops.capability import OpsToolService
 from sofia.ops.local_telemetry import collect_local_telemetry
 from sofia.ops.activity import ActivityMode
+from sofia.composition.split_topology import (
+    selected_split_deployment,
+    validate_split_inference_runtime,
+)
 
 
 def _create_llm_engine(
@@ -67,6 +71,15 @@ def create_model_lifecycle(
     ops_service: OpsToolService | None = None,
     local_host_id: str | None = None,
 ) -> ModelLifecycleManager | None:
+    # A future Artemis runtime must not even initialize local model
+    # residency when its remote-only configuration is inconsistent.
+    validate_split_inference_runtime(
+        configuration=configuration,
+        local_host_id=local_host_id,
+        remote_inference_client=None,
+        deployment=selected_split_deployment(),
+        require_transport=False,
+    )
     selection = CognitiveModelSelection.from_configuration(configuration)
     runtime_state_store = CognitionRuntimeStateStore(configuration.state_path)
     runtime_state_store.configure(
@@ -192,6 +205,14 @@ def create_cognitive_engine(
     local_host_id: str | None = None,
     remote_inference_client=None,
 ):
+    # Explicit future Artemis mode never substitutes local/alternate models
+    # when the pinned mTLS Venus inference worker is down.
+    validate_split_inference_runtime(
+        configuration=configuration,
+        local_host_id=local_host_id,
+        remote_inference_client=remote_inference_client,
+        deployment=selected_split_deployment(),
+    )
     routing = configuration.routing
     if routing is not None and routing.enabled:
         primary_configuration = routing.primary
