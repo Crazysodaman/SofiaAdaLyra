@@ -40,11 +40,19 @@ def vm_facts(at):
         "State":"Off","Processors":2,"StartupMemoryBytes":4096*1024**2,
         "Disks":[{"Path":DISK,"Size":60*1024**3}],
         "NetworkAdapters":[
-            {"Name":"Sofia-Hephaestus-Private","SwitchType":"Private"},
+            {"Name":"Sofia-Hephaestus-Internal","SwitchType":"Internal"},
         ],
         "DvdPaths":[],"SecureBoot":"Off",
         "SecureBootTemplate":"",
         "BootOrder":["HardDiskDrive","NetworkAdapter"],
+        "NetworkIsolation":{
+            "HostAdapter":"vEthernet (Sofia-Hephaestus-Internal)",
+            "HostIPv4Addresses":[{"IPAddress":"172.30.250.1","PrefixLength":30}],
+            "IPv4Forwarding":"Disabled","IPv6Forwarding":"Disabled",
+            "DefaultRoutes":[],"DnsServers":[],"NatPrefixes":[],
+            "IcsSharingEnabled":False,"OtherVmNames":[],
+            "ObservedAtUtc":at.isoformat(),
+        },
         "ObservedAtUtc":at.isoformat(),
     }
 
@@ -176,7 +184,7 @@ def test_owner_approved_debian_boot_receipt_is_not_installed_or_enrolled(tmp_pat
         )
 
 
-def test_changed_vm_private_network_blocks_before_consuming_owner_approval(tmp_path):
+def test_changed_vm_internal_network_blocks_before_consuming_owner_approval(tmp_path):
     state,plan,approval,at,params=reviewed_state(tmp_path)
     remote,calls=fake_service(state,at,mutated=True)
     with pytest.raises(PermissionError,match="no longer eligible"):
@@ -238,7 +246,7 @@ def test_production_hyperv_boot_command_never_creates_vm_or_network():
         "Get-VM -Name 'Hephaestus'",
         "Get-VMHardDiskDrive","Get-VHD","Get-VMSwitch",
         "Get-FileHash","Set-VMFirmware","Start-VM",
-        "VM_GUID_MISMATCH","NOT_PRIVATE_SWITCH",
+        "VM_GUID_MISMATCH","NOT_INTERNAL_SWITCH",
     ):
         assert required in command
     for forbidden in (
@@ -303,7 +311,7 @@ def test_host_side_installer_status_is_observed_without_claiming_debian_installe
         assert forbidden not in commands[0]
 
 
-def test_postboot_observation_preserves_unknown_guest_os_and_private_receipt(tmp_path):
+def test_postboot_observation_preserves_unknown_guest_os_and_isolated_internal_receipt(tmp_path):
     from sofia.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
     state,plan,approval,at,_=reviewed_state(tmp_path)
     service,calls=fake_service(state,at)
