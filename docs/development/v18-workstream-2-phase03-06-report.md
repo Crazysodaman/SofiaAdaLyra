@@ -1010,6 +1010,49 @@ payload **streaming** and atomic group-level cutover remain unresolved.
 Neither source-only code nor authored tests is acceptance evidence.
 No live backup/archive or data-plane writer was touched.
 
+### Phase 04/05: Mobile reconnection resolves canonical send receipts without replay
+
+**Original scope:** CA-6302, CA-6304, CA-4109, CA-4110, CA-5303, CA-5306.
+This is a real production path rather than a client-only draft helper.
+
+Authenticated existing HTTPS POST
+`/v1/mobile/delivery/status` → `MobileCompanionServer` exact
+Bearer/device binding and post-dispatch credential recheck →
+`MobileCompanionGateway.dispatch_authenticated` exact request schema →
+`delivery_status` current canonical credential SHA-256, device,
+pairing epoch, original request ID, presentation mode and message SHA-256
+→ existing `mobile_turn_receipt` row. No new table, model call,
+conversation append, background retry or external side effect.
+
+A current paired device sees **completed** only with a persisted
+original `response_json` whose canonical delivery receipt matches
+request/device/mode/generation and completed status; malformed/oversized
+historical receipts remain **uncertain**. Unknown IDs/old pairing epochs
+return `not_found` without disclosing old device data. An exact-ID
+different-content attempt is a conflict, not acceptance. Processing,
+uncertain and absent rows **cannot** authorize an automatic resend.
+
+Android `SofiaApi.deliveryStatus(PendingMobileTurn)` supplies the
+original encrypted-outbox request ID and SHA-256 digest over its
+original message and independently verifies the returned signed-scope
+logical receipt. `MainViewModel.reconcileUnconfirmed` is an explicit
+**check original delivery receipt (no resend)** UI operation. When
+authoritatively completed, it durably clears only that exact pending
+request and displays the original recorded response; otherwise the
+encrypted pending send is kept for owner review with accurate status.
+It does not borrow approval, reuse a stale audience or infer that
+`not_found` means the host never executed the request.
+
+Production: `0d1bd24471548597989969be324aff0dc09a4a71` gateway;
+`c7193760b77a51a3da43650610fe3afb4b0c4c3f` Android API;
+`70d13b1299df0a721ecd4d998c53417d063186ef` Android UI.
+Deferred scoped privacy, rotation, no-replay, uncertain and field
+validation regressions:
+`f270dc344d94620dcb93610ba644da697c2a4b3c`.
+**Not executed or accepted.** A failed host receipt still requires
+human review; no unilateral request resubmission, DB writer cutover,
+enrollment or live host change was performed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
