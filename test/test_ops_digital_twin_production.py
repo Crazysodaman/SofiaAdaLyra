@@ -170,3 +170,105 @@ def test_duplicate_or_impossible_host_graphs_fail_closed():
             dependencies=(edge("Eos","Artemis","dns"),),
             generated_at=AT,
         )
+
+
+
+def test_reproducible_capsule_contains_hashed_real_inputs_and_simulation_only(tmp_path):
+    from sofia.ops.digital_twin import TwinExperimentStore
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).load()
+    link=edge("Eos","Artemis","storage")
+    TwinDependencyStore(state).record_owner_review(
+        link,known_host_ids=("Eos","Artemis"),
+    )
+    service=SimpleNamespace(
+        state_path=state,
+        registry=SimpleNamespace(hosts=lambda:(host("Artemis"),host("Eos"))),
+    )
+    report=run_digital_twin_scenario(
+        service=service,scenario="disk_pressure",
+        target_host_id="Artemis",at=AT,
+    )
+    assert report["experiment_capsule_id"].startswith("twin:")
+    assert report["review_disposition"]["may_launch_real_experiment"] is False
+    assert report["source_host_count"]==2
+    assert report["source_reviewed_edge_count"]==1
+    capsule=TwinExperimentStore(state).recent()[0]
+    assert capsule["scenario"]=="disk_pressure"
+    assert capsule["source_digest"]==report["source_snapshot_sha256"]
+    assert capsule["actual_host_action"] is False
+    assert len(capsule["capsule_sha256"])==64
+    import sqlite3
+    with sqlite3.connect(state) as db:
+        content=db.execute(
+            "SELECT capsule_json FROM ops_twin_experiment_capsule"
+        ).fetchone()[0]
+    assert '"fixed_seed":0' in content
+    assert '"tool_version":"sofia.ops.digital_twin:dependency_graph_v1"' in content
+    assert '"real_world_implementation":"NOT EXECUTED"' in content
+
+
+def test_bad_experiment_source_and_corrupt_capsule_are_never_success():
+    from dataclasses import replace
+    from sofia.ops.digital_twin import (
+        TwinExperimentStore,assess_twin_experiment,
+    )
+    snapshot=snapshot_from_ops(
+        (host("Artemis"),host("Eos")),
+        (edge("Eos","Artemis","dns"),),at=AT,
+    )
+    modeled=simulate_hypothetical_failure(
+        snapshot,scenario="dns_outage",target_host_id="Artemis",at=AT,
+    )
+    decision=assess_twin_experiment(
+        snapshot=snapshot,result=modeled,at=AT,
+    )
+    assert decision.decision=="REVIEW_SYNTHETIC_ONLY"
+    abandoned=assess_twin_experiment(
+        snapshot=snapshot,result=modeled,
+        at=AT+timedelta(hours=1),
+        repeated_failure_count=3,verified_hypothesis=False,
+        observed_cpu_ms=500,host_cpu_budget_ms=20,
+    )
+    assert abandoned.decision=="ABANDON_RESEARCH"
+    assert abandoned.may_launch_real_experiment is False
+    assert "source topology snapshot expired" in "; ".join(abandoned.reasons)
+    assert "repeated failures" in "; ".join(abandoned.reasons)
+    assert "foreground resource budget" in "; ".join(abandoned.reasons)
+    assert "hypothesis" in "; ".join(abandoned.reasons)
+
+
+def test_cryptographic_capsule_corruption_detected_before_read(tmp_path):
+    from sofia.ops.digital_twin import TwinExperimentStore
+    from sqlite3 import connect
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).load()
+    sim=SimpleNamespace(
+        state_path=state,
+        registry=SimpleNamespace(hosts=lambda:(host("Artemis"),host("Eos"))),
+    )
+    TwinDependencyStore(state).record_owner_review(
+        edge("Eos","Artemis","dns"),known_host_ids=("Artemis","Eos"),
+    )
+    run_digital_twin_scenario(
+        service=sim,scenario="dns_outage",target_host_id="Artemis",at=AT,
+    )
+    with connect(state) as db:
+        db.execute(
+            "UPDATE ops_twin_experiment_capsule SET capsule_json='{}'"
+        )
+    with pytest.raises(RuntimeError,match="hash corruption"):
+        TwinExperimentStore(state).recent()
+
+
+def test_no_approved_dependency_edge_requires_abandonment_label():
+    from sofia.ops.digital_twin import assess_twin_experiment
+    snapshot=snapshot_from_ops((host("Artemis"),),(),at=AT)
+    modeled=simulate_hypothetical_failure(
+        snapshot,scenario="container_crash",target_host_id="Artemis",at=AT,
+    )
+    decision=assess_twin_experiment(
+        snapshot=snapshot,result=modeled,at=AT,
+    )
+    assert decision.decision=="ABANDON_RESEARCH"
+    assert "no owner-reviewed dependency edges" in "; ".join(decision.reasons)
