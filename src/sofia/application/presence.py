@@ -20,6 +20,7 @@ from typing import Callable
 
 from sofia.act.outreach import Importance, OutreachCategory
 from sofia.application.act_service import SofiaActService
+from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
@@ -314,6 +315,16 @@ class PresenceInitiativeEngine:
                 );
                 CREATE INDEX IF NOT EXISTS presence_opportunity_recent
                     ON presence_initiative_opportunity(created_at DESC,event_id);
+                CREATE TABLE IF NOT EXISTS presence_life_update_feedback (
+                    principal_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL,
+                    feedback TEXT NOT NULL CHECK(
+                        feedback IN ('declined','welcomed')
+                    ),
+                    original_event_id TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(principal_id,project_id)
+                );
                 """
             )
 
@@ -451,6 +462,106 @@ class PresenceInitiativeEngine:
             interpretation_confidence=row["interpretation_confidence"],
             epistemic_state=WorldEpistemicState(row["epistemic_state"]),
         )
+
+    def owner_life_update_feedback(
+        self, *, project_id: str, principal: PrincipalContext,
+    ) -> str | None:
+        """Exactly scoped feedback from explicit owner interaction only.
+
+        Absence of a response is UNKNOWN, never disinterest or distress.
+        A declined project stays declined across channels and restarts.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated owner principal required")
+        if (
+            principal.principal_id != SPARKS_PRINCIPAL_ID
+            or principal.audience_kind is not AudienceKind.PRIVATE
+        ):
+            raise PermissionError("owner-only private project feedback")
+        if not isinstance(project_id, str) or _ID.fullmatch(project_id) is None:
+            raise ValueError("exact bounded LIFE project ID required")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT feedback FROM presence_life_update_feedback "
+                "WHERE principal_id=? AND project_id=?",
+                (principal.principal_id, project_id),
+            ).fetchone()
+        return None if row is None else str(row[0])
+
+    def record_owner_life_update_feedback(
+        self, *, principal: PrincipalContext, project_id: str,
+        original_event_id: str, feedback: str, at: datetime,
+    ) -> None:
+        """Record an explicit owner click/reply for the original LIFE notice.
+
+        Only trusted Desktop/Discord input handlers should call this API.
+        Source project ID, original queued notice, and exact owner are
+        checked inside one writer transaction. Merely queuing/sending
+        cannot manufacture a welcome or decline.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated owner principal required")
+        if (
+            principal.principal_id != SPARKS_PRINCIPAL_ID
+            or principal.audience_kind is not AudienceKind.PRIVATE
+        ):
+            raise PermissionError("owner-only private project feedback")
+        if (
+            not isinstance(project_id, str) or _ID.fullmatch(project_id) is None
+            or not isinstance(original_event_id, str)
+            or not original_event_id.startswith("life-update:")
+            or _ID.fullmatch(original_event_id) is None
+        ):
+            raise ValueError("original bounded LIFE event and project IDs required")
+        if feedback not in {"declined", "welcomed"}:
+            raise ValueError("explicit owner welcome or decline required")
+        if not isinstance(at, datetime) or at.tzinfo is None or at.utcoffset() is None:
+            raise ValueError("source-aware owner feedback time required")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            original = db.execute(
+                """SELECT o.recipient_id, o.status, w.audience_id,
+                          w.value_json
+                   FROM presence_initiative_opportunity AS o
+                   JOIN presence_world_observation AS w
+                     ON w.observation_id=o.observation_id
+                   WHERE o.event_id=? AND o.trigger_kind='task_completed'""",
+                (original_event_id,),
+            ).fetchone()
+            if (
+                original is None
+                or original["recipient_id"] != principal.principal_id
+                or original["status"] != "queued"
+                or original["audience_id"] != "local:text"
+            ):
+                raise PermissionError("no matching authentic owner LIFE opportunity")
+            try:
+                content = json.loads(original["value_json"])
+            except (ValueError, TypeError) as exc:
+                raise PermissionError("original LIFE event is not valid JSON") from exc
+            if not isinstance(content, dict) or content.get("project_id") != project_id:
+                raise PermissionError("original event concerns a different project")
+            existing = db.execute(
+                "SELECT feedback FROM presence_life_update_feedback "
+                "WHERE principal_id=? AND project_id=?",
+                (principal.principal_id, project_id),
+            ).fetchone()
+            if existing is not None:
+                if existing["feedback"] != feedback:
+                    # A change of mind is a separate governed owner setting,
+                    # not a way to override an earlier clear 'no' from a
+                    # model-proposed or unsolicited followup.
+                    raise PermissionError(
+                        "existing owner feedback requires a separate reviewed change"
+                    )
+                return
+            db.execute(
+                "INSERT INTO presence_life_update_feedback VALUES(?,?,?,?,?)",
+                (
+                    principal.principal_id, project_id, feedback,
+                    original_event_id, self._utc(at).isoformat(),
+                ),
+            )
 
     def recent_life_project_outreach(
         self, *, now: datetime, recipient_id: str = SPARKS_PRINCIPAL_ID,
