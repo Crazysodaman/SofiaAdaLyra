@@ -187,6 +187,24 @@ def test_host_power_shell_restricts_new_internal_switch_to_exact_guest():
         assert command.index("Connect-VMNetworkAdapter") < command.index(safeguard)
     assert "[string]$postVm.Id" in command
     assert "[string]$finalSwitch.SwitchType" in command
+    # Any different host isolation state after the NIC mutation is not a
+    # clean success report, even if the earlier preflight was acceptable.
+    for sentinel in (
+        "POST_STAGE_OTHER_GUESTS_ON_SWITCH",
+        "POST_STAGE_HOST_IP_CHANGED",
+        "POST_STAGE_FORWARDING_ACTIVE",
+        "POST_STAGE_NOT_PUBLIC_PROFILE",
+        "POST_STAGE_FIREWALL_NOT_DEFAULT_DENY",
+        "POST_STAGE_NAT_OVERLAP",
+        "POST_STAGE_ICS_ACTIVE",
+    ):
+        assert sentinel in command
+        assert command.index(sentinel) > command.index("Connect-VMNetworkAdapter")
+        assert command.index(sentinel) < command.index(
+            "Outcome='host_internal_link_staged'"
+        )
+    assert "Get-NetNat -ErrorAction Stop" in command
+    assert "HNetCfg.HNetShare" in command
 
 
 def test_stage_cannot_authorize_a_different_vm_or_unrecognized_policy(tmp_path):
