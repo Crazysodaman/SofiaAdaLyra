@@ -2213,6 +2213,8 @@ class SelfDirectedLifeCoordinator:
             payload={
                 "project_id": project.project_id,
                 "goal_id": goal.id,
+                "project_revision": project.revision,
+                "goal_revision": goal.revision,
                 "capability_name": action.proposal.capability_name,
                 "parameters": action.proposal.parameters,
                 "requested_scope": action.proposal.requested_scope,
@@ -2248,18 +2250,29 @@ class SelfDirectedLifeCoordinator:
             value for value in self.goals.list_visible(local_sparks_principal())
             if value.id == project.goal_id
         ), None)
+        # An old queued original is not safe merely because LIFE and GOALS
+        # are ACTIVE again after a pause/resume or goal revision. Both source
+        # revisions are bound when RUN is admitted; legacy jobs lacking
+        # either snapshot fail closed pending manual operator settlement.
+        original_project_revision = job.payload.get("project_revision")
+        original_goal_revision = job.payload.get("goal_revision")
         if (
             project.status is not ProjectStatus.ACTIVE
             or goal is None or goal.status is not GoalStatus.ACTIVE
             or goal.owner_principal_id != SOFIA_GOAL_OWNER_ID
             or goal.scope_audience != project.audience_id
+            or type(original_project_revision) is not int
+            or original_project_revision != project.revision
+            or type(original_goal_revision) is not int
+            or original_goal_revision != goal.revision
+            or goal.expires_at is not None and started >= goal.expires_at
         ):
             self.store.cancel_artifact_authorization(
                 str(job.payload["parameters"]["request_id"]),
             )
             return WorkResult(
                 WorkStatus.BLOCKED, {"project_id": project.project_id},
-                "life_project_or_goal_no_longer_active_no_execution",
+                "life_project_or_goal_original_authority_changed_no_execution",
             )
         proposal = CapabilityProposal(
             str(job.payload["capability_name"]),
@@ -3039,6 +3052,20 @@ class SelfDirectedLifeCoordinator:
             # An actual GOALS/LIFE revocation can race even the fresh
             # precheck. Do not disguise unrelated programmer/schema errors.
             if self._draft_authority_still_current(project, now=now):
+                raise
+            return 0, "revision_authority_changed"
+        except RuntimeError as exc:
+            # Atomic RUN admission now CAS-checks the original project
+            # revision. A stale source is a normal rejected draft, not an
+            # entire background-worker failure. Other runtime failures
+            # remain visible to operators instead of being concealed.
+            if (
+                str(exc) not in {
+                    "original LIFE project revision changed before RUN admission",
+                    "project was deactivated before atomic RUN admission",
+                }
+                or self._draft_authority_still_current(project, now=now)
+            ):
                 raise
             return 0, "revision_authority_changed"
         return 1, "revision_scheduled"
@@ -3845,6 +3872,16 @@ class SelfDirectedLifeCoordinator:
                     # A second authority change can happen between the
                     # post-model check and atomic RUN submission.
                     if self._draft_authority_still_current(project, now=now):
+                        raise
+                    follow_through = "authority_changed_during_draft"
+                except RuntimeError as exc:
+                    if (
+                        str(exc) not in {
+                            "original LIFE project revision changed before RUN admission",
+                            "project was deactivated before atomic RUN admission",
+                        }
+                        or self._draft_authority_still_current(project, now=now)
+                    ):
                         raise
                     follow_through = "authority_changed_during_draft"
                 else:
