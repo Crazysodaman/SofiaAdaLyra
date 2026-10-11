@@ -338,10 +338,37 @@ class SettingsSections:
         for active, label in ((True, "Pause actions"), (False, "Resume actions")):
             self.ttk.Button(parent, text=label, command=self.guarded(lambda active=active: change(active))).pack(anchor="w", pady=4)
         self.viewer(parent, "Standing inspected capabilities", lambda: "\n".join(self.config.standing_allowed_capabilities))
+        from sofia.safe.review import compact_policy_review
+        from sofia.safe.permissions import PermissionStore
+        self.viewer(
+            parent, "SAFE configured standing capability audit",
+            lambda: compact_policy_review(
+                self.config.standing_allowed_capabilities,
+                PermissionStore(self.config.state_path),
+            ),
+        )
 
     def advanced_panel(self, parent):
         from tkinter import filedialog
         self.viewer(parent, "Database diagnostics", lambda: database_diagnostics(self.config.state_path))
+        def preview_relocation():
+            from pathlib import Path
+            from sofia.ops.state_mobility import relocation_preflight_text
+            directory = filedialog.askdirectory(
+                parent=self.root, title="Select proposed local Sofía state home",
+            )
+            if directory:
+                self.messagebox.showinfo(
+                    "Sofía state relocation preflight (read only)",
+                    relocation_preflight_text(
+                        Path(self.config.state_path), Path(directory),
+                    ),
+                    parent=self.root,
+                )
+        self.ttk.Button(
+            parent, text="Preview state relocation (does not move files)…",
+            command=self.guarded(preview_relocation),
+        ).pack(anchor="w", pady=6)
         self.viewer(parent, "Saved settings (protected token values excluded)", lambda: json.dumps(json.loads(RuntimeUserSettingsStore._encode(RuntimeUserSettingsStore(self.config.state_path).load())), indent=2))
         def export():
             target = filedialog.asksaveasfilename(parent=self.root, title="Export saved settings", defaultextension=".json", filetypes=(("JSON", "*.json"),))
