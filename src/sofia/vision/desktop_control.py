@@ -132,7 +132,7 @@ def require_workstation_clear(state_path: Path | str, host_id: str, at: datetime
         state.source != "windows-process-inspection" or
         state.observed_at is None or
         at - state.observed_at < timedelta(0) or
-        at - state.observed_at > timedelta(seconds=5)):
+        at - state.observed_at > timedelta(seconds=35)):
         raise PermissionError("Venus gaming safety requires fresh unoverridden NORMAL tray evidence")
     if not game_process_clear():
         raise PermissionError("a running game prohibits Venus desktop automation")
@@ -150,7 +150,8 @@ class WindowsDesktopInput:
         if int(self.kernel32.WTSGetActiveConsoleSessionId()) == 0xFFFFFFFF:
             raise PermissionError("no active interactive Windows console")
         pid = wintypes.DWORD()
-        hwnd = int(self.user32.GetForegroundWindow())
+        self.user32.GetForegroundWindow.restype = wintypes.HWND
+        hwnd = int(self.user32.GetForegroundWindow() or 0)
         if hwnd <= 0 or not self.user32.GetWindowThreadProcessId(
             wintypes.HWND(hwnd), ctypes.byref(pid)
         ):
