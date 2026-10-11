@@ -259,6 +259,8 @@ class ReviewedAssociationStore:
         """Explicit bounded decay, not a hidden self-evolving training loop."""
         principal_id, audience_id = self._scope(principal_id, audience_id)
         moment = self._moment(at)
+        if not self._opted_in():
+            return 0
         if type(rate) not in {int, float} or not math.isfinite(rate) or not 0 <= rate <= 0.1:
             raise ValueError("decay rate must be in 0..0.1")
         with closing(self._connect()) as db, db:
