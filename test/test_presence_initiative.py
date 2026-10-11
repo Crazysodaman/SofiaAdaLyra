@@ -782,6 +782,62 @@ def test_life_quiet_and_busy_never_wake_outreach_model(tmp_path):
         life.close()
 
 
+@pytest.mark.parametrize("changed", ["interest", "recipient_route"])
+def test_life_outreach_rechecks_exact_source_and_route_after_model(
+    tmp_path, changed,
+):
+    """A previously grounded model choice cannot queue a stale LIFE update."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        previous = life.voluntary_project_updates(now=now)
+        assert len(previous) == 1
+
+        def changed_while_model_thinking(request):
+            reply = _choose_to_share(request)
+            if changed == "interest":
+                current = life.store.interest_by_id(
+                    project.originating_interest, audience_id="local:text",
+                )
+                assert current is not None
+                life.revise_interest(
+                    name=current.name, context=current.context,
+                    strength=min(1.0, current.strength + 0.1),
+                    confidence=current.confidence,
+                    reason="A new original review revised the project interest.",
+                    evidence_refs=current.evidence_refs,
+                    now=now,
+                )
+                recent = life.voluntary_project_updates(now=now)
+                assert len(recent) == 1
+                assert recent[0]["event_id"] == previous[0]["event_id"]
+                assert recent[0]["salience"] != previous[0]["salience"]
+            else:
+                service.configure_delivery(
+                    sender=lambda payload: (
+                        sent.append(payload)
+                        or SendResult(DeliveryOutcome.DELIVERED, receipt_id="wrong"),
+                    ),
+                    policy=service.policy, channel="desktop",
+                    destination="unexpected-recipient",
+                )
+            return reply
+
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False, generate=changed_while_model_thinking,
+        ) == 0
+        assert service.has_pending() is False
+        assert sent == []
+        assert presence.recent_life_project_outreach(now=now) is False
+    finally:
+        life.close()
+
+
 def test_life_outreach_operator_stop_after_model_choice_is_honored(tmp_path):
     """A choice made before the user's stop cannot queue a later notice."""
     from sofia.application.background_runtime import bridge_voluntary_life_outreach
