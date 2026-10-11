@@ -518,13 +518,19 @@ class LifeStore:
             ).fetchone()
         if row is None:
             return None
-        original_at = datetime.fromisoformat(row["run_at"])
-        observed_at = datetime.fromisoformat(row["observed_at"])
-        if (
-            original_at.tzinfo is None
-            or observed_at.tzinfo is None
-            or observed_at < original_at
-        ):
+        try:
+            original_at = datetime.fromisoformat(row["run_at"])
+            observed_at = datetime.fromisoformat(row["observed_at"])
+            chronology_valid = (
+                original_at.tzinfo is not None
+                and original_at.utcoffset() is not None
+                and observed_at.tzinfo is not None
+                and observed_at.utcoffset() is not None
+                and observed_at >= original_at
+            )
+        except (TypeError, ValueError, OverflowError):
+            chronology_valid = False
+        if not chronology_valid:
             # Source-observation chronology may be corrupt or forged.
             # Invalid proof cannot justify a new LIFE state transition.
             return None
