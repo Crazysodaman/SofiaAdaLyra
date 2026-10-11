@@ -370,3 +370,18 @@ This bounds returned model text, not input token accounting, inference runtime, 
 - `771d03d2`: Regression source checks the completed-unverified original RUN scenario and asserts the new-work admission projection stays false. Tests intentionally unexecuted.
 
 This is a source/projection correctness patch, not a replacement for LIVE RUN admission checking. Production RUN/GOALS/SAFE still own authorizations; the entire 175-ID scope remains open pending complete source audit and deferred testing.
+
+## Continued Phase 09/08 coding checkpoints (8:42 local)
+
+- `2f2c13fe`: Original `SelfDirectedLifeCoordinator.select_activity` now rechecks current scoped, active SELF goal identity and rejects stale/cancelled goal decisions, nonpersonal scopes and unsettled latest RUN FAILED/CANCELLED/BLOCKED/UNCERTAIN before selecting optional activity. The rest of LIFE execution still uses the original GOALS/SAFE/RUN admission boundaries; this is no substitute for consent or effect authority.
+- `0f7ca681`: Unexecuted regressions cover externally cancelled GOALS and blocked RUN state before a tick's reconciliation.
+- `ec92f8aa`: Extracted the original hash/typed-objective/linked completed RUN completion check into `_current_verified_objective_completion`, shared by the real `complete()` gate and existing `operator_diagnostics` reporting. A historic COMPLETED/ARCHIVED label alone can no longer claim currently valid completed artifact bytes; tamper/corruption drops `has_verified_completion` to false.
+- `c2b22535`: Unexecuted regression source creates/validates original creative work, completes the canonical goal, then corrupts bytes and asserts the status remains historical but the current completion proof is revoked.
+- `7b2b76ea`: Original `PresenceInitiativeEngine.consider` now refuses cross-audience local outreach and stale/future source observations, and caps queued ACT notice expiry to the original evidence TTL. This reuses existing ACT, recipient policy, source journal and transport receipts. Other device/private scopes require independently approved audience/channel routing.
+- `dabe6417`: Unexecuted regression cases cover private cross-device source suppression, stale/future observation denial and evidence-expired notice suppression.
+- `53576eae`: Existing operator dependency view now derives stable `review_decision_key`, `review_due_at`, `awaiting_verification`, and original next milestone/actionable-since from LIFE/GOALS/RUN/evaluation state without another scheduler, fabricated deadline or live effect.
+- `c52b9140`: Unexecuted source regression checks review-key stability across idle time and change only after original RUN source changes.
+- `d057e6ee`: Original `ExpressionRuntime.receipt` now enforces modal success type (text persisted, voice spoken, avatar rendered) and verifies the canonical stored idempotency receipt under SQLite writer lock, rather than returning an invented ACK after `INSERT OR IGNORE` conflicts. Replayed matching keys return the original persisted receipt. Voice/avatar still require actual backend acknowledgement, not an inferred gesture.
+- `709d24bd`: Unexecuted cross-modal receipt replay/conflict/forgery regressions.
+
+All work is source-coded to `main` with `[skip ci]`, not tested, host-accepted or deployed. These fixes do not imply all original 175 tasks are coding complete. The shared CA ledger remains Workstream 1's source-of-truth reconciliation responsibility. No real host, model, voice device, avatar UI or robot was operated.
