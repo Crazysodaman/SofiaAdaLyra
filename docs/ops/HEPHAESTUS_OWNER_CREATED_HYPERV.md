@@ -29,6 +29,8 @@ On the **Artemis Fleet agent service account**, configure the following host-con
 - `SOFIA_WORKSHOP_BOOTSTRAP_OS_DISK`: the exact existing Hephaestus VHDX path.
 - `SOFIA_WORKSHOP_BOOTSTRAP_ENABLED=1`: deliberately enables the otherwise unavailable protected host bootstrap operation.
 
+**Debian unattended-media requirement:** The approved ISO must actually contain a working Debian Installer preseed and UEFI boot configuration that passes `auto=true priority=critical preseed/file=/cdrom/preseed.cfg` (or a separately reviewed equivalent). A standard interactive Debian ISO will only boot the installer menu; it cannot fulfill Sofía's hands-off installation task. The owner must review unattended partitioning because it can erase the exact OS VHDX. Use a verified offline DVD/package source if networking is prohibited. The image may not contain reusable passwords, private keys, host credentials, arbitrary shell prompts or unapproved LAN connectivity. The boot ISO digest must be observed from Artemis each time before the protected boot operation. See Debian 13's official preseed guidance for UEFI/ISO details.
+
 A host admin must install and configure the Fleet agent and its pinned mTLS transport separately. **Do not paste passwords, signing keys, API tokens or host administrator credentials into an ISO, settings UI or Git.**
 
 A production deployment should constrain the Artemis service identity to the necessary Hyper-V operations using JEA or equivalent host policy. Source-level command restrictions are a second defense; they are **not** an OS-enforced least-privilege boundary by themselves.
