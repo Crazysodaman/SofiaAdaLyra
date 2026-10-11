@@ -18,6 +18,8 @@ import secrets
 import sqlite3
 import sys
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 _DEVICE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z")
 _TOKEN = re.compile(r"sm1_[A-Za-z0-9_-]{48,128}\Z")
 
@@ -36,8 +38,8 @@ class MobileDeviceCredentialStore:
 
     def __init__(self, state_path: Path | str) -> None:
         self.state_path = Path(state_path)
-        if not self.state_path.is_file():
-            raise FileNotFoundError("existing canonical sofia.db required for pairing")
+        # The credential authority cannot silently follow a swapped database.
+        self._state_guard = CanonicalSQLiteGuard(self.state_path)
         with closing(self._connect()) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS mobile_device_credential (
@@ -60,10 +62,7 @@ class MobileDeviceCredentialStore:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(
-            self.state_path.absolute().as_uri() + "?mode=rw",
-            uri=True, timeout=10,
-        )
+        db = self._state_guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
