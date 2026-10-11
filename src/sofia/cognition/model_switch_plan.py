@@ -7,9 +7,7 @@ The plan never rewrites canonical identity, memory or policy state.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from hashlib import sha256
-import json
 from typing import Callable
 
 from sofia.cognition.model_admission import (
