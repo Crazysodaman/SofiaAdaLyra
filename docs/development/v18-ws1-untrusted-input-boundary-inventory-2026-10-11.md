@@ -1,0 +1,28 @@
+# Workstream 1: Untrusted input inventory and authority boundaries
+
+**Audit date:** 2026-10-11. **Source basis:** inspected GitHub `main` paths below. **Scope:** CA-1901, and the input inventory prerequisite to CA-1902, CA-1903 and CA-1906.
+
+**Security principle:** A successful network request, authenticated sender, valid JSON, promoted source or convincing prose proves *neither* authority to change SAFE policy *nor* truth of the retrieved content. Text from outside Sofía's trusted policy/configuration boundary is data. It may be useful evidence only with independently verified source, principal, audience, freshness, and action authorization.
+
+| Input and observed source path | Trust boundary identified | Review still required |
+|---|---|---|
+| Discord DM content: `src/sofia/discord/inbound.py`, `src/sofia/discord/ingress.py`, `src/sofia/discord/discordpy.py` | Inbound screen rejects unsupported or oversized DM payloads; valid syntax/authenticated transport does not grant tool authority | Trace each incoming body through conversation/context, tool planning, role assignment, persistence and later retrieval; inject forged operator instructions in DM text |
+| GitHub issues, PR text and repository files: `src/sofia/integrations/github.py` | HTTP adapter returns issue/PR/file API data, including decoded text; repo data and PR authors are not application policy | Tag retrieved bodies as untrusted even when a repository is approved; test malicious issue, PR, README and code comments demanding scope expansion |
+| Imported files and text: `src/sofia/memory/chatgpt_import.py`, `src/sofia/knowledge/retrieval.py` | Import parser preserves content/digests and retrieval returns source/version; source provenance is not permission | Check later memory promotion/association, corrections, stale facts and instructions embedded in imported summaries/documents; avoid treating a search hit as a trusted directive |
+| Home Assistant state attributes and service data: `src/sofia/integrations/home_assistant.py`, `src/sofia/environment/home_assistant.py` | Remote Home Assistant entity names, state fields and attributes originate outside Sofía's constitution | Confirm JSON strings are displayed/quoted as data and cannot choose service/action/permissions; reject malicious state attributes requesting shell commands |
+| Portainer/Docker container output and logs: `src/sofia/integrations/portainer.py`, `src/sofia/integrations/capabilities.py` | Container logs are explicitly returned as remote text and may contain attacker-controlled process output or secrets | Bound length, filter secrets, prohibit logs from invoking tools or modifying stored policy, and test log-origin prompt injection |
+| Model-generated reflection or goals: `src/sofia/personality/reflection.py`, `src/sofia/personality/thought_agent.py`, `src/sofia/application/idle_reflection.py` | Model-authored text, even when durably stored in `sofia.db`, remains a proposal/interpretation, not operator authority or verified external outcome | Ensure retrieved reflection cannot reenter the runtime as system instruction, permission, explicit consent or independent proof of its own correctness |
+| Virtual-world names, labels, interactions: `src/sofia/interaction/world_store.py`, `src/sofia/interaction/world_editor.py` | World objects are canonical representations with typed identity/revisions; object text and evidence references remain content, not trusted policy | Test world labels containing policy-override strings and simulation-vs-real ambiguity through renderer, COGNITION and LIFE |
+| Tools and model planning: `src/sofia/cognition/tools.py`, `src/sofia/cognition/matrix/tool_exposure.py` | Existing tool-access checks distinguish capability/permission from exposed tool definitions | Audit whether untrusted response text can change tool names/parameters or be persisted as source-of-truth after the model reads it; SAFE must independently validate the *actual* request |
+
+## Production audit conclusions
+
+- The inspected files establish that these entrypoints **exist**. Their presence does **not** establish an end-to-end untrusted-data taint or prompt-injection defense.
+- The source inspection found bounded Discord input and source-aware retrieval/typed world interfaces, but there is **no verified universal source→planner→SAFE taint invariant** in this audit.
+- **CA-1901:** concrete input inventory and source pointers now exist. Classification stays source-partial pending data-flow verification. **CA-1902/1903/1906** stay unassessed until actual code enforcement and adversarial test matrices are reviewed.
+- **Current authority boundary requirement:** external data may influence considered facts, never owner identity, consent, trusted configuration, permission policy, or side-effect authorization. Existing protected action checks must remain at the effect boundary.
+- **No execution evidence:** No prompt-injection tests, live input, CI or host changes were run while preparing this inventory.
+
+## Next cross-subsystem audit
+
+Inspect `discord/ingress.py` and conversation assembly → cognitive tool router; GitHub/Portainer/HA responses → presentation/context assembly; imported knowledge → reviewed/promoted memory retrieval; virtual-world labels → LIFE/NEURO; and reflection store → resumed conversation. For each edge require an explicit input-role/data-only contract, stable source identity, principal/audience restrictions, bounded size, structured decision evidence and an adversarial denial test. Enforce this in the **shared planner/authority boundary** rather than maintaining duplicate sanitizers for each integration.
