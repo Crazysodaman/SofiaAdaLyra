@@ -288,3 +288,5 @@ This addresses a narrow authority-race path, **not** full atomic GOALS/LIFE two-
 - `936bf927`: Unexecuted SQLite regression intentionally collides on the experience primary key to prove the source-level rollback expectation and protect an existing experience from overwrite.
 
 **Remaining:** preferences are owned by a different existing writer transaction and are not made atomic with LIFE evaluation here; interrupted manual subjective preference application still needs replay-safe repair. Real crash-injection, Windows handle/lock, full-suite and installed-release gates are explicitly deferred. No tests or CI were run.
+
+- Typed experience metadata repair: `be35582f` validates both canonical record classes before reading metadata and accepts the declared Mapping contract without relaxing the atomic provenance fields. No tests run.
