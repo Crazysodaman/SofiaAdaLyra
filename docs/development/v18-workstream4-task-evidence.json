@@ -24,7 +24,8 @@
     "2026-10-11: Eight Phase-13 digital-twin design/research items source-wired through real OPS and Fleet Settings with bounded synthetic scenarios, immutable reproducibility capsules, abandonment and explicit Gaia/JMRI no-actuation boundaries. No simulations/tests were executed.",
     "2026-10-11: Operator selected first-boot local console admin with password-required sudo, SSH disabled, root locked, non-login worker no sudo. Offline Debian13 UEFI DVD-1 remaster and owner-signed Ed25519 policy plus pinned Artemis verified media gates coded on main. No password/media generated, no VM installed, no tests/CI/host writes. CA-4303 code-ready only; actual OS hardening/untrusted-worker attestation tasks still incomplete.",
     "2026-10-11: CA-6701 and CA-6704 methods and private-data-denying public JSONL review source-coded into actual EVOLVE Settings and read-only OPS; no training/CI/tests, independent license validation and revocation policy unfinished.",
-    "2026-10-11: CA-2101 global optional resources are conservative SQLite reservation credits, not observed GPU/token measurements; actual host resource baselines and seven-day soak remain separate verification tasks. No tests/CI or live host changes."
+    "2026-10-11: CA-2101 global optional resources are conservative SQLite reservation credits, not observed GPU/token measurements; actual host resource baselines and seven-day soak remain separate verification tasks. No tests/CI or live host changes.",
+    "2026-10-11: CA-6703 training-source revocation closure coded, owner-only EVOLVE dataset rights and future LoRA admission integrated. No private memory training supported, no independent validation of external licenses claimed, no tests/CI or training run."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -224,7 +225,10 @@
     "71fb58067a7f5560ab3fa9ad0d123c36e8f12eea",
     "b6a9c625fe503ae1fd501082e3a8ddaa540c36c4",
     "cda678e4c8baaa6d0a80be8529ffecad0e470c33",
-    "c89792d5ad201639b9dc18d37f97a9ab85c87e02"
+    "c89792d5ad201639b9dc18d37f97a9ab85c87e02",
+    "04271d95ce3d07cec74fbe39132f45f6bc101ffd",
+    "9bd6d00a28f5e7a218382dcfaa4642b97347fa2d",
+    "2678352de6305b47392e44cb0872c1c7d852aa60"
   ],
   "tasks": [
     {
@@ -1786,12 +1790,12 @@
       "phase": "14",
       "master_line": 1111,
       "global_ledger_before": "unassessed",
-      "source_review": "partially_implemented_unverified",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false,
-      "finding": "Actual public-only JSONL source admission, conservative secret/privacy screening, hashed dedup, owner-source provenance/approved license, heldout reread and canonical digest records now code-wired; no independently verified external rights/consent revocation, third-party data governance or actual training worker, so not yet complete."
+      "code_ready_for_tests": true,
+      "finding": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run."
     },
     {
       "id": "CA-6704",
