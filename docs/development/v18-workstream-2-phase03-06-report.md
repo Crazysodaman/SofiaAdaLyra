@@ -3007,6 +3007,67 @@ crash durability or a hardware-backed remote witness.
 No tests/CI, live VM, host control, restore or cutover
 has been performed.
 
+
+
+### Phase 05 item 84: Project read APIs reject mixed or rebound original audiences
+
+Follow-on audit of Items 78–80 found an inconsistent
+read-side authorization boundary. Tagged projects
+validated their creation audience during mutations,
+but `_project_scope_allowed` returned early for the
+tag without checking whether **all** subsequently
+linked original messages and current source session
+bindings still agreed with the tag. Meanwhile
+`list_visible_threads` used a mere
+`EXISTS(one visible original)`, and
+`visible_events`, `visible_messages` and
+`visible_message_page` did not inspect the
+project's immutable creation scope at all.
+A corrupted or imported mixed-audience project
+could therefore leak its title through another
+authenticated channel or expose one subset of
+its source history without full project authority.
+
+Production `src/sofia/conversation/lifelong.py`
+now requires every project original and its
+**CURRENT** `social_session_principal` binding
+to match the requesting principal, audience and
+kind, even for an origin-tagged project. Empty
+projects still require a present creator-audience
+stamp plus `has_linked_source=0`. Default
+header projection enforces this against **all**
+linked originals in SQL **before LIMIT** and
+also validates the original creation stamp.
+Direct event/message readers and canonical pagers
+apply the same full project-scope check before
+fetching source text. Main's independent
+per-source audience policy is unchanged;
+historical mixed projects are neither erased nor
+silently relabeled, but remain blocked until
+approved remediation.
+
+- Full-project authority helper:
+  `00f7ddd47e75569e00ed93921a40ff8007066f86`
+  (`[skip ci]`).
+- SQL-first title filter:
+  `0e5d08414b9b447a90dc061ae63d500bf742747b`
+  (`[skip ci]`).
+- Canonical event, message and page read gates:
+  `7d061fdeb65d67f28cb71249d0163da783f84de4`
+  (`[skip ci]`).
+- Deferred source corruption, mixed legacy and
+  healthy project regression coverage:
+  `test/test_ws2_project_read_scope_integrity.py`
+  `070e895b34e9eb393064b9b0b4f119c6517a1d3a`
+  (`[skip ci]`).
+
+Original CA relevance: CA-4104, CA-4107, CA-5301,
+CA-5506, CA-5706, CA-6306. The source integrity
+upgrade is NOT final proof of cross-device privacy
+or remediation of already disclosed historical
+messages. Tests, CI, Android builds and live
+data repair remain deferred.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
