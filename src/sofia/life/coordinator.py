@@ -613,27 +613,31 @@ class SelfDirectedLifeCoordinator:
             superseded_by=replacement_project_id,
         )
 
-    def complete(self, project_id: str, *, reason: str, now: datetime) -> LifeProject:
-        project = self._project(project_id)
-        if len(set(project.brief.objectives)) != len(project.brief.objectives):
-            raise ValueError("legacy original objectives are ambiguous; completion needs correction")
-        if project.goal_id is None:
-            raise ValueError("active project has no canonical goal")
-        evaluations = self.store.evaluations(project_id)
-        # A historic model judgment may predate the independent validation
-        # gate or refer to a superseded revision. Recheck the actual current
-        # bytes, exact original objectives, and revision before completion.
-        verified_result = False
-        for evaluation in evaluations:
-            if evaluation.technical_outcome is not TechnicalOutcome.VALID:
-                continue
-            if set(evaluation.objective_results) != set(project.brief.objectives):
-                continue
-            if not all(value is True for value in evaluation.objective_results.values()):
+    def _current_verified_objective_completion(
+        self, project: LifeProject, *, now: datetime,
+    ) -> bool:
+        """Revalidate the actual original current bytes and completed RUN.
+
+        A durable COMPLETED/ARCHIVED label is historical state, not proof
+        that bytes still exist, have the same digest, or meet original
+        objectives today. This source-only check is shared by the actual
+        completion gate and operator-facing diagnosis.
+        """
+        if (
+            project.goal_id is None
+            or len(set(project.brief.objectives)) != len(project.brief.objectives)
+        ):
+            return False
+        for evaluation in self.store.evaluations(project.project_id):
+            if (
+                evaluation.technical_outcome is not TechnicalOutcome.VALID
+                or set(evaluation.objective_results) != set(project.brief.objectives)
+                or any(value is not True for value in evaluation.objective_results.values())
+            ):
                 continue
             try:
                 report = self.inspect_artifact_objectives(
-                    project_id, artifact_id=evaluation.artifact_id,
+                    project.project_id, artifact_id=evaluation.artifact_id,
                 )
             except (LookupError, OSError, ValueError, PermissionError):
                 continue
@@ -645,15 +649,21 @@ class SelfDirectedLifeCoordinator:
                         project,
                         artifact_id=evaluation.artifact_id,
                         revision=evaluation.artifact_revision,
-                        evidence_ref=ref,
-                        now=now,
+                        evidence_ref=ref, now=now,
                     )
                     for ref in evaluation.evidence_refs
                 )
             ):
-                verified_result = True
-                break
-        if not verified_result:
+                return True
+        return False
+
+    def complete(self, project_id: str, *, reason: str, now: datetime) -> LifeProject:
+        project = self._project(project_id)
+        if len(set(project.brief.objectives)) != len(project.brief.objectives):
+            raise ValueError("legacy original objectives are ambiguous; completion needs correction")
+        if project.goal_id is None:
+            raise ValueError("active project has no canonical goal")
+        if not self._current_verified_objective_completion(project, now=now):
             raise ValueError(
                 "completion requires current artifact bytes and independent "
                 "PASS for all original objectives; model critique alone is insufficient"
@@ -1320,7 +1330,10 @@ class SelfDirectedLifeCoordinator:
                 ),
                 "artifact_count": len(self.store.artifacts(project.project_id)),
                 "evaluations_count": len(reviewed),
-                "has_verified_completion": project.status is ProjectStatus.COMPLETED,
+                "has_verified_completion": (
+                    project.status in {ProjectStatus.COMPLETED, ProjectStatus.ARCHIVED}
+                    and self._current_verified_objective_completion(project, now=now)
+                ),
             })
         if quiet is not None:
             overall, reason = "idle_by_choice", quiet[1]
