@@ -245,6 +245,49 @@ class MemoryDeletionLedger:
                         "restored database lacks required memory candidate schema"
                     )
                 return 0
+            # A signed external erasure instruction is authoritative. The
+            # local guard is a derived index that prevents later importers
+            # from reintroducing an identical candidate UUID between
+            # journal replays. The guard contains no forgotten text.
+            db.executescript("""
+                CREATE TABLE IF NOT EXISTS memory_deletion_guard (
+                    candidate_id TEXT PRIMARY KEY,
+                    principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL
+                );
+                CREATE TRIGGER IF NOT EXISTS memory_deletion_reject_insert
+                BEFORE INSERT ON memory_candidate
+                WHEN EXISTS(
+                    SELECT 1 FROM memory_deletion_guard AS g
+                    WHERE g.candidate_id=NEW.candidate_id
+                )
+                BEGIN SELECT RAISE(ABORT,'candidate was deleted'); END;
+                CREATE TRIGGER IF NOT EXISTS memory_deletion_reject_id_update
+                BEFORE UPDATE OF candidate_id ON memory_candidate
+                WHEN EXISTS(
+                    SELECT 1 FROM memory_deletion_guard AS g
+                    WHERE g.candidate_id=NEW.candidate_id
+                )
+                BEGIN SELECT RAISE(ABORT,'candidate was deleted'); END;
+            """)
+            for record in entries:
+                prior = db.execute(
+                    "SELECT principal_id,audience_id FROM memory_deletion_guard "
+                    "WHERE candidate_id=?", (record["candidate_id"],),
+                ).fetchone()
+                if prior is not None and prior != (
+                    record["principal_id"], record["audience_id"],
+                ):
+                    raise MemoryErasureError(
+                        "derived deletion guard conflicts with signed original scope"
+                    )
+                db.execute(
+                    "INSERT OR IGNORE INTO memory_deletion_guard VALUES(?,?,?)",
+                    (
+                        record["candidate_id"], record["principal_id"],
+                        record["audience_id"],
+                    ),
+                )
             for record in entries:
                 candidate_id = record["candidate_id"]
                 match = db.execute(
