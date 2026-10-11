@@ -51,3 +51,61 @@ def assess_adaptation(plan: AdaptationPlan) -> AdaptationReview:
     if not plan.preserve_source_privacy:
         blockers.append("privacy-preserving training required")
     return AdaptationReview(not blockers,tuple(blockers),False)
+
+
+
+def assess_registered_adaptation(
+    plan: AdaptationPlan, *, dataset_store,
+) -> AdaptationReview:
+    """Verify BOTH current source files before even considering a LoRA job.
+
+    An approved retrieval context or a self-reported digest alone cannot
+    authorize weight training. This does not launch training or install
+    candidate weights. Every real training executor must call this boundary
+    immediately before reading dataset bytes.
+    """
+    from sofia.evolve.training_sources import (
+        TrainingDatasetStore, inspect_public_dataset,
+    )
+    from pathlib import Path
+    if not isinstance(dataset_store,TrainingDatasetStore):
+        raise TypeError("canonical reviewed dataset owner required")
+    base=assess_adaptation(plan)
+    blockers=list(base.blockers)
+    for role,digest in (
+        ("training",plan.training_data_digest),
+        ("heldout",plan.heldout_data_digest),
+    ):
+        try:
+            reviewed=dataset_store.find(digest)
+        except (ValueError,TypeError) as exc:
+            blockers.append(role+" dataset digest invalid")
+            continue
+        if reviewed is None:
+            blockers.append(role+" source was never independently reviewed")
+            continue
+        if role=="training" and reviewed.approval_ref!=plan.data_use_approval_ref:
+            blockers.append("weight-training consent ref differs from reviewed source")
+        try:
+            observed=inspect_public_dataset(
+                path=reviewed.source_path,
+                source_class=reviewed.source_class,
+                license_id=reviewed.license_id,
+                source_ref=reviewed.source_ref,
+                approval_ref=reviewed.approval_ref,
+                at=reviewed.reviewed_at,
+            )
+        except (ValueError,PermissionError,OSError,TypeError):
+            blockers.append(role+" source revoked, unavailable or unsafe on reread")
+            continue
+        if (
+            observed.digest!=digest or
+            observed.unique_rows!=reviewed.unique_rows or
+            observed.duplicate_rows!=reviewed.duplicate_rows
+        ):
+            blockers.append(role+" source bytes changed since reviewed approval")
+    return AdaptationReview(
+        research_eligible=not blockers,
+        blockers=tuple(dict.fromkeys(blockers)),
+        production_install_authorized=False,
+    )
