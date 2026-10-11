@@ -797,3 +797,101 @@ def test_sharing_is_explicit_and_uses_grounded_project_callback(tmp_path):
         assert shared[0][0] == project.project_id
     finally:
         life.close()
+
+
+@pytest.mark.parametrize(
+    ("run_outcome", "project_outcome", "goal_outcome"),
+    [
+        (WorkStatus.UNCERTAIN, ProjectStatus.PAUSED, GoalStatus.PAUSED),
+        (WorkStatus.CANCELLED, ProjectStatus.PAUSED, GoalStatus.PAUSED),
+        (WorkStatus.FAILED, ProjectStatus.FAILED, GoalStatus.BLOCKED),
+    ],
+)
+def test_terminal_life_run_outcome_reconciles_once(
+    tmp_path, run_outcome, project_outcome, goal_outcome,
+):
+    """Only a linked, persisted original RUN transition can settle LIFE."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Attempt", specification={"content": "pending creative work"},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.RUNNING,
+            reason="simulated operator-observed attempt",
+            now=now + timedelta(seconds=4),
+        )
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.RUNNING,),
+            status=run_outcome, reason="canonical RUN outcome",
+            now=now + timedelta(seconds=5),
+        )
+        report = life.tick(now=now + timedelta(seconds=6), busy=True)
+        assert report["terminal_run_projects_settled"] == 1
+        assert life._project(project.project_id).status is project_outcome
+        goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        )
+        assert goal.status is goal_outcome
+        assert life.store.artifacts(project.project_id) == ()
+        assert life.store.evaluations(project.project_id) == ()
+        events = life.store.events(
+            project.project_id, owner_principal_id="sofia:self",
+            audience_id="local:text",
+        )
+        assert any(
+            event.decision == (
+                "technical_failure" if run_outcome is WorkStatus.FAILED
+                else "pause"
+            )
+            and event.evidence_refs
+            for event in events
+        )
+        assert (
+            life.tick(now=now + timedelta(seconds=7), busy=True)[
+                "terminal_run_projects_settled"
+            ] == 0
+        )
+        assert len(life.store.events(
+            project.project_id, owner_principal_id="sofia:self",
+            audience_id="local:text",
+        )) == len(events)
+    finally:
+        life.close()
+
+
+def test_unlinked_terminal_run_event_cannot_change_personal_goal(tmp_path):
+    """Do not promote a plausible job ID or provider text to LIFE authority."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        unrelated = life.work_store.enqueue(
+            kind="life-create-artifact",
+            fingerprint="unlinked-run-outcome",
+            payload={"project_id": project.project_id},
+            priority=1, resource_cost=1, risk="isolated_change",
+            completion_condition="unlinked outcome",
+            now=now + timedelta(seconds=3),
+            deadline=now + timedelta(minutes=15),
+        )
+        life.work_store.transition(
+            unrelated.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.UNCERTAIN,
+            reason="not a LIFE-authorized project job",
+            now=now + timedelta(seconds=4),
+        )
+        report = life.tick(now=now + timedelta(seconds=5), busy=True)
+        assert report["terminal_run_projects_settled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        )
+        assert goal.status is GoalStatus.ACTIVE
+    finally:
+        life.close()
