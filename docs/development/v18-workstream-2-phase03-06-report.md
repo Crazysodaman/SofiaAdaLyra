@@ -2325,6 +2325,35 @@ beyond the existing atomic reviewed candidate supersession.
 No tests/CI executed and no live state, client, host
 or permissions changed.
 
+
+
+### Phase 05 item 69: Canonical uncertainty updates match immutable admitted turn identity
+
+The production `LifelongThreadStore.mark_turn_uncertain` previously
+transitioned a durable Main receipt using only `event_id` and
+`status='processing'`. A stale runtime could therefore settle an
+incorrect claim if another operation reused its apparent event ID.
+The real code now requires a typed original
+`CanonicalTurnAdmission`, checks a timezone-aware settlement time
+and updates only the exact immutable tuple
+`(event_id,canonical_sequence,user_message_id,assistant_message_id)`
+inside `BEGIN IMMEDIATE`. A mismatched admission fails closed
+without changing the original receipt. An already completed,
+interrupted or uncertain receipt is retained and cannot be demoted
+by a late exception from the prior process.
+
+- Production `src/sofia/conversation/lifelong.py`
+  `4a772feaf1d9f70fc09890340c22c4f470371b7e` (`[skip ci]`).
+- Deferred canonical SQLite regressions
+  `test/test_ws2_canonical_uncertainty_fence.py`
+  `c260837c8f0ec323ef317c3a8b31ac862b5a4953`
+  (`[skip ci]`).
+
+Original CA relevance: CA-4106, CA-4110, CA-5302,
+CA-5304, CA-5505. This is source-level receipt hardening,
+not production test evidence or a full Main acceptance.
+No CI/test execution, live messages or host changes.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
