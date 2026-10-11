@@ -12,6 +12,7 @@ The current source implementation now includes:
 - Subsequent key enrollment requires a fresh action-bound WebAuthn assertion by an already enrolled owner key and an atomic one-use credential registration receipt. Physical-key role remains **supervised classification, not attested manufacturer provenance** because enrollment intentionally requests WebAuthn `attestation: none`.
 - `owner_approval_ui.py` identifies active, already enrolled security-key credentials for Settings. Model installation, Fleet enrollment and clearing operator stop use exact FIDO2-signed receipts from the one-shot browser, asynchronously with UI feedback. Emergency `operator.stop.on` remains immediate and requires no authenticator. CLI resume requires FIDO2.
 - Credential revocation requires a distinct signed FIDO2 exact-action receipt and rejects removing the last active security-key credential. Revocation leaves an audit history and cannot reopen first-trust bootstrap.
+- An in-progress operator RESUME is bound to the observed canonical stop `updated_at`; a newer PAUSE can always be activated while authentication is pending, and both SAFE preflight and SQLite transaction refuse an earlier stale resume (`8d499dd`, `045a782`). Loopback approval/registration pages deny framing and missing owner-SID metadata fails closed.
 
 ### Operator-run commands, only after the owner completes Debian-independent local preflight
 
