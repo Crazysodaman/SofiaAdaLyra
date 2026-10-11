@@ -5008,9 +5008,16 @@
       "phase": "06",
       "source_topic": "42",
       "master_line": 528,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/conversation_service.py",
+        "src/sofia/conversation/fulltext_search.py",
+        "src/sofia/conversation/store.py",
+        "test/test_ws2_memory_scoped_recall_fallback.py"
+      ],
+      "evidence_commits": [
+        "2d6c648563559aaebc97ad47cfdfcd14ebc9ae10"
+      ],
       "accepted": false
     },
     {
@@ -5115,9 +5122,16 @@
       "phase": "06",
       "source_topic": "48",
       "master_line": 541,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/memory_review.py",
+        "src/sofia/memory/provenance_store.py",
+        "src/sofia/memory/deletion_ledger.py",
+        "test/test_ws2_memory_review_audience_mutations.py"
+      ],
+      "evidence_commits": [
+        "2d6c648563559aaebc97ad47cfdfcd14ebc9ae10"
+      ],
       "accepted": false
     },
     {
@@ -5207,9 +5221,15 @@
       "phase": "06",
       "source_topic": "50",
       "master_line": 552,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/conversation_service.py",
+        "src/sofia/memory/originals.py",
+        "src/sofia/conversation/fulltext_search.py"
+      ],
+      "evidence_commits": [
+        "2d6c648563559aaebc97ad47cfdfcd14ebc9ae10"
+      ],
       "accepted": false
     },
     {
@@ -5496,9 +5516,16 @@
       "phase": "06",
       "source_topic": "59",
       "master_line": 585,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/conversation_learning.py",
+        "src/sofia/application/memory_review.py",
+        "src/sofia/memory/provenance_store.py",
+        "test/test_memory_explicit_conversation_correction.py"
+      ],
+      "evidence_commits": [
+        "2d6c648563559aaebc97ad47cfdfcd14ebc9ae10"
+      ],
       "accepted": false
     },
     {
