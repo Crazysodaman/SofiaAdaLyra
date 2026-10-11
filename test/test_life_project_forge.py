@@ -1515,3 +1515,42 @@ def test_atomic_life_evaluation_experience_rolls_back_on_conflict(tmp_path):
         )
     finally:
         life.close()
+
+
+def test_repeated_idle_life_ticks_do_not_grow_duplicate_selection_history(tmp_path):
+    """Quiet workers do not create a new DB row every scheduled wake."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first = life.tick(now=now + timedelta(seconds=1))
+        one = life.store.selections(limit=100)
+        assert first["selection"] == "inactivity"
+        assert len(one) == 1
+        for seconds in (301, 601, 901):
+            idle = life.tick(now=now + timedelta(seconds=seconds))
+            assert idle["selection"] == "inactivity"
+            assert life.store.selections(limit=100) == one
+        later = life.tick(now=now + timedelta(hours=1, seconds=2))
+        assert later["selection"] == "inactivity"
+        updated = life.store.selections(limit=100)
+        assert len(updated) == 2
+        assert updated[0].selection_id != one[0].selection_id
+        assert updated[1].selection_id == one[0].selection_id
+    finally:
+        life.close()
+
+
+def test_life_idle_dedupe_does_not_hide_changed_foreground_state(tmp_path):
+    """Busy/quiet/resource changes produce truthful independent decisions."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first = life.tick(now=now + timedelta(seconds=1), busy=False)
+        changed = life.tick(now=now + timedelta(seconds=10), busy=True)
+        assert first["selection"] == changed["selection"] == "inactivity"
+        selections = life.store.selections(limit=100)
+        assert len(selections) == 2
+        assert selections[0].reason != selections[1].reason
+        again = life.tick(now=now + timedelta(seconds=20), busy=True)
+        assert again["selection"] == "inactivity"
+        assert life.store.selections(limit=100) == selections
+    finally:
+        life.close()
