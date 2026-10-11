@@ -12,6 +12,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 
 @dataclass(frozen=True)
 class Goal:
@@ -39,9 +41,10 @@ class GoalJournal:
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
-        if not self.path.is_file():
-            raise FileNotFoundError('An existing application state DB is required.')
-        with closing(sqlite3.connect(self.path, timeout=5)) as db:
+        # INTERACT is a consumer of the application canonical state, never a
+        # fresh SQLite publisher. Pin inode and reject symlinks/replacements.
+        self._guard = CanonicalSQLiteGuard(self.path)
+        with closing(self._guard.connect(timeout=5)) as db:
             if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
                           "AND name='conversation_messages'").fetchone() is None:
                 raise ValueError('Saved conversation evidence is required.')
@@ -96,7 +99,7 @@ class GoalJournal:
             raise ValueError('Priority must be an integer between 0 and 5.')
         goal = Goal(goal_id, source_id, title.strip(), kind, priority,
                     'proposed', self._time(at))
-        with closing(sqlite3.connect(self.path, timeout=5)) as db:
+        with closing(self._guard.connect(timeout=5)) as db:
             db.execute('BEGIN IMMEDIATE')
             self._source(db, source_id)
             previous = db.execute('SELECT * FROM interact_goals WHERE id=?',
@@ -125,7 +128,7 @@ class GoalJournal:
         when = self._time(at)
         transition = (transition_id, goal_id, source_id, expected_status,
                       next_status, when)
-        with closing(sqlite3.connect(self.path, timeout=5)) as db:
+        with closing(self._guard.connect(timeout=5)) as db:
             db.execute('BEGIN IMMEDIATE')
             self._source(db, source_id)
             old = db.execute('SELECT * FROM interact_goal_transitions WHERE transition_id=?',
@@ -148,7 +151,7 @@ class GoalJournal:
             raise TypeError('Explicit boolean settings are required.')
         if not enabled or not user_idle:
             return None
-        with closing(sqlite3.connect(self.path, timeout=5)) as db:
+        with closing(self._guard.connect(timeout=5)) as db:
             row = db.execute('''SELECT * FROM interact_goals WHERE status='active'
                 ORDER BY priority DESC, created_at ASC, id ASC LIMIT 1''').fetchone()
         return Goal(*row) if row else None
@@ -170,7 +173,7 @@ class GoalJournal:
             raise ValueError('A bounded reviewed message is required.')
         queued = PendingMessage(message_id, goal_id, evidence_id, content.strip(),
                                 self._time(at), 'queued')
-        with closing(sqlite3.connect(self.path, timeout=5)) as db:
+        with closing(self._guard.connect(timeout=5)) as db:
             db.execute('BEGIN IMMEDIATE')
             self._source(db, evidence_id)
             goal = db.execute('SELECT status FROM interact_goals WHERE id=?',
@@ -202,7 +205,7 @@ class GoalJournal:
     def pending(self, *, limit: int = 10) -> tuple[PendingMessage, ...]:
         if type(limit) is not int or not 1 <= limit <= 50:
             raise ValueError('Bounded outbox limit required.')
-        with closing(sqlite3.connect(self.path, timeout=5)) as db:
+        with closing(self._guard.connect(timeout=5)) as db:
             rows = db.execute('''SELECT * FROM interact_queued_messages
                 WHERE status='queued' ORDER BY created_at, id LIMIT ?''',
                 (limit,)).fetchall()
@@ -210,7 +213,7 @@ class GoalJournal:
 
     def cancel_message(self, message_id: str) -> None:
         self._id(message_id, 'message_id')
-        with closing(sqlite3.connect(self.path, timeout=5)) as db:
+        with closing(self._guard.connect(timeout=5)) as db:
             db.execute("UPDATE interact_queued_messages SET status='cancelled' "
                        "WHERE id=? AND status='queued'", (message_id,))
             db.commit()
