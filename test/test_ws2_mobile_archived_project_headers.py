@@ -83,6 +83,11 @@ def test_withdrawing_all_source_links_never_resurrects_former_title(
             row["thread_id"] for row in included["threads"]
         }
         assert "Withdrawn Project" not in str(included)
+        with pytest.raises(PermissionError, match="no visible originals"):
+            gateway.project_thread_history(
+                device_id="android-owner", private_mode=False,
+                thread_id=project.thread_id, limit=30,
+            )
     finally:
         originals.close()
 
