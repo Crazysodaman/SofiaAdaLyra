@@ -191,6 +191,8 @@ def main(argv: list[str] | None = None) -> int:
     portable.add_argument("--key", required=True)
     portable.add_argument("--backup-dir", required=True)
     portable.add_argument("--output", required=True)
+    portable.add_argument("--erasure-journal", required=True,
+                          help="signed external memory deletion journal")
     portable.add_argument("--approve-sensitive-plaintext", action="store_true")
     portable.set_defaults(handler=_export_jsonl)
 
