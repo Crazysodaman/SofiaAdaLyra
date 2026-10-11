@@ -2,7 +2,7 @@
 import pytest
 
 from sofia.ops.backup import BackupCipher, BackupEngine, BackupError
-from test.test_ops_backup_restore import NOW, make_state
+from test.test_ops_backup_restore import NOW, make_state, make_erasure_journal
 
 
 def _fixture_archive(tmp_path):
@@ -33,7 +33,7 @@ def test_restore_refuses_protected_redirect_before_any_writes(tmp_path):
     with pytest.raises(BackupError, match="symbolic link or junction"):
         engine.restore(
             backup_dir=archive, target_state_path=restore / "sofia.db",
-            verifier="fixture",
+            verifier="fixture", erasure_journal=make_erasure_journal(tmp_path),
         )
     assert not (restore / "sofia.db").exists()
     assert not any(outside.iterdir())
@@ -49,7 +49,7 @@ def test_restore_refuses_redirected_canonical_file_even_with_replace(tmp_path):
     with pytest.raises(BackupError, match="symbolic link or junction"):
         engine.restore(
             backup_dir=archive, target_state_path=restore / "sofia.db",
-            verifier="fixture", replace_existing=True,
+            verifier="fixture", erasure_journal=make_erasure_journal(tmp_path), replace_existing=True,
         )
     assert outside.read_bytes() == b"preserve-this-file"
 
@@ -63,6 +63,6 @@ def test_restore_refuses_redirected_parent_directory(tmp_path):
     with pytest.raises(BackupError, match="symbolic link or junction"):
         engine.restore(
             backup_dir=archive, target_state_path=redirected / "sofia.db",
-            verifier="fixture",
+            verifier="fixture", erasure_journal=make_erasure_journal(tmp_path),
         )
     assert not any(outside.iterdir())
