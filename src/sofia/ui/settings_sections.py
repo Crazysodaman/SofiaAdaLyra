@@ -163,6 +163,113 @@ class SettingsSections:
             command=self.guarded(reset_reviewed_associations),
         ).pack(anchor="w", pady=(4, 8))
 
+        # Falsifiable science is kept distinct from NEURO's runtime controls.
+        # Preregistering a protocol does not execute any research or label
+        # Sofía conscious, and measured outcomes require human source review.
+        from sofia.neuro.research_registry import (
+            ResearchEvidenceRegistry, reviewed_baseline_studies,
+            EvaluatedResearchOutcome,
+        )
+        science = ResearchEvidenceRegistry(config.state_path)
+        science_view = self.viewer(
+            frames["NEURO"],
+            "Functional awareness research (no consciousness claims)",
+            lambda: science.report(),
+        )
+
+        def preregister_research():
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator stop blocks research registry writes")
+            studies = reviewed_baseline_studies(
+                at=datetime.now(timezone.utc),
+            )
+            text = (
+                "Preregister three observable, falsifiable studies?\n\n"
+                "1. Eligible attention broadcast vs deterministic retrieval\n"
+                "2. Calibrated self-model vs static capability table\n"
+                "3. Recurrent error review vs feed-forward baseline\n\n"
+                "This creates no experiment, model load or subjective "
+                "experience claim. Future outcomes require separate evidence."
+            )
+            if not self.messagebox.askyesno(
+                "Approve research preregistration?", text, parent=root,
+            ):
+                return
+            for study in studies:
+                science.preregister(study)
+            science_view.refresh()
+
+        ttk.Button(
+            frames["NEURO"],
+            text="Review & preregister three baseline studies",
+            command=self.guarded(preregister_research),
+        ).pack(anchor="w", pady=(4, 8))
+
+        evidence_study = tk.StringVar(root, value="science:attention:v1")
+        evidence_kind = tk.StringVar(root, value="inconclusive")
+        evidence_source = tk.StringVar(root, value="")
+        evidence_samples = tk.StringVar(root, value="0")
+        evidence_adverse = tk.StringVar(root, value="No adverse effects observed in supplied evidence")
+        evidence_limits = tk.StringVar(root, value="Only functional outcomes; subjective experience unverified")
+
+        ttk.Label(
+            frames["NEURO"],
+            text="Record independent research outcome: registered study ID",
+        ).pack(anchor="w")
+        ttk.Entry(frames["NEURO"], textvariable=evidence_study).pack(fill="x")
+        ttk.Combobox(
+            frames["NEURO"], textvariable=evidence_kind,
+            values=(
+                "supported", "refuted", "null", "inconclusive",
+                "adverse", "protocol_violation",
+            ),
+            state="readonly",
+        ).pack(fill="x", pady=(3, 3))
+        for label, var in (
+            ("External evidence receipt ID", evidence_source),
+            ("Actual observed sample count", evidence_samples),
+            ("Adverse findings, including none with supporting evidence", evidence_adverse),
+            ("Uncertainty and limitations", evidence_limits),
+        ):
+            ttk.Label(frames["NEURO"], text=label).pack(anchor="w", pady=(3, 2))
+            ttk.Entry(frames["NEURO"], textvariable=var).pack(fill="x")
+
+        def record_science_result():
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator stop blocks research registry writes")
+            observed = EvaluatedResearchOutcome(
+                protocol_id=evidence_study.get().strip(),
+                observed_at=datetime.now(timezone.utc),
+                actual_sample_size=int(evidence_samples.get().strip()),
+                result=evidence_kind.get(),
+                evidence_ref=evidence_source.get().strip(),
+                adverse_observations=evidence_adverse.get().strip(),
+                limitations=evidence_limits.get().strip(),
+                reviewed_by="Sparks",
+            )
+            if not self.messagebox.askyesno(
+                "Approve independent study outcome?",
+                (
+                    "Record this reviewed functional study result?\n\n"
+                    f"Protocol: {observed.protocol_id}\n"
+                    f"Outcome: {observed.result}\n"
+                    f"Sample: {observed.actual_sample_size}\n"
+                    f"Evidence: {observed.evidence_ref}\n\n"
+                    "It cannot establish subjective consciousness, even "
+                    "if the measured hypothesis is supported."
+                ),
+                parent=root,
+            ):
+                return
+            science.record_reviewed_result(observed)
+            science_view.refresh()
+
+        ttk.Button(
+            frames["NEURO"],
+            text="Review & record independent study result",
+            command=self.guarded(record_science_result),
+        ).pack(anchor="w", pady=(4, 8))
+
         def request_neuro_reset():
             # Only the single canonical runtime applies the generation change.
             # This control does not remove inputs, memories or operator policy.
