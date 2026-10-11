@@ -11,6 +11,7 @@ import argparse
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -91,13 +92,13 @@ def collect_package_selection(
     checked = names if marker is None else (marker,)
     probe = PackageSelectionProbe(checked)
     expression = "not integration" if marker is None else f"{marker} and not integration"
-    exitcode = pytest.main(
-        [
-            "--collect-only", "-qq", "--disable-warnings",
-            "-m", expression, str(repo / "test"),
-        ],
-        plugins=[probe],
-    )
+    collection_args = [
+        "--collect-only", "-qq", "--disable-warnings",
+        "-m", expression, str(repo / "test"),
+    ]
+    if os.environ.get("SOFIA_VERIFY_INSTALLED_ONLY") == "1":
+        collection_args += ["--override-ini", "pythonpath=."]
+    exitcode = pytest.main(collection_args, plugins=[probe])
     counts = {name: len(probe.selected[name]) for name in checked}
     if exitcode != 0 or not probe.collection_finished or any(
         count == 0 for count in counts.values()

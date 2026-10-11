@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -115,11 +117,27 @@ def _tracked_tree_clean(repo_root: Path) -> bool:
     return result.returncode == 0
 
 
+def _assert_installed_wheel_origin(repo: Path) -> None:
+    """Reject release test execution against checkout/editable source."""
+    if sys.prefix == sys.base_prefix:
+        raise RuntimeError("installed-only verification requires an isolated venv")
+    spec = importlib.util.find_spec("sofia")
+    if spec is None or not spec.origin:
+        raise RuntimeError("installed Sofía distribution is unavailable")
+    origin = Path(spec.origin).resolve(strict=True)
+    environment = Path(sys.prefix).resolve(strict=True)
+    if environment not in origin.parents:
+        raise RuntimeError("verification is importing Sofía outside the release venv")
+    if repo in origin.parents or (repo / "src") in origin.parents:
+        raise RuntimeError("verification imported checkout source, not the wheel")
+
+
 def run_gate(
     phase: str,
     *,
     evidence_path: Path,
     repo_root: Path | None = None,
+    installed_wheel_only: bool = False,
 ) -> VerificationEvidence:
     if phase not in _PHASES:
         raise ValueError(f"unsupported verification phase: {phase}")
@@ -140,20 +158,34 @@ def run_gate(
     if Path(checkout).resolve(strict=True) != repo:
         raise RuntimeError("verification repository is not the checkout root")
 
+    if type(installed_wheel_only) is not bool:
+        raise TypeError("installed_wheel_only must be a bool")
+    if installed_wheel_only:
+        _assert_installed_wheel_origin(repo)
+
     commands: list[GateCommandEvidence] = []
     for name, args in _PHASES[phase]:
+        command = (sys.executable, *args)
+        if installed_wheel_only and name == "pytest":
+            # pyproject normally adds ./src to pytest imports for developer
+            # editable tests. An installed-wheel release must not do that.
+            command += ("--override-ini", "pythonpath=.")
+        child_env = os.environ.copy()
+        if installed_wheel_only:
+            child_env.pop("PYTHONPATH", None)
+            child_env["SOFIA_VERIFY_INSTALLED_ONLY"] = "1"
+        else:
+            child_env.pop("SOFIA_VERIFY_INSTALLED_ONLY", None)
         start_wall = datetime.now(timezone.utc)
         start = time.monotonic()
         result = subprocess.run(
-            (sys.executable, *args),
-            cwd=repo,
-            check=False,
+            command, cwd=repo, env=child_env, check=False,
         )
         end = time.monotonic()
         finish_wall = datetime.now(timezone.utc)
         evidence = GateCommandEvidence(
             name=name,
-            argv=(sys.executable, *args),
+            argv=command,
             returncode=result.returncode,
             started_at=start_wall.isoformat(),
             finished_at=finish_wall.isoformat(),
@@ -206,12 +238,17 @@ def main(argv: list[str] | None = None) -> int:
         "--repo", type=Path, default=Path.cwd(),
         help="Exact checkout root; never derive from installed site-packages.",
     )
+    parser.add_argument(
+        "--installed-wheel-only", action="store_true",
+        help="Reject editable/checkout imports during release package verification.",
+    )
     args = parser.parse_args(argv)
     try:
         report = run_gate(
             args.phase,
             evidence_path=Path(args.evidence_path),
             repo_root=args.repo,
+            installed_wheel_only=args.installed_wheel_only,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         print(

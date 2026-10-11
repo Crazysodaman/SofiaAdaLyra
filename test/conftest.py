@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import re
+import sys
 
 import pytest
 
@@ -148,3 +150,28 @@ def pytest_collection_modifyitems(items) -> None:
             item.add_marker(getattr(pytest.mark, marker))
         if len(package_markers) > 1:
             item.add_marker(pytest.mark.cross_package)
+
+
+def pytest_sessionstart(session) -> None:
+    """A release cannot claim wheel tests if pytest imports checkout src.
+
+    Runs at each actual pytest collection/session boundary, including the
+    package nonempty-checker. Developer editable tests are unchanged.
+    """
+    if os.environ.get("SOFIA_VERIFY_INSTALLED_ONLY") != "1":
+        return
+    import sofia
+    location = Path(sofia.__file__).resolve(strict=True)
+    venv = Path(sys.prefix).resolve(strict=True)
+    checkout = Path(__file__).resolve().parents[1]
+    if venv not in location.parents or checkout in location.parents:
+        raise pytest.UsageError(
+            "installed-wheel-only gate imported checkout/editable Sofía"
+        )
+    if any(
+        Path(part).resolve() == checkout / "src"
+        for part in sys.path if part
+    ):
+        raise pytest.UsageError(
+            "installed-wheel-only gate exposes source path to test imports"
+        )
