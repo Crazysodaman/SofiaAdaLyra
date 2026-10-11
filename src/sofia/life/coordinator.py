@@ -756,7 +756,55 @@ class SelfDirectedLifeCoordinator:
             } else WorkStatus.FAILED
             return WorkResult(status, {"capability_result": result.kind.value}, result.error or result.kind.value)
         output = dict(result.evidence)
-        artifact_id, revision = str(output["artifact_id"]), int(output["revision"])
+        parameters = dict(job.payload["parameters"])
+        # An executor may have carried out its external effect even if its
+        # returned evidence is incomplete. Do not retry or invent success.
+        receipt_ok = (
+            isinstance(output.get("artifact_id"), str)
+            and output.get("artifact_id") == parameters.get("artifact_id")
+            and output.get("project_id") == project.project_id
+            and type(output.get("revision")) is int
+            and output["revision"] >= 1
+            and type(output.get("byte_size")) is int
+            and output["byte_size"] > 0
+            and isinstance(output.get("sha256"), str)
+            and len(output["sha256"]) == 64
+            and all(char in "0123456789abcdef" for char in output["sha256"])
+        )
+        if receipt_ok:
+            candidate = self.creative_store.latest(
+                output["artifact_id"], SOFIA_CREATIVE_OWNER, project.audience_id,
+            )
+            receipt_ok = (
+                candidate is not None
+                and candidate.project_id == project.project_id
+                and candidate.revision == output["revision"]
+                and candidate.content_sha256 == output["sha256"]
+                and candidate.byte_size == output["byte_size"]
+            )
+        if not receipt_ok:
+            finished = datetime.now(timezone.utc)
+            evidence = self.evidence.record(
+                kind="operation_receipt", observed_at=finished,
+                source="life:creative-capability", successful=False,
+                goal_id=project.goal_id, action_id=job.job_id,
+                assertion="creative execution reported success without a valid linked artifact receipt",
+                payload={"result_kind": "unverified_success_receipt"},
+                principal_id=local_sparks_principal().principal_id,
+                audience=LOCAL_AUDIENCE,
+            )
+            self._experience(
+                project=project, kind="experiment_uncertain",
+                summary="Creative execution reported success but its artifact receipt is unverified.",
+                evidence_refs=(evidence.evidence_ref,), now=finished,
+                metadata={"job_id": job.job_id},
+            )
+            return WorkResult(
+                WorkStatus.UNCERTAIN,
+                {"evidence_ref": evidence.evidence_ref},
+                "creative_receipt_missing_or_inconsistent_no_automatic_retry",
+            )
+        artifact_id, revision = output["artifact_id"], output["revision"]
         finished = datetime.now(timezone.utc)
         self.store.link_artifact(project.project_id, artifact_id, revision, now=finished)
         evidence = self.evidence.record(
