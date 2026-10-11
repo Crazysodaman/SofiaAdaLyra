@@ -658,6 +658,22 @@ class LifeStore:
             )
         return slot if changed.rowcount == 1 else None
 
+    def has_daily_draft_attempt(self, project_id: str, *, now: datetime) -> bool:
+        """Read only the canonical daily drafting admission receipt.
+
+        Prevent a previously reviewed but invalid artifact from consuming
+        every scheduler wake after its daily revision attempt was spent.
+        """
+        if not isinstance(project_id, str) or not project_id.strip():
+            raise ValueError("project ID required")
+        stamp = now.astimezone(timezone.utc).date().isoformat()
+        with closing(self._connect()) as db:
+            return db.execute(
+                "SELECT 1 FROM life_draft_attempt "
+                "WHERE project_id=? AND utc_day=?",
+                (project_id, stamp),
+            ).fetchone() is not None
+
     def claim_daily_draft_attempt(self, project_id: str, *, now: datetime) -> bool:
         """Prevent repeated LLM drafting every background wake after failure."""
         if not isinstance(project_id, str) or not project_id.strip():

@@ -1408,6 +1408,109 @@ class SelfDirectedLifeCoordinator:
         # Observe already-committed outcomes before optional cognition or
         # resource-limited project selection. This remains useful while busy.
         observed = self.store.reconcile_run_outcomes(now=now)
+        # Completion verification is a settlement of an ALREADY STARTED
+        # canonical RUN job, not permission to spend new creation budget.
+        # A finished artifact must not be orphaned forever merely because
+        # its earlier generation used the project's daily CPU/storage cap.
+        # Foreground activity and chosen quiet time still defer optional
+        # verification; this never fabricates subjective preferences.
+        if (
+            not busy and resource_pressure < 0.75
+            and self.store.quiet_until(now=now) is None
+        ):
+            candidates = self.store.list_scope(
+                owner_principal_id=SOFIA_PROJECT_OWNER,
+                audience_id=LOCAL_AUDIENCE,
+                statuses=(ProjectStatus.ACTIVE,),
+            )
+            for candidate in candidates:
+                linked_jobs = tuple(
+                    self.work_store.get(key)
+                    for key in self.store.jobs(candidate.project_id)
+                )
+                if not linked_jobs or not all(
+                    job.status is WorkStatus.COMPLETED for job in linked_jobs
+                ):
+                    continue
+                usage = self.store.usage(candidate.project_id, now.date())
+                within_budget = (
+                    float(usage["wall_seconds"])
+                    < candidate.brief.resource_budget.daily_seconds
+                    and int(usage["storage_bytes"])
+                    < candidate.brief.resource_budget.storage_bytes
+                )
+                last = linked_jobs[-1]
+                receipt = last.result if isinstance(last.result, dict) else {}
+                artifact_id = receipt.get("artifact_id")
+                revision = receipt.get("revision")
+                if (
+                    not isinstance(artifact_id, str)
+                    or type(revision) is not int
+                    or (artifact_id, revision) not in self.store.artifacts(
+                        candidate.project_id
+                    )
+                ):
+                    # A missing/unlinked receipt goes to operator review.
+                    # Repeatedly selecting it cannot produce real evidence.
+                    continue
+                evaluations = {
+                    (item.artifact_id, item.artifact_revision): item
+                    for item in self.store.evaluations(candidate.project_id)
+                }
+                existing = evaluations.get((artifact_id, revision))
+                if existing is not None:
+                    if existing.technical_outcome is TechnicalOutcome.VALID:
+                        if not (
+                            existing.personal_judgment is PersonalJudgment.UNKNOWN
+                            and set(existing.objective_results) == set(
+                                candidate.brief.objectives
+                            )
+                            and all(
+                                item is True
+                                for item in existing.objective_results.values()
+                            )
+                        ):
+                            continue
+                    elif existing.technical_outcome is TechnicalOutcome.INVALID:
+                        if (
+                            not within_budget or generate is None
+                            or self.store.has_daily_draft_attempt(
+                                candidate.project_id, now=now,
+                            )
+                        ):
+                            continue
+                    else:
+                        # Inconclusive independent evidence requires a
+                        # revised criterion, not repeated background guesses.
+                        continue
+                # Independent grading may still complete an existing
+                # artifact. A new revision may only be drafted inside
+                # the original separately enforced resource budget.
+                scheduled, follow_through = self._settle_personal_project(
+                    candidate, now=now,
+                    generate=generate if within_budget else None,
+                )
+                selection = LifeSelection(
+                    f"life-selection:{uuid4()}", SelectionKind.PROJECT,
+                    candidate.project_id,
+                    "Reconciling existing completed RUN artifact evidence.",
+                    resource_pressure, busy, now,
+                )
+                self.store.record_selection(selection)
+                started = self.manager.tick(
+                    now=now, busy=busy, resource_pressure=resource_pressure,
+                )
+                return {
+                    "selection": selection.kind.value,
+                    "project_id": candidate.project_id,
+                    "scheduled": scheduled,
+                    "jobs_started": started,
+                    "follow_through": follow_through,
+                    "run_outcomes_observed": len(observed) + len(
+                        self.store.reconcile_run_outcomes(now=now)
+                    ),
+                    "review_queue": self.pending_work_review(limit=16),
+                }
         selection = self.select_activity(
             now=now, busy=busy, resource_pressure=resource_pressure,
         )
