@@ -20,7 +20,8 @@
     "2026-10-11: Artemis hypervisor confirmed by operator as Hyper-V. Phase 13 SAFE levels fixed in real policy; no actual host inventory, VM provisioning or testing executed.",
     "2026-10-11: Operator selected Microsoft Hyper-V on Artemis. W4 implemented SAFE Level-4 separation, typed Hyper-V Hephaestus planning, read-only mTLS host and bounded offline image observation, owner Fleet preview and read-only model OPS status; tests and host actions deferred.",
     "2026-10-11 operator has already created the Hyper-V Hephaestus VM but NO OS. Production path now exclusively owner-created exact GUID with pinned offline unattended Debian installer start, one-use SAFE+Fleet grants and UNCERTAIN outcomes. No actual VM/host action, installs, tests or CI occurred.",
-    "2026-10-11 continuation: Hephaestus VM exists OS-less. One-time owner-approved, host-admin pinned Hyper-V unattended ISO boot and read-only installer status are integrated with real Artemis Fleet; Debian installation not attempted; no completed guest OS or Fleet enrollment asserted. Source regressions written, none run."
+    "2026-10-11 continuation: Hephaestus VM exists OS-less. One-time owner-approved, host-admin pinned Hyper-V unattended ISO boot and read-only installer status are integrated with real Artemis Fleet; Debian installation not attempted; no completed guest OS or Fleet enrollment asserted. Source regressions written, none run.",
+    "2026-10-11: Eight Phase-13 digital-twin design/research items source-wired through real OPS and Fleet Settings with bounded synthetic scenarios, immutable reproducibility capsules, abandonment and explicit Gaia/JMRI no-actuation boundaries. No simulations/tests were executed."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -180,7 +181,20 @@
     "d096f1b435faeb0be2185eac0f088c723835bd39",
     "e57b76e4f976794f1cadabb19d8f640885378374",
     "7e4a2e948da59919a15f216e2ddf2f6a355704a1",
-    "0c422ce14d9797d6957ba991bb6131ac2b19ff97"
+    "0c422ce14d9797d6957ba991bb6131ac2b19ff97",
+    "a69e9c6d0082f10435284c8186f812e50ee023ff",
+    "a4354e9534766abdc3698507042d3d5bc766d901",
+    "b018ab6f64518ef5dd039f91a86ddb48a6f24848",
+    "1329e015c1b68ef4be4a6d9798c9c28afe359331",
+    "53d8d2fe73bcac3d2b6773ba8b8a9e4a8c82a528",
+    "446193b3b93a91bcf7cbb1616633d572d749b3fb",
+    "add0e1d8f018c39ec2762cc97079c5270cec5e79",
+    "45f6c89266c618c2edacc7049b660997af4d035a",
+    "4392bf360253b6d6aed2722d84db3b8cffad0584",
+    "d9b151c1cf05b100767ee2216be898d6743db415",
+    "9bda111764fb2dc4bebdb1808051451f5f44aae0",
+    "cb1ae4d4a746b169946c82c3ee784003030f5363",
+    "b9ac448fdf1fced60414314ed04162a55bef52a8"
   ],
   "tasks": [
     {
@@ -1514,99 +1528,108 @@
       "phase": "13",
       "master_line": 1072,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production OPS twin compares three explicit research scopes: implemented reviewed dependency graph vs unavailable disposable Docker replica and unavailable full VM clone. Source-grounded fidelity choices are surfaced in Settings/OPS; none silently claimed installed. Tests authored not executed."
     },
     {
       "id": "CA-3602",
       "phase": "13",
       "master_line": 1073,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Read-only topology snapshot derives only authenticated/trusted host IDs, lifecycle, timestamp/unknown telemetry from canonical OPS Fleet, with owner-reviewed dependency links in canonical sofia.db, no network scanning, auto-enrollment or secrets. OPS and Settings wired; tests authored not run."
     },
     {
       "id": "CA-3603",
       "phase": "13",
       "master_line": 1074,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Eight bounded synthetic scenarios (DNS, Fleet outage, disk pressure, SQLite lock, container crash, stale clock, weather sensor and conflicting identity) now run through real OPS digital twin, propagating hypothetical impact only on compatible reviewed edge types. Tests written not run."
     },
     {
       "id": "CA-3604",
       "phase": "13",
       "master_line": 1075,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Every report has enforced dependency_graph_v1 fidelity, absent docker/VM clone explicitly unimplemented, real outage/provenance and host-action assertions false; synthetic output never provides actual authority or real-world success evidence. Settings and cognitive OPS tool wired."
     },
     {
       "id": "CA-3605",
       "phase": "13",
       "master_line": 1076,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production synthetic experiments persist SHA-256 checked, source-versioned, deterministic-seed, evaluator-tagged canonical capsules with exact Fleet source timestamps, owner-reviewed edges, snapshot hash and result/abandonment, bounded to 32. Tests authored not run."
     },
     {
       "id": "CA-3606",
       "phase": "13",
       "master_line": 1077,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Actual Hephaestus VM exists but no Debian OS/agent. Offline research scheduling requires host OS install, independently verified guest identity, exact SAFE grants and mTLS worker; synthetic graph twin is production integrated but no VM research execution allowed."
     },
     {
       "id": "CA-3607",
       "phase": "13",
       "master_line": 1078,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production OPS digital twin now exposes Gaia-specific simulation-to-physical discrepancy matrix: 3DOF gait geometry modeled, mixed continuous/180 servos, deadband, current, power and SSC-32 latency explicitly unmeasured, and servo pulses separated under robot.motion authority. Source tests authored unexecuted."
     },
     {
       "id": "CA-3608",
       "phase": "13",
       "master_line": 1079,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production OPS digital twin now distinguishes hypothetical JMRI route/roster scenarios from independently authenticated occupancy observation, real track power, turnout and locomotive commands. No physical action or grant from simulated outcomes; matrix available to Sofía and Settings, tests written."
     },
     {
       "id": "CA-3609",
       "phase": "13",
       "master_line": 1080,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Bounded experimental abandonment policy now marks ABANDON_RESEARCH for unfalsifiable hypothesis, stale/missing source facts, three unproductive failures, resource budget excess or missing reviewed topology. Integrated into every canonical synthetic capsule, no real action authority; source tests written."
     },
     {
       "id": "CA-3610",
