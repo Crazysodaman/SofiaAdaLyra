@@ -3495,15 +3495,15 @@ class SelfDirectedLifeCoordinator:
                 project_ids, procedure_id=procedure_id, now=now,
             ):
                 continue
-            self.procedures.quarantine(
+            if self.procedures.quarantine(
                 procedure_id,
                 reason=(
                     "Original independently validated source is unavailable, "
                     "out of scope, revoked, corrupted or no longer current."
                 ),
                 now=now,
-            )
-            invalidated += 1
+            ):
+                invalidated += 1
         return invalidated
 
     def _current_verified_procedures_for_draft(
