@@ -113,7 +113,9 @@ Environment=SOFIA_IDENTITY_BOOTSTRAP_MODE=require_existing
 Environment=PYTHONDONTWRITEBYTECODE=1
 EnvironmentFile={spec.environment_file}
 ExecStartPre={spec.python_path} -m sofia.run.systemd_runtime verify-guest
-ExecStart={spec.python_path} -m sofia.run.systemd_runtime
+# Stable launcher performs read-only signed-release interpreter selection.
+# The actual canonical application still owns this same systemd service PID.
+ExecStart={spec.python_path} -m sofia.run.systemd_release_launcher
 Restart=on-failure
 RestartSec=10s
 TimeoutStopSec=60s
