@@ -851,11 +851,13 @@ class SofiaApplication:
         return self._expression_runtime
 
     def expression_intent(
-        self, message_id: str, *, now: datetime | None = None,
+        self, message_id: str, *, principal: PrincipalContext,
+        now: datetime | None = None,
     ) -> ExpressionIntent | None:
-        """Read current text/voice/avatar intent, without claiming unrendered output."""
+        """Read only this authenticated audience's actual cross-modal output."""
         return self._expression_runtime.intent_projection(
-            message_id, now=now or datetime.now(timezone.utc),
+            message_id, principal=principal,
+            now=now or datetime.now(timezone.utc),
         )
 
     @property
