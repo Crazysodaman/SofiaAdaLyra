@@ -21,6 +21,7 @@ class RelocationAuthorization:
     source_state_path: Path
     destination_root: Path
     writer_host_id: str
+    source_writer_host_id: str
     next_writer_epoch: int
     operator_approval_ref: str
     writer_fence_ref: str
@@ -59,8 +60,8 @@ def stage_verified_state_home(
     if not isinstance(encrypted_backup_root, Path) or not encrypted_backup_root.is_absolute():
         raise ValueError("absolute operator-approved encrypted backup root required")
     if any(not isinstance(v, str) or not v.strip() for v in (
-        proof.writer_host_id, proof.operator_approval_ref,
-        proof.writer_fence_ref, failure_domain,
+        proof.writer_host_id, proof.source_writer_host_id,
+        proof.operator_approval_ref, proof.writer_fence_ref, failure_domain,
     )):
         raise ValueError("complete privileged approval and fencing provenance required")
     if type(proof.next_writer_epoch) is not int or proof.next_writer_epoch < 1:
@@ -92,10 +93,14 @@ def stage_verified_state_home(
     bundle, _evidence = backup_engine.create(
         state_path=proof.source_state_path,
         destination_root=backup_root,
-        source_host_id=proof.writer_host_id,
+        source_host_id=proof.source_writer_host_id,
         failure_domain=failure_domain,
     )
     manifest = backup_engine.verify(bundle)
+    if manifest.source_host_id != proof.source_writer_host_id:
+        raise BackupError(
+            "authenticated source host does not match fenced original writer"
+        )
     # A backup can verify perfectly while omitting files it never collected.
     # Confirm that every persistent file in this operator-fenced home has an
     # entry in the authenticated encrypted manifest. Missing external assets
