@@ -23,6 +23,11 @@ from sofia.distributed.version import FleetProtocolVersion
 from sofia.ops.discovery import FleetDiscoveryEvidence
 
 
+# A valid mTLS peer can still send pathological or compromised payloads.
+# Discovery metadata is small; never buffer an unbounded remote response.
+MAX_DISCOVERY_BODY_BYTES = 256 * 1024
+
+
 @dataclass(frozen=True, slots=True)
 class AgentDiscoveryTarget:
     hostname: str
@@ -121,8 +126,19 @@ class MtlsAgentDiscoverySource:
             response = connection.getresponse()
             if response.status != 200:
                 return None
+            # Content-Length is only a hint. Enforce a bound on the actual
+            # bytes read as well, including chunked or incorrectly advertised
+            # responses. Excess data is rejected before JSON decoding.
+            if (
+                response.length is not None
+                and response.length > MAX_DISCOVERY_BODY_BYTES
+            ):
+                return None
+            raw = response.read(MAX_DISCOVERY_BODY_BYTES + 1)
+            if len(raw) > MAX_DISCOVERY_BODY_BYTES:
+                return None
             try:
-                payload = json.loads(response.read().decode("utf-8"))
+                payload = json.loads(raw.decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 return None
             if not isinstance(payload, dict):
