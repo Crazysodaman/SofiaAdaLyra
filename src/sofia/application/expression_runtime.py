@@ -211,6 +211,14 @@ class ExpressionRuntime:
     ) -> ExpressionReceipt:
         if output not in self._OUTPUTS or status not in self._STATUSES:
             raise ValueError("unsupported expression output receipt")
+        if status in {"persisted", "spoken", "rendered"} and (
+            (output, status) not in {
+                ("text", "persisted"),
+                ("voice", "spoken"),
+                ("avatar", "rendered"),
+            }
+        ):
+            raise ValueError("completed expression receipt does not match output type")
         if type(acknowledged) is not bool:
             raise TypeError("acknowledged must be bool")
         if acknowledged != (status in {"persisted", "spoken", "rendered"}):
@@ -223,6 +231,7 @@ class ExpressionRuntime:
             backend.strip() or "unknown", detail.strip()[:500], moment,
         )
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
             db.execute(
                 "INSERT OR IGNORE INTO expression_output_receipt VALUES(?,?,?,?,?,?,?,?)",
                 (
@@ -231,7 +240,33 @@ class ExpressionRuntime:
                     value.occurred_at.isoformat(),
                 ),
             )
-        return value
+            stored = db.execute(
+                """SELECT * FROM expression_output_receipt WHERE receipt_id=?""",
+                (value.receipt_id,),
+            ).fetchone()
+            if stored is None:
+                raise RuntimeError("expression output receipt was not persisted")
+            # A matching idempotency key always returns the original
+            # authoritative receipt. It must not turn an earlier failure
+            # or queue admission into an invented later render/spoken ACK.
+            if (
+                stored["decision_id"] != decision_id
+                or stored["output"] != output
+                or stored["status"] != status
+                or bool(stored["acknowledged"]) != acknowledged
+                or stored["backend"] != value.backend
+            ):
+                raise RuntimeError(
+                    "expression receipt dedupe key was reused with a conflicting outcome"
+                )
+            persisted = ExpressionReceipt(
+                stored["receipt_id"], stored["decision_id"],
+                stored["output"], stored["status"],
+                bool(stored["acknowledged"]), stored["backend"],
+                stored["detail"],
+                datetime.fromisoformat(stored["occurred_at"]),
+            )
+        return persisted
 
     def receipts(self, decision_id: str) -> tuple[ExpressionReceipt, ...]:
         with closing(self._connect()) as db:
