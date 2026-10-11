@@ -21,6 +21,7 @@ from sofia.distributed.authorization import (
     remote_host_capability_name,remote_operation_is_read_only,
 )
 from sofia.safe.permissions import capability_permission_policy,PermissionLevel
+from test.owner_auth_fixture import record_verified_owner_approval
 
 NOW=datetime.now(timezone.utc)
 NODE=uuid4()
@@ -41,11 +42,13 @@ def approved_source(tmp_path):
         request_fingerprint=execution_fingerprint(
             "workshop.network.create",scope,
         ),
-        approved_by="owner:interactive",
+        approved_by="Sparks",
         approved_at=NOW,
         expires_at=NOW+timedelta(minutes=10),
     )
-    ExecutionApprovalVerifier(state).record(approval)
+    record_verified_owner_approval(
+        ExecutionApprovalVerifier(state), approval,
+    )
     return state,approval,scope
 
 
@@ -76,6 +79,7 @@ def fake_fleet(state,scope,*,remote_timeout=False):
                 "HostIPv4":"172.30.250.1/30",
                 "GuestIPv4":"172.30.250.2/30",
                 "NatEnabled":False,"GuestConfigured":False,
+                "ObservedAtUtc":datetime.now(timezone.utc).isoformat(),
             }),
         }
     service.invoke=invoke
