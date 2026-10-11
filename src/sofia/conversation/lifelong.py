@@ -550,6 +550,47 @@ class LifelongThreadStore:
             ).fetchall()
         return tuple(self._decode(row) for row in rows)
 
+    def list_visible_threads(
+        self, *, owner: PrincipalContext, limit: int = 30,
+    ) -> tuple[LifelongThread, ...]:
+        """Page headers only AFTER original-audience visibility admission.
+
+        Source-free private project names must never consume the result
+        limit or surface to another transport. The SQL EXISTS guard checks
+        the original message and its CURRENT authenticated session binding,
+        not merely the shared owner ID or an old thread index.
+        """
+        if not isinstance(owner, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("bounded visible thread listing required")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT t.* FROM lifelong_thread AS t "
+                "WHERE t.owner_principal_id=? AND ("
+                "t.kind='main' OR (t.kind='project' AND EXISTS ("
+                "SELECT 1 FROM lifelong_thread_event AS e "
+                "JOIN conversation_messages AS m "
+                "ON m.id=e.source_message_id "
+                "AND m.session_id=e.source_session_id "
+                "JOIN social_session_principal AS s "
+                "ON s.session_id=m.session_id "
+                "WHERE e.thread_id=t.thread_id "
+                "AND e.visibility='source_audience' "
+                "AND e.source_audience_id=? "
+                "AND s.principal_id=? AND s.audience_id=? "
+                "AND s.audience_kind=?"
+                "))) "
+                "ORDER BY CASE t.kind WHEN 'main' THEN 0 ELSE 1 END,"
+                "t.created_at DESC,t.thread_id LIMIT ?",
+                (
+                    owner.principal_id, owner.audience_id,
+                    owner.principal_id, owner.audience_id,
+                    owner.audience_kind.value, limit,
+                ),
+            ).fetchall()
+        return tuple(self._decode(row) for row in rows)
+
     def link_message(
         self, *, thread_id: str, source_message_id: str,
         principal: PrincipalContext,
