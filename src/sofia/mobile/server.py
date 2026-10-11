@@ -125,13 +125,19 @@ class MobileCompanionServer:
                 return outer._credentials.authenticate(value[len(prefix):])
 
             def _json(self) -> dict[str, Any]:
-                raw_length = self.headers.get("Content-Length")
-                if raw_length is None:
-                    raise ValueError("content length is required")
+                lengths = self.headers.get_all("Content-Length", [])
+                if len(lengths) != 1 or self.headers.get("Transfer-Encoding"):
+                    raise ValueError("exactly one unchunked content length is required")
+                raw_length = lengths[0]
+                if not raw_length.isdecimal():
+                    raise ValueError("content length must be decimal")
                 length = int(raw_length)
                 if not 0 < length <= _MAX_BODY:
                     raise ValueError("request body is outside supported bounds")
-                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                raw = self.rfile.read(length)
+                if len(raw) != length:
+                    raise ValueError("incomplete request body")
+                payload = json.loads(raw.decode("utf-8"))
                 if not isinstance(payload, dict):
                     raise ValueError("request body must be an object")
                 return payload
