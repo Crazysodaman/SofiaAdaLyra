@@ -62,7 +62,13 @@ class JsonHttpClient:
         query:Mapping[str,Any]|None=None,
         payload:Any=None,
         timeout:float|None=None,
+        max_bytes:int|None=None,
     )->Any:
+        if max_bytes is not None and (
+            type(max_bytes) is not int
+            or not 1 <= max_bytes <= 4 * 1024 * 1024
+        ):
+            raise ValueError("max_bytes must be in 1..4194304")
         url=self.base_url+"/"+path.lstrip("/")
         if query:
             encoded=urlencode({k:v for k,v in query.items() if v is not None},doseq=True)
@@ -82,7 +88,11 @@ class JsonHttpClient:
             ):
                 raise ValueError("timeout must be a positive number")
             with urlopen(req,timeout=float(effective_timeout)) as resp:
-                raw=resp.read()
+                raw=(
+                    resp.read()
+                    if max_bytes is None
+                    else resp.read(max_bytes + 1)
+                )
         except HTTPError as exc:
             body=exc.read().decode("utf-8",errors="replace")
             raise ServiceHTTPError(f"HTTP {exc.code}: {body[:500]}") from exc
@@ -90,6 +100,8 @@ class JsonHttpClient:
             raise ServiceHTTPError(f"service request failed: {exc.reason}") from exc
         except TimeoutError as exc:
             raise ServiceHTTPError("service request timed out") from exc
+        if max_bytes is not None and len(raw)>max_bytes:
+            raise ServiceHTTPError("service JSON response exceeded max_bytes")
         if not raw: return None
         try: return json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError,json.JSONDecodeError) as exc:
