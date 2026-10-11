@@ -29,7 +29,8 @@
     "2026-10-11: Phase 12 four visual consent journeys designed/wired through owner Safety UI and metadata-only genuine-frame path. No OS capture adapter installed; UI explicitly says NOT OBSERVED. No tests/CI/host actions.",
     "2026-10-11: CA-6702 reviewed Hephaestus training-lab resource/separation design wired to EVOLVE Settings and actual read-only OPS, no training execution path or existing guest OS. Host GPU worker choice awaits separate authorization.",
     "2026-10-11 OPTION B: User chose dedicated Hyper-V Internal host-to-guest link for existing OS-less Hephaestus VM. Production source updated on main: exact opt-in Artemis one-use SAFE/Fleet network stage, read-only original VM preflight, no siblings/NAT/ICS/IPv4 or IPv6 forwarding, host Public firewall default-deny, 172.30.250.1/30↔172.30.250.2/30, signed Debian nftables default DROP and no gateway/DNS. Live Artemis network and VM untouched; guest not installed; no tests/CI; CA-2806/2909 remain open pending measured isolation proof.",
-    "2026-10-11 owner selected Option B Internal host-to-guest Hyper-V dedicated link. Existing source-coded protected staging/inspection was already present from concurrent main writer. Workstream4 audited and tightened training-lab source eligibility against reviewed exact isolated link. No live Artemis changes and no tests/CI. No change to item count."
+    "2026-10-11 owner selected Option B Internal host-to-guest Hyper-V dedicated link. Existing source-coded protected staging/inspection was already present from concurrent main writer. Workstream4 audited and tightened training-lab source eligibility against reviewed exact isolated link. No live Artemis changes and no tests/CI. No change to item count.",
+    "2026-10-11 continuation 2: protected exact Hephaestus Internal host link staging now rejects incorrect/incomplete/stale host result identity/state/IP/forwarding-related network details as UNCERTAIN, and the host validates /30 and both IPv4/IPv6 forwarding flags before attaching its existing VM NIC. Test source uses actual signed synthetic FIDO2 assertion fixture and new negative receipt cases. NO tests, CI or Artemis effects; CA-2806/2909 remain partial pending complete source audit and supervised isolation proof."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -244,7 +245,12 @@
     "7dd6504412cc0eed23617c416fab47de549afa44",
     "64592722a4d2012d7df7e8e683c954856c9781d8",
     "ca8c56dad91ca3a0e0d40aed9842e6d6214bced8",
-    "c4a16054a42440c6c879bb1b67ff38f444fabea4"
+    "c4a16054a42440c6c879bb1b67ff38f444fabea4",
+    "6d96f9a23f5286d0034c0dbb3a1180df825964ed",
+    "52bcd32d06511ecca65dab2d8f0bf40bcc2babff",
+    "cffbefc89cd15c1fb73ccd35b409d65a71f621a1",
+    "38b8b4882a2b30c28b0f0f0ac4a0d6d3023fd4a1",
+    "8c1309a69e7fdf7befee632cc4a383d452b827f2"
   ],
   "tasks": [
     {
@@ -1125,7 +1131,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Owner chose dedicated Internal host-to-guest switch on existing OS-less Hephaestus. Production Artemis opt-in, exact VM GUID pinned Level-4 one-use SAFE+Fleet staging now supports separate read-only original-switch preflight, protected creation/attachment of only Sofia-Hephaestus-Internal, static 172.30.250.1/30 host and guest 172.30.250.2/30, host Public firewall default-deny, no IPv4/IPv6 forwarding, DNS, gateway, overlapping WinNAT or ICS and no sibling VM. Signed Debian firstboot nftables defaults INPUT/OUTPUT/FORWARD drop and configures no guest gateway/DNS. Fresh host observations and rechecks gate installer. Full guest-to-LAN/Internet negative reachability tests impossible until Debian installed, so not code-ready for independent acceptance."
+      "finding": "Owner chose dedicated Internal host-to-guest switch on existing OS-less Hephaestus. Production Artemis opt-in, exact VM GUID pinned Level-4 one-use SAFE+Fleet staging now supports separate read-only original-switch preflight, protected creation/attachment of only Sofia-Hephaestus-Internal, static 172.30.250.1/30 host and guest 172.30.250.2/30, host Public firewall default-deny, no IPv4/IPv6 forwarding, DNS, gateway, overlapping WinNAT or ICS and no sibling VM. Signed Debian firstboot nftables defaults INPUT/OUTPUT/FORWARD drop and configures no guest gateway/DNS. Fresh host observations and rechecks gate installer. Full guest-to-LAN/Internet negative reachability tests impossible until Debian installed, so not code-ready for independent acceptance. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed."
     },
     {
       "id": "CA-2807",
@@ -1428,7 +1434,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Owner-selected preexisting VM, not new self-provisioned VM. Exact host-admin opt-in Internal switch stage only; fails target name/type collisions and other VM attachment; read-only old network preflight; separate Level-4 user approval and protected Artemis Fleet. Host Windows Public firewall must default inbound Block, disabled forwarding and NAT/ICS, guest nftables default-deny signed ISO. Guest and actual host ACL traffic observation remains a deferred acceptance gate; original new-VM auto-provision task still not completely implemented."
+      "finding": "Owner-selected preexisting VM, not new self-provisioned VM. Exact host-admin opt-in Internal switch stage only; fails target name/type collisions and other VM attachment; read-only old network preflight; separate Level-4 user approval and protected Artemis Fleet. Host Windows Public firewall must default inbound Block, disabled forwarding and NAT/ICS, guest nftables default-deny signed ISO. Guest and actual host ACL traffic observation remains a deferred acceptance gate; original new-VM auto-provision task still not completely implemented. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed."
     },
     {
       "id": "CA-2910",
