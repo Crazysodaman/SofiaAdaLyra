@@ -717,3 +717,11 @@ Original CA task ledger coverage for all 175 assigned IDs remains incomplete and
 - **Deferred regression:** original RUN BLOCKED with altered derived reason, and UNCERTAIN with backdated derived observation; both fail closed and do not alter project status. Authored, not executed.
 
 - **Additional fail-closed hardening:** malformed original/observed ISO timestamp strings, overflow or timezone-naive values now return UNKNOWN/no usable original RUN receipt rather than interrupting LIFE reconciliation. A focused malformed-timestamp regression is authored and deferred. Commit `3cfbb41f` contains the production guard.
+
+
+## Phase 08: original Presence confidence and freshness rechecked at ACT transport (2026-10-11)
+
+- **Original tasks affected:** CA-404, CA-405, CA-410, CA-1007, CA-2407 and CA-2602, partial implementation only.
+- **Production audit finding:** `PresenceInitiativeEngine.consider` originally requires OBSERVED/KNOWN evidence, confidence ≥0.6 and valid temporal scope. The later `SofiaActService._fresh_life_project_pre_send_decision` checked the event/observation IDs, audience and feedback but trusted the queued decision for the original observation's epistemic status, confidence and source lifespan. A post-queue change to INFERRED/low confidence, future observation time or shorter expiry could still reach Desktop/Discord.
+- **Production change:** last pre-transport query joins the original queued ACT notice and original Presence event/observation, then repeats the source-grounding threshold and chronological constraints, including the original observation lifetime covering the queued notice's expiry. Malformed/naive source timestamps or nonfinite confidence fail closed without sender invocation. Original ACT policy still owns actual send-time expiration, stop/mute, delivery and durable attempt evidence; other ACT messages are unchanged.
+- **Deferred regression:** parametric direct ACT delivery from a correctly queued observed event after confidence downgrade, INFERRED substitution, shortened lifespan, future observed time or corrupt ISO times. No sender calls or transport attempts should be created. Source/regression authored, never executed; no live notifications.
