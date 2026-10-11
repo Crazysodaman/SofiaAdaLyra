@@ -194,7 +194,7 @@ def create_default_agent_dispatcher(
             def reviewed_hephaestus_boot(parameters):
                 if set(parameters)!={
                     "vm_id","disk_path","iso_path","iso_sha256",
-                    "handoff_fingerprint",
+                    "handoff_fingerprint","approval_id",
                 }:
                     raise ValueError("exact protected bootstrap parameters required")
                 vm_id=str(UUID(str(parameters["vm_id"])))
