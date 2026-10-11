@@ -14,6 +14,8 @@ from sofia.safe.owner_enroll_browser import (
     enroll_attended, require_venus_interactive_windows,
 )
 from sofia.safe.owner_webauthn import OwnerWebAuthnVerifier
+from sofia.safe.owner_registration import revoke_enrollment
+from sofia.safe.owner_browser import authorize_exact_action
 
 
 def _confirm(phrase: str) -> None:
@@ -47,6 +49,12 @@ def main(argv: list[str] | None = None) -> int:
         "--kind", choices=("security_key", "platform"),
         default="security_key",
     )
+    revoke = sub.add_parser("revoke-key")
+    revoke.add_argument("--credential-id", required=True)
+    revoke.add_argument(
+        "--authorized-by", required=True,
+        help="An active FIDO2 security key other than the key being revoked",
+    )
     args = p.parse_args(argv)
     try:
         # First trust cannot depend on an arbitrary --state-path, copied DB,
@@ -78,6 +86,29 @@ def main(argv: list[str] | None = None) -> int:
                 state, kind=args.kind,
                 existing_credential_id=args.authorized_by,
             )
+        elif args.action == "revoke-key":
+            if args.credential_id == args.authorized_by:
+                raise PermissionError("a credential cannot authorize its own revocation")
+            _confirm("REVOKE SOFIA OWNER KEY")
+            approval = authorize_exact_action(
+                state, capability="owner.credentials.revoke",
+                parameters={"credential_id": args.credential_id},
+                credential_id=args.authorized_by,
+                expires_seconds=90,
+            )
+            verifier = OwnerWebAuthnVerifier(
+                state, rp_id="localhost", origin="http://localhost:39872",
+            )
+            revoke_enrollment(
+                verifier, credential_id=args.credential_id,
+                approval_id=approval.approval_id,
+            )
+            print(json.dumps({
+                "revoked_credential_id": args.credential_id,
+                "approval_id": approval.approval_id,
+                "writer_migration_performed": False,
+            }, sort_keys=True))
+            return 0
         else:
             raise RuntimeError("unhandled owner enrollment operation")
         print(json.dumps({
