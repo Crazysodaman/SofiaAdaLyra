@@ -1660,6 +1660,87 @@ class SelfDirectedLifeCoordinator:
             return 0, "waiting_on_existing_work"
         return 1, "revision_scheduled"
 
+    def _reconcile_terminal_run_projects(self, *, now: datetime) -> int:
+        """Settle linked terminal RUN outcomes into LIFE and GOALS once.
+
+        RUN remains authoritative. Reconciliation requires an original,
+        durable RUN event linked to the exact project/job and reflecting
+        its *current* terminal status. An uncertain external effect is
+        never called a failure, success, or permission to retry it.
+        This uses existing LIFE transition and GOALS authorities rather
+        than introducing a new event queue or execution path.
+        """
+        settled = 0
+        projects = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+            statuses=(ProjectStatus.ACTIVE,),
+        )
+        for project in projects:
+            job_ids = self.store.jobs(project.project_id)
+            if not job_ids:
+                continue
+            job = self.work_store.get(job_ids[-1])
+            if job.status not in {
+                WorkStatus.FAILED, WorkStatus.CANCELLED, WorkStatus.UNCERTAIN,
+            }:
+                continue
+            # The derived LIFE observation is source-linked to a RUN
+            # event. Neither an unlinked job nor a fabricated result dict
+            # can cause an autonomous project status transition.
+            source = next((
+                event for event in reversed(
+                    self.store.run_outcome_observations(project.project_id)
+                )
+                if event.job_id == job.job_id
+                and event.status == job.status.value
+                and event.occurred_at <= now
+                and event.observed_at <= now
+            ), None)
+            if source is None:
+                continue
+            # Recheck before applying policy, in case RUN settled between
+            # the projection and this transition. This is still a separate
+            # source observation, not authorization for another effect.
+            if self.work_store.get(job.job_id).status is not job.status:
+                continue
+            status = job.status
+            explanation = (
+                f"RUN job {job.job_id} has {status.value} status in "
+                f"original RUN event {source.run_event_id}; "
+                + (
+                    "remote effects may have occurred; operator reconciliation required."
+                    if status is WorkStatus.UNCERTAIN
+                    else "no autonomous retry; operator review required."
+                )
+            )
+            evidence_ref = self.record_observation(
+                kind="run-terminal-reconciliation",
+                source="life:canonical-run-events",
+                assertion=explanation[:500],
+                now=now,
+                payload={
+                    "project_id": project.project_id,
+                    "job_id": job.job_id,
+                    "run_event_id": source.run_event_id,
+                    "run_status": status.value,
+                },
+            )
+            # Failed execution blocks the existing goal. Cancellation or
+            # uncertainty pauses it instead of claiming objective failure.
+            if status is WorkStatus.FAILED:
+                self.fail(
+                    project.project_id, reason=explanation,
+                    evidence_refs=(evidence_ref,), now=now,
+                )
+            else:
+                self.pause(
+                    project.project_id, reason=explanation,
+                    evidence_refs=(evidence_ref,), now=now,
+                )
+            settled += 1
+        return settled
+
     def tick(
         self, *, now: datetime, busy: bool = False,
         resource_pressure: float = 0.0,
@@ -1668,6 +1749,7 @@ class SelfDirectedLifeCoordinator:
         # Observe already-committed outcomes before optional cognition or
         # resource-limited project selection. This remains useful while busy.
         observed = self.store.reconcile_run_outcomes(now=now)
+        terminal_settled = self._reconcile_terminal_run_projects(now=now)
         # Completion verification is a settlement of an ALREADY STARTED
         # canonical RUN job, not permission to spend new creation budget.
         # A finished artifact must not be orphaned forever merely because
@@ -1786,6 +1868,7 @@ class SelfDirectedLifeCoordinator:
                     "run_outcomes_observed": len(observed) + len(
                         self.store.reconcile_run_outcomes(now=now)
                     ),
+                    "terminal_run_projects_settled": terminal_settled,
                     "review_queue": self.pending_work_review(limit=16),
                 }
         selection = self.select_activity(
@@ -1822,7 +1905,8 @@ class SelfDirectedLifeCoordinator:
                             if kind not in {ArtifactKind.TEXT, ArtifactKind.STORY}
                             else "model_generation_unavailable"
                         ),
-                        "review_queue": self.pending_work_review(limit=16),
+                        "terminal_run_projects_settled": terminal_settled,
+                    "review_queue": self.pending_work_review(limit=16),
                     }
                 if not self.store.claim_daily_draft_attempt(project.project_id, now=now):
                     return {
@@ -1833,7 +1917,8 @@ class SelfDirectedLifeCoordinator:
                             now=now, busy=busy, resource_pressure=resource_pressure,
                         ),
                         "draft_status": "deferred_daily_limit",
-                        "review_queue": self.pending_work_review(limit=16),
+                        "terminal_run_projects_settled": terminal_settled,
+                    "review_queue": self.pending_work_review(limit=16),
                     }
                 try:
                     specification = ProjectDraftAgent(generate).draft(project, kind)
@@ -1848,7 +1933,8 @@ class SelfDirectedLifeCoordinator:
                             now=now, busy=busy, resource_pressure=resource_pressure,
                         ),
                         "draft_status": "failed_unverified",
-                        "review_queue": self.pending_work_review(limit=16),
+                        "terminal_run_projects_settled": terminal_settled,
+                    "review_queue": self.pending_work_review(limit=16),
                     }
                 # Do not leave a misleading creative-work evidence record
                 # when there is no authorized original draft to submit.
@@ -1880,6 +1966,7 @@ class SelfDirectedLifeCoordinator:
             "run_outcomes_observed": len(observed) + len(
                 self.store.reconcile_run_outcomes(now=now)
             ),
+            "terminal_run_projects_settled": terminal_settled,
             "review_queue": self.pending_work_review(limit=16),
         }
 
