@@ -5,7 +5,7 @@ from threading import Event, Thread
 import pytest
 
 from sofia.act.delivery import DeliveryOutcome, SendResult
-from sofia.act.outreach import Importance, OutreachCategory, Policy
+from sofia.act.outreach import Decision, Importance, OutreachCategory, Policy
 from sofia.act.system_notice import SystemNoticeQueue
 
 
@@ -230,3 +230,26 @@ def test_enqueue_rejects_identifier_that_delivery_cannot_evaluate(state):
 
     with pytest.raises(ValueError, match="candidate_id"):
         enqueue(queue, "bad notice id")
+
+
+def test_fresh_owner_veto_releases_claim_without_sender_or_retry_cost(state):
+    queue = SystemNoticeQueue(state)
+    enqueue(queue)
+    sent = []
+    refused = queue.deliver_one(
+        sender=lambda payload: sent.append(payload),
+        policy=policy(), now=NOW,
+        pre_send_decision=lambda: Decision.MUTED,
+    )
+    assert refused is None
+    assert sent == []
+    assert row_for(state, "notice-1") == ("queued", 0, None, None, None)
+    later = queue.deliver_one(
+        sender=lambda payload: SendResult(
+            DeliveryOutcome.DELIVERED, receipt_id="owner-resumed:1",
+        ),
+        policy=policy(), now=NOW + timedelta(minutes=1),
+        pre_send_decision=lambda: Decision.ELIGIBLE_FOR_AUTHORIZATION,
+    )
+    assert later is not None and later.outcome is DeliveryOutcome.DELIVERED
+    assert row_for(state, "notice-1")[0:2] == ("delivered", 1)
