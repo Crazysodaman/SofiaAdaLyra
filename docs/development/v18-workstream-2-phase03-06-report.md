@@ -282,6 +282,35 @@ CA-4206. Future explicit owner-authorized cross-channel export requires
 a separate bounded grant mechanism; this change deliberately does not
 invent one.
 
+### Recheck memory principal, audience and revocation before final cognition projection
+
+Production route:
+`runtime.response` → `MemorySystem.recall_relevant` →
+`retrieve_promoted` → scoped candidate IDs and contextual rerank →
+`MemorySystem._recall_promoted` →
+last `DurableMemoryCandidateStore.get/status` →
+immutable `MemoryRecord` handed to the model assembler.
+
+Initial candidate-ID search already applies principal/audience filters,
+and the projector checks status. Final assembly previously rechecked
+promotion **before** reading the candidate but did not verify its
+principal/audience or status *after* the final get. A scope change or
+revocation between the earlier reads could therefore be included in the
+current turn despite losing its eligibility. Final assembly now rechecks
+principal ID, exact audience or explicitly principal-wide audience,
+and promoted status again after retrieving the candidate. This is not
+a global transaction over inference: a revoke after the context is
+already assembled cannot retract an in-flight model request, and such
+unavoidable ordering must be covered in live revocation acceptance.
+
+Commits:
+- `641509a50a0be07cd2e7ae6c3f196a422b0532ac` production.
+- `04277f08cbee6139c1be674aee17a2db43e66b7f` source-race
+  regressions, **not executed**.
+
+CA relevance: CA-4204, CA-4206, CA-1703, CA-5304, CA-6306.
+The implementation is a focused hardening slice, not complete acceptance.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
