@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "b89141059bb75e32c6548d48f57fd0095032b551",
+  "reviewed_main_sha": "74afeb4dc7ec859afad0f5c5262dd8e820ccc4cb",
   "audit_date_utc": "2026-10-11",
-  "notice": "Workstream 1 SAFE and release provenance source fixes, now CA-3010 canary TLS key staging; all newly source-touched CA tasks still partial, no tests/CI/live acceptance. Other workstream entries preserved.",
+  "notice": "WS1 CA-3010 controller and canary TLS key stage cleanup source coded; untested. Persistent bootstrap wide firewall and unpinned dependencies remain CA-3011/CA-3012 gaps. Preserve other workstreams' ledger entries and all accepted=false statuses.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1436,17 +1436,21 @@
       "status": "partial_wiring",
       "code_paths": [
         "Setup-SofiaFleetArtemis.ps1",
-        "test/test_ops_windows_bootstrap.py"
+        "test/test_ops_windows_bootstrap.py",
+        "src/sofia/ops/windows_bootstrap.py"
       ],
       "evidence_commits": [
         "e93941846441119fbd9d66bcdada96cd1921dce8",
-        "1db5590cf29134cbdf3efaa31754d7e76b3e7977"
+        "1db5590cf29134cbdf3efaa31754d7e76b3e7977",
+        "79be61a0f72b784e76f5a0f1fee93096ebaa8071",
+        "37c29ec6489df5cc3f68f7303e5dcfe6451ddaed",
+        "000c78536e603d1082580b9c6967ae7dfbb880b9"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "b89141059bb75e32c6548d48f57fd0095032b551",
-        "depth": "supervised_canary_pki_staging_source",
-        "interpretation": "Artemis canary Prepare source now applies restricted ACL to duplicate TLS key, checks copied key hash, restricts remote staged key and removes redundant controller copy after copy attempt. Static regression authored, unexecuted; host SMB/ACL acceptance and other certificate lifecycles remain open. No host touched."
+        "at_sha": "74afeb4dc7ec859afad0f5c5262dd8e820ccc4cb",
+        "depth": "canary_and_bootstrap_failure_secret_staging_source",
+        "interpretation": "Supervised Artemis canary staging ACLs/verified transfer/controller duplicate cleanup and WindowsCimBootstrapInstaller success-or-failure controller temporary key cleanup coded. Regression source added, unexecuted; Windows ACL/SMB live acceptance and certificate lifecycle remain open. Persistent installer still uses broad LocalSubnet/Any firewall and unpinned pip: CA-3011/3012 require separate remediation."
       }
     },
     {
