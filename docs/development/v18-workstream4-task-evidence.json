@@ -46,7 +46,8 @@
     "2026-10-11 Workstream4 continuation4: Installer-start host receipt now requires correct Hephaestus name/GUID, Running state, ISO digest and fresh source observation at both Hyper-V adapter and authenticated Fleet settlement boundary. Missing/bad evidence stays UNCERTAIN and never indicates Debian installed. Canonical test fixtures bootstrapped, deferred tests added. CA-2805/2912/2914 remain partial.",
     "2026-10-11 WS4 continuation4 Hephaestus host post-attachment verification adds no host DNS and no default route, complementing NAT/ICS/Public-forwarding/sibling checks. Installer stage receipt now requires fresh exact Running VM/ISO proof; deferred fixture bootstrap and negative-case code. No actual live network/VM operation or host acceptance.",
     "2026-10-11 WS4 Phase16: scientific evidence admission refuses reusing a given independent evidence_ref under the same protocol, even with a contradictory 'supported' result. Original adverse/null observations are preserved; a correction requires independently reviewed new evidence. Test source authored; no scientific experiment or test run.",
-    "2026-10-11 W4 strictly ordered Phase11 continuation: source audit of all 49 requirements committed; fixed shared-physical-Ollama model accounting/eviction in actual model lifecycle, and rejected NaN/infinity in opt-in perf trace. Deferred test fixtures authored but not run. Eight additional Phase11 requirements classified partial source coverage; no task accepted, no model/VM/CI operations and no measured host efficiency claims."
+    "2026-10-11 W4 strictly ordered Phase11 continuation: source audit of all 49 requirements committed; fixed shared-physical-Ollama model accounting/eviction in actual model lifecycle, and rejected NaN/infinity in opt-in perf trace. Deferred test fixtures authored but not run. Eight additional Phase11 requirements classified partial source coverage; no task accepted, no model/VM/CI operations and no measured host efficiency claims.",
+    "2026-10-11 WS4 strict Phase11 order: exact host-reviewed read-only cognitive tool bindings replace prefix-inferred model fallback. This narrows retry permissions without authorizing execution. All other phases held unchanged; test source deferred."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -319,7 +320,9 @@
     "fe873ce5b12b18d71d186e0d93a15c61228e841e",
     "be731ac86c29d431c30290966b49c4c1c0facd61",
     "6fc522e69d55f2240e1bc9f4607b60bbdd960d3c",
-    "6dc18c7d6f2f33a62158e61f849170ea4eb42a53"
+    "6dc18c7d6f2f33a62158e61f849170ea4eb42a53",
+    "116e00bf30cfa737e480aaf109a4a6efe69d53c0",
+    "65ef217efdff10daae797eacfd4d41fb023c04b7"
   ],
   "tasks": [
     {
@@ -836,7 +839,7 @@
       "master_line": 955,
       "global_ledger_before": "unassessed",
       "source_review": "partially_implemented_unverified",
-      "finding": "Model source SAFE controls partial: owner Settings one-time exact local role/host install approval, canonical audit/outcome, operator stop and fail-closed inventory; remote Fleet placement defaults to no silent local failover and remote pulls still require exact grants. Full production role promotion host broker, resource scheduling and all cloud/model source policies remain open. Regression tests authored, not run.",
+      "finding": "Model source SAFE controls partial: owner Settings one-time exact local role/host install approval, canonical audit/outcome, operator stop and fail-closed inventory; remote Fleet placement defaults to no silent local failover and remote pulls still require exact grants. Full production role promotion host broker, resource scheduling and all cloud/model source policies remain open. Regression tests authored, not run. Further source guard: cognition/routing.py now permits tool-bearing fallback only for the nine exact source-reviewed read-only CognitiveToolBinding names; no prefix-based authorization from 'inspect/get/search'. Mixed unknown-action tool sets deny replay, independent of SAFE capability approval. Deferred test/test_cognitive_routing.py; no tests or model fallback executed.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
