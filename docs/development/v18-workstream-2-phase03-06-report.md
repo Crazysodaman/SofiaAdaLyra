@@ -1726,6 +1726,47 @@ CA-5503, CA-5505, CA-5603, CA-6306.
 No source restoration or accepted task status implied. No tests/CI
 executed, no live messages, database or grants modified.
 
+
+
+### Phase 03 item 55: Flush restored file and path durability before recovery success
+
+The real offline `BackupEngine.restore` verifies the AES-GCM/MAC
+archive, authenticates and replays the current external memory-deletion
+journal in a private temporary directory, validates recovered SQLite
+and protected components, then copies each restored file into an
+operator-selected target via `shutil.copy2` plus `os.replace`.
+Previously it could return `RestoreVerification.succeeded=True`
+without explicitly fsyncing those newly copied bytes or restored
+directory entries. A successful rename alone does not prove recovery
+survived a sudden power loss.
+
+Production `src/sofia/ops/backup.py` now **fsyncs each copied
+temporary file before replacing its target**, then on Linux fsyncs
+all touched destination-parent directories and ancestors deepest-first,
+refusing redirected or special-file directory entries. A failed
+post-rename directory flush raises typed
+`RestorePublicationUncertain`: restored files might already exist,
+but callers cannot report verified successful publication or silently
+assume rollback. Existing external erasure replay, authenticated manifest,
+and restore source guards remain intact. Other platforms still perform
+the file-content fsync, but **do not** gain an unsupported claim of
+durable parent-directory publication. This remains a **file-by-file**
+offline restore, not an atomic live state-home cutover. Item 47's
+whole-home publication barrier still protects a separately staged
+candidate.
+
+Production `f03ab4e6fe33990724c184902f7d2ea6c3e422ae`
+(`[skip ci]`). Deferred real encrypted-archive restore regressions in
+`test/test_ws2_backup_restore_durability.py`:
+`f9b6d2b4c599c08030839bf239e2cb37bcb643b7` (`[skip ci]`).
+Coverage: temp bytes flush before each rename, parent directory flush
+after publication, pre-rename fsync abort, post-rename fsync unknown.
+No tests/CI or live restore executed.
+
+Original CA relevance: CA-5202, CA-5204, CA-6105, CA-6401, CA-6404,
+CA-6807. Original statuses remain partial/unassessed pending exact
+source-to-sink reconciliation and final acceptance.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
