@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "02d7778e85447cf7c74ec5490d6ac644df3a285e",
+  "reviewed_main_sha": "5839bc202056cbb8549a478a5bc420373ab95917",
   "audit_date_utc": "2026-10-11",
-  "notice": "Multi-workstream evidence ledger: WS1 CA-1904 and CA-3004 production coding repairs committed, both remain partial; regression tests authored but unrun. Other task records preserved. No release/live acceptance.",
+  "notice": "Workstream 1: SAFE generic approval preflight, type-strict standing grants and direct integration operator-stop gates; Phase01 installed wheel source-byte proof. All associated V18 tasks remain partial until broader coding and deferred tests/live acceptance. Other workstream evidence preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1766,10 +1766,22 @@
       "phase": "02",
       "source_topic": "19",
       "master_line": 278,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/integrations/capabilities.py",
+        "src/sofia/safe/operator_stop.py",
+        "test/test_permission_runtime_wiring.py"
+      ],
+      "evidence_commits": [
+        "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
+        "5b56f88c234b61aacfbeb5ef5282a1e49d4fcb93"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "5839bc202056cbb8549a478a5bc420373ab95917",
+        "depth": "integration_effect_boundary",
+        "interpretation": "Production generic integration effect handlers recheck durable operator stop before approval and immediately before effect, including Level-2 maintenance. Tests authored only. This is not full universal stop/revocation coverage, and in-flight external actions may not be cancellable."
+      }
     },
     {
       "id": "CA-2701",
@@ -1916,10 +1928,22 @@
       "phase": "02",
       "source_topic": "65",
       "master_line": 299,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/integrations/capabilities.py",
+        "src/sofia/safe/operator_stop.py",
+        "test/test_permission_runtime_wiring.py"
+      ],
+      "evidence_commits": [
+        "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
+        "5b56f88c234b61aacfbeb5ef5282a1e49d4fcb93"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "5839bc202056cbb8549a478a5bc420373ab95917",
+        "depth": "integration_effect_boundary",
+        "interpretation": "Production generic integration effect handlers recheck durable operator stop before approval and immediately before effect, including Level-2 maintenance. Tests authored only. This is not full universal stop/revocation coverage, and in-flight external actions may not be cancellable."
+      }
     },
     {
       "id": "CA-6508",
