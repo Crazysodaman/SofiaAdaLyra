@@ -2175,6 +2175,49 @@ of full cross-thread/autobiographical recall or semantic
 truth from historical conversation excerpts. Tests/CI unrun,
 no production conversations or host changes.
 
+
+
+### Phase 06 item 66: Canonical UTC ordering for newly written conversation sources
+
+Original source audit of `ConversationStore.save`,
+`list_messages_page`, `recent_messages` and
+`exact_originals` found that new source timestamps were saved as
+arbitrary `datetime.isoformat()` text. Lexicographic SQLite
+`ORDER BY created_at,id` and keyset comparisons can misorder
+different timezone offsets for the same chronological history.
+The previous `conversation_sessions.updated_at < ?` text
+comparison had the same vulnerability.
+
+Production `src/sofia/conversation/store.py` now stores new
+timezone-aware source timestamps in canonical UTC format, compares
+session-activity instants using SQLite `julianday()`, and normalizes
+offset-aware keyset cursors to UTC. Re-saving the same immutable
+message ID using a different valid timezone representation of
+the same instant remains idempotent; an actual changed instant
+is rejected. The preserved original user/assistant content,
+session, role and ID contract is unchanged. Historical rows
+already recorded in differing offsets are **not silently rewritten**;
+their order may still need a separately approved, backed-up
+offline normalization/migration with independent authority and
+source-attribution audit. Legacy naive datetime records are
+retained for compatibility, not newly certified as UTC.
+
+- Source/chronological write repair
+  `f35040afd44f790215793e131af45a977d480ef8` (`[skip ci]`).
+- Keyset cursor normalization
+  `5e7cd961dbe6dc670e631f969c699a57ddfa85d8` (`[skip ci]`).
+- Deferred mixed-offset SQLite regression and cursor coverage
+  `test/test_ws2_conversation_utc_ordering.py`,
+  `8b8ceb82d476e6d6585df172bceaf5ec20b71242`,
+  `5b73d82329f533f5c694531acf53e171ae4a14ca`
+  (`[skip ci]`).
+
+Original CA relevance: CA-4207, CA-4803, CA-5001,
+CA-5603, CA-5901, CA-5903.
+No tests/CI, live database rewrite, on-host index rebuild or
+cross-host cutover performed. Original requirements remain partial
+until end-to-end temporal correctness and acceptance evidence exist.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
