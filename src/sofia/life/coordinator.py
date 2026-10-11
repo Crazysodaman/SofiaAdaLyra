@@ -242,6 +242,66 @@ class SelfDirectedLifeCoordinator:
             ):
                 consume("invalid", "evidence provenance, principal, audience, or time is invalid")
                 continue
+            # A free-standing evaluation row and plausible evidence reference
+            # are NOT proof that a personal project produced the artifact.
+            # Recheck the original historical revision, actual immutable
+            # bytes and its authorized completed RUN receipt before learning.
+            if (
+                (evaluation.artifact_id, evaluation.artifact_revision)
+                not in self.store.artifacts(project.project_id)
+            ):
+                consume("invalid", "evaluation artifact revision is not linked to project")
+                continue
+            revisions = self.creative_store.history(
+                evaluation.artifact_id, SOFIA_CREATIVE_OWNER,
+                project.audience_id,
+            )
+            revision = next((
+                candidate for candidate in revisions
+                if candidate.revision == evaluation.artifact_revision
+                and candidate.project_id == project.project_id
+            ), None)
+            if revision is None or not any(
+                self._confirmed_artifact_run_receipt(
+                    project, artifact_id=evaluation.artifact_id,
+                    revision=evaluation.artifact_revision,
+                    evidence_ref=ref, now=now,
+                )
+                for ref in evaluation.evidence_refs
+            ):
+                consume("invalid", "evaluation has no canonical creative revision and RUN receipt")
+                continue
+            from .validation import inspect_objective_artifact, ObjectiveDisposition
+            try:
+                report = inspect_objective_artifact(
+                    revision=revision, path=Path(revision.content_path),
+                    objectives=project.brief.objectives,
+                )
+            except (OSError, ValueError, TypeError):
+                consume("invalid", "historical creative artifact cannot be independently inspected")
+                continue
+            observed_results = {
+                item.objective: (
+                    True if item.disposition is ObjectiveDisposition.PASS
+                    else False if item.disposition is ObjectiveDisposition.FAIL
+                    else None
+                ) for item in report.findings
+            }
+            observed_outcome = (
+                TechnicalOutcome.VALID if report.eligible_for_independent_completion
+                else TechnicalOutcome.INVALID if any(
+                    item.disposition is ObjectiveDisposition.FAIL
+                    for item in report.findings
+                ) else TechnicalOutcome.INCONCLUSIVE
+            )
+            if (
+                report.integrity is not ObjectiveDisposition.PASS
+                or report.revision != evaluation.artifact_revision
+                or dict(evaluation.objective_results) != observed_results
+                or evaluation.technical_outcome is not observed_outcome
+            ):
+                consume("invalid", "historical evaluation conflicts with source artifact objective checks")
+                continue
             judgment = evaluation.personal_judgment
             if judgment is PersonalJudgment.UNKNOWN:
                 consume("no_change", "grounded evaluation made no personal judgment")
