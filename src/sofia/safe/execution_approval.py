@@ -168,6 +168,13 @@ class ExecutionApprovalVerifier:
                     raise PermissionError("owner verification is stale or from the future")
                 if protected and row["credential_kind"] != "security_key":
                     raise PermissionError("protected execution requires enrolled security key")
+                used = db.execute(
+                    "SELECT 1 FROM safe_execution_owner_auth_binding "
+                    "WHERE authentication_event_id=?",
+                    (authentication_event_id,),
+                ).fetchone()
+                if used is not None:
+                    raise PermissionError("owner authentication already bound to approval")
             db.execute(
                 """
                 INSERT INTO safe_execution_approval (
