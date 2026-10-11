@@ -204,6 +204,18 @@ class MobileCompanionGateway:
                     private_mode=payload["private_mode"],
                     request_id=payload["request_id"],
                 )
+            if operation == "/v1/mobile/delivery/status":
+                if set(payload) != {
+                    "device_id", "private_mode", "request_id",
+                    "content_sha256"
+                }:
+                    raise ValueError("delivery status payload fields are invalid")
+                return self.delivery_status(
+                    credential=credential, device_id=device,
+                    private_mode=payload["private_mode"],
+                    request_id=payload["request_id"],
+                    content_sha256=payload["content_sha256"],
+                )
             if operation == "/v1/mobile/state":
                 if set(payload) != {"device_id", "private_mode"}:
                     raise ValueError("state payload fields are invalid")
@@ -537,6 +549,100 @@ class MobileCompanionGateway:
                     raise MobileDeliveryUncertain(
                         "delivery receipt changed before it could be committed"
                     )
+            return result
+
+    def delivery_status(
+        self, *, credential: str, device_id: object,
+        private_mode: object, request_id: object, content_sha256: object,
+    ) -> dict[str, object]:
+        """Read the exact canonical delivery outcome without retrying a turn.
+
+        A missing durable receipt is NOT proof that an earlier external
+        effect did not happen, so this API never resends or clears the outbox.
+        Return original response bytes only when a valid current-epoch bearer,
+        exact message digest and completed canonical receipt all agree.
+        """
+        device = self._device(device_id)
+        if type(private_mode) is not bool:
+            raise TypeError("private_mode must be a bool")
+        if not isinstance(request_id, str) or _REQUEST.fullmatch(request_id) is None:
+            raise ValueError("stable bounded delivery request ID required")
+        if (
+            not isinstance(content_sha256, str)
+            or len(content_sha256) != 64
+            or any(ch not in "0123456789abcdef" for ch in content_sha256)
+        ):
+            raise ValueError("exact SHA-256 message digest required")
+        fingerprint = self.credentials._digest(credential)
+        if fingerprint is None:
+            raise MobileCredentialRevoked("verified device bearer required")
+        if (
+            private_mode
+            and not self.permissions.private_adult_authority().private_chat
+        ):
+            raise PermissionError("private delivery retrieval requires host grant")
+        mode = "private" if private_mode else "standard"
+        with self._lock:
+            with closing(self._connect()) as db:
+                # Credential check and receipt read use one SQLite snapshot.
+                # After rotation/revocation, an old phone cannot recover
+                # private assistant output under its former pairing.
+                live = db.execute(
+                    "SELECT generation FROM mobile_device_credential "
+                    "WHERE device_id=? AND token_sha256=? AND status='active'",
+                    (device, fingerprint),
+                ).fetchone()
+                if live is None:
+                    raise MobileCredentialRevoked(
+                        "device pairing changed before delivery status read"
+                    )
+                generation = int(live[0])
+                row = db.execute(
+                    "SELECT device_id,presentation_mode,content_sha256,"
+                    "credential_generation,status,response_json "
+                    "FROM mobile_turn_receipt WHERE request_id=?",
+                    (request_id,),
+                ).fetchone()
+            if row is None or (
+                row[0] != device or row[1] != mode or row[3] != generation
+            ):
+                # An ID belonging to another device or older generation
+                # must not disclose its existence or previous result.
+                return {"status": "not_found"}
+            if row[2] != content_sha256:
+                raise MobileDeliveryConflict(
+                    "delivery status digest conflicts with original send"
+                )
+            if row[4] != "completed":
+                return {
+                    "status": (
+                        row[4] if row[4] in ("processing", "uncertain")
+                        else "uncertain"
+                    ),
+                }
+            try:
+                saved = json.loads(row[5]) if row[5] else None
+            except (TypeError, ValueError):
+                saved = None
+            if not isinstance(saved, dict):
+                return {"status": "uncertain"}
+            proof = saved.get("delivery_receipt")
+            if (
+                not isinstance(proof, dict)
+                or proof.get("request_id") != request_id
+                or proof.get("origin_device_id") != device
+                or proof.get("presentation_mode") != mode
+                or proof.get("credential_generation") != generation
+                or proof.get("logical_status") != "completed"
+                or type(proof.get("canonical_sequence")) is not int
+                or proof["canonical_sequence"] < 1
+            ):
+                return {"status": "uncertain"}
+            # The client caps JSON responses at 256 K chars. A historical
+            # oversized receipt is unresolved rather than truncated.
+            result = {"status": "completed", "result": saved}
+            if len(json.dumps(result).encode("utf-8")) > 240_000:
+                return {"status": "uncertain"}
             return result
 
     def state(
