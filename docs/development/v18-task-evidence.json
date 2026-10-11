@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "b76a1c73efeb0c37f097164d13ffcfdb506a2836",
+  "reviewed_main_sha": "87719681ede429aee7cac77349dc20c6b208e480",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -1631,14 +1631,32 @@
         "a9ec36e94c4e55347d607f337e182d15b4120f03",
         "a7de797b5a4b3c875da2e9de9638d3c4a58f41c0",
         "cf004394e031e0009b8eb3556e4f7fc42b52b1e9",
-        "62131e85b7394eaee977e1221891a7a33eda8d96"
+        "62131e85b7394eaee977e1221891a7a33eda8d96",
+        "3717e48c38f3f379d6321d0b84f5854bf7b9c7e3",
+        "03e5718e935b580f98030acbc6b4011201053968"
       ],
       "accepted": false,
       "audit_observation": {
         "at_sha": "02d7778e85447cf7c74ec5490d6ac644df3a285e",
         "depth": "release_provenance_source_and_regression",
         "interpretation": "Live release workflow calls source_provenance which now compares exact archived Python module membership and bytes against the installed package and emits digest. Existing workflow creates two wheels with hashes. No release/CI tests executed or wheel signing evidence captured; overall CA-3004 remains partial."
-      }
+      },
+      "latest_coding_slices": [
+        {
+          "source_review_sha": "87719681ede429aee7cac77349dc20c6b208e480",
+          "commits": [
+            "3717e48c38f3f379d6321d0b84f5854bf7b9c7e3",
+            "03e5718e935b580f98030acbc6b4011201053968"
+          ],
+          "source_paths": [
+            ".github/workflows/release-candidate.yml",
+            "test/test_verify_installed_wheel_release.py"
+          ],
+          "production_route": "main push/workflow_dispatch -> GitHub Actions clean Git archive -> two hashed artifact builds in RUNNER_TEMP -> candidate wheel hash check and wheel install in external venv -> installed package/archive provenance -> full source and package verification gate -> release evidence generated from the same wheel path",
+          "fulfilled_slice": "Release pipeline no longer tests a separately built source install before constructing its actual candidate artifact; temporary wheel, venv and pre-gate evidence stay outside source checkout.",
+          "remaining": "CA-3004 remains partial: independent pinned build-tool integrity, reproducibility/signing prerequisites and exact-SHA release CI acceptance are not established. Regression source authored; no tests/CI executed."
+        }
+      ]
     },
     {
       "id": "CA-3005",
