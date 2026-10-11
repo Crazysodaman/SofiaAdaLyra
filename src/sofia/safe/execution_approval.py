@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -10,6 +10,7 @@ import re
 import sqlite3
 
 from sofia.safe.audit import AuditChain
+from sofia.safe.permissions import PermissionLevel, capability_permission_policy
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
@@ -100,18 +101,76 @@ class ExecutionApprovalVerifier:
                 )
                 """
             )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS safe_execution_owner_auth_binding (
+                    authentication_event_id TEXT PRIMARY KEY,
+                    approval_id TEXT NOT NULL UNIQUE,
+                    bound_at TEXT NOT NULL,
+                    FOREIGN KEY(approval_id) REFERENCES safe_execution_approval(approval_id)
+                )
+                """
+            )
 
     def _connect(self) -> sqlite3.Connection:
         """Never manufacture a new approval/audit authority after state loss."""
         return self._guard.connect(timeout=10)
 
-    def record(self, approval: ExecutionApproval) -> None:
+    def record(
+        self, approval: ExecutionApproval, *,
+        authentication_event_id: str | None = None,
+    ) -> None:
         if not isinstance(approval, ExecutionApproval):
             raise TypeError("approval must be an ExecutionApproval")
         if approval.approved_by != "Sparks":
             raise PermissionError("non-owner execution approval denied")
+        protected = (
+            capability_permission_policy(approval.capability).level
+            >= PermissionLevel.PROTECTED
+        )
+        if protected and not authentication_event_id:
+            raise PermissionError(
+                "protected execution requires freshly verified owner FIDO2 authentication"
+            )
+        if authentication_event_id is not None and (
+            not isinstance(authentication_event_id, str)
+            or not authentication_event_id.startswith("owner-webauthn:")
+            or len(authentication_event_id) != len("owner-webauthn:") + 64
+        ):
+            raise PermissionError("invalid owner authentication event identity")
         with closing(self._connect()) as db, db:
+            db.row_factory = sqlite3.Row
             db.execute("PRAGMA busy_timeout=10000")
+            db.execute("BEGIN IMMEDIATE")
+            if authentication_event_id is not None:
+                # A signed assertion was verified through the canonical
+                # owner_webauthn path; link it exactly once to this approval.
+                # Do not accept a submitted actor label or guessed event ID.
+                digest = authentication_event_id.partition(":")[2]
+                row = db.execute(
+                    "SELECT ch.action_fingerprint,ch.consumed_at,cr.credential_kind "
+                    "FROM safe_owner_challenge ch JOIN safe_owner_credential cr "
+                    "ON cr.credential_id=ch.credential_id "
+                    "JOIN safe_audit_event au ON au.event_id=? "
+                    "WHERE ch.challenge_digest=? "
+                    "AND au.event_type='owner.webauthn.verified'",
+                    (authentication_event_id, digest),
+                ).fetchone()
+                if row is None or row["consumed_at"] is None:
+                    raise PermissionError("owner authentication evidence unavailable")
+                if row["action_fingerprint"] != approval.request_fingerprint:
+                    raise PermissionError("authenticated action fingerprint mismatch")
+                verified_at = datetime.fromisoformat(row["consumed_at"])
+                approval_time = approval.approved_at.astimezone(timezone.utc)
+                if not verified_at <= approval_time <= verified_at + timedelta(seconds=120):
+                    raise PermissionError("owner verification is stale or from the future")
+                if protected and row["credential_kind"] != "security_key":
+                    raise PermissionError("protected execution requires enrolled security key")
+                db.execute(
+                    "INSERT INTO safe_execution_owner_auth_binding "
+                    "(authentication_event_id,approval_id,bound_at) VALUES(?,?,?)",
+                    (authentication_event_id, approval.approval_id, approval_time.isoformat()),
+                )
             db.execute(
                 """
                 INSERT INTO safe_execution_approval (
