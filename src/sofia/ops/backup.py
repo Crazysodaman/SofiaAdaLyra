@@ -464,11 +464,38 @@ class BackupEngine:
         verifier: str,
         replace_existing: bool = False,
         now: datetime | None = None,
+        erasure_journal: Path | None = None,
     ) -> RestoreVerification:
+        # A backup can predate a live deletion by years. No restore may
+        # publish state without the operator-held current deletion journal,
+        # which is intentionally not embedded in older encrypted snapshots.
+        from sofia.memory.deletion_ledger import (
+            MemoryDeletionLedger, MemoryErasureError,
+        )
+        if not isinstance(erasure_journal, Path) or not erasure_journal.is_absolute():
+            raise BackupError(
+                "current external erasure_journal is required before any restore"
+            )
+        deletion_ledger = MemoryDeletionLedger(erasure_journal, self.cipher)
+        try:
+            deletion_ledger.entries()
+        except MemoryErasureError as exc:
+            raise BackupError("authenticated deletion journal is unavailable") from exc
         manifest = self.verify(backup_dir)
         if not isinstance(target_state_path, Path):
             raise TypeError("target_state_path must be a Path")
         target_root = target_state_path.parent
+        journal = erasure_journal.absolute()
+        root = target_root.absolute()
+        source_root = backup_dir.absolute()
+        if (
+            journal == target_state_path.absolute()
+            or journal == root or root in journal.parents
+            or journal == source_root or source_root in journal.parents
+        ):
+            raise BackupError(
+                "erasure journal must be outside restored state and backup snapshots"
+            )
         # Authenticate destination locality and every archived target
         # before staging any file, including protected identity assets.
         _reject_redirected_restore_path(target_state_path)
@@ -527,7 +554,17 @@ class BackupEngine:
                 if row is None or row[0] != "ok":
                     raise BackupError("restored SQLite failed integrity_check")
 
-            # Verify semantic protected state before replacing live files.
+            # Authenticate and reapply EVERY deletion instruction to the
+            # staged database before any restored byte becomes active.
+            # This physical replay removes copied source text too, and
+            # fails closed if the journal is missing or scope conflicts.
+            try:
+                deletion_ledger.apply_to_sqlite(staged_db)
+            except (MemoryErasureError, sqlite3.DatabaseError) as exc:
+                raise BackupError(
+                    "restored state failed authenticated memory-erasure replay"
+                ) from exc
+            # Verify semantic protected state after candidate erasure.
             verify_production_component_schemas(staged_db)
             SQLiteStatePlane(staged_db).schema_revision
             protected_root = staging / "protected"
