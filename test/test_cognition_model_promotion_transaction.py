@@ -11,6 +11,7 @@ from sofia.cognition.model_switch_plan import (
     promote_prepared_model_role,
 )
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 11, 12, tzinfo=timezone.utc)
@@ -44,7 +45,7 @@ def _broker(plan, store, *, apply, health=lambda *_: True):
 
 
 def test_accepted_model_role_change_is_atomic_source_with_durable_receipt(tmp_path):
-    store = RuntimeUserSettingsStore(tmp_path / "sofia.db")
+    store = RuntimeUserSettingsStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     plan = prepared()
     changes = []
     result = _broker(
@@ -61,7 +62,7 @@ def test_accepted_model_role_change_is_atomic_source_with_durable_receipt(tmp_pa
 
 
 def test_candidate_health_rejection_restores_previous_model_and_settings(tmp_path):
-    store = RuntimeUserSettingsStore(tmp_path / "sofia.db")
+    store = RuntimeUserSettingsStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     plan = prepared()
     before = store.load()
     changes = []
@@ -78,7 +79,7 @@ def test_candidate_health_rejection_restores_previous_model_and_settings(tmp_pat
 
 
 def test_revoked_owner_approval_never_writes_any_new_model(tmp_path):
-    store = RuntimeUserSettingsStore(tmp_path / "sofia.db")
+    store = RuntimeUserSettingsStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     plan = prepared()
     with pytest.raises(PermissionError, match="owner approval"):
         promote_prepared_model_role(
@@ -92,7 +93,7 @@ def test_revoked_owner_approval_never_writes_any_new_model(tmp_path):
 
 
 def test_old_plan_cannot_override_changed_canonical_settings(tmp_path):
-    store = RuntimeUserSettingsStore(tmp_path / "sofia.db")
+    store = RuntimeUserSettingsStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     plan = prepared()
     store.save(replace(
         RuntimeUserSettings(),
@@ -103,7 +104,7 @@ def test_old_plan_cannot_override_changed_canonical_settings(tmp_path):
 
 
 def test_crash_during_provider_transition_refuses_automatic_replay(tmp_path):
-    store = RuntimeUserSettingsStore(tmp_path / "sofia.db")
+    store = RuntimeUserSettingsStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     plan = prepared()
     def crash(_settings):
         raise KeyboardInterrupt("simulated host process death")
@@ -116,7 +117,7 @@ def test_crash_during_provider_transition_refuses_automatic_replay(tmp_path):
 
 
 def test_concurrent_marker_rewrite_cannot_masquerade_as_accepted(tmp_path):
-    store = RuntimeUserSettingsStore(tmp_path / "sofia.db")
+    store = RuntimeUserSettingsStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     plan = prepared()
 
     def tamper_during_health(role, model):
@@ -135,7 +136,7 @@ def test_concurrent_marker_rewrite_cannot_masquerade_as_accepted(tmp_path):
 
 
 def test_rollback_must_update_its_own_exact_transition_receipt(tmp_path):
-    store = RuntimeUserSettingsStore(tmp_path / "sofia.db")
+    store = RuntimeUserSettingsStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     plan = prepared()
 
     def apply(settings):
@@ -149,3 +150,48 @@ def test_rollback_must_update_its_own_exact_transition_receipt(tmp_path):
 
     with pytest.raises(ModelPromotionUncertain, match="rollback receipt"):
         _broker(plan, store, apply=apply, health=lambda *_: False)
+
+
+def test_historical_accepted_receipt_is_not_current_mapping_after_new_owner_edit(tmp_path):
+    store = RuntimeUserSettingsStore(
+        bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    )
+    plan = prepared()
+    _broker(plan, store, apply=lambda _: True)
+    store.save(replace(
+        store.load(), cognitive_primary_model="owner-selected-next:2b",
+    ))
+    with pytest.raises(ModelPromotionUncertain, match="historical accepted"):
+        _broker(
+            plan, store, apply=lambda _: pytest.fail("must not replay"),
+        )
+    assert store.load().cognitive_primary_model == "owner-selected-next:2b"
+
+
+def test_unsettled_old_transition_blocks_a_second_authorized_role_change(tmp_path):
+    store = RuntimeUserSettingsStore(
+        bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    )
+    first = prepared()
+
+    def interrupt(_settings):
+        raise KeyboardInterrupt("simulated crash after proposed mapping committed")
+
+    with pytest.raises(KeyboardInterrupt):
+        _broker(first, store, apply=interrupt)
+    pending = store.load()
+    second_model = "independently-reviewed-later:3b"
+    second_plan = replace(
+        prepared(pending),
+        old_model=pending.cognitive_primary_model,
+        new_model=second_model,
+        proposed_settings=replace(
+            pending, cognitive_primary_model=second_model,
+        ),
+        operator_approval_ref="owner-ref-another-pending-candidate",
+    )
+    with pytest.raises(ModelPromotionUncertain, match="unresolved effects"):
+        _broker(
+            second_plan, store, apply=lambda _: pytest.fail("must not apply"),
+        )
+    assert store.load() == pending
