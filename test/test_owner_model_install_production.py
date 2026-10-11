@@ -12,7 +12,6 @@ from sofia.safe.operator_stop import OperatorStopStore
 from sofia.ui.settings_service import install_approved_configured_model
 
 pytestmark = pytest.mark.pkg_safe
-NOW = datetime.now(timezone.utc)
 MODEL = "owner-reviewed/primary:9b"
 HOST = "venus-local-host"
 
@@ -42,6 +41,7 @@ def setup(tmp_path, monkeypatch):
 
 
 def approve(state, *, model=MODEL, host=HOST, role="primary"):
+    now = datetime.now(timezone.utc)
     approval = ExecutionApproval(
         approval_id=str(uuid4()),
         capability="cognition.model.install",
@@ -50,8 +50,8 @@ def approve(state, *, model=MODEL, host=HOST, role="primary"):
             {"role": role, "model": model, "host_id": host},
         ),
         approved_by="Sparks",
-        approved_at=NOW,
-        expires_at=NOW + timedelta(minutes=15),
+        approved_at=now,
+        expires_at=now + timedelta(minutes=15),
     )
     ExecutionApprovalVerifier(state).record(approval)
     return approval.approval_id
