@@ -229,7 +229,8 @@ class SofiaApplication:
         self._tts.add_receipt_listener(self._record_voice_expression_receipt)
         self._channel_conversations: list[ConversationService] = []
         self._neuro = NeuroRuntime(
-            observability=NeuroObservabilityStore(configuration.state_path)
+            observability=NeuroObservabilityStore(configuration.state_path),
+            competition_enabled=self._environment_settings_store.load().neuro_competition_enabled,
         )
         self._neuro_inputs = NeuroInputCoordinator(
             self._neuro,
@@ -977,6 +978,8 @@ class SofiaApplication:
     def _reload_environment_if_settings_changed(self) -> bool:
         """Hot-reload persisted ENVIRONMENT settings without restarting Sofía."""
         settings = self._environment_settings_store.load()
+        # Owner's NEURO preference applies even when weather settings are unchanged.
+        self._neuro.set_competition_enabled(settings.neuro_competition_enabled)
         fingerprint = self._environment_fingerprint(settings)
         if fingerprint == self._environment_settings_fingerprint:
             return False
@@ -1034,6 +1037,10 @@ class SofiaApplication:
     ):
         """Sample authoritative read-only state; NEURO remains non-authoritative."""
         try:
+            # Background callers read the same durable owner switch as chat.
+            self._neuro.set_competition_enabled(
+                self._environment_settings_store.load().neuro_competition_enabled
+            )
             environment = self._runtime.environment_service.snapshot(
                 now=now,
                 refresh_providers=refresh_environment,
