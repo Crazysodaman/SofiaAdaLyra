@@ -170,6 +170,85 @@ class WorkshopHostObservation:
             raise ValueError("host observation needs a source timestamp")
 
 
+
+def observed_hyperv_host(
+    *,
+    payload: dict,
+    authenticated_fleet_host_id: str,
+    vm_root: str,
+    image_sha256: str | None = None,
+) -> WorkshopHostObservation:
+    """Normalize only a completed Fleet mTLS Artemis host observation.
+
+    The host identity comes from trusted Fleet transport, never the remote
+    JSON. Missing/malformed fields remain unknown or are refused, never
+    promoted into invented host capacity.
+    """
+    if not isinstance(payload, dict) or (
+        payload.get("Platform") != "Hyper-V"
+        or payload.get("HypervisorAvailable") is not True
+    ):
+        raise ValueError("Hyper-V not verified by host")
+    root = _path(vm_root)
+    version = payload.get("WindowsHostVersion")
+    if not isinstance(version, str) or not version.strip():
+        raise ValueError("observed Windows Hyper-V build unknown")
+    reported_at = payload.get("ObservedAtUtc")
+    if not isinstance(reported_at, str):
+        raise ValueError("Hyper-V host reported no timestamp")
+    observed_at = datetime.fromisoformat(reported_at.replace("Z","+00:00"))
+    if observed_at.tzinfo is None:
+        raise ValueError("Hyper-V host timestamp lacks timezone")
+
+    def count(name):
+        val=payload.get(name)
+        return val if type(val) is int and val >= 0 else None
+
+    raw_vms=payload.get("Machines")
+    raw_switches=payload.get("Switches")
+    raw_drives=payload.get("Drives")
+    if (
+        not isinstance(raw_vms,list) or len(raw_vms)>256
+        or not isinstance(raw_switches,list) or len(raw_switches)>64
+        or not isinstance(raw_drives,list) or len(raw_drives)>32
+    ):
+        raise ValueError("unbounded or unknown Hyper-V host topology")
+    vm_names=[]
+    switches=[]
+    for entry in raw_vms:
+        if not isinstance(entry,dict) or not isinstance(entry.get("Name"),str):
+            raise ValueError("Hyper-V VM name unobserved")
+        vm_names.append(entry["Name"])
+    for entry in raw_switches:
+        if not isinstance(entry,dict) or any(
+            not isinstance(entry.get(key),str) for key in ("Name","SwitchType")
+        ):
+            raise ValueError("Hyper-V switch name/type unobserved")
+        switches.append((entry["Name"],entry["SwitchType"]))
+    disk_free=None
+    required_drive=root.drive.casefold()
+    for drive in raw_drives:
+        if not isinstance(drive,dict):
+            raise ValueError("Hyper-V disk capacity unobserved")
+        if str(drive.get("Drive","")).casefold()==required_drive:
+            value=drive.get("FreeBytes")
+            if type(value) is int and value>=0:
+                disk_free=value//(1024**3)
+            break
+    return WorkshopHostObservation(
+        host_id=authenticated_fleet_host_id,
+        hypervisor_version="WindowsHyperV/"+version,
+        logical_processors=count("LogicalProcessors"),
+        free_memory_mb=count("FreeMemoryMB"),
+        total_memory_mb=count("TotalMemoryMB"),
+        free_disk_gib=disk_free,
+        existing_vm_names=tuple(vm_names),
+        existing_switches=tuple(switches),
+        image_sha256=image_sha256,
+        observed_at=observed_at,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class WorkshopPreflight:
     plan_fingerprint_sha256: str
