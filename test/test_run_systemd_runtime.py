@@ -30,6 +30,9 @@ def test_approved_debian_13_runtime_has_separate_os_preflight_and_canonical_serv
     assert "ConditionPathExists=/var/lib/sofia-ada-lyra/sofia.db" in unit
     assert "ReadWritePaths=/var/lib/sofia-ada-lyra" in unit
     assert "User=sofia\nGroup=sofia\n" in unit
+    assert "Type=notify" in unit
+    assert "NotifyAccess=main" in unit
+    assert "TimeoutStartSec=180s" in unit
     assert "Restart=on-failure" in unit
     assert "KillSignal=SIGTERM" in unit
     assert "ProtectSystem=strict" in unit
@@ -73,6 +76,7 @@ def test_runtime_refuses_missing_signed_pointer_without_opening_any_db(
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "production")
     monkeypatch.setenv("SOFIA_IDENTITY_BOOTSTRAP_MODE", "require_existing")
     monkeypatch.delenv("SOFIA_STATE_HOME_POINTER", raising=False)
+    monkeypatch.setenv("NOTIFY_SOCKET", "/run/systemd/notify")
     with pytest.raises(PermissionError, match="signed state-home pointer"):
         runtime.run_headless(stop_event=Event())
     assert list(tmp_path.iterdir()) == []
@@ -105,6 +109,7 @@ def test_runtime_uses_existing_application_and_always_shuts_down(
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "production")
     monkeypatch.setenv("SOFIA_IDENTITY_BOOTSTRAP_MODE", "require_existing")
     monkeypatch.setenv("SOFIA_STATE_HOME_POINTER", "/etc/sofia/home-pointer.json")
+    monkeypatch.setenv("NOTIFY_SOCKET", "/run/systemd/notify")
     monkeypatch.setattr(defaults, "production_state_path", lambda: state)
     monkeypatch.setattr(
         defaults, "create_production_configuration",
@@ -130,11 +135,14 @@ def test_runtime_uses_existing_application_and_always_shuts_down(
 
     monkeypatch.setattr(bootstrap, "SofiaApplication", Application)
     monkeypatch.setattr(runtime, "require_debian_guest", lambda: None)
+    monkeypatch.setattr(runtime, "notify_systemd", lambda message: actions.append(("notify", message)))
     runtime.run_headless(stop_event=stop)
     assert actions == [
         ("state_checked", state),
         ("composed", state),
         ("started", state),
+        ("notify", "READY=1"),
+        ("notify", "STOPPING=1"),
         ("shutdown", state),
     ]
 
@@ -196,3 +204,38 @@ def test_unit_guest_preflight_is_read_only_and_does_not_start_canonical_runtime(
     monkeypatch.setattr(runtime, "require_debian_guest", lambda: seen.append("guest"))
     assert runtime.main(["verify-guest"]) == 0
     assert seen == ["guest"]
+
+
+def test_debian_service_refuses_no_systemd_notify_socket_before_state_access(
+    monkeypatch,
+):
+    from types import SimpleNamespace
+    monkeypatch.setattr(runtime, "sys", SimpleNamespace(platform="linux"))
+    monkeypatch.setenv("SOFIA_RUNTIME_MODE", "production")
+    monkeypatch.setenv("SOFIA_IDENTITY_BOOTSTRAP_MODE", "require_existing")
+    monkeypatch.setenv("SOFIA_STATE_HOME_POINTER", "/etc/sofia/home-pointer.json")
+    monkeypatch.delenv("NOTIFY_SOCKET", raising=False)
+    with pytest.raises(RuntimeError, match="readiness notification channel"):
+        runtime.run_headless(stop_event=Event())
+
+
+def test_fixed_systemd_notifications_use_unix_socket_without_shell(monkeypatch):
+    messages = []
+    connections = []
+    class Datagram:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def connect(self, addr):
+            connections.append(addr)
+        def sendall(self, payload):
+            messages.append(payload)
+    monkeypatch.setenv("NOTIFY_SOCKET", "@sofia-control")
+    monkeypatch.setattr(runtime.socket, "socket", lambda family, socktype: Datagram())
+    runtime.notify_systemd("READY=1")
+    runtime.notify_systemd("STOPPING=1")
+    assert connections == ["\\0sofia-control", "\\0sofia-control"]
+    assert messages == [b"READY=1", b"STOPPING=1"]
+    with pytest.raises(ValueError, match="fixed lifecycle"):
+        runtime.notify_systemd("READY=1\\nMAINPID=1")
