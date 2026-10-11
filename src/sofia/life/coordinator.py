@@ -2799,7 +2799,7 @@ class SelfDirectedLifeCoordinator:
         return 1, "revision_scheduled"
 
     def _settle_retired_optional_interests(self, *, now: datetime) -> int:
-        """Close paused personal projects after newer reviewed disinterest.
+        """Close active or paused personal projects after reviewed disinterest.
 
         A retired interest comes from original canonical evidence and never
         implies a model has feelings. Active work, uncertain effects, duties,
@@ -2810,7 +2810,7 @@ class SelfDirectedLifeCoordinator:
         projects = self.store.list_scope(
             owner_principal_id=SOFIA_PROJECT_OWNER,
             audience_id=LOCAL_AUDIENCE,
-            statuses=(ProjectStatus.PAUSED,),
+            statuses=(ProjectStatus.ACTIVE, ProjectStatus.PAUSED),
         )
         settled = 0
         for project in projects:
