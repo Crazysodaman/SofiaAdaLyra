@@ -280,3 +280,11 @@ This addresses a narrow authority-race path, **not** full atomic GOALS/LIFE two-
 - `2d04ce70`: Unexecuted source regressions cover an already cancelled goal with queued RUN work (first PAUSED, then after source-blocked RUN becomes ABANDONED, idempotently) and a GOALS PAUSED decision preventing new LIFE activity without changing the original goal lifecycle.
 
 **Boundaries:** no claim that missing/unreadable goals do not exist, no automatic changes for USER/OPERATIONAL/COLLABORATIVE work, no host cutover or robot operation, no test execution. Cross-store interruption between LIFE/GOALS/SAFE/RUN updates still requires bounded recovery tests and source authority checks. Original CA-106, CA-113, CA-2402 remain open pending full task-level audit and deferred verification.
+
+## Evaluation-to-experience crash atomicity checkpoint
+
+- `9e580a47`: The existing `LifeStore` provides one SQLite transaction for a matching `ArtifactEvaluation` and canonical `ExperienceRecord`, validating exact project, evidence, observed evaluation time, and `interest_learning` evaluation ID. The existing individual insert methods remain for their other authorized callers. A failed experience write rolls back the evaluation instead of orphaning it.
+- `d642ec1b`: The actual `SelfDirectedLifeCoordinator.evaluate_artifact` production caller now constructs the source-linked experience without side effects and publishes the evaluation/experience pair atomically before separately updating the existing `PreferenceRegistry`. All other LIFE experiences keep their original persistence behavior. This does not create a duplicate evaluator, memory store, scheduler or writer.
+- `936bf927`: Unexecuted SQLite regression intentionally collides on the experience primary key to prove the source-level rollback expectation and protect an existing experience from overwrite.
+
+**Remaining:** preferences are owned by a different existing writer transaction and are not made atomic with LIFE evaluation here; interrupted manual subjective preference application still needs replay-safe repair. Real crash-injection, Windows handle/lock, full-suite and installed-release gates are explicitly deferred. No tests or CI were run.
