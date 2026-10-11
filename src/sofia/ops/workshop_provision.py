@@ -18,7 +18,7 @@ _SHA = re.compile(r"^[0-9a-f]{64}$")
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$")
 _DRIVE = re.compile(r"^[A-Za-z]:\\")
 EXPECTED_VM = "Hephaestus"
-EXPECTED_SWITCH = "Sofia-Hephaestus-Private"
+EXPECTED_SWITCH = "Sofia-Hephaestus-Internal"
 
 
 def _path(value: str) -> PureWindowsPath:
@@ -57,7 +57,7 @@ class WorkshopProvisionPlan:
     hypervisor: str = "Hyper-V"
     guest_os: str = "Debian"
     firmware_generation: int = 2
-    network_mode: str = "private"
+    network_mode: str = "internal_host_guest_no_lan"
     cleanup_scope: str = "plan_owned_assets_only"
 
     def __post_init__(self) -> None:
@@ -83,8 +83,8 @@ class WorkshopProvisionPlan:
             raise ValueError("Hephaestus is the only reviewed workshop VM name")
         if self.guest_os != "Debian" or self.firmware_generation != 2:
             raise ValueError("reviewed Debian Generation-2 guest only")
-        if self.network_mode != "private" or self.switch_name != EXPECTED_SWITCH:
-            raise ValueError("only the dedicated private Hyper-V switch is permitted")
+        if self.network_mode != "internal_host_guest_no_lan" or self.switch_name != EXPECTED_SWITCH:
+            raise ValueError("only reviewed nonrouted Internal Hyper-V switch is permitted")
         if self.cleanup_scope != "plan_owned_assets_only":
             raise ValueError("cleanup cannot affect other VMs or host assets")
         root = _path(self.vm_root)
@@ -293,8 +293,8 @@ def inspect_workshop_plan(
         blockers.append("Hephaestus VM name collision; no adoption or overwrite")
     for name, switch_type in observation.existing_switches:
         if name.casefold() == plan.switch_name.casefold():
-            if switch_type.casefold() != "private":
-                blockers.append("expected private switch collides with non-private network")
+            if switch_type.casefold() != "internal":
+                blockers.append("expected Internal switch collides with wrong network type")
             else:
                 blockers.append("existing switch ownership unproven; no silent adoption")
     if observation.image_sha256 is None:
@@ -327,7 +327,7 @@ class WorkshopRemotePreview:
             "Guest: "+self.plan.guest_name,
             "CPU/RAM/DISK: "+str(self.plan.vcpu)+" vCPU / "
             +str(self.plan.memory_mb)+" MiB / "+str(self.plan.disk_gib)+" GiB",
-            "Network: PRIVATE named "+self.plan.switch_name+" (not NAT or LAN)",
+            "Network: INTERNAL named "+self.plan.switch_name+" (host-only /30, no NAT, ICS or LAN)",
             "Root: "+self.plan.vm_root,
             "Cleanup scope: "+self.plan.cleanup_scope,
             "Plan expiry: "+manifest["expires_at"],
