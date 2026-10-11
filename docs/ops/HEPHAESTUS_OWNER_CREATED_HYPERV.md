@@ -18,6 +18,22 @@ Microsoft documents that an Internal switch connects the host to its VMs; it can
 
 **Source inspection is not a firewall or penetration test.** Verification must also demonstrate in the final operator test campaign that guest-to-LAN and guest-to-Internet traffic fails, while Artemis-to-Hephaestus communication works as explicitly approved.
 
+### Separate Level-4 host network staging workflow
+
+This step is **source-coded but not run on Artemis**. It is an explicit host change and is independent of the signed Debian installer boot.
+
+1. The Artemis administrator reviews the exact existing **Hephaestus Hyper-V VM GUID** and configures the pinned Fleet agent's host-only environment:
+   - `SOFIA_WORKSHOP_NETWORK_STAGE_ENABLED=1`
+   - `SOFIA_WORKSHOP_NETWORK_VM_ID=<exact-existing-Hephaestus-GUID>`
+   The default is disabled. The VM must be **Off**, Generation 2, with exactly one network adapter.
+2. In **Tray Settings → Fleet**, enter the enrolled Artemis Fleet node UUID and existing Hephaestus VM GUID. Select **Review & authorize one host-to-guest Internal link stage (protected)**. The local owner must explicitly confirm the switch name, exact GUID, host and guest IP addresses, and host effect.
+3. The interactive owner action records a **single-use, 10-minute SAFE approval** for `workshop.network.create`, tied to the exact node/VM and SHA-256 of the fixed isolation policy. Fleet also requires a separate expiring `workshop.network/stage` grant. The host registers this operation **only** when its own network-stage flag and pinned VM GUID are present.
+4. Artemis checks VM GUID, **Off** state, Gen2, exact old VM network attachment (unconnected, prior dedicated Private switch, or reviewed Internal), absence of sibling VMs, conflicting host IP, overlapping WinNAT and any active ICS. It may **create only** `Sofia-Hephaestus-Internal`, assign only **172.30.250.1/30** to its host vEthernet, turn off forwarding on that adapter, and connect **only the existing Hephaestus NIC**. It never modifies the canonical `Sofia` VM, physical adapters, other VMs, default routes, Internet sharing, NAT or DNS.
+5. The operation records `HOST_STAGE_REPORTED` or `UNCERTAIN` in canonical `sofia.db`, without granting guest trust. After **either** outcome, inspect actual Hyper-V and Windows host state. A timeout/partial failure must **never** trigger automatic replay. For the current coding phase, do **not** enable the host flag or select the button.
+6. After a verified stage, perform a **fresh**, read-only signed-media and `workshop.inspect/blank_vm` handoff. Only that independently observed handoff may lead to the **separate** Level-4 Debian boot approval.
+
+**Additional operator acceptance required:** Verify host firewall profile/rules, actual guest firewall/route table after Debian installation, host-to-guest mTLS flow, and active traffic rejection to 192.168.1.0/24, NAS, Hestia, Artemis external interfaces and the Internet. An internal switch and source-level no-forward checks do **not** demonstrate complete isolation by themselves.
+
 ## Ownership
 
 - Owner: Creates the named VM and confirms the reviewed OS VHDX is empty. Supplies an independently verified, **unattended**, offline Debian installation ISO. Sets any host-only agent scope and authorizes the exact operation.
