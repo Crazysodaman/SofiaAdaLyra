@@ -4,6 +4,7 @@ Tests query ONLY persisted canonical receipts. They never replay an
 uncertain send, admit a request from another pairing epoch or bypass
 the host private-chat policy.
 """
+from test.owner_auth_fixture import private_with_signed_owner
 from hashlib import sha256
 
 import pytest
@@ -105,7 +106,7 @@ def test_private_receipt_requires_current_host_private_chat_approval(tmp_path):
     bearer = gateway.credentials.enroll("android-owner")
     _chat(gateway, bearer, mode=True)
     assert _check(gateway, bearer, mode=True)["status"] == "completed"
-    gateway.permissions.set_private_adult_authority(
+    private_with_signed_owner(gateway.permissions, 
         private_chat=False, adult_chat=True, adult_avatar=True,
         adult_external_delivery=False,
     )
@@ -147,7 +148,7 @@ def test_revoked_adult_presentation_grants_block_completed_replay(
     assert _check(gateway, bearer, mode=True)["status"] == "completed"
     prior_calls = len(app.conversation.calls)
 
-    gateway.permissions.set_private_adult_authority(
+    private_with_signed_owner(gateway.permissions, 
         private_chat=True,
         adult_chat=revoked != "adult_chat",
         adult_avatar=revoked != "adult_avatar",
@@ -160,7 +161,7 @@ def test_revoked_adult_presentation_grants_block_completed_replay(
     assert len(app.conversation.calls) == prior_calls
 
     # Revoking an egress grant does not erase or rewrite source evidence.
-    gateway.permissions.set_private_adult_authority(
+    private_with_signed_owner(gateway.permissions, 
         private_chat=True, adult_chat=True, adult_avatar=True,
         adult_external_delivery=False,
     )
@@ -176,7 +177,7 @@ def test_standard_completed_recovery_does_not_require_unrelated_adult_grants(
     app, gateway = _gateway(tmp_path)
     bearer = gateway.credentials.enroll("android-owner")
     _chat(gateway, bearer, mode=False)
-    gateway.permissions.set_private_adult_authority(
+    private_with_signed_owner(gateway.permissions, 
         private_chat=False, adult_chat=False, adult_avatar=False,
         adult_external_delivery=False,
     )
