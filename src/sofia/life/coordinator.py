@@ -1138,9 +1138,30 @@ class SelfDirectedLifeCoordinator:
         )
         if live:
             return None
+        # An unchanged interest must not repeatedly spawn replacement
+        # projects immediately after a reviewed abandonment or failure.
+        # This is a derived cooldown from canonical LIFE project/interest
+        # revisions, not a separate persistent motivation state. New
+        # grounded interest evidence after the decision lifts the cooldown.
+        history = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+        )
+        def cooling_down(interest: InterestRecord) -> bool:
+            return any(
+                project.originating_interest == interest.interest_id
+                and project.status in {
+                    ProjectStatus.REJECTED, ProjectStatus.ABANDONED,
+                    ProjectStatus.FAILED,
+                }
+                and interest.recorded_at <= project.updated_at
+                and timedelta(0) <= now - project.updated_at < timedelta(days=7)
+                for project in history
+            )
         interests = tuple(
             item for item in self.store.active_interests(audience_id=LOCAL_AUDIENCE)
             if item.confidence >= 0.6 and item.strength >= 0.5
+            and not cooling_down(item)
         )[:8]
         if not interests:
             return None
