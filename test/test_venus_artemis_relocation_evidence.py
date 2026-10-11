@@ -245,3 +245,65 @@ def test_relocation_refuses_journal_advance_after_restored_candidate_verified(
     assert not proof.destination_root.exists()
     assert not list(tmp_path.glob(".artemis-staged.restore-*"))
     assert proof.source_state_path.read_bytes() == b"isolated-original-fixture"
+
+
+def test_source_link_is_rejected_before_backup_collection(tmp_path, monkeypatch):
+    """A verified restore must not quietly omit redirected protected files."""
+    proof = _plan(tmp_path)
+    external = tmp_path / "foreign-protected"
+    external.mkdir()
+    (external / "identity.json").write_text('{"foreign": true}')
+    try:
+        (proof.source_state_path.parent / "protected").symlink_to(
+            external, target_is_directory=True,
+        )
+    except (OSError, NotImplementedError):
+        pytest.skip("filesystem does not allow source-directory symlinks")
+    with pytest.raises(BackupError, match="linked or junction"):
+        _stage(proof, tmp_path, monkeypatch)
+    assert not proof.destination_root.exists()
+    assert (external / "identity.json").is_file()
+
+
+def test_source_special_entry_is_rejected_before_backup_collection(tmp_path, monkeypatch):
+    """A FIFO/device/socket under a known home is not an omitted backup asset."""
+    import os
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("POSIX named pipes unavailable")
+    proof = _plan(tmp_path)
+    protected = proof.source_state_path.parent / "protected"
+    protected.mkdir()
+    fifo = protected / "original-events.fifo"
+    try:
+        os.mkfifo(fifo)
+    except (OSError, NotImplementedError):
+        pytest.skip("filesystem does not allow named pipes")
+    with pytest.raises(BackupError, match="special filesystem entries"):
+        _stage(proof, tmp_path, monkeypatch)
+    assert not proof.destination_root.exists()
+    assert fifo.exists()
+
+
+def test_source_inventory_drift_blocks_staging_after_backup(tmp_path, monkeypatch):
+    """A file appearing after backup must not become an unarchived old source."""
+    proof = _plan(tmp_path)
+    from sofia.ops.state_relocation import _inventory_persistent_state_files
+    original_inventory = _inventory_persistent_state_files
+    calls = []
+
+    def changing_inventory(root):
+        result = original_inventory(root)
+        calls.append(result)
+        if len(calls) == 2:
+            (root / "new-identity-log.json").write_text('{"new": true}')
+            result = original_inventory(root)
+        return result
+
+    monkeypatch.setattr(
+        relocation, "_inventory_persistent_state_files", changing_inventory,
+    )
+    with pytest.raises(BackupError, match="file inventory changed"):
+        _stage(proof, tmp_path, monkeypatch)
+    assert len(calls) == 2
+    assert not proof.destination_root.exists()
+    assert (proof.source_state_path.parent / "new-identity-log.json").is_file()
