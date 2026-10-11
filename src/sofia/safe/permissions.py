@@ -403,6 +403,34 @@ def grantable_capabilities() -> tuple[str, ...]:
     return tuple(sorted(_REVERSIBLE))
 
 
+def standing_grant_parameters(
+    capability: str, *, scope: dict[str, Any], grant_id: str,
+    expires_at: datetime | None,
+) -> dict[str, Any]:
+    """Exact SAFE owner-approval payload for creating one standing grant."""
+    return {
+        "capability": capability,
+        "scope": scope,
+        "grant_id": grant_id,
+        "expires_at": (
+            None if expires_at is None
+            else expires_at.astimezone(timezone.utc).isoformat()
+        ),
+    }
+
+
+def private_authority_parameters(
+    *, private_chat: bool, adult_chat: bool, adult_avatar: bool,
+    adult_external_delivery: bool,
+) -> dict[str, bool]:
+    """One exact authorization value, not a blanket private/adult grant."""
+    return {
+        "private_chat": private_chat, "adult_chat": adult_chat,
+        "adult_avatar": adult_avatar,
+        "adult_external_delivery": adult_external_delivery,
+    }
+
+
 class PermissionStore:
     """Canonical SQLite authority for standing grants and private/adult settings."""
 
@@ -493,6 +521,7 @@ class PermissionStore:
         expires_at: datetime | None = None,
         grant_id: str | None = None,
         now: datetime | None = None,
+        approval_id: str | None = None,
     ) -> StandingPermissionGrant:
         self._require_sparks(granted_by)
         policy = capability_permission_policy(capability)
@@ -517,6 +546,20 @@ class PermissionStore:
             )
         normalized_scope = dict(scope)
         encoded_scope = self._scope_json(normalized_scope)
+        if not approval_id:
+            raise PermissionError(
+                "standing permission requires fresh FIDO2 owner approval"
+            )
+        from sofia.safe.execution_approval import ExecutionApprovalVerifier
+        ExecutionApprovalVerifier(self.path).consume(
+            approval_id=approval_id,
+            capability="safe.permission.standing.grant",
+            parameters=standing_grant_parameters(
+                capability, scope=normalized_scope, grant_id=identifier,
+                expires_at=expires_at,
+            ),
+            now=moment,
+        )
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             db.execute(
@@ -566,9 +609,21 @@ class PermissionStore:
         *,
         revoked_by: str = "Sparks",
         now: datetime | None = None,
+        approval_id: str | None = None,
     ) -> StandingPermissionGrant:
         self._require_sparks(revoked_by)
         moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        if not approval_id:
+            raise PermissionError(
+                "standing permission revocation requires fresh FIDO2 owner approval"
+            )
+        from sofia.safe.execution_approval import ExecutionApprovalVerifier
+        ExecutionApprovalVerifier(self.path).consume(
+            approval_id=approval_id,
+            capability="safe.permission.standing.revoke",
+            parameters={"grant_id": grant_id},
+            now=moment,
+        )
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -689,6 +744,7 @@ class PermissionStore:
         adult_external_delivery: bool,
         updated_by: str = "Sparks",
         now: datetime | None = None,
+        approval_id: str | None = None,
     ) -> AdultPrivateAuthority:
         self._require_sparks(updated_by)
         for name, value in (
@@ -704,6 +760,21 @@ class PermissionStore:
                 "adult external delivery requires adult chat or adult avatar authority"
             )
         moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        if not approval_id:
+            raise PermissionError(
+                "private/Level-5 authority change requires fresh FIDO2 owner approval"
+            )
+        from sofia.safe.execution_approval import ExecutionApprovalVerifier
+        ExecutionApprovalVerifier(self.path).consume(
+            approval_id=approval_id,
+            capability="safe.permission.private_authority.change",
+            parameters=private_authority_parameters(
+                private_chat=private_chat, adult_chat=adult_chat,
+                adult_avatar=adult_avatar,
+                adult_external_delivery=adult_external_delivery,
+            ),
+            now=moment,
+        )
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             db.execute(
