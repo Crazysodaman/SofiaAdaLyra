@@ -265,3 +265,196 @@ def test_presence_notice_expires_with_original_observation(state):
     assert result.notice_id is not None
     assert service.deliver_one(now=NOW + timedelta(minutes=3)) is None
     assert sent == []
+
+
+def _verified_private_project_for_unprompted_sharing(tmp_path):
+    from test.test_life_project_forge import (
+        infrastructure, active_project, authored_foxfire_text, wait_for_job,
+    )
+    from sofia.run.work import WorkStatus
+    from sofia.life import ProjectStatus
+
+    life, _goals, now = infrastructure(tmp_path)
+    project, _evidence = active_project(
+        life, now, objectives=("text_contains:Foxfire",),
+    )
+    initial = life.tick(
+        now=now + timedelta(seconds=3), generate=authored_foxfire_text,
+    )
+    assert initial["scheduled"] == 1
+    job = wait_for_job(life, life.store.jobs(project.project_id)[0])
+    assert job.status is WorkStatus.COMPLETED
+    finished = life.tick(now=now + timedelta(seconds=8))
+    assert finished["follow_through"] == "independently_completed"
+    assert life._project(project.project_id).status is ProjectStatus.COMPLETED
+    return life, project, now + timedelta(seconds=8)
+
+
+def _owner_only_outreach(life):
+    from sofia.social.principals import SPARKS_PRINCIPAL_ID
+
+    sent = []
+    service = SofiaActService(life.path)
+    service.configure_delivery(
+        sender=lambda payload: (
+            sent.append(payload)
+            or SendResult(DeliveryOutcome.DELIVERED, receipt_id="test-ack")
+        ),
+        policy=policy(
+            recipient_id=SPARKS_PRINCIPAL_ID,
+            quiet_start_local=23, quiet_end_local=0,
+            max_daily=1, social_max_daily=1,
+        ),
+        channel="desktop", destination="tray",
+    )
+    presence = PresenceInitiativeEngine(
+        state_path=life.path, act_service=service,
+    )
+    return presence, service, sent
+
+
+def test_verified_personal_life_work_can_start_owner_conversation(tmp_path):
+    """A verified creative achievement may be mentioned without per-project approval."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        moments = life.voluntary_project_updates(now=now)
+        assert len(moments) == 1
+        assert moments[0]["project_id"] == project.project_id
+        assert moments[0]["disclosure"] == (
+            "owner_only_project_update_no_artifact_payload"
+        )
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False,
+        ) == 1
+        assert presence.recent_life_project_outreach(now=now) is True
+        assert service.has_pending()
+        # Queued does not mean delivered, read, heard or acknowledged.
+        assert sent == []
+        import sqlite3
+        with sqlite3.connect(life.path) as db:
+            row = db.execute(
+                "SELECT trigger_kind,recipient_id,notice_id,status "
+                "FROM presence_initiative_opportunity "
+                "WHERE event_id LIKE 'life-complete:%'",
+            ).fetchone()
+        assert row is not None
+        assert row[0] == "task_completed"
+        assert row[1] == "person:sparks"
+        assert row[2].startswith("presence:")
+        assert row[3] == "queued"
+        # A restart and another 5-minute background tick cannot create
+        # another outreach message from the same (or any other) project.
+        restarted = PresenceInitiativeEngine(
+            state_path=life.path, act_service=service,
+        )
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=restarted, act_service=service,
+            now=now + timedelta(minutes=5), busy=False,
+        ) == 0
+    finally:
+        life.close()
+
+
+@pytest.mark.parametrize("busy", [True, False])
+def test_life_can_choose_silence_despite_verified_project(tmp_path, busy):
+    """Foreground activity or voluntary quiet overrides an exciting project."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+
+    life, _project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, _sent = _owner_only_outreach(life)
+        if not busy:
+            life.choose_inactivity(
+                reason="I want some private creative downtime.",
+                until=now + timedelta(hours=1), now=now,
+            )
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now + timedelta(seconds=1), busy=busy,
+        ) == 0
+        assert service.has_pending() is False
+    finally:
+        life.close()
+
+
+def test_life_project_outreach_never_uses_unverified_or_nonprivate_work(tmp_path):
+    """Even a high-curiosity project cannot claim success without source proof."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from test.test_life_project_forge import infrastructure, active_project
+    from sofia.life import ProjectScope
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        active_project(life, now, objectives=("text_contains:Foxfire",))
+        presence, service, _sent = _owner_only_outreach(life)
+        assert life.voluntary_project_updates(now=now) == ()
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False,
+        ) == 0
+        assert service.has_pending() is False
+    finally:
+        life.close()
+
+
+@pytest.mark.parametrize("route", ["home_assistant", "mobile"])
+def test_life_personal_story_cannot_escape_pinned_owner_routes(tmp_path, route):
+    """No LIFE-private update goes to unverified shared or alternate routes."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+
+    life, _project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        service.configure_delivery(
+            sender=lambda payload: (
+                sent.append(payload)
+                or SendResult(DeliveryOutcome.DELIVERED, receipt_id="test")
+            ),
+            policy=policy(recipient_id="person:sparks"),
+            channel=route, destination="unreviewed-destination",
+        )
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False,
+        ) == 0
+        assert sent == []
+        assert service.has_pending() is False
+    finally:
+        life.close()
+
+
+def test_life_unprompted_conversation_respects_owner_outreach_mute(tmp_path):
+    from dataclasses import replace
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+
+    life, _project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        service.configure_delivery(
+            sender=lambda payload: (
+                sent.append(payload)
+                or SendResult(DeliveryOutcome.DELIVERED, receipt_id="test")
+            ),
+            policy=replace(service.policy, mute=True),
+            channel="desktop", destination="tray",
+        )
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False,
+        ) == 0
+        assert service.has_pending() is False
+        assert sent == []
+    finally:
+        life.close()
