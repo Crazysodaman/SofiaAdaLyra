@@ -189,3 +189,39 @@ class LinuxDesktop:
                              str(action.y)))
                 recheck()
                 self.runner(("xdotool", "click", "1"))
+
+
+def require_linux_game_clear() -> None:
+    """Refuse user-desktop input if game detection is uncertain or positive.
+
+    This is a conservative machine-level process scan in addition to STOP and
+    foreground identity; a paused/running game is still a game.
+    """
+    from sofia.system.capability import create_local_system_backend
+    from sofia.system.model import (
+        SystemCapabilityName, SystemCapabilityRequest, SystemCapabilityResultKind,
+    )
+    from sofia.ops.activity import detect_windows_game
+    backend = create_local_system_backend()
+    cap = next((item for item in backend.supported_capabilities
+                if item.name is SystemCapabilityName.PROCESS_INSPECT), None)
+    if cap is None:
+        raise PermissionError("Linux running-game inspection unavailable")
+    result = backend.execute(SystemCapabilityRequest(cap, {"limit": 2048}))
+    if result.kind is not SystemCapabilityResultKind.SUCCESS:
+        raise PermissionError("Linux game inspection inconclusive")
+    processes = tuple(result.evidence.get("processes", ()))
+    if not processes or len(processes) >= 2048:
+        raise PermissionError("Linux game-process inspection truncated")
+    names = {"factorio", "doom", "halo", "borderlands4", "spaceengineers",
+             "steam_app", "wine64-preloader"}
+    names |= {n.strip().casefold() for n in
+              os.environ.get("SOFIA_GUI_EXTRA_GAME_EXECUTABLES", "").split(",")
+              if n.strip()}
+    if any(not getattr(p, "name", "") for p in processes):
+        raise PermissionError("some Linux processes lack game classification")
+    found, _ = detect_windows_game(
+        processes, known_game_executables=frozenset(names),
+    )
+    if found:
+        raise PermissionError("game is running: desktop automation denied")
