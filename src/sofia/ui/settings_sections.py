@@ -141,6 +141,16 @@ class SettingsSections:
                 else "Local machine identity unverified; inventory denied."
             ),
         )
+        self.viewer(
+            frames["Models"],
+            "Local candidate review (installed only, independent evaluation needed)",
+            lambda: (
+                inventory_store.candidate_review(host_id=host_id)
+                if host_id is not None
+                else "Local host identity unverified; candidate review denied."
+            ),
+        )
+
         # The same observed, local API license text is reviewable in Settings,
         # without licensing acceptance, model pulls or network/cloud routing.
         selected_license_model = tk.StringVar(
