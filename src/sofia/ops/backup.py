@@ -619,68 +619,73 @@ class BackupEngine:
                     bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING,
                 ).load()
 
-            # The external journal might have gained an operator-approved
-            # deletion while an old multi-gigabyte snapshot was decrypting.
-            # Fail closed rather than publishing a snapshot with stale
-            # erasure replay. The operator may restart the restore.
-            try:
-                if deletion_ledger.entries() != signed_deletions_before_restore:
+            # The same independent journal lock serializes signed deletion
+            # append and the final file-by-file restore publication. Without
+            # it, a deletion can arrive after the last freshness read while
+            # older plaintext is still being published to the restored home.
+            with deletion_ledger._exclusive():
+                # The external journal might have gained an operator-approved
+                # deletion while an old multi-gigabyte snapshot was decrypting.
+                # Fail closed rather than publishing a snapshot with stale
+                # erasure replay. The operator may restart the restore.
+                try:
+                    if deletion_ledger.entries() != signed_deletions_before_restore:
+                        raise BackupError(
+                            "external erasure journal changed during restore; repeat replay"
+                        )
+                except MemoryErasureError as exc:
                     raise BackupError(
-                        "external erasure journal changed during restore; repeat replay"
-                    )
-            except MemoryErasureError as exc:
-                raise BackupError(
-                    "external erasure journal unavailable before restore publication"
-                ) from exc
-            published_directories: set[Path] = set()
-            for source in sorted(staging.rglob("*")):
-                if not source.is_file():
-                    continue
-                logical = source.relative_to(staging)
-                destination = (
-                    target_state_path
-                    if logical.as_posix() == "sofia.db"
-                    else target_root / logical
-                )
-                _reject_redirected_restore_path(destination)
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                _reject_redirected_restore_path(destination)
-                # Never open a predictable ".<name>.restore" alias for
-                # writing: an existing symlink there could escape the
-                # destination even though its final pathname was validated.
-                # mkstemp provides O_EXCL creation and a held regular-file
-                # descriptor under this approved destination directory.
-                descriptor, temporary_name = tempfile.mkstemp(
-                    prefix=f".{destination.name}.restore-",
-                    suffix=".tmp", dir=destination.parent,
-                )
-                temp_target = Path(temporary_name)
-                try:
-                    with (
-                        os.fdopen(descriptor, "wb") as restored_file,
-                        source.open("rb") as original_file,
-                    ):
-                        shutil.copyfileobj(original_file, restored_file)
-                        restored_file.flush()
-                        os.fsync(restored_file.fileno())
-                    # No file contents may be copied into a caller-controlled
-                    # preexisting temporary pathname; the final rename
-                    # atomically replaces ONLY the verified target name.
-                    _reject_redirected_restore_path(destination)
-                    os.replace(temp_target, destination)
-                    published_directories.add(destination.parent)
-                finally:
-                    temp_target.unlink(missing_ok=True)
-            if sys.platform.startswith("linux"):
-                try:
-                    _fsync_restored_linux_directories(published_directories)
-                except OSError as exc:
-                    # Some names may already be visible. Do not claim success,
-                    # automatically undo a partial restore, or overwrite it.
-                    raise RestorePublicationUncertain(
-                        "restored files were published but directory durability "
-                        "is uncertain; inspect offline state before activation"
+                        "external erasure journal unavailable before restore publication"
                     ) from exc
+                published_directories: set[Path] = set()
+                for source in sorted(staging.rglob("*")):
+                    if not source.is_file():
+                        continue
+                    logical = source.relative_to(staging)
+                    destination = (
+                        target_state_path
+                        if logical.as_posix() == "sofia.db"
+                        else target_root / logical
+                    )
+                    _reject_redirected_restore_path(destination)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    _reject_redirected_restore_path(destination)
+                    # Never open a predictable ".<name>.restore" alias for
+                    # writing: an existing symlink there could escape the
+                    # destination even though its final pathname was validated.
+                    # mkstemp provides O_EXCL creation and a held regular-file
+                    # descriptor under this approved destination directory.
+                    descriptor, temporary_name = tempfile.mkstemp(
+                        prefix=f".{destination.name}.restore-",
+                        suffix=".tmp", dir=destination.parent,
+                    )
+                    temp_target = Path(temporary_name)
+                    try:
+                        with (
+                            os.fdopen(descriptor, "wb") as restored_file,
+                            source.open("rb") as original_file,
+                        ):
+                            shutil.copyfileobj(original_file, restored_file)
+                            restored_file.flush()
+                            os.fsync(restored_file.fileno())
+                        # No file contents may be copied into a caller-controlled
+                        # preexisting temporary pathname; the final rename
+                        # atomically replaces ONLY the verified target name.
+                        _reject_redirected_restore_path(destination)
+                        os.replace(temp_target, destination)
+                        published_directories.add(destination.parent)
+                    finally:
+                        temp_target.unlink(missing_ok=True)
+                if sys.platform.startswith("linux"):
+                    try:
+                        _fsync_restored_linux_directories(published_directories)
+                    except OSError as exc:
+                        # Some names may already be visible. Do not claim success,
+                        # automatically undo a partial restore, or overwrite it.
+                        raise RestorePublicationUncertain(
+                            "restored files were published but directory durability "
+                            "is uncertain; inspect offline state before activation"
+                        ) from exc
 
         return RestoreVerification(
             backup_id=manifest.backup_id,
