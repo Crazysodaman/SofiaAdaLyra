@@ -315,3 +315,64 @@ def test_modified_level5_flags_cannot_inherit_earlier_signature(tmp_path):
     assert current.updated_by == "system:unverified"
     assert current.adult_chat is False
     assert current.adult_avatar is False
+
+
+def test_grant_audit_failure_rolls_back_one_use_approval_and_mutation(tmp_path, monkeypatch):
+    """An I/O/audit failure must not spend the owner's protected grant receipt."""
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = PermissionStore(state)
+    grant_id = "rollback-owner-proof"
+    scope = {"root_index": 0, "path": "rollback"}
+    approval_id = _approval(
+        store, capability="safe.permission.standing.grant",
+        parameters=standing_grant_parameters(
+            "storage.mkdir", scope=scope, grant_id=grant_id, expires_at=None,
+        ),
+    )
+
+    def fail_audit(*args, **kwargs):
+        raise OSError("synthetic audit persistence failure")
+
+    monkeypatch.setattr(store.audit, "append_in_transaction", fail_audit)
+    with pytest.raises(OSError, match="synthetic audit"):
+        store.grant(
+            "storage.mkdir", scope=scope, grant_id=grant_id,
+            approval_id=approval_id, now=NOW,
+        )
+
+    approvals = ExecutionApprovalVerifier(state)
+    assert approvals.matches_unconsumed(
+        approval_id=approval_id, capability="safe.permission.standing.grant",
+        parameters=standing_grant_parameters(
+            "storage.mkdir", scope=scope, grant_id=grant_id, expires_at=None,
+        ), now=NOW + timedelta(seconds=1),
+    )
+    assert store.grants() == ()
+
+
+def test_private_authority_audit_failure_rolls_back_owner_proof(tmp_path, monkeypatch):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = PermissionStore(state)
+    parameters = private_authority_parameters(
+        private_chat=False, adult_chat=True, adult_avatar=True,
+        adult_external_delivery=False,
+    )
+    approval_id = _approval(
+        store, capability="safe.permission.private_authority.change",
+        parameters=parameters,
+    )
+
+    def fail_audit(*args, **kwargs):
+        raise OSError("synthetic private audit failure")
+
+    monkeypatch.setattr(store.audit, "append_in_transaction", fail_audit)
+    with pytest.raises(OSError, match="private audit"):
+        store.set_private_adult_authority(
+            **parameters, approval_id=approval_id, now=NOW,
+        )
+    assert ExecutionApprovalVerifier(state).matches_unconsumed(
+        approval_id=approval_id,
+        capability="safe.permission.private_authority.change",
+        parameters=parameters, now=NOW + timedelta(seconds=1),
+    )
+    assert store.private_adult_authority().adult_chat is False
