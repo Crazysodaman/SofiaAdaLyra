@@ -4,13 +4,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from dataclasses import replace
 from pathlib import Path
-from contextlib import closing
 import ipaddress
 import json
-import sqlite3
 from uuid import uuid4
 
 from sofia.config import create_production_configuration
+from sofia.state.canonical_sqlite import require_existing_sqlite
 from sofia.config.model_catalog import (
     RECOMMENDED_PRIMARY_CONTEXT_SIZE,
     RECOMMENDED_PRIMARY_MODEL,
@@ -50,11 +49,10 @@ from .settings_service import save_settings
 from .settings_sections import SettingsSections
 
 
-def _ensure_state_database(path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        with closing(sqlite3.connect(path)):
-            pass
+def _ensure_state_database(path: Path) -> None:
+    # UI is a state consumer, not a first-install canonical state publisher.
+    # Missing or redirected storage must halt startup, not fork a blank DB.
+    require_existing_sqlite(path)
 
 
 def _local_host_id() -> str:
