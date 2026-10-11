@@ -99,6 +99,10 @@ class LifeProcedureCatalog:
                     last_project_id TEXT NOT NULL,
                     PRIMARY KEY(owner_principal_id,audience_id)
                 );
+                CREATE TABLE IF NOT EXISTS life_procedure_source_audit_cursor (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                    last_procedure_id TEXT NOT NULL
+                );
             """)
 
     def _connect(self) -> sqlite3.Connection:
@@ -466,6 +470,57 @@ class LifeProcedureCatalog:
                     tuple(item[0] for item in project_ids),
                 ))
             return tuple(output)
+
+    def next_verified_proof_audit_page(
+        self, *, limit: int = 16,
+    ) -> tuple[tuple[str, tuple[str, ...]], ...]:
+        """Durably and fairly inspect bounded verified-source project IDs.
+
+        Retrieval for model drafting remains an independent read-only,
+        most-recent source view. Only the recurring proof-integrity audit
+        rotates; otherwise the same newest N procedures are checked forever.
+        A restart resumes the canonical page cursor. Each catalog row remains
+        non-executable and all original proof checks occur in the coordinator.
+        """
+        if type(limit) is not int or not 1 <= limit <= 64:
+            raise ValueError("bounded verified procedure audit page required")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            cursor = db.execute(
+                "SELECT last_procedure_id FROM life_procedure_source_audit_cursor "
+                "WHERE singleton=1",
+            ).fetchone()
+            last = cursor[0] if cursor else ""
+            rows = db.execute(
+                "SELECT procedure_id FROM life_procedure_catalog "
+                "WHERE status='verified' AND procedure_id>? "
+                "ORDER BY procedure_id LIMIT ?",
+                (last, limit),
+            ).fetchall()
+            if not rows and last:
+                rows = db.execute(
+                    "SELECT procedure_id FROM life_procedure_catalog "
+                    "WHERE status='verified' ORDER BY procedure_id LIMIT ?",
+                    (limit,),
+                ).fetchall()
+            if not rows:
+                return ()
+            db.execute(
+                "INSERT INTO life_procedure_source_audit_cursor "
+                "(singleton,last_procedure_id) VALUES(1,?) "
+                "ON CONFLICT(singleton) DO UPDATE "
+                "SET last_procedure_id=excluded.last_procedure_id",
+                (rows[-1][0],),
+            )
+            result = []
+            for row in rows:
+                origins = db.execute(
+                    "SELECT DISTINCT project_id FROM life_procedure_proof "
+                    "WHERE procedure_id=? ORDER BY project_id",
+                    (row[0],),
+                ).fetchall()
+                result.append((row[0], tuple(source[0] for source in origins)))
+            return tuple(result)
 
     def quarantine(
         self, procedure_id: str, *, reason: str, now: datetime,

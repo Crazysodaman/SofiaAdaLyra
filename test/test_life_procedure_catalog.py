@@ -460,3 +460,113 @@ def test_procedure_page_is_bounded_and_source_scoped(tmp_path):
             )
     finally:
         life.close()
+
+
+def test_verified_procedure_audit_rotates_to_older_source_after_restart(
+    tmp_path,
+):
+    """The periodic integrity audit must eventually check older proof too."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, first_evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, first_evidence, now)
+        second_time = now + timedelta(minutes=1)
+        second, second_evidence = _second_same_capability_project(
+            life, first, second_time,
+        )
+        _original_authorized_completion(
+            life, second, second_evidence, second_time,
+        )
+
+        def original_project(objective, stamp, suffix):
+            source = life.record_observation(
+                kind="independent-reproducibility",
+                source="test:second-compatible-procedure",
+                assertion="Another separately authored creative criterion was chosen.",
+                now=stamp,
+            )
+            idea = ProjectIdea(
+                f"idea:procedure-audit-{suffix}",
+                f"Independent creative audit {suffix}",
+                "Test a different original, independently validated writing goal.",
+                first.originating_interest, (objective,), (), "text",
+                (source,), 0.89, 0.87, stamp,
+            )
+            project = life.invent_project(
+                idea, scope=ProjectScope.PERSONAL_PRIVATE,
+            )
+            life.propose_project(
+                project.project_id,
+                reason="Distinct original creative objective is source-grounded.",
+                evidence_refs=(source,), now=stamp + timedelta(seconds=1),
+            )
+            life.activate_project(
+                project.project_id,
+                reason="Begin separately validated repeatable original work.",
+                evidence_refs=(source,), now=stamp + timedelta(seconds=2),
+            )
+            job, _receipt = _original_authorized_completion(
+                life, project, source, stamp,
+            )
+            return project, job
+
+        third, third_job = original_project(
+            "text_contains:independently", now + timedelta(minutes=2), "third",
+        )
+        fourth, fourth_job = original_project(
+            "text_contains:independently", now + timedelta(minutes=3), "fourth",
+        )
+        checked_at = now + timedelta(minutes=3, seconds=8)
+        assert life._reconcile_procedure_catalog(
+            now=checked_at, limit=4,
+        ) == 4
+        verified = life.procedures.verified_proof_projects()
+        assert len(verified) == 2
+        by_id = sorted(pair[0] for pair in verified)
+        assert LifeProcedureCatalog(life.path).next_verified_proof_audit_page(
+            limit=1,
+        )[0][0] == by_id[0]
+        assert LifeProcedureCatalog(life.path).next_verified_proof_audit_page(
+            limit=1,
+        )[0][0] == by_id[1]
+
+        # Invalidate an actual original of the second catalog record, not
+        # its SQL proof metadata; the independent byte check must catch it.
+        procedure_for_third = life.procedures.available_for_project(
+            life._project(third.project_id),
+        )[0].procedure_id
+        procedure_for_first = life.procedures.available_for_project(
+            life._project(first.project_id),
+        )[0].procedure_id
+        if procedure_for_third == by_id[1]:
+            corrupted_job = third_job
+        else:
+            assert procedure_for_first == by_id[1]
+            # Retrieve the original RUN artifact linked to the Foxfire group.
+            original_job_id = life.store.jobs(first.project_id)[0]
+            corrupted_job = life.work_store.get(original_job_id)
+        source_path, _mime = life.creative_explorer.verified_preview(
+            str(corrupted_job.result["artifact_id"]),
+            owner_principal_id="sofia", audience_id="local:text",
+        )
+        source_path.write_text(
+            "The original proof is no longer independently valid.",
+            encoding="utf-8",
+        )
+        # The cursor is already at the larger ID; first audit wraps to the
+        # still-valid lower ID, second audit reaches the invalid older proof.
+        assert life._audit_procedure_sources(
+            now=checked_at + timedelta(seconds=1), limit=1,
+        ) == 0
+        life.procedures = LifeProcedureCatalog(life.path)
+        assert life._audit_procedure_sources(
+            now=checked_at + timedelta(seconds=2), limit=1,
+        ) == 1
+        assert by_id[1] not in dict(life.procedures.verified_proof_projects())
+        assert by_id[0] in dict(life.procedures.verified_proof_projects())
+        assert life.store.jobs(third.project_id) == (third_job.job_id,)
+        assert life.store.jobs(fourth.project_id) == (fourth_job.job_id,)
+    finally:
+        life.close()

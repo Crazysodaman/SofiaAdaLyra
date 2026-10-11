@@ -3298,7 +3298,7 @@ class SelfDirectedLifeCoordinator:
             return 0
         aware(now, "procedure proof audit")
         invalidated = 0
-        for procedure_id, project_ids in self.procedures.verified_proof_projects(
+        for procedure_id, project_ids in self.procedures.next_verified_proof_audit_page(
             limit=limit,
         ):
             if self._verified_procedure_origins_current(
