@@ -22,6 +22,7 @@ from sofia.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
 from sofia.safe.owner_webauthn import OwnerWebAuthnVerifier
+from sofia.safe.owner_enroll_browser import require_owner_windows_account
 from sofia.safe.permissions import capability_permission_policy, PermissionLevel
 
 
@@ -79,6 +80,9 @@ def authorize_exact_action(
         raise ValueError("approval TTL must be 30..900 seconds")
     if type(timeout_seconds) is not int or not 15 <= timeout_seconds <= 120:
         raise ValueError("browser ceremony timeout must be 15..120 seconds")
+    # This local UI is not a Debian authority bridge. The canonical owner
+    # Windows SID must match before even issuing a WebAuthn challenge.
+    require_owner_windows_account(state_path)
     exact = execution_fingerprint(capability, parameters)
     protected = (
         capability_permission_policy(capability).level >= PermissionLevel.PROTECTED
