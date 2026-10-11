@@ -626,8 +626,15 @@ class LifeProcedureCatalog:
 
     def quarantine(
         self, procedure_id: str, *, reason: str, now: datetime,
-    ) -> None:
-        """Safe quarantine only; cannot promote or execute a procedure."""
+    ) -> bool:
+        """CAS-downgrade verified knowledge, preserving first quarantine.
+
+        Multiple coordinators can inspect the same verified source while
+        proof becomes unavailable. Only the first verified->quarantined
+        transition writes its original reason/time; repeated calls cannot
+        erase the first audit decision or count a second invalidation.
+        No reinstatement or new permission is implied.
+        """
         if (
             not isinstance(procedure_id, str)
             or not procedure_id.startswith("life-procedure:")
@@ -638,10 +645,24 @@ class LifeProcedureCatalog:
         ):
             raise ValueError("source procedure ID, bounded reason and time required")
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
             changed = db.execute(
                 """UPDATE life_procedure_catalog SET status='quarantined',
-                quarantine_reason=?, updated_at=? WHERE procedure_id=?""",
-                (reason, now.astimezone(timezone.utc).isoformat(), procedure_id),
+                quarantine_reason=?, updated_at=?
+                WHERE procedure_id=? AND status='verified'""",
+                (
+                    reason, now.astimezone(timezone.utc).isoformat(),
+                    procedure_id,
+                ),
             )
-            if changed.rowcount != 1:
+            if changed.rowcount == 1:
+                return True
+            original = db.execute(
+                "SELECT status FROM life_procedure_catalog WHERE procedure_id=?",
+                (procedure_id,),
+            ).fetchone()
+            if original is None:
                 raise LookupError("original procedure does not exist")
+            if original["status"] == "quarantined":
+                return False
+            raise ValueError("only verified procedures may be quarantined")
