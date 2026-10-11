@@ -83,10 +83,21 @@ class CanonicalSQLiteGuard:
         factory: type[sqlite3.Connection] = sqlite3.Connection,
     ) -> sqlite3.Connection:
         path = self.validate()
-        return sqlite3.connect(
+        database = sqlite3.connect(
             path.as_uri() + "?mode=rw", uri=True, timeout=timeout,
             check_same_thread=check_same_thread, factory=factory,
         )
+        # A canonical file can be swapped between path validation and the
+        # actual sqlite3_open call. Do not hand an owner a handle to an
+        # unexpected replacement. Revalidation failure must close the
+        # just-opened connection, including on Windows where open handles
+        # can otherwise obstruct a supervised restore.
+        try:
+            self.validate()
+        except BaseException:
+            database.close()
+            raise
+        return database
 
 
 def bootstrap_canonical_sqlite(path: Path | str) -> Path:
