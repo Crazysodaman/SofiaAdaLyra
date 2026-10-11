@@ -855,29 +855,28 @@ class SettingsSections:
                 ),parent=root,
             ):
                 return
-            now=datetime.now(timezone.utc)
-            approval=ExecutionApproval(
-                approval_id=str(uuid4()),
-                capability="workshop.network.create",
-                request_fingerprint=execution_fingerprint(
-                    "workshop.network.create",
-                    {
-                        "artemis_node_id":node,
-                        "vm_id":vm,
-                        "network_policy_digest":network_policy_digest(),
-                    },
-                ),
-                approved_by="owner:interactive",
-                approved_at=now,
-                expires_at=now+timedelta(minutes=10),
+            from sofia.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.safe.owner_browser import authorize_exact_action
+            exact={
+                "artemis_node_id":node,
+                "vm_id":vm,
+                "network_policy_digest":network_policy_digest(),
+            }
+            credential_id=select_security_key_for_settings(
+                config.state_path,parent=root,
             )
-            ExecutionApprovalVerifier(config.state_path).record(approval)
             network_stage_busy["active"]=True
             network_stage_button.configure(state="disabled")
 
             def stage_worker():
                 service=None
                 try:
+                    approval=authorize_exact_action(
+                        config.state_path,
+                        capability="workshop.network.create",
+                        parameters=exact,
+                        credential_id=credential_id,expires_seconds=120,
+                    )
                     service=create_configured_remote_fleet_service(
                         config.state_path,
                     )
@@ -1098,23 +1097,23 @@ class SettingsSections:
                 review,parent=root,
             ):
                 return
-            approval=ExecutionApproval(
-                approval_id=str(uuid4()),
-                capability="workshop.guest.bootstrap",
-                request_fingerprint=execution_fingerprint(
-                    "workshop.guest.bootstrap",exact,
-                ),
-                approved_by="Sparks",
-                approved_at=now,
-                expires_at=now+timedelta(minutes=10),
+            from sofia.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.safe.owner_browser import authorize_exact_action
+            credential_id=select_security_key_for_settings(
+                config.state_path,parent=root,
             )
-            ExecutionApprovalVerifier(config.state_path).record(approval)
             boot_busy["active"]=True
             boot_button.configure(state="disabled")
 
             def boot_worker():
                 service=None
                 try:
+                    approval=authorize_exact_action(
+                        config.state_path,
+                        capability="workshop.guest.bootstrap",
+                        parameters=exact,
+                        credential_id=credential_id,expires_seconds=120,
+                    )
                     service=create_configured_remote_fleet_service(config.state_path)
                     if service is None:
                         raise PermissionError(
