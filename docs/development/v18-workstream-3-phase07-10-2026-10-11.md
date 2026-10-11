@@ -621,3 +621,18 @@ Original CA task ledger coverage for all 175 assigned IDs remains incomplete and
 - **Confirmed gap:** the atomic `provision_artifact_job` checked current ACTIVE project and goal ID but not the original project revision. Pausing then resuming LIFE between the slow model draft and RUN enqueue left status ACTIVE while invalidating the prior project intent. A stale draft could still create a runnable job and one-use creative grant.
 - **Production change:** require exact `expected_project_revision` from the scoped project captured at scheduler admission, verify it again inside the same `BEGIN IMMEDIATE` transaction that inserts the RUN job and one-use authorization. Autonomous first-draft and revision callers pass their original project revision; a changed snapshot is rejected before submission. RUN enqueue rolls back its pending job/event/auth together. The existing GOALS/SAFE executor checks remain independent and unchanged; no new state store or scheduler.
 - **Deferred regression:** simulated pause/resume directly inside the RUN enqueue boundary must roll back the pending job and preserve both reviewed LIFE events. No tests/CI or live authoring executed.
+
+
+## Phase 07–10 comprehensive first-pass task audit index (2026-10-11)
+
+- **Audit HEAD source snapshot:** `9fc34147e61bf2cd7b18bf1e486f4e2ab2a4915f`; all four phase reports exist at exact fetched SHAs below.
+- **Workstream 3 ownership:** 175 original CA tasks. **Task ID inventory: 175/175 (100%)**. This is **not** 100% individual deep-code audit or completed implementation. The original wording for every ID is preserved in the reports, along with source locations and open requirements.
+- **Current original shared ledger states (read-only, Workstream 1 owns edits):** `unassessed`: 161, `partial_wiring`: 12, `code_present_unverified`: 2; 0 accepted. Ledger classifications do not automatically update from Workstream 3 commits.
+- **Phase source reports:**
+  - Phase 07 (26 IDs): `docs/development/v18-workstream-3-phase07-source-audit-2026-10-11.md`, Git blob `b168ca575c734eb69b916b4bc6bcc04bd77b5c57`.
+  - Phase 08 (56 IDs): `docs/development/v18-workstream-3-phase08-source-audit-2026-10-11.md`, Git blob `4e24259c6c30c80be6f9c102699749214f17adf8`.
+  - Phase 09 (66 IDs): `docs/development/v18-workstream-3-phase09-source-audit-2026-10-11.md`, Git blob `f1dfb21710c0d4d22182bdfabdc597878bd3fa19`.
+  - Phase 10 (27 IDs): `docs/development/v18-workstream-3-phase10-source-audit-2026-10-11.md`, Git blob `605b8ef711f1fd588eb1a6413997710cdd270738`.
+- **Production fixes in this continued audit:** Phase 08's `SofiaActService._fresh_life_project_pre_send_decision` now rejects orphaned/mismatched Presence source before ACT send (commits `0582ef5b`, `1b28d700`); Phase 09's `LifeStore.provision_artifact_job` requires original LIFE revision within the existing atomic RUN admission (commits `bbddf487`, `dba83596`, `0852e191`). Both have deferred regression tests only; no tested success claim.
+- **Priority missing coding:** precise real event-source registry and ingestion to LIFE/Presence (CA-2601/2602), per-host/version skill suitability (CA-1404/2606), guarded skill revision/re-verification (CA-1405), independent user-owned collaborative activity offers (CA-407/1801/2503), and long-horizon source lifecycle/archives (Phase 07). Existing source components should be reused, not reimplemented.
+- **Unperformed:** exact-head tests/CI, optional provider activation, real Desktop/Discord/voice/avatar acknowledgements, real Venus/Artemis resource tests, long-term archives/restore, Hephaestus experiments, and code audit of all 175 individual entrypoint→caller→state-effect chains. The term `source inventory` must never be reported as those unfinished work items.
