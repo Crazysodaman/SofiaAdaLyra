@@ -666,7 +666,9 @@ class SettingsSections:
                 "with one 60-128 GiB empty VHDX and a PRIVATE switch named "
                 "Sofia-Hephaestus-Private. Then Sofía can inspect it. "
                 "Booting/installing Debian requires a separate Level-4 approval; "
-                "Fleet enrollment is separate after verified OS installation."
+                "Fleet enrollment is separate after verified OS installation. "
+                "The ISO must carry an owner-signed first-boot policy with "
+                "password-required console admin, SSH disabled and a locked worker."
             ),
             wraplength=660,
         ).pack(anchor="w", pady=4)
@@ -680,8 +682,8 @@ class SettingsSections:
             ("Exact enrolled Artemis Fleet node UUID", handoff_node),
             ("Exact Hyper-V Hephaestus VM GUID, not only its display name", handoff_vm),
             ("Exact existing OS VHDX on Artemis", handoff_disk),
-            ("Host-approved OFFLINE unattended Debian ISO path", handoff_media),
-            ("Independent SHA-256 of unattended boot ISO", handoff_digest),
+            ("Host-approved, OWNER-SIGNED offline Debian ISO path", handoff_media),
+            ("Verified SHA-256 of signed unattended ISO", handoff_digest),
         ):
             ttk.Label(frames["Fleet"], text=text).pack(anchor="w", pady=(4, 2))
             ttk.Entry(frames["Fleet"], textvariable=var).pack(fill="x")
