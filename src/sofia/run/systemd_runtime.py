@@ -45,8 +45,12 @@ class SystemdRuntimeSpec:
                 raise ValueError(
                     f"{label} must be a safe absolute POSIX path without escapes"
                 )
-        if not isinstance(self.service_user, str) or not _USER.fullmatch(self.service_user):
-            raise ValueError("service_user must be a local unprivileged account name")
+        if (
+            not isinstance(self.service_user, str)
+            or not _USER.fullmatch(self.service_user)
+            or self.service_user in {"root", "nobody"}
+        ):
+            raise ValueError("service_user must be a dedicated unprivileged account name")
 
 
 def render_unit(spec: SystemdRuntimeSpec) -> str:
