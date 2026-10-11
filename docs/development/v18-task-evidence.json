@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "a3287558dfe609ca6c1268e2bb03390e6ff83ab0",
+  "reviewed_main_sha": "002eaab8a4746eef73f39f6c6b90a2fe196a0c4e",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -301,7 +301,9 @@
         "2cfd27f5f0d1c6b3030fc02b67b6c4a9593aff17",
         "ee395411f1eddd615b72ad39086ca74462a3073e",
         "099b25710f6ff564393a23c5df091258daee5fe7",
-        "b8ebd7ec34b68e9ca12fc64e58b7f566526afae3"
+        "b8ebd7ec34b68e9ca12fc64e58b7f566526afae3",
+        "68c168f941ae9efaaddf400d51c0a3a56e62de26",
+        "8095eba0e302f5d97a3483f1067eda48088ba9ed"
       ],
       "accepted": false,
       "audit_observation": {
@@ -314,7 +316,23 @@
         "state": "Owner reports Debian 13 installing in dedicated Sofia Hyper-V VM",
         "observed_by_tools": false,
         "writer_handoff_authorized": false
-      }
+      },
+      "latest_coding_slices": [
+        {
+          "source_review_sha": "a3287558dfe609ca6c1268e2bb03390e6ff83ab0",
+          "commits": [
+            "68c168f941ae9efaaddf400d51c0a3a56e62de26",
+            "8095eba0e302f5d97a3483f1067eda48088ba9ed"
+          ],
+          "source_paths": [
+            "src/sofia/run/systemd_runtime.py",
+            "test/test_run_systemd_runtime.py"
+          ],
+          "production_route": "Debian 13 systemd ExecStartPre verifies explicit /etc/os-release metadata; real SofiaApplication.start -> check for concurrent SIGTERM -> systemd READY only if still starting normally -> STOPPING and canonical application shutdown.",
+          "fulfilled_slice": "No implicit missing Trixie codename accepted, and shutdown requested while starting prevents a misleading systemd readiness notification.",
+          "remaining": "VM guest installation completion, independent authenticated writer fencing, signed pointer activation and real Debian service/host tests are not verified; CA-3102 remains partial."
+        }
+      ]
     },
     {
       "id": "CA-3103",
