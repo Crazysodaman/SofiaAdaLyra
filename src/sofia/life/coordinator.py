@@ -1965,6 +1965,57 @@ class SelfDirectedLifeCoordinator:
             ):
                 continue  # scope mismatch requires separate operator audit
             status = goal.status
+            if (
+                status is GoalStatus.ACTIVE
+                and project.status is ProjectStatus.PAUSED
+            ):
+                events = self.store.events(
+                    project.project_id,
+                    owner_principal_id=SOFIA_PROJECT_OWNER,
+                    audience_id=project.audience_id,
+                )
+                # A manually chosen LIFE pause has its own authority.
+                # Only a previous GOALS-derived pause may follow the
+                # canonical GOALS transition back to ACTIVE.
+                if (
+                    events
+                    and events[-1].decision == "canonical_goal_reconciliation"
+                    and events[-1].to_status is ProjectStatus.PAUSED
+                ):
+                    linked = tuple(
+                        self.work_store.get(job_id)
+                        for job_id in self.store.jobs(project.project_id)
+                    )
+                    unsafe = any(job.status in {
+                        WorkStatus.UNCERTAIN, WorkStatus.FAILED,
+                        WorkStatus.CANCELLED, WorkStatus.BLOCKED,
+                    } for job in linked)
+                    if not unsafe:
+                        evidence = self.record_observation(
+                            kind="goal-lifecycle-reconciliation",
+                            source="life:canonical-goals",
+                            assertion=(
+                                f"Canonical scoped goal {goal.id} resumed "
+                                "ACTIVE after a GOALS-derived LIFE pause."
+                            ),
+                            now=now,
+                            payload={
+                                "project_id": project.project_id,
+                                "goal_id": goal.id,
+                                "goal_revision": goal.revision,
+                                "goal_status": status.value,
+                            },
+                        )
+                        self._transition(
+                            project.project_id, ProjectStatus.ACTIVE,
+                            decision="canonical_goal_reconciliation",
+                            reason="Original scoped GOALS authority resumed.",
+                            evidence_refs=(evidence,),
+                            actor=SOFIA_GOAL_OWNER_ID, now=now,
+                            sync_goal=False,
+                        )
+                        settled += 1
+                continue
             terminal = status in {
                 GoalStatus.CANCELLED, GoalStatus.EXPIRED, GoalStatus.REJECTED,
             }
