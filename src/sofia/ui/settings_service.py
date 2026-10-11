@@ -127,10 +127,23 @@ def database_diagnostics(path: Path) -> str:
     """Inspect the selected canonical database without evaluating arbitrary SQL."""
     # Validate file identity before introspecting the canonical source.
     canonical = CanonicalSQLiteGuard(path)
-    with closing(canonical.connect(timeout=10)) as db:
+    verified = canonical.validate()
+    # Diagnostics must never take a write-capable connection simply to
+    # inspect integrity and schema. No PRAGMA schema mutation or bootstrap.
+    with closing(sqlite3.connect(
+        verified.as_uri() + "?mode=ro", uri=True, timeout=10.0,
+    )) as db:
+        canonical.validate()
         integrity = db.execute("PRAGMA quick_check").fetchall()
-        tables = db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
-    return f"Database: {path}\nIntegrity: {integrity}\nSize: {path.stat().st_size:,} bytes\nTables ({len(tables)}):\n" + "\n".join(row[0] for row in tables)
+        tables = db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+        ).fetchall()
+        canonical.validate()
+    return (
+        f"Database: {verified}\nIntegrity: {integrity}\n"
+        f"Size: {verified.stat().st_size:,} bytes\nTables ({len(tables)}):\n"
+        + "\n".join(row[0] for row in tables)
+    )
 
 
 
