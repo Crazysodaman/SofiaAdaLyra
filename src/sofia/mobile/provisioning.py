@@ -4,9 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import sqlite3
 
 from sofia.config import SofiaConfiguration
-from sofia.safe.secret_store import ProtectedSecretStore
+from .pairing import MobileDeviceCredentialStore
 
 from .server import MobileServerConfiguration
 
@@ -24,30 +25,35 @@ def mobile_companion_ready(state_path: Path | str) -> bool:
     """Report whether the authenticated endpoint has usable runtime credentials."""
     if not _flag("SOFIA_MOBILE_ENABLED"):
         return False
-    token = os.environ.get("SOFIA_MOBILE_TOKEN", "").strip()
-    if token:
-        return 32 <= len(token) <= 512
-    return ProtectedSecretStore.for_state_path(state_path).exists(
-        "mobile-api-token"
-    )
+    # ACT should only claim mobile delivery is configured if at least
+    # one individually authenticated, nonrevoked recipient exists.
+    try:
+        return MobileDeviceCredentialStore(state_path).active_count() > 0
+    except (FileNotFoundError, OSError, sqlite3.Error):
+        return False
 
 
 @dataclass(frozen=True, slots=True)
 class MobileProvisioning:
     enabled: bool
     server: MobileServerConfiguration
-    token: str | None
+    enrolled_devices: int
 
     @classmethod
     def from_runtime(cls, configuration: SofiaConfiguration) -> "MobileProvisioning":
         if not isinstance(configuration, SofiaConfiguration):
             raise TypeError("configuration must be SofiaConfiguration")
         enabled = _flag("SOFIA_MOBILE_ENABLED")
-        token = os.environ.get("SOFIA_MOBILE_TOKEN", "").strip() or None
-        if token is None:
-            token = ProtectedSecretStore.for_state_path(
-                configuration.state_path
-            ).get("mobile-api-token")
+        if enabled and os.environ.get("SOFIA_MOBILE_TOKEN", "").strip():
+            raise ValueError(
+                "SOFIA_MOBILE_TOKEN was retired; operator must enroll each phone "
+                "using python -m sofia.mobile.pairing"
+            )
+        # The server may listen with zero enrolled devices so the operator
+        # can securely pair later. Unenrolled requests always receive 401.
+        count = MobileDeviceCredentialStore(
+            configuration.state_path
+        ).active_count() if enabled else 0
         raw_certificate = os.environ.get("SOFIA_MOBILE_TLS_CERT", "").strip()
         raw_key = os.environ.get("SOFIA_MOBILE_TLS_KEY", "").strip()
         server = MobileServerConfiguration(
@@ -56,14 +62,4 @@ class MobileProvisioning:
             certificate=Path(raw_certificate) if raw_certificate else None,
             private_key=Path(raw_key) if raw_key else None,
         )
-        if enabled and token is None:
-            raise ValueError(
-                "enabled mobile companion requires SOFIA_MOBILE_TOKEN or "
-                "the protected mobile-api-token secret"
-            )
-        return cls(enabled=enabled, server=server, token=token)
-
-    def require_token(self) -> str:
-        if not self.enabled or self.token is None:
-            raise RuntimeError("mobile companion is not provisioned")
-        return self.token
+        return cls(enabled=enabled, server=server, enrolled_devices=count)

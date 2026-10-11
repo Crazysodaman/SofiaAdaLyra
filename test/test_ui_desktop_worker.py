@@ -12,6 +12,7 @@ from sofia.config.model import (
 )
 from sofia.discord.provisioning import DiscordProvisioning
 from sofia.mobile.notifications import MobileNotificationStore
+from sofia.mobile.pairing import MobileDeviceCredentialStore
 from sofia.ui.desktop_worker import (
     DesktopApplicationWorker,
 )
@@ -267,10 +268,12 @@ def test_worker_marshals_mobile_requests_onto_application_thread(
     tmp_path: Path,
     monkeypatch,
 ):
-    token = "mobile-worker-test-token-that-is-long-enough"
+    state = tmp_path / "sofia.db"
+    state.touch()
+    token = MobileDeviceCredentialStore(state).enroll("android-worker-test")
     monkeypatch.setenv("SOFIA_MOBILE_ENABLED", "true")
     monkeypatch.setenv("SOFIA_MOBILE_PORT", "0")
-    monkeypatch.setenv("SOFIA_MOBILE_TOKEN", token)
+    monkeypatch.delenv("SOFIA_MOBILE_TOKEN", raising=False)
     events: Queue[tuple[str, object]] = Queue()
     worker = DesktopApplicationWorker(
         configuration=_configuration(tmp_path),

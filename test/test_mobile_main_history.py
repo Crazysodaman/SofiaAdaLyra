@@ -139,9 +139,9 @@ def test_mobile_http_main_page_requires_bearer_and_scopes_content(tmp_path):
     path, source, social, _, gateway = _setup(tmp_path)
     _allow_private_main(path)
     _record(source, social, gateway, private_mode=True, text="Secret line", number=1)
-    token = "t" * 40
+    token = gateway.credentials.enroll("android-owner")
     server = MobileCompanionServer(
-        gateway, token=token,
+        gateway, credentials=gateway.credentials,
         configuration=MobileServerConfiguration(port=0),
     )
     server.start()

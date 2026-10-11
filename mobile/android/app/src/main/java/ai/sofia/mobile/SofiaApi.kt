@@ -14,7 +14,8 @@ data class ProactiveNotification(
 class SofiaApi(private val settings: SecureSettings) {
     private fun post(path: String, payload: JSONObject): JSONObject {
         val config = settings.load()
-        require(config.baseUrl.startsWith("https://") && config.token.length >= 32) {
+        require(config.baseUrl.startsWith("https://") &&
+            config.token.startsWith("sm1_") && config.token.length >= 52) {
             "Configure an HTTPS server and pairing token first"
         }
         val connection = URL(config.baseUrl + path).openConnection() as HttpsURLConnection

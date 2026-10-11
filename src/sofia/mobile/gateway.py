@@ -16,6 +16,7 @@ from sofia.social.store import SocialSessionStore
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 
+from .pairing import MobileDeviceCredentialStore
 from .model import MobileSensorReport
 from .notifications import MobileNotificationStore
 from .sensors import MobileSensorProvider, MobileSensorStore
@@ -45,6 +46,7 @@ class MobileCompanionGateway:
         self.sensors = MobileSensorStore(self.state_path)
         self.notifications = MobileNotificationStore(self.state_path)
         self.permissions = PermissionStore(self.state_path)
+        self.credentials = MobileDeviceCredentialStore(self.state_path)
         self.private_grants = PrivatePresentationGrantResolver(
             state_path=self.state_path
         )

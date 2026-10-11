@@ -53,6 +53,7 @@ data class ChatLine(val speaker: String, val text: String)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val secure = SecureSettings(application)
     private val api = SofiaApi(secure)
+    val pairingDeviceId: String = secure.deviceId
     var config by mutableStateOf(secure.load())
         private set
     var draft by mutableStateOf("")
@@ -83,6 +84,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         secure.ready(value) && (value.shareSensors || value.proactiveNotifications)
 
     fun save(next: CompanionSettings) {
+        if (busy && (next.token != config.token || next.baseUrl != config.baseUrl)) {
+            status = "Finish the current request before changing the paired server"
+            return
+        }
+        if (next.token != config.token || next.baseUrl != config.baseUrl) {
+            // Old server/audience material must not appear under a newly
+            // paired credential. Keep only the owner's unsent local draft.
+            messages.clear()
+            mainHistory.clear()
+            historyCursor = null
+            historyHasMore = false
+            historyOpen = false
+            pendingText = null
+            pendingRequestId = null
+            pendingPrivateMode = null
+            mood = "settled"
+            gesture = "still"
+        }
         secure.save(next)
         config = secure.load()
         status = "Settings saved"
@@ -267,6 +286,10 @@ private fun SofiaScreen(model: MainViewModel) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Sofía", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                "Device ID for operator pairing: ${model.pairingDeviceId}",
+                style = MaterialTheme.typography.bodySmall,
+            )
             Text("Mood: ${model.mood} · Expression: ${model.gesture}")
             Text(model.status, style = MaterialTheme.typography.bodySmall)
 

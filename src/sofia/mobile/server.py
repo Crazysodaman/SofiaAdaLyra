@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from hmac import compare_digest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import ipaddress
 import json
@@ -12,6 +11,7 @@ from threading import Thread
 from typing import Any, Protocol
 
 from .gateway import MobileDeliveryConflict, MobileDeliveryUncertain
+from .pairing import MobileDeviceCredentialStore
 
 
 _MAX_BODY = 64 * 1024
@@ -58,7 +58,7 @@ class MobileCompanionServer:
         self,
         gateway: MobileGatewayProtocol,
         *,
-        token: str,
+        credentials: MobileDeviceCredentialStore,
         configuration: MobileServerConfiguration = MobileServerConfiguration(),
     ) -> None:
         for method in (
@@ -67,12 +67,12 @@ class MobileCompanionServer:
         ):
             if not callable(getattr(gateway, method, None)):
                 raise TypeError("gateway must implement the mobile gateway protocol")
-        if not isinstance(token, str) or not 32 <= len(token) <= 512:
-            raise ValueError("mobile bearer token must contain 32..512 characters")
+        if not isinstance(credentials, MobileDeviceCredentialStore):
+            raise TypeError("canonical per-device MobileDeviceCredentialStore required")
         if not isinstance(configuration, MobileServerConfiguration):
             raise TypeError("configuration must be MobileServerConfiguration")
         self.gateway = gateway
-        self._token = token.encode("utf-8")
+        self._credentials = credentials
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -91,11 +91,12 @@ class MobileCompanionServer:
                 self.end_headers()
                 self.wfile.write(raw)
 
-            def _authorized(self) -> bool:
+            def _authorized_device(self) -> str | None:
                 value = self.headers.get("Authorization", "")
                 prefix = "Bearer "
-                supplied = value[len(prefix):].encode("utf-8") if value.startswith(prefix) else b""
-                return compare_digest(supplied, outer._token)
+                if not value.startswith(prefix) or len(value) > 256:
+                    return None
+                return outer._credentials.authenticate(value[len(prefix):])
 
             def _json(self) -> dict[str, Any]:
                 raw_length = self.headers.get("Content-Length")
@@ -110,7 +111,7 @@ class MobileCompanionServer:
                 return payload
 
             def do_GET(self):
-                if not self._authorized():
+                if self._authorized_device() is None:
                     self._send(401, {"error": "unauthorized"})
                     return
                 if self.path != "/v1/mobile/health":
@@ -119,11 +120,22 @@ class MobileCompanionServer:
                 self._send(200, {"status": "ready", "protocol": 1})
 
             def do_POST(self):
-                if not self._authorized():
+                authenticated_device = self._authorized_device()
+                if authenticated_device is None:
                     self._send(401, {"error": "unauthorized"})
                     return
                 try:
                     payload = self._json()
+                    # The bearer selects exactly ONE enrolled device, not an
+                    # arbitrary caller-supplied device_id. Applies uniformly
+                    # to chat, history, notifications, sensors and ack.
+                    if payload.get("device_id") != authenticated_device:
+                        raise PermissionError("mobile bearer device binding mismatch")
+                    # Revocation performed during JSON parsing also denies
+                    # dispatch. No shared-server-token compatibility bypass.
+                    if self._authorized_device() != authenticated_device:
+                        self._send(401, {"error": "unauthorized"})
+                        return
                     if self.path == "/v1/mobile/sensors":
                         result = outer.gateway.ingest_sensors(payload)
                     elif self.path == "/v1/mobile/chat":

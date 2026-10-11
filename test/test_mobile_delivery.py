@@ -102,9 +102,9 @@ def test_exception_after_model_dispatch_is_not_retried_or_marked_completed(tmp_p
 
 def test_http_duplicate_mobile_send_returns_same_response_and_conflict_409(tmp_path):
     app, gateway = _gateway(tmp_path)
-    token = "m" * 40
+    token = gateway.credentials.enroll("phone-one")
     server = MobileCompanionServer(
-        gateway, token=token,
+        gateway, credentials=gateway.credentials,
         configuration=MobileServerConfiguration(port=0),
     )
     server.start()

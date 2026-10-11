@@ -31,7 +31,8 @@ class SecureSettings(private val context: Context) {
     )
 
     fun ready(value: CompanionSettings = load()): Boolean =
-        value.baseUrl.startsWith("https://") && value.token.length >= 32
+        value.baseUrl.startsWith("https://") &&
+            value.token.startsWith("sm1_") && value.token.length >= 52
 
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }

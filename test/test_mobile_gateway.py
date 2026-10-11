@@ -197,10 +197,10 @@ def test_proactive_notification_preview_requires_external_authority(tmp_path):
 
 def test_http_server_requires_bearer_token_and_serves_private_state(tmp_path):
     _, gateway = _gateway(tmp_path)
-    token = "t" * 40
+    token = gateway.credentials.enroll("android-owner")
     server = MobileCompanionServer(
         gateway,
-        token=token,
+        credentials=gateway.credentials,
         configuration=MobileServerConfiguration(port=0),
     )
     server.start()
@@ -274,10 +274,10 @@ def test_private_mobile_http_denied_as_403_without_exposing_message(tmp_path):
         private_chat=False,
         adult_chat=False, adult_avatar=False, adult_external_delivery=False,
     )
-    token = "a" * 40
+    token = gateway.credentials.enroll("android-owner")
     server = MobileCompanionServer(
         gateway,
-        token=token,
+        credentials=gateway.credentials,
         configuration=MobileServerConfiguration(port=0),
     )
     server.start()

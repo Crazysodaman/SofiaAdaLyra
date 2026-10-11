@@ -196,7 +196,7 @@ class DesktopApplicationWorker:
                 )
                 mobile_server = MobileCompanionServer(
                     _WorkerMobileGateway(self._commands),
-                    token=mobile.require_token(),
+                    credentials=mobile_gateway.credentials,
                     configuration=mobile.server,
                 )
                 mobile_server.start()

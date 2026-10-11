@@ -221,6 +221,7 @@ def test_mobile_outreach_queues_for_authenticated_phone(
     monkeypatch,
 ):
     from sofia.mobile.notifications import MobileNotificationStore
+    from sofia.mobile.pairing import MobileDeviceCredentialStore
 
     state_path = tmp_path / "state.db"
     state_path.touch()
@@ -230,10 +231,8 @@ def test_mobile_outreach_queues_for_authenticated_phone(
         )
     )
     monkeypatch.setenv("SOFIA_MOBILE_ENABLED", "true")
-    monkeypatch.setenv(
-        "SOFIA_MOBILE_TOKEN",
-        "mobile-outreach-test-token-that-is-long-enough",
-    )
+    monkeypatch.delenv("SOFIA_MOBILE_TOKEN", raising=False)
+    MobileDeviceCredentialStore(state_path).enroll("owner-phone")
     service = SofiaActService(state_path)
 
     assert act_service.configure_act_delivery_from_environment(service)
