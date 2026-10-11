@@ -1134,6 +1134,27 @@ class SelfDirectedLifeCoordinator:
             return WorkResult(WorkStatus.FAILED, {}, "cancelled_before_creative_execution")
         started = datetime.now(timezone.utc)
         project = self._project(str(job.payload["project_id"]))
+        # RUN's queued status is not perpetual permission. Before any
+        # consequential capability execution, re-read the canonical LIFE
+        # project and scoped GOALS state, then let the normal SAFE gateway
+        # and one-use claim enforce authority again at execution.
+        goal = next((
+            value for value in self.goals.list_visible(local_sparks_principal())
+            if value.id == project.goal_id
+        ), None)
+        if (
+            project.status is not ProjectStatus.ACTIVE
+            or goal is None or goal.status is not GoalStatus.ACTIVE
+            or goal.owner_principal_id != SOFIA_GOAL_OWNER_ID
+            or goal.scope_audience != project.audience_id
+        ):
+            self.store.cancel_artifact_authorization(
+                str(job.payload["parameters"]["request_id"]),
+            )
+            return WorkResult(
+                WorkStatus.BLOCKED, {"project_id": project.project_id},
+                "life_project_or_goal_no_longer_active_no_execution",
+            )
         proposal = CapabilityProposal(
             str(job.payload["capability_name"]),
             dict(job.payload["parameters"]),
