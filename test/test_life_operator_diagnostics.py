@@ -107,6 +107,11 @@ def test_life_goal_dependency_view_shows_original_prerequisites(tmp_path):
         assert row["project_revision"] == project.revision
         assert row["priority"] == project.priority
         assert row["needed_objective_evidence"] == project.brief.objectives
+        assert row["review_decision_key"].startswith("life-review:")
+        assert row["review_due_at"] == project.updated_at.isoformat()
+        assert row["awaiting_verification"] is False
+        assert row["next_milestone_id"] is not None
+        assert row["next_milestone_actionable_since"] is not None
         assert row["unsettled_job_ids"] == ()
         assert row["blockers"] == ()
         assert row["eligible_for_new_work"] is True
@@ -222,6 +227,11 @@ def test_life_goal_dependency_completed_run_requires_independent_review(tmp_path
         row = life.goal_dependency_view(now=now + timedelta(seconds=5))[0]
         assert row["latest_run_status"] == "completed"
         assert row["next_action_candidate"] == "verify"
+        assert row["awaiting_verification"] is True
+        assert row["review_due_at"] == (
+            now + timedelta(seconds=4)
+        ).isoformat()
+        assert row["review_decision_key"].startswith("life-review:")
         assert row["eligible_for_new_work"] is False
         assert row["next_action_source_job_id"] == job.job_id
         assert row["unresolved_milestones"]
@@ -278,5 +288,35 @@ def test_completed_life_diagnostic_revokes_current_proof_after_byte_change(tmp_p
         assert afterward["project_status"] == "completed"
         assert afterward["has_verified_completion"] is False
         assert life._project(project.project_id).status is ProjectStatus.COMPLETED
+    finally:
+        life.close()
+
+
+def test_life_review_decision_key_is_stable_until_original_source_changes(
+    tmp_path,
+):
+    """A new clock tick cannot mint a new LIFE decision without source change."""
+    from sofia.creative import ArtifactKind
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        first = life.goal_dependency_view(now=now + timedelta(seconds=3))[0]
+        later = life.goal_dependency_view(now=now + timedelta(hours=1))[0]
+        assert later["review_decision_key"] == first["review_decision_key"]
+        assert later["review_due_at"] == first["review_due_at"]
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Original source change",
+            specification={"content": "A new pending original creative request."},
+            evidence_ref=evidence, now=now + timedelta(hours=1, seconds=3),
+        )
+        pending = life.goal_dependency_view(
+            now=now + timedelta(hours=1, seconds=4),
+        )[0]
+        assert pending["review_decision_key"] != first["review_decision_key"]
+        assert pending["latest_run_job_id"] == job.job_id
+        assert pending["awaiting_verification"] is False
+        assert pending["next_action_candidate"] == "wait"
     finally:
         life.close()
