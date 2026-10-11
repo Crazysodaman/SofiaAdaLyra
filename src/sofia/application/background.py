@@ -9,6 +9,7 @@ from typing import Callable
 from uuid import uuid4
 
 from sofia.application.idle_reflection import IdleReflectionWorker
+from sofia.application.optional_budget import OptionalAutonomyBudget
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.run.periodic import (
     OpportunityPolicy,
@@ -43,6 +44,8 @@ class BackgroundBudget:
         self._guard = CanonicalSQLiteGuard(self.path)
         self.max_attempts_per_utc_day = max_attempts_per_utc_day
         self.claim_timeout = claim_timeout
+        # Same canonical sofia.db and same single-flight claim transaction.
+        self.optional_resources = OptionalAutonomyBudget(state_path)
         with closing(self._connect()) as db:
             with db:
                 db.execute(
@@ -98,6 +101,17 @@ class BackgroundBudget:
                         return None
                     stale_claim_ids.append(claim_id_value)
                 for stale_claim_id in stale_claim_ids:
+                    # Old production claims predate this optional resource
+                    # ledger. Only settle a reservation when one exists.
+                    has_reservation = db.execute(
+                        "SELECT 1 FROM application_optional_budget_claim "
+                        "WHERE claim_id=? AND status='working'",
+                        (stale_claim_id,),
+                    ).fetchone()
+                    if has_reservation is not None:
+                        self.optional_resources.settle_in_transaction(
+                            db,claim_id=stale_claim_id,now=moment,failed=True,
+                        )
                     db.execute(
                         """
                         UPDATE application_background_claims
@@ -118,6 +132,10 @@ class BackgroundBudget:
                 if count >= self.max_attempts_per_utc_day:
                     return None
                 claim_id = str(uuid4())
+                if not self.optional_resources.reserve_in_transaction(
+                    db,claim_id=claim_id,task_kind=task_kind,now=moment,
+                ):
+                    return None
                 db.execute(
                     """
                     INSERT INTO application_background_claims (
@@ -165,6 +183,16 @@ class BackgroundBudget:
                 if changed.rowcount != 1:
                     raise RuntimeError(
                         "background claim is missing or already finished"
+                    )
+                # Atomic outcome across both ledgers. The transaction
+                # restores the background claim if resource settlement fails.
+                has_reservation = db.execute(
+                    "SELECT 1 FROM application_optional_budget_claim "
+                    "WHERE claim_id=?",(claim_id,),
+                ).fetchone()
+                if has_reservation is not None:
+                    self.optional_resources.settle_in_transaction(
+                        db,claim_id=claim_id,now=now,failed=(error is not None)
                     )
 
 
