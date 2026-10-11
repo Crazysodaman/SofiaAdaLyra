@@ -362,14 +362,16 @@ class MemoryDeletionLedger:
                     "SELECT principal_id,audience_id FROM memory_candidate "
                     "WHERE candidate_id=?", (candidate_id,),
                 ).fetchone()
-                if match is None:
-                    continue
-                if match != (
+                if match is not None and match != (
                     record["principal_id"], record["audience_id"],
                 ):
                     raise MemoryErasureError(
                         "candidate ID is present with conflicting private scope"
                     )
+                # Continue deleting derived copies even when the primary
+                # candidate is already gone. A crashed/stale importer can
+                # have left an orphan review or NEURO row behind, and every
+                # restore replay must heal it idempotently.
                 for table, column in (
                     ("memory_candidate_correction", "new_candidate_id"),
                     ("memory_candidate_correction", "old_candidate_id"),
@@ -389,11 +391,12 @@ class MemoryDeletionLedger:
                             f"DELETE FROM {table} WHERE {column}=?",
                             (candidate_id,),
                         )
-                db.execute(
-                    "DELETE FROM memory_candidate WHERE candidate_id=?",
-                    (candidate_id,),
-                )
-                removed += 1
+                if match is not None:
+                    db.execute(
+                        "DELETE FROM memory_candidate WHERE candidate_id=?",
+                        (candidate_id,),
+                    )
+                    removed += 1
             violations = db.execute("PRAGMA foreign_key_check").fetchall()
             if violations:
                 raise MemoryErasureError("foreign key violation after replay")
