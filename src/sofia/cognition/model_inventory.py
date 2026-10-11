@@ -105,9 +105,10 @@ def collect_local_model_inventory(
     for entry in entries:
         if not isinstance(entry, Mapping):
             raise ValueError("Ollama returned an invalid model metadata row")
-        name = _string(entry.get("name") or entry.get("model"), limit=300)
-        if name is None:
-            raise ValueError("Ollama listed a model without a valid name")
+        raw_name = entry.get("name") or entry.get("model")
+        name = _string(raw_name, limit=300)
+        if name is None or len(raw_name.strip()) > 300:
+            raise ValueError("Ollama listed a model without a bounded valid name")
         if name in by_name:
             raise ValueError("Ollama returned duplicate installed-model identity")
         by_name[name] = entry
@@ -148,10 +149,10 @@ def collect_local_model_inventory(
                 model_info = shown.get("model_info")
                 if isinstance(model_info, Mapping):
                     limits = [
-                        value for key, value in list(model_info.items())[:128]
+                        limit for key, raw in list(model_info.items())[:128]
                         if isinstance(key, str)
                         and key.endswith(".context_length")
-                        and (value := _positive_size(value)) is not None
+                        and (limit := _positive_size(raw)) is not None
                     ]
                     context_limit = max(limits) if limits else None
                 license_value = shown.get("license")
