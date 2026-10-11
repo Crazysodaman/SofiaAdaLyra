@@ -83,9 +83,10 @@ def bridge_voluntary_life_outreach(
     )
     if candidate["audience_id"] != "local:text":
         return 0
-    event_id = "life-complete:" + sha256(
+    event_id = "life-update:" + sha256(
         candidate["event_id"].encode("utf-8")
     ).hexdigest()[:32]
+    completed = candidate["moment_kind"] == "verified_completion"
     observation = WorldObservation(
         observation_id="life-observed:" + sha256(
             candidate["event_id"].encode("utf-8")
@@ -93,7 +94,10 @@ def bridge_voluntary_life_outreach(
         subject_id="life:" + sha256(
             candidate["project_id"].encode("utf-8")
         ).hexdigest()[:24],
-        predicate="original_project.verified_completion",
+        predicate=(
+            "original_project.verified_completion" if completed
+            else "original_project.verified_draft"
+        ),
         source_id="life:canonical_project_event",
         observed_at=candidate["verified_at"],
         expires_at=candidate["expires_at"],
@@ -104,7 +108,8 @@ def bridge_voluntary_life_outreach(
             "project_id": candidate["project_id"],
             "completion_event_id": candidate["event_id"],
             "source_evidence_refs": candidate["source_evidence_refs"],
-            "independent_objectives_verified": True,
+            "independent_objectives_verified": completed,
+            "original_artifact_bytes_verified": True,
             "artifact_disclosed": False,
         },
         audience_id="local:text",
@@ -113,16 +118,28 @@ def bridge_voluntary_life_outreach(
     # Vary the conversational invitation using a stable source identifier,
     # not randomized nagging or fabricated emotional events.
     style = int(event_id[-2:], 16) % 3
-    content = (
-        f"I finished {name}, and its original checks passed. "
-        "I wanted to share that little win with you. Want to hear what I made?"
-        if style == 0 else
-        f"Guess what I finished: {name}. The checks passed, "
-        "and I thought you might like to hear how it turned out."
-        if style == 1 else
-        f"A small creative victory: {name} is finished and verified. "
-        "I felt like telling you about it. Curious what I tried?"
-    )
+    if completed:
+        content = (
+            f"I finished {name}, and its original checks passed. "
+            "I wanted to share that little win with you. Want to hear what I made?"
+            if style == 0 else
+            f"Guess what I finished: {name}. The checks passed, "
+            "and I thought you might like to hear how it turned out."
+            if style == 1 else
+            f"A small creative victory: {name} is finished and verified. "
+            "I felt like telling you about it. Curious what I tried?"
+        )
+    else:
+        content = (
+            f"I made a draft for {name}. It isn't fully verified yet, "
+            "but I thought you might like to hear what I tried."
+            if style == 0 else
+            f"I've been working on {name} and have a real first draft. "
+            "Some of the goals still need review. Want the story behind it?"
+            if style == 1 else
+            f"A little progress on {name}: I made a draft. "
+            "I'm still sorting out how it holds up, but I wanted to tell you."
+        )
     decision = presence.consider(InitiativeEvent(
         event_id=event_id,
         trigger_kind="task_completed",
