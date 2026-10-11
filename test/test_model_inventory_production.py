@@ -117,6 +117,13 @@ def test_canonical_inventory_store_replaces_one_host_atomically(tmp_path):
     assert "ADVERTISED" in read
     assert "NOT VERIFIED" in read
     assert "terms require human review" in read
+    observed_terms = store.license_text(host_id="venus", model="primary:stable")
+    assert "owner must review this license" in observed_terms
+    assert "not accepted by discovery" in observed_terms
+    assert "SHA-256:" in observed_terms
+    assert "No observed license" in store.license_text(
+        host_id="venus", model="unknown:model",
+    )
     assert store.readable(host_id="artemis").startswith("No successful")
     with pytest.raises(ValueError, match="observed host"):
         store.replace_host(host_id="artemis", observations=records)
