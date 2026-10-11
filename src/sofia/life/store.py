@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 import json
 from pathlib import Path
@@ -13,6 +14,19 @@ from .model import (
     ProjectBrief, ProjectEvent, ProjectMilestone, ProjectScope, ProjectStatus,
     ResourceBudget, SelectionKind, TechnicalOutcome,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class RunOutcomeObservation:
+    """Derived LIFE evidence. RUN event ID remains canonical authority."""
+
+    run_event_id: int
+    project_id: str
+    job_id: str
+    status: str
+    reason: str
+    run_at: datetime
+    observed_at: datetime
 
 
 class ProjectWorkPending(RuntimeError):
@@ -134,6 +148,23 @@ class LifeStore:
                     status TEXT NOT NULL, authorized_at TEXT NOT NULL,
                     finished_at TEXT
                 );
+                CREATE TABLE IF NOT EXISTS life_run_outcome_observation (
+                    run_event_id INTEGER PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    job_id TEXT NOT NULL,
+                    run_status TEXT NOT NULL CHECK(run_status IN (
+                        'completed','failed','blocked','cancelled',
+                        'uncertain','waiting_approval'
+                    )),
+                    run_reason TEXT NOT NULL,
+                    run_at TEXT NOT NULL,
+                    observed_at TEXT NOT NULL,
+                    FOREIGN KEY(project_id) REFERENCES life_project(project_id)
+                );
+                CREATE INDEX IF NOT EXISTS life_run_observation_project
+                    ON life_run_outcome_observation(
+                        project_id,run_event_id DESC
+                    );
             """)
 
     def _connect(self) -> sqlite3.Connection:
@@ -351,6 +382,83 @@ class LifeStore:
                 "INSERT OR IGNORE INTO life_project_job VALUES(?,?,?)",
                 (project_id, job_id, now.astimezone(timezone.utc).isoformat()),
             )
+
+    def reconcile_run_outcomes(
+        self, *, now: datetime, limit: int = 256,
+    ) -> tuple[RunOutcomeObservation, ...]:
+        """Observe original RUN events once, without duplicating RUN state.
+
+        Includes every consequential RUN outcome transition, not merely the
+        current status of the latest linked job. Therefore a BLOCKED -> FAILED
+        or RUNNING -> UNCERTAIN sequence is auditable across process restarts.
+        A LIFE observation cannot promote a project or authorize a retry.
+        """
+        if (
+            not isinstance(now, datetime)
+            or now.tzinfo is None or now.utcoffset() is None
+        ):
+            raise ValueError("reconciliation timestamp must be timezone-aware")
+        if type(limit) is not int or not 1 <= limit <= 500:
+            raise ValueError("reconciliation event limit must be 1..500")
+        stamp = now.astimezone(timezone.utc).isoformat()
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            rows = db.execute(
+                """SELECT event.event_id,link.project_id,event.job_id,
+                          event.to_status,event.reason,event.occurred_at
+                   FROM autonomous_work_event AS event
+                   JOIN life_project_job AS link
+                     ON link.job_id=event.job_id
+                   LEFT JOIN life_run_outcome_observation AS seen
+                     ON seen.run_event_id=event.event_id
+                   WHERE seen.run_event_id IS NULL
+                     AND event.to_status IN (
+                       'completed','failed','blocked','cancelled',
+                       'uncertain','waiting_approval'
+                     )
+                   ORDER BY event.event_id LIMIT ?""",
+                (limit,),
+            ).fetchall()
+            for row in rows:
+                db.execute(
+                    """INSERT INTO life_run_outcome_observation(
+                       run_event_id,project_id,job_id,run_status,
+                       run_reason,run_at,observed_at
+                       ) VALUES(?,?,?,?,?,?,?)""",
+                    (
+                        int(row["event_id"]), row["project_id"],
+                        row["job_id"], row["to_status"], row["reason"],
+                        row["occurred_at"], stamp,
+                    ),
+                )
+        return tuple(RunOutcomeObservation(
+            int(row["event_id"]), row["project_id"], row["job_id"],
+            row["to_status"], row["reason"],
+            datetime.fromisoformat(row["occurred_at"]),
+            datetime.fromisoformat(stamp),
+        ) for row in rows)
+
+    def run_outcome_observations(
+        self, project_id: str, *, limit: int = 100,
+    ) -> tuple[RunOutcomeObservation, ...]:
+        """Read bounded RUN-derived evidence, never independent job truth."""
+        if type(limit) is not int or not 1 <= limit <= 500:
+            raise ValueError("observation limit must be 1..500")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                """SELECT run_event_id,project_id,job_id,run_status,
+                          run_reason,run_at,observed_at
+                   FROM life_run_outcome_observation
+                   WHERE project_id=?
+                   ORDER BY run_event_id DESC LIMIT ?""",
+                (project_id, limit),
+            ).fetchall()
+        return tuple(RunOutcomeObservation(
+            int(row["run_event_id"]), row["project_id"], row["job_id"],
+            row["run_status"], row["run_reason"],
+            datetime.fromisoformat(row["run_at"]),
+            datetime.fromisoformat(row["observed_at"]),
+        ) for row in reversed(rows))
 
     def jobs(self, project_id: str) -> tuple[str, ...]:
         with closing(self._connect()) as db:

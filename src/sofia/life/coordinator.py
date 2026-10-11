@@ -463,6 +463,7 @@ class SelfDirectedLifeCoordinator:
                 open_jobs = sum(
                     self.work_store.get(job_id).status in {
                         WorkStatus.QUEUED, WorkStatus.RUNNING, WorkStatus.BLOCKED,
+                        WorkStatus.WAITING_APPROVAL, WorkStatus.UNCERTAIN,
                     }
                     for job_id in self.store.jobs(candidate.project_id)
                 )
@@ -1274,6 +1275,9 @@ class SelfDirectedLifeCoordinator:
         resource_pressure: float = 0.0,
         generate=None,
     ) -> dict[str, object]:
+        # Observe already-committed outcomes before optional cognition or
+        # resource-limited project selection. This remains useful while busy.
+        observed = self.store.reconcile_run_outcomes(now=now)
         selection = self.select_activity(
             now=now, busy=busy, resource_pressure=resource_pressure,
         )
@@ -1345,6 +1349,9 @@ class SelfDirectedLifeCoordinator:
             "scheduled": scheduled,
             "jobs_started": started,
             "follow_through": follow_through,
+            "run_outcomes_observed": len(observed) + len(
+                self.store.reconcile_run_outcomes(now=now)
+            ),
             "review_queue": self.pending_work_review(limit=16),
         }
 
