@@ -118,6 +118,21 @@ class ScreenFrameEvidence:
             or self.pixel_content_persisted
             or not isinstance(self.principal_id,str)
             or not self.principal_id.strip()
+            or not isinstance(self.audience_id,str)
+            or not self.audience_id.strip()
+            or not isinstance(self.device_id,str)
+            or not self.device_id.strip()
+            or not isinstance(self.observed_at,datetime)
+            or self.observed_at.tzinfo is None
+            or self.observed_at.utcoffset() is None
+            or self.receipt.captured_at!=self.observed_at
+            or not isinstance(self.receipt.target_id,str)
+            or not self.receipt.target_id.strip()
+            or not isinstance(self.receipt.permit_id,str)
+            or not self.receipt.permit_id.startswith("screen-permit:")
+            or len(self.receipt.digest_sha256)!=64
+            or any(ch not in "0123456789abcdef"
+                   for ch in self.receipt.digest_sha256)
         ):
             raise PermissionError("a frame hash cannot imply scene semantics/actions")
 
@@ -221,12 +236,23 @@ class ScreenJourneyReceiptStore:
         with closing(self._guard.connect(timeout=10)) as db,db:
             db.execute("BEGIN IMMEDIATE")
             existing=db.execute(
-                "SELECT digest_sha256 FROM vision_observed_frame WHERE receipt_id=?",
+                "SELECT permit_id,journey,principal_id,audience_id,"
+                "device_id,target_hash,digest_sha256,observed_at,has_pixels "
+                "FROM vision_observed_frame WHERE receipt_id=?",
                 (receipt_id,),
             ).fetchone()
             if existing is not None:
-                if existing[0]!=evidence.receipt.digest_sha256:
-                    raise PermissionError("observation evidence cannot be rewritten")
+                expected=(
+                    evidence.receipt.permit_id,evidence.journey.value,
+                    evidence.principal_id,evidence.audience_id,
+                    evidence.device_id,target_hash,evidence.receipt.digest_sha256,
+                    evidence.observed_at.astimezone(timezone.utc).isoformat(),0,
+                )
+                if tuple(existing)!=expected:
+                    raise PermissionError(
+                        "observation receipt ID is bound to different "
+                        "source, scope or pixel-retention metadata"
+                    )
                 return
             db.execute(
                 "INSERT INTO vision_observed_frame "
