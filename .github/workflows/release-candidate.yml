@@ -63,7 +63,17 @@ jobs:
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt
           .\.releasevenv\Scripts\python.exe -m pip install --no-deps "$env:SOFIA_RELEASE_SOURCE"
 
-      - name: Run revision-bound verification gate
+      - name: Assert exact source and installed package provenance
+        shell: pwsh
+        run: |
+          .\.releasevenv\Scripts\python.exe -m sofia.verify.source_provenance `
+            --checkout "$env:GITHUB_WORKSPACE" `
+            --archive "$env:SOFIA_RELEASE_SOURCE" `
+            --venv ".releasevenv" `
+            --evidence "source-provenance.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            - name: Run revision-bound verification gate
         shell: pwsh
         run: |
           .\.releasevenv\Scripts\python.exe -m sofia.verify.gate --phase full --evidence-path verification-evidence.json
@@ -123,5 +133,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: release-candidate-${{ github.sha }}
-          path: release-evidence
+          path: |
+            release-evidence
+            source-provenance.json
           if-no-files-found: error
