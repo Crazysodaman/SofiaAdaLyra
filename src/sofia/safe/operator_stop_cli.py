@@ -15,6 +15,10 @@ def main(argv:list[str]|None=None)->int:
     parser.add_argument("state",choices=("on","off","status"))
     parser.add_argument("--state-path")
     parser.add_argument("--reason",default="operator request")
+    parser.add_argument(
+        "--credential-id",
+        help="Enrolled FIDO2 security key required only for clearing a stop",
+    )
     args=parser.parse_args(argv)
     try:
         path=(
@@ -26,10 +30,23 @@ def main(argv:list[str]|None=None)->int:
         if args.state=="status":
             state=store.current()
         else:
+            approval_id = None
+            if args.state == "off":
+                if not args.credential_id:
+                    raise PermissionError("operator resume requires --credential-id")
+                from sofia.safe.owner_browser import authorize_exact_action
+                approval = authorize_exact_action(
+                    path, capability="operator.stop.resume",
+                    parameters={"active": False, "reason": args.reason.strip()},
+                    credential_id=args.credential_id,
+                    expires_seconds=90,
+                )
+                approval_id = approval.approval_id
             state=store.set(
                 active=args.state=="on",
                 updated_by="Sparks",
                 reason=args.reason,
+                approval_id=approval_id,
             )
         print(
             f"operator_stop={'on' if state.active else 'off'} "
