@@ -160,8 +160,11 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
         blockers.append("network_or_nonlocal_destination_not_supported")
     if str(dest).startswith("//"):
         blockers.append("network_destination_not_supported")
-    if dest.exists() and (not dest.is_dir() or any(dest.iterdir())):
-        blockers.append("destination_must_be_empty_directory")
+    # The audited stage/publish owner requires RENAME_NOREPLACE into an
+    # ABSENT final name. Even an empty pre-created directory is an
+    # operator-owned destination and may never be implicitly replaced.
+    if dest.exists() or dest.is_symlink():
+        blockers.append("destination_must_be_absent_for_atomic_stage")
     manifest = (
         "sofia.db", "protected/", "personality.json", "avatar.json",
         "release-runtime/active-release.json",
