@@ -86,40 +86,47 @@ class DesktopAction:
 
 
 def game_process_clear() -> bool:
-    """Reject partial observations; do not infer no game from an empty list."""
+    """Scan ALL observed local processes using the already-installed SYSTEM API.
+
+    Failure, limit saturation or incomplete names/executable evidence means
+    gaming cannot be ruled out. No optional psutil dependency or process
+    injection is needed. Tray observations do NOT replace this fresh scan.
+    """
     if sys.platform != "win32":
         raise PermissionError("Windows-only live game inspection")
-    try:
-        import psutil
-        processes = list(psutil.process_iter(["name", "exe"]))
-        if not processes:
-            raise PermissionError("no independent process evidence")
-        extra = os.environ.get("SOFIA_GUI_EXTRA_GAME_EXECUTABLES", "")
-        known = _GAME_NAMES | frozenset(
-            p.strip().casefold() for p in extra.split(",") if p.strip()
-        )
-        for process in processes:
-            try:
-                info = process.info
-                name = str(info.get("name") or "").casefold()
-                exe = str(info.get("exe") or "").replace("/", "\\").casefold()
-            except (psutil.NoSuchProcess, psutil.ZombieProcess):
-                continue
-            except (psutil.AccessDenied, OSError) as exc:
-                raise PermissionError("incomplete game-process observation") from exc
-            if not name:
-                raise PermissionError("unknown running process name")
-            if name in known or (
-                "\\steamapps\\common\\" in exe and
-                name not in _NON_GAME_STEAM and
-                "\\wallpaper_engine\\" not in exe and
-                "\\steamvr\\" not in exe
-            ):
-                return False
-        return True
-    except ImportError as exc:
-        raise PermissionError("psutil required for gaming workstation safety") from exc
-
+    from sofia.system.capability import create_local_system_backend
+    from sofia.system.model import (
+        SystemCapabilityName, SystemCapabilityRequest,
+        SystemCapabilityResultKind,
+    )
+    backend = create_local_system_backend()
+    capability = next(
+        (item for item in backend.supported_capabilities
+         if item.name is SystemCapabilityName.PROCESS_INSPECT),
+        None,
+    )
+    if capability is None:
+        raise PermissionError("local process inspection unavailable")
+    result = backend.execute(
+        SystemCapabilityRequest(capability, {"limit": 2048})
+    )
+    if result.kind is not SystemCapabilityResultKind.SUCCESS:
+        raise PermissionError("gaming status not fully observable")
+    processes = tuple(result.evidence.get("processes", ()))
+    if not processes or len(processes) >= 2048:
+        raise PermissionError("process observation missing or truncated")
+    extra = os.environ.get("SOFIA_GUI_EXTRA_GAME_EXECUTABLES", "")
+    known = _GAME_NAMES | frozenset(
+        p.strip().casefold() for p in extra.split(",") if p.strip()
+    )
+    from sofia.ops.activity import detect_windows_game
+    for item in processes:
+        if not getattr(item, "name", None):
+            raise PermissionError("unknown running process identity")
+    gaming, _ = detect_windows_game(
+        processes, known_game_executables=known,
+    )
+    return not gaming
 
 def require_workstation_clear(state_path: Path | str, host_id: str, at: datetime) -> None:
     """A manual NORMAL override never bypasses game protection on Venus."""
