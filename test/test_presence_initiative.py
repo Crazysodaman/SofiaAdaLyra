@@ -183,3 +183,85 @@ def test_world_state_preserves_unknown_offline_and_unavailable(state):
         assert db.execute(
             "SELECT availability FROM presence_world_observation ORDER BY observation_id"
         ).fetchall() == [("unknown",), ("offline",), ("unavailable",)]
+
+
+@pytest.mark.parametrize(
+    ("audience", "expected"),
+    [
+        ("discord:dm:34567", "incompatible_observation_audience"),
+        ("private:another-device", "incompatible_observation_audience"),
+    ],
+)
+def test_presence_refuses_foreign_private_audience_outreach(
+    state, audience, expected,
+):
+    """An unrelated private audience cannot be republished to local ACT."""
+    from dataclasses import replace
+
+    sent = []
+    engine = PresenceInitiativeEngine(
+        state_path=state, act_service=configured(state, sent),
+    )
+    original = event("foreign-audience")
+    changed = replace(
+        original, observation=replace(
+            original.observation, audience_id=audience,
+        ),
+    )
+    result = engine.consider(changed)
+    assert result.status == "suppressed"
+    assert result.reason == expected
+    assert result.notice_id is None
+    assert engine.consider(changed) == result
+    assert sent == []
+
+
+@pytest.mark.parametrize("timing", ["expired", "future"])
+def test_presence_refuses_stale_or_future_outreach_evidence(
+    state, timing,
+):
+    """Observed evidence must exist and remain fresh when ACT is proposed."""
+    from dataclasses import replace
+
+    sent = []
+    engine = PresenceInitiativeEngine(
+        state_path=state, act_service=configured(state, sent),
+    )
+    original = event("stale-evidence")
+    observation = (
+        replace(
+            original.observation,
+            observed_at=NOW - timedelta(hours=2),
+            expires_at=NOW - timedelta(hours=1),
+        )
+        if timing == "expired"
+        else replace(
+            original.observation,
+            observed_at=NOW + timedelta(minutes=4),
+            expires_at=NOW + timedelta(minutes=10),
+        )
+    )
+    result = engine.consider(replace(original, observation=observation))
+    assert result.status == "suppressed"
+    assert result.reason == "stale_or_future_observation"
+    assert result.notice_id is None
+    assert sent == []
+
+
+def test_presence_notice_expires_with_original_observation(state):
+    """ACT cannot deliver a source-dependent notice after evidence expiration."""
+    from dataclasses import replace
+
+    sent = []
+    service = configured(state, sent)
+    engine = PresenceInitiativeEngine(state_path=state, act_service=service)
+    original = event("short-lived-evidence")
+    observation = replace(
+        original.observation,
+        expires_at=NOW + timedelta(minutes=2),
+    )
+    result = engine.consider(replace(original, observation=observation))
+    assert result.status == "queued"
+    assert result.notice_id is not None
+    assert service.deliver_one(now=NOW + timedelta(minutes=3)) is None
+    assert sent == []
