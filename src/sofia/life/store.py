@@ -480,6 +480,22 @@ class LifeStore:
 
     @staticmethod
     def _insert_evaluation(db: sqlite3.Connection, value: ArtifactEvaluation) -> None:
+        # Keep one authoritative decision per artifact revision across
+        # multiple application instances. The calling transaction must
+        # acquire the SQLite writer lock BEFORE checking this revision.
+        if not db.in_transaction:
+            raise RuntimeError("evaluation insertion requires an active transaction")
+        existing = db.execute(
+            """SELECT evaluation_id FROM life_artifact_evaluation
+               WHERE project_id=? AND artifact_id=? AND artifact_revision=?
+               LIMIT 1""",
+            (value.project_id, value.artifact_id, value.artifact_revision),
+        ).fetchone()
+        if existing is not None:
+            raise RuntimeError(
+                "artifact revision already has a canonical evaluation; "
+                "reload before requesting any reviewed correction"
+            )
         db.execute(
             "INSERT INTO life_artifact_evaluation VALUES(?,?,?,?,?,?,?,?,?,?,?)",
             (
@@ -495,6 +511,7 @@ class LifeStore:
 
     def record_evaluation(self, value: ArtifactEvaluation) -> None:
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
             self._insert_evaluation(db, value)
 
     def record_evaluation_with_experience(
