@@ -3099,6 +3099,49 @@ def test_missing_source_never_reappears_as_causal_experience_summary(tmp_path):
         life.close()
 
 
+@pytest.mark.parametrize("source_problem", ["source_after_event", "invalid_iso"])
+def test_life_causal_trace_refuses_inverted_or_malformed_source_time(
+    tmp_path, source_problem,
+):
+    """Later source evidence is not an earlier experience's observed cause."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _original = active_project(life, now)
+        evidence = life.record_observation(
+            kind="chronology", source="test:causal-source",
+            assertion="A later genuine note exists, not an earlier observation.",
+            now=now + timedelta(seconds=4),
+        )
+        episode_id = "experience:backdated-source-causal-trace"
+        life.store.record_experience(ExperienceRecord(
+            episode_id, project.project_id,
+            "ordinary_observation", "Backdated event must not become knowledge.",
+            (evidence,), project.audience_id, True,
+            now + timedelta(seconds=2), now + timedelta(seconds=3),
+            {"source_state": "not_trusted_before_event"},
+        ))
+        if source_problem == "invalid_iso":
+            with sqlite3.connect(life.path) as db:
+                db.execute(
+                    "UPDATE goal_evidence_record SET observed_at=? "
+                    "WHERE evidence_ref=?",
+                    ("not-an-ISO-time", evidence),
+                )
+        trace = life.project_causal_trace(
+            project.project_id, now=now + timedelta(seconds=5),
+        )
+        episode = next(
+            value for value in trace["experiences"]
+            if value["experience_id"] == episode_id
+        )
+        assert episode["source_state"] == "unknown"
+        assert episode["source_evidence_refs"] == ()
+        assert episode["summary"] is None
+        assert episode["kind"] == "unknown"
+    finally:
+        life.close()
+
+
 def test_retired_interest_closes_idle_active_optional_project(tmp_path):
     """A newly retired source interest cannot strand a still-active LIFE goal."""
     life, goals, now = infrastructure(tmp_path)
