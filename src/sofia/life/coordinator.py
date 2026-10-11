@@ -3333,19 +3333,18 @@ class SelfDirectedLifeCoordinator:
         aware(now, "procedure reference time")
         if project.scope is not ProjectScope.PERSONAL_PRIVATE:
             return ()
-        sources = dict(self.procedures.verified_proof_projects(limit=64))
-        return tuple(
-            precedent
-            for precedent in self.procedures.available_for_project(
-                project, limit=2,
+        eligible = []
+        for precedent in self.procedures.available_for_project(
+            project, limit=2,
+        ):
+            original_project_ids = self.procedures.source_projects_for_compatible_precedent(
+                procedure=precedent, project=project,
             )
-            if (
-                precedent.procedure_id in sources
-                and self._verified_procedure_origins_current(
-                    sources[precedent.procedure_id], now=now,
-                )
-            )
-        )[:2]
+            if self._verified_procedure_origins_current(
+                original_project_ids, now=now,
+            ):
+                eligible.append(precedent)
+        return tuple(eligible)
 
     def _reconcile_procedure_catalog(
         self, *, now: datetime, limit: int = 64,
