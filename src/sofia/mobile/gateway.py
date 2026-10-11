@@ -286,12 +286,14 @@ class MobileCompanionGateway:
                         before=payload["before"], limit=payload["limit"],
                     )
                 if operation == "/v1/mobile/threads":
-                    if set(payload) != {"device_id", "private_mode", "limit"}:
+                    required = {"device_id", "private_mode", "limit"}
+                    if set(payload) not in (required, required | {"include_archived"}):
                         raise ValueError("thread list payload fields are invalid")
                     return self.visible_thread_headers(
                         device_id=device,
                         private_mode=payload["private_mode"],
                         limit=payload["limit"],
+                        include_archived=payload.get("include_archived", False),
                     )
                 if operation == "/v1/mobile/thread/page":
                     if set(payload) != {
@@ -985,9 +987,9 @@ class MobileCompanionGateway:
 
     def visible_thread_headers(
         self, *, device_id: object, private_mode: object = False,
-        limit: object = 30,
+        limit: object = 30, include_archived: object = False,
     ) -> dict[str, object]:
-        """List only project titles with visible original source messages.
+        """List projects currently authorized to this original audience.
 
         The owner principal alone does not grant a different transport access
         to project titles or content from another source audience.
@@ -997,6 +999,8 @@ class MobileCompanionGateway:
             raise TypeError("private_mode must be a bool")
         if type(limit) is not int or not 1 <= limit <= 50:
             raise ValueError("thread list limit must be 1..50")
+        if type(include_archived) is not bool:
+            raise TypeError("include_archived must be bool")
         principal = self._principal(device, private_mode=private_mode)
         if private_mode and not self.permissions.private_adult_authority().private_chat:
             raise PermissionError("private thread list requires host private-chat grant")
@@ -1005,7 +1009,10 @@ class MobileCompanionGateway:
             # Apply source-audience admission in canonical SQL BEFORE
             # limiting the result. Otherwise >limit inaccessible project
             # titles can starve the authorized phone's project list.
-            headers = source.list_visible_threads(owner=principal, limit=limit)
+            headers = source.list_visible_threads(
+                owner=principal, limit=limit,
+                include_archived=include_archived,
+            )
             visible = []
             for header in headers:
                 visible.append({
@@ -1013,9 +1020,11 @@ class MobileCompanionGateway:
                     "kind": header.kind,
                     "name": header.name,
                     "created_at": header.created_at.isoformat(),
+                    "archived": header.archived_at is not None,
                 })
         return {
             "threads": visible,
+            "include_archived": include_archived,
             "audience_id": principal.audience_id,
             "audience_kind": principal.audience_kind.value,
             "cross_channel_mirroring": False,
