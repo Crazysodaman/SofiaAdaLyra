@@ -1,4 +1,0 @@
-# Preserve the V18 authoritative roadmap byte-for-byte on Windows and Linux.
-# V18 verifier binds its SHA256 to the original Git blob, so autocrlf
-# conversion must never change checkout bytes.
-docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md -text
