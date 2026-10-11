@@ -35,6 +35,28 @@ The runtime and the language-model inference engine are separate. Artemis does *
 - Signed location bootstrap: `src/sofia/config/state_home_pointer.py`. Its HMAC and epoch checks are not independently sufficient to fence a disconnected old writer.
 - Encrypted state snapshot/restore: `src/sofia/ops/backup.py`, including canonical `sofia.db`, identity and other protected assets; do not simply copy open SQLite files/WAL over SMB.
 
+## Headless Linux runtime service (source committed; not deployed)
+
+Both **Debian Stable and Arch Linux** use systemd. The production guest therefore uses a single distribution-neutral launcher, `src/sofia/run/systemd_runtime.py`, instead of either installing a Windows service inside Linux or reusing `sofia-fleet-agent.service` (that is a **separate Fleet agent**).
+
+The launcher starts the actual canonical `SofiaApplication` and calls its shutdown path on SIGTERM/SIGINT. It requires an existing, externally signed state-home pointer and explicitly refuses any systemd environment-file override of `SOFIA_RUNTIME_MODE=production` or `SOFIA_IDENTITY_BOOTSTRAP_MODE=require_existing`. It must not create a new `sofia.db` or independently promote a copied database. The pointer only authenticates location/epoch and **does not itself fence Venus**.
+
+For operator review only, once a Linux guest and persistent paths are chosen:
+
+```shell
+/opt/sofia/.venv/bin/python -m sofia.run.systemd_runtime render-unit \
+  --python /opt/sofia/.venv/bin/python \
+  --state-root /var/lib/sofia-ada-lyra \
+  --environment-file /etc/sofia/production.env \
+  --user sofia
+```
+
+This prints a unit and **does not install, enable or start it**. The real state root and Python path must match the operator-approved guest. The environment file is independently protected by the OS administrator, not world-readable and **outside** the state home; it supplies signed pointer path, externally protected HMAC key location, verified guest writer-host ID, independent writer epoch floor, and approved mTLS Fleet inference settings. Do not put API keys in the command line or in this document. The rendering source refuses unsafe path/service-user values and disallows root.
+
+The rendered unit uses `Type=simple`, `Restart=on-failure`, `WantedBy=multi-user.target`, a non-root `sofia` account, `ProtectSystem=strict`, `ProtectHome=true`, `NoNewPrivileges=true`, limited `ReadWritePaths` and normal journald output. Service manager **active** is not proof of complete application readiness, Fleet trust, UI network reachability, or correctness. The operator must still verify readiness, file ACLs and all runtime receipts on the actual guest.
+
+**No live service may be enabled on VM `Sofia` while Venus is still an active writer.** Migration must first establish the privileged broker, restore/verify the full state, fence the Venus writer and independently advance the epoch before the external signer activates the new pointer. Inference remains pinned to the approved Venus GPU worker; no fallback to an unapproved local model.
+
 ## Staged migration requirements
 
 1. **Preflight only:** inspect exact Venus/Artemis machine and Fleet IDs and select the separately provisioned Hyper-V VM **`Sofia`** on Artemis. Check guest OS, persistent disk location, guest identity, virtual networking, permissions, throughput, resources, mobile/desktop client routing, model availability and encrypted independent backup capacity. The destination SQLite must be on an approved **host-local filesystem**, not a live SMB share.
@@ -47,7 +69,7 @@ The runtime and the language-model inference engine are separate. Artemis does *
 
 ## Unresolved owner inputs
 
-- **Guest operating system for VM `Sofia`:** not yet specified; this determines the service launcher, protected key storage, guest firewall and local persistent state root. The hypervisor is Artemis Windows, not the future guest's automatically assumed OS.
+- **Guest operating system for VM `Sofia`:** **headless Linux is preferred**, but Debian versus Arch remains unconfirmed by the operator. Recommend **Debian Stable** for the canonical always-on database/runtime because its package lifecycle is more predictable; Arch is technically compatible via systemd but requires proactive rolling maintenance. Do not treat the recommendation as approval to install Debian or Arch. The hypervisor remains Artemis Windows.
 - **Standby objectives:** desired maximum acceptable data loss and downtime (RPO/RTO); do not invent numbers.
 - **Authenticated operator identity and independent fencing witness:** the current literal actor label is not human authentication, and stage-only helpers cannot be misrepresented as live failover.
 - **Exact source and destination Fleet host IDs / addresses:** must be discovered and approved, not guessed or put into code as hardcoded network addresses.
