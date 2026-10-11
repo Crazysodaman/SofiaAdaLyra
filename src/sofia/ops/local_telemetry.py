@@ -72,6 +72,67 @@ def _windows_snapshot(runner=_run_powershell) -> dict[str, Any]:
     return payload
 
 
+
+def _windows_nvidia_gpu_snapshot(*, runner=None) -> dict[str, int | float] | None:
+    """Observe ONE physical NVIDIA GPU, not a summed fictitious VRAM pool.
+
+    NVIDIA's local read-only CLI returns MiB. Aggregate VRAM from multiple
+    cards must not be advertised as one GPU capable of hosting a model.
+    Unknown, malformed, unavailable and timeout all remain None.
+    """
+    import os
+
+    executable = shutil.which("nvidia-smi")
+    if executable is None:
+        root = os.environ.get("ProgramFiles", "")
+        fixed = Path(root) / "NVIDIA Corporation" / "NVSMI" / "nvidia-smi.exe"
+        executable = str(fixed) if root and fixed.is_file() else None
+    if executable is None:
+        return None
+    argv = (
+        executable, "--query-gpu=memory.total,memory.used,utilization.gpu",
+        "--format=csv,noheader,nounits",
+    )
+    try:
+        if runner is None:
+            completed = subprocess.run(
+                argv, capture_output=True, text=True, timeout=6, check=True,
+            )
+            output = completed.stdout
+        else:
+            output = runner(argv)
+        if not isinstance(output, str) or len(output) > 4096:
+            return None
+        lines = output.strip().splitlines()
+        if not 1 <= len(lines) <= 8:
+            return None
+        cards = []
+        for line in lines:
+            parts = [item.strip() for item in line.split(",")]
+            if len(parts) != 3:
+                return None
+            total, used, percent = (int(item) for item in parts)
+            if (
+                not 0 < total <= 1048576 or not 0 <= used <= total
+                or not 0 <= percent <= 100
+            ):
+                return None
+            cards.append((total - used, total, used, percent))
+        # The selected GPU represents a single independent placement target.
+        # Prefer greatest free VRAM, then lower utilization.
+        free, total, used, percent = max(
+            cards, key=lambda card: (card[0], -card[3])
+        )
+        mib = 1024 * 1024
+        return {
+            "gpu_percent": float(percent),
+            "vram_total_bytes": total * mib,
+            "vram_used_bytes": used * mib,
+        }
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError):
+        return None
+
+
 def _linux_meminfo(path: Path = Path("/proc/meminfo")) -> tuple[int | None, int | None]:
     if not path.is_file():
         return None, None
@@ -163,12 +224,16 @@ def collect_local_telemetry() -> HostTelemetry:
 
     if system == "Windows":
         payload = _windows_snapshot()
+        nvidia = _windows_nvidia_gpu_snapshot()
         return HostTelemetry(
             observed_at=observed_at,
             cpu_percent=_optional_float(payload.get("CpuPercent")),
             ram_used_bytes=_optional_int(payload.get("RamUsedBytes")),
             ram_total_bytes=_optional_int(payload.get("RamTotalBytes")),
             storage_free_bytes=_optional_int(payload.get("StorageFreeBytes")),
+            gpu_percent=None if nvidia is None else nvidia["gpu_percent"],
+            vram_total_bytes=None if nvidia is None else nvidia["vram_total_bytes"],
+            vram_used_bytes=None if nvidia is None else nvidia["vram_used_bytes"],
         )
 
     if system == "Linux":
