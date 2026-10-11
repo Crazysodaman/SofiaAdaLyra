@@ -490,6 +490,38 @@ class SofiaApplication:
             principal=principal, before=before, limit=limit,
         )
 
+    def lifelong_threads_for(self, principal, *, limit: int = 30):
+        """Read source-owned conversation thread headers for authenticated UI.
+
+        A trusted desktop/Discord/mobile adapter MUST supply its own verified
+        PrincipalContext. No text from an LLM is an authenticated identity.
+        """
+        from sofia.social.model import PrincipalContext
+        from sofia.conversation.lifelong import LifelongThreadStore
+
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated client principal required")
+        store = LifelongThreadStore(self._conversation_service.database_path)
+        return store.list_threads(owner=principal, limit=limit)
+
+    def lifelong_messages_for(
+        self, principal, *, thread_id: str, limit: int = 100,
+    ):
+        """Return original source messages scoped to the invoking audience.
+
+        Reading this projection never merges private Discord and desktop
+        visibility, grants permission or delivers a message on any channel.
+        """
+        from sofia.social.model import PrincipalContext
+        from sofia.conversation.lifelong import LifelongThreadStore
+
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated client principal required")
+        store = LifelongThreadStore(self._conversation_service.database_path)
+        return store.visible_messages(
+            principal=principal, thread_id=thread_id, limit=limit,
+        )
+
     def latest_companion_decision_trace(self):
         """Read-only, non-authoritative projection of the latest session turn.
 
