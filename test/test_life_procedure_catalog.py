@@ -4,6 +4,7 @@ Authored for the final user-run test campaign. No synthetic tool result is
 allowed to promote a procedure or create new SAFE/RUN authority.
 """
 from datetime import timedelta
+import json
 import sqlite3
 
 import pytest
