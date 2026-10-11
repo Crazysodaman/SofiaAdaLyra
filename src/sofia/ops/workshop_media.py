@@ -332,6 +332,13 @@ def prepare_offline_debian_installer(
             )
             if confirmed.read_text(encoding="utf-8") != modified:
                 raise RuntimeError("UEFI GRUB automatic-install entry changed")
+            hardened=workspace/"verify-sofia-setup.sh"
+            _run(
+                ["xorriso", "-osirrox", "on", "-indev", str(generated),
+                 "-extract", "/sofia-setup.sh", str(hardened)], timeout=120,
+            )
+            if _sha256_file(hardened) != _sha256_file(workspace/"sofia-setup.sh"):
+                raise RuntimeError("guest hardening script not preserved in UEFI ISO")
             media_digest=_sha256_file(generated)
             os.chmod(generated, 0o600)
             # Same-filesystem exclusive link does not overwrite existing output.
