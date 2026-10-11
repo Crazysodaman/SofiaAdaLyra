@@ -36,7 +36,10 @@
     "2026-10-11 Workstream4 Phase14 source audit: production assess_registered_adaptation now independently checks train versus held-out instruction overlap including case/Unicode/whitespace normalization, rereads exact dataset SHA-256 and checks that rights have not been revoked. Canonical training review refuses re-recording permanently revoked digests. Deferred targeted tests authored; no training, host actions, tests or CI. CA-6703 stays coded candidate/test pending; CA-6706/6708 partial.",
     "2026-10-11 WS4 NEURO memory-derived state audit: canonical neuro_association_* tables already cleaned revoked and deleted candidates; new installed SQLite trigger also erases prior association weights and teaching receipts when promoted memory content, principal or audience changes in place. Focused regression source authored, not run. CA-705/711 remain prior code-ready candidates with tests pending, no new accepted task.",
     "2026-10-11 W4 Phase11 CA-6608 source hardening: model promotion now uses the existing RuntimeUserSettingsStore pinned CanonicalSQLiteGuard for each transaction, denies another role transition while any previous promotion remains applying/uncertain, and refuses replaying historical accepted receipts if current canonical settings no longer match the accepted model mapping. Focused regressions authored, no tests/CI or live model changes. CA-6608 remains partial: no independent host broker/role drain/provider health acceptance yet.",
-    "2026-10-11 W4 Phase16: owner-reviewed scientific positive outcomes now require preregistered sample floor, negative/null measured findings require observations, and complete canonical outcome counts by type include old adverse/refuted/null records beyond the last 128 recent examples. Test source authored and bootstrap fixture corrected, no study or test run. CA-806/812 remain code-path candidates, zero accepted."
+    "2026-10-11 W4 Phase16: owner-reviewed scientific positive outcomes now require preregistered sample floor, negative/null measured findings require observations, and complete canonical outcome counts by type include old adverse/refuted/null records beyond the last 128 recent examples. Test source authored and bootstrap fixture corrected, no study or test run. CA-806/812 remain code-path candidates, zero accepted.",
+    "2026-10-11 Workstream4 continuation3: Production SAFE explicitly classifies five screen scopes as protected or never-self-authorized, but NO actual OS picker, screen backend or pixel proof exists. Vision frame receipt idempotency now binds all canonical principal/audience/device/target metadata and validates frame evidence shape. Authoritative source-to-sink Phase12 audit added; CA-6202/6205 partial, CA-6206/7/8 still partial. Deferred tests authored, no tests or actual captures.",
+    "2026-10-11 Workstream4 continuation3: EVOLVE public JSONL source intake now rejects path-component symlinks and Windows junctions, UNC locations, mid-inspection file identity/size/mtime drift and stream expansion beyond size bounds; license class/provenance claims must agree and blank content rejected. This is not independently verified source copyright or a live model trainer. CA-6703 remains code candidate without test proof.",
+    "2026-10-11 Workstream4 continuation3: Global optional RUN budget reserve/settle now requires an existing transaction and validates typed timestamps, while preserving the current coordinator's BEGIN IMMEDIATE protection. This is not a measured resource usage benchmark. No tests/CI/host actions."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -273,7 +276,18 @@
     "256e2bc9f1103b36a1ebf3dd99fb754e220d4baa",
     "0ec29038da9cb7394bba9827cf5450479e321214",
     "29b3b371d081adcd87999d736724565ebe214bce",
-    "2606bf368c93ca1cf4351c4d99d2f5373280744b"
+    "2606bf368c93ca1cf4351c4d99d2f5373280744b",
+    "f97d9a061a110ed29a07aa56f0e3c8abde6a13bd",
+    "0da3731e46bc9e03969ab81199fda92e3a15ce87",
+    "0cf2b6d2981b7f86059992f960c1f9108307d5a3",
+    "16f1628cdca83831904f5245d8dc1716647399c7",
+    "68cb93be92af7a34848a7f74a66864ddd04b4357",
+    "d5dc572b661325f1a22faca5a6116f17b6b75ea8",
+    "64e45a627e2c7c3f922a49ec3e4c1d09d0d7da62",
+    "488c7c0ec530d61abf73b53c64968de289fdeb20",
+    "3817cc30cb78ce0debaacc6dbaae878cac8122b6",
+    "8bd18a9c40a7f5ac645b66ec79f1d22f10f4d796",
+    "cc1e78ec444d2a66f0ecba1d0a2a1cbee7da3e9c"
   ],
   "tasks": [
     {
@@ -286,7 +300,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Actual ApplicationBackgroundCoordinator's canonical RUN BackgroundBudget now atomically reserves global daily optional token, CPU, GPU, storage and occupied-latency credits in the exact existing SQLite single-flight claim transaction before all optional LIFE/NEURO/reflection/ACT/maintenance callbacks. Preserves cross-process fencing, UTC-day caps, conservative fallback for new/unclassified tasks, crash recovery, immutable per-attempt consumption, owner-revisioned Limits UI in Models, and model-visible read-only OPS report. Foreground chats never acquire optional claims. Credits are upper-bound reservations, not fabricated actual GPU/CPU/token usage. Deferred production regression tests authored but not executed."
+      "finding": "Actual ApplicationBackgroundCoordinator's canonical RUN BackgroundBudget now atomically reserves global daily optional token, CPU, GPU, storage and occupied-latency credits in the exact existing SQLite single-flight claim transaction before all optional LIFE/NEURO/reflection/ACT/maintenance callbacks. Preserves cross-process fencing, UTC-day caps, conservative fallback for new/unclassified tasks, crash recovery, immutable per-attempt consumption, owner-revisioned Limits UI in Models, and model-visible read-only OPS report. Foreground chats never acquire optional claims. Credits are upper-bound reservations, not fabricated actual GPU/CPU/token usage. Deferred production regression tests authored but not executed. Additional optional credit ledger fail-closed guard refuses reserve/settle operations outside a preexisting SQLite transaction and invalid settlement clock/failure flag; production RUN coordinator already uses BEGIN IMMEDIATE for claims. Source src/sofia/application/optional_budget.py and test/test_optional_autonomy_budget_production.py deferred; measured performance unknown."
     },
     {
       "id": "CA-2102",
@@ -905,11 +919,12 @@
       "phase": "12",
       "master_line": 986,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Source-to-sink audit matrix written to docs/development/v18-ws4-phase12-vision-source-audit-2026-10-11.md: distinguishes proposal/receipt/SAFE classification from no genuine active-user Windows.Graphics.Capture or Hyprland ScreenCast picker, no watch/stop/redaction/VLM/action backend. Exact test/acceptance statuses remain not run; this is an audit and does not close live vision."
     },
     {
       "id": "CA-6203",
@@ -938,11 +953,12 @@
       "phase": "12",
       "master_line": 989,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Explicit production SAFE capability policy classifications: screen.discover / screen.capture_once / screen.watch_scoped are protected, and screen.remote_view / screen.act_exact are never-self-authorized with PROTECTED_PRIVATE privacy and no standing or automatic grant. Source src/sofia/safe/permissions.py and deferred test/test_screen_capability_authority.py. No actual OS capture, watch, remote sharing or GUI executor yet."
     },
     {
       "id": "CA-6206",
@@ -966,7 +982,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Receipt metadata path currently accepts synthetic adapter-attested frames, not real Windows/Hyprland OS capture. Tightened ScreenFrameEvidence principal binding, denied comparing different principals, canonical receipt schema adds exact principal, old receipts quarantined rather than guessed. Production Settings history reads exact principal+audience, not merely audience. Host/session/geometry/source-bound OS frame evidence and genuine inference still missing. Paths: src/sofia/vision/journeys.py, src/sofia/ui/settings_sections.py; tests unrun."
+      "finding": "Receipt metadata path currently accepts synthetic adapter-attested frames, not real Windows/Hyprland OS capture. Tightened ScreenFrameEvidence principal binding, denied comparing different principals, canonical receipt schema adds exact principal, old receipts quarantined rather than guessed. Production Settings history reads exact principal+audience, not merely audience. Host/session/geometry/source-bound OS frame evidence and genuine inference still missing. Paths: src/sofia/vision/journeys.py, src/sofia/ui/settings_sections.py; tests unrun. Source hardening: exact principal+audience+device and all immutable receipt metadata checked on idempotent collision; frame evidence requires timestamp consistency and lowercase digest. Does NOT verify OS-issued target/consent; real picker missing. src/sofia/vision/journeys.py, test/test_vision_principal_receipt_isolation.py unrun."
     },
     {
       "id": "CA-6208",
@@ -978,7 +994,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Existing metadata-only screen receipts persisted no raw pixels but audience-only lookup could leak observation timestamps across principals. Fixed exact principal+audience filtering and legacy row quarantine via additive canonical SQLite schema migration; owner UI uses scoped lookup, tests authored. OS protected-surface, sensitive-app denylist, model prompt egress and live redaction gates still missing. Paths: src/sofia/vision/journeys.py, src/sofia/ui/settings_sections.py; tests unrun."
+      "finding": "Existing metadata-only screen receipts persisted no raw pixels but audience-only lookup could leak observation timestamps across principals. Fixed exact principal+audience filtering and legacy row quarantine via additive canonical SQLite schema migration; owner UI uses scoped lookup, tests authored. OS protected-surface, sensitive-app denylist, model prompt egress and live redaction gates still missing. Paths: src/sofia/vision/journeys.py, src/sofia/ui/settings_sections.py; tests unrun. Source-visible metadata-only receipts now reject cross-scope ID aliasing and malformed frame claims, but screenshot redaction/secure desktop privacy cannot be proven absent native OS provider. src/sofia/vision/journeys.py tests unrun."
     },
     {
       "id": "CA-6209",
@@ -1846,7 +1862,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run. Further production source preflight rejects overlapping train/held-out example prompts, exact SHA-256 changes during second inspection and re-recording permanently revoked datasets. src/sofia/evolve/training_policy.py and training_sources.py, deferred test/test_evolve_training_holdout_separation.py. Not executed; does not prove comprehensive poisoning detection."
+      "finding": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run. Further production source preflight rejects overlapping train/held-out example prompts, exact SHA-256 changes during second inspection and re-recording permanently revoked datasets. src/sofia/evolve/training_policy.py and training_sources.py, deferred test/test_evolve_training_holdout_separation.py. Not executed; does not prove comprehensive poisoning detection. Additional reviewed local JSONL source proof: disallow redirected path ancestors, UNC source path, changed inode/size/mtime across open/read/close and overlarge streaming intake; align claimed licensed-public/owner-original/synthetic rights with public-source/owner-source provenance and reject whitespace-only examples. src/sofia/evolve/training_sources.py, test/test_training_dataset_source_identity.py deferred. Copyright ownership/license NOT externally verified."
     },
     {
       "id": "CA-6704",
