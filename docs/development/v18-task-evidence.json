@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "f47916ebbb114f690f1e72d62b96a7828e71d91d",
+  "reviewed_main_sha": "09089c21ab4f7e181fe0258b4cc0f2f41e0e7210",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2506,7 +2506,12 @@
         "5f5f17d985c7bec4ed8e22db4f915e850db6c660",
         "197ac3d0fa345f65b8e397def8d31d3ab3029adb",
         "55d79acb6e3250265e2f626e65928eaa3d6b4e96",
-        "6224c271dd8ad93877ace89462264670c5459d2a"
+        "6224c271dd8ad93877ace89462264670c5459d2a",
+        "a54c5e98476fc0bab7d6ddd01b5cb7e6a30efd79",
+        "2f8e8851d56eb2f38d0dd170dc752ad583f23b65",
+        "51c3f966244d154007ce1241e19d1f30be6d276b",
+        "7abb5bc6dd7dde765e279787a2cbea8e330315fe",
+        "09089c21ab4f7e181fe0258b4cc0f2f41e0e7210"
       ],
       "accepted": false,
       "coding_update": {
@@ -2617,6 +2622,24 @@
           "production_route": "Signed-in Venus Windows account token SID and operator typed confirmation -> platform WebAuthn registration -> strict fmt-none CTAP ES256/UV/origin validation -> canonical SID-locked one-time first trust -> existing owner signed registration proof for physical/backup security keys -> canonical one-use approved protected action via browser -> real Settings model install/Fleet handlers.",
           "fulfilled_slice": "Option A first Windows Hello enrollment, additional FIDO2/backup registration and revocation with surviving security-key guard, account SID pinning, local protected browser and two UI effect paths source-coded. No model-trusted alternate writer or actor label can bypass these paths.",
           "remaining": "Credential attestation policy, actual user-supervised Windows Hello/key tests, offline recovery, original owner portability to Debian canonical host, full UI/Tray and Level-5 permission stores still open; not accepted."
+        },
+        {
+          "source_review_sha": "f47916ebbb114f690f1e72d62b96a7828e71d91d",
+          "commits": [
+            "a54c5e98476fc0bab7d6ddd01b5cb7e6a30efd79",
+            "2f8e8851d56eb2f38d0dd170dc752ad583f23b65",
+            "51c3f966244d154007ce1241e19d1f30be6d276b",
+            "7abb5bc6dd7dde765e279787a2cbea8e330315fe",
+            "09089c21ab4f7e181fe0258b4cc0f2f41e0e7210"
+          ],
+          "source_paths": [
+            "src/sofia/safe/execution_approval.py",
+            "test/test_safe_owner_webauthn.py",
+            "src/sofia/safe/owner_webauthn.py"
+          ],
+          "production_route": "Canonical SAFE approval reader always installs empty WebAuthn schema without registering any key. Auth-bound approved effects require nonrevoked credential at recording, projection, preflight and consume; revocation invalidates outstanding one-use grants signed by the revoked key.",
+          "fulfilled_slice": "No missing-table failure on a never-enrolled canonical runtime, and unused protected approvals become invalid immediately when the signing credential is revoked.",
+          "remaining": "Source and regression tests authored, never executed. Full revocation user acceptance, hardware attestation and Level-5 grant store remain open."
         }
       ]
     },
