@@ -39,6 +39,31 @@ MAX_BYTES=16*1024*1024
 MAX_LINE=8192
 MAX_ROWS=100_000
 
+
+def _rights_class_matches_source(
+    source_class:str, license_id:str, source_ref:str,
+)->bool:
+    """Validate claimed source-rights CATEGORY, not the external license itself."""
+    if (
+        source_class not in SOURCE_CLASSES or license_id not in LICENSES
+        or not isinstance(source_ref,str)
+        or not 1<=len(source_ref)<=300
+        or not source_ref.startswith(("public-source:","owner-source:"))
+    ):
+        return False
+    if source_ref.startswith("owner-source:"):
+        return (
+            license_id=="OWNER-ORIGINAL"
+            and source_class in {"owner_original_nonprivate","synthetic_nonsensitive"}
+            and len(source_ref)>len("owner-source:")
+        )
+    return (
+        license_id!="OWNER-ORIGINAL"
+        and source_class in {"licensed_public","synthetic_nonsensitive"}
+        and len(source_ref)>len("public-source:")
+    )
+
+
 @dataclass(frozen=True,slots=True)
 class TrainingDatasetReview:
     digest:str
@@ -58,9 +83,10 @@ class TrainingDatasetReview:
     def __post_init__(self):
         if (
             not re.fullmatch(r"[0-9a-f]{64}",self.digest)
-            or self.source_class not in SOURCE_CLASSES
-            or self.license_id not in LICENSES
-            or not self.source_ref.startswith(("public-source:","owner-source:"))
+            or not _rights_class_matches_source(
+                self.source_class,self.license_id,self.source_ref
+            )
+            or not isinstance(self.approval_ref,str)
             or not self.approval_ref.startswith("owner-ui:")
             or self.training_authorized or self.deployment_authorized
             or self.private_data_authorized
@@ -75,8 +101,8 @@ def inspect_public_dataset(*,path:str|Path,source_class:str,license_id:str,
                            source_ref:str,approval_ref:str,at:datetime)->TrainingDatasetReview:
     if source_class not in SOURCE_CLASSES or license_id not in LICENSES:
         raise PermissionError("raw private conversation/Discord/screen data are prohibited")
-    if source_class=="owner_original_nonprivate" and license_id!="OWNER-ORIGINAL":
-        raise PermissionError("owner-original material needs owner rights provenance")
+    if not _rights_class_matches_source(source_class,license_id,source_ref):
+        raise PermissionError("training rights class, license and origin receipt conflict")
     requested=Path(path).expanduser()
     if any(
         component.is_symlink()
@@ -126,6 +152,7 @@ def inspect_public_dataset(*,path:str|Path,source_class:str,license_id:str,
                 not isinstance(row,dict)
                 or set(row)!={"instruction","response"}
                 or any(not isinstance(row[k],str) or not 1<=len(row[k])<=3000
+                       or not row[k].strip()
                        for k in ("instruction","response"))
                 or SENSITIVE.search(json.dumps(row,ensure_ascii=False))
             ):
