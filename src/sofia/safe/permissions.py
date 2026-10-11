@@ -75,9 +75,14 @@ class StandingPermissionGrant:
         return moment >= self.granted_at.astimezone(timezone.utc)
 
     def matches(self, parameters: dict[str, Any], *, now: datetime) -> bool:
-        if not self.is_active_at(now):
+        # An empty saved scope must not behave as a wildcard. Legacy grants
+        # are retained for audit but cannot authorize any operation.
+        if not self.scope or not self.is_active_at(now):
             return False
-        return all(parameters.get(key) == expected for key, expected in self.scope.items())
+        return all(
+            key in parameters and parameters[key] == expected
+            for key, expected in self.scope.items()
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -468,7 +473,12 @@ class PermissionStore:
         identifier = grant_id or str(uuid4())
         if not isinstance(identifier, str) or not identifier.strip():
             raise ValueError("grant_id must be nonempty")
-        normalized_scope = dict(scope or {})
+        if not isinstance(scope, dict) or not scope:
+            raise ValueError(
+                "level-3 standing grants require an exact nonempty scope; "
+                "unrestricted standing grants are not supported"
+            )
+        normalized_scope = dict(scope)
         encoded_scope = self._scope_json(normalized_scope)
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
