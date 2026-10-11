@@ -1155,6 +1155,26 @@ regressions: `af2c69b5a349688e8e72dba000ec41fe2bc0d136`.
 No retention command or test was executed; no real backup deleted.
 Original CA relevance: CA-5204, CA-5207, CA-6105, CA-6404.
 
+### Phase 04/05: Completed old mobile responses cannot bypass revoked private presentation
+
+The existing canonical completed `mobile_turn_receipt.response_json`
+is an immutable **historical execution record**, not a standing grant
+to resurface a once-authorized private/adult presentation.
+`MobileCompanionGateway._authorize_completed_presentation` now runs
+for both exact-ID chat completion replay and the new read-only
+`/v1/mobile/delivery/status` recovery endpoint. It checks saved
+private-mode scope and whether historic `adult_chat_enabled` and
+`adult_avatar_enabled` actually had host approval. If either true
+grant has since been revoked, replay is denied. Existing original receipt
+and underlying transcript are **not** changed. Standard-audience recovery
+does not inherit or require an unrelated adult grant.
+
+Production commit: `4d802ed64363b28dee2116ce00dd652acb05ec3e`.
+Deferred end-to-end status/replay revocation and restoration regressions:
+`2c0006ee98577714cf3cf0959a26891fc0536536`.
+No model call, replay execution, tests, CI or host change performed.
+CA relevance: CA-4107, CA-4108, CA-5304, CA-6304, CA-6310.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
