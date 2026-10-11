@@ -197,7 +197,11 @@ def test_generation_requires_private_owner_key_dir(tmp_path,monkeypatch):
         "sofia.ops.workshop_media_attestation.getpass",
         lambda _: "not-a-real-user-secret",
     )
-    with pytest.raises(PermissionError,match="group/world"):
+    # POSIX inspects mode bits; Windows inspects the real DACL owner and
+    # rejects the explicitly granted Everyone READ access.
+    with pytest.raises(PermissionError,match=(
+        "unauthorized ACL reader" if os.name == "nt" else "group/world"
+    )):
         create_owner_signing_keypair(folder)
 
 
