@@ -629,17 +629,20 @@ class LifelongThreadStore:
 
     def list_threads(
         self, *, owner: PrincipalContext, limit: int = 30,
+        include_archived: bool = False,
     ) -> tuple[LifelongThread, ...]:
         """Enumerate only canonical thread headers owned by authenticated user."""
         if not isinstance(owner, PrincipalContext):
             raise TypeError("authenticated PrincipalContext required")
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("bounded thread listing required")
+        if type(include_archived) is not bool:
+            raise TypeError("include_archived must be bool")
         with closing(self._connect()) as db:
             rows = db.execute(
                 "SELECT * FROM lifelong_thread WHERE owner_principal_id=? "
-                "AND archived_at IS NULL "
-                "ORDER BY CASE kind WHEN 'main' THEN 0 ELSE 1 END,"
+                + ("" if include_archived else "AND archived_at IS NULL ")
+                + "ORDER BY CASE kind WHEN 'main' THEN 0 ELSE 1 END,"
                 "created_at DESC,thread_id LIMIT ?",
                 (owner.principal_id, limit),
             ).fetchall()
@@ -647,6 +650,7 @@ class LifelongThreadStore:
 
     def list_visible_threads(
         self, *, owner: PrincipalContext, limit: int = 30,
+        include_archived: bool = False,
     ) -> tuple[LifelongThread, ...]:
         """Page headers only AFTER original-audience visibility admission.
 
@@ -659,10 +663,14 @@ class LifelongThreadStore:
             raise TypeError("authenticated PrincipalContext required")
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("bounded visible thread listing required")
+        if type(include_archived) is not bool:
+            raise TypeError("include_archived must be bool")
         with closing(self._connect()) as db:
             rows = db.execute(
                 "SELECT t.* FROM lifelong_thread AS t "
-                "WHERE t.owner_principal_id=? AND t.archived_at IS NULL AND ("
+                "WHERE t.owner_principal_id=? "
+                + ("" if include_archived else "AND t.archived_at IS NULL ")
+                + "AND ("
                 "t.kind='main' OR (t.kind='project' AND EXISTS ("
                 "SELECT 1 FROM lifelong_thread_event AS e "
                 "JOIN conversation_messages AS m "
