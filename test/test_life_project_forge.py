@@ -1854,3 +1854,56 @@ def test_manual_life_pause_cannot_be_undone_by_active_goal(tmp_path):
         )
     finally:
         life.close()
+
+
+def test_direct_life_work_admission_enforces_utc_daily_seconds_budget(tmp_path):
+    """A direct original creative submission cannot bypass LIFE's idle budget."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        life.store.add_usage(
+            project_id=project.project_id,
+            usage_day=(now + timedelta(seconds=3)).astimezone(timezone.utc).date(),
+            cpu_seconds=1, gpu_seconds=0,
+            wall_seconds=project.brief.resource_budget.daily_seconds,
+            storage_bytes=0,
+        )
+        with pytest.raises(RuntimeError, match="daily work-time budget"):
+            life.schedule_artifact(
+                project.project_id, artifact_kind=ArtifactKind.TEXT,
+                title="Exhausted budget",
+                specification={"content": "This must never reach RUN."},
+                evidence_ref=evidence,
+                now=now + timedelta(seconds=3),
+            )
+        assert life.store.jobs(project.project_id) == ()
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_life_run_deadline_respects_remaining_utc_daily_budget(tmp_path):
+    """RUN admission cannot hand out a longer interval than budget remaining."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        remaining = 90
+        life.store.add_usage(
+            project_id=project.project_id,
+            usage_day=(now + timedelta(seconds=3)).astimezone(timezone.utc).date(),
+            cpu_seconds=1, gpu_seconds=0,
+            wall_seconds=project.brief.resource_budget.daily_seconds - remaining,
+            storage_bytes=0,
+        )
+        submitted_at = now + timedelta(seconds=3)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Bounded budget",
+            specification={"content": "Authorized but not yet executed."},
+            evidence_ref=evidence, now=submitted_at,
+        )
+        assert job.deadline == submitted_at + timedelta(seconds=remaining)
+        assert job.status is WorkStatus.QUEUED
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
