@@ -1685,6 +1685,47 @@ CA-6311, CA-6807. This is one **operator handoff artifact** slice,
 not global writer fencing or original-task completion. Tests/CI unrun;
 no actual host, service, migration, key or active pointer changed.
 
+
+
+### Phase 05 item 54: Completed canonical Main replay needs current originals
+
+The real `ConversationService.respond`, owner-tool-result and guarded
+special-response routes all use `LifelongThreadStore.admit_turn` before
+dispatching another model/tool action. Previously an exact duplicate
+`event_id` with `canonical_conversation_turn.status='completed'`
+returned `response_json` based on its durable digest and current session
+binding alone, even after the original user/assistant message or its
+`lifelong_thread_event` Main audience link had been erased or withdrawn.
+A stored receipt is important audit evidence but cannot itself restore
+deleted source content or revoke a subsequent deletion.
+
+Production `src/sofia/conversation/lifelong.py` now verifies the two
+original source message IDs, their user/assistant roles, exact source
+session, current Main thread owner, exact audience visibility, durable
+canonical sequence and turn position **inside the same canonical
+`BEGIN IMMEDIATE` snapshot used for duplicate turn admission**.
+It also compares the original assistant text to the settled response and
+rejects unreadable serialized response data as uncertain. Missing or
+changed source/links raise `CanonicalTurnUncertain` without replaying
+the model, returning deleted text or altering original completion
+evidence. A valid existing completion still returns the original
+response and sequence. Owner-tool-result calls are also supported:
+their user message is an action description while the admission digest
+binds an additional result hash, so the replay guard does not incorrectly
+require literal equality of those different legitimate strings.
+
+Production `22e953989cf276fc384468beecdf5d0b7d9aeb73`
+(`[skip ci]`). Deferred synthetic canonical SQLite regression coverage in
+`test/test_ws2_completed_main_replay_source.py`,
+`554aaedf441633d25e6e1c93f294139bfe017436` (`[skip ci]`):
+source deletion, assistant deletion, withdrawn Main link, modified
+assistant original, and intact original replay.
+
+Original CA relevance: CA-4107, CA-5302, CA-5304, CA-5306,
+CA-5503, CA-5505, CA-5603, CA-6306.
+No source restoration or accepted task status implied. No tests/CI
+executed, no live messages, database or grants modified.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
