@@ -537,10 +537,20 @@ class BackupEngine:
             )
             _reject_redirected_restore_path(dest)
         target_root.mkdir(parents=True, exist_ok=True)
-        if target_state_path.exists() and not replace_existing:
-            raise BackupError(
-                "target state database exists; explicit replace_existing required"
-            )
+        if not replace_existing:
+            for entry in manifest.entries:
+                destination = (
+                    target_state_path if entry.logical_path == "sofia.db"
+                    else target_root / entry.logical_path
+                )
+                # An absent SQLite file does not mean the rest of an
+                # existing owner home is safe to replace. Never destroy
+                # protected identity or asset files on a default restore.
+                if destination.exists() or destination.is_symlink():
+                    raise BackupError(
+                        "restore bundle target exists; explicit "
+                        "replace_existing required"
+                    )
 
         with tempfile.TemporaryDirectory(
             prefix=".sofia-restore.",
@@ -668,11 +678,22 @@ class BackupEngine:
                             shutil.copyfileobj(original_file, restored_file)
                             restored_file.flush()
                             os.fsync(restored_file.fileno())
-                        # No file contents may be copied into a caller-controlled
-                        # preexisting temporary pathname; the final rename
-                        # atomically replaces ONLY the verified target name.
+                        # File bytes are already durable. A default restore
+                        # now uses create-if-absent publication for EVERY
+                        # protected asset, not only the SQLite database. The
+                        # hard link and temporary file share a filesystem;
+                        # an unsupported hard-link filesystem fails closed.
                         _reject_redirected_restore_path(destination)
-                        os.replace(temp_target, destination)
+                        if replace_existing:
+                            os.replace(temp_target, destination)
+                        else:
+                            try:
+                                os.link(temp_target, destination)
+                            except FileExistsError as exc:
+                                raise BackupError(
+                                    "restore target appeared during publication; "
+                                    "never overwrite without explicit replace_existing"
+                                ) from exc
                         published_directories.add(destination.parent)
                     finally:
                         temp_target.unlink(missing_ok=True)
