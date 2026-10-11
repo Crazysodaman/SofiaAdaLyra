@@ -487,6 +487,11 @@ class DurableMemoryCandidateStore:
                     current = datetime.fromisoformat(source[7])
                 except (TypeError, ValueError):
                     return False
+                if (
+                    before.tzinfo is None or before.utcoffset() is None
+                    or current.tzinfo is None or current.utcoffset() is None
+                ):
+                    return False
                 if before.astimezone(timezone.utc) != current.astimezone(timezone.utc):
                     return False
             return True
