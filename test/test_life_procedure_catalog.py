@@ -342,6 +342,68 @@ def test_procedure_source_rot_is_not_reused_for_subsequent_life_draft(
         life.close()
 
 
+@pytest.mark.parametrize("alter_original", ["revoke_receipt", "downgrade_run"])
+def test_procedure_promotion_rechecks_original_source_under_writer_lock(
+    tmp_path, monkeypatch, alter_original,
+):
+    """An original RUN proof changed after bytes-check cannot promote skill."""
+    import sofia.life.procedures as procedures_module
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        job, receipt = _original_authorized_completion(
+            life, project, evidence, now,
+        )
+        original_checker = procedures_module.inspect_objective_artifact
+        altered = []
+
+        def original_source_changes_after_byte_review(**kwargs):
+            report = original_checker(**kwargs)
+            # The catalog has already checked the old RUN/evidence identity.
+            # Change canonical state just before its final writer transaction.
+            with sqlite3.connect(life.path) as db:
+                if alter_original == "revoke_receipt":
+                    db.execute(
+                        "DELETE FROM goal_evidence_record WHERE evidence_ref=?",
+                        (receipt,),
+                    )
+                else:
+                    db.execute(
+                        "UPDATE autonomous_work_job SET status='uncertain' "
+                        "WHERE job_id=?",
+                        (job.job_id,),
+                    )
+            altered.append(True)
+            return report
+
+        monkeypatch.setattr(
+            procedures_module, "inspect_objective_artifact",
+            original_source_changes_after_byte_review,
+        )
+        with pytest.raises(
+            ValueError, match="original LIFE/RUN/evaluation proof changed",
+        ):
+            life.procedures.record_verified_attempt(
+                project=life._project(project.project_id),
+                job_id=job.job_id, original_run_evidence_ref=receipt,
+                now=now + timedelta(seconds=8),
+            )
+        assert altered == [True]
+        assert life.procedures.has_source_project(project.project_id) is False
+        with sqlite3.connect(life.path) as db:
+            assert db.execute(
+                "SELECT COUNT(*) FROM life_procedure_catalog",
+            ).fetchone()[0] == 0
+            assert db.execute(
+                "SELECT COUNT(*) FROM life_procedure_proof",
+            ).fetchone()[0] == 0
+    finally:
+        life.close()
+
+
 def test_catalog_writer_rejects_stale_bytes_even_when_original_run_was_completed(
     tmp_path,
 ):
