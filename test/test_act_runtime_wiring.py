@@ -3,6 +3,8 @@ import sqlite3
 
 import sofia.application.act_service as act_service
 from sofia.act.delivery import ActOutbox, DeliveryOutcome, SendResult
+from sofia.act.system_notice import SystemNoticeQueue
+from sofia.act.outreach import Decision
 from sofia.application.act_service import SofiaActService
 from sofia.act.outreach import Policy
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
@@ -428,3 +430,47 @@ def test_settings_has_runtime_mute_controls_and_reads_canonical_state():
     assert 'command=lambda: change_outreach_mute(True)' in source
     assert 'command=lambda: change_outreach_mute(False)' in source
     assert "current_runtime = runtime_store.load()" in source
+
+
+def test_application_transport_fresh_decision_reads_owner_pause_after_claim(tmp_path):
+    state = tmp_path / "state.db"
+    state.touch()
+    queue = SystemNoticeQueue(state)
+    service = SofiaActService(state)
+    queue.enqueue(
+        notice_id="post-claim-pause",
+        recipient_id=SPARKS_PRINCIPAL_ID,
+        channel="desktop", destination="tray",
+        evidence_id="source:direct",
+        content="Should remain queued",
+        created_at=NOW - timedelta(minutes=1),
+        expires_at=NOW + timedelta(hours=1),
+    )
+    sent = []
+    calls = []
+
+    def pause_then_check():
+        calls.append("fresh-check")
+        OperatorStopStore(state).set(
+            active=True, updated_by="Sparks", reason="pause after claim",
+        )
+        return service._fresh_delivery_decision()
+
+    result = queue.deliver_one(
+        sender=lambda payload: sent.append(payload),
+        policy=Policy(
+            recipient_id=SPARKS_PRINCIPAL_ID, enabled=True,
+            min_interval=timedelta(0), max_daily=10,
+            quiet_start_local=0, quiet_end_local=0,
+        ),
+        now=NOW, pre_send_decision=pause_then_check,
+    )
+    assert result is None
+    assert calls == ["fresh-check"]
+    assert sent == []
+    assert service._fresh_delivery_decision() is Decision.STOPPED
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT status, attempt_count FROM act_system_notice "
+            "WHERE notice_id='post-claim-pause'"
+        ).fetchone() == ("queued", 0)
