@@ -119,6 +119,20 @@ def bridge_voluntary_life_outreach(
     from sofia.safe.operator_stop import OperatorStopStore
     if OperatorStopStore(act_service.state_path).current().active:
         return 0
+    refreshed_outreach = RuntimeUserSettingsStore(
+        act_service.state_path,
+    ).load().outreach
+    if refreshed_outreach is not None and (
+        not refreshed_outreach.enabled or refreshed_outreach.mute
+    ):
+        return 0
+    current_policy = act_service.policy
+    if (
+        current_policy is None or not current_policy.enabled
+        or current_policy.mute or current_policy.stop
+        or current_policy.recipient_id != SPARKS_PRINCIPAL_ID
+    ):
+        return 0
     if presence.recent_life_project_outreach(now=now):
         return 0
     event_id = "life-update:" + sha256(
