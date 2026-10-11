@@ -1,6 +1,7 @@
 """Observed Ollama model catalog, source-only regression fixtures."""
 from datetime import datetime, timezone, timedelta
 
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 
 from sofia.cognition.model_inventory import (
@@ -101,7 +102,7 @@ def test_partial_show_failure_retains_unknowns_not_fabricated_capability():
 
 
 def test_canonical_inventory_store_replaces_one_host_atomically(tmp_path):
-    path = tmp_path / "sofia.db"
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     RuntimeUserSettingsStore(path).save(
         RuntimeUserSettingsStore(path).load()
     )
@@ -151,7 +152,7 @@ def test_run_owned_readonly_discovery_uses_reviewed_local_ollama_roles(
 ):
     from sofia.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).save(
         RuntimeUserSettings(
             cognitive_primary_model="primary:stable",
@@ -180,7 +181,7 @@ def test_run_owned_readonly_discovery_uses_reviewed_local_ollama_roles(
 def test_failed_unattended_scan_keeps_prior_confirmed_inventory(tmp_path):
     from sofia.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).save(
         RuntimeUserSettings(
             cognitive_primary_model="primary:stable",
@@ -208,7 +209,7 @@ def test_failed_unattended_scan_keeps_prior_confirmed_inventory(tmp_path):
 def test_unreviewed_model_never_gets_a_rank_or_role_from_discovery(tmp_path):
     from sofia.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).save(
         RuntimeUserSettings(
             cognitive_primary_model="primary:stable",
@@ -231,7 +232,7 @@ def test_old_or_future_inventory_does_not_offer_models_for_current_role_review(
 ):
     from sofia.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
         cognitive_primary_model="primary:stable",
         cognitive_secondary_model="secondary:missing",
@@ -263,7 +264,7 @@ def test_old_or_future_inventory_does_not_offer_models_for_current_role_review(
 def test_model_without_content_address_is_only_historical_inventory(tmp_path):
     from sofia.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
         cognitive_primary_model="primary:stable",
         cognitive_secondary_model="secondary:missing",
@@ -292,7 +293,7 @@ def test_model_without_content_address_is_only_historical_inventory(tmp_path):
 def test_out_of_order_inventory_scan_cannot_rewind_host_snapshot(tmp_path):
     from sofia.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
         cognitive_primary_model="primary:stable",
         cognitive_secondary_model="secondary:missing",
@@ -317,7 +318,7 @@ def test_out_of_order_inventory_scan_cannot_rewind_host_snapshot(tmp_path):
 
 def test_inconsistent_inventory_snapshot_cannot_publish(tmp_path):
     from dataclasses import replace
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).load()
     store=ModelInventoryStore(state)
     observations=collect_local_model_inventory(
