@@ -315,3 +315,16 @@ This reduces unnecessary long-absence SQLite writes and is one bounded CA-108/CA
 - `92186da2`: Unexecuted regressions cover direct-budget bypass denial and a shorter remaining-interval deadline.
 
 All changes are in the actual application-owned LIFE, GOALS and RUN source on GitHub `main`; no new scheduler, shadow authority, live host, model or hardware execution. Testing, concurrency acceptance, full source audit and the shared ledger reconciliation remain deferred and open.
+
+## Further Phase 09 provenance, portfolio and stop-gate coding
+
+- `20311400`, `e3273dff`: New `ProjectIdea` creation rejects duplicated or malformed original objectives, while legacy ambiguous stored briefs are kept readable but cannot self-grade, settle original-objective milestones or complete. Existing operator-review projection exposes original-criterion ambiguity rather than falsely duplicating a PASS.
+- `2ef51d49`: Unexecuted regression source covers new invalid objectives and honest legacy state.
+- `6a031aa4`: The application-owned `SelfDirectedLifeCoordinator.portfolio_index` is a bounded, private `local:text` read-only view of canonical project intents, latest decisions, world-space links, Project Forge revision references and stored technical/personal evaluation provenance. It explicitly marks recorded revision metadata as un-reverified and missing revision references as missing; no new database/index or publication path. A full operator-facing UI remains open.
+- `e47ed41d`: Unexecuted real Creative/RUN portfolio regression and missing-revision denial.
+- `e3faade2`, `3e9a16de`: The original ideation model request now includes exact eligible interest IDs; for multiple interests the candidate must identify one existing eligible interest or abstain. A single-interest legacy reply retains unambiguous compatibility. Host policy attaches only the selected original interest's evidence, instead of the previous first-sorted unrelated interest.
+- `5039ee5c`: Unexecuted regression for real selected-origin attribution, forged IDs and missing IDs when multiple interests compete.
+- `8e1c92af`: LIFE's original production tick, optional ideation, project invention and GOALS activation now read the existing durable `OperatorStopStore` at their original boundaries. A stop prevents optional work dispatch and new model wakeups; a stop raised during model generation prevents project persistence. Original RUN observations, privacy scopes and terminal receipt reconciliation remain authoritative.
+- `2b123bdf`: Unexecuted stop regressions cover a previously queued job and a stop occurring mid-model suggestion. No real operator permissions/stop settings or hosts were changed.
+
+These source-coded increments move parts of CA-102, CA-105/108, CA-110/114, CA-606, CA-1301/1303 and CA-2402 forward, but cannot be counted as fully complete until each original requirement is source-traced end to end. They do not finish the 175-ID workstream or original Phase 09/Job 5. The shared ledger remains for Workstream 1. No tests, CI, deployment or Gaia hardware operations were executed.
