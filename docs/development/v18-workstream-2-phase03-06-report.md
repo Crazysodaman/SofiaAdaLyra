@@ -3205,6 +3205,51 @@ and deletion across all storage layers
 remain unaccepted. No tests/CI, live
 deletes, restore or host changes performed.
 
+
+
+### Phase 03 item 87: Partial offline bundle restore is publication-uncertain
+
+The actual `BackupEngine.restore` publishes an authenticated,
+erasure-replayed **multi-file bundle** using separate durable
+per-file names, with no atomic whole-bundle rename at that level.
+Previously an I/O failure, path collision or permission denial
+on the *second or later* asset could propagate as an ordinary
+`OSError` or `BackupError` even though earlier protected
+assets were already visible. This misclassified an incomplete
+published candidate as an operation that never published data.
+
+Production `src/sofia/ops/backup.py` now tracks the first
+successful file publication inside the existing externally
+serialized deletion-journal lock. If a later asset fails,
+it emits the typed `RestorePublicationUncertain` with the
+original failure preserved as its exception cause.
+No automatic retry, rollback, partial directory deletion or
+activation occurs. Errors **before any destination file**
+becomes visible remain ordinary failures; Linux
+post-publication fsync failures retain their existing
+typed durability-uncertain classification. A true
+atomic directory candidate remains the caller-owned
+`stage_verified_state_home` protocol, not this
+file-by-file restore.
+
+- Production `11385df88b83f4da10a6cc27d589e99fe9084181`
+  (`[skip ci]`).
+- Deferred previous collision contract update
+  `test/test_ws2_restore_whole_bundle_no_replace.py`
+  `5397b72371bab537578ecd19644ac357a63dd039`
+  (`[skip ci]`).
+- New deferred before/after-first-asset coverage
+  `test/test_ws2_partial_bundle_restore_uncertainty.py`
+  `a1b2a7596f6d2e318be84306e569887737b186fe`
+  (`[skip ci]`).
+
+Original CA relevance: CA-3702, CA-5202, CA-5204,
+CA-6105, CA-6108, CA-6812. It does NOT prove a
+distributed privileged fencing broker, partial-repair
+strategy or successful clean-machine restore.
+No tests/CI, data migrations, filesystem restores
+or live host operations executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
