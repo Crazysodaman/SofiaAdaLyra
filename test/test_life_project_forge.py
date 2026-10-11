@@ -2813,3 +2813,71 @@ def test_missing_source_never_reappears_as_causal_experience_summary(tmp_path):
         assert row["source_evidence_refs"] == ()
     finally:
         life.close()
+
+
+def test_retired_interest_closes_idle_active_optional_project(tmp_path):
+    """A newly retired source interest cannot strand a still-active LIFE goal."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        retirement = life.record_observation(
+            kind="reviewed-interest-retirement",
+            source="test:recent-interest-evidence",
+            assertion="The previously interesting optional project is no longer wanted.",
+            now=now + timedelta(seconds=4),
+        )
+        life.revise_interest(
+            name="foxfire-colors", context="creative",
+            strength=0.04, confidence=0.96,
+            reason="Choose not to continue this optional interest.",
+            evidence_refs=(retirement,), now=now + timedelta(seconds=4),
+            retire=True,
+        )
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        report = life.tick(now=now + timedelta(seconds=5), busy=True)
+        assert report["retired_interest_projects_settled"] == 1
+        assert report["scheduled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.ABANDONED
+        goal = next(
+            row for row in goals.list_visible(local_sparks_principal())
+            if row.id == project.goal_id
+        )
+        assert goal.status is GoalStatus.CANCELLED
+        assert life.tick(now=now + timedelta(seconds=6), busy=True)[
+            "retired_interest_projects_settled"
+        ] == 0
+    finally:
+        life.close()
+
+
+def test_retired_interest_cannot_abandon_active_project_with_pending_run(tmp_path):
+    """Original queued work remains a durable review obligation after disinterest."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Work admitted before voluntary retirement",
+            specification={"content": "Queued creative artifact, not yet verified."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        retirement = life.record_observation(
+            kind="reviewed-interest-retirement",
+            source="test:recent-interest-evidence",
+            assertion="A new source supports retirement but no source RUN resolution.",
+            now=now + timedelta(seconds=4),
+        )
+        life.revise_interest(
+            name="foxfire-colors", context="creative",
+            strength=0.1, confidence=0.9,
+            reason="Retired while original RUN work is pending.",
+            evidence_refs=(retirement,), now=now + timedelta(seconds=4),
+            retire=True,
+        )
+        report = life.tick(now=now + timedelta(seconds=5), busy=True)
+        assert report["retired_interest_projects_settled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        assert life.work_store.get(job.job_id).status is WorkStatus.QUEUED
+        assert report["scheduled"] == 0
+    finally:
+        life.close()
