@@ -167,6 +167,54 @@ def test_level_three_storage_write_needs_grant_or_exact_approval(tmp_path):
         )
 
 
+
+def test_operator_stop_blocks_direct_integration_handler_even_with_standing_grant(tmp_path):
+    state = tmp_path / "sofia.db"
+    with sqlite3.connect(state):
+        pass
+    tools = create_configured_integration_tools(
+        filesystem_root=tmp_path, state_path=state,
+    )
+    registration = _registration(tools, "storage.mkdir")
+    PermissionStore(state).grant(
+        "storage.mkdir",
+        scope={"root_index": 0, "path": "blocked-by-stop"},
+    )
+    stop = OperatorStopStore(state)
+    request = CapabilityRequest(
+        capability=registration.capability,
+        parameters={"root_index": 0, "path": "blocked-by-stop"},
+        requested_scope=None,
+        rationale="side-effect boundary must honor stop",
+    )
+    stop.set(active=True, updated_by="Sparks", reason="operator emergency stop")
+    with pytest.raises(PermissionError, match="operator stop"):
+        registration.handler(request)
+    assert not (tmp_path / "blocked-by-stop").exists()
+
+    stop.set(active=False, updated_by="Sparks", reason="operator resumes")
+    registration.handler(request)
+    assert (tmp_path / "blocked-by-stop").is_dir()
+
+
+def test_operator_stop_blocks_safe_autonomous_backup_direct_handler(tmp_path):
+    state = tmp_path / "sofia.db"
+    with sqlite3.connect(state) as db:
+        db.execute("CREATE TABLE observation(value TEXT)")
+    tools = create_configured_integration_tools(
+        filesystem_root=tmp_path, state_path=state,
+    )
+    registration = _registration(tools, "sqlite.state.backup")
+    OperatorStopStore(state).set(
+        active=True, updated_by="Sparks", reason="pause optional operations",
+    )
+    with pytest.raises(PermissionError, match="operator stop"):
+        registration.handler(CapabilityRequest(
+            capability=registration.capability,
+            parameters={}, requested_scope=None,
+            rationale="must not run backup when emergency stopped",
+        ))
+
 def test_level_three_tool_schema_allows_standing_grant_without_approval_id(tmp_path):
     state = tmp_path / "sofia.db"
     with sqlite3.connect(state):
