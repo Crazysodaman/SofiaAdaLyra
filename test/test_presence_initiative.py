@@ -1019,9 +1019,17 @@ def test_owner_decline_terminates_queued_update_before_sender(tmp_path):
         assert (status, attempts, reason) == (
             "failed", 0, "OwnerDeclinedProject",
         )
+        trace = OutreachTraceStore(life.path).history(notice_id=notice)
         assert any(
             row.stage == "suppressed" and row.reason == "user_declined"
-            for row in OutreachTraceStore(life.path).history(notice_id=notice)
+            for row in trace
+        )
+        assert all(
+            row.stage not in {
+                "transport_attempt", "transport_accepted",
+                "recipient_confirmed",
+            }
+            for row in trace
         )
         assert service.deliver_one(now=now + timedelta(minutes=1)) is None
         assert sent == []
