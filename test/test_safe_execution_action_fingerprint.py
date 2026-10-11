@@ -7,6 +7,8 @@ import sqlite3
 
 import pytest
 
+from test.owner_auth_fixture import record_verified_owner_approval
+
 from sofia.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
@@ -33,7 +35,7 @@ def test_nonowner_approval_denied_before_record_or_capability_consumption(tmp_pa
     state.touch()
     verifier = ExecutionApprovalVerifier(state)
     active = _approval({"source_host": "Venus"})
-    verifier.record(active)
+    record_verified_owner_approval(verifier, active)
     # Legacy corruption or an older build's forged row must never be
     # returned as a valid approval, even if its exact digest still matches.
     with sqlite3.connect(state) as db:
@@ -73,7 +75,7 @@ def test_exact_target_and_effect_bound_approval_only_consumes_once(tmp_path):
         "lease_epoch": 4,
     }
     approval = _approval(approved)
-    verifier.record(approval)
+    record_verified_owner_approval(verifier, approval)
     with pytest.raises(PermissionError, match="parameters"):
         verifier.consume(
             approval_id=approval.approval_id, capability=approval.capability,
@@ -105,7 +107,7 @@ def test_existing_verifier_cannot_recreate_missing_canonical_state(tmp_path):
     verifier = ExecutionApprovalVerifier(state)
     approved = {"source_host": "Venus"}
     grant = _approval(approved,identifier="recovered-approval-no-new-state")
-    verifier.record(grant)
+    record_verified_owner_approval(verifier, grant)
     state.unlink()
     with pytest.raises(FileNotFoundError, match="missing or redirected"):
         verifier.consume(
