@@ -49,17 +49,39 @@ class PackageSelectionProbe:
     """Observe pytest's fully selected items without taking any test action."""
     markers: tuple[str, ...]
     selected: dict[str, list[str]] = field(init=False)
+    roots: dict[str, set[str]] = field(init=False)
+    node_ownership: dict[str, tuple[str, ...]] = field(init=False)
     collection_finished: bool = False
 
     def __post_init__(self) -> None:
         self.selected = {name: [] for name in self.markers}
+        self.roots = {name: set() for name in self.markers}
+        self.node_ownership = {}
 
     def pytest_collection_finish(self, session) -> None:
         self.collection_finished = True
         for item in session.items:
+            # All actual package labels, not merely the one selected by
+            # a matrix job. This separates distinct tests from the same
+            # pytest item counted by multiple package suites.
+            all_owners = tuple(sorted({
+                marker.name for marker in item.iter_markers()
+                if PKG_RE.fullmatch(marker.name)
+            }))
+            if not all_owners:
+                raise RoadmapIntegrityError(
+                    f"selected test has no package owner: {item.nodeid}"
+                )
+            node_id = str(item.nodeid)
+            if node_id in self.node_ownership:
+                raise RoadmapIntegrityError(
+                    f"duplicate pytest node ID in selection: {node_id}"
+                )
+            self.node_ownership[node_id] = all_owners
             for name in self.markers:
-                if tuple(item.iter_markers(name=name)):
-                    self.selected[name].append(item.nodeid)
+                if name in all_owners:
+                    self.selected[name].append(node_id)
+                    self.roots[name].add(str(item.path))
 
 
 def _revision(repo: Path) -> str:
@@ -114,6 +136,23 @@ def collect_package_selection(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "mode": "all" if marker is None else marker,
         "selected_test_counts": counts,
+        "selected_unique_test_nodeids": len(probe.node_ownership),
+        "selected_unique_test_roots": len(
+            set().union(*probe.roots.values())
+        ),
+        "unique_test_roots_by_package": {
+            name: len(probe.roots[name]) for name in checked
+        },
+        "multiply_marked_selected_test_count": sum(
+            len(owners) > 1
+            for owners in probe.node_ownership.values()
+        ),
+        "selected_test_marker_memberships": sum(counts.values()),
+        "multiple_package_owners_by_test": {
+            node: list(owners)
+            for node, owners in sorted(probe.node_ownership.items())
+            if len(owners) > 1
+        },
         "verified_nonempty": True,
         "tests_executed": False,
     }
