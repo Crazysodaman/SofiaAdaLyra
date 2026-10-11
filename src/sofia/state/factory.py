@@ -57,19 +57,19 @@ def _seed_sqlite(source: Path, destination: Path) -> None:
     Windows. The final hard link is an atomic create-if-absent operation on
     the same local filesystem; unsupported filesystems fail closed.
     """
-    source = Path(source)
-    destination = Path(destination)
-    if not source.is_file() or source.is_symlink():
-        raise FileNotFoundError("verified local primary SQLite source required")
+    source = Path(source).absolute()
+    destination = Path(destination).absolute()
+    source_guard = CanonicalSQLiteGuard(source)
     if destination == source or destination.resolve() == source.resolve():
         raise ValueError("replica and primary must be distinct files")
+    # Reject both Unix symlinks and Windows junctions in *every* ancestor
+    # before creating any staging path. Resolving first hides the redirect.
+    for component in (destination, *destination.parents):
+        if component.is_symlink() or getattr(component, "is_junction", lambda: False)():
+            raise ValueError("redirected replica destination is not allowed")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.is_symlink():
-        raise ValueError("symlinked replica destination is not allowed")
     if destination.exists():
         return  # Existing replicas must be validated by SQLiteStatePlane.
-    if destination.parent.is_symlink():
-        raise ValueError("replica parent must not be a symbolic link")
 
     with tempfile.NamedTemporaryFile(
         prefix=".sofia-replica-seed-", suffix=".db",
@@ -82,12 +82,14 @@ def _seed_sqlite(source: Path, destination: Path) -> None:
         # file handles even if backup or integrity_check fails.
         with (
             closing(sqlite3.connect(
-                source.resolve().as_uri() + "?mode=ro",
+                source_guard.canonical_path.as_uri() + "?mode=ro",
                 uri=True, timeout=10,
             )) as src,
             closing(sqlite3.connect(str(staged), timeout=10)) as dst,
         ):
+            source_guard.validate()
             src.backup(dst)
+            source_guard.validate()
             row = dst.execute("PRAGMA integrity_check").fetchone()
             if row is None or row[0] != "ok":
                 raise RuntimeError("replica seed failed SQLite integrity_check")
@@ -103,6 +105,12 @@ def _seed_sqlite(source: Path, destination: Path) -> None:
             raise RuntimeError("replica seed has uncheckpointed WAL bytes")
         with staged.open("rb") as content:
             os.fsync(content.fileno())
+        # A replaced source invalidates this entire snapshot. An orphaned
+        # SQLite handle cannot authorize publication as current replica truth.
+        source_guard.validate()
+        for component in (destination, *destination.parents):
+            if component.is_symlink() or getattr(component, "is_junction", lambda: False)():
+                raise ValueError("redirected replica destination is not allowed")
         # os.link fails with FileExistsError on a concurrent published target.
         # os.replace is forbidden here because it would destroy the winner.
         os.link(staged, destination)
