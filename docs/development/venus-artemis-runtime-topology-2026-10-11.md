@@ -1,6 +1,6 @@
 # Sofía canonical runtime and GPU inference topology
 
-**Owner decision:** 2026-10-11. **Deployment status: design approved in principle; no state move, host change, model installation, enrollment or live verification performed.**
+**Owner decision:** 2026-10-11. **Guest OS confirmed: Debian 13 Stable (Trixie), minimal headless install, dedicated VM `Sofia` on Artemis.** **Deployment status:** design/source only; no OS installation, state move, host change, model installation, enrollment or live verification performed.
 
 ## Two-stage location decision
 
@@ -37,9 +37,9 @@ The runtime and the language-model inference engine are separate. Artemis does *
 
 ## Headless Linux runtime service (source committed; not deployed)
 
-Both **Debian Stable and Arch Linux** use systemd. The production guest therefore uses a single distribution-neutral launcher, `src/sofia/run/systemd_runtime.py`, instead of either installing a Windows service inside Linux or reusing `sofia-fleet-agent.service` (that is a **separate Fleet agent**).
+**Debian 13 Stable (Trixie) is the approved target OS**, rather than a still-open Debian/Arch comparison. Its current point updates should be applied using reviewed Debian Stable security/update repositories; the application compatibility gate deliberately pins the Debian **major version 13**, not an individual point-release image. The production guest uses the existing `src/sofia/run/systemd_runtime.py` to launch the actual application rather than installing a Windows service or reusing `sofia-fleet-agent.service` (a **separate Fleet agent**).
 
-The launcher starts the actual canonical `SofiaApplication` and calls its shutdown path on SIGTERM/SIGINT. It requires an existing, externally signed state-home pointer and explicitly refuses any systemd environment-file override of `SOFIA_RUNTIME_MODE=production` or `SOFIA_IDENTITY_BOOTSTRAP_MODE=require_existing`. It must not create a new `sofia.db` or independently promote a copied database. The pointer only authenticates location/epoch and **does not itself fence Venus**.
+The launcher verifies `/etc/os-release` identifies Debian 13 (`ID=debian`, `VERSION_ID=13`, codename Trixie) both at systemd `ExecStartPre` and immediately before composing the runtime. An unexpected distro, Debian major upgrade, missing release metadata, or wrong identity is a **fail-closed** startup until independently reviewed. The launcher starts the actual canonical `SofiaApplication` and calls its shutdown path on SIGTERM/SIGINT. It requires an existing, externally signed state-home pointer and explicitly refuses any systemd environment-file override of `SOFIA_RUNTIME_MODE=production` or `SOFIA_IDENTITY_BOOTSTRAP_MODE=require_existing`. It must not create a new `sofia.db` or independently promote a copied database. The pointer only authenticates location/epoch and **does not itself fence Venus**.
 
 For operator review only, once a Linux guest and persistent paths are chosen:
 
@@ -57,6 +57,15 @@ The rendered unit uses `Type=simple`, `Restart=on-failure`, `WantedBy=multi-user
 
 **No live service may be enabled on VM `Sofia` while Venus is still an active writer.** Migration must first establish the privileged broker, restore/verify the full state, fence the Venus writer and independently advance the epoch before the external signer activates the new pointer. Inference remains pinned to the approved Venus GPU worker; no fallback to an unapproved local model.
 
+## Approved Debian guest prerequisites (design only)
+
+- **Guest OS:** current supported Debian 13 (Trixie) amd64 minimal/server installation, **without a desktop environment**. Validate the ISO's publisher checksum/signature and Hyper-V Generation 2 Secure Boot compatibility before provisioning. Use the selected operator-reviewed machine/storage sizing and private/controlled virtual networking. Do not treat a workshop VM as the canonical guest.
+- **Python:** run Sofía from a dedicated virtual environment using a supported interpreter (the project requires Python 3.12+). Keep installation/dependency artifacts pinned and supply-chain verified; do not assume unreviewed OS packages or download a model as a shortcut.
+- **Service identity:** dedicated unprivileged `sofia` user/group, systemd and journald, guest-local `/var/lib/sofia-ada-lyra` state home only after verified restore, and root-protected `/etc/sofia/production.env` with the signed pointer/key locations and witnessed epoch. Exact locations remain subject to deployment review.
+- **Connectivity:** independently enrolled and pinned-mTLS remote Venus inference; approved management path, firewall scope, time/DNS reliability and backup reachability. Exposing Ollama directly is prohibited.
+- **Startup refusal:** systemd's `verify-guest` step must accept only Debian 13, and the application separately checks it again before loading canonical state. An unapproved OS upgrade intentionally stops startup until source compatibility and single-writer cutover are reviewed.
+- **No duplicate writer:** a prepared Debian guest may exist for testing with *synthetic* fixtures, but neither a systemd runtime start nor a restored production database may be activated there while Venus is the active owner. An external privileged broker must fence Venus and authorize the promotion.
+
 ## Staged migration requirements
 
 1. **Preflight only:** inspect exact Venus/Artemis machine and Fleet IDs and select the separately provisioned Hyper-V VM **`Sofia`** on Artemis. Check guest OS, persistent disk location, guest identity, virtual networking, permissions, throughput, resources, mobile/desktop client routing, model availability and encrypted independent backup capacity. The destination SQLite must be on an approved **host-local filesystem**, not a live SMB share.
@@ -69,7 +78,7 @@ The rendered unit uses `Type=simple`, `Restart=on-failure`, `WantedBy=multi-user
 
 ## Unresolved owner inputs
 
-- **Guest operating system for VM `Sofia`:** **headless Linux is preferred**, but Debian versus Arch remains unconfirmed by the operator. Recommend **Debian Stable** for the canonical always-on database/runtime because its package lifecycle is more predictable; Arch is technically compatible via systemd but requires proactive rolling maintenance. Do not treat the recommendation as approval to install Debian or Arch. The hypervisor remains Artemis Windows.
+- **Guest operating system for VM `Sofia`: CONFIRMED Debian 13 Stable (Trixie), headless.** The hypervisor remains Artemis Windows. This decision authorizes source targeting, **not** VM installation or promotion; the specific ISO checksum, host resources and actual service-enrollment action remain separately reviewed.
 - **Standby objectives:** desired maximum acceptable data loss and downtime (RPO/RTO); do not invent numbers.
 - **Authenticated operator identity and independent fencing witness:** the current literal actor label is not human authentication, and stage-only helpers cannot be misrepresented as live failover.
 - **Exact source and destination Fleet host IDs / addresses:** must be discovered and approved, not guessed or put into code as hardcoded network addresses.
