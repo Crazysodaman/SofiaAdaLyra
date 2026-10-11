@@ -3639,6 +3639,59 @@ after the deferred test/audit campaign.
 No tests/CI, live backup or
 host/storage mutation performed.
 
+
+
+### Phase 03 item 94: Verify encrypted backup has no unlisted plaintext or foreign files
+
+Follow-up to Item 93: the preexisting
+`BackupEngine.verify` authenticated the
+manifest HMAC and each listed AES-GCM
+payload, but never examined **extra
+unlisted files** in the archive root.
+A legacy backup created before the
+plaintext temporary snapshot fix could
+therefore pass as "verified encrypted"
+while still carrying
+`sofia.db.snapshot` in cleartext,
+potentially on a NAS or other
+backup medium.
+
+Production `src/sofia/ops/backup.py`
+now checks the entire backup directory
+inventory after authenticating the
+manifest. Only `manifest.json`,
+`manifest.hmac`, the `payload/`
+directory and the exact manifest-listed
+encrypted payload files may exist;
+the canonical `sofia.db` logical entry
+must be present. Redirected links,
+unexpected directories, special
+entries, extra files or an incomplete
+listed inventory fail closed with
+`BackupError` **before** a verified
+receipt or restore publication.
+This does not remove any owner's
+existing files automatically.
+
+- Production `bf840071635c6c2c95f9b07c14ff17963a36cdfd`
+  (`[skip ci]`).
+- Deferred synthetic legacy-plaintext,
+  unexpected log and private directory
+  regressions
+  `test/test_ws2_backup_snapshot_plaintext_isolation.py`,
+  `2b63e83c0b274685133264d9977342ca2c913a9e`
+  (`[skip ci]`).
+
+Original CA relevance: CA-5202,
+CA-5205, CA-5207, CA-6105,
+CA-6107, CA-6810.
+**Existing backup archives must be
+reviewed after tests;** changing
+source cannot retroactively guarantee
+their confidentiality. No CI/tests,
+live backup scan, cleanup, key
+rotation or host operation ran.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
