@@ -231,8 +231,11 @@ def create_background_coordinator(
     from sofia.neuro.connectome.association_store import ReviewedAssociationStore
 
     def association_decay_ready():
+        from sofia.safe.operator_stop import OperatorStopStore
         return (
-            RuntimeUserSettingsStore(application._configuration.state_path)
+            not OperatorStopStore(application._configuration.state_path)
+            .current().active
+            and RuntimeUserSettingsStore(application._configuration.state_path)
             .load().neuro_association_enabled
             and activity_store.state(host_id).effective not in {
                 ActivityMode.GAMING, ActivityMode.BUSY,
