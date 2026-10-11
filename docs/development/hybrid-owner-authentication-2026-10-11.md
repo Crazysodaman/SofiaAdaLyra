@@ -64,3 +64,18 @@ Venus remains the **only authorized runtime/`sofia.db` writer**. The owner-creat
 ## Source acceptance classification
 
 The related V18 IDs (including CA-1904, CA-1102, CA-6507, CA-4103 and CA-2905) remain **partial or unassessed as already recorded**. Neither source-written regression tests nor a new class are evidence of complete behavior. **Zero new tasks accepted.**
+
+## 2026-10-11 follow-up source audit: permission persistence and Tray
+
+The previously listed `PermissionStore.grant/revoke`, Level-5 private/adult updates, Settings standing grant actions and Tray service controls are now **source-wired** through independently signed, exact-action WebAuthn. The new typed flows are:
+
+- Canonical `PermissionStore.grant`: requires `safe.permission.standing.grant` receipt bound to capability, exact JSON scope, stable grant ID and expiry. The durable grant is linked to the original authenticated approval. Historical actor-only rows remain available for auditing, but their `owner_authenticated` state is false, so they cannot authorize future execution.
+- `PermissionStore.revoke`: requires `safe.permission.standing.revoke` receipt for the exact grant ID. A revoked signing credential invalidates any standing grant it authorized.
+- `PermissionStore.set_private_adult_authority`: requires `safe.permission.private_authority.change` receipt bound to all four flags. Older unsigned adult expansion and expansion signed by subsequently revoked credentials do not authorize sensitive presentation; a legacy restrictive `private_chat=False` remains restrictive.
+- `ui/settings_window.py`: grant, revoke and private authority Save now request FIDO2 via worker and check exact on-screen requested values; protected model/Fleet controls and operator Resume use the same signed canonical approval. Emergency Pause remains immediate.
+- `ui/tray_agent.py`: every modeled local service action is approved through a real owner browser ceremony, choosing a pinned Windows Hello platform credential for lower-risk operations or a separate security-key credential for protected operations. Service start/stop/restart launches the verification operation outside the tray event loop. Unknown capability names remain protected.
+- Both SAFE owner and GUI paths require the *pinned Windows token SID*. A terminal is required for the initial supervised registration CLI, **not** for later signed graphical approvals.
+
+Regression source was added/updated for permission replay, exact-bound scope, key revocation, historical grants, Level-5 effective projections, GUI source wiring, and Tray model/service dispatch. **No test was run.**
+
+**Still incomplete:** independent hardware/manufacturer attestation for security-key classification, offline last-key recovery, cryptographically authenticated Debian/Fleet delegation after writer transfer, consent authority for every DEV/EVOLVE/ACT plugin, selected live host acceptance and full CI. **Do not install keys or move `sofia.db` through an automated deployment.**
