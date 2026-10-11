@@ -467,3 +467,129 @@ def preview_owner_hephaestus_plan(
         review=inspect_workshop_plan(plan,observed,at=at),
         fleet_request_id=response["request_id"],
     )
+
+
+
+class WorkshopPreviewStore:
+    """Bounded canonical plan evidence, NEVER a host provisioning grant.
+
+    The owner reviews a real Fleet observation in Settings; models can read
+    the resulting factual status through OPS without invoking Hyper-V, editing
+    plans, requesting new host scopes, or creating any guest resources.
+    """
+
+    def __init__(self, state_path):
+        from pathlib import Path
+        from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+        self.path=Path(state_path)
+        self._guard=CanonicalSQLiteGuard(self.path)
+        from contextlib import closing
+        with closing(self._guard.connect(timeout=10)) as db, db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS ops_workshop_plan_preview("
+                "plan_id TEXT PRIMARY KEY, plan_hash TEXT NOT NULL,"
+                "preview_json TEXT NOT NULL, observed_at TEXT NOT NULL)"
+            )
+
+    @staticmethod
+    def _payload(preview: WorkshopRemotePreview) -> dict:
+        observed=asdict(preview.observation)
+        observed["observed_at"]=preview.observation.observed_at.astimezone(
+            timezone.utc
+        ).isoformat()
+        return {
+            "plan":preview.plan.exact_manifest(),
+            "observation":observed,
+            "review":asdict(preview.review),
+            "fleet_request_id":preview.fleet_request_id,
+            "disposition":"read_only_review_not_execution_authority",
+        }
+
+    def record(self, preview: WorkshopRemotePreview) -> None:
+        from contextlib import closing
+        if not isinstance(preview,WorkshopRemotePreview):
+            raise TypeError("trusted typed mTLS plan preview required")
+        payload=json.dumps(
+            self._payload(preview),sort_keys=True,separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        if len(payload)>64_000:
+            raise ValueError("bounded reviewed preview required")
+        with closing(self._guard.connect(timeout=10)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            existing=db.execute(
+                "SELECT preview_json FROM ops_workshop_plan_preview "
+                "WHERE plan_id=?",
+                (preview.plan.plan_id,),
+            ).fetchone()
+            if existing is not None:
+                if existing[0] != payload:
+                    raise PermissionError("previous workshop plan cannot be rewritten")
+                db.commit()
+                return
+            db.execute(
+                "INSERT INTO ops_workshop_plan_preview VALUES(?,?,?,?)",
+                (
+                    preview.plan.plan_id,preview.plan.fingerprint_sha256,
+                    payload,preview.observation.observed_at.astimezone(
+                        timezone.utc
+                    ).isoformat(),
+                ),
+            )
+            db.execute(
+                "DELETE FROM ops_workshop_plan_preview WHERE plan_id NOT IN ("
+                "SELECT plan_id FROM ops_workshop_plan_preview "
+                "ORDER BY observed_at DESC,plan_id DESC LIMIT 12)"
+            )
+            db.commit()
+
+    def read_model_brief(self) -> dict:
+        from contextlib import closing
+        with closing(self._guard.connect(timeout=10)) as db:
+            row=db.execute(
+                "SELECT preview_json FROM ops_workshop_plan_preview "
+                "ORDER BY observed_at DESC,plan_id DESC LIMIT 1"
+            ).fetchone()
+        if row is None:
+            return {
+                "status":"unobserved",
+                "reason":"No owner-reviewed Artemis Hyper-V preflight recorded.",
+                "may_provision":False,
+            }
+        payload=json.loads(row[0])
+        plan=payload["plan"]
+        observed=payload["observation"]
+        review=payload["review"]
+        now=datetime.now(timezone.utc)
+        try:
+            expiry=datetime.fromisoformat(plan["expires_at"])
+            age=now-datetime.fromisoformat(observed["observed_at"])
+        except (TypeError,ValueError) as exc:
+            raise RuntimeError("saved workshop timestamps are invalid") from exc
+        current=(
+            now < expiry and age >= timedelta(0) and age <= timedelta(minutes=5)
+        )
+        return {
+            "status":"observed_read_only" if current else "stale_not_actionable",
+            "plan_id":plan["plan_id"],
+            "plan_fingerprint_sha256":payload["review"]["plan_fingerprint_sha256"],
+            "host_node_id":plan["hypervisor_host_id"],
+            "hypervisor":"Hyper-V",
+            "vm":plan["guest_name"],
+            "switch_mode":plan["network_mode"],
+            "requested_vcpu":plan["vcpu"],
+            "requested_memory_mb":plan["memory_mb"],
+            "requested_disk_gib":plan["disk_gib"],
+            "observed_host_cpu":observed["logical_processors"],
+            "observed_host_free_memory_mb":observed["free_memory_mb"],
+            "observed_host_free_disk_gib":observed["free_disk_gib"],
+            "observed_image_digest":observed["image_sha256"],
+            "review_eligible":review["review_eligible"] if current else False,
+            "blockers":(
+                tuple(review["blockers"])
+                if current
+                else ("preview stale/expired; repeat authenticated host observation",)
+            ),
+            "may_provision":False,
+            "notes":"Not a SAFE grant, installer, operational VM, or guest isolation proof.",
+        }
