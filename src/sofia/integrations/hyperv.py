@@ -61,6 +61,7 @@ class HyperVAdapter:
             "Platform='Hyper-V'; "
             "HypervisorAvailable=($null -ne $hostInfo); "
             "WindowsHostVersion=[string]$os.Version; "
+            "ObservedAtUtc=[DateTime]::UtcNow.ToString('o'); "
             "LogicalProcessors=$logical; "
             "FreeMemoryMB=[int][math]::Floor("
             "[double]$os.FreePhysicalMemory/1024); "
