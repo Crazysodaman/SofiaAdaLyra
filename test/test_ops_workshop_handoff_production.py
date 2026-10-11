@@ -147,7 +147,7 @@ def test_exact_fleet_observation_plus_digest_only_yields_owner_review_not_instal
         if operation=="blank_vm":
             payload=vm_json()
         elif operation=="media":
-            payload={"sha256":SHA,"bytes":500_000_000,"kind":".iso"}
+            payload={"sha256":SHA,"bytes":500_000_000,"kind":".iso","owner_signed":True,"policy_version":"hephaestus-debian13-console-admin-v1"}
         else:
             raise RuntimeError("unexpected operation")
         return {
@@ -174,7 +174,7 @@ def test_exact_fleet_observation_plus_digest_only_yields_owner_review_not_instal
 def test_missing_mismatched_or_wrong_host_signed_media_never_passes_review():
     service=object.__new__(RemoteFleetToolService)
     def invoke(node,capability,operation,args):
-        body=vm_json() if operation=="blank_vm" else {"sha256":"b"*64}
+        body=vm_json() if operation=="blank_vm" else {"sha256":"b"*64,"kind":".iso","owner_signed":True,"policy_version":"hephaestus-debian13-console-admin-v1"}
         return {
             "node_id":str(NODE),
             "outcome":"reported_success",
@@ -208,7 +208,7 @@ def test_canonical_handoff_store_is_read_only_and_does_not_confer_authority(tmp_
         "request_id":str(uuid4()),
         "message":json.dumps(
             vm_json() if op=="blank_vm"
-            else {"sha256":SHA,"bytes":5000,"kind":".iso"}
+            else {"sha256":SHA,"bytes":5000,"kind":".iso","owner_signed":True,"policy_version":"hephaestus-debian13-console-admin-v1"}
         ),
     }
     now=datetime.now(timezone.utc)
@@ -219,7 +219,7 @@ def test_canonical_handoff_store_is_read_only_and_does_not_confer_authority(tmp_
             "request_id":str(uuid4()),
             "message":json.dumps(
                 updated if op=="blank_vm"
-                else {"sha256":SHA,"bytes":5000,"kind":".iso"}
+                else {"sha256":SHA,"bytes":5000,"kind":".iso","owner_signed":True,"policy_version":"hephaestus-debian13-console-admin-v1"}
             ),
         }
     service.invoke=refreshed
