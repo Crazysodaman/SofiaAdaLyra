@@ -57,6 +57,13 @@ class NeuroObservabilityStore:
                     db_writes INTEGER NOT NULL,
                     observed_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS neuro_workspace_read (
+                    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+                    generation TEXT NOT NULL,
+                    consumer TEXT NOT NULL,
+                    selected_keys_json TEXT NOT NULL,
+                    read_at TEXT NOT NULL
+                );
             """)
 
     def _connect(self) -> sqlite3.Connection:
@@ -194,6 +201,48 @@ class NeuroObservabilityStore:
             """, (limit,)).fetchall()
         return tuple(dict(row) for row in rows)
 
+    def record_workspace_read(
+        self, *, consumer: str, broadcast, at: datetime,
+    ) -> None:
+        """Actual consumer receipt, never evidence that downstream succeeded."""
+        from .workspace import NeuroSharedWorkspace, WorkspaceBroadcast
+        if consumer not in NeuroSharedWorkspace.CONSUMERS:
+            raise ValueError("registered downstream NEURO consumer required")
+        if not isinstance(broadcast, WorkspaceBroadcast):
+            raise TypeError("host workspace broadcast required")
+        if (
+            not isinstance(at, datetime) or at.tzinfo is None
+            or at.utcoffset() is None
+            or not broadcast.published_at <= at < broadcast.expires_at
+        ):
+            raise ValueError("only active workspace reads may be recorded")
+        keys = tuple(item.key for item in broadcast.items)
+        payload = json.dumps(keys, separators=(",", ":"))
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "INSERT INTO neuro_workspace_read "
+                "(generation,consumer,selected_keys_json,read_at) "
+                "VALUES(?,?,?,?)",
+                (broadcast.generation, consumer, payload, at.isoformat()),
+            )
+            db.execute(
+                "DELETE FROM neuro_workspace_read WHERE seq NOT IN ("
+                "SELECT seq FROM neuro_workspace_read ORDER BY seq DESC LIMIT ?)",
+                (self.max_events,),
+            )
+
+    def workspace_consumption(self) -> tuple[dict, ...]:
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT consumer,COUNT(*),MAX(read_at) FROM neuro_workspace_read "
+                "GROUP BY consumer ORDER BY consumer",
+            ).fetchall()
+        return tuple({
+            "consumer": consumer,
+            "observed_reads": int(count),
+            "last_read_at": last_read,
+        } for consumer, count, last_read in rows)
+
     def record_wake(
         self, *, mode: str, reason: str, llm_called: bool, observed_at: datetime,
     ) -> None:
@@ -300,6 +349,16 @@ def neuro_observability_text(state_path: str | Path) -> str:
             lines.append(
                 "Performance warning: refresh exceeded the 250 ms advisory threshold."
             )
+    receipts = store.workspace_consumption()
+    lines.append(
+        "Eligible workspace downstream reads (not proof of task success): "
+        + (
+            ", ".join(
+                f"{item['consumer']}={item['observed_reads']}"
+                for item in receipts
+            ) or "none"
+        )
+    )
     recent = store.recent(limit=min(16, store.max_events))
     lines.append("Recent signals:")
     lines.extend(
