@@ -3569,6 +3569,76 @@ CA-6815, CA-6817. No actual
 UI launch, CI, tests, live
 SQLite operations or host cutover.
 
+
+
+### Phase 03 item 93: Plaintext SQLite snapshot never enters encrypted backup destination
+
+The existing `BackupEngine.create` uses the
+SQLite online backup API to obtain a
+consistent plaintext `sofia.db` snapshot
+before AES-256-GCM encryption. Source
+audit found that the temporary
+`sofia.db.snapshot` was created
+**inside the eventual encrypted backup
+archive directory** and was not
+explicitly removed before publication.
+Besides exposing a raw SQLite file
+in an archive labeled encrypted,
+the earlier staging location risked
+writing private cleartext onto an
+untrusted NAS/off-host archive medium
+**before** encrypting it.
+
+Production `src/sofia/ops/backup.py`
+now creates the online SQLite snapshot
+inside an access-controlled
+`TemporaryDirectory` (mode 0700)
+on the canonical **source host's local
+state filesystem**, never under the
+backup destination. It encrypts the
+snapshot into its authenticated
+ciphertext payload and unlinks the
+plaintext source immediately after
+encryption. The temporary directory is
+removed on success or failure; the
+archive also explicitly refuses a
+leftover staging snapshot before
+manifest publication. The completed
+archive contains only the encrypted
+payload directory and authenticated
+manifest/HMAC. Read-only verification
+still authenticates all payload
+digests, but no plaintext SQLite
+file is intentionally transported
+to the backup destination.
+
+- First archive exclusion guard
+  `0b06cf796323878b2b9ad98a234822fba91862f8`
+  (`[skip ci]`).
+- Source-local ephemeral plaintext
+  snapshot redesign
+  `5986556aec958f4dd6df95fbb4f8452fc9c91fbe`
+  (`[skip ci]`).
+- Deferred proof of local snapshot
+  path, encrypted archive contents
+  and failure cleanup
+  `test/test_ws2_backup_snapshot_plaintext_isolation.py`
+  `80369ae23ec8f70a7b50400ebcfa388008ccc9de`
+  (`[skip ci]`).
+
+Original CA relevance: CA-5202,
+CA-5205, CA-6105, CA-6106,
+CA-6806. This does not
+retroactively remove plaintext
+files from any **previously made**
+backup archives or inaccessible
+snapshot remnants on physical media;
+the owner must inventory and
+remediate existing backup copies
+after the deferred test/audit campaign.
+No tests/CI, live backup or
+host/storage mutation performed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
