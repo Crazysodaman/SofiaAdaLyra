@@ -265,3 +265,11 @@ Source changes are unexecuted and therefore not production-accepted. Production-
 - Source inspection confirmed the classification flows through `SelfDirectedLifeCoordinator.tick`'s existing `review_queue` output; host UI and full LIFE/SAFE integration acceptance remain deferred.
 
 **No tests or CI were run.** This does not complete CA-106, CA-202, CA-208 or CA-2402 in the full V18 task sense.
+
+## Queued Project Forge authority revocation checkpoint
+
+- `92421e27`: `LifeStore.claim_artifact_authorization` now atomically refuses to consume a pre-existing one-use grant unless the originating canonical LIFE project is still ACTIVE and goal-linked. A pause or abandonment of the project cannot leave a claimable stale authorization.
+- `0a64f804`: At the **existing** `TaskExecutionManager → SelfDirectedLifeCoordinator._create_artifact` production callback, the worker checks current canonical project status, GOALS ACTIVE status, scoped goal owner/audience, then delegates to the original SAFE/CapabilityGateway and one-use grant. An already-queued job is never treated as perpetual permission. An invalidated authorization is cancelled and returned as BLOCKED through the original RUN status/event path; no creative capability call is made.
+- `52d1cbd9`: Two unexecuted regression cases verify that a LIFE pause and an independently cancelled SELF goal prevent a queued artifact and preserve the blocked RUN record/operator review visibility.
+
+This addresses a narrow authority-race path, **not** full atomic GOALS/LIFE two-phase settlement or all cancellation races: a canonical GOALS change between the worker check and the independently governed capability effect still needs future concurrency and host tests. No tests, CI, deployment, host or Gaia operations were performed.
