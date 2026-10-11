@@ -1101,3 +1101,54 @@ def test_life_ideation_keeps_interest_evidence_out_of_system_instruction(tmp_pat
         ) == ()
     finally:
         life.close()
+
+
+def test_unknown_life_judgment_keeps_preference_unset(tmp_path):
+    """Independent structural success is not evidence of a felt preference."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _ = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
+        job = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        assert job.status is WorkStatus.COMPLETED
+        artifact_id = str(job.result["artifact_id"])
+        reviewed = life.evaluate_artifact(
+            project.project_id, artifact_id=artifact_id,
+            technical_outcome=TechnicalOutcome.VALID,
+            personal_judgment=PersonalJudgment.UNKNOWN,
+            objective_results={"text_contains:Foxfire": True},
+            reason="Independent byte-level validation; subjective value unobserved.",
+            evidence_refs=(str(job.result["evidence_ref"]),),
+            preserve_for_research=False, now=now + timedelta(seconds=4),
+        )
+        assert life.preferences.current(
+            subject=PreferenceSubject.SOFIA, category="creation",
+            target_id=artifact_id, context="project",
+            audience_id=project.audience_id,
+        ) is None
+        experiences = life.store.experiences(
+            audience_id=project.audience_id, include_private=True,
+        )
+        assert any(
+            item.kind == "artifact_evaluated"
+            and item.metadata["interest_learning"]["evaluation_id"] == reviewed.evaluation_id
+            for item in experiences
+        )
+        assert life.evaluate_artifact(
+            project.project_id, artifact_id=artifact_id,
+            technical_outcome=TechnicalOutcome.VALID,
+            personal_judgment=PersonalJudgment.UNKNOWN,
+            objective_results={"text_contains:Foxfire": True},
+            reason="Independent byte-level validation; subjective value unobserved.",
+            evidence_refs=(str(job.result["evidence_ref"]),),
+            preserve_for_research=False, now=now + timedelta(seconds=5),
+        ).evaluation_id == reviewed.evaluation_id
+        assert life.preferences.current(
+            subject=PreferenceSubject.SOFIA, category="creation",
+            target_id=artifact_id, context="project",
+            audience_id=project.audience_id,
+        ) is None
+    finally:
+        life.close()
