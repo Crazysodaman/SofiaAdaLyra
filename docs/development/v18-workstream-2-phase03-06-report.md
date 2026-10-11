@@ -903,6 +903,26 @@ Deferred loss/replacement/schema/epoch regression cases:
 No independent witness file was created on a live host, and no
 replication/failover was executed.
 
+### Phase 03 replicated startup checks witness before touching data planes
+
+When `SOFIA_STATE_REPLICATION_ENABLED=true`, the production
+`create_state_plane` entrypoint now pins the **existing canonical primary**
+through `CanonicalSQLiteGuard`, validates the configured replica/witness
+paths without resolving away symlink authority, constructs the independent
+existing `SQLiteReplicationWitness` **before** any
+`SQLiteStatePlane` (and before an optional replica seed), and checks
+the primary's file identity before and after explicitly enabled replica
+seeding. Missing/uninitialized/replaced witness control-plane state fails
+closed instead of initiating new data-plane initialization or secretly
+minting an epoch-one writer. Nonreplicated explicit first-install
+behavior is deliberately unchanged. This still does not constitute
+whole-database cross-host fencing or approve any deployment.
+
+Production commits: `b8f177c83cc9d5f98b69d8a34beed3bc0b3ac23e`,
+`04d9d6a0f4d74d54965754708b9343765c30c1ee`. Deferred regression
+contracts: `ca5610d597a2c820cd8e78348315a8e10ec8ce90`.
+No CI/test run, no witness bootstrap outside fixtures, no live host changes.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
