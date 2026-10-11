@@ -204,20 +204,42 @@ def test_idle_sweep_never_unloads_busy_model():
     )==("vendor/primary:any",)
 
 
-def test_install_pulls_missing_configured_role_without_loading_it():
+def test_explicit_model_install_requires_independent_exact_role_approval():
     backend=Backend()
     manager=ModelLifecycleManager(
         selection=_selection(secondary=None),
         policy=ModelLifecycleConfiguration(),
         backend=backend,
     )
-    status=manager.install(CognitiveModelRole.PRIMARY)
+    with pytest.raises(PermissionError, match="approval"):
+        manager.install(CognitiveModelRole.PRIMARY)
+    assert backend.installed==set()
+    with pytest.raises(PermissionError, match="approval"):
+        manager.install(
+            CognitiveModelRole.PRIMARY,
+            operator_approval_ref="approval:wrong-role",
+            verify_operator_approval=lambda receipt, role, model: (
+                receipt=="approval:wrong-role"
+                and role is CognitiveModelRole.SECONDARY
+            ),
+        )
+    assert backend.installed==set()
+    verified=[]
+    def verifier(receipt, role, model):
+        verified.append((receipt,role,model))
+        return receipt=="approval:reviewed" and role is CognitiveModelRole.PRIMARY and model=="vendor/primary:any"
+    status=manager.install(
+        CognitiveModelRole.PRIMARY,
+        operator_approval_ref="approval:reviewed",
+        verify_operator_approval=verifier,
+    )
     assert status.state is ModelResidency.UNLOADED
     assert backend.installed=={"vendor/primary:any"}
+    assert verified==[("approval:reviewed",CognitiveModelRole.PRIMARY,"vendor/primary:any")]
     assert backend.resident==set()
 
 
-def test_install_missing_provisions_all_configured_roles_without_loading():
+def test_legacy_auto_install_flag_cannot_pull_configured_models():
     names=("vendor/primary:any","vendor/secondary:any")
     backend=Backend()
     manager=ModelLifecycleManager(
@@ -228,11 +250,8 @@ def test_install_missing_provisions_all_configured_roles_without_loading():
         ),
         backend=backend,
     )
-
-    installed=manager.install_missing()
-
-    assert installed==names
-    assert backend.installed==set(names)
+    assert manager.install_missing()==()
+    assert backend.installed==set()
     assert backend.resident==set()
 
 
