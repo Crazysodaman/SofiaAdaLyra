@@ -156,3 +156,41 @@ This table maps the *requested envelope semantics* to currently existing typed s
 ## CA-001: end-to-end event-trace static audit boundary
 
 The existing production composition includes the COGNITION v2/Matrix turn trace, `application/background_runtime.py` background LIFE/NEURO functions, original conversation store, SAFE permission gate and ACT delivery service. **Static source evidence does not yet establish a single concrete event traversing all of those subsystems.** Particularly the current `CompanionDecisionTrace` deliberately refuses to claim NEURO causation or LIFE/GOALS/ACT settlement without shared source references. Thus the full CA-001 trace remains **partial/unverified**, with a future controlled event fixture needed to prove each actual caller and settled receipt.
+
+## CA-3104 / CA-1202: versioned LIFE+RUN decision state graph
+
+**Architecture decision:** A personal project status is not the RUN job status. Canonical `LifeProject.status` and `WorkJob.status` remain owned by their existing tables and `PROJECT_TRANSITIONS`/`DurableWorkStore.transition`; the user-facing state below is a **read-only projection** produced by `SelfDirectedLifeCoordinator`. Do not introduce a second persistent scheduler or silently equate a delivered artifact with a verified project.
+
+| Source state / predicate | Canonical action | Requested operator-visible next decision | Forbidden shortcut |
+| --- | --- | --- | --- |
+| No project, voluntary quiet period, or paused project | `LifeStore.quiet_until`, `LifeProject.status` | `rest` or silence until eligibility changes | Invent urgent activity or send unapproved outreach |
+| Active project with no RUN job and active GOALS | LIFE/GOALS + resource/SAFE eligibility | `explore` or queue one bounded authorized task | Treat self-chosen interest as permission |
+| RUN `QUEUED` or `RUNNING` | `DurableWorkStore` original work status | `wait`; preserve job ID and observed status | Queue duplicate work to make progress look faster |
+| RUN `WAITING_APPROVAL` | RUN original permission-blocked state | `ask` for independent owner authorization | Mint permission from operator-name label or LLM narrative |
+| RUN `BLOCKED` | RUN original blocked receipt | `ask` / review blocker | Reclassify blocked as completed |
+| RUN `FAILED` or `CANCELLED` | RUN failure/cancellation event | `ask` or `review`; gather failure evidence | Automatically erase failure or create retry with old grant |
+| RUN `UNCERTAIN` | RUN original uncertain effect | `ask` for reconciliation and read-only observation | **Never automatically retry an effect that might already have happened** |
+| RUN `COMPLETED` without linked artifact | RUN completed receipt, no LIFE artifact proof | `verify`: missing or unlinked evidence | Treat a successful executor return as an objective success |
+| RUN `COMPLETED` with artifact but no independent evaluation | LIFE artifact index and RUN link | `verify`: independent artifact review | Fabricate completion from draft or template |
+| Independent evaluation inconclusive | `ArtifactEvaluation.technical_outcome=INCONCLUSIVE` | `ask` or `review` for more evidence | Claim verified objective |
+| Independent evaluation invalid | `TechnicalOutcome.INVALID` | `review` then propose bounded revision/pause | Discard adverse evidence |
+| Independent evaluation valid but open milestones | LIFE milestone/status evidence | `verify` and settle milestone with source proof | Mark all original objectives complete from one result |
+| Verified project completion | LIFE project+GOALS+original RUN receipt+current source artifact verification | `COMPLETED`; optional consent-bound sharing | Announce milestone/project done without external source verification |
+| Abandoned/rejected/archived/superseded | `LifeProject.status` and source event trail | Silence or explicit review/reactivation if authorized | Reactivate via a background prompt |
+
+**Original source hooks:** `life/model.py:PROJECT_TRANSITIONS` enforces legal project-status changes; `life/coordinator.py:pending_work_review` maps RUN `UNCERTAIN` to `uncertain_no_automatic_retry`, `WAITING_APPROVAL` to `awaiting_separate_operator_approval`, and failed/blocked to review; its project diagnostics derives `next_action` from STOP, original goal, budget, run status, artifact evaluation and verified milestones. `run/work.py:WorkStatus` and `DurableWorkStore.transition` remain the RUN authority; `life/store.py` retains original work outcome observations and links instead of overwriting RUN proof.
+
+**Decision transition schema v1 (documentation, NOT new runtime state):**
+
+```text
+LifeProject.status + original RUN status + original GoalStatus
+  + relevant SAFE/operator-stop + original artifact/evaluation/milestones
+   -> read-only LIFE diagnostic {project_id, condition, source,
+       source_job_id, last_run_event_id, next_action, next_reason}
+   -> only an independently permitted RUN/GOALS/LIFE action may update
+       its own canonical store; after restart recompute this view
+```
+
+**Idempotency/replay and correction requirement:** Reusing a previously consumed SAFE approval, executing the same external mutation after `UNCERTAIN`, or remapping stale material host observations to a new plan is forbidden. Explicit `ProjectEvent` evidence refs, RUN job IDs and event IDs must be preserved for reconciliation; corrections update the owning source/review record, not the prior event's claimed success.
+
+**Partial source audit status:** This source review confirms multiple existing decision branches and a versioned *design contract*, not all required restart/dedupe/correction/failure-injection tests or every external effect predicate. CA-3104 and CA-1202 remain **partial** until source-by-source acceptance proves all branches. The technical outcome `VALID` is not proof that the *original personal objective* was fulfilled without independent evidence.
