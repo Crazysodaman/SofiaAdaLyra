@@ -2179,3 +2179,78 @@ def test_multi_interest_life_ideation_rejects_missing_or_forged_origin(tmp_path)
         ) == ()
     finally:
         life.close()
+
+
+def test_operator_stop_prevents_optional_life_wakeup_and_run_dispatch(tmp_path):
+    """LIFE must not start creative RUN or cognitive work while stopped."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Queued before stop",
+            specification={"content": "Must remain queued while stopped."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        life.operator_stop.set(
+            active=True, updated_by="Sparks",
+            reason="Test-only isolated stop.",
+            at=now + timedelta(seconds=4),
+        )
+        provider_called = []
+        def unexpected_generator(request):
+            provider_called.append(request)
+            raise AssertionError("no model should wake under operator stop")
+        result = life.tick(
+            now=now + timedelta(seconds=5), generate=unexpected_generator,
+        )
+        assert result["selection"] == "inactivity"
+        assert result["follow_through"] == "operator_stop"
+        assert result["scheduled"] == 0
+        assert result["jobs_started"] == 0
+        assert life.work_store.get(job.job_id).status is WorkStatus.QUEUED
+        assert provider_called == []
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_stop_during_life_ideation_cannot_create_optional_project(tmp_path):
+    """A stop asserted inside a model callback wins before project admission."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        evidence = life.record_observation(
+            kind="interest", source="test:observed",
+            assertion="Observed private creative interest.", now=now,
+        )
+        life.revise_interest(
+            name="small-fiction", context="creative",
+            strength=0.8, confidence=0.9,
+            reason="Recorded creative curiosity.",
+            evidence_refs=(evidence,), now=now,
+        )
+        def generate(_request):
+            life.operator_stop.set(
+                active=True, updated_by="Sparks",
+                reason="Stop asserted while optional ideation is pending.",
+                at=now + timedelta(seconds=1),
+            )
+            return CognitiveResponse(json.dumps({
+                "name": "An Original Small Story",
+                "description": "A bounded original creative writing suggestion.",
+                "objectives": ["text_contains:violet"],
+                "optional_success_criteria": [],
+                "artifact_kind": "text", "confidence": 0.85,
+                "curiosity": 0.88, "pursue": True,
+                "reason": "Eligible creative interest.",
+            }))
+        result = life.consider_new_project(
+            generate=generate, now=now + timedelta(seconds=1),
+            busy=False, resource_pressure=0.1,
+        )
+        assert result is None
+        assert life.store.list_scope(
+            owner_principal_id="sofia:self", audience_id="local:text",
+        ) == ()
+    finally:
+        life.close()
