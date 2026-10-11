@@ -594,7 +594,9 @@ class SettingsSections:
                         at=datetime.now(timezone.utc),
                     )
                     WorkshopHandoffStore(config.state_path).record(preview)
-                    handoff_queue.put(("ok",preview.readable()))
+                    handoff_queue.put((
+                        "ok",preview.readable(),preview.handoff.plan_id,
+                    ))
                 except Exception as exc:
                     handoff_queue.put((
                         "error", f"{type(exc).__name__}: {exc}. "
@@ -619,7 +621,11 @@ class SettingsSections:
 
         def poll_handoff():
             try:
-                status,detail=handoff_queue.get_nowait()
+                response=handoff_queue.get_nowait()
+                status,detail=response[:2]
+                handoff_text["last_plan_id"]=(
+                    response[2] if status=="ok" and len(response)>2 else None
+                )
             except Empty:
                 pass
             else:
@@ -635,6 +641,162 @@ class SettingsSections:
                 root.after(350,poll_handoff)
 
         root.after(350,poll_handoff)
+
+        # Separate explicit owner boot authorization. This button never
+        # appears as a model-facing tool and is never invoked by RUN.
+        from datetime import timedelta
+        from uuid import uuid4
+        from sofia.safe.execution_approval import (
+            ExecutionApproval, ExecutionApprovalVerifier,
+            execution_fingerprint,
+        )
+        from sofia.safe.operator_stop import OperatorStopStore
+        from sofia.ops.workshop_guest_bootstrap import (
+            reviewed_handoff_from_store,
+            start_owner_approved_installer,
+            WorkshopInstallerBootStore,
+        )
+        boot_busy={"active":False}
+        boot_queue=Queue()
+        boot_view=self.viewer(
+            frames["Fleet"],
+            "Hephaestus installer boot receipt (NOT OS installation proof)",
+            lambda:(
+                "No installer boot has been requested on this handoff."
+                if not handoff_text.get("last_plan_id")
+                else (
+                    str(WorkshopInstallerBootStore(config.state_path).inspect(
+                        plan_id=handoff_text["last_plan_id"],
+                    ))
+                )
+            ),
+        )
+
+        def owner_install_debian():
+            if boot_busy["active"] or handoff_busy["active"]:
+                return
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator stop blocks Debian bootstrap")
+            plan_id=handoff_text.get("last_plan_id")
+            if not plan_id:
+                raise PermissionError("inspect your existing blank Hephaestus first")
+            now=datetime.now(timezone.utc)
+            handoff,_=reviewed_handoff_from_store(
+                config.state_path,plan_id=plan_id,now=now,
+            )
+            if WorkshopInstallerBootStore(config.state_path).inspect(
+                plan_id=plan_id,
+            ) is not None:
+                raise PermissionError(
+                    "installer attempt already reserved; no automatic replay"
+                )
+            exact={
+                "artemis_node_id":str(handoff.artemis_node_id),
+                "vm_id":str(handoff.hyperv_vm_id),
+                "disk_path":handoff.expected_os_disk_path,
+                "iso_path":handoff.installer_iso_path,
+                "iso_sha256":handoff.installer_sha256,
+                "handoff_fingerprint":handoff.fingerprint,
+            }
+            review=(
+                "START AN UNATTENDED DEBIAN INSTALLER ON ARTEMIS?\n\n"
+                f"Existing VM: Hephaestus / {handoff.hyperv_vm_id}\n"
+                f"Artemis: {handoff.artemis_node_id}\n"
+                f"Existing OS VHDX: {handoff.expected_os_disk_path}\n"
+                f"Unattended ISO: {handoff.installer_iso_path}\n"
+                f"SHA-256: {handoff.installer_sha256}\n"
+                f"Plan fingerprint: {handoff.fingerprint}\n\n"
+                "This can FORMAT the reviewed empty disk. Hyper-V will "
+                "attach the reviewed ISO and START this exact VM. "
+                "It does NOT confirm Debian finished installing. "
+                "Fleet enrollment requires a SEPARATE owner approval. "
+                "No sibling VMs, switches, host OS, LAN or databases may be changed."
+            )
+            if not self.messagebox.askyesno(
+                "Level-4: authorize exactly one Debian installer boot?",
+                review,parent=root,
+            ):
+                return
+            approval=ExecutionApproval(
+                approval_id=str(uuid4()),
+                capability="workshop.guest.bootstrap",
+                request_fingerprint=execution_fingerprint(
+                    "workshop.guest.bootstrap",exact,
+                ),
+                approved_by="Sparks",
+                approved_at=now,
+                expires_at=now+timedelta(minutes=10),
+            )
+            ExecutionApprovalVerifier(config.state_path).record(approval)
+            boot_busy["active"]=True
+            boot_button.configure(state="disabled")
+
+            def boot_worker():
+                service=None
+                try:
+                    service=create_configured_remote_fleet_service(config.state_path)
+                    if service is None:
+                        raise PermissionError(
+                            "pinned Artemis Fleet connection unavailable"
+                        )
+                    settled=start_owner_approved_installer(
+                        state_path=config.state_path,
+                        remote_service=service,
+                        plan_id=plan_id,
+                        approval_id=approval.approval_id,
+                        now=datetime.now(timezone.utc),
+                    )
+                    boot_queue.put(("ok",
+                        f"Installer status: {settled.status}. "
+                        f"Observed VM: {settled.observed_vm_state or 'UNKNOWN'}. "
+                        "Debian installation NOT YET VERIFIED; no guest trusted."
+                    ))
+                except Exception as exc:
+                    boot_queue.put((
+                        "error",f"{type(exc).__name__}: {exc}. "
+                        "A timeout may mean UNCERTAIN host state: inspect Artemis "
+                        "before any new attempt.",
+                    ))
+                finally:
+                    if service is not None:
+                        service.close()
+
+            Thread(
+                target=boot_worker,
+                name="sofia-approved-hephaestus-debian-installer",
+                daemon=False,
+            ).start()
+
+        boot_button=ttk.Button(
+            frames["Fleet"],
+            text="Review & approve one Debian installer boot (protected)",
+            command=self.guarded(owner_install_debian),
+        )
+        boot_button.pack(anchor="w",pady=(6,8))
+
+        def poll_boot():
+            try:
+                state,detail=boot_queue.get_nowait()
+            except Empty:
+                pass
+            else:
+                boot_busy["active"]=False
+                boot_button.configure(state="normal")
+                boot_view.refresh()
+                handoff_text["value"]=detail
+                handoff_view.refresh()
+                if state=="error":
+                    self.messagebox.showerror(
+                        "Hephaestus installer requires review",detail,parent=root,
+                    )
+                else:
+                    self.messagebox.showinfo(
+                        "Installer boot request recorded",detail,parent=root,
+                    )
+            if root.winfo_exists():
+                root.after(350,poll_boot)
+
+        root.after(350,poll_boot)
         self.identity_panel(frames["Sofía"])
         self.avatar_panel(frames["Avatar"])
         from .wardrobe_panel import WardrobePanel, current_mood
