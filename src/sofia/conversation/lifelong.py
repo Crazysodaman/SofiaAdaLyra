@@ -9,13 +9,14 @@ from __future__ import annotations
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
+import json
 import re
 import sqlite3
 from uuid import uuid4
 
 from sofia.social.model import PrincipalContext
-from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.model import ConversationMessage, ConversationRole
 
 
@@ -38,6 +39,26 @@ class ThreadEvent:
     source_audience_id: str
     created_at: datetime
     visibility: str
+
+
+@dataclass(frozen=True, slots=True)
+class HistoricalImportPreview:
+    """Bounded same-audience source receipt, never a migration grant."""
+    session_id: str
+    owner_principal_id: str
+    source_audience_id: str
+    eligible_message_ids: tuple[str, ...]
+    already_linked_ids: tuple[str, ...]
+    original_timestamps: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class HistoricalImportReceipt:
+    review_ref: str
+    source_session_id: str
+    status: str
+    added_ids: tuple[str, ...]
+    pending_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +104,27 @@ class LifelongThreadStore:
                 );
                 CREATE INDEX IF NOT EXISTS lifelong_thread_event_order
                     ON lifelong_thread_event(thread_id,linked_at,source_message_id);
+                CREATE TABLE IF NOT EXISTS lifelong_historical_import (
+                    review_ref TEXT PRIMARY KEY,
+                    thread_id TEXT NOT NULL,
+                    source_session_id TEXT NOT NULL,
+                    owner_principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    request_digest TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN (
+                        'committed','partially_rolled_back','rolled_back','rejected'
+                    )),
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(thread_id) REFERENCES lifelong_thread(thread_id)
+                );
+                CREATE TABLE IF NOT EXISTS lifelong_historical_import_added (
+                    review_ref TEXT NOT NULL,
+                    source_message_id TEXT NOT NULL,
+                    removed_at TEXT,
+                    PRIMARY KEY(review_ref,source_message_id),
+                    FOREIGN KEY(review_ref)
+                        REFERENCES lifelong_historical_import(review_ref)
+                );
                 """
             )
 
@@ -205,6 +247,270 @@ class LifelongThreadStore:
                  row["audience_id"], visibility,
                  datetime.now(timezone.utc).isoformat()),
             )
+
+    def preview_historical_import(
+        self, *, principal: PrincipalContext, session_id: str,
+        limit: int = 128,
+    ) -> HistoricalImportPreview:
+        """Preview at most one bounded source batch without changing history.
+
+        Selection is restricted to the CURRENT original session binding.
+        A principal ID match alone cannot import another transport audience.
+        An operator can review a longer session in additional explicit
+        batches rather than silently importing years of private content.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated owner principal required")
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ValueError("exact source session ID required")
+        if type(limit) is not int or not 1 <= limit <= 128:
+            raise ValueError("bounded source import preview limit required")
+        with closing(self._connect()) as db:
+            source = db.execute(
+                "SELECT principal_id,audience_id,audience_kind "
+                "FROM social_session_principal WHERE session_id=?",
+                (session_id,),
+            ).fetchone()
+            if source is None or tuple(source) != (
+                principal.principal_id, principal.audience_id,
+                principal.audience_kind.value,
+            ):
+                raise PermissionError("source session audience is not authenticated")
+            rows = db.execute(
+                "SELECT m.id,m.created_at, "
+                "EXISTS(SELECT 1 FROM lifelong_thread_event AS e "
+                "JOIN lifelong_thread AS t ON t.thread_id=e.thread_id "
+                "WHERE e.source_message_id=m.id "
+                "AND t.kind='main' AND t.owner_principal_id=? "
+                "AND e.source_session_id=m.session_id "
+                "AND e.source_audience_id=? "
+                "AND e.visibility='source_audience') AS already "
+                "FROM conversation_messages AS m "
+                "WHERE m.session_id=? ORDER BY m.created_at,m.id LIMIT ?",
+                (principal.principal_id, principal.audience_id,
+                 session_id, limit),
+            ).fetchall()
+        return HistoricalImportPreview(
+            session_id=session_id,
+            owner_principal_id=principal.principal_id,
+            source_audience_id=principal.audience_id,
+            eligible_message_ids=tuple(row["id"] for row in rows),
+            already_linked_ids=tuple(row["id"] for row in rows if row["already"]),
+            original_timestamps=tuple(row["created_at"] for row in rows),
+        )
+
+    def apply_historical_import(
+        self, *, principal: PrincipalContext, session_id: str,
+        message_ids: tuple[str, ...], review_ref: str, reject: bool,
+        independently_verify_operator_review,
+    ) -> HistoricalImportReceipt:
+        """Operator-reviewed reversible Main links, never source rebindings.
+
+        A trusted host controller verifies the exact review digest and
+        operator approval independently of model text. Original rows keep
+        their session, privacy and chronological provenance unchanged.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated owner principal required")
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ValueError("source session required")
+        if (
+            not isinstance(message_ids, tuple) or not 1 <= len(message_ids) <= 128
+            or len(set(message_ids)) != len(message_ids)
+            or any(
+                not isinstance(x, str) or not x.strip() or len(x) > 256
+                for x in message_ids
+            )
+        ):
+            raise ValueError("1..128 distinct bounded source message IDs required")
+        if not isinstance(review_ref, str) or not 8 <= len(review_ref) <= 256:
+            raise ValueError("bounded operator review reference required")
+        if type(reject) is not bool:
+            raise TypeError("reject decision must be explicit")
+        digest = sha256(json.dumps(
+            (principal.principal_id, principal.audience_id,
+             principal.audience_kind.value, session_id, message_ids, reject),
+            separators=(",", ":"), ensure_ascii=False,
+        ).encode("utf-8")).hexdigest()
+        if not callable(independently_verify_operator_review) or (
+            independently_verify_operator_review(review_ref, digest) is not True
+        ):
+            raise PermissionError("independent operator review denied import")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            original = db.execute(
+                "SELECT principal_id,audience_id,audience_kind "
+                "FROM social_session_principal WHERE session_id=?",
+                (session_id,),
+            ).fetchone()
+            if original is None or tuple(original) != (
+                principal.principal_id, principal.audience_id,
+                principal.audience_kind.value,
+            ):
+                raise PermissionError("original source audience changed since review")
+            existing = db.execute(
+                "SELECT request_digest,status,source_session_id "
+                "FROM lifelong_historical_import WHERE review_ref=?",
+                (review_ref,),
+            ).fetchone()
+            if existing is not None:
+                if existing["request_digest"] != digest or (
+                    existing["source_session_id"] != session_id
+                ):
+                    raise PermissionError("review reference reused for different sources")
+                return self._historical_receipt(db, review_ref)
+            marker = ",".join("?" for _ in message_ids)
+            rows = db.execute(
+                "SELECT id FROM conversation_messages "
+                "WHERE session_id=? AND id IN (" + marker + ")",
+                (session_id, *message_ids),
+            ).fetchall()
+            if len(rows) != len(message_ids):
+                raise LookupError("requested message not in exact reviewed source")
+            thread = db.execute(
+                "SELECT thread_id FROM lifelong_thread "
+                "WHERE owner_principal_id=? AND kind='main'",
+                (principal.principal_id,),
+            ).fetchone()
+            if thread is None:
+                thread_id = f"thread:{uuid4().hex}"
+                db.execute(
+                    "INSERT INTO lifelong_thread VALUES(?,?,?,?,?)",
+                    (thread_id, principal.principal_id, "main", "Main",
+                     datetime.now(timezone.utc).isoformat()),
+                )
+            else:
+                thread_id = thread["thread_id"]
+            stamp = datetime.now(timezone.utc).isoformat()
+            db.execute(
+                "INSERT INTO lifelong_historical_import VALUES(?,?,?,?,?,?,?,?)",
+                (review_ref, thread_id, session_id, principal.principal_id,
+                 principal.audience_id, digest,
+                 "rejected" if reject else "committed", stamp),
+            )
+            if not reject:
+                for identifier in message_ids:
+                    already = db.execute(
+                        "SELECT source_session_id,source_audience_id,visibility "
+                        "FROM lifelong_thread_event "
+                        "WHERE thread_id=? AND source_message_id=?",
+                        (thread_id, identifier),
+                    ).fetchone()
+                    if already is not None:
+                        if tuple(already) != (
+                            session_id, principal.audience_id, "source_audience"
+                        ):
+                            raise PermissionError("existing source link conflicts with review")
+                        continue
+                    db.execute(
+                        "INSERT INTO lifelong_thread_event VALUES(?,?,?,?,?,?)",
+                        (thread_id, identifier, session_id,
+                         principal.audience_id, "source_audience", stamp),
+                    )
+                    db.execute(
+                        "INSERT INTO lifelong_historical_import_added VALUES(?,?,NULL)",
+                        (review_ref, identifier),
+                    )
+            return self._historical_receipt(db, review_ref)
+
+    @staticmethod
+    def _historical_receipt(db: sqlite3.Connection, review_ref: str) -> HistoricalImportReceipt:
+        row = db.execute(
+            "SELECT source_session_id,status "
+            "FROM lifelong_historical_import WHERE review_ref=?",
+            (review_ref,),
+        ).fetchone()
+        if row is None:
+            raise LookupError("historical import decision absent")
+        added = db.execute(
+            "SELECT source_message_id,removed_at "
+            "FROM lifelong_historical_import_added WHERE review_ref=? "
+            "ORDER BY source_message_id", (review_ref,),
+        ).fetchall()
+        return HistoricalImportReceipt(
+            review_ref=review_ref, source_session_id=row["source_session_id"],
+            status=row["status"],
+            added_ids=tuple(r["source_message_id"] for r in added),
+            pending_ids=tuple(
+                r["source_message_id"] for r in added
+                if r["removed_at"] is None
+            ),
+        )
+
+    def rollback_historical_import(
+        self, *, principal: PrincipalContext, review_ref: str,
+        message_ids: tuple[str, ...], independently_verify_operator_review,
+    ) -> HistoricalImportReceipt:
+        """Undo only links introduced by one authenticated historical import."""
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated owner required")
+        if not isinstance(review_ref, str) or not 8 <= len(review_ref) <= 256:
+            raise ValueError("operator review reference required")
+        if (
+            not isinstance(message_ids, tuple) or not 1 <= len(message_ids) <= 128
+            or len(set(message_ids)) != len(message_ids)
+            or any(not isinstance(v, str) or not v.strip() for v in message_ids)
+        ):
+            raise ValueError("bounded explicit rollback item IDs required")
+        digest = sha256(json.dumps(
+            ("rollback", principal.principal_id, principal.audience_id,
+             review_ref, message_ids), separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
+        if not callable(independently_verify_operator_review) or (
+            independently_verify_operator_review(review_ref, digest) is not True
+        ):
+            raise PermissionError("independent operator rollback review denied")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            owner = db.execute(
+                "SELECT thread_id,owner_principal_id,audience_id,"
+                "source_session_id,status "
+                "FROM lifelong_historical_import WHERE review_ref=?",
+                (review_ref,),
+            ).fetchone()
+            if owner is None:
+                raise LookupError("review reference does not exist")
+            if (owner["owner_principal_id"],owner["audience_id"]) != (
+                principal.principal_id, principal.audience_id,
+            ):
+                raise PermissionError("rollback is not owned by this exact audience")
+            if owner["status"] == "rejected":
+                raise PermissionError("rejected import created no links")
+            for identifier in message_ids:
+                record = db.execute(
+                    "SELECT removed_at FROM lifelong_historical_import_added "
+                    "WHERE review_ref=? AND source_message_id=?",
+                    (review_ref, identifier),
+                ).fetchone()
+                if record is None:
+                    raise PermissionError("cannot remove preexisting or foreign Main links")
+                if record["removed_at"] is not None:
+                    continue
+                db.execute(
+                    "DELETE FROM lifelong_thread_event "
+                    "WHERE thread_id=? AND source_message_id=? "
+                    "AND source_session_id=? AND source_audience_id=? "
+                    "AND visibility='source_audience'",
+                    (owner["thread_id"], identifier,
+                     owner["source_session_id"], principal.audience_id),
+                )
+                db.execute(
+                    "UPDATE lifelong_historical_import_added SET removed_at=? "
+                    "WHERE review_ref=? AND source_message_id=? AND removed_at IS NULL",
+                    (datetime.now(timezone.utc).isoformat(), review_ref, identifier),
+                )
+            remaining = db.execute(
+                "SELECT 1 FROM lifelong_historical_import_added "
+                "WHERE review_ref=? AND removed_at IS NULL LIMIT 1",
+                (review_ref,),
+            ).fetchone()
+            db.execute(
+                "UPDATE lifelong_historical_import SET status=? "
+                "WHERE review_ref=?",
+                ("partially_rolled_back" if remaining else "rolled_back",
+                 review_ref),
+            )
+            return self._historical_receipt(db, review_ref)
 
     def visible_events(
         self, *, thread_id: str, principal: PrincipalContext,
