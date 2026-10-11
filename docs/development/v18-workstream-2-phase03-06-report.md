@@ -546,6 +546,37 @@ CA relevance: CA-5202, CA-5206, CA-6803, CA-1703,
 CA-4803 and CA-5802. **Tests not run.** This proves no recovery by
 silent database creation in this reader, not full restoration acceptance.
 
+### Android protected offline Main history, read-only on disconnect (Phase 04/05)
+
+Production path: authenticated HTTPS `/v1/mobile/main/page` →
+`MobileCompanionGateway.main_history` audience-filtered
+`LifelongThreadStore.visible_message_page` →
+`SofiaApi.mainPage` → `MainViewModel.loadMainHistory` →
+`SecureSettings.saveMainCache` AndroidKeystore AES-GCM plus durable
+SharedPreferences commit (up to 50, 180 KB) →
+subsequent verified network IOException (not host HTTP 401/403/etc) →
+`SecureSettings.cachedMainPage` exact hostname, bearer fingerprint,
+privacy mode and audience-kind match →
+explicit `OFFLINE / read-only` Main display.
+No offline reply generation, memory promotion, queued actions or canonical
+effect claims occur from this cache. An authenticated host denial **never**
+falls back to old content. Changing the paired server/token or privacy mode
+must durably clear the encrypted Main cache first, and a dedicated
+`Clear offline Main` UI action supports owner disposal. Corrupt ciphertext
+fails closed rather than pretending there are no messages.
+
+Commits:
+- `6db55d8e6833527194ddb75d687e2463d963ced7` encrypted bounded Android cache.
+- `c36e3a48396efb3d9305620f6584a5ca3c144912` actual Android
+  UI/load/reconnect/privacy re-pair path.
+- `28235885be58ca654970f0a7f2a57644a345a405` Android instrumented
+  Keystore/restart/host/mode/corruption regression cases, not executed.
+
+CA relevance: CA-6301, CA-6303, CA-6304, CA-6306, CA-4107,
+CA-4109 and CA-5304. The user still needs actual Android device tests
+and host/network outage acceptance. The cache is local and cannot prove
+current host state or override later host revocation while disconnected.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
