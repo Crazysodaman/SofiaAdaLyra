@@ -1,7 +1,10 @@
 """Host capability authorization wired to the unified permission policy."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
+
+from sofia.safe.execution_approval import ExecutionApprovalVerifier
 
 from sofia.config.model import SofiaConfiguration
 from sofia.safe.operator_stop import OperatorStopStore
@@ -37,6 +40,7 @@ def create_capability_authorizer(
     """Resolve runtime authority at execution time and fail closed."""
     filesystem_root = Path(configuration.filesystem_root)
     permission_store = PermissionStore(configuration.state_path)
+    execution_approvals = ExecutionApprovalVerifier(configuration.state_path)
 
     def capability_authorized(request) -> bool:
         if runtime_provider() is None:
@@ -96,17 +100,22 @@ def create_capability_authorizer(
         }
 
         if policy.level is PermissionLevel.REVERSIBLE_SCOPED:
-            if permission_store.allows_standing(
-                name,
-                standing_parameters,
-            ):
-                return True
-            if isinstance(approval_id, str) and approval_id.strip():
+            if permission_store.allows_standing(name, standing_parameters):
                 return True
 
-        if policy.level is PermissionLevel.PROTECTED:
-            if isinstance(approval_id, str) and approval_id.strip():
-                return True
+        if policy.level in (
+            PermissionLevel.REVERSIBLE_SCOPED,
+            PermissionLevel.PROTECTED,
+        ):
+            # A model-supplied or stale ID is not operator authorization.
+            # Only an exact durable, unconsumed receipt may pass this gate.
+            # The executing handler still atomically consumes it.
+            return execution_approvals.matches_unconsumed(
+                approval_id=approval_id,
+                capability=name,
+                parameters=parameters,
+                now=datetime.now(timezone.utc),
+            )
 
         # Legacy standing capability configuration is intentionally ignored.
         # The canonical permission store and exact approval verifiers are the
