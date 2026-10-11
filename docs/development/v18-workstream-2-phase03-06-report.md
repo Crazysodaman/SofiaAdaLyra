@@ -3726,6 +3726,36 @@ writer authority still require an independent operator and
 privileged cross-host fencing. No tests/CI or live file scans
 were executed.
 
+
+
+### Phase 03 item 88: Inspect operator-selected recovery roots before defaults
+
+`discover_local_state_candidates` previously appended explicit
+owner-selected `extra_roots` after conventional search locations,
+then truncated the combined list at `max_roots`. Under a small
+inspection budget the user-approved roots could therefore be
+**silently skipped**, while unrequested conventional directories
+consumed the entire scan quota. That is particularly dangerous
+when the active state home is unavailable and a known backup
+must be presented for operator review.
+
+Production now inspects the configured home first, then explicitly
+approved extra roots, and only afterwards uses remaining slots for
+known conventional locations. The existing bounded maximum is
+preserved; this remains discovery, NOT active-writer selection,
+state creation, credential transfer or cutover.
+
+- Production `579bbb755ff6b2986b1323fdb6c5ae9724634d01`
+  (`[skip ci]`).
+- Deferred cap-priority fixture in
+  `test/test_ws2_state_candidate_discovery_resilience.py`,
+  `96a7efc1161e9c52377255529fd28513cd0d0455`
+  (`[skip ci]`).
+
+Original relevance: CA-6803, CA-6804, CA-6807.
+No tests/CI or live discovery executed; requirement acceptance
+remains pending.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
