@@ -207,3 +207,52 @@ def test_linux_click_refuses_out_of_window_before_any_input(monkeypatch):
     with pytest.raises(PermissionError,match="outside"):
         backend.execute(action,lambda:None)
     assert not sent
+
+
+def test_local_only_inference_receives_owner_picked_pixels_without_tools(monkeypatch):
+    from sofia.vision.capture import CapturedFrame
+    from sofia.vision.journeys import accept_actual_picked_frame
+    from sofia.vision.interpret import describe_frame
+    req = signed_request()
+    pixels = one_pixel()
+    evidence = accept_actual_picked_frame(
+        req, pixel_bytes=pixels, at=datetime.now(timezone.utc),
+        actual_os_picker_selected_target_id=req.permit.target_id,
+        confirmed_interactive_os_picker=True,
+    )
+    frame = CapturedFrame(pixels, evidence)
+    calls = []
+    class LocalClient:
+        def chat(self, **kwargs):
+            calls.append(kwargs)
+            return {"message": {"content": "A title bar and two buttons."}}
+    result = describe_frame(frame, model="vision-local-test", client=LocalClient())
+    assert result.description == "A title bar and two buttons."
+    assert result.trusted_instruction is False
+    assert result.verified_app_state is False
+    assert result.frame_sha256 == sha256(pixels).hexdigest()
+    assert calls[0]["messages"][0]["images"] == [pixels]
+    assert "tools" not in calls[0] and calls[0]["stream"] is False
+
+
+def test_image_model_failure_does_not_fallback_to_other_models():
+    from sofia.vision.capture import CapturedFrame
+    from sofia.vision.journeys import accept_actual_picked_frame
+    from sofia.vision.interpret import describe_frame
+    req = signed_request()
+    pixels = one_pixel()
+    evidence = accept_actual_picked_frame(
+        req, pixel_bytes=pixels, at=datetime.now(timezone.utc),
+        actual_os_picker_selected_target_id=req.permit.target_id,
+        confirmed_interactive_os_picker=True,
+    )
+    class Failing:
+        attempts = 0
+        def chat(self, **kwargs):
+            self.attempts += 1
+            raise OSError("model unavailable")
+    client = Failing()
+    with pytest.raises(RuntimeError, match="no model fallback"):
+        describe_frame(CapturedFrame(pixels, evidence),
+                       model="owner-chosen-model", client=client)
+    assert client.attempts == 1
