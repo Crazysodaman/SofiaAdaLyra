@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 import os
 import re
 import signal
+import socket
 import sys
 from threading import Event
 
@@ -101,7 +102,9 @@ After=network-online.target
 ConditionPathExists={spec.state_root}/sofia.db
 
 [Service]
-Type=simple
+Type=notify
+NotifyAccess=main
+TimeoutStartSec=180s
 User={spec.service_user}
 Group={spec.service_user}
 Environment=SOFIA_RUNTIME_MODE=production
@@ -132,6 +135,20 @@ WantedBy=multi-user.target
 """
 
 
+def notify_systemd(message: str) -> None:
+    """Notify systemd via inherited AF_UNIX datagram; never claim ready early."""
+    if message not in {"READY=1", "STOPPING=1"}:
+        raise ValueError("only fixed lifecycle notifications are supported")
+    address = os.environ.get("NOTIFY_SOCKET", "")
+    if not address or len(address) > 100:
+        raise RuntimeError("canonical runtime requires systemd NOTIFY_SOCKET")
+    # systemd uses @name to represent an abstract Linux UNIX socket.
+    destination = ("\\0" + address[1:]) if address.startswith("@") else address
+    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as connection:
+        connection.connect(destination)
+        connection.sendall(message.encode("ascii"))
+
+
 def run_headless(*, stop_event: Event) -> None:
     """Start the actual canonical application and shut it down on signal.
 
@@ -155,6 +172,8 @@ def run_headless(*, stop_event: Event) -> None:
             "canonical headless service requires production and "
             "require_existing identity modes"
         )
+    if not os.environ.get("NOTIFY_SOCKET", "").strip():
+        raise RuntimeError("canonical systemd service requires readiness notification channel")
     if not os.environ.get("SOFIA_STATE_HOME_POINTER", "").strip():
         raise PermissionError(
             "headless production runtime requires operator-approved signed "
@@ -177,9 +196,13 @@ def run_headless(*, stop_event: Event) -> None:
     application = SofiaApplication(configuration)
     try:
         application.start()
+        notify_systemd("READY=1")
         stop_event.wait()
     finally:
-        application.shutdown()
+        try:
+            notify_systemd("STOPPING=1")
+        finally:
+            application.shutdown()
 
 
 def main(argv: list[str] | None = None) -> int:
