@@ -276,16 +276,45 @@ class ModelInventoryStore:
     ) -> None:
         if not isinstance(host_id, str) or not host_id.strip():
             raise ValueError("host_id required")
-        if not isinstance(observations, tuple) or len(observations) > 66:
-            raise ValueError("bounded model inventory required")
+        if (
+            not isinstance(observations, tuple)
+            or not 1 <= len(observations) <= 66
+        ):
+            raise ValueError("nonempty bounded model inventory required")
         if any(
             not isinstance(item, ModelInventoryObservation)
             or item.host_id != host_id for item in observations
         ):
             raise ValueError("inventory rows must belong to the observed host")
+        snapshot_at=observations[0].observed_at.astimezone(timezone.utc)
+        if any(
+            item.observed_at.astimezone(timezone.utc)!=snapshot_at
+            for item in observations
+        ):
+            raise ValueError("model inventory must have one observed snapshot time")
+        if len({item.model for item in observations})!=len(observations):
+            raise ValueError("duplicate observed model inventory rows")
         with closing(self._guard.connect(timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("BEGIN IMMEDIATE")
+            prior=db.execute(
+                "SELECT snapshot_json FROM cognition_model_inventory "
+                "WHERE host_id=? ORDER BY model LIMIT 1",(host_id,),
+            ).fetchone()
+            if prior is not None:
+                try:
+                    previous_raw=json.loads(prior[0])["observed_at"]
+                    previous=datetime.fromisoformat(previous_raw)
+                    if previous.tzinfo is None or previous.utcoffset() is None:
+                        raise ValueError("legacy inventory time has no timezone")
+                except (KeyError,TypeError,ValueError) as exc:
+                    raise RuntimeError(
+                        "existing inventory timestamp invalid; operator review required"
+                    ) from exc
+                if snapshot_at<previous.astimezone(timezone.utc):
+                    raise RuntimeError(
+                        "stale model inventory cannot overwrite newer observation"
+                    )
             db.execute(
                 "DELETE FROM cognition_model_inventory WHERE host_id=?",
                 (host_id,),
