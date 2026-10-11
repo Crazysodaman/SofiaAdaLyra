@@ -305,3 +305,84 @@ def inspect_workshop_plan(
         plan.fingerprint_sha256, not blockers, tuple(blockers),
         may_provision=False,
     )
+
+
+
+@dataclass(frozen=True, slots=True)
+class WorkshopRemotePreview:
+    plan: WorkshopProvisionPlan
+    observation: WorkshopHostObservation
+    review: WorkshopPreflight
+    fleet_request_id: str
+
+    def readable(self) -> str:
+        manifest=self.plan.exact_manifest()
+        return "\n".join((
+            "HEPHAESTUS HYPER-V PREFLIGHT: READ ONLY / NO PROVISION",
+            "Host: "+self.plan.hypervisor_host_id,
+            "Plan: "+self.plan.plan_id,
+            "Fingerprint SHA-256: "+self.plan.fingerprint_sha256,
+            "Image: "+self.plan.installer_image_path,
+            "Image expected SHA-256: "+self.plan.installer_image_sha256,
+            "Guest: "+self.plan.guest_name,
+            "CPU/RAM/DISK: "+str(self.plan.vcpu)+" vCPU / "
+            +str(self.plan.memory_mb)+" MiB / "+str(self.plan.disk_gib)+" GiB",
+            "Network: PRIVATE named "+self.plan.switch_name+" (not NAT or LAN)",
+            "Root: "+self.plan.vm_root,
+            "Cleanup scope: "+self.plan.cleanup_scope,
+            "Plan expiry: "+manifest["expires_at"],
+            "Observed host time: "+self.observation.observed_at.isoformat(),
+            "Observed CPUs: "+str(self.observation.logical_processors),
+            "Observed free RAM MiB: "+str(self.observation.free_memory_mb),
+            "Observed free disk GiB: "+str(self.observation.free_disk_gib),
+            "Observed other VMs: "+", ".join(self.observation.existing_vm_names),
+            "Review eligible: "+str(self.review.review_eligible),
+            "May create VM: FALSE (requires separate Level-4 owner approval)",
+            "Blockers: "+("; ".join(self.review.blockers) or "none in preliminary read-only check"),
+            "This is not measured guest isolation or authority to install.",
+        ))
+
+
+def preview_authenticated_artemis(
+    *,
+    remote_service,
+    plan: WorkshopProvisionPlan,
+    at: datetime,
+) -> WorkshopRemotePreview:
+    """Use only the existing trusted Fleet transport for one read-only call.
+
+    The sender/node comes from pinned mTLS and enrolled remote identity, not
+    from a model-provided host name or agent JSON. Host facts still require
+    independent verification at the host execution gate.
+    """
+    from uuid import UUID
+    from sofia.distributed.capability import RemoteFleetToolService
+
+    if not isinstance(remote_service, RemoteFleetToolService):
+        raise TypeError("canonical production pinned-mTLS Fleet service required")
+    if not isinstance(plan, WorkshopProvisionPlan):
+        raise TypeError("exact workshop plan required")
+    # Reject a display name in place of the enrolled cryptographic node UUID.
+    node_id=UUID(plan.hypervisor_host_id)
+    result=remote_service.invoke(
+        str(node_id),"workshop.inspect","host",{},
+    )
+    if (
+        not isinstance(result,dict)
+        or result.get("node_id") != str(node_id)
+        or result.get("outcome") != "reported_success"
+        or not isinstance(result.get("message"),str)
+        or len(result["message"])>128_000
+        or not isinstance(result.get("request_id"),str)
+    ):
+        raise RuntimeError("authenticated host inspection did not settle")
+    payload=json.loads(result["message"])
+    observation=observed_hyperv_host(
+        payload=payload,
+        authenticated_fleet_host_id=str(node_id),
+        vm_root=plan.vm_root,
+    )
+    review=inspect_workshop_plan(plan,observation,at=at)
+    return WorkshopRemotePreview(
+        plan,observation,review,result["request_id"],
+    )
