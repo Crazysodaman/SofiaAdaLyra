@@ -139,7 +139,9 @@ class MtlsAgentDiscoverySource:
                 return None
             try:
                 payload = json.loads(raw.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError):
+            except (UnicodeDecodeError, json.JSONDecodeError, RecursionError):
+                # Deeply nested, syntactically valid JSON may exceed the
+                # parser's recursion limit. Reject it as untrusted evidence.
                 return None
             if not isinstance(payload, dict):
                 return None
