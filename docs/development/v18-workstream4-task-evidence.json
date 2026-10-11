@@ -22,7 +22,8 @@
     "2026-10-11 operator has already created the Hyper-V Hephaestus VM but NO OS. Production path now exclusively owner-created exact GUID with pinned offline unattended Debian installer start, one-use SAFE+Fleet grants and UNCERTAIN outcomes. No actual VM/host action, installs, tests or CI occurred.",
     "2026-10-11 continuation: Hephaestus VM exists OS-less. One-time owner-approved, host-admin pinned Hyper-V unattended ISO boot and read-only installer status are integrated with real Artemis Fleet; Debian installation not attempted; no completed guest OS or Fleet enrollment asserted. Source regressions written, none run.",
     "2026-10-11: Eight Phase-13 digital-twin design/research items source-wired through real OPS and Fleet Settings with bounded synthetic scenarios, immutable reproducibility capsules, abandonment and explicit Gaia/JMRI no-actuation boundaries. No simulations/tests were executed.",
-    "2026-10-11: Operator selected first-boot local console admin with password-required sudo, SSH disabled, root locked, non-login worker no sudo. Offline Debian13 UEFI DVD-1 remaster and owner-signed Ed25519 policy plus pinned Artemis verified media gates coded on main. No password/media generated, no VM installed, no tests/CI/host writes. CA-4303 code-ready only; actual OS hardening/untrusted-worker attestation tasks still incomplete."
+    "2026-10-11: Operator selected first-boot local console admin with password-required sudo, SSH disabled, root locked, non-login worker no sudo. Offline Debian13 UEFI DVD-1 remaster and owner-signed Ed25519 policy plus pinned Artemis verified media gates coded on main. No password/media generated, no VM installed, no tests/CI/host writes. CA-4303 code-ready only; actual OS hardening/untrusted-worker attestation tasks still incomplete.",
+    "2026-10-11: CA-6701 and CA-6704 methods and private-data-denying public JSONL review source-coded into actual EVOLVE Settings and read-only OPS; no training/CI/tests, independent license validation and revocation policy unfinished."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -210,7 +211,13 @@
     "1cb5de5c3b7ad9d84f7e7e5ff9752d9c1cff89c0",
     "98b649fbae6140f19c4433279500373666d84854",
     "3036b778030385d0d185c60c0a48e2308c6745bb",
-    "0f5df0aa077a522a806feae25d6d67b33de7cebd"
+    "0f5df0aa077a522a806feae25d6d67b33de7cebd",
+    "3c2a1ca9c38814148c1c2830e8fafeb7e8e1c28f",
+    "a3f474a1c4e8225594f8089a017a8e44c2d131a1",
+    "bdcacfd3a91dece123b6fdeaf59ebef1c95bf0d2",
+    "d23a0900292fdd693a3bff09ab2a3f3b4756f8e9",
+    "f68ccd8a9f579e658ad16ec4e632939da182a852",
+    "0bd9e2eac01060dde941e49933248713f3e07dc8"
   ],
   "tasks": [
     {
@@ -1748,12 +1755,12 @@
       "phase": "14",
       "master_line": 1109,
       "global_ledger_before": "partial_wiring",
-      "source_review": "policy_only",
-      "finding": "Training research-only manifest isn't authorized model training.",
+      "source_review": "code_path_integrated_unverified",
+      "finding": "Production EVOLVE owner panel and read-only OPS tool explicitly classify prompt/Modelfile configuration (no weight change), LoRA/QLoRA adapters (weight change) and from-scratch base training (large data/compute), with outputs/risks; all prohibit independent deployment. Deferred source tests authored, no training run.",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true
     },
     {
       "id": "CA-6702",
@@ -1771,22 +1778,24 @@
       "phase": "14",
       "master_line": 1111,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Actual public-only JSONL source admission, conservative secret/privacy screening, hashed dedup, owner-source provenance/approved license, heldout reread and canonical digest records now code-wired; no independently verified external rights/consent revocation, third-party data governance or actual training worker, so not yet complete."
     },
     {
       "id": "CA-6704",
       "phase": "14",
       "master_line": 1112,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production owner-only EVOLVE dataset admission accepts only reviewed public/owner-original/synthetic JSONL with explicit license/provenance/owner receipts, 16MiB bounded content scan and dedup; rejects raw lifelong conversations, Discord, emotional/intimate journals, screenshots, voice and personal/secret patterns. Canonical store only retains digest/rights metadata, no raw content, and registered LoRA admission reopens/checks both train+heldout sources and forbids deployment. Owner retrieval/use never counts as weight-training consent. Deferred tests authored, not run."
     },
     {
       "id": "CA-6705",
