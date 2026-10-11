@@ -4,6 +4,8 @@ from types import MethodType
 
 import pytest
 
+from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner
+
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.safe.permissions import PermissionStore
@@ -20,7 +22,7 @@ def test_private_grant_fails_closed_when_operator_stop_state_is_unreadable(
 ):
     state_path = tmp_path / "sofia.db"
     store = OperatorStopStore(state_path)
-    PermissionStore(state_path).set_private_adult_authority(
+    private_with_signed_owner(PermissionStore(state_path), 
         private_chat=True,
         adult_chat=False,
         adult_avatar=True,
