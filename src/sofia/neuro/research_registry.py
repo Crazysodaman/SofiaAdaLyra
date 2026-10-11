@@ -193,13 +193,29 @@ class ResearchEvidenceRegistry:
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             protocol = db.execute(
-                "SELECT preregistered_at FROM neuro_research_protocol "
+                "SELECT preregistered_at,protocol_json FROM neuro_research_protocol "
                 "WHERE protocol_id=?", (outcome.protocol_id,),
             ).fetchone()
             if protocol is None:
                 raise LookupError("outcome has no prior preregistered protocol")
             if payload["observed_at"] < protocol[0]:
                 raise ValueError("an outcome cannot predate the approved study")
+            expected = json.loads(protocol[1])["protocol"]["expected_sample_size"]
+            if (
+                outcome.result == "supported"
+                and outcome.actual_sample_size < expected
+            ):
+                raise ValueError(
+                    "a supported finding needs the preregistered sample size; "
+                    "incomplete studies must remain inconclusive"
+                )
+            if (
+                outcome.result in {"refuted", "null"}
+                and outcome.actual_sample_size == 0
+            ):
+                raise ValueError(
+                    "a negative or null measured finding requires observations"
+                )
             db.execute(
                 "INSERT INTO neuro_research_result VALUES(?,?,?,?)",
                 (
@@ -224,7 +240,20 @@ class ResearchEvidenceRegistry:
                 "SELECT protocol_id,outcome_json FROM neuro_research_result "
                 "ORDER BY observed_at DESC,result_id LIMIT 128",
             ).fetchall()
+            # SQL groups ALL stored results without loading unbounded private
+            # evidence into memory. Old null/adverse findings remain visible
+            # even if newer reports crowd them out of the recent examples.
+            outcome_counts = db.execute(
+                "SELECT protocol_id, json_extract(outcome_json, '$.result'),"
+                "COUNT(*) FROM neuro_research_result "
+                "GROUP BY protocol_id,json_extract(outcome_json, '$.result')"
+            ).fetchall()
         by_protocol: dict[str, list[dict]] = {}
+        counted: dict[str, dict[str, int]] = {}
+        for key, result_kind, total in outcome_counts:
+            if result_kind not in _OUTCOMES:
+                raise ValueError("stored scientific outcome kind invalid")
+            counted.setdefault(key, {})[result_kind] = int(total)
         for protocol_id, raw in results:
             by_protocol.setdefault(protocol_id, []).append(json.loads(raw))
         lines = [
@@ -252,7 +281,19 @@ class ResearchEvidenceRegistry:
                 f"stop_rule={entry['stop_or_reject_rule']}"
             )
             observations = by_protocol.get(protocol_id, [])
-            if not observations:
+            histogram = counted.get(protocol_id, {})
+            total_observations = sum(histogram.values())
+            lines.append(
+                "  all-recorded-outcomes=" + str(total_observations)
+                + "; supported=" + str(histogram.get("supported", 0))
+                + "; refuted=" + str(histogram.get("refuted", 0))
+                + "; null=" + str(histogram.get("null", 0))
+                + "; adverse=" + str(histogram.get("adverse", 0))
+                + "; protocol_violation="
+                + str(histogram.get("protocol_violation", 0))
+                + "; inconclusive=" + str(histogram.get("inconclusive", 0))
+            )
+            if not observations and total_observations == 0:
                 lines.append("  observations=NONE (never assume success)")
             for result in observations[:8]:
                 lines.append(
@@ -261,8 +302,12 @@ class ResearchEvidenceRegistry:
                     f"adverse={result['adverse_observations']}; "
                     f"limits={result['limitations']}"
                 )
-            if len(observations) > 8:
-                lines.append(f"  additional outcomes: {len(observations)-8}")
+            not_displayed = total_observations - min(len(observations), 8)
+            if not_displayed > 0:
+                lines.append(
+                    f"  additional historical outcomes not individually shown: "
+                    f"{not_displayed} (included in complete counts)"
+                )
         if not protocols:
             lines.append("No owner-preregistered research yet.")
         return "\n".join(lines)
