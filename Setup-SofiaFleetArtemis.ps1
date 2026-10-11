@@ -210,10 +210,17 @@ function Prepare-OnVenus {
         throw "Fleet agent configuration validation failed."
     }
 
-    Write-Step "Ensure pinned wheel-build backend"
-    & python -m pip install --disable-pip-version-check "setuptools==80.9.0"
+    Write-Step "Ensure hash-verified wheel-build backend"
+    $buildBackendLock = Join-Path $PSScriptRoot "requirements.build.lock.windows-py312.txt"
+    if (-not (Test-Path -LiteralPath $buildBackendLock -PathType Leaf)) {
+        throw "Pinned build backend lock missing: $buildBackendLock"
+    }
+    # Use only an approved prebuilt wheel; never compile a replacement sdist
+    # or accept a same-version artifact with a different SHA-256.
+    & python -m pip install --disable-pip-version-check --require-hashes `
+        --only-binary=:all: --no-deps -r $buildBackendLock
     if ($LASTEXITCODE -ne 0) {
-        throw "Failed to install pinned setuptools build backend."
+        throw "Hash-verified setuptools build-backend installation failed."
     }
 
     Write-Step "Build Fleet wheel from clean committed snapshot"
