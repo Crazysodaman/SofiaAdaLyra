@@ -94,7 +94,9 @@
     "a4fe24697b63723d0d26216c881e0d9d72dbf203",
     "72498e5d334cbec4516c3ecfc94abf707b371d3b",
     "f7c1f90d6bfeabb7273bf078cb703e58b5af278f",
-    "0c21b2106bf1a3257e7d82abfa0008085ac83cb9"
+    "0c21b2106bf1a3257e7d82abfa0008085ac83cb9",
+    "c5ee414be63c412a96752c7d7d58cb0b614d6c27",
+    "932a3ad370a25f83257db49e7ccbf50cd3753cdb"
   ],
   "tasks": [
     {
@@ -2046,22 +2048,24 @@
       "phase": "16",
       "master_line": 1185,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Existing StudyReview never reports proof of consciousness; production canonical research report now explicitly states supported functional results cannot establish phenomenal consciousness and retains adverse/null findings. Owner input is required for independent result records. Source tests written, not executed."
     },
     {
       "id": "CA-807",
       "phase": "16",
       "master_line": 1186,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production research register now separates functional agency, computational shared-workspace access, metacognitive calibration and untestable phenomenal subjectivity into explicit non-equivalent categories; biological Global Neuronal Workspace is not conflated with computational Global Workspace. Owner-reviewed protocols are restricted to falsifiable functional measures. Source tests authored, not run."
     },
     {
       "id": "CA-808",
