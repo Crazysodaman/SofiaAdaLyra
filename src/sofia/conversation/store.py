@@ -85,6 +85,12 @@ class ConversationStore:
             """
         )
 
+        # Keyset pagination for decades of history. Do not use OFFSET for
+        # long-lived sessions: its cost increases with the skipped rows.
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_conversation_session_cursor "
+            "ON conversation_messages(session_id, created_at, id)"
+        )
         connection.commit()
 
     def create_session(self) -> ConversationSession:
@@ -213,6 +219,71 @@ class ConversationStore:
                 created_at=datetime.fromisoformat(row[4]),
             )
             for row in rows
+        )
+
+    def list_messages_page(
+        self, session_id: str, *,
+        after: tuple[datetime, str] | None = None,
+        limit: int = 100,
+    ) -> tuple[ConversationMessage, ...]:
+        """Return a bounded stable ascending page of exactly one session.
+
+        The (created_at, id) cursor resolves timestamp ties. The caller must
+        preserve its authenticated session/audience binding; this method
+        does not authorize access and never searches a different session.
+        """
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ValueError("session_id must be nonempty")
+        if type(limit) is not int or not 1 <= limit <= 500:
+            raise ValueError("limit must be in 1..500")
+        if after is not None and (
+            not isinstance(after, tuple) or len(after) != 2
+            or not isinstance(after[0], datetime)
+            or not isinstance(after[1], str) or not after[1]
+        ):
+            raise ValueError("after must be a (datetime, message_id) cursor")
+        arguments: tuple[object, ...]
+        if after is None:
+            filter_sql = ""
+            arguments = (session_id, limit)
+        else:
+            filter_sql = "AND (created_at > ? OR (created_at = ? AND id > ?))"
+            stamp = after[0].isoformat()
+            arguments = (session_id, stamp, stamp, after[1], limit)
+        with self._lock:
+            rows = self._require_connection().execute(
+                "SELECT id, session_id, role, content, created_at "
+                "FROM conversation_messages WHERE session_id=? "
+                + filter_sql + " ORDER BY created_at, id LIMIT ?",
+                arguments,
+            ).fetchall()
+        return tuple(
+            ConversationMessage(
+                id=row[0], session_id=row[1], role=ConversationRole(row[2]),
+                content=row[3], created_at=datetime.fromisoformat(row[4]),
+            )
+            for row in rows
+        )
+
+    def recent_messages(
+        self, session_id: str, *, limit: int = 24
+    ) -> tuple[ConversationMessage, ...]:
+        """Bounded recent context ordered oldest-to-newest for the provider."""
+        if type(limit) is not int or not 1 <= limit <= 500:
+            raise ValueError("limit must be in 1..500")
+        with self._lock:
+            rows = self._require_connection().execute(
+                "SELECT id, session_id, role, content, created_at "
+                "FROM conversation_messages WHERE session_id=? "
+                "ORDER BY created_at DESC, id DESC LIMIT ?",
+                (session_id, limit),
+            ).fetchall()
+        return tuple(
+            ConversationMessage(
+                id=row[0], session_id=row[1], role=ConversationRole(row[2]),
+                content=row[3], created_at=datetime.fromisoformat(row[4]),
+            )
+            for row in reversed(rows)
         )
 
     def close(self) -> None:
