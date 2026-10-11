@@ -205,3 +205,61 @@ def test_production_conversation_records_expression_and_restores_it_after_restar
         assert second.expression_runtime.get_for_message(assistant.message_id) == recorded
     finally:
         second.shutdown()
+
+
+def test_expression_receipt_retry_preserves_original_acknowledgement(tmp_path):
+    """A replayed output token cannot upgrade QUEUED to RENDERED."""
+    from datetime import timedelta
+
+    runtime, decision_record, _principal = decision(tmp_path)
+    first = runtime.receipt(
+        decision_id=decision_record.decision_id, output="avatar",
+        status="queued", acknowledged=False,
+        backend="renderer-fixture", detail="pending a visible frame",
+        occurred_at=NOW, dedupe_key="avatar:attempt-1",
+    )
+    replay = runtime.receipt(
+        decision_id=decision_record.decision_id, output="avatar",
+        status="queued", acknowledged=False,
+        backend="renderer-fixture", detail="replayed same delivery callback",
+        occurred_at=NOW + timedelta(seconds=5),
+        dedupe_key="avatar:attempt-1",
+    )
+    assert replay == first
+    assert replay.acknowledged is False
+    with pytest.raises(RuntimeError, match="conflicting outcome"):
+        runtime.receipt(
+            decision_id=decision_record.decision_id, output="avatar",
+            status="rendered", acknowledged=True,
+            backend="renderer-fixture", detail="claimed visible",
+            occurred_at=NOW + timedelta(seconds=6),
+            dedupe_key="avatar:attempt-1",
+        )
+    original_rows = [
+        receipt for receipt in runtime.receipts(decision_record.decision_id)
+        if receipt.output == "avatar"
+    ]
+    assert original_rows == [first]
+    assert not any(row.acknowledged for row in original_rows)
+
+
+@pytest.mark.parametrize(
+    ("output", "status"),
+    [("text", "spoken"), ("avatar", "spoken"), ("voice", "rendered"),
+     ("voice", "persisted")],
+)
+def test_expression_receipts_never_substitute_cross_modal_output(
+    tmp_path, output, status,
+):
+    """No voice output may impersonate avatar/text renderer acknowledgement."""
+    runtime, decision_record, _principal = decision(tmp_path)
+    with pytest.raises(ValueError, match="output type"):
+        runtime.receipt(
+            decision_id=decision_record.decision_id, output=output,
+            status=status, acknowledged=True, backend="untrusted-backend",
+            detail="a fabricated acknowledgement", occurred_at=NOW,
+        )
+    assert all(
+        row.output != output or row.status != status
+        for row in runtime.receipts(decision_record.decision_id)
+    )
