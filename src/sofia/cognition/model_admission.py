@@ -44,6 +44,11 @@ class ModelTrialEvidence:
         if any(not isinstance(x, (int, float)) or isinstance(x, bool)
                or not math.isfinite(x) or x < 0 for x in metrics):
             raise ValueError("finite nonnegative resource measurements required")
+        # A real completed inference cannot have 0 ms p95 or 0 MB peak
+        # process memory. Those are usually missing or fabricated metrics.
+        # Peak GPU VRAM MAY be zero for a properly measured CPU-only run.
+        if self.p95_latency_ms <= 0 or self.peak_ram_mb <= 0:
+            raise ValueError("measured latency and RAM must be positive")
 
 
 @dataclass(frozen=True, slots=True)
