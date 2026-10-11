@@ -30,6 +30,10 @@ def _transition_goal(goals, goal, before, after, when, evidence):
         audience=goal.scope_audience, expected_status=before,
         next_status=after, actor_principal_id=SOFIA_GOAL_OWNER_ID,
         now=when, evidence_refs=(evidence,),
+        blocked_reason=(
+            "Source-backed original RUN authority is temporarily blocked."
+            if after is GoalStatus.BLOCKED else None
+        ),
     )
 
 
@@ -257,15 +261,23 @@ def test_background_draft_handles_atomic_project_revision_race_without_crash(
     )
     try:
         submit = life.manager.submit
+        original_evidence = life.record_observation(
+            kind="revision-cas-race",
+            source="test:original-project-authorization",
+            assertion="Current original source can pause and later resume optional work.",
+            now=now + timedelta(seconds=3),
+        )
 
         def change_revision_at_atomic_enqueue(**kwargs):
             life.pause(
                 project.project_id, reason="Source changed before RUN admit.",
-                evidence_refs=(), now=now + timedelta(seconds=4),
+                evidence_refs=(original_evidence,),
+                now=now + timedelta(seconds=4),
             )
             life.resume(
                 project.project_id, reason="Source changed again before RUN admit.",
-                evidence_refs=(), now=now + timedelta(seconds=5),
+                evidence_refs=(original_evidence,),
+                now=now + timedelta(seconds=5),
             )
             return submit(**kwargs)
 
