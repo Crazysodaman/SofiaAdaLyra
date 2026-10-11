@@ -1126,8 +1126,13 @@ class ConversationService(ConversationMatrixMixin):
                 self._persist_response(v2_response)
                 return v2_response
 
-        history = self._conversation_store.list_messages(
-            self._session.id
+        # This stage needs only the last user/assistant messages for
+        # wardrobe and clothing follow-up disambiguation. Never materialize
+        # a lifetime Main transcript on every turn for that local context:
+        # the canonical originals stay in SQLite and separate authorized
+        # recall/pagination routes remain available.
+        history = self._conversation_store.recent_messages(
+            self._session.id, limit=64,
         )
         previous_assistant = next(
             (
