@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -66,6 +67,7 @@ internal fun isOfflineNetworkFailure(error: Throwable): Boolean =
         error is SocketException
 
 data class ChatLine(val speaker: String, val text: String)
+data class ProjectThreadChoice(val threadId: String, val name: String)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val secure = SecureSettings(application)
@@ -84,6 +86,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var busy by mutableStateOf(false)
     val messages = mutableStateListOf<ChatLine>()
     val mainHistory = mutableStateListOf<ChatLine>()
+    val projectThreads = mutableStateListOf<ProjectThreadChoice>()
+    var selectedProjectId by mutableStateOf<String?>(null)
+        private set
+    var selectedProjectName by mutableStateOf<String?>(null)
+        private set
     var historyOpen by mutableStateOf(false)
         private set
     var historyHasMore by mutableStateOf(false)
@@ -214,6 +221,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             messages.clear()
             mainHistory.clear()
+            projectThreads.clear()
+            selectedProjectId = null
+            selectedProjectName = null
             historyCursor = null
             historyHasMore = false
             historyOpen = false
@@ -260,6 +270,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             messages.clear()
             mainHistory.clear()
+            projectThreads.clear()
+            selectedProjectId = null
+            selectedProjectName = null
             historyCursor = null
             historyOpen = false
             historyHasMore = false
@@ -278,7 +291,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun showChat() { historyOpen = false }
+    fun showChat() {
+        historyOpen = false
+        selectedProjectId = null
+        selectedProjectName = null
+    }
 
     fun discardOfflineMain() {
         if (busy) return
@@ -299,6 +316,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!reset && !historyHasMore) return
         val cursor = if (reset) null else historyCursor
         historyOpen = true
+        if (reset) {
+            selectedProjectId = null
+            selectedProjectName = null
+        }
         launchRequest {
             val result = try {
                 withContext(Dispatchers.IO) { api.mainPage(cursor) }
@@ -370,6 +391,79 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
+        }
+    }
+
+    fun listVisibleProjects() {
+        if (busy) return
+        launchRequest {
+            val result = withContext(Dispatchers.IO) { api.visibleThreads() }
+            val records = result.getJSONArray("threads")
+            val visible = (0 until records.length()).mapNotNull { index ->
+                val item = records.getJSONObject(index)
+                if (item.getString("kind") != "project") null else
+                    ProjectThreadChoice(
+                        threadId = item.getString("thread_id"),
+                        name = item.getString("name"),
+                    )
+            }
+            projectThreads.clear()
+            projectThreads.addAll(visible)
+            status = if (visible.isEmpty()) {
+                "No project thread has visible source messages for this audience."
+            } else {
+                "Select a project to browse its authorized originals, read-only."
+            }
+        }
+    }
+
+    fun openProjectThread(
+        threadId: String, name: String, reset: Boolean = true,
+    ) {
+        if (busy) return
+        if (!reset && !historyHasMore) return
+        if (projectThreads.none { it.threadId == threadId && it.name == name }) {
+            status = "Project not verified for this paired audience."
+            return
+        }
+        val cursor = if (reset) null else historyCursor
+        launchRequest {
+            val result = withContext(Dispatchers.IO) {
+                api.projectThreadPage(threadId, cursor)
+            }
+            require(result.getString("thread_id") == threadId &&
+                result.getString("kind") == "project" &&
+                result.getString("name") == name
+            ) { "Project response did not match the selected original thread" }
+            val array = result.getJSONArray("messages")
+            val loaded = (0 until array.length()).map { index ->
+                val item = array.getJSONObject(index)
+                ChatLine(
+                    if (item.getString("role") == "user") "You" else "Sofía",
+                    item.getString("content"),
+                )
+            }
+            if (reset) {
+                mainHistory.clear()
+                mainHistory.addAll(loaded)
+            } else mainHistory.addAll(0, loaded)
+            historyOpen = true
+            selectedProjectId = threadId
+            selectedProjectName = name
+            historyCursor = result.optJSONObject("next_before")
+            historyHasMore = result.optBoolean("has_more", false)
+            status = "Project: $name · canonical originals · read-only."
+        }
+    }
+
+    fun loadOlderHistory() {
+        val projectId = selectedProjectId
+        if (projectId == null) {
+            loadMainHistory(false)
+        } else {
+            openProjectThread(
+                projectId, selectedProjectName ?: "Project", reset = false,
+            )
         }
     }
 
@@ -661,14 +755,40 @@ private fun SofiaScreen(model: MainViewModel) {
                 Button(onClick = { model.loadMainHistory() }, enabled = !model.busy) {
                     Text("Main history")
                 }
+                Button(onClick = model::listVisibleProjects, enabled = !model.busy) {
+                    Text("Projects")
+                }
                 Button(onClick = model::discardOfflineMain, enabled = !model.busy) {
                     Text("Clear offline Main")
                 }
                 if (model.historyOpen && model.historyHasMore) {
-                    Button(onClick = { model.loadMainHistory(false) }, enabled = !model.busy) {
+                    Button(onClick = model::loadOlderHistory, enabled = !model.busy) {
                         Text("Older")
                     }
                 }
+            }
+            if (model.projectThreads.isNotEmpty()) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(model.projectThreads) { project ->
+                        Button(
+                            onClick = {
+                                model.openProjectThread(
+                                    project.threadId, project.name,
+                                )
+                            },
+                            enabled = !model.busy,
+                        ) { Text(project.name) }
+                    }
+                }
+            }
+            if (model.historyOpen) {
+                Text(
+                    if (model.selectedProjectName == null)
+                        "Main history · authenticated audience · read-only"
+                    else
+                        "Project: ${model.selectedProjectName} · original sources · read-only",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(if (model.historyOpen) model.mainHistory else model.messages) { line ->
