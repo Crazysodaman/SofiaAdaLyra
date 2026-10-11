@@ -7,6 +7,7 @@ from sofia.config.model import (
     SofiaConfiguration,
 )
 from sofia.safe.permissions import PermissionStore
+from test.owner_auth_fixture import private_with_signed_owner
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -210,7 +211,7 @@ def test_private_avatar_state_is_read_back_in_verified_local_session(
     configuration: SofiaConfiguration,
 ):
     application = SofiaApplication(configuration)
-    PermissionStore(configuration.state_path).set_private_adult_authority(
+    private_with_signed_owner(PermissionStore(configuration.state_path), 
         private_chat=True,
         adult_chat=False,
         adult_avatar=True,
@@ -236,7 +237,7 @@ def test_public_safe_avatar_query_never_leaks_private_presentation(
     configuration: SofiaConfiguration,
 ):
     application = SofiaApplication(configuration)
-    PermissionStore(configuration.state_path).set_private_adult_authority(
+    private_with_signed_owner(PermissionStore(configuration.state_path), 
         private_chat=True,
         adult_chat=False,
         adult_avatar=True,
