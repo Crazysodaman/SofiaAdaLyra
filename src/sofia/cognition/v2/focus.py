@@ -44,6 +44,25 @@ class SQLiteConversationFocusStore:
                 )
                 """
             )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS cognition_v2_focus_topic_history (
+                    session_id TEXT NOT NULL,
+                    scope_key TEXT NOT NULL,
+                    topic_id TEXT NOT NULL,
+                    subject_ids_json TEXT NOT NULL,
+                    last_turn_id TEXT NOT NULL,
+                    salience REAL NOT NULL,
+                    last_observed_at TEXT NOT NULL,
+                    PRIMARY KEY (session_id, scope_key, topic_id)
+                )
+                """
+            )
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_focus_topic_history_recent "
+                "ON cognition_v2_focus_topic_history("
+                "session_id,scope_key,last_observed_at DESC,topic_id)"
+            )
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10.0)
@@ -233,4 +252,56 @@ class SQLiteConversationFocusStore:
                     raise ConversationFocusConflict(
                         "conversation focus revision changed concurrently"
                     )
+            # Preserve source-linked topic bookmarks after the live focus
+            # window evicts older subjects. Same transaction as the CAS, so
+            # a conflicting turn never appends a spurious topic.
+            recorded = datetime.now(timezone.utc).isoformat()
+            for topic in focus.topics:
+                db.execute(
+                    "INSERT INTO cognition_v2_focus_topic_history "
+                    "(session_id,scope_key,topic_id,subject_ids_json,"
+                    "last_turn_id,salience,last_observed_at) "
+                    "VALUES(?,?,?,?,?,?,?) "
+                    "ON CONFLICT(session_id,scope_key,topic_id) DO UPDATE SET "
+                    "subject_ids_json=excluded.subject_ids_json,"
+                    "last_turn_id=excluded.last_turn_id,"
+                    "salience=excluded.salience,"
+                    "last_observed_at=excluded.last_observed_at",
+                    (
+                        focus.session_id, scope, topic.topic_id,
+                        json.dumps(topic.subject_ids),
+                        topic.last_turn_id, topic.salience, recorded,
+                    ),
+                )
         return focus
+
+    def recent_topic_history(
+        self, *, session_id: str, audience_id: str | None,
+        limit: int = 16,
+    ) -> tuple[FocusTopic, ...]:
+        """Read a bounded historical-topic index within the existing focus scope.
+
+        The caller must first authorize the source session and audience.
+        Entries are conversational references, not facts, actions or grants.
+        """
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ValueError("session_id required")
+        if type(limit) is not int or not 1 <= limit <= 32:
+            raise ValueError("bounded topic limit required")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT topic_id,subject_ids_json,last_turn_id,salience "
+                "FROM cognition_v2_focus_topic_history "
+                "WHERE session_id=? AND scope_key=? "
+                "ORDER BY last_observed_at DESC,topic_id LIMIT ?",
+                (session_id, _scope_key(audience_id), limit),
+            ).fetchall()
+        return tuple(
+            FocusTopic(
+                topic_id=row["topic_id"],
+                subject_ids=tuple(json.loads(row["subject_ids_json"])),
+                last_turn_id=row["last_turn_id"],
+                salience=row["salience"],
+            )
+            for row in rows
+        )
