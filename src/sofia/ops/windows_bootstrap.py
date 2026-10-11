@@ -509,11 +509,7 @@ class WindowsCimBootstrapInstaller:
             # failures, bad identity, timeouts, and interrupted verification.
             # Fail rather than announce successful provisioning if sensitive
             # staging cannot be cleaned.
-            try:
-                shutil.rmtree(stage_directory)
-            finally:
-                self._active_controller_stage_directory = None
-                self._active_remote_stage_path = None
+            shutil.rmtree(stage_directory)
 
 
 
