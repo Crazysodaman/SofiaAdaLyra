@@ -30,6 +30,7 @@ def test_nonowner_approval_denied_before_record_or_capability_consumption(tmp_pa
     with pytest.raises(PermissionError, match="owner"):
         _approval({"source_host": "Venus"}, actor="model:self")
     state = tmp_path / "sofia.db"
+    state.touch()
     verifier = ExecutionApprovalVerifier(state)
     active = _approval({"source_host": "Venus"})
     verifier.record(active)
@@ -64,6 +65,7 @@ def test_large_or_unbounded_execution_request_is_never_fingerprinted():
 
 def test_exact_target_and_effect_bound_approval_only_consumes_once(tmp_path):
     state = tmp_path / "sofia.db"
+    state.touch()
     verifier = ExecutionApprovalVerifier(state)
     approved = {
         "source_host": "Venus", "target_host": "Artemis",
@@ -87,3 +89,27 @@ def test_exact_target_and_effect_bound_approval_only_consumes_once(tmp_path):
             approval_id=approval.approval_id, capability=approval.capability,
             parameters=approved, now=NOW + timedelta(seconds=4),
         )
+
+
+def test_missing_state_cannot_bootstrap_new_safe_approval_authority(tmp_path):
+    state = tmp_path / "wrong-home" / "sofia.db"
+    with pytest.raises(FileNotFoundError, match="existing canonical"):
+        ExecutionApprovalVerifier(state)
+    assert not state.exists()
+    assert not state.parent.exists()
+
+
+def test_existing_verifier_cannot_recreate_missing_canonical_state(tmp_path):
+    state = tmp_path / "sofia.db"
+    state.touch()
+    verifier = ExecutionApprovalVerifier(state)
+    approved = {"source_host": "Venus"}
+    grant = _approval(approved,identifier="recovered-approval-no-new-state")
+    verifier.record(grant)
+    state.unlink()
+    with pytest.raises(FileNotFoundError, match="missing or redirected"):
+        verifier.consume(
+            approval_id=grant.approval_id,capability=grant.capability,
+            parameters=approved,now=NOW+timedelta(seconds=1),
+        )
+    assert not state.exists()

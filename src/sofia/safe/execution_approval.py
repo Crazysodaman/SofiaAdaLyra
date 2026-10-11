@@ -82,9 +82,12 @@ class ExecutionApprovalVerifier:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError(
+                "SAFE approvals require the existing canonical state database"
+            )
         self.audit = AuditChain(self.path)
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
                 """
@@ -100,12 +103,23 @@ class ExecutionApprovalVerifier:
                 """
             )
 
+    def _connect(self) -> sqlite3.Connection:
+        """Never manufacture a new approval/audit authority after state loss."""
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError(
+                "canonical SAFE authority database missing or redirected"
+            )
+        return sqlite3.connect(
+            self.path.absolute().as_uri() + "?mode=rw",
+            uri=True, timeout=10,
+        )
+
     def record(self, approval: ExecutionApproval) -> None:
         if not isinstance(approval, ExecutionApproval):
             raise TypeError("approval must be an ExecutionApproval")
         if approval.approved_by != "Sparks":
             raise PermissionError("non-owner execution approval denied")
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
                 """
@@ -156,7 +170,7 @@ class ExecutionApprovalVerifier:
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
         moment = now.astimezone(timezone.utc)
-        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+        with closing(self._connect()) as db:
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA busy_timeout=10000")
             rows = db.execute(
@@ -208,7 +222,7 @@ class ExecutionApprovalVerifier:
         moment = now.astimezone(timezone.utc)
         expected = execution_fingerprint(capability, parameters)
 
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(self._connect()) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("BEGIN IMMEDIATE")
