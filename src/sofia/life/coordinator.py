@@ -140,40 +140,55 @@ class SelfDirectedLifeCoordinator:
         )
         return value
 
-    def _original_interest_evidence_current(
-        self, interest: InterestRecord, *, now: datetime,
+    def _original_scoped_evidence_current(
+        self, *, refs: tuple[str, ...], audience_id: str,
+        valid_at: datetime, now: datetime,
     ) -> bool:
-        """Fail closed on unavailable original evidence for optional LIFE.
-
-        The immutable goal evidence index is the source, not the learned
-        interest or model narrative. This read-only gate never erases memory,
-        changes GOALS, or represents a correction as an operator instruction.
-        """
-        if (
-            interest.audience_id != LOCAL_AUDIENCE
-            or interest.recorded_at > now
-            or not interest.evidence_refs
-        ):
+        """Only source-scoped, already observed evidence may motivate LIFE."""
+        if audience_id != LOCAL_AUDIENCE or valid_at > now or not refs:
             return False
         principal = local_sparks_principal().principal_id
         try:
-            for ref in interest.evidence_refs:
+            for ref in refs:
                 source = self.evidence_index.lookup(ref)
                 if (
                     source is None
                     or source.principal_id != principal
-                    or source.audience != interest.audience_id
+                    or source.audience != audience_id
                     or not source.source
                     or source.observed_at.tzinfo is None
                     or source.observed_at.utcoffset() is None
                     or source.observed_at > now
-                    or source.observed_at > interest.recorded_at
+                    or source.observed_at > valid_at
                 ):
                     return False
         except (OSError, RuntimeError, ValueError, TypeError,
                 OverflowError, sqlite3.Error):
             return False
         return True
+
+    def _original_interest_evidence_current(
+        self, interest: InterestRecord, *, now: datetime,
+    ) -> bool:
+        """Reject optional work based on revoked or unscoped original taste."""
+        return self._original_scoped_evidence_current(
+            refs=interest.evidence_refs, audience_id=interest.audience_id,
+            valid_at=interest.recorded_at, now=now,
+        )
+
+    def _original_experience_evidence_current(
+        self, experience: ExperienceRecord, *, now: datetime,
+    ) -> bool:
+        """Do not send stale or cross-audience LIFE anecdotes to cognition."""
+        return (
+            experience.occurred_at <= now
+            and experience.recorded_at <= now
+            and self._original_scoped_evidence_current(
+                refs=experience.evidence_refs,
+                audience_id=experience.audience_id,
+                valid_at=experience.occurred_at, now=now,
+            )
+        )
 
     @staticmethod
     def _experience_digest(experience: ExperienceRecord) -> str:
@@ -2081,15 +2096,28 @@ class SelfDirectedLifeCoordinator:
         slot = self.store.claim_idea_attempt(now=now)
         if slot is None:
             return None
-        experiences = self.store.experiences(
-            audience_id=LOCAL_AUDIENCE, include_private=True, limit=8,
-        )
+        # Original LIFE events are lower-trust inputs: an episode with
+        # revoked, future, unscoped or corrupt source evidence must not be
+        # represented to the model as an eligible actual experience.
+        experiences = tuple(
+            item for item in self.store.experiences(
+                audience_id=LOCAL_AUDIENCE, include_private=True, limit=32,
+            )
+            if self._original_experience_evidence_current(item, now=now)
+        )[:8]
         try:
             suggestion = ProjectIdeaAgent(generate).suggest(
                 interests=interests,
                 experience_summaries=tuple(item.summary for item in experiences),
                 now=now,
             )
+            if any(
+                not self._original_experience_evidence_current(item, now=now)
+                for item in experiences
+            ):
+                raise ValueError(
+                    "original LIFE experience evidence changed during model suggestion"
+                )
             # A model can take time. Operator stop may have been asserted
             # while the unprivileged suggestion was being produced.
             if self.operator_stop.current().active:
