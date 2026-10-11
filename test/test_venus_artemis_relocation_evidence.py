@@ -32,6 +32,9 @@ def _plan(tmp_path, *, source="Venus", target="Artemis"):
         next_writer_epoch=2,
         operator_approval_ref="operator-approval-fixture",
         writer_fence_ref="independent-fence-fixture",
+        protected_operation_id="offline:supervised-venus-artemis-fixture",
+        operator_principal_id="owner:supervised-fixture",
+        source_writer_epoch=1,
     )
 
 
