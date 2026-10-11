@@ -332,6 +332,57 @@ class ArtifactEvaluation:
 
 
 @dataclass(frozen=True, slots=True)
+class MotivationSignal:
+    """Read-only original LIFE/GOALS motivation evidence, never authority."""
+
+    project_id: str
+    goal_id: str | None
+    evidence_refs: tuple[str, ...]
+    goal_importance: float
+    curiosity: float
+    verified_learning_progress: float
+    novelty: float
+    unfinished_commitment: float
+    uncertainty: float
+    resource_cost: float
+    risk: float
+    interruption_cost: float
+    score: float
+    eligible: bool
+    reason: str
+    observed_at: datetime
+
+    def __post_init__(self) -> None:
+        identifier(self.project_id, "motivation project_id")
+        if self.goal_id is not None:
+            identifier(self.goal_id, "motivation goal_id")
+        if (
+            not isinstance(self.evidence_refs, tuple)
+            or len(self.evidence_refs) > 32
+            or len(set(self.evidence_refs)) != len(self.evidence_refs)
+            or any(not isinstance(value, str) or not value.strip()
+                   for value in self.evidence_refs)
+        ):
+            raise ValueError("motivation evidence refs must be distinct and bounded")
+        for name in (
+            "goal_importance", "curiosity", "verified_learning_progress",
+            "novelty", "unfinished_commitment", "uncertainty",
+            "resource_cost", "risk", "interruption_cost", "score",
+        ):
+            value = getattr(self, name)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not 0.0 <= value <= 1.0
+            ):
+                raise ValueError(f"{name} must be an evidence-bounded 0..1 score")
+        if type(self.eligible) is not bool:
+            raise TypeError("motivation eligibility must be boolean")
+        text(self.reason, "motivation reason", 500)
+        aware(self.observed_at, "motivation observed_at")
+
+
+@dataclass(frozen=True, slots=True)
 class LifeSelection:
     selection_id: str
     kind: SelectionKind
