@@ -44,10 +44,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--x", type=int, default=-1)
     parser.add_argument("--y", type=int, default=-1)
     parser.add_argument("--credential-id")
+    parser.add_argument("--describe-model", help="explicit local Ollama image model for approved capture")
     args = parser.parse_args(argv)
     try:
         backend = _local_backend()
         host = socket.gethostname()
+        if args.describe_model and not args.capture:
+            raise ValueError("image interpretation needs explicit capture selection")
         if args.inspect:
             if (args.window_handle is not None or args.process_id is not None
                 or args.credential_id or args.key or args.x != -1 or args.y != -1):
@@ -90,7 +93,12 @@ def main(argv: list[str] | None = None) -> int:
             frame = ScreenCaptureService(
                 state_path, foreground_backend=backend,
             ).capture_once(request, approval_id=approval.approval_id)
+            observation = None
+            if args.describe_model:
+                from sofia.vision.interpret import describe_frame
+                observation = describe_frame(frame, model=args.describe_model)
             print(json.dumps({
+                "visual_description_untrusted": (None if observation is None else observation.description),
                 "status": "actual_window_pixels_captured_in_memory",
                 "frame_sha256": frame.evidence.receipt.digest_sha256,
                 "permit_id": frame.evidence.receipt.permit_id,
