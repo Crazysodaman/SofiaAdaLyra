@@ -36,6 +36,7 @@ class Decision(str, Enum):
     TOO_SOON = "too_soon"
     DAILY_LIMIT = "daily_limit"
     ALREADY_DELIVERED = "already_delivered"
+    AUTHORIZATION_UNAVAILABLE = "authorization_unavailable"
 
 
 def _utc(value: datetime) -> datetime:
