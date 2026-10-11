@@ -142,7 +142,20 @@ class MobileCompanionGateway:
             if row is not None:
                 session_id = row[0]
                 current = self._social_sessions.get(session_id)
-                if current is not None and (
+                if current is None:
+                    # Older deployments could persist a device/session record
+                    # without binding its audience until the first chat.
+                    # An EMPTY session can safely be bound now; a populated
+                    # unbound session has unknowable ownership and is denied.
+                    has_messages = db.execute(
+                        "SELECT 1 FROM conversation_messages WHERE session_id=? LIMIT 1",
+                        (session_id,),
+                    ).fetchone()
+                    if has_messages is not None:
+                        raise PermissionError(
+                            "populated mobile session has no authenticated audience"
+                        )
+                elif (
                     current.principal_id != principal.principal_id
                     or current.audience_id != principal.audience_id
                     or current.audience_kind is not principal.audience_kind
@@ -176,15 +189,25 @@ class MobileCompanionGateway:
         actual_session = conversation.session_id
         if not isinstance(actual_session, str) or not actual_session:
             raise RuntimeError("mobile conversation did not start")
+        # Establish the principal first, including a newly created empty
+        # session. This prevents a later restart from resuming a populated
+        # session with unknown ownership.
+        self._social_sessions.bind(session_id=actual_session, principal=principal)
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
             db.execute(
-                "INSERT INTO mobile_conversation_binding_v2 "
-                "(device_id,presentation_mode,session_id,updated_at) "
-                "VALUES(?,?,?,?) "
-                "ON CONFLICT(device_id,presentation_mode) DO UPDATE SET "
-                "session_id=excluded.session_id,updated_at=excluded.updated_at",
+                "INSERT OR IGNORE INTO mobile_conversation_binding_v2 "
+                "(device_id,presentation_mode,session_id,updated_at) VALUES(?,?,?,?)",
                 (device_id, mode, actual_session, datetime.now(timezone.utc).isoformat()),
             )
+            stored = db.execute(
+                "SELECT session_id FROM mobile_conversation_binding_v2 "
+                "WHERE device_id=? AND presentation_mode=?", key,
+            ).fetchone()
+            if stored is None or stored[0] != actual_session:
+                raise RuntimeError(
+                    "another mobile gateway owns the persisted device session; reconnect"
+                )
         self._conversations[key] = conversation
         return conversation
 

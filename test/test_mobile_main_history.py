@@ -212,3 +212,64 @@ def test_private_main_history_requires_host_permission(tmp_path):
             gateway.main_history(device_id="android-owner", private_mode=True)
     finally:
         source.close()
+
+
+def test_first_mobile_session_is_immediately_principal_bound(tmp_path):
+    path, source, social, app, gateway = _setup(tmp_path)
+    try:
+        conversation = gateway._conversation("android-owner", private_mode=False)
+        principal = gateway._principal("android-owner", private_mode=False)
+        assert social.get(conversation.session_id) == principal
+        assert gateway._conversation(
+            "android-owner", private_mode=False,
+        ).session_id == conversation.session_id
+    finally:
+        source.close()
+
+
+def test_populated_unbound_legacy_v2_session_refuses_to_resume(tmp_path):
+    path, source, social, app, gateway = _setup(tmp_path)
+    try:
+        session = source.create_session()
+        source.save(ConversationMessage(
+            id="untrusted-message", session_id=session.id,
+            role=ConversationRole.USER, content="unbound history must be rejected",
+            created_at=NOW,
+        ))
+        with closing(sqlite3.connect(path)) as db, db:
+            db.execute(
+                "INSERT INTO mobile_conversation_binding_v2 VALUES(?,?,?,?)",
+                ("android-owner", "standard", session.id, NOW.isoformat()),
+            )
+        with pytest.raises(PermissionError, match="no authenticated audience"):
+            gateway._conversation("android-owner", private_mode=False)
+        assert social.get(session.id) is None
+    finally:
+        source.close()
+
+
+def test_competing_session_binding_cannot_overwrite_first_writer(tmp_path):
+    path, source, social, app, gateway = _setup(tmp_path)
+    try:
+        prior = source.create_session()
+        original_open = app.open_channel_conversation
+        def concurrent_writer(*, session_id=None):
+            created = original_open(session_id=session_id)
+            with closing(sqlite3.connect(path)) as db, db:
+                db.execute(
+                    "INSERT INTO mobile_conversation_binding_v2 VALUES(?,?,?,?)",
+                    ("android-owner", "standard", prior.id, NOW.isoformat()),
+                )
+            return created
+
+        app.open_channel_conversation = concurrent_writer
+        with pytest.raises(RuntimeError, match="another mobile gateway owns"):
+            gateway._conversation("android-owner", private_mode=False)
+        with closing(sqlite3.connect(path)) as db:
+            stored = db.execute(
+                "SELECT session_id FROM mobile_conversation_binding_v2 "
+                "WHERE device_id='android-owner' AND presentation_mode='standard'"
+            ).fetchone()[0]
+        assert stored == prior.id
+    finally:
+        source.close()
