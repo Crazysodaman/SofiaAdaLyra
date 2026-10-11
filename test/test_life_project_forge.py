@@ -736,6 +736,87 @@ def test_milestone_labels_or_unrelated_evidence_cannot_fake_completion(tmp_path)
         life.close()
 
 
+def test_missing_original_interest_evidence_blocks_optional_run(tmp_path):
+    """Removing a reviewed source prevents further autonomous spending."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "DELETE FROM goal_evidence_record WHERE evidence_ref=?",
+                (evidence,),
+            )
+        signals = life.motivation_signals(
+            now=now + timedelta(seconds=3), busy=False, resource_pressure=0.0,
+        )
+        assert len(signals) == 1
+        assert not signals[0].eligible
+        assert signals[0].curiosity == 0
+        assert "originating_interest_evidence_unavailable" in signals[0].reason
+        assert life.select_activity(
+            now=now + timedelta(seconds=3), busy=False, resource_pressure=0.0,
+        ).kind.value == "inactivity"
+        with pytest.raises(
+            PermissionError, match="origin interest evidence is unavailable",
+        ):
+            life.schedule_artifact(
+                project.project_id, artifact_kind=ArtifactKind.TEXT,
+                title="No changed source", specification={"content": "Do not write"},
+                evidence_ref=evidence, now=now + timedelta(seconds=3),
+            )
+        assert life.store.jobs(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_original_interest_source_loss_during_ideation_rejects_model_draft(tmp_path):
+    """Post-model evidence recheck cannot revive a stale personal interest."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        evidence = life.record_observation(
+            kind="curiosity", source="test:verified-source",
+            assertion="A real interest in fictional field guides was recorded.",
+            now=now,
+        )
+        life.revise_interest(
+            name="field-guides", context="creative", strength=0.85,
+            confidence=0.91, reason="Grounded writing interest.",
+            evidence_refs=(evidence,), now=now,
+        )
+        calls = []
+
+        def generate(request):
+            calls.append(request)
+            # External source revocation races untrusted model latency.
+            with sqlite3.connect(life.path) as db:
+                db.execute(
+                    "DELETE FROM goal_evidence_record WHERE evidence_ref=?",
+                    (evidence,),
+                )
+            return CognitiveResponse(json.dumps({
+                "name": "A Tiny Field Guide",
+                "description": "A bounded original fiction field guide.",
+                "objectives": ["Invent three specimens", "Write an inspectable edition"],
+                "optional_success_criteria": ["Readable distinct entries"],
+                "artifact_kind": "story", "confidence": 0.88,
+                "curiosity": 0.91, "pursue": True,
+                "reason": "An original source supported curiosity before revocation.",
+            }))
+
+        with pytest.raises(ValueError, match="evidence changed during model suggestion"):
+            life.consider_new_project(
+                generate=generate, now=now + timedelta(seconds=2),
+                busy=False, resource_pressure=0.0,
+            )
+        assert len(calls) == 1
+        assert life.store.list_scope(
+            owner_principal_id="sofia:self", audience_id="local:text",
+        ) == ()
+        assert life.store.jobs("project:nonexistent") == ()
+    finally:
+        life.close()
+
+
 def test_model_suggests_but_host_policy_invents_and_activates_project(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
