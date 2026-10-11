@@ -112,6 +112,97 @@ class SettingsSections:
             ttk.Label(frames["Models"], text=label).pack(anchor="w", pady=(8, 2))
             ttk.Entry(frames["Models"], textvariable=variable).pack(fill="x")
 
+        # Read-only, real Ollama discovery. The button never pulls, wakes,
+        # provisions, accepts licenses or changes a configured model role.
+        from queue import Empty, Queue
+        from threading import Thread
+        from sofia.cognition.model_inventory import ModelInventoryStore
+        from sofia.machine.discovery import create_machine_discovery
+        from sofia.config import create_production_configuration
+        from sofia.config.cognitive_models import CognitiveModelSelection
+        from sofia.integrations.ollama import OllamaAdapter
+        from datetime import datetime, timezone
+
+        inventory_store = ModelInventoryStore(config.state_path)
+        host_id = (
+            create_machine_discovery().discover().identity.machine_id
+        )
+        inventory_view = self.viewer(
+            frames["Models"],
+            "Observed installed/configured model inventory (local host)",
+            lambda: inventory_store.readable(host_id=host_id),
+        )
+        inventory_responses = Queue()
+        inventory_busy = {"active": False}
+
+        def refresh_model_inventory():
+            if inventory_busy["active"]:
+                return
+            inventory_busy["active"] = True
+            inventory_button.configure(state="disabled")
+
+            def collect():
+                try:
+                    actual = (
+                        create_machine_discovery().discover().identity.machine_id
+                    )
+                    if actual != host_id:
+                        raise PermissionError(
+                            "observed local machine changed during inventory"
+                        )
+                    current_config = create_production_configuration(
+                        state_path=config.state_path
+                    )
+                    observations = collect_local_model_inventory(
+                        selection=CognitiveModelSelection.from_configuration(
+                            current_config
+                        ),
+                        backend=OllamaAdapter(),
+                        host_id=host_id,
+                        at=datetime.now(timezone.utc),
+                    )
+                    inventory_store.replace_host(
+                        host_id=host_id, observations=observations,
+                    )
+                    inventory_responses.put(
+                        ("success", f"Observed {len(observations)} model entries.")
+                    )
+                except Exception as exc:
+                    inventory_responses.put(
+                        ("error", f"{type(exc).__name__}: {exc}")
+                    )
+
+            Thread(
+                target=collect, name="sofia-readonly-model-inventory",
+                daemon=False,
+            ).start()
+
+        from sofia.cognition.model_inventory import collect_local_model_inventory
+        inventory_button = ttk.Button(
+            frames["Models"],
+            text="Refresh local Ollama inventory (read only)",
+            command=self.guarded(refresh_model_inventory),
+        )
+        inventory_button.pack(anchor="w", pady=6)
+
+        def poll_model_inventory():
+            try:
+                outcome, detail = inventory_responses.get_nowait()
+            except Empty:
+                pass
+            else:
+                inventory_busy["active"] = False
+                inventory_button.configure(state="normal")
+                if outcome == "error":
+                    self.messagebox.showerror(
+                        "Model inspection failed", detail, parent=root,
+                    )
+                inventory_view.refresh()
+            if root.winfo_exists():
+                root.after(300, poll_model_inventory)
+
+        root.after(300, poll_model_inventory)
+
         legacy_notification_service = os.environ.get(
             "SOFIA_NOTIFICATION_HA_SERVICE", ""
         ).strip()
