@@ -10,15 +10,15 @@ class OllamaAdapter:
         self.load_timeout=600.0
         self.unload_timeout=60.0
     def models(self)->Any:
-        return self.http.request("GET","/api/tags")
+        return self.http.request("GET","/api/tags",max_bytes=1_048_576)
     def version(self)->Any:
         """Read the local Ollama service version without inference or writes."""
-        return self.http.request("GET","/api/version")
+        return self.http.request("GET","/api/version",max_bytes=65_536)
     def running(self)->Any:
         return self.http.request("GET","/api/ps")
     def show(self,name:str)->Any:
         if not name.strip(): raise ValueError("model name required")
-        return self.http.request("POST","/api/show",payload={"name":name})
+        return self.http.request("POST","/api/show",payload={"name":name},max_bytes=2_097_152)
     def pull(self,name:str)->Any:
         """Install or update one exact Ollama model tag."""
         if not isinstance(name,str) or not name.strip():
