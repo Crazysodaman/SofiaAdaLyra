@@ -1076,3 +1076,70 @@ def test_owner_stop_during_project_check_vetoes_transport_at_final_global_gate(
         row.stage in {"transport_attempt", "transport_accepted"}
         for row in trace
     )
+
+
+def test_missing_original_life_presence_observation_refuses_queued_transport(
+    tmp_path,
+):
+    """Losing the original private event must not authorize an old ACT notice."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.act.diagnostics import OutreachTraceStore
+    import sqlite3
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(tmp_path)
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False, generate=_choose_to_share,
+        ) == 1
+        with sqlite3.connect(life.path) as db:
+            observation_id, notice_id = db.execute(
+                "SELECT observation_id,notice_id FROM presence_initiative_opportunity "
+                "WHERE event_id LIKE 'life-update:%' AND status='queued'",
+            ).fetchone()
+            db.execute(
+                "DELETE FROM presence_world_observation WHERE observation_id=?",
+                (observation_id,),
+            )
+        assert service.deliver_one(now=now + timedelta(seconds=2)) is None
+        assert sent == []
+        assert service.has_pending() is True
+        traces = OutreachTraceStore(life.path).history(notice_id=notice_id)
+        assert any(
+            item.stage == "deferred" and
+            item.reason == "authorization_unavailable"
+            for item in traces
+        )
+        assert all(
+            item.stage not in ("transport_attempt", "transport_accepted")
+            for item in traces
+        )
+    finally:
+        life.close()
+
+
+def test_presence_notice_with_changed_evidence_identity_fails_closed(tmp_path):
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    import sqlite3
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(tmp_path)
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False, generate=_choose_to_share,
+        ) == 1
+        with sqlite3.connect(life.path) as db:
+            notice_id = db.execute(
+                "SELECT notice_id FROM presence_initiative_opportunity "
+                "WHERE event_id LIKE 'life-update:%'",
+            ).fetchone()[0]
+            db.execute(
+                "UPDATE act_system_notice SET evidence_id=? WHERE notice_id=?",
+                ("presence-evidence:unrelated-source", notice_id),
+            )
+        assert service.deliver_one(now=now + timedelta(seconds=2)) is None
+        assert sent == []
+    finally:
+        life.close()
