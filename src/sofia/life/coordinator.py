@@ -2461,7 +2461,8 @@ class SelfDirectedLifeCoordinator:
                 continue
             job = self.work_store.get(job_ids[-1])
             if job.status not in {
-                WorkStatus.FAILED, WorkStatus.CANCELLED, WorkStatus.UNCERTAIN,
+                WorkStatus.FAILED, WorkStatus.CANCELLED,
+                WorkStatus.UNCERTAIN, WorkStatus.BLOCKED,
             }:
                 continue
             # The derived LIFE observation is source-linked to a RUN
@@ -2490,7 +2491,11 @@ class SelfDirectedLifeCoordinator:
                 + (
                     "remote effects may have occurred; operator reconciliation required."
                     if status is WorkStatus.UNCERTAIN
-                    else "no autonomous retry; operator review required."
+                    else (
+                        "authority or execution is blocked; review before retry."
+                        if status is WorkStatus.BLOCKED
+                        else "no autonomous retry; operator review required."
+                    )
                 )
             )
             evidence_ref = self.record_observation(
@@ -2505,8 +2510,9 @@ class SelfDirectedLifeCoordinator:
                     "run_status": status.value,
                 },
             )
-            # Failed execution blocks the existing goal. Cancellation or
-            # uncertainty pauses it instead of claiming objective failure.
+            # Technical FAILED blocks the goal; authorization BLOCKED,
+            # cancellation and uncertain effects pause LIFE instead of
+            # claiming an objective failed or retrying the original effect.
             if status is WorkStatus.FAILED:
                 self.fail(
                     project.project_id, reason=explanation,
