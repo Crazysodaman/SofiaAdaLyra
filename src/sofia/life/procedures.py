@@ -767,10 +767,15 @@ class LifeProcedureCatalog:
         """Exact compatible proof sources, never a global newest-N gate."""
         if type(limit) is not int or not 2 <= limit <= 128:
             raise ValueError("bounded original procedure source lookup required")
-        key, environment = self._definition(project)
+        if not isinstance(procedure, ProcedureRecord):
+            return ()
+        with closing(self._connect()) as db:
+            key, environment, version, _parent = (
+                self._current_definition_under_lock(db, project)
+            )
         if (
-            not isinstance(procedure, ProcedureRecord)
-            or procedure.procedure_id != key or procedure.status != "verified"
+            procedure.procedure_id != key
+            or procedure.version != version or procedure.status != "verified"
             or procedure.owner_principal_id != project.owner_principal_id
             or procedure.audience_id != project.audience_id
             or procedure.environment != environment
