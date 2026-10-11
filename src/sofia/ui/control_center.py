@@ -12,6 +12,8 @@ from enum import Enum
 from pathlib import Path
 import sqlite3
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 
 class GameMode(str, Enum):
     AUTO = "auto"
@@ -141,8 +143,7 @@ class DesktopControlSettingsStore:
 
     def __init__(self, state_path: str | Path) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("existing application state database required")
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db:
             with db:
                 db.execute(
@@ -190,7 +191,7 @@ class DesktopControlSettingsStore:
         return row[0] if row is not None and row[0] in MASTER_SETTINGS_SECTIONS else None
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
