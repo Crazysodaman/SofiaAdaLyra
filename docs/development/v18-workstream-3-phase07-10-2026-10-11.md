@@ -297,3 +297,12 @@ This addresses a narrow authority-race path, **not** full atomic GOALS/LIFE two-
 - `c1f7d02b`: Two unexecuted regressions check repeated no-input ticks do not produce 300-second duplicate idle rows, while changed presence context immediately records a distinct decision.
 
 This reduces unnecessary long-absence SQLite writes and is one bounded CA-108/CA-605/CA-1305 coding measure, not a full 24-hour soak, model wakeup, disk/notification resource acceptance. Tests/CI were not run, and no live host was touched.
+
+## Interrupted subjective preference and competing critique checkpoint
+
+- `7578ff26`: The actual LIFE evaluator, exact-source retry path, and existing background experience-learning callback now use the canonical `PreferenceRegistry` to reconcile a separately persisted personal preference after a crash. A previous exact evidence/reason/time match is never duplicated, an older review cannot overwrite a newer preference, an equal-time contradiction abstains, and `UNKNOWN` still creates no subjective record. No second preference store or scheduler.
+- `362e264d`: Regression source simulates a preference-write failure after the canonical evaluation/experience transaction, then checks idempotent recovery and rejection of an older review when a newer preference exists. Tests deliberately unexecuted.
+- `f22dc18c`: Existing `LifeStore.record_evaluation` and atomic `record_evaluation_with_experience` now acquire an immediate canonical SQLite writer transaction before checking the project/artifact/revision uniqueness claim; two coordinators cannot independently turn the same creative revision into two distinct evaluations.
+- `0ff83e65`: Regression source covers a conflicting second direct evaluation and a conflicting atomic evaluation/experience pair, both without duplicate durable review or orphan experience. Tests deliberately unexecuted.
+
+**Scope:** This protects currently verified LIFE critique and preference settlement. It does not accept all Phase 09 task IDs, approve qualitative judgments, or provide correction/revocation propagation across MEM/NEURO. The 175 original task ledger remains owned by Workstream 1. No tests, CI, models, live hosts or robot hardware were executed or changed.
