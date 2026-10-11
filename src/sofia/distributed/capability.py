@@ -129,7 +129,8 @@ class RemoteFleetToolService:
 
     def invoke(self,node_id_text:str,capability:str,operation:str,parameters:dict[str,Any])->dict[str,Any]:
         if capability not in {
-            "system.inspect","vm.inspect","container.inspect","llm.inspect"
+            "system.inspect","vm.inspect","container.inspect","llm.inspect",
+            "workshop.inspect",
         } and self._operator_stop.current().active:
             raise PermissionError("operator stop is active")
         node_id=UUID(node_id_text)
