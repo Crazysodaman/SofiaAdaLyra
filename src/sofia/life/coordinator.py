@@ -3245,19 +3245,6 @@ class SelfDirectedLifeCoordinator:
         goal_settled = self._reconcile_canonical_goal_lifecycle(now=now)
         retired_settled = self._settle_retired_optional_interests(now=now)
         if self.operator_stop.current().active:
-            return {
-                "selection": SelectionKind.INACTIVITY.value,
-                "project_id": None,
-                "scheduled": 0,
-                "jobs_started": 0,
-                "follow_through": "operator_stop",
-                "run_outcomes_observed": len(observed),
-                "terminal_run_projects_settled": terminal_settled,
-                "goal_lifecycle_projects_settled": goal_settled,
-                "retired_interest_projects_settled": retired_settled,
-                "review_queue": self.pending_work_review(limit=16),
-            }
-        if self.operator_stop.current().active:
             # Settling already-observed durable outcomes is bookkeeping,
             # not a license to launch new optional work or wake the model.
             selection = self.select_activity(
