@@ -237,3 +237,72 @@ def inspect_blank_vm_handoff(
         handoff.fingerprint, not blockers, tuple(blockers),
         may_install=False,may_enroll=False,
     )
+
+
+def observed_owner_vm(payload: dict) -> WorkshopVMObservation:
+    """Strictly decode Artemis' read-only exact-name Hyper-V observation."""
+    if not isinstance(payload,dict) or payload.get("Name")!=EXPECTED_VM:
+        raise ValueError("host did not observe exact Hephaestus name")
+    required=("VmId","Generation","State","Processors","StartupMemoryBytes",
+              "Disks","NetworkAdapters","DvdPaths","ObservedAtUtc")
+    if any(key not in payload for key in required):
+        raise ValueError("incomplete Hyper-V VM observation")
+    try:
+        vm_id=UUID(str(payload["VmId"]))
+        moment=datetime.fromisoformat(str(payload["ObservedAtUtc"]).replace("Z","+00:00"))
+    except ValueError as exc:
+        raise ValueError("unverified VM UUID or observation time") from exc
+    raw_disks=payload["Disks"]
+    raw_networks=payload["NetworkAdapters"]
+    raw_dvds=payload["DvdPaths"]
+    if (
+        not isinstance(raw_disks,list) or len(raw_disks)>8
+        or not isinstance(raw_networks,list) or len(raw_networks)>8
+        or not isinstance(raw_dvds,list) or len(raw_dvds)>8
+    ):
+        raise ValueError("Hyper-V disk, NIC or DVD inventory unbounded")
+    disks=[]; sizes=[]
+    for row in raw_disks:
+        if not isinstance(row,dict) or not isinstance(row.get("Path"),str):
+            raise ValueError("Hyper-V disk path unknown")
+        disks.append(str(_path(row["Path"])))
+        raw_size=row.get("Size")
+        sizes.append(
+            raw_size//(1024**3)
+            if type(raw_size) is int and raw_size>=0 else None
+        )
+    network=[]
+    for row in raw_networks:
+        if (
+            not isinstance(row,dict)
+            or not isinstance(row.get("Name"),str)
+            or not isinstance(row.get("SwitchType"),str)
+        ):
+            raise ValueError("Hyper-V switch identity unknown")
+        network.append((row["Name"],row["SwitchType"]))
+    if any(not isinstance(item,str) for item in raw_dvds):
+        raise ValueError("invalid observed mounted media path")
+    memory=payload["StartupMemoryBytes"]
+    memory_mb=(
+        memory//(1024**2)
+        if type(memory) is int and memory>=0 else None
+    )
+    secure_boot=payload.get("SecureBoot")
+    template=payload.get("SecureBootTemplate")
+    if secure_boot=="Off":
+        security="Off"
+    elif secure_boot=="On" and template=="MicrosoftUEFICertificateAuthority":
+        security="On-MicrosoftUEFICertificateAuthority"
+    else:
+        security=None
+    return WorkshopVMObservation(
+        hyperv_vm_id=vm_id,name=payload["Name"],
+        generation=payload["Generation"],state=payload["State"],
+        processor_count=payload["Processors"],
+        startup_memory_mb=memory_mb,
+        os_disk_paths=tuple(disks),
+        os_disk_sizes_gib=tuple(sizes),
+        nic_switches=tuple(network),
+        dvd_paths=tuple(raw_dvds),
+        secure_boot=security,observed_at=moment,
+    )
