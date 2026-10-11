@@ -13,6 +13,7 @@ on:
       - 'test/test_vision_*.py'
       - 'test/test_screen_capability_authority.py'
       - 'test/test_presence_initiative.py'
+      - 'test/test_v18_presence_private_life_scope.py'
       - 'test/test_life_*.py'
       - 'test/test_ops_workshop_vm_separation.py'
       - 'test/test_ops_digital_twin_production.py'
@@ -45,6 +46,7 @@ jobs:
           test/test_vision_journeys_production.py
           test/test_screen_capability_authority.py
           test/test_presence_initiative.py
+          test/test_v18_presence_private_life_scope.py
           test/test_life_autonomous_followthrough.py
           test/test_life_verified_milestone_production.py
           test/test_life_atomic_admission.py
