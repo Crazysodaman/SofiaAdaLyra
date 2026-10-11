@@ -739,6 +739,27 @@ class BackupEngine:
             # Verify semantic protected state after candidate erasure.
             verify_production_component_schemas(staged_db)
             SQLiteStatePlane(staged_db).schema_revision
+            # integrity_check validates b-tree structure, not application
+            # referential integrity. An old backup or erasure replay could
+            # leave dangling declared foreign keys while appearing healthy.
+            # Check the FINAL staged SQLite image before publishing any file.
+            # Do not echo row IDs or private data in recovery error receipts.
+            try:
+                with closing(sqlite3.connect(
+                    staged_db.as_uri() + "?mode=ro", uri=True,
+                )) as db:
+                    db.execute("PRAGMA query_only=ON")
+                    broken_reference = db.execute(
+                        "PRAGMA foreign_key_check"
+                    ).fetchone()
+            except sqlite3.DatabaseError as exc:
+                raise BackupError(
+                    "restored SQLite foreign-key verification unavailable"
+                ) from exc
+            if broken_reference is not None:
+                raise BackupError(
+                    "restored SQLite failed foreign_key_check"
+                )
             protected_root = staging / "protected"
             constitution = protected_root / "constitution.md"
             identity = protected_root / "identity.json"
