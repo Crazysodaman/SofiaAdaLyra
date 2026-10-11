@@ -5222,9 +5222,18 @@
       "phase": "06",
       "source_topic": "58",
       "master_line": 572,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/conversation_learning.py",
+        "src/sofia/application/memory_review.py",
+        "test/test_ws2_memory_private_admission.py"
+      ],
+      "evidence_commits": [
+        "0e80de8c952e8b57495f0c7b41d44097de2d9772",
+        "7254eb6716bd7a727acffdee0400e0a23ce6ea4e",
+        "d7844f34787559808b3470efd3e3a88a9dceeb5b",
+        "f50740edd92131f9af73a247797b72e116aeb570"
+      ],
       "accepted": false
     },
     {
