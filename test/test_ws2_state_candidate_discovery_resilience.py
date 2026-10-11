@@ -81,3 +81,18 @@ def test_redirected_identity_path_cannot_claim_matching_lineage(tmp_path):
     matches = {record.state_path: record for record in found}
     assert matches[other / "sofia.db"].protected_identity_present is False
     assert matches[other / "sofia.db"].identity_matches_configured_home is None
+
+
+def test_explicit_owner_roots_come_before_guessed_paths_under_small_cap(tmp_path):
+    configured = tmp_path / "configured"
+    approved = tmp_path / "explicit-approved-root"
+    _db(configured / "sofia.db")
+    _db(approved / "sofia.db")
+    discovered = discover_local_state_candidates(
+        configured_path=configured / "sofia.db",
+        extra_roots=(approved,), max_roots=2,
+    )
+    assert [candidate.state_path for candidate in discovered] == [
+        configured / "sofia.db",
+        approved / "sofia.db",
+    ]
