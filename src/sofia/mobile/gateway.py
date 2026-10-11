@@ -11,6 +11,7 @@ import re
 import sqlite3
 
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.conversation.lifelong import LifelongThreadStore
 from sofia.safe.permissions import PermissionStore
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
@@ -216,6 +217,24 @@ class MobileCompanionGateway:
                     raise ValueError("Main page payload fields are invalid")
                 return self.main_history(
                     device_id=device, private_mode=payload["private_mode"],
+                    before=payload["before"], limit=payload["limit"],
+                )
+            if operation == "/v1/mobile/threads":
+                if set(payload) != {"device_id", "private_mode", "limit"}:
+                    raise ValueError("thread list payload fields are invalid")
+                return self.visible_thread_headers(
+                    device_id=device,
+                    private_mode=payload["private_mode"],
+                    limit=payload["limit"],
+                )
+            if operation == "/v1/mobile/thread/page":
+                if set(payload) != {
+                    "device_id", "private_mode", "thread_id", "before", "limit"
+                }:
+                    raise ValueError("thread page payload fields are invalid")
+                return self.project_thread_history(
+                    device_id=device, private_mode=payload["private_mode"],
+                    thread_id=payload["thread_id"],
                     before=payload["before"], limit=payload["limit"],
                 )
             if operation == "/v1/mobile/main/seen":
@@ -548,6 +567,23 @@ class MobileCompanionGateway:
             raise TypeError("private_mode must be a bool")
         if type(limit) is not int or not 1 <= limit <= 50:
             raise ValueError("Main page limit must be 1..50")
+        principal = self._principal(device, private_mode=private_mode)
+        if private_mode and not self.permissions.private_adult_authority().private_chat:
+            raise PermissionError("private Main history requires the host private-chat grant")
+        return self._canonical_history_page(
+            device=device, principal=principal, private_mode=private_mode,
+            before=before, limit=limit,
+            page_reader=lambda cursor, page_limit:
+                self.application.main_thread_page(
+                    principal=principal, before=cursor, limit=page_limit,
+                ),
+        )
+
+    def _canonical_history_page(
+        self, *, device: str, principal: PrincipalContext,
+        private_mode: bool, before: object, limit: int, page_reader,
+    ) -> dict[str, object]:
+        """One source-owned, source-audience-authorized bounded history pager."""
         cursor = None
         if before is not None:
             if not isinstance(before, dict) or set(before) not in ({
@@ -577,18 +613,13 @@ class MobileCompanionGateway:
                     raise ValueError("Main cursor timestamp must be timezone-aware")
                 cursor = (timestamp, raw_id)
 
-        principal = self._principal(device, private_mode=private_mode)
-        if private_mode and not self.permissions.private_adult_authority().private_chat:
-            raise PermissionError("private Main history requires the host private-chat grant")
         with self._lock:
             # Each request carries a stable keyset cursor; narrowing a large
             # page must never discard or skip historical canonical messages.
             page_limit = limit
             while True:
                 try:
-                    page = self.application.main_thread_page(
-                        principal=principal, before=cursor, limit=page_limit,
-                    )
+                    page = page_reader(cursor, page_limit)
                 except ValueError as exc:
                     if (
                         page_limit <= 1
@@ -648,6 +679,93 @@ class MobileCompanionGateway:
             "audience_kind": principal.audience_kind.value,
             "cross_channel_mirroring": False,
         }
+
+    def visible_thread_headers(
+        self, *, device_id: object, private_mode: object = False,
+        limit: object = 30,
+    ) -> dict[str, object]:
+        """List only project titles with visible original source messages.
+
+        The owner principal alone does not grant a different transport access
+        to project titles or content from another source audience.
+        """
+        device = self._device(device_id)
+        if type(private_mode) is not bool:
+            raise TypeError("private_mode must be a bool")
+        if type(limit) is not int or not 1 <= limit <= 50:
+            raise ValueError("thread list limit must be 1..50")
+        principal = self._principal(device, private_mode=private_mode)
+        if private_mode and not self.permissions.private_adult_authority().private_chat:
+            raise PermissionError("private thread list requires host private-chat grant")
+        with self._lock:
+            source = LifelongThreadStore(self.state_path)
+            headers = source.list_threads(owner=principal, limit=limit)
+            visible = []
+            for header in headers:
+                if header.kind != "main" and not source.visible_message_page(
+                    thread_id=header.thread_id, principal=principal, limit=1,
+                ):
+                    continue
+                visible.append({
+                    "thread_id": header.thread_id,
+                    "kind": header.kind,
+                    "name": header.name,
+                    "created_at": header.created_at.isoformat(),
+                })
+        return {
+            "threads": visible,
+            "audience_id": principal.audience_id,
+            "audience_kind": principal.audience_kind.value,
+            "cross_channel_mirroring": False,
+        }
+
+    def project_thread_history(
+        self, *, device_id: object, private_mode: object,
+        thread_id: object, before: object = None, limit: object = 30,
+    ) -> dict[str, object]:
+        """Read an existing project thread, never create or route a turn."""
+        if not isinstance(thread_id, str) or not 8 <= len(thread_id) <= 128:
+            raise ValueError("bounded project thread ID required")
+        device = self._device(device_id)
+        if type(private_mode) is not bool:
+            raise TypeError("private_mode must be a bool")
+        if private_mode and not self.permissions.private_adult_authority().private_chat:
+            raise PermissionError("private project history requires host grant")
+        principal = self._principal(device, private_mode=private_mode)
+        with self._lock:
+            source = LifelongThreadStore(self.state_path)
+            eligible = next(
+                (
+                    header for header in source.list_threads(
+                        owner=principal, limit=100,
+                    )
+                    if header.thread_id == thread_id and header.kind == "project"
+                ),
+                None,
+            )
+            if eligible is None:
+                raise PermissionError("project thread does not belong to owner")
+            # Delegate shared cursor validation and byte-budget logic to the
+            # exact same canonical Main pager instead of a shadow reader.
+            page = self._canonical_history_page(
+                device=device, principal=principal,
+                private_mode=private_mode,
+                before=before, limit=limit,
+                page_reader=lambda cursor, page_limit:
+                    source.visible_message_page(
+                        thread_id=thread_id, principal=principal,
+                        before=cursor, limit=page_limit,
+                    ),
+            )
+            if not page["messages"]:
+                raise PermissionError(
+                    "project thread has no visible source events for this audience"
+                )
+            page["thread_id"] = thread_id
+            page["kind"] = "project"
+            page["name"] = eligible.name
+            page["last_seen"] = None
+            return page
 
     def acknowledge_main_seen(
         self, *, device_id: object, private_mode: object,
