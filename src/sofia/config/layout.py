@@ -51,7 +51,25 @@ class RuntimeStorageLayout:
             "SOFIA_STATE_ROOT",
             "",
         ).strip()
-        if explicit_state:
+        pointer_file = os.environ.get("SOFIA_STATE_HOME_POINTER", "").strip()
+        pointer_key = os.environ.get("SOFIA_STATE_HOME_POINTER_KEY", "").strip()
+        writer_host_id = os.environ.get("SOFIA_WRITER_HOST_ID", "").strip()
+        if pointer_file and explicit_state:
+            raise ValueError("SOFIA_STATE_ROOT conflicts with signed home pointer")
+        if pointer_file:
+            if mode != "production" or not pointer_key or not writer_host_id:
+                raise ValueError(
+                    "signed state-home pointer requires production mode, key and writer host"
+                )
+            from sofia.config.state_home_pointer import read_verified_state_home
+            approved = read_verified_state_home(
+                pointer_path=Path(pointer_file), key_path=Path(pointer_key),
+                expected_writer_host_id=writer_host_id,
+            )
+            state_root = approved.root
+        elif pointer_key:
+            raise ValueError("state-home key requires a signed pointer")
+        elif explicit_state:
             state_root = Path(explicit_state)
         elif mode == "production":
             if os.name == "nt":
