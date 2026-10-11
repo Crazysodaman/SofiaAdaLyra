@@ -293,7 +293,9 @@ class ConversationStore:
             arguments = (session_id, limit)
         else:
             filter_sql = "AND (created_at > ? OR (created_at = ? AND id > ?))"
-            stamp = after[0].isoformat()
+            # New originals are canonical UTC; normalize an externally
+            # supplied offset-aware keyset cursor to that same encoding.
+            stamp = _storage_timestamp(after[0])
             arguments = (session_id, stamp, stamp, after[1], limit)
         with self._lock:
             rows = self._require_connection().execute(
