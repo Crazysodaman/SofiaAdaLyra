@@ -32,6 +32,7 @@ class LifelongThread:
     kind: str
     name: str
     created_at: datetime
+    archived_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,6 +186,11 @@ class LifelongThreadStore:
                     "PRAGMA table_info(lifelong_thread_event)"
                 )
             }
+            thread_columns = {
+                row[1] for row in db.execute("PRAGMA table_info(lifelong_thread)")
+            }
+            if "archived_at" not in thread_columns:
+                db.execute("ALTER TABLE lifelong_thread ADD COLUMN archived_at TEXT")
             if "canonical_sequence" not in columns:
                 db.execute(
                     "ALTER TABLE lifelong_thread_event "
@@ -445,7 +451,9 @@ class LifelongThreadStore:
             if thread is None:
                 thread_id = f"thread:{uuid4().hex}"
                 db.execute(
-                    "INSERT INTO lifelong_thread VALUES(?,?,?,?,?)",
+                    "INSERT INTO lifelong_thread("
+                    "thread_id,owner_principal_id,kind,name,created_at) "
+                    "VALUES(?,?,?,?,?)",
                     (
                         thread_id, principal.principal_id, "main", "Main",
                         now.astimezone(timezone.utc).isoformat(),
@@ -556,6 +564,8 @@ class LifelongThreadStore:
             owner_principal_id=row["owner_principal_id"],
             kind=row["kind"], name=row["name"],
             created_at=datetime.fromisoformat(row["created_at"]),
+            archived_at=(datetime.fromisoformat(row["archived_at"])
+                         if row["archived_at"] is not None else None),
         )
 
     def get_or_create(
@@ -588,7 +598,9 @@ class LifelongThreadStore:
             identifier = f"thread:{uuid4().hex}"
             when = datetime.now(timezone.utc).isoformat()
             db.execute(
-                "INSERT INTO lifelong_thread VALUES(?,?,?,?,?)",
+                "INSERT INTO lifelong_thread("
+                    "thread_id,owner_principal_id,kind,name,created_at) "
+                    "VALUES(?,?,?,?,?)",
                 (identifier, owner.principal_id, kind, name, when),
             )
             return LifelongThread(identifier, owner.principal_id, kind, name,
@@ -626,6 +638,7 @@ class LifelongThreadStore:
         with closing(self._connect()) as db:
             rows = db.execute(
                 "SELECT * FROM lifelong_thread WHERE owner_principal_id=? "
+                "AND archived_at IS NULL "
                 "ORDER BY CASE kind WHEN 'main' THEN 0 ELSE 1 END,"
                 "created_at DESC,thread_id LIMIT ?",
                 (owner.principal_id, limit),
@@ -649,7 +662,7 @@ class LifelongThreadStore:
         with closing(self._connect()) as db:
             rows = db.execute(
                 "SELECT t.* FROM lifelong_thread AS t "
-                "WHERE t.owner_principal_id=? AND ("
+                "WHERE t.owner_principal_id=? AND t.archived_at IS NULL AND ("
                 "t.kind='main' OR (t.kind='project' AND EXISTS ("
                 "SELECT 1 FROM lifelong_thread_event AS e "
                 "JOIN conversation_messages AS m "
@@ -898,7 +911,9 @@ class LifelongThreadStore:
             if thread is None:
                 thread_id = f"thread:{uuid4().hex}"
                 db.execute(
-                    "INSERT INTO lifelong_thread VALUES(?,?,?,?,?)",
+                    "INSERT INTO lifelong_thread("
+                    "thread_id,owner_principal_id,kind,name,created_at) "
+                    "VALUES(?,?,?,?,?)",
                     (thread_id, principal.principal_id, "main", "Main",
                      datetime.now(timezone.utc).isoformat()),
                 )
