@@ -272,3 +272,44 @@ def test_no_approved_dependency_edge_requires_abandonment_label():
     )
     assert decision.decision=="ABANDON_RESEARCH"
     assert "no owner-reviewed dependency edges" in "; ".join(decision.reasons)
+
+
+
+def test_genuine_source_catalog_rejects_vm_and_docker_fidelity_overclaims(tmp_path):
+    from sofia.ops.digital_twin import (
+        FIDELITY_COMPARISON,PHYSICAL_DOMAIN_BOUNDARIES,
+    )
+    assert FIDELITY_COMPARISON["dependency_graph_v1"]["implemented"] is True
+    assert FIDELITY_COMPARISON["disposable_docker_replica"]["implemented"] is False
+    assert FIDELITY_COMPARISON["full_vm_replica"]["implemented"] is False
+    assert "Hephaestus" in FIDELITY_COMPARISON["full_vm_replica"]["limit"]
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).load()
+    service=SimpleNamespace(
+        state_path=state,registry=SimpleNamespace(
+            hosts=lambda:(host("Artemis"),),
+        ),
+    )
+    fact=read_digital_twin_fleet(service=service,at=AT)
+    assert fact["fidelity_comparison"]==FIDELITY_COMPARISON
+    assert fact["physical_domain_boundaries"]==PHYSICAL_DOMAIN_BOUNDARIES
+    assert fact["may_execute_real_actions"] is False
+
+
+def test_gaia_virtual_servo_kinematics_cannot_authorize_real_pulses():
+    from sofia.ops.digital_twin import PHYSICAL_DOMAIN_BOUNDARIES
+    gaia=PHYSICAL_DOMAIN_BOUNDARIES["Gaia"]
+    assert "NO PHYSICAL SERVO PULSES"==gaia["default"]
+    assert "180-degree vs continuous-rotation servo calibration" in gaia["unmeasured"]
+    assert "real servo deadband" in gaia["unmeasured"]
+    assert "actual torque/current and stall limits" in gaia["unmeasured"]
+    assert "separate protected authority" in gaia["real_action_scope"]
+
+
+def test_jmri_telemetry_route_simulation_never_implies_train_movement():
+    from sofia.ops.digital_twin import PHYSICAL_DOMAIN_BOUNDARIES
+    jmri=PHYSICAL_DOMAIN_BOUNDARIES["JMRI"]
+    assert "NO TRACK POWER OR LOCO MOVEMENT"==jmri["default"]
+    assert "owner-reviewed roster" in jmri["read_only_inputs"]
+    assert "actual route clearance" in jmri["unmeasured"]
+    assert "locomotive commands require separate grants" in jmri["real_action_scope"]
