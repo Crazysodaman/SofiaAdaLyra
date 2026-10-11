@@ -102,3 +102,27 @@ Preregister comparisons for LIFE alone, LIFE+MEM, +NEURO, +reusable skills and i
 ### Acceptance matrix axes to fill with exact revisions
 
 `model route × channel/source × principal/audience × text/voice/avatar/vision × SAFE level × gaming/busy state × clean/restarted/partitioned state × failure class`. Sampling must include unauthorized cross-channel relays, rejected avatar-only claims, memory correction, invalid model output, false execution receipts, cancelled jobs and duplicate delivery. Tests are written/executed only on explicit user permission.
+
+## 2026-10-11 SAFE / owner authentication source audit (CA-1201, CA-3105)
+
+The preceding contract predated the owner-approved hybrid auth coding. The following mapping is **observed in source but not tested**; it does not replace the original event diagrams.
+
+| Decision | Canonical authority and production route | Admission / failure |
+| --- | --- | --- |
+| Level 1 read-only | `safe/permissions.py` classification to existing read capability handlers | Existing approved source scope; no implicit ability to publish to another audience |
+| Level 2 bounded automatic | Deterministic SAFE admission and guarded RUN/ACT handlers | No new scope or model-text-specified permission |
+| Level 3 scoped standing | `PermissionStore.grant/revoke/grants/allows_standing` → real handler | Exact action-bound FIDO2 receipt to create/revoke; historical unsigned grant not effective; revoked signing key disables grant |
+| Level 4 protected exact effect | `owner_browser.authorize_exact_action` → `ExecutionApprovalVerifier.record/matches_unconsumed/consume` | Authenticated credential, exact parameters, expiry, one use; actor string alone is denied |
+| Level 5 security/private authority | `PermissionStore.set_private_adult_authority`, `private_adult_authority` | Fresh FIDO2; old unsigned adult expansion is fenced; stored restrictive `private_chat=False` remains restrictive |
+| Emergency stop | `OperatorStopStore.set` via CLI and Settings | Immediate PAUSE; RESUME requires exact unchanged stop revision and signed FIDO2 approval |
+| Local owner principal | Windows token SID pinned by `owner_enroll_browser.py` and checked by UI/Tray | First trusted enrollment requires supervised Windows terminal/Hello; later graphical sessions require pinned SID plus WebAuthn, not a console |
+| FIDO2 key lifecycle | `owner_registration.py` + credential/challenge records in canonical SQLite | Additional key signed by existing authenticator; revocation blocks future approvals and associated standing grants |
+| Local control surfaces | `ui/settings_window.py`, `ui/tray_agent.py`, `safe/permissions_cli.py` | Signed owner approval for model/Fleet/service/standing/Level-5 changes; UI callbacks defer long WebAuthn prompts to workers |
+
+**Trust caveat:** Registration with WebAuthn `fmt=none` and a client-reported cross-platform attachment does not demonstrate manufacturer attestation or uniquely prove a hardware-backed private key. The physical-key identity policy remains an owner-controlled design limitation until hardware evidence is reviewed.
+
+**Error state and evidence:** Internal SAFE approval consumption establishes authority, not the success of the external side effect. Failed or interrupted operations require their own RUN/ACT receipt; a consumed but unexecuted approval must not be replayed automatically. Producer/audience scopes remain owned by their originating adapters. This review does **not** yet trace all DEV/EVOLVE or remote Artemis/migration effects, nor prove no other caller bypasses SAFE.
+
+**Host state:** Venus is the sole authorized canonical writer; the owner reported Debian installation in progress on the dedicated Artemis `Sofia` VM. No writer cutover, live key enrollment, remote host action, tests, CI or build took place in this audit.
+
+**Acceptance gate remains open:** Review exact-SHA diffs, execute focused SAFE tests, run the full original V18 package test gates, then supervise physical Windows Hello/FIDO2 and multi-host acceptance before reclassifying any status as accepted.
