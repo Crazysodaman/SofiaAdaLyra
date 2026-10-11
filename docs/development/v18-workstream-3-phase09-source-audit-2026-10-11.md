@@ -769,3 +769,10 @@
 - **Confirmed source race:** Before this fix, final `LifeStore.record_interest_learning` checked only whether a formerly verified `life_experience` row existed; it never rechecked the row's identity/digest under the canonical write lock.
 - **Source correction:** `LifeStore.experience_digest` is now the common original-source fingerprint for the LIFE coordinator and interest writer. A final same-transaction original-row comparison and audience fence prevent altered observations from earning revisions while still recording the old source digest. This is not ordinary unrelated experience ingestion, broad correction propagation or task-wide completion.
 - **Source commits:** `4d9eaa4`, `f86ba54`; **regression authored** `17e68da`, unexecuted. No tests/CI/deployment/host effects.
+
+## Follow-up: optional LIFE admissions after original interest source revocation (2026-10-11)
+
+- **Original IDs:** CA-101, CA-107, CA-110, CA-1606, CA-2402 and CA-2407, all still partial task coverage.
+- **Confirmed missing read fence:** Active interest strength, status and confidence remained selectable in background LIFE after its original reviewed evidence ref vanished. Existing typed source checks at creation and evaluation did not protect *later* source changes before autonomous selection and RUN.
+- **Production correction:** Source-scoped fresh original evidence check now guards motivation, pre-model interest selection, post-model selected-interest revision, direct original LIFE RUN admission and queued native creative effect execution. The gate checks the existing `GoalEvidenceIndex` and canonical principal/audience; it neither mutates GOALS nor models other memory deletion subsystems.
+- **Commit:** `4a3b1d9`; new regressions `0937124`, `093bf6c`, not run. No acceptance receipt or host effects.
