@@ -361,7 +361,14 @@ def test_operator_pause_refuses_optional_reflection_admission(tmp_path):
         reflections=ReflectionJournal(path),
         scope=SocialScope(kind=ScopeKind.RELATIONSHIP, principal_id=SPARKS_PRINCIPAL_ID),
         now=NOW,
-        influence=ContinuityInfluence(),
+        influence=ContinuityInfluence(
+            daypart="day", season=None, daylight=None,
+            weather_condition=None, temperature_c=None,
+            weather_freshness=None, location_freshness=None,
+            primary_emotion_evidence_refs=(), emotional_tone="neutral",
+            primary_emotion=None, primary_intensity=0.0,
+            active_emotions=(),
+        ),
     )
     assert result == 0
 
