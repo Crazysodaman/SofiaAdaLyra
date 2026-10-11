@@ -1617,6 +1617,7 @@ class SettingsSections:
                 return
             reviewed=assess_training_lab(
                 plan,dataset_store=TrainingDatasetStore(config.state_path),
+                workshop_handoff_store=WorkshopHandoffStore(config.state_path),
                 guest_debian_attested=False,venus_gpu_job_approved=False,at=now,
             )
             TrainingLabReviewStore(config.state_path).record(plan,reviewed)
