@@ -52,6 +52,14 @@ def _stage(proof, tmp_path, monkeypatch, *, manifest_source="Venus", approve=Tru
 
     def fake_restore(**kwargs):
         calls.append(("restore", kwargs))
+        staging = kwargs["target_state_path"].parent
+        staging.mkdir(parents=True, exist_ok=True)
+        kwargs["target_state_path"].write_bytes(b"isolated-stage-fixture")
+        protected = staging / "protected"
+        protected.mkdir(exist_ok=True)
+        (protected / "identity.json").write_text(
+            '{"name":"Sofia fixture"}', encoding="utf-8",
+        )
         return RestoreVerification(
             backup_id="isolated-archive", verified_at=NOW,
             verifier=kwargs["verifier"], succeeded=True,
@@ -65,6 +73,10 @@ def _stage(proof, tmp_path, monkeypatch, *, manifest_source="Venus", approve=Tru
         lambda *_args: SimpleNamespace(
             eligible_for_review=True, blockers=(), warnings=(),
         ),
+    )
+    monkeypatch.setattr(
+        "sofia.ops.state_mobility._filesystem_kind",
+        lambda _path: "local",
     )
     output = stage_verified_state_home(
         proof=proof,
@@ -89,7 +101,13 @@ def test_operator_staging_attributes_backup_to_venus_not_artemis(
     assert calls[0][0] == "create"
     assert calls[0][1]["source_host_id"] == "Venus"
     assert calls[1][0] == "restore"
-    assert not proof.destination_root.exists()
+    assert calls[1][1]["target_state_path"] != proof.destination_root / "sofia.db"
+    assert calls[1][1]["target_state_path"].parent.name.startswith(
+        "." + proof.destination_root.name + ".restore-"
+    )
+    assert (proof.destination_root / "sofia.db").is_file()
+    assert (proof.destination_root / "protected" / "identity.json").is_file()
+    assert not calls[1][1]["target_state_path"].parent.exists()
 
 
 def test_wrong_authenticated_backup_origin_never_reaches_restore(
