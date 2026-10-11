@@ -229,3 +229,70 @@ def persist_enrollment(
             },
             occurred_at=moment,
         )
+
+
+def revoke_enrollment(
+    verifier: OwnerWebAuthnVerifier, *, credential_id: str,
+    approval_id: str, now: datetime | None = None,
+) -> None:
+    """Revoke a reviewed key after a separate live FIDO2 exact-action receipt.
+
+    Retain at least one active security key, to prevent lockout or downgrading
+    the high-assurance action gate to a platform credential. Preserve revoked
+    registrations in canonical history to prevent first-enrollment reset.
+    """
+    from sofia.safe.execution_approval import ExecutionApprovalVerifier
+    if not isinstance(verifier, OwnerWebAuthnVerifier):
+        raise TypeError("canonical credential verifier required")
+    _unb64(credential_id, limit=1024)
+    moment = _utc(now or datetime.now(timezone.utc))
+    with closing(verifier._db()) as db:
+        row = db.execute(
+            "SELECT credential_kind,revoked_at FROM safe_owner_credential "
+            "WHERE credential_id=?", (credential_id,),
+        ).fetchone()
+        if row is None or row["revoked_at"] is not None:
+            raise PermissionError("credential is absent or already revoked")
+        if row["credential_kind"] == "security_key":
+            count = db.execute(
+                "SELECT COUNT(*) FROM safe_owner_credential "
+                "WHERE credential_kind='security_key' AND revoked_at IS NULL",
+            ).fetchone()[0]
+            if count <= 1:
+                raise PermissionError(
+                    "refusing to revoke the last active security key without offline recovery"
+                )
+    parameters = {"credential_id": credential_id}
+    ExecutionApprovalVerifier(verifier._guard.path).consume(
+        approval_id=approval_id, capability="owner.credentials.revoke",
+        parameters=parameters, now=moment,
+    )
+    with closing(verifier._db()) as db, db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute(
+            "SELECT credential_kind,revoked_at FROM safe_owner_credential "
+            "WHERE credential_id=?", (credential_id,),
+        ).fetchone()
+        if row is None or row["revoked_at"] is not None:
+            raise PermissionError("credential already revoked during authorization")
+        if row["credential_kind"] == "security_key":
+            count = db.execute(
+                "SELECT COUNT(*) FROM safe_owner_credential "
+                "WHERE credential_kind='security_key' AND revoked_at IS NULL",
+            ).fetchone()[0]
+            if count <= 1:
+                raise PermissionError("last active security key cannot be revoked")
+        changed = db.execute(
+            "UPDATE safe_owner_credential SET revoked_at=? "
+            "WHERE credential_id=? AND revoked_at IS NULL",
+            (moment.isoformat(), credential_id),
+        )
+        if changed.rowcount != 1:
+            raise PermissionError("credential revocation conflicted")
+        verifier.audit.append_in_transaction(
+            db, actor_id="Sparks", event_type="owner.credential.revoked",
+            payload={
+                "credential_id_sha256": sha256(credential_id.encode()).hexdigest(),
+                "approval_id": approval_id,
+            }, occurred_at=moment,
+        )
