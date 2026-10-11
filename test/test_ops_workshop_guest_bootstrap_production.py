@@ -416,3 +416,22 @@ def test_installer_stage_does_not_accept_unsupported_host_receipt(tmp_path,chang
     assert receipt.os_installed is False
     assert receipt.fleet_enrolled is False
     assert [x[2] for x in calls].count("start")==1
+
+
+def test_future_dated_hyperv_boot_receipt_remains_uncertain_and_never_retries(tmp_path):
+    """A reply from the future cannot prove installer boot on Artemis."""
+    state, plan, approval, at, _ = reviewed_state(tmp_path)
+    remote, calls = fake_service(state, at)
+    result = start_owner_approved_installer(
+        state_path=state, remote_service=remote,
+        plan_id=plan.plan_id, approval_id=approval.approval_id,
+        now=at + timedelta(seconds=1),
+    )
+    # The fake Artemis observed its host result at at+2 seconds, AFTER
+    # this decision clock. It must not be silently accepted as fresh.
+    assert result.status == "UNCERTAIN"
+    assert not result.os_installed
+    assert not result.fleet_enrolled
+    assert [call[2] for call in calls].count("start") == 1
+    saved = WorkshopInstallerBootStore(state).inspect(plan_id=plan.plan_id)
+    assert saved.status == "UNCERTAIN"
