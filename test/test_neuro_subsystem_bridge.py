@@ -269,3 +269,26 @@ def test_neuro_network_attention_is_advisory_not_emotion_or_expression(tmp_path)
     }
     assert runtime.background_priority("web research retry") > 0.0
     assert not any(signal.kind in {"emotion", "avatar"} for signal in network)
+
+
+def test_production_life_and_autonomous_priority_uses_only_existing_attention():
+    runtime = NeuroRuntime()
+    assert runtime.background_priority("independent_life") == 0.0
+    assert runtime.background_priority("autonomous_work") == 0.0
+    runtime.observe_signal(NeuralSignal(
+        source="eligible-goal-123",
+        kind="goal",
+        value=0.85,
+        confidence=0.95,
+        novelty=0.8,
+        urgency=0.9,
+        observed_at=NOW,
+        ttl_seconds=240.0,
+    ))
+    assert 0.0 < runtime.background_priority("independent_life") <= 1.0
+    assert 0.0 < runtime.background_priority("autonomous_work") <= 1.0
+    # A priority scalar is advisory; it cannot create a background claim,
+    # execute a capability, supply evidence, or promote a memory.
+    assert runtime.background_priority("unrelated_backup") == 0.0
+    assert runtime.snapshot(now=NOW + timedelta(seconds=241)).focus is None
+    assert runtime.background_priority("independent_life") == 0.0
