@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "61c4773ab9c64f9040d11e6fecc32754653035d3",
+  "reviewed_main_sha": "3c9d61c4b5c008bcdc7f1b3fd45a752e855545f8",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1: canonical-source guard wired through INTERACT GoalJournal, DesktopControlSettings, detached desktop and Settings transaction/query/UI panels. Regression cases authored; all tests deferred per user. CA-003/1107/1905 remain partial, other workstream records preserved.",
+  "notice": "Workstream 1 Phase02 CA-1101/1107: canonical LIFE/NEURO/ACT status snapshot wired to existing Settings, regressions not run. Other source-protection tasks remain partial. Preserve other workstreams' ledger evidence.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1696,10 +1696,22 @@
       "phase": "02",
       "source_topic": "11",
       "master_line": 262,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ui/settings_sections.py",
+        "test/test_ui_autonomy_snapshot.py"
+      ],
+      "evidence_commits": [
+        "cf5aba6ad925628ddee7771a28a5c20f61282de4",
+        "d052cecb172341ccba4c4dd24a07f2f36a826809",
+        "31702972047b6e6e2a87307a3e47b7b0b5fecd85"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "3c9d61c4b5c008bcdc7f1b3fd45a752e855545f8",
+        "depth": "desktop_settings_canonical_status_projection",
+        "interpretation": "Existing Life & Projects Settings page now shows auto-refreshing canonical SAFE operator stop, LIFE source-scoped project/milestone and last selected activity/reason/resource pressure, NEURO projection and ACT/INTERACT queued/outreach outcomes. Missing sources explicitly UNKNOWN, historic pressure labeled historic. No separate status ledger or fake successes. Tests authored not executed; live UI rendering and complete cross-modal acceptance still open."
+      }
     },
     {
       "id": "CA-1102",
@@ -1820,7 +1832,8 @@
         "test/test_interaction_goal_journal.py",
         "test/test_ui_control_center.py",
         "test/test_ui_desktop_storage_authority.py",
-        "test/test_ui_settings_persistence.py"
+        "test/test_ui_settings_persistence.py",
+        "test/test_ui_autonomy_snapshot.py"
       ],
       "evidence_commits": [
         "71dcd2c550c5a28574ef1caa97d5328d0f4b0428",
@@ -1831,13 +1844,16 @@
         "30e6e7d252ff03eab0c592015d854fa78f690b91",
         "7dbe8511a795e890b475b23467aae5fc523908cf",
         "a57fb3bbfb012be68f6461c2bc2aa86f8c48837d",
-        "3e1cfc4b15d9cabd84666dfe0206163e9c4740cf"
+        "3e1cfc4b15d9cabd84666dfe0206163e9c4740cf",
+        "cf5aba6ad925628ddee7771a28a5c20f61282de4",
+        "d052cecb172341ccba4c4dd24a07f2f36a826809",
+        "31702972047b6e6e2a87307a3e47b7b0b5fecd85"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "61c4773ab9c64f9040d11e6fecc32754653035d3",
-        "depth": "production_canonical_state_source_and_regression",
-        "interpretation": "INTERACT GoalJournal and desktop/tray/Settings control owners now use canonical SQLite inode/symlink guard, no implicit database creation or replacement reads/writes. Regression tests authored but not run. This covers these UI/INTERACT paths only, not all packages nor selected host failover and split-brain fencing."
+        "at_sha": "3c9d61c4b5c008bcdc7f1b3fd45a752e855545f8",
+        "depth": "desktop_settings_canonical_status_projection",
+        "interpretation": "Existing Life & Projects Settings page now shows auto-refreshing canonical SAFE operator stop, LIFE source-scoped project/milestone and last selected activity/reason/resource pressure, NEURO projection and ACT/INTERACT queued/outreach outcomes. Missing sources explicitly UNKNOWN, historic pressure labeled historic. No separate status ledger or fake successes. Tests authored not executed; live UI rendering and complete cross-modal acceptance still open."
       }
     },
     {
