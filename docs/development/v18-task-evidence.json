@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "655079bdb9186a19d726db1c04d4661c366fc326",
+  "reviewed_main_sha": "4ef4b8d69191fa090f9ce54511459e4843e52841",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2248,7 +2248,9 @@
         "src/sofia/safe/operator_stop_cli.py",
         "test/test_permission_runtime_wiring.py",
         "test/owner_auth_fixture.py",
-        "test/test_safe_operator_stop_revision.py"
+        "test/test_safe_operator_stop_revision.py",
+        "src/sofia/safe/execution_approval.py",
+        "docs/development/hybrid-owner-authentication-2026-10-11.md"
       ],
       "evidence_commits": [
         "481438c6c0bd402647712ae2bcdc98182b780341",
@@ -2282,7 +2284,12 @@
         "1c610fb714b05919c3d9a1a989b290ba3453955e",
         "045a78203655411f46b2e96781798c91b01125df",
         "9d437b58703f3106da527d81d31fb6c21bcc3ef7",
-        "1a68bb95f964b4b7e29d7210491741a8b74b7dd3"
+        "1a68bb95f964b4b7e29d7210491741a8b74b7dd3",
+        "c6854307fe23ffc095586411496260b202e3149a",
+        "0dcddd0cad7393fd956d9a43ceffc33d0017b2c1",
+        "719f17e06a6ed997f702d6d8297e30d87c0debff",
+        "8dd55ee7069a8278df23ac8194889b4bf9b10001",
+        "4ef4b8d69191fa090f9ce54511459e4843e52841"
       ],
       "accepted": false,
       "audit_observation": {
@@ -2331,6 +2338,24 @@
           "production_route": "Host emergency Pause -> durable stop update immediately; browser FIDO2 resume -> exactly signed active=False, reason and observed updated_at -> owner proof-bound one-time SAFE approval -> preflight stop revision -> approval consumption -> BEGIN IMMEDIATE stop revision recheck -> atomically audit clear.",
           "fulfilled_slice": "A concurrent new Pause invalidates an older Resume request; emergency Pause remains enabled while Resume authentication is outstanding. Source regression authored for race and missing unsigned credential.",
           "remaining": "Stop generation uses observed canonical updated_at; under tested operator clock and simultaneous update failures host validation is outstanding. Intervening remote effects cancellation remains unsolved; no tests run."
+        },
+        {
+          "source_review_sha": "655079bdb9186a19d726db1c04d4661c366fc326",
+          "commits": [
+            "c6854307fe23ffc095586411496260b202e3149a",
+            "0dcddd0cad7393fd956d9a43ceffc33d0017b2c1",
+            "719f17e06a6ed997f702d6d8297e30d87c0debff",
+            "8dd55ee7069a8278df23ac8194889b4bf9b10001",
+            "4ef4b8d69191fa090f9ce54511459e4843e52841"
+          ],
+          "source_paths": [
+            "src/sofia/safe/execution_approval.py",
+            "src/sofia/safe/operator_stop.py",
+            "test/test_safe_operator_stop_revision.py",
+            "docs/development/hybrid-owner-authentication-2026-10-11.md"
+          ],
+          "fulfilled_slice": "Bound operator stop RESUME approval consumption, updated stop state and audit into one SQLite write transaction while keeping PAUSE immediate.",
+          "remaining": "Authored focused regressions but no tests/CI/host verification executed; source-ready only, not task acceptance."
         }
       ]
     },
@@ -2559,7 +2584,8 @@
         "test/test_ui_tray_model_roles.py",
         "test/test_ui_tray_lifecycle.py",
         "src/sofia/ui/settings_sections.py",
-        "test/test_ui_workshop_owner_webauthn.py"
+        "test/test_ui_workshop_owner_webauthn.py",
+        "test/test_safe_operator_stop_revision.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -2681,7 +2707,14 @@
         "417d603abd40a69d18660dbd810494092ffeed3b",
         "53b65de323091ff79a5a68d8288ed625334364f8",
         "bb3d72f022c4cfdb895489a097605235cbfc537c",
-        "2c54de66e6d6d7efa985eeb57c35eb6045b36921"
+        "2c54de66e6d6d7efa985eeb57c35eb6045b36921",
+        "c6854307fe23ffc095586411496260b202e3149a",
+        "9d33c2cdad04f68c5cd2ad529d222f48cf904161",
+        "0dcddd0cad7393fd956d9a43ceffc33d0017b2c1",
+        "719f17e06a6ed997f702d6d8297e30d87c0debff",
+        "eefbf24b37f52c5622bb7883839036963b7ad609",
+        "8dd55ee7069a8278df23ac8194889b4bf9b10001",
+        "4ef4b8d69191fa090f9ce54511459e4843e52841"
       ],
       "accepted": false,
       "coding_update": {
@@ -2910,6 +2943,30 @@
           ],
           "fulfilled_slice": "Fixed mutually exclusive execution approval capability filters in signed standing-grant projection; new source regression asserts signed exact-scope standing grant is active and changed scope is denied.",
           "remaining": "No tests executed. Complete workstream regression/CI and host acceptance remain deferred; CA-1904 remains partial."
+        },
+        {
+          "source_review_sha": "655079bdb9186a19d726db1c04d4661c366fc326",
+          "commits": [
+            "bb3d72f022c4cfdb895489a097605235cbfc537c",
+            "2c54de66e6d6d7efa985eeb57c35eb6045b36921",
+            "c6854307fe23ffc095586411496260b202e3149a",
+            "9d33c2cdad04f68c5cd2ad529d222f48cf904161",
+            "0dcddd0cad7393fd956d9a43ceffc33d0017b2c1",
+            "719f17e06a6ed997f702d6d8297e30d87c0debff",
+            "eefbf24b37f52c5622bb7883839036963b7ad609",
+            "8dd55ee7069a8278df23ac8194889b4bf9b10001",
+            "4ef4b8d69191fa090f9ce54511459e4843e52841"
+          ],
+          "source_paths": [
+            "src/sofia/safe/permissions.py",
+            "test/test_safe_permission_owner_auth.py",
+            "src/sofia/safe/execution_approval.py",
+            "src/sofia/safe/operator_stop.py",
+            "test/test_safe_operator_stop_revision.py",
+            "docs/development/hybrid-owner-authentication-2026-10-11.md"
+          ],
+          "fulfilled_slice": "Corrected impossible permission-grant projection AND condition and provided shared canonical SQLite transaction for signed approval consumption, grant/revoke/private mutation and audit receipt.",
+          "remaining": "Authored focused regressions but no tests/CI/host verification executed; source-ready only, not task acceptance."
         }
       ]
     },
