@@ -43,6 +43,19 @@ _REMOTE_FILESYSTEMS = frozenset({
     "sshfs", "9p", "ceph", "glusterfs", "davfs", "fuse.davfs",
 })
 
+# Guest-local durable STATE storage must be positively recognized, not
+# inferred merely from the absence of a known network protocol. Linux
+# tmpfs/ramfs and container overlay layers can disappear on reboot.
+_KNOWN_PERSISTENT_LOCAL_FILESYSTEMS = frozenset({
+    "ext2", "ext3", "ext4", "xfs", "btrfs", "zfs", "f2fs",
+    "bcachefs", "jfs", "ntfs3", "ntfs",
+})
+_VOLATILE_OR_IMAGE_FILESYSTEMS = frozenset({
+    "tmpfs", "ramfs", "devtmpfs", "overlay", "aufs",
+    "squashfs", "iso9660", "proc", "sysfs", "cgroup",
+    "cgroup2", "hugetlbfs", "nsfs",
+})
+
 
 def _filesystem_kind(path: Path) -> str:
     """Detect known network state homes with host OS facts, not guesses.
@@ -98,10 +111,19 @@ def _filesystem_kind(path: Path) -> str:
             if len(mount.parts) > best_len:
                 best_len = len(mount.parts)
                 filesystem = tail[0].casefold()
-                kind = "remote" if (
+                if (
                     filesystem in _REMOTE_FILESYSTEMS
                     or filesystem.startswith(("fuse.sshfs", "nfs", "cifs"))
-                ) else "local"
+                ):
+                    kind = "remote"
+                elif filesystem in _VOLATILE_OR_IMAGE_FILESYSTEMS:
+                    kind = "volatile"
+                elif filesystem in _KNOWN_PERSISTENT_LOCAL_FILESYSTEMS:
+                    kind = "local"
+                else:
+                    # Unknown FUSE drivers, encrypted layers, snapshots
+                    # and exotic mounts need independent operator evidence.
+                    kind = "unknown"
         return kind
     # Portable determination on other platforms requires a trusted host
     # broker; do not turn unknown media into a production eligibility claim.
