@@ -3084,10 +3084,14 @@ class SelfDirectedLifeCoordinator:
                         self.work_store.get(job_id)
                         for job_id in self.store.jobs(project.project_id)
                     )
-                    unsafe = any(job.status in {
-                        WorkStatus.UNCERTAIN, WorkStatus.FAILED,
-                        WorkStatus.CANCELLED, WorkStatus.BLOCKED,
-                    } for job in linked)
+                    # A GOALS resume cannot settle RUN authority. Any
+                    # uncompleted, approval-gated, blocked or uncertain
+                    # original job must receive its own RUN reconciliation
+                    # before another LIFE activity is admitted.
+                    unsafe = any(
+                        job.status is not WorkStatus.COMPLETED
+                        for job in linked
+                    )
                     if not unsafe:
                         evidence = self.record_observation(
                             kind="goal-lifecycle-reconciliation",
@@ -3118,8 +3122,9 @@ class SelfDirectedLifeCoordinator:
                 GoalStatus.CANCELLED, GoalStatus.EXPIRED, GoalStatus.REJECTED,
             }
             must_pause = status in {
-                GoalStatus.PAUSED, GoalStatus.COMPLETED,
-                GoalStatus.SUPERSEDED, GoalStatus.CANDIDATE,
+                GoalStatus.PAUSED, GoalStatus.BLOCKED,
+                GoalStatus.COMPLETED, GoalStatus.SUPERSEDED,
+                GoalStatus.CANDIDATE,
             }
             if not terminal and not must_pause:
                 continue
