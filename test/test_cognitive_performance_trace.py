@@ -95,3 +95,16 @@ def test_malformed_metrics_are_unknown_and_unsupported_fields_fail(monkeypatch, 
     with pytest.raises(ValueError, match="nonnegative"):
         emit_performance("ollama", elapsed_ms=-1)
     assert capsys.readouterr().err == ""
+
+
+
+@pytest.mark.parametrize("invalid", [
+    float("nan"), float("inf"), -float("inf"),
+])
+def test_nonfinite_provider_performance_metrics_cannot_pollute_trace(
+    monkeypatch, capsys, invalid,
+):
+    monkeypatch.setenv("SOFIA_PERF_TRACE", "1")
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        emit_performance("router", elapsed_ms=invalid)
+    assert capsys.readouterr().err == ""
