@@ -181,6 +181,34 @@ class RemoteFleetToolService:
                 raise PermissionError(
                     "no active exact-scope human grant for remote change"
                 )
+            if capability=="workshop.bootstrap" and operation=="start":
+                # Every caller, including future APIs or model paths, must
+                # consume one canonical exact owner approval BEFORE transport.
+                # An old/scope-only RemoteGrant is never enough to boot.
+                from sofia.safe.execution_approval import ExecutionApprovalVerifier
+                if set(parameters)!={
+                    "vm_id","disk_path","iso_path","iso_sha256",
+                    "handoff_fingerprint","approval_id",
+                }:
+                    raise PermissionError(
+                        "exact approved bootstrap fields required"
+                    )
+                approval_id=parameters["approval_id"]
+                if not isinstance(approval_id,str) or not approval_id.strip():
+                    raise PermissionError("one-use owner approval required")
+                ExecutionApprovalVerifier(self._state_path).consume(
+                    approval_id=approval_id,
+                    capability="workshop.guest.bootstrap",
+                    parameters={
+                        "artemis_node_id":str(node_id),
+                        "vm_id":parameters["vm_id"],
+                        "disk_path":parameters["disk_path"],
+                        "iso_path":parameters["iso_path"],
+                        "iso_sha256":parameters["iso_sha256"],
+                        "handoff_fingerprint":parameters["handoff_fingerprint"],
+                    },
+                    now=now,
+                )
             request=RemoteOperationRequest(
                 uuid4(),
                 node_id,
