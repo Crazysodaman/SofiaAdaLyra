@@ -393,6 +393,16 @@ class DurableMemoryCandidateStore:
                     "WHERE new_candidate_id=?", (str(candidate_id),),
                 ).fetchone()
                 if link is None:
+                    current = db.execute(
+                        "SELECT status FROM memory_candidate WHERE candidate_id=?",
+                        (str(candidate_id),),
+                    ).fetchone()
+                    if current is None:
+                        raise LookupError("candidate does not exist")
+                    if current[0] != CandidateStatus.PROPOSED.value:
+                        raise ValueError(
+                            "candidate must be proposed before promoted"
+                        )
                     changed = db.execute(
                         "UPDATE memory_candidate SET status=? "
                         "WHERE candidate_id=? AND status=?",
@@ -400,7 +410,9 @@ class DurableMemoryCandidateStore:
                          CandidateStatus.PROPOSED.value),
                     )
                     if changed.rowcount != 1:
-                        raise ValueError("candidate must be proposed before promotion")
+                        raise RuntimeError(
+                            "reviewed memory promotion lost its proposed state"
+                        )
                     return
                 old_id = link[0]
                 candidates = db.execute(
