@@ -101,6 +101,7 @@ def propose_owner_screen_journey(
 class ScreenFrameEvidence:
     journey:ScreenJourney
     receipt:ScreenObservationReceipt
+    principal_id:str
     audience_id:str
     device_id:str
     observed_at:datetime
@@ -115,6 +116,8 @@ class ScreenFrameEvidence:
             or not self.receipt.actual_frame_available
             or self.semantic_content_verified or self.authorized_action
             or self.pixel_content_persisted
+            or not isinstance(self.principal_id,str)
+            or not self.principal_id.strip()
         ):
             raise PermissionError("a frame hash cannot imply scene semantics/actions")
 
@@ -139,6 +142,7 @@ def accept_actual_picked_frame(
     )
     return ScreenFrameEvidence(
         journey=request.journey,receipt=receipt,
+        principal_id=request.permit.principal_id,
         audience_id=request.permit.audience_id,
         device_id=request.permit.device_id,
         observed_at=at,
@@ -165,6 +169,7 @@ def compare_two_approved_observations(
         first.journey!=ScreenJourney.SHOW_CHANGES
         or second.journey!=ScreenJourney.SHOW_CHANGES
         or first.audience_id!=second.audience_id
+        or first.principal_id!=second.principal_id
         or first.device_id!=second.device_id
         or first.receipt.target_id!=second.receipt.target_id
         or second.observed_at<=first.observed_at
@@ -189,10 +194,21 @@ class ScreenJourneyReceiptStore:
                 "CREATE TABLE IF NOT EXISTS vision_observed_frame("
                 "receipt_id TEXT PRIMARY KEY,permit_id TEXT NOT NULL,"
                 "journey TEXT NOT NULL,"
+                "principal_id TEXT NOT NULL,"
                 "audience_id TEXT NOT NULL,device_id TEXT NOT NULL,"
                 "target_hash TEXT NOT NULL,digest_sha256 TEXT NOT NULL,"
                 "observed_at TEXT NOT NULL,has_pixels INTEGER NOT NULL DEFAULT 0)"
             )
+            # Legacy audience-only records cannot safely be attributed to a
+            # principal. Keep them quarantined rather than guess an owner.
+            columns={str(row[1]) for row in db.execute(
+                "PRAGMA table_info(vision_observed_frame)"
+            ).fetchall()}
+            if "principal_id" not in columns:
+                db.execute(
+                    "ALTER TABLE vision_observed_frame "
+                    "ADD COLUMN principal_id TEXT NOT NULL DEFAULT ''"
+                )
     def record(self,evidence:ScreenFrameEvidence)->None:
         if not isinstance(evidence,ScreenFrameEvidence):
             raise TypeError("real approved frame receipt required")
@@ -213,9 +229,12 @@ class ScreenJourneyReceiptStore:
                     raise PermissionError("observation evidence cannot be rewritten")
                 return
             db.execute(
-                "INSERT INTO vision_observed_frame VALUES(?,?,?,?,?,?,?,?,0)",
+                "INSERT INTO vision_observed_frame "
+                "(receipt_id,permit_id,journey,principal_id,audience_id,"
+                "device_id,target_hash,digest_sha256,observed_at,has_pixels) "
+                "VALUES(?,?,?,?,?,?,?,?,?,0)",
                 (receipt_id,evidence.receipt.permit_id,evidence.journey.value,
-                 evidence.audience_id,evidence.device_id,
+                 evidence.principal_id,evidence.audience_id,evidence.device_id,
                  target_hash,evidence.receipt.digest_sha256,
                  evidence.observed_at.astimezone(timezone.utc).isoformat()),
             )
@@ -224,12 +243,18 @@ class ScreenJourneyReceiptStore:
                 "(SELECT receipt_id FROM vision_observed_frame "
                 "ORDER BY observed_at DESC LIMIT 256)"
             )
-    def status(self,*,audience_id:str)->dict:
+    def status(self,*,principal_id:str,audience_id:str)->dict:
+        if any(
+            not isinstance(v,str) or not v.strip() or len(v)>200
+            for v in (principal_id,audience_id)
+        ):
+            raise ValueError("exact screen principal and audience required")
         with closing(self._guard.connect(timeout=10)) as db:
             rows=db.execute(
                 "SELECT journey,observed_at FROM vision_observed_frame "
-                "WHERE audience_id=? ORDER BY observed_at DESC LIMIT 12",
-                (audience_id,),
+                "WHERE principal_id=? AND audience_id=? "
+                "ORDER BY observed_at DESC LIMIT 12",
+                (principal_id,audience_id),
             ).fetchall()
         return {
             "observations":tuple({
