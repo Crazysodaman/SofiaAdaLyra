@@ -102,6 +102,17 @@ class MemoryReviewService:
         self._require_sparks_reviewer(approved_by)
         self._candidates.link_correction(replacement_id, superseded_id)
 
+    def set_expiration(
+        self, candidate_id: UUID, *, expires_at: datetime | None,
+        reason: str, approved_by: PrincipalContext,
+    ) -> None:
+        """Time-limit a reviewed fact; never erase or infer a new source."""
+        self._require_sparks_reviewer(approved_by)
+        self._candidates.set_expiration(
+            candidate_id, expires_at=expires_at,
+            reviewed_by=approved_by.principal_id, reason=reason,
+        )
+
     def correction_link(self, candidate_id: UUID) -> tuple[UUID, UUID] | None:
         return self._candidates.correction_link(candidate_id)
 
