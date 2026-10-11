@@ -770,6 +770,26 @@ independent operator cutover authorization, or a claim that live restoration
 is currently safe. CA relevance: CA-3704, CA-5202, CA-5204, CA-5206,
 CA-6105, CA-6404. No backup, host or live canonical DB was touched.
 
+### Phase 04/05: Last-seen markers retract from presentation when source access ends
+
+Actual read path: authenticated Android Main page →
+`MobileCompanionGateway._canonical_history_page` →
+`MobileMainSeenStore.current(principal=...)` →
+canonical `mobile_main_seen` receipt **joined to current**
+`lifelong_thread_event`, source `conversation_messages`,
+`lifelong_thread` owner, and `social_session_principal` exact principal,
+source audience and kind. Deleted source-event links, changed audiences or
+absent original messages cause `last_seen=None` on subsequent reads,
+not exposure of obsolete original-message IDs. The durable read receipt
+is **not deleted**, preserving recovery/reconciliation evidence.
+
+Source commits: `8bc25ecfa048c989a89d3e1c3c5b23e2dd851577` +
+`59137b5835f1a1d79652a0440e245d7554274064`.
+Deferred source-erasure/revocation regression:
+`547079e3c1563b557c04ae6b60ac203f4b752bc9`. Not executed.
+CA relevance: CA-4107, CA-4109, CA-4208, CA-5303, CA-5304, CA-6304.
+No change to physical writer election, host deployment or original sources.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
