@@ -23,10 +23,17 @@ def typed_active_project(life, now, *, objectives, name="A Checkable Foxfire Not
         assertion="A source-backed interest in original experimental stories.",
         now=now,
     )
+    # Real LIFE admission requires an active, original-evidence-linked interest.
+    # An arbitrary text label is not a canonical originating interest ID.
+    interest = life.revise_interest(
+        name="foxfire-notes", context="creative", strength=0.82,
+        confidence=0.90, reason="Reviewed original creative curiosity.",
+        evidence_refs=(observation,), now=now,
+    )
     idea = ProjectIdea(
         "idea:checkable-foxfire", name,
         "Make a small original foxfire note with independently checkable text.",
-        "foxfire-notes", objectives, (), "text", (observation,),
+        interest.interest_id, objectives, (), "text", (observation,),
         0.92, 0.90, now,
     )
     project = life.invent_project(
