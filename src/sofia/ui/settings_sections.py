@@ -594,9 +594,12 @@ class SettingsSections:
                 )
 
             if present("life_project"):
+                from sofia.life.coordinator import SOFIA_PROJECT_OWNER, LOCAL_AUDIENCE
                 project = db.execute(
                     "SELECT project_id, name, status, updated_at "
-                    "FROM life_project ORDER BY updated_at DESC,project_id DESC LIMIT 1"
+                    "FROM life_project WHERE owner_principal_id=? AND audience_id=? "
+                    "ORDER BY updated_at DESC,project_id DESC LIMIT 1",
+                    (SOFIA_PROJECT_OWNER, LOCAL_AUDIENCE),
                 ).fetchone()
                 output.append(
                     f"LIFE last project: {project[1]} [{project[2]}], "
@@ -606,11 +609,11 @@ class SettingsSections:
                 if project and present("life_project_milestone"):
                     milestone = db.execute(
                         "SELECT title,status,updated_at FROM life_project_milestone "
-                        "WHERE project_id=? ORDER BY ordinal LIMIT 1",
+                        "WHERE project_id=? ORDER BY updated_at DESC, ordinal DESC LIMIT 1",
                         (project[0],),
                     ).fetchone()
                     output.append(
-                        f"First milestone: {milestone[0]} [{milestone[1]}], "
+                        f"Latest milestone: {milestone[0]} [{milestone[1]}], "
                         f"recorded={milestone[2]}"
                         if milestone else "Milestones: none recorded"
                     )
