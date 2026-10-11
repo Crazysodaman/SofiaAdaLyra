@@ -257,3 +257,27 @@ total coding completeness. The original V18 master task wording/IDs remain
 unchanged. Remaining Phase 03 fenced cutover, Phase 05 full cross-channel
 causal consistency, independent host/phone pairing exercise, CI, Windows,
 Android and Fleet acceptance remain explicitly open.
+
+## Partial-first coding wave through 2fe9c12
+
+All original 44 partially wired V18 IDs were crosswalked to the byte-exact
+master task statements and previously recorded source paths, without
+relabeling any as accepted. Eight have **new source-coded repairs** this
+wave: CA-2216 LIFE diagnostics (`845694f`), CA-2304 unique test
+denominators (`7b1c1d8`), CA-4104 generation-bound mobile audiences
+(`493a4f6`), CA-6302 source-timestamped mobile admission order
+(`1be739c`), CA-6807 local filesystem destination preflight (`248dcb9`),
+CA-2205 queued deadline settlement even when busy (`da78b53`), and
+CA-6304/CA-6306 truthful typed Android reconnect conflict handling
+(`2fe9c12`). Each has production source and unexecuted regression files;
+complete acceptance remains open. Source includes no hidden shadow
+transport, no second scheduler, and no automatic DB relocation.
+
+The 44-item coding queue is
+`docs/development/v18-partial-first-coding-2026-10-10.md` and the original
+source-evidence ledger is `docs/development/v18-task-evidence.json`.
+Existing package BODY ownership is already coded; its historical red
+CI test report still needs actual rerun and evidence. Source state totals
+remain **6 code-present/unverified, 44 partial, 650 individually unaudited,
+0 production accepted**. More code is still needed on the remaining
+partial items; this is not a declaration that all 44 were completed.

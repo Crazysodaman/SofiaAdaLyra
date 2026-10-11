@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+  "reviewed_main_sha": "2fe9c1240a9db88fb514297e4c6075decec9cade",
   "audit_date_utc": "2026-10-11",
-  "notice": "Source audit only, no tests executed. V18 original 700 IDs preserved. Seven production repair commits ed72d3a through e34fbdb integrate host re-auth, durable Android outbox, LIFE RUN source observations, notification privacy, no-create state, SQLite close and sensor revocation. Source-coded is not production-accepted. Canonical writer host intentionally undecided; no host change made.",
+  "notice": "Original 700 V18 tasks, 44 partially wired prioritized. 8 partial IDs received production code repairs in the current coding pass. No task reclassified as accepted because CI/Windows/Android/Fleet/host verification remains deferred. Writer host undecided, no live changes.",
   "tasks": [
     {
       "id": "CA-001",
@@ -860,7 +860,8 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/run/work.py",
         "src/sofia/life/store.py",
-        "test/test_life_run_outcome_reconciliation.py"
+        "test/test_life_run_outcome_reconciliation.py",
+        "test/test_run_unstarted_expiration.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
@@ -870,9 +871,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "da78b53892831d77ee533989d6590eed0cf06603"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "da78b53892831d77ee533989d6590eed0cf06603",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-2206",
@@ -982,7 +989,8 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/life/store.py",
-        "src/sofia/life/coordinator.py"
+        "src/sofia/life/coordinator.py",
+        "test/test_life_operator_diagnostics.py"
       ],
       "evidence_commits": [
         "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
@@ -991,9 +999,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "845694f5a7bcf8c43b3d7b93c59cf999a61c33fc"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "845694f5a7bcf8c43b3d7b93c59cf999a61c33fc",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-2217",
@@ -1059,12 +1073,19 @@
       "code_paths": [
         "test/conftest.py",
         ".github/workflows/package-tests.yml",
-        "src/sofia/verify/package_selection.py"
+        "src/sofia/verify/package_selection.py",
+        "test/test_package_selection_receipts.py"
       ],
       "evidence_commits": [
-        "7c6e42d2e49e86eb84b8b392e5519cf0eac24f9e"
+        "7c6e42d2e49e86eb84b8b392e5519cf0eac24f9e",
+        "7b1c1d80f58d1ed8b1e328a33e34021e6a50dfa3"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "7b1c1d80f58d1ed8b1e328a33e34021e6a50dfa3",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-2305",
@@ -2117,14 +2138,21 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/config/layout.py",
-        "src/sofia/ops/state_mobility.py"
+        "src/sofia/ops/state_mobility.py",
+        "test/test_state_relocation_local_preflight.py"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "248dcb9a315a0080b87e8929cedb148241ef4479"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "248dcb9a315a0080b87e8929cedb148241ef4479",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-6808",
@@ -2259,7 +2287,8 @@
         "mobile/android/app/src/main/java/ai/sofia/mobile/SofiaApi.kt",
         "src/sofia/mobile/pairing.py",
         "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt",
-        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt",
+        "test/test_mobile_admission_sequence.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
@@ -2275,9 +2304,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "1be739c952cc412124555e0065a7bf22a82c39e1"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "1be739c952cc412124555e0065a7bf22a82c39e1",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-6303",
@@ -2308,7 +2343,8 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SofiaApi.kt"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
@@ -2320,9 +2356,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "2fe9c1240a9db88fb514297e4c6075decec9cade"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "2fe9c1240a9db88fb514297e4c6075decec9cade",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-6305",
@@ -2343,7 +2385,9 @@
       "code_paths": [
         "src/sofia/mobile/gateway.py",
         "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt",
-        "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt"
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SecureSettings.kt",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SofiaApi.kt",
+        "mobile/android/app/src/test/java/ai/sofia/mobile/MobileTransportFailureTest.kt"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
@@ -2355,9 +2399,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "2fe9c1240a9db88fb514297e4c6075decec9cade"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "2fe9c1240a9db88fb514297e4c6075decec9cade",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-6307",
@@ -2577,14 +2627,21 @@
       "code_paths": [
         "src/sofia/mobile/pairing.py",
         "src/sofia/mobile/gateway.py",
-        "src/sofia/social/store.py"
+        "src/sofia/social/store.py",
+        "test/test_mobile_binding_generation.py"
       ],
       "evidence_commits": [
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "493a4f62107019b1cab21982cf3ffd7937c05d5a"
       ],
-      "accepted": false
+      "accepted": false,
+      "coding_update": {
+        "latest_code_sha": "493a4f62107019b1cab21982cf3ffd7937c05d5a",
+        "source_coded_unverified": true,
+        "acceptance": "deferred"
+      }
     },
     {
       "id": "CA-4105",
