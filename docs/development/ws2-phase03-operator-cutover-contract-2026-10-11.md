@@ -2,6 +2,14 @@
 
 **Workstream:** 2 · **Date:** 2026-10-11 · **Status:** production design and source-backed audit, **not authorized/accepted deployment**. This document supplements, and does not replace, `docs/development/v18-venus-artemis-topology-decision.md`, `docs/development/venus-artemis-runtime-topology-2026-10-11.md`, and `docs/development/phase03-signed-state-home.md`.
 
+## Initial-versus-future cutover decision (owner selected)
+
+**Decision: Option A for the first Venus-to-Artemis migration; Option B only as a separately authorized later upgrade.** The first migration is human-initiated and human-supervised. The operator must review exact source Venus and destination Artemis/Sofia guest identities, sign a fresh operation-scoped authorization, independently verify the old writer is quiesced and cannot restart or write using its prior epoch, confirm a current encrypted complete backup, the protected original identity, and the external signed memory-erasure journal, then approve nonactive guest-local restore, a separately reviewed monotonic epoch transition, and exactly one activated runtime. Each uncertain or interrupted stage stops for review. After the new writer accepts a canonical write, an old Venus copy is never an automatic rollback target.
+
+**Human supervision is not proof of fencing.** An ordinary Sofía service STOP response, SQLite lock, signed pointer, unprivileged Fleet receipt or operator-supplied text cannot certify that Venus is physically fenced. The existing RelocationAuthorization and nonactivating staging/pending-pointer contracts carry reviewed *references*, but do not verify privileged host evidence on their own. Independent trusted host-maintenance proof must be supplied and checked; where it is absent, the system stays nonactive and reports the missing gate. No actual host fencing, cutover or privileged witness has been observed in this workstream.
+
+Option B reuses the same exact host identities, backup and erasure proofs, owner-scoped authorization, monotonic epoch and failure-state contracts with a future independently privileged host-controlled broker. It additionally requires separately designed/executed stale-writer prevention, interruption recovery, authenticated host failure detection and controlled reverse migration/failback. **Autonomous failover and a second writer remain disabled** until separately authorized and verified. This is a reusable architecture direction, not permission to deploy that broker now.
+
 ## 1. Non-negotiable state owners and trust boundaries (CA-3701, 5201, 6101, 6804, 6808)
 
 | Item | Current truth | Reviewed target |
