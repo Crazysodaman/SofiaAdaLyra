@@ -127,6 +127,13 @@ def create_default_agent_dispatcher(
             ),
         )
         dispatcher.register(
+            "workshop.inspect","network_stage_preflight",
+            lambda p:_plain(hyperv.workshop_internal_stage_preflight())
+            if not p else (_ for _ in ()).throw(
+                ValueError("current Hephaestus network observation has no parameters")
+            ),
+        )
+        dispatcher.register(
             "workshop.inspect","blank_vm",
             lambda p:_plain(hyperv.workshop_handoff_vm())
             if not p else (_ for _ in ()).throw(
