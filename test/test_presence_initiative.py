@@ -705,3 +705,78 @@ def test_life_social_update_uses_owner_bound_discord_route(tmp_path):
         assert sent == []
     finally:
         life.close()
+
+
+def test_life_chooses_silence_without_spawning_notice(tmp_path):
+    """Independent creative success does not compel a notification."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    import sqlite3
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        assert life.voluntary_project_updates(now=now)[0]["project_id"] == project.project_id
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False, generate=_choose_silence,
+        ) == 0
+        with sqlite3.connect(life.path) as db:
+            assert db.execute(
+                "SELECT COUNT(*) FROM presence_initiative_opportunity "
+                "WHERE event_id LIKE 'life-update:%'",
+            ).fetchone()[0] == 0
+        assert sent == []
+        assert service.has_pending() is False
+    finally:
+        life.close()
+
+
+def test_life_refuses_invalid_model_outreach_choice_without_sending(tmp_path):
+    """Invalid model JSON is a failed optional choice, never assumed approval."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.cognition.model import CognitiveResponse
+
+    life, _project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False,
+            generate=lambda request: CognitiveResponse(content="SHARE RIGHT NOW"),
+        ) == 0
+        assert sent == []
+        assert service.has_pending() is False
+    finally:
+        life.close()
+
+
+def test_life_quiet_and_busy_never_wake_outreach_model(tmp_path):
+    """ACT restraint comes before optional cognitive work, not afterward."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+
+    life, _project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path,
+    )
+    try:
+        presence, service, _sent = _owner_only_outreach(life)
+        unexpected = []
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=True, generate=unexpected.append,
+        ) == 0
+        life.choose_inactivity(
+            reason="A little private project downtime.",
+            until=now + timedelta(hours=1), now=now,
+        )
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now + timedelta(seconds=1),
+            busy=False, generate=unexpected.append,
+        ) == 0
+        assert unexpected == []
+    finally:
+        life.close()
