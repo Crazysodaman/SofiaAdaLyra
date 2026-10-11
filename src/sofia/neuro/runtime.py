@@ -23,6 +23,7 @@ from .model import (
 )
 from .salience import SalienceNetwork
 from .store import NeuroObservabilityStore
+from .workspace import NeuroSharedWorkspace, WorkspaceBroadcast
 
 
 _CONFIDENCE = {
@@ -67,6 +68,7 @@ class NeuroRuntime:
         self._recent_turn_fingerprints: list[str] = []
         self._recent_signals: list[NeuralSignal] = []
         self._last_snapshot: NeuroStateSnapshot | None = None
+        self._workspace = NeuroSharedWorkspace(max_items=3, ttl_seconds=90)
         self._last_homeostasis_signature: tuple[
             tuple[str, float, float], ...
         ] = ()
@@ -76,6 +78,21 @@ class NeuroRuntime:
     def last_snapshot(self) -> NeuroStateSnapshot | None:
         with self._lock:
             return self._last_snapshot
+
+    def read_workspace(
+        self, *, consumer: str, at: datetime,
+    ) -> WorkspaceBroadcast | None:
+        """Record one genuine downstream read, never publish new evidence."""
+        broadcast = self._workspace.read(consumer=consumer, at=at)
+        if broadcast is not None and self._observability is not None:
+            try:
+                self._observability.record_workspace_read(
+                    consumer=consumer, broadcast=broadcast, at=at,
+                )
+                self._last_observability_error = None
+            except Exception as exc:
+                self._last_observability_error = type(exc).__name__
+        return broadcast
 
     @property
     def recent_signals(self) -> tuple[NeuralSignal, ...]:
@@ -592,4 +609,6 @@ class NeuroRuntime:
             active_signal_count=len(activations),
         )
         self._last_snapshot = snapshot
+        # Same production focus, bounded/ephemeral read-only broadcast only.
+        self._workspace.publish(snapshot)
         return snapshot
