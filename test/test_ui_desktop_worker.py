@@ -315,6 +315,27 @@ def test_worker_marshals_mobile_requests_onto_application_thread(
     assert result["adult_chat_enabled"] is False
     assert result["session_id"]
 
+    # Historically the public worker adapter omitted main_history even
+    # though MobileCompanionServer required that method at initialization.
+    # Exercise the real marshalling boundary, not a gateway-only unit test.
+    connection = HTTPConnection(host, port, timeout=30)
+    connection.request(
+        "POST", "/v1/mobile/main/page",
+        body=json.dumps({
+            "device_id": "android-worker-test", "private_mode": False,
+            "before": None, "limit": 5,
+        }),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    main_response = connection.getresponse()
+    main_payload = json.loads(main_response.read())
+    connection.close()
+    assert main_response.status == 200
+    assert isinstance(main_payload["messages"], list)
+
     MobileNotificationStore(tmp_path / "sofia.db").enqueue(
         notification_id="act:worker-mobile",
         title="Sofía",

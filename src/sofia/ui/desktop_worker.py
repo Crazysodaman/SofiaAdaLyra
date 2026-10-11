@@ -56,6 +56,12 @@ class _WorkerMobileGateway:
     def state(self, **kwargs):
         return self._call("state", **kwargs)
 
+    def main_history(self, **kwargs):
+        # The HTTP server protocol requires this on the *worker proxy*,
+        # not only the underlying host MobileCompanionGateway. Keep real
+        # thread ownership: never bypass the application command queue.
+        return self._call("main_history", **kwargs)
+
     def claim_notification(self, **kwargs):
         return self._call("claim_notification", **kwargs)
 
