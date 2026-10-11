@@ -1,6 +1,7 @@
 """Canonical SQLite persistence for independent-life projects and experiences."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -504,15 +505,17 @@ class LifeStore:
         An interrupted callback leaves both records committed or neither.
         No independent evaluator, preference store or scheduler is created.
         """
+        if not isinstance(evaluation, ArtifactEvaluation) or not isinstance(
+            experience, ExperienceRecord
+        ):
+            raise TypeError("canonical LIFE evaluation and experience required")
         learning = experience.metadata.get("interest_learning")
         if (
-            not isinstance(evaluation, ArtifactEvaluation)
-            or not isinstance(experience, ExperienceRecord)
-            or experience.kind != "artifact_evaluated"
+            experience.kind != "artifact_evaluated"
             or experience.project_id != evaluation.project_id
             or experience.evidence_refs != evaluation.evidence_refs
             or experience.occurred_at != evaluation.evaluated_at
-            or not isinstance(learning, dict)
+            or not isinstance(learning, Mapping)
             or learning.get("schema") != 1
             or learning.get("evaluation_id") != evaluation.evaluation_id
         ):
