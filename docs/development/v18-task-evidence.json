@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "0cf40c354d58f7c1b6c13c2ac3d982fba821257b",
+  "reviewed_main_sha": "53540ae115b28977568390e528f66c32e80f96d1",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -12,10 +12,28 @@
       "phase": "00",
       "source_topic": "0",
       "master_line": 64,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/application/decision_trace.py",
+        "src/sofia/cognition/matrix/model.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/life/model.py",
+        "src/sofia/run/work.py",
+        "src/sofia/application/act_service.py",
+        "src/sofia/social/model.py"
+      ],
+      "evidence_commits": [
+        "ae616efd5fe81017bce1606543f43c0ceb2d95fd"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Traced static Matrix/NEURO/MEM/LIFE/GOALS/ACT composition and read-only projection, confirmed NEURO turn-correlated flag false and missing goal/ACT/outcome joins.",
+        "missing": "No witnessed single event traversing every requested module, with settled actual effect and persistence receipts; no tests executed.",
+        "acceptance": "source audit only, not accepted; owner-deferred focused/fleet/CI proof."
+      }
     },
     {
       "id": "CA-002",
@@ -95,10 +113,28 @@
       "phase": "00",
       "source_topic": "0",
       "master_line": 68,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/application/decision_trace.py",
+        "src/sofia/cognition/matrix/model.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/life/model.py",
+        "src/sofia/run/work.py",
+        "src/sofia/application/act_service.py",
+        "src/sofia/social/model.py"
+      ],
+      "evidence_commits": [
+        "ae616efd5fe81017bce1606543f43c0ceb2d95fd"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Mapped every requested event envelope field to existing source owners, preserving schema-specific ids and missing links; explicitly no new event ledger.",
+        "missing": "Typed adapter and real producer-to-sink correlation, audience-scoped expiry/consent enforcement and comprehensive acceptance still missing.",
+        "acceptance": "source audit only, not accepted; owner-deferred focused/fleet/CI proof."
+      }
     },
     {
       "id": "CA-006",
