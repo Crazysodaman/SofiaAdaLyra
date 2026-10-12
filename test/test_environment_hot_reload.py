@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from sofia.application import bootstrap
 from sofia.application.bootstrap import SofiaApplication
 from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 class FakeRuntime:
@@ -16,7 +17,7 @@ class FakeRuntime:
 
 
 def application_shell(tmp_path):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = RuntimeUserSettingsStore(state)
     initial = store.load()
 

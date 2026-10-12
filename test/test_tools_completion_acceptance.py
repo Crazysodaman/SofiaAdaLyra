@@ -31,6 +31,11 @@ from sofia.ops.model import FleetHost,HostLifecycle,HostTelemetry
 from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
+@pytest.fixture(autouse=True)
+def _disposable_capability_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+
+
 class FakeHttp:
     def __init__(self,responses=None):
         self.responses=list(responses or [])

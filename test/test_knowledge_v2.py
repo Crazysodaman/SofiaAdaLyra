@@ -1,5 +1,13 @@
 from datetime import datetime, timezone
 from pathlib import Path
+
+import pytest
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture(autouse=True)
+def _disposable_knowledge_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 from types import SimpleNamespace
 
 from sofia.capability.model import CapabilityResult, CapabilityResultKind

@@ -14,6 +14,7 @@ from sofia.composition.root import compose
 from sofia.config import create_default_configuration
 from sofia.config.model import ModelLifecycleConfiguration
 from sofia.environment.config import EnvironmentConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 class CapturingOllamaClient:
@@ -31,6 +32,7 @@ class CapturingOllamaClient:
 
 
 def test_default_runtime_sends_canonical_state_with_context_budget(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     default = create_default_configuration()
     configuration = replace(
         default,
