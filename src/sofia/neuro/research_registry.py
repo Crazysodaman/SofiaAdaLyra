@@ -272,7 +272,8 @@ class ResearchEvidenceRegistry:
             by_protocol.setdefault(protocol_id, []).append(json.loads(raw))
         lines = [
             "CONSCIOUSNESS-INSPIRED SCIENTIFIC STUDIES",
-            "All measures are behavioral/functionally observable only.",
+            "All measures report only functional outcomes; they are "
+            "behaviorally observable, not measures of subjective experience.",
             "Even supported outcomes cannot establish phenomenal consciousness.",
             "Null, negative and adverse results are retained, not hidden.",
             "SCIENTIFIC THEORY BOUNDARIES:",

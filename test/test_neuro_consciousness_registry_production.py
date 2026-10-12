@@ -98,7 +98,7 @@ def test_result_must_follow_preregistration_and_stay_owner_reviewed(tmp_path):
     registry.preregister(reviewed_baseline_studies(at=NOW)[0])
     with pytest.raises(PermissionError, match="self-assessed"):
         replace(result(), reviewed_by="sofia")
-    with pytest.raises(ValueError, match="prior"):
+    with pytest.raises(ValueError, match="predate"):
         registry.record_reviewed_result(
             replace(result(), observed_at=NOW - timedelta(seconds=1))
         )

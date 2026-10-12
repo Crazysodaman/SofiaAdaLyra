@@ -13,6 +13,7 @@ from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
 from sofia.application import SofiaApplication
 from sofia.social.principals import local_sparks_principal
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from pathlib import Path
 import pytest
 
@@ -169,6 +170,7 @@ def test_renderer_stop_prevents_completion_acknowledgement(tmp_path):
 
 
 def test_production_conversation_records_expression_and_restores_it_after_restart(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     project = Path(__file__).resolve().parents[1]
     personality = tmp_path / "personality.json"
     personality.write_text(
