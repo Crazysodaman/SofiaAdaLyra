@@ -127,6 +127,13 @@ class RuntimeStorageLayout:
             )
 
         source_root = repository_root / "src" / "sofia"
+        if not source_root.is_dir():
+            # An installed wheel has sofia/ directly in site-packages, not
+            # beside a repository-style src/ directory. Always resolve its
+            # protected first-install seeds from the actual imported package.
+            # If a checkout's src/sofia exists but is incomplete, DO NOT
+            # fall back: missing trusted source material must fail closed.
+            source_root = Path(__file__).resolve().parents[1]
         return cls(
             mode=mode,
             source_root=source_root,

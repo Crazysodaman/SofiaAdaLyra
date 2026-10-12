@@ -27,6 +27,7 @@ where = ["src"]
     "constitution/constitution.sha256",
     "identity/identity.json",
     "embodiment/avatar.json",
+    "personality/personality.json",
 ]
 "sofia.ui" = ["assets/*.ico"]
 "sofia.avatar" = ["wardrobe_data/*.json"]
