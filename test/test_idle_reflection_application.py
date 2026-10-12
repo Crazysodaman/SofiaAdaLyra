@@ -121,6 +121,8 @@ def _application(monkeypatch, tmp_path, *, personality=True):
     app._conversation_service = conversation
     app._channel_conversations = []
     app._idle_worker = None
+    # Manually assembled lifecycle fixtures still own an explicit UI handle.
+    app._ui_draft_store = SimpleNamespace(open=lambda: None, close=lambda: None)
     app._model_lock = RLock()
     app._tts = SimpleNamespace(
         start=lambda: events.append("tts:start"),
@@ -131,6 +133,17 @@ def _application(monkeypatch, tmp_path, *, personality=True):
         background_runtime,
         "ApplicationBackgroundCoordinator",
         FakeCoordinator,
+    )
+    # Exercise orchestration/rollback, not unrelated fully composed host services.
+    # Keep the production typed-configuration gate intact.
+    monkeypatch.setattr(
+        bootstrap,
+        "create_background_coordinator",
+        lambda application, *, reflection_enabled, **_kwargs: FakeCoordinator(
+            service=application._conversation_service,
+            state_path=application._configuration.state_path,
+            reflection_enabled=reflection_enabled,
+        ),
     )
     return app, events
 

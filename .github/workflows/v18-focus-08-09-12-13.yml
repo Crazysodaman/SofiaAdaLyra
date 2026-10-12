@@ -13,6 +13,8 @@ on:
       - 'test/test_vision_*.py'
       - 'test/test_screen_capability_authority.py'
       - 'test/test_presence_initiative.py'
+      - 'test/test_idle_reflection_application.py'
+      - 'test/test_proactive_continuity_awareness.py'
       - 'test/test_v18_presence_private_life_scope.py'
       - 'test/test_life_*.py'
       - 'test/test_ops_workshop_vm_separation.py'
@@ -53,6 +55,8 @@ jobs:
           test/test_screen_capability_authority.py
           test/test_presence_initiative.py
           test/test_v18_presence_private_life_scope.py
+          test/test_idle_reflection_application.py
+          test/test_proactive_continuity_awareness.py
           test/test_life_autonomous_followthrough.py
           test/test_life_verified_milestone_production.py
           test/test_life_atomic_admission.py
@@ -63,3 +67,26 @@ jobs:
           test/test_ops_digital_twin_production.py
       - name: Explicit hardware acceptance boundary
         run: echo "No real input, game, FIDO2, or Artemis VM was exercised; live acceptance remains open."
+
+  phase08-linux:
+    name: Phase 08 Linux Python 3.12
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project and test dependencies
+        run: python -m pip install -e . pytest
+      - name: Phase 08 reflection and proactive continuity acceptance
+        run: > 
+          pytest -q
+          test/test_idle_reflection_application.py
+          test/test_proactive_continuity_awareness.py
+          test/test_presence_initiative.py
+          test/test_v18_presence_private_life_scope.py
+      - name: Preserve live hardware acceptance boundary
+        run: echo "CI does not authorize unsolicited delivery or live model execution."

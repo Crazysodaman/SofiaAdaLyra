@@ -7,6 +7,7 @@ from sofia.application import SofiaApplication
 from sofia.cognition.engine import CognitiveEngineError
 from sofia.config import ProviderConfiguration, SofiaConfiguration
 from sofia.continuity.model import ContinuityEventKind
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -103,6 +104,7 @@ def create_application(
         ),
     )
 
+    bootstrap_canonical_sqlite(configuration.state_path)
     return SofiaApplication(configuration)
 
 
