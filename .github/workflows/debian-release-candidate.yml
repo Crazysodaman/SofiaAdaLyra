@@ -1,0 +1,145 @@
+name: Debian Release Candidate Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Optional exact release ID
+        required: false
+        type: string
+      parent_release_id:
+        description: Previously accepted release ID
+        required: false
+        type: string
+      parent_manifest_sha256:
+        description: Previously accepted manifest digest
+        required: false
+        type: string
+
+concurrency:
+  group: debian-release-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install exact hashed Debian dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SOFIA_RELEASE_SOURCE=$RUNNER_TEMP/sofia-debian-release-source" >> "$GITHUB_ENV"
+          echo "SOFIA_RELEASE_VENV=$RUNNER_TEMP/sofia-debian-release-venv" >> "$GITHUB_ENV"
+          echo "SOFIA_VERIFICATION_EVIDENCE=$RUNNER_TEMP/sofia-debian-verification.json" >> "$GITHUB_ENV"
+          python -m venv "$RUNNER_TEMP/sofia-debian-release-venv"
+          PY="$RUNNER_TEMP/sofia-debian-release-venv/bin/python"
+          "$PY" -m pip install --require-hashes -r requirements.lock.linux-py313.txt
+          "$PY" -m pip install --require-hashes -r requirements.verify.lock.linux-py313.txt
+          "$PY" -m pip install --require-hashes --only-binary=:all: -r requirements.build.lock.linux-py313.txt
+
+      - name: Materialize byte-identical tracked Git source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python src/sofia/verify/stage_release_source.py \
+            --checkout "$GITHUB_WORKSPACE" --target "$SOFIA_RELEASE_SOURCE"
+
+      - name: Build two exact-source wheels and require reproducibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          python - <<'PY'
+          import os, pathlib, shutil
+          root = pathlib.Path(os.environ["SOFIA_RELEASE_SOURCE"])
+          temp = pathlib.Path(os.environ["RUNNER_TEMP"])
+          for name in ("sofia-debian-build-a", "sofia-debian-build-b"):
+              shutil.copytree(root, temp / name)
+          PY
+          PY="$SOFIA_RELEASE_VENV/bin/python"
+          mkdir -p "$RUNNER_TEMP/sofia-debian-dist-a" "$RUNNER_TEMP/sofia-debian-dist-b"
+          "$PY" -m pip wheel --no-build-isolation --no-deps \
+            --wheel-dir "$RUNNER_TEMP/sofia-debian-dist-a" "$RUNNER_TEMP/sofia-debian-build-a"
+          "$PY" -m pip wheel --no-build-isolation --no-deps \
+            --wheel-dir "$RUNNER_TEMP/sofia-debian-dist-b" "$RUNNER_TEMP/sofia-debian-build-b"
+          a="$(find "$RUNNER_TEMP/sofia-debian-dist-a" -maxdepth 1 -type f -name '*.whl' -print)"
+          b="$(find "$RUNNER_TEMP/sofia-debian-dist-b" -maxdepth 1 -type f -name '*.whl' -print)"
+          test -n "$a" && test -n "$b"
+          digest_a="$(sha256sum "$a" | cut -d' ' -f1)"
+          digest_b="$(sha256sum "$b" | cut -d' ' -f1)"
+          echo "Debian wheel SHA-256: $digest_a"
+          test "$digest_a" = "$digest_b"
+          echo "SOFIA_RELEASE_WHEEL=$a" >> "$GITHUB_ENV"
+
+      - name: Install exact built wheel into verification venv
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$SOFIA_RELEASE_VENV/bin/python" -m pip install \
+            --no-index --no-deps --force-reinstall "$SOFIA_RELEASE_WHEEL"
+          "$SOFIA_RELEASE_VENV/bin/python" -m pip check
+
+      - name: Run exact revision provenance and verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          PY="$SOFIA_RELEASE_VENV/bin/python"
+          "$PY" -m sofia.verify.source_provenance \
+            --checkout "$GITHUB_WORKSPACE" \
+            --archive "$SOFIA_RELEASE_SOURCE" \
+            --venv "$SOFIA_RELEASE_VENV" \
+            --evidence "$RUNNER_TEMP/sofia-debian-source-provenance.json"
+          "$PY" -m sofia.verify.gate \
+            --phase full --installed-wheel-only \
+            --repo "$GITHUB_WORKSPACE" \
+            --evidence-path "$SOFIA_VERIFICATION_EVIDENCE"
+
+      - name: Construct and validate immutable Linux release evidence
+        shell: bash
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+          PARENT_RELEASE_ID: ${{ inputs.parent_release_id }}
+          PARENT_MANIFEST_SHA256: ${{ inputs.parent_manifest_sha256 }}
+        run: |
+          set -euo pipefail
+          PY="$SOFIA_RELEASE_VENV/bin/python"
+          args=(
+            -m sofia.dev.release_cli construct
+            --git-revision "${{ github.sha }}"
+            --lock requirements.lock.linux-py313.txt
+            --wheel "$SOFIA_RELEASE_WHEEL"
+            --source "$SOFIA_RELEASE_SOURCE"
+            --constitution-hash "$SOFIA_RELEASE_SOURCE/src/sofia/constitution/constitution.sha256"
+            --verification-evidence "$SOFIA_VERIFICATION_EVIDENCE"
+            --output release-evidence
+          )
+          if test -n "$RELEASE_ID"; then args+=(--release-id "$RELEASE_ID"); fi
+          if test -n "$PARENT_RELEASE_ID" || test -n "$PARENT_MANIFEST_SHA256"; then
+            test -n "$PARENT_RELEASE_ID" && test -n "$PARENT_MANIFEST_SHA256"
+            args+=(--parent-release-id "$PARENT_RELEASE_ID" --parent-manifest-sha256 "$PARENT_MANIFEST_SHA256")
+          fi
+          "$PY" "${args[@]}"
+          "$PY" -m sofia.dev.release_cli verify --release-dir release-evidence
+
+      - name: Upload Linux release evidence (unsigned until approved promotion)
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-candidate-debian-${{ github.sha }}
+          path: release-evidence
+          if-no-files-found: error
