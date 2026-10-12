@@ -14,6 +14,10 @@ on:
       - 'test/test_lifelong_*.py'
       - 'test/test_mobile_main_*.py'
       - 'test/test_conversation_continuity_acceptance.py'
+      - 'test/test_conversation*.py'
+      - 'test/test_converesation_contex_integration.py'
+      - 'test/test_cognition_v2_*.py'
+      - 'test/test_cognition_reply_origin_production.py'
       - '.github/workflows/v18-continuity-memory-archive-gates.yml'
   workflow_dispatch:
 
@@ -56,6 +60,14 @@ jobs:
           test/test_ws2_conversation_utc_ordering.py
           test/test_ws2_project_thread_creation_scope.py
           test/test_ws2_project_read_scope_integrity.py
+          test/test_conversation.py
+          test/test_conversation_continuity.py
+          test/test_conversation_service.py
+          test/test_conversation_performance_trace.py
+          test/test_converesation_contex_integration.py
+          test/test_cognition_v2_turn_kernel.py
+          test/test_cognition_v2_cutover.py
+          test/test_cognition_v2_matrix_scheduler.py
       - name: Phase 06 reviewed memory, correction and private revocation
         run: >
           python -m pytest -q
@@ -66,6 +78,10 @@ jobs:
           test/test_ws2_memory_scoped_recall_fallback.py
           test/test_ws2_fts_rebuild_revocation.py
           test/test_ws2_historical_review_revocation.py
+          test/test_cognition_v2_evidence.py
+          test/test_cognition_v2_fleet_machine.py
+          test/test_cognition_v2_personality_domains.py
+          test/test_cognition_reply_origin_production.py
       - name: Phase 07 archive, original-data recovery and erasure
         run: >
           python -m pytest -q
