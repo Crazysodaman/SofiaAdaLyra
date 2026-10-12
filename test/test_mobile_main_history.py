@@ -217,9 +217,17 @@ def test_mobile_modes_persist_distinct_sessions_and_reject_rebinding(tmp_path):
 
 
 def test_private_main_history_requires_host_permission(tmp_path):
-    _, source, social, _, gateway = _setup(tmp_path)
+    path, source, social, _, gateway = _setup(tmp_path)
     try:
         _record(source, social, gateway, private_mode=True, text="Protected", number=1)
+        # Explicitly revoke the owner-scoped private-view permission. A
+        # previous default or fixture policy must never make this negative
+        # test accidentally exercise the allowed path instead.
+        private_with_signed_owner(
+            PermissionStore(path),
+            private_chat=False, adult_chat=False,
+            adult_avatar=False, adult_external_delivery=False,
+        )
         with pytest.raises(PermissionError, match="private-chat grant"):
             gateway.main_history(device_id="android-owner", private_mode=True)
     finally:

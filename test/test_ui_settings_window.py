@@ -1,10 +1,13 @@
 """Exercise real Tk widgets under a display, plus headless mood projection."""
+from dataclasses import replace
 from datetime import datetime, timezone
 import os
 
 import pytest
 
 from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.config.defaults import production_storage_layout
+from sofia.identity.model import IdentityBootstrapMode
 from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.emotion.journal import EmotionalJournal
 from sofia.social.model import SocialScope
@@ -32,7 +35,14 @@ def test_real_settings_save_reopen_and_wardrobe_submission(tmp_path, monkeypatch
     from sofia.ui import settings_window
     from sofia.avatar.wardrobe_review import WardrobeReviewStore
     from sofia.ui.control_center import DesktopControlSettingsStore, MASTER_SETTINGS_SECTIONS
-    path = bootstrap_canonical_sqlite(tmp_path / "custom-selected.db")
+    # The real Tk settings entrypoint requires an already provisioned,
+    # protected identity/Constitution, not merely an empty SQLite file.
+    layout = replace(
+        production_storage_layout(state_path=tmp_path / "custom-selected.db"),
+        identity_bootstrap_mode=IdentityBootstrapMode.FIRST_BOOTSTRAP,
+    )
+    layout.provision_from_source()
+    path = layout.state_path
     original_root = tk.Tk
     captured = []
     original_sections = settings_window.SettingsSections
