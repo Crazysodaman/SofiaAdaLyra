@@ -30,7 +30,7 @@ def _paths(tmp_path, monkeypatch, version):
         artifact_sha256="c" * 64, application_version="0.1.0",
     )
     monkeypatch.setattr(prepare, "require_debian_guest", lambda: None)
-    monkeypatch.setattr(prepare.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(prepare.os, "geteuid", lambda: 0, raising=False)
     monkeypatch.setattr(prepare, "_root_owned_directory", lambda _: None)
     monkeypatch.setattr(prepare, "verified_inbox_release", lambda **_:
         SimpleNamespace(revision=SHA, release_id="release-1", manifest_sha256=DIGEST))
@@ -81,7 +81,7 @@ def test_exact_signed_python_release_prepares_without_activation(tmp_path, monke
 
 def test_unprivileged_process_cannot_stage_release(tmp_path, monkeypatch):
     monkeypatch.setattr(prepare, "require_debian_guest", lambda: None)
-    monkeypatch.setattr(prepare.os, "geteuid", lambda: 1000)
+    monkeypatch.setattr(prepare.os, "geteuid", lambda: 1000, raising=False)
     with pytest.raises(PermissionError, match="privileged"):
         prepare.prepare_candidate(
             inbox=tmp_path, trusted_key=tmp_path / "key",
@@ -91,7 +91,7 @@ def test_unprivileged_process_cannot_stage_release(tmp_path, monkeypatch):
 
 def test_invalid_source_revision_is_not_accepted(tmp_path, monkeypatch):
     monkeypatch.setattr(prepare, "require_debian_guest", lambda: None)
-    monkeypatch.setattr(prepare.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(prepare.os, "geteuid", lambda: 0, raising=False)
     with pytest.raises(ValueError, match="exact"):
         prepare.prepare_candidate(
             inbox=tmp_path, trusted_key=tmp_path / "key",
