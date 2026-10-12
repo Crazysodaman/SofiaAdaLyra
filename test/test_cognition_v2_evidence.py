@@ -97,7 +97,7 @@ def test_evidence_is_scope_isolated_and_restart_durable(tmp_path):
 
 
 def test_evidence_id_cannot_be_reused_for_different_fact(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     ledger.append(_atom("evidence:stable-id"))
 
     with pytest.raises(EvidenceConflict):
@@ -105,7 +105,7 @@ def test_evidence_id_cannot_be_reused_for_different_fact(tmp_path):
 
 
 def test_evidence_id_cannot_be_reused_with_different_dependencies(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     first = _atom("evidence:first")
     second = _atom("evidence:second")
     derived = _atom(
@@ -122,7 +122,7 @@ def test_evidence_id_cannot_be_reused_with_different_dependencies(tmp_path):
 
 
 def test_stale_and_insufficient_trust_do_not_satisfy_need(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     ledger.append(_atom(
         "evidence:expired",
         observed_at=NOW - timedelta(minutes=10),
@@ -141,7 +141,7 @@ def test_stale_and_insufficient_trust_do_not_satisfy_need(tmp_path):
 
 
 def test_future_dated_evidence_is_not_current(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     ledger.append(_atom(
         "evidence:from-the-future",
         observed_at=NOW + timedelta(hours=1),
@@ -154,7 +154,7 @@ def test_future_dated_evidence_is_not_current(tmp_path):
 
 
 def test_hypothesis_does_not_become_operational_fact(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     source = _atom("evidence:source")
     ledger.append(source)
     ledger.append(
@@ -183,7 +183,7 @@ def test_acquisition_failure_states_remain_separate_from_epistemic_unknown(
     tmp_path,
     state,
 ):
-    ledger = CognitiveEvidenceLedger(tmp_path / f"{state.value}.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / f"{state.value}.db"))
     ledger.append(_atom(
         f"evidence:{state.value}",
         value=None,
@@ -215,7 +215,7 @@ def test_evidence_value_must_be_valid_finite_json():
 
 
 def test_user_correction_invalidates_claim_and_dependent_conclusion(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     original = _atom("evidence:original")
     derived = _atom(
         "evidence:derived",
@@ -244,7 +244,7 @@ def test_user_correction_invalidates_claim_and_dependent_conclusion(tmp_path):
 
 
 def test_derived_evidence_dependencies_cannot_cross_private_scopes(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     private = _atom("evidence:private-source")
     ledger.append(private)
     derived = _atom(
@@ -260,7 +260,7 @@ def test_derived_evidence_dependencies_cannot_cross_private_scopes(tmp_path):
 
 
 def test_correction_rejects_wrong_subject_without_partial_invalidation(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     venus = _atom("evidence:venus", subject="fleet-node:venus")
     ledger.append(venus)
 
@@ -278,7 +278,7 @@ def test_correction_rejects_wrong_subject_without_partial_invalidation(tmp_path)
 
 
 def test_correction_rejects_assistant_source(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     original = _atom("evidence:original")
     ledger.append(original)
 
@@ -296,7 +296,7 @@ def test_correction_rejects_assistant_source(tmp_path):
 
 
 def test_assistant_prose_and_fake_execution_source_cannot_be_evidence(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     with pytest.raises(ValueError, match="reviewed host source"):
         ledger.append(_atom(
             "evidence:assistant-prose",
@@ -317,7 +317,7 @@ def test_assistant_prose_and_fake_execution_source_cannot_be_evidence(tmp_path):
 
 
 def test_execution_fact_requires_matching_successful_capability_result(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     acquisition = EvidenceAcquisitionCoordinator(ledger)
     need = _need(predicate="execution.service.restart")
     result = CapabilityResult(
@@ -344,7 +344,7 @@ def test_execution_fact_requires_matching_successful_capability_result(tmp_path)
 
 
 def test_capability_acquisition_requires_success_and_exact_requested_key(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     acquisition = EvidenceAcquisitionCoordinator(ledger)
     need = _need()
     success = CapabilityResult(

@@ -258,7 +258,7 @@ def test_multi_machine_multi_property_answer_keeps_values_on_exact_hosts(tmp_pat
             capability.name,
         ),),
     )
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     coordinator = FleetMachineAnswerCoordinator(
         dispatcher, EvidenceAcquisitionCoordinator(ledger),
     )
