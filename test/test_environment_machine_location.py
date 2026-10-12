@@ -1,6 +1,14 @@
 from datetime import datetime, timezone
 from pathlib import Path
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_machine_location_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "state" / "sofia.db")
 
 from sofia.composition import root as composition_root
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration

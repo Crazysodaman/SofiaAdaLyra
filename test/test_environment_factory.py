@@ -14,6 +14,14 @@ from sofia.environment.home_assistant import HomeAssistantEnvironmentProvider
 from sofia.environment.config import ConfiguredLocation
 from sofia.environment.model import LocationSubject
 from sofia.environment.nws import NwsEnvironmentProvider
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture(autouse=True)
+def _isolated_environment_fixture(tmp_path, monkeypatch):
+    # Relative config.state_path must never point into a checkout or host.
+    monkeypatch.chdir(tmp_path)
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 
 def configuration(environment, *, capabilities=()):

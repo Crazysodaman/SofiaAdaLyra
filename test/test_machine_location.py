@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 import pytest
 
@@ -14,6 +15,11 @@ from sofia.machine.location import (
 
 
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_machine_location_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 
 def record(**overrides):

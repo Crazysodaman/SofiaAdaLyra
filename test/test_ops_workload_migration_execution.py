@@ -23,6 +23,7 @@ from sofia.ops.workload_backend import (
 )
 from sofia.ops.workload_store import WorkloadInstanceStore
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def binding(name, *, expect=False, ref=False):
@@ -85,7 +86,7 @@ def make_executor(
     fail_step=None,
     uncertain_step=None,
 ):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     plane = SQLiteStatePlane(state)
     store = WorkloadInstanceStore(state)
     store.observe(
