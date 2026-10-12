@@ -21,7 +21,6 @@ from threading import Event
 from typing import Any, Callable, Iterator, Mapping
 from uuid import UUID
 
-from sofia.integrations.hyperv import HyperVAdapter
 
 _MAX_JOURNAL_BYTES = 64 * 1024 * 1024
 _MAX_RECEIPT_BYTES = 8192
@@ -333,7 +332,12 @@ def controller_once(
     if hostname().casefold().split(".")[0] != config.expected_host.casefold():
         raise ArtemisControllerError("controller cannot run outside Artemis")
     if inventory is None:
-        inventory = HyperVAdapter().sofia_guest_inventory
+        # The independently restricted SCM account can access this exact
+        # read-only CIM class, not the wider Get-VM / Get-VMSwitch commands.
+        # This path provides identity + EnabledState only, never full host
+        # preflight, operational readiness or canonical writer authority.
+        from sofia.ops.artemis_wmi import ArtemisWmiObserver
+        inventory = ArtemisWmiObserver(expected_vm_id=config.expected_vm_id)
     return ArtemisControllerJournal(config.audit_directory).append(
         observe_exact_sofia(config, inventory=inventory, hostname=hostname)
     )
