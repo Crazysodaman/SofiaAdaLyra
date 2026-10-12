@@ -35,12 +35,15 @@ class ArtemisControllerError(RuntimeError):
 def _safe_existing_directory(path: Path) -> None:
     if not isinstance(path, Path) or not path.is_absolute():
         raise ArtemisControllerError("controller audit directory must be absolute")
-    if path.is_symlink() or not path.is_dir():
+    if not path.is_dir():
         raise ArtemisControllerError("controller audit directory must exist without redirection")
-    # A junction / reparse point must not escape the intended host-local volume.
+    if os.name == "nt" and str(path).startswith("\\\\"):
+        raise ArtemisControllerError("controller audit directory must be host-local, not UNC")
     junction = getattr(os.path, "isjunction", None)
-    if callable(junction) and junction(path):
-        raise ArtemisControllerError("controller audit junction is forbidden")
+    # A junction/symlink in ANY ancestor can redirect an ostensibly local log.
+    for entry in (path, *path.parents):
+        if entry.is_symlink() or (callable(junction) and junction(entry)):
+            raise ArtemisControllerError("controller audit path redirection is forbidden")
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,7 +174,7 @@ def observe_exact_sofia(
         return ControllerObservation(
             outcome, actual_id, state, tuple(reasons), moment,
         )
-    except (ArtemisControllerError, ValueError, TypeError, OSError, KeyError):
+    except (RuntimeError, ValueError, TypeError, OSError, KeyError):
         return ControllerObservation(
             "unavailable", None, None, ("host_inventory_not_trusted",), moment,
         )
@@ -233,6 +236,8 @@ class ArtemisControllerJournal:
                     raise ArtemisControllerError("partial or oversized journal receipt")
                 try:
                     entry = json.loads(line)
+                    if not isinstance(entry, dict):
+                        raise ValueError("journal entry must be an object")
                     digest = entry.pop("sha256")
                     if (
                         type(entry.get("sequence")) is not int
