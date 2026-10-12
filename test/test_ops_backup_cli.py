@@ -59,6 +59,8 @@ def test_rehearse_restores_only_to_temporary_location(
             str(tmp_path / "backup"),
             "--verifier",
             "test",
+            "--erasure-journal",
+            str(tmp_path / "operator-erasure-ledger.jsonl"),
         ]
     )
 
@@ -66,6 +68,7 @@ def test_rehearse_restores_only_to_temporary_location(
     assert len(fake.restore_calls) == 1
     call = fake.restore_calls[0]
     assert call["replace_existing"] is False
+    assert call["erasure_journal"] == tmp_path / "operator-erasure-ledger.jsonl"
     assert call["target_state_path"].name == "sofia.db"
     assert call["target_state_path"].parent != tmp_path
 
@@ -93,11 +96,14 @@ def test_restore_requires_explicit_replace_flag(
             str(target),
             "--verifier",
             "test",
+            "--erasure-journal",
+            str(tmp_path / "operator-erasure-ledger.jsonl"),
         ]
     )
 
     assert code == 0
     assert fake.restore_calls[0]["replace_existing"] is False
+    assert fake.restore_calls[0]["erasure_journal"] == tmp_path / "operator-erasure-ledger.jsonl"
 
 
 def test_objectives_command_reports_declared_targets(capsys):

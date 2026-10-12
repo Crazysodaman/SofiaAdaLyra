@@ -11,10 +11,14 @@ from sofia.system.model import (
 )
 from sofia.ui.control_center import GameMode
 from sofia.ui.tray_agent import TrayAgentApplication
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
-def test_auto_mode_records_detected_steam_game_without_web_api():
+def test_auto_mode_records_detected_steam_game_without_web_api(tmp_path):
     app = object.__new__(TrayAgentApplication)
+    app.config = SimpleNamespace(
+        state_path=bootstrap_canonical_sqlite(tmp_path / "sofia.db"),
+    )
     app.host_id = "venus"
     app._known_games = frozenset()
     app.settings_store = SimpleNamespace(

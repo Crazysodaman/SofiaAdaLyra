@@ -146,8 +146,20 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
     warnings: list[str] = []
     if source.name != "sofia.db":
         blockers.append("unexpected_canonical_db_filename")
-    redirected_source = _unsafe_ancestor(source)
-    if redirected_source or _unsafe_ancestor(dest):
+    # A formerly valid host path may become unreadable during preview.
+    # Both metadata failures and redirected ancestors forbid migration,
+    # but must not throw or accidentally authorize an absent home.
+    try:
+        redirected_source = _unsafe_ancestor(source)
+    except OSError:
+        redirected_source = True
+        blockers.append("canonical_source_path_inspection_failed")
+    try:
+        redirected_destination = _unsafe_ancestor(dest)
+    except OSError:
+        redirected_destination = True
+        blockers.append("destination_path_inspection_failed")
+    if redirected_source or redirected_destination:
         blockers.append("symlinked_or_reparse_state_destination_path")
     # A removable canonical home can vanish or become unreadable during the
     # Settings read-only preview. Describe it as unavailable, rather than
@@ -165,7 +177,10 @@ def inspect_state_relocation(source_state_path: Path, destination_root: Path) ->
     if not source_regular:
         blockers.append("canonical_state_database_missing")
     for path, label in ((source, "canonical_source"), (dest, "destination")):
-        filesystem = _filesystem_kind(path)
+        try:
+            filesystem = _filesystem_kind(path)
+        except OSError:
+            filesystem = "unavailable"
         if filesystem != "local":
             blockers.append(
                 f"{label}_filesystem_not_proven_local:{filesystem}"
