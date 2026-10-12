@@ -19,6 +19,7 @@ from sofia.cognition.v2 import (
     EvidenceNeed,
 )
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -68,7 +69,7 @@ def _atom(
 
 
 def test_venus_evidence_never_satisfies_artemis_need(tmp_path):
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     ledger.append(_atom("evidence:venus-cpu", subject="fleet-node:venus"))
 
     resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
@@ -78,7 +79,7 @@ def test_venus_evidence_never_satisfies_artemis_need(tmp_path):
 
 
 def test_evidence_is_scope_isolated_and_restart_durable(tmp_path):
-    path = tmp_path / "sofia.db"
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     first = CognitiveEvidenceLedger(path)
     atom = _atom("evidence:artemis-private")
     first.append(atom)
@@ -130,7 +131,7 @@ def test_stale_and_insufficient_trust_do_not_satisfy_need(tmp_path):
     graph = EvidenceGraph(ledger)
     assert graph.resolve(_need(), now=NOW).acquisition_state is AcquisitionState.STALE
 
-    weak_ledger = CognitiveEvidenceLedger(tmp_path / "weak.db")
+    weak_ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "weak.db"))
     weak_ledger.append(_atom("evidence:weak", trust=0.2))
     strict = _need(minimum_trust=0.9, max_age_seconds=30.0)
     assert (
@@ -423,6 +424,7 @@ def _configuration(tmp_path: Path) -> SofiaConfiguration:
         '"communication_style":"Clear and direct."}',
         encoding="utf-8",
     )
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=PROJECT_ROOT / "src/sofia/constitution/constitution.md",
         constitution_hash_path=(
