@@ -6,12 +6,13 @@ from sofia.conversation.model import (
     ConversationSession,
 )
 from sofia.conversation.store import ConversationStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_conversation_store_persists_messages(
     tmp_path,
 ):
-    database_path = tmp_path / "sofia.db"
+    database_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
     store = ConversationStore(database_path)
 
@@ -37,7 +38,7 @@ def test_conversation_store_persists_messages(
 def test_conversation_store_isolates_sessions(
     tmp_path,
 ):
-    database_path = tmp_path / "sofia.db"
+    database_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
     store = ConversationStore(database_path)
 
@@ -79,7 +80,7 @@ def test_conversation_store_isolates_sessions(
 def test_conversation_store_returns_messages_in_creation_order(
     tmp_path,
 ):
-    database_path = tmp_path / "sofia.db"
+    database_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
     store = ConversationStore(database_path)
 
@@ -117,7 +118,7 @@ def test_conversation_store_returns_messages_in_creation_order(
 def test_conversation_store_creates_and_persists_session(
     tmp_path,
 ):
-    database_path = tmp_path / "sofia.db"
+    database_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
     store = ConversationStore(database_path)
 
@@ -131,7 +132,7 @@ def test_conversation_store_creates_and_persists_session(
 def test_saving_message_updates_session_timestamp(
     tmp_path,
 ):
-    database_path = tmp_path / "sofia.db"
+    database_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
     store = ConversationStore(database_path)
 
@@ -163,7 +164,7 @@ def test_saving_message_updates_session_timestamp(
 def test_saving_older_message_does_not_rewind_session_timestamp(
     tmp_path,
 ):
-    database_path = tmp_path / "sofia.db"
+    database_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
     store = ConversationStore(database_path)
 
@@ -209,7 +210,7 @@ def test_failed_message_activity_update_rolls_back_message(tmp_path):
     import sqlite3
     import pytest
 
-    database_path = tmp_path / "sofia.db"
+    database_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = ConversationStore(database_path)
     session = store.create_session()
     message = ConversationMessage(
@@ -236,7 +237,7 @@ def test_failed_message_activity_update_rolls_back_message(tmp_path):
 def test_failed_store_initialization_can_reopen_cleanly(tmp_path, monkeypatch):
     import pytest
 
-    store = ConversationStore(tmp_path / "sofia.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     store.close()
     initialize = store._initialize_database
 
