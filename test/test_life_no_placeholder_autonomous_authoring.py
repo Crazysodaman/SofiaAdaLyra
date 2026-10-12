@@ -55,10 +55,19 @@ def test_native_art_serializer_is_not_automatically_an_art_author(tmp_path):
             assertion="An optional illustration experiment is under consideration.",
             now=now,
         )
+        # The optional activity must first have a currently grounded
+        # interest. Otherwise LIFE rightly chooses inactivity before it
+        # reaches the unsupported autonomous art-authoring boundary.
+        interest = life.revise_interest(
+            name="illustrated-violet-map", context="creative",
+            strength=0.82, confidence=0.90,
+            reason="Test-only reviewed interest in illustrated maps.",
+            evidence_refs=(evidence,), now=now,
+        )
         idea = ProjectIdea(
             "idea:manual-art-intent", "Illustrated Violet Map",
             "Consider drawing an original set of hand-designed map symbols.",
-            "illustrated-violet-map",
+            interest.interest_id,
             ("Build several original illustrated map symbols.",),
             (), "art", (evidence,), 0.9, 0.85, now,
         )

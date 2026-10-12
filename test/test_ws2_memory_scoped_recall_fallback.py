@@ -11,12 +11,13 @@ import pytest
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
 
 
 def _scoped_sources(tmp_path):
-    path = tmp_path / "sofia.db"
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     original = ConversationStore(path)
     social = SocialSessionStore(path)
     session = original.create_session()

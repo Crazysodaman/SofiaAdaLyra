@@ -9,10 +9,11 @@ import pytest
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_new_mixed_offset_sources_are_stored_and_paged_in_true_utc_order(tmp_path):
-    store = ConversationStore(tmp_path / "sofia.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     try:
         session = store.create_session()
         before = session.created_at + timedelta(seconds=10)
@@ -57,7 +58,7 @@ def test_new_mixed_offset_sources_are_stored_and_paged_in_true_utc_order(tmp_pat
 def test_original_idempotency_accepts_equivalent_timezone_offset_not_new_instant(
     tmp_path,
 ):
-    store = ConversationStore(tmp_path / "sofia.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     try:
         session = store.create_session()
         original_time = session.created_at + timedelta(seconds=30)
