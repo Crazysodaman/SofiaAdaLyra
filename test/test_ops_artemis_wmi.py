@@ -99,30 +99,12 @@ def test_wmi_refuses_alternate_vm_configuration():
         )
 
 
-def test_actual_controller_once_selects_wmi_observer_by_default(
-    monkeypatch, tmp_path,
-):
-    seen = []
-    original_observer = artemis_wmi.ArtemisWmiObserver
-
-    def monitored(*, expected_vm_id):
-        seen.append(expected_vm_id)
-        return lambda: original_observer(
-            expected_vm_id=expected_vm_id,
-            runner=lambda _: response(),
-        )()
-
-    monkeypatch.setattr(artemis_wmi, "ArtemisWmiObserver", monitored)
-    cfg = controller.ArtemisControllerConfig(
-        expected_vm_id=VM_ID, audit_directory=tmp_path
+def test_wmi_probe_is_available_as_explicit_diagnostic_only():
+    """Do not automatically treat WMI namespace access as VM visibility."""
+    observer = artemis_wmi.ArtemisWmiObserver(
+        expected_vm_id=VM_ID, runner=lambda _: response(),
     )
-    receipt = controller.controller_once(cfg, hostname=lambda: "Artemis")
-    assert seen == [VM_ID]
-    assert receipt["outcome"] == "requires_review"
-    assert receipt["vm_state"] == "WMI.EnabledState:2"
-    assert receipt["sequence"] == 1
-    assert receipt["old_writer_fenced"] is False
-    assert receipt["host_change_performed"] is False
+    assert observer()["host_inventory"]["VmId"] == str(VM_ID)
 
 
 def test_wmi_failure_fails_closed_without_logging_host_exception(tmp_path):
