@@ -297,6 +297,76 @@ def bootstrap_pair(
     }
 
 
+
+def issue_node_pair_from_existing_ca(
+    *,
+    ca_certificate_path: Path,
+    ca_private_key_path: Path,
+    output_directory: Path,
+    node_name: str,
+    server_dns_names: Iterable[str],
+    server_ip_addresses: Iterable[str],
+) -> dict[str, str]:
+    """Issue unique Sofia VM server/client leaves under the EXISTING Fleet CA.
+
+    The CA key remains on the operator's provisioner; do not copy it to Sofia.
+    No existing node leaf is silently overwritten and no service is started.
+    """
+    import shutil
+
+    node = node_name.strip()
+    if not node or node.casefold() in {"venus", "artemis"}:
+        raise ValueError("a separate, named Fleet node is required")
+    if any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
+           for ch in node) or len(node) > 60:
+        raise ValueError("Fleet node name contains invalid characters")
+    root = output_directory.resolve()
+    _refuse_network_secret_root(root)
+    if root.exists():
+        if root.is_symlink() or any(root.iterdir()):
+            raise FileExistsError("new Fleet node PKI directory must be empty")
+    paths = {
+        "server_certificate": root / f"{node.casefold()}-server.pem",
+        "server_private_key": root / f"{node.casefold()}-server-key.pem",
+        "client_certificate": root / f"{node.casefold()}-client.pem",
+        "client_private_key": root / f"{node.casefold()}-client-key.pem",
+        "ca_certificate": root / "fleet-ca.pem",
+    }
+    if any(path.exists() or path.is_symlink() for path in paths.values()):
+        raise FileExistsError("existing Fleet identity must never be overwritten")
+    # Validate signer BEFORE creating output files.
+    _load_ca(ca_certificate_path, ca_private_key_path)
+    root.mkdir(parents=True, exist_ok=True)
+    issue_leaf(
+        ca_certificate_path=ca_certificate_path,
+        ca_private_key_path=ca_private_key_path,
+        certificate_path=paths["server_certificate"],
+        private_key_path=paths["server_private_key"],
+        common_name=node,
+        server=True,
+        dns_names=tuple(server_dns_names),
+        ip_addresses=tuple(server_ip_addresses),
+    )
+    issue_leaf(
+        ca_certificate_path=ca_certificate_path,
+        ca_private_key_path=ca_private_key_path,
+        certificate_path=paths["client_certificate"],
+        private_key_path=paths["client_private_key"],
+        common_name=f"{node}-client",
+        server=False,
+    )
+    shutil.copyfile(ca_certificate_path, paths["ca_certificate"])
+    return {
+        **{key: str(value) for key, value in paths.items()},
+        "server_public_key_sha256": public_key_fingerprint_from_pem_certificate(
+            paths["server_certificate"]
+        ),
+        "client_public_key_sha256": public_key_fingerprint_from_pem_certificate(
+            paths["client_certificate"]
+        ),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m sofia.distributed.pki")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -308,6 +378,14 @@ def main(argv: list[str] | None = None) -> int:
     bootstrap.add_argument("--server-ip", action="append", default=[])
     bootstrap.add_argument("--controller-name", default="Venus")
 
+    node = sub.add_parser("issue-existing-ca-node")
+    node.add_argument("--ca-cert", required=True)
+    node.add_argument("--ca-private-key", required=True)
+    node.add_argument("--output-dir", required=True)
+    node.add_argument("--node-name", required=True)
+    node.add_argument("--server-dns", action="append", default=[])
+    node.add_argument("--server-ip", action="append", default=[])
+
     fingerprint = sub.add_parser("fingerprint")
     fingerprint.add_argument("certificate")
 
@@ -316,6 +394,22 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "fingerprint":
             print(public_key_fingerprint_from_pem_certificate(args.certificate))
+            return 0
+        if args.command == "issue-existing-ca-node":
+            result = issue_node_pair_from_existing_ca(
+                ca_certificate_path=Path(args.ca_cert),
+                ca_private_key_path=Path(args.ca_private_key),
+                output_directory=Path(args.output_dir),
+                node_name=args.node_name,
+                server_dns_names=tuple(args.server_dns) or (args.node_name,),
+                server_ip_addresses=tuple(args.server_ip),
+            )
+            for key in (
+                "ca_certificate", "server_certificate", "client_certificate",
+                "server_public_key_sha256", "client_public_key_sha256",
+            ):
+                print(f"{key}={result[key]}")
+            print("private_keys=<generated locally; never copy CA private key to node>")
             return 0
 
         dns_names = tuple(args.server_dns) or (args.server_name,)
