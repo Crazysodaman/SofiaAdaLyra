@@ -5,6 +5,7 @@ import pytest
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.memory.originals import (
     ConversationOriginalRetriever,
     OriginalRetrievalRequest,
@@ -24,7 +25,7 @@ def save(store, session_id, content, *, role=ConversationRole.USER):
 
 
 def test_reads_exact_persisted_originals_in_requested_order(tmp_path):
-    store = ConversationStore(tmp_path / "memory.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "memory.db"))
     session = store.create_session()
     first = save(store, session.id, "  exact first  ")
     second = save(store, session.id, "exact second")
@@ -39,7 +40,7 @@ def test_reads_exact_persisted_originals_in_requested_order(tmp_path):
 
 
 def test_never_crosses_session_boundary(tmp_path):
-    store = ConversationStore(tmp_path / "memory.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "memory.db"))
     allowed = store.create_session()
     other = store.create_session()
     visible = save(store, allowed.id, "visible")
@@ -56,7 +57,7 @@ def test_never_crosses_session_boundary(tmp_path):
 
 
 def test_budget_omits_but_never_truncates(tmp_path):
-    store = ConversationStore(tmp_path / "memory.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "memory.db"))
     session = store.create_session()
     long = save(store, session.id, "12345")
     short = save(store, session.id, "x")
@@ -71,7 +72,7 @@ def test_budget_omits_but_never_truncates(tmp_path):
 
 
 def test_unknown_session_fails_closed(tmp_path):
-    store = ConversationStore(tmp_path / "memory.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "memory.db"))
     with pytest.raises(LookupError):
         ConversationOriginalRetriever(store).retrieve(
             OriginalRetrievalRequest("missing", ("id",), 10)
@@ -86,7 +87,7 @@ def test_message_ids_must_be_immutable_tuple(ids):
 
 
 def test_exact_originals_do_not_materialize_complete_session(tmp_path, monkeypatch):
-    store = ConversationStore(tmp_path / "memory.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "memory.db"))
     session = store.create_session()
     original = [save(store, session.id, f"historical original {number}")
                 for number in range(160)]
@@ -111,7 +112,7 @@ def test_exact_originals_do_not_materialize_complete_session(tmp_path, monkeypat
 
 
 def test_exact_retrieval_timestamp_ties_have_stable_original_positions(tmp_path):
-    store = ConversationStore(tmp_path / "memory.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "memory.db"))
     session = store.create_session()
     tied = datetime(2026, 10, 11, 8, tzinfo=timezone.utc)
     for identifier in ("b", "c", "a"):
@@ -128,7 +129,7 @@ def test_exact_retrieval_timestamp_ties_have_stable_original_positions(tmp_path)
 
 
 def test_exact_source_query_rejects_unbounded_id_batches(tmp_path):
-    store = ConversationStore(tmp_path / "memory.db")
+    store = ConversationStore(bootstrap_canonical_sqlite(tmp_path / "memory.db"))
     session = store.create_session()
     with pytest.raises(ValueError, match="128"):
         ConversationOriginalRetriever(store).retrieve(

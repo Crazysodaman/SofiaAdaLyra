@@ -25,6 +25,19 @@ from sofia.memory.system import MemorySystem
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture(autouse=True)
+def _isolated_composition_state(tmp_path, monkeypatch):
+    """Never resolve relative test state against the actual Git checkout."""
+    monkeypatch.chdir(tmp_path)
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+
+
+def _compose_bootstrapped(configuration):
+    bootstrap_canonical_sqlite(configuration.state_path)
+    return compose(configuration)
 
 
 def create_configuration() -> SofiaConfiguration:
@@ -46,7 +59,7 @@ def create_configuration() -> SofiaConfiguration:
 def test_composition_creates_runtime():
     configuration = create_configuration()
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert isinstance(runtime, SofiaRuntime)
 
@@ -54,7 +67,7 @@ def test_composition_creates_runtime():
 def test_composition_does_not_start_runtime():
     configuration = create_configuration()
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert runtime.state is RuntimeState.CREATED
 
@@ -62,7 +75,7 @@ def test_composition_does_not_start_runtime():
 def test_composition_wires_constitution_store():
     configuration = create_configuration()
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert isinstance(
         runtime.constitution_store,
@@ -78,7 +91,7 @@ def test_composition_wires_constitution_store():
 def test_composition_wires_integrity_verifier():
     configuration = create_configuration()
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert isinstance(
         runtime.integrity_verifier,
@@ -94,7 +107,7 @@ def test_composition_wires_integrity_verifier():
 def test_composition_wires_personality_store():
     configuration = create_configuration()
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert isinstance(
         runtime.personality_store,
@@ -110,7 +123,7 @@ def test_composition_wires_personality_store():
 def test_composition_wires_embodiment_store():
     configuration = create_configuration()
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert isinstance(
         runtime._embodiment_store,
@@ -128,7 +141,7 @@ def test_compose_creates_cognitive_system():
 
     configuration = create_configuration()
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert isinstance(
         runtime.cognitive_system,
@@ -210,7 +223,7 @@ def test_composition_creates_runtime_with_configured_cognitive_engine(
         encoding="utf-8",
     )
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert isinstance(
         runtime.cognitive_system,
@@ -240,7 +253,7 @@ def test_composition_selects_configured_rule_provider(
         filesystem_root=tmp_path,
     )
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     from sofia.cognition.rules import RuleEngine
 
@@ -271,7 +284,7 @@ def test_composition_rejects_unknown_provider(
         ValueError,
         match="Unknown cognitive provider",
     ):
-        compose(configuration)
+        _compose_bootstrapped(configuration)
 
 
 def test_composition_selects_test_provider_engine(
@@ -291,7 +304,7 @@ def test_composition_selects_test_provider_engine(
         filesystem_root=tmp_path,
     )
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     from sofia.cognition.test_engine import TestCognitiveEngine
 
@@ -306,7 +319,7 @@ def test_composition_passes_provider_configuration_to_test_engine():
 
     configuration = create_configuration()
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     engine = runtime.cognitive_system.engine
 
@@ -321,7 +334,7 @@ def test_composition_passes_provider_configuration_to_test_engine():
 def test_composition_creates_memory_system():
     configuration = create_configuration()
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert isinstance(
         runtime.memory_system,
@@ -344,7 +357,7 @@ def test_composition_creates_llm_cognitive_engine():
         filesystem_root=Path("."),
     )
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     assert isinstance(
         runtime.cognitive_system.engine,
@@ -367,7 +380,7 @@ def test_composition_creates_test_llm_provider():
         filesystem_root=Path("."),
     )
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     engine = runtime.cognitive_system.engine
 
@@ -392,7 +405,7 @@ def test_composition_passes_provider_configuration_to_llm_engine():
         filesystem_root=Path("."),
     )
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     engine = runtime.cognitive_system.engine
 
@@ -416,7 +429,7 @@ def test_composition_passes_state_path_to_memory_store(
         filesystem_root=tmp_path,
     )
 
-    runtime = compose(configuration)
+    runtime = _compose_bootstrapped(configuration)
 
     memory_store = runtime.memory_system.candidate_store
 
@@ -442,7 +455,7 @@ def test_composed_runtime_preserves_memory_across_composition(
         filesystem_root=tmp_path,
     )
 
-    first_runtime = compose(first_configuration)
+    first_runtime = _compose_bootstrapped(first_configuration)
 
     now = datetime.now(timezone.utc)
     principal = local_sparks_principal()
@@ -459,7 +472,7 @@ def test_composed_runtime_preserves_memory_across_composition(
     candidates.promote(candidate.candidate_id)
     first_runtime.memory_system.close()
 
-    second_runtime = compose(first_configuration)
+    second_runtime = _compose_bootstrapped(first_configuration)
     retrieved = second_runtime.memory_system.recall_relevant("Reviewed memory", principal=principal)
     assert retrieved == (MemoryRecord(str(candidate.candidate_id), candidate.content, now),)
     second_runtime.memory_system.close()

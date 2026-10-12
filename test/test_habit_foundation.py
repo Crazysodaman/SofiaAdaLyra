@@ -16,6 +16,7 @@ from sofia.habits.pattern_store import HabitPatternStore
 from sofia.habits.patterns import CadenceKind, HabitCategory
 from sofia.habits.store import HabitObservationRecorder, HabitObservationStore
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PRINCIPAL = "sparks"
@@ -24,7 +25,7 @@ NOW = datetime(2026, 9, 27, 20, 0, tzinfo=timezone.utc)
 
 
 def stack(tmp_path):
-    plane = SQLiteStatePlane(tmp_path / "state.db")
+    plane = SQLiteStatePlane(bootstrap_canonical_sqlite(tmp_path / "state.db"))
     observations = HabitObservationStore(plane)
     recorder = HabitObservationRecorder(observations)
     patterns = HabitPatternStore(plane)

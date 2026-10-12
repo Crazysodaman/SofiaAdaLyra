@@ -28,6 +28,7 @@ from sofia.filesystem.change_capability import FilesystemChangesCapability
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.ops.capability import OpsToolService
 from sofia.ops.model import FleetHost,HostLifecycle,HostTelemetry
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 class FakeHttp:
@@ -43,6 +44,8 @@ class FakeHttp:
 
 
 def _configuration(tmp_path:Path,allowed=())->SofiaConfiguration:
+    # Integration harness: explicitly create disposable state, not a writer.
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=tmp_path/"constitution.md",
         constitution_hash_path=tmp_path/"constitution.sha256",

@@ -16,6 +16,13 @@ from sofia.social.principals import (
     local_sparks_principal,
 )
 from sofia.social.store import SocialSessionStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture(autouse=True)
+def _explicit_disposable_application_state(tmp_path: Path):
+    """Only synthetic application tests permit first-install setup."""
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
