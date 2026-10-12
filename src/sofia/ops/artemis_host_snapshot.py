@@ -41,7 +41,12 @@ def _snapshot_path(config: ArtemisControllerConfig) -> Path:
     _safe_existing_directory(root)
     if root.name.casefold() != "artemiscontroller":
         raise ArtemisControllerError("unexpected Artemis controller root")
-    return root / _SNAPSHOT_NAME
+    trusted = root / "trusted"
+    _safe_existing_directory(trusted)
+    # The trusted directory must be preprovisioned by an administrator with
+    # inheritance disabled, SYSTEM/Administrators Full, LocalService Read+Execute,
+    # and NO write grants to LocalService or general Users.
+    return trusted / _SNAPSHOT_NAME
 
 
 def _verify_system_account() -> None:
