@@ -1,6 +1,7 @@
 ﻿from pathlib import Path
 
 from sofia.application import SofiaApplication
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.authorization.evaluator import FilesystemAuthorizationEvaluator
 from sofia.social.principals import local_sparks_principal
 from sofia.config.model import (
@@ -96,6 +97,7 @@ def create_personality(
 def create_application(
     tmp_path: Path,
 ) -> SofiaApplication:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaApplication(
         create_configuration(
             create_personality(tmp_path),

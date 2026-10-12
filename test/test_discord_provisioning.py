@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from sofia.config import create_production_configuration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.discord.provisioning import DiscordProvisioning
@@ -85,6 +86,7 @@ def test_disabled_mode_does_not_require_or_validate_live_fields() -> None:
 
 
 def _configuration(tmp_path: Path) -> SofiaConfiguration:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=tmp_path / "constitution.md",
         constitution_hash_path=tmp_path / "constitution.sha256",

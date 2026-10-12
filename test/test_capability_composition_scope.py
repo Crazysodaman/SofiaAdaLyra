@@ -12,6 +12,7 @@ from sofia.capability.model import CapabilityResultKind
 from sofia.capability.model import CapabilityProposal
 from sofia.codebase.capability import CODEBASE_INSPECT_CAPABILITY
 from sofia.composition.root import compose
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -23,6 +24,7 @@ from sofia.social.principals import local_sparks_principal
 def create_configuration(
     tmp_path: Path,
 ) -> SofiaConfiguration:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     configuration = SofiaConfiguration(
         constitution_path=tmp_path / "constitution.md",
         constitution_hash_path=tmp_path / "constitution.sha256",
