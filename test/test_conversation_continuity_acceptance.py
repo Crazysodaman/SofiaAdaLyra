@@ -11,6 +11,7 @@ from sofia.config.model import (
     SofiaConfiguration,
 )
 from sofia.filesystem.model import FilesystemResult
+from sofia.social.principals import local_sparks_principal
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -114,12 +115,16 @@ def test_restart_and_resume_preserves_cognitive_history(
 
     assert session_id is not None
 
+    owner = local_sparks_principal()
+    # Real continuity search requires a CURRENT authenticated session
+    # binding. Legacy unbound transcript rows must not become recall rights.
     first_application.conversation.respond(
-        "My name is Sparks."
+        "My name is Sparks.", principal=owner,
     )
 
     first_application.conversation.respond(
-        "Remember that this conversation is a continuity test."
+        "Remember that this conversation is a continuity test.",
+        principal=owner,
     )
 
     persisted_messages = first_application.conversation.messages()
@@ -170,7 +175,7 @@ def test_restart_and_resume_preserves_cognitive_history(
     assert resumed_messages[-1].content == "Continuity confirmed."
 
     response = second_application.conversation.respond(
-        "What did I say earlier?"
+        "What did I say earlier?", principal=owner,
     )
 
     assert response.content == "Continuity confirmed."
