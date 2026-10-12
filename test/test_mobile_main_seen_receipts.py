@@ -106,9 +106,14 @@ def test_new_device_pairing_epoch_cannot_adopt_old_last_seen(tmp_path):
         from sofia.mobile.gateway import MobileCredentialRevoked
         with pytest.raises(MobileCredentialRevoked):
             _seen(gateway, first)
-        # A newly authenticated pairing begins with no inherited progress,
-        # but may acknowledge its OWN visible canonical source messages.
-        assert _seen(gateway, second)["last_seen"]["canonical_sequence"] == 1
+        # New credential generations use a new authenticated audience.
+        # The previous generation's original is not visible to that new
+        # audience, so re-pairing cannot claim or acknowledge its cursor.
+        with pytest.raises(PermissionError, match="audience"):
+            _seen(gateway, second)
+        assert gateway.main_history(
+            device_id="android-owner", private_mode=False,
+        )["last_seen"] is None
     finally:
         source.close()
 
@@ -174,7 +179,14 @@ def test_rotated_token_cannot_write_into_new_generation_mid_dispatch(
         ) is None
 
         monkeypatch.setattr(gateway.main_seen, "acknowledge", original)
-        assert _seen(gateway, rotated[0])["last_seen"]["canonical_sequence"] == 1
+        # Even a valid new token cannot adopt an earlier audience's read
+        # receipt or original message after a security-key rotation.
+        with pytest.raises(PermissionError, match="audience"):
+            _seen(gateway, rotated[0])
+        assert gateway.main_seen.current(
+            device_id="android-owner", private_mode=False, generation=2,
+            principal=gateway._principal("android-owner", private_mode=False),
+        ) is None
     finally:
         source.close()
 
