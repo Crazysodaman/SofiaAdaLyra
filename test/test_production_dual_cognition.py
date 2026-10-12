@@ -14,12 +14,18 @@ from sofia.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.config.defaults import production_storage_layout
+from sofia.identity.model import IdentityBootstrapMode
 
 
 def bootstrapped(path):
-    """Integration tests simulate the application's authorized first install."""
-    return bootstrap_canonical_sqlite(path)
+    """Create a disposable complete first-install home, never live authority."""
+    bootstrap = replace(
+        production_storage_layout(state_path=path),
+        identity_bootstrap_mode=IdentityBootstrapMode.FIRST_BOOTSTRAP,
+    )
+    bootstrap.provision_from_source()
+    return bootstrap.state_path
 
 
 def test_production_configuration_composes_two_lifecycle_managed_roles(tmp_path):

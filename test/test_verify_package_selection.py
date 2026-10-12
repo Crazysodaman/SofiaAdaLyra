@@ -30,12 +30,15 @@ def test_probe_counts_actual_selected_items_not_source_filename():
     class Item:
         def __init__(self, nodeid, names):
             self.nodeid = nodeid
+            self.path = Path(nodeid.split("::", 1)[0])
             self.names = names
 
         def iter_markers(self, name=None):
-            if name in self.names:
-                return iter([name])
-            return iter(())
+            return iter(
+                SimpleNamespace(name=owner)
+                for owner in self.names
+                if name is None or name == owner
+            )
 
     probe = PackageSelectionProbe(("pkg_body", "pkg_verify"))
     probe.pytest_collection_finish(SimpleNamespace(items=[

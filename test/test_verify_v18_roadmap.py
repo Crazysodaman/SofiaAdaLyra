@@ -5,7 +5,6 @@ Authoring only. Tests run at the end of the coding campaign by owner request.
 from copy import deepcopy
 import json
 from pathlib import Path
-import shutil
 
 import pytest
 
@@ -23,12 +22,18 @@ def _fixture(tmp_path):
     ledger = tmp_path / LEDGER_RELATIVE
     master.parent.mkdir(parents=True)
     ledger.parent.mkdir(parents=True)
-    shutil.copy2(ROOT / MASTER_RELATIVE, master)
+    # Materialize immutable LF-normalized Git text on both OS families.
+    master.write_bytes((ROOT / MASTER_RELATIVE).read_bytes().replace(
+        b"\r\n", b"\n",
+    ))
     contents = json.loads((ROOT / LEDGER_RELATIVE).read_text(encoding="utf-8"))
     ledger.write_text(json.dumps(contents), encoding="utf-8")
     for item in contents["tasks"]:
         for relative in item["code_paths"]:
             source = tmp_path / relative
+            if source in {master, ledger}:
+                # CA-3302 cites the ledger. Don't overwrite test authority.
+                continue
             source.parent.mkdir(parents=True, exist_ok=True)
             source.write_text("# fixture only\n", encoding="utf-8")
     return master, ledger, contents

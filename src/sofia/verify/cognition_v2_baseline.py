@@ -23,6 +23,7 @@ from typing import Callable
 from sofia.application import SofiaApplication
 from sofia.cognition.performance import efficiency_snapshot
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 # Git checkout metadata comes from the caller's exact working checkout.
@@ -132,6 +133,9 @@ def capture_baseline() -> dict[str, object]:
     with tempfile.TemporaryDirectory(prefix="sofia-cognition-v2-baseline-") as raw:
         root = Path(raw)
         configuration = _configuration(root)
+        # A disposable verification run explicitly creates its own
+        # first-install database. Ordinary state owners still fail closed.
+        bootstrap_canonical_sqlite(configuration.state_path)
         startup_started = perf_counter()
         startup_cpu_started = process_time()
         application = SofiaApplication(configuration)

@@ -70,6 +70,17 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
 }
 
 FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("test_fleet_build_backend_hash_lock.py", ("pkg_ops", "pkg_verify")),
+    ("test_life_state_graph_contract.py", ("pkg_act", "pkg_run")),
+    ("test_mobile_continuation_scope.py", ("pkg_ui", "pkg_net", "pkg_social")),
+    ("test_mobile_delivery_status_snapshot.py", ("pkg_ui", "pkg_net", "pkg_social")),
+    ("test_mobile_main_paging_budget.py", ("pkg_ui", "pkg_net", "pkg_social")),
+    ("test_ws2_historical_import_adopted_canonical.py", ("pkg_mem", "pkg_social")),
+    ("test_ws2_historical_review_revocation.py", ("pkg_mem", "pkg_safe")),
+    ("test_ws2_mobile_notification_epoch_fence.py", ("pkg_ui", "pkg_net", "pkg_safe")),
+    ("test_ws2_portable_export_validator.py", ("pkg_mem", "pkg_verify")),
+    ("test_ws2_project_read_scope_integrity.py", ("pkg_core", "pkg_social")),
+    ("test_ws2_project_thread_creation_scope.py", ("pkg_core", "pkg_social")),
     ("test_discord_", ("pkg_ui", "pkg_social", "pkg_net")),
     ("test_interaction_", ("pkg_interact",)),
     ("test_memory_", ("pkg_mem",)),
