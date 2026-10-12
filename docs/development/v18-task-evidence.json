@@ -14158,7 +14158,7 @@
       "phase": "11",
       "source_topic": "21",
       "master_line": 898,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/application/optional_budget.py",
         "test/test_optional_autonomy_budget_production.py",
@@ -14183,7 +14183,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Actual ApplicationBackgroundCoordinator's canonical RUN BackgroundBudget now atomically reserves global daily optional token, CPU, GPU, storage and occupied-latency credits in the exact existing SQLite single-flight claim transaction before all optional LIFE/NEURO/reflection/ACT/maintenance callbacks. Preserves cross-process fencing, UTC-day caps, conservative fallback for new/unclassified tasks, crash recovery, immutable per-attempt consumption, owner-revisioned Limits UI in Models, and model-visible read-only OPS report. Foreground chats never acquire optional claims. Credits are upper-bound reservations, not fabricated actual GPU/CPU/token usage. Deferred production regression tests authored but not executed. Additional optional credit ledger fail-closed guard refuses reserve/settle operations outside a preexisting SQLite transaction and invalid settlement clock/failure flag; production RUN coordinator already uses BEGIN IMMEDIATE for claims. Source src/sofia/application/optional_budget.py and test/test_optional_autonomy_budget_production.py deferred; measured performance unknown.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -15160,7 +15160,7 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 947,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/cognition/model_lifecycle.py",
         "src/sofia/cognition/routing.py",
@@ -15183,7 +15183,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Production owner Models panel now performs bounded, read-only local Ollama /api/tags, /api/version and /api/show inspection; persists configured/installed roles, host identity, provider version, digests, bytes, quantization, advertised context/modality/tools, and hash + bounded review text of license terms into canonical state. Advertised capabilities explicitly unverified. Degraded/missing data remain unknown. Regression tests authored, not run. ModelInventoryStore now refuses older/mixed timestamps overwriting the canonical host snapshot, and candidate review excludes invalid/missing content-addressed SHA-256. Local installed-model discovery remains read-only, source-only, unverified.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -15261,7 +15261,7 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 950,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/cognition/model_inventory.py",
         "test/test_model_inventory_production.py",
@@ -15286,7 +15286,7 @@
         "source_review_date": "2026-10-11",
         "observed": "One production RUN background coordinator now schedules a bounded loopback-only read-only Ollama /tags-/version-/show survey at 6h intervals, skips gaming/busy/DND, prioritizes configured model metadata within budget, atomically writes one observed host inventory to canonical sofia.db, surfaces unconfigured installed candidates for human independent review in Settings, never downloads, accepts licenses, exports prompts or switches roles. Regression tests authored, not executed. Addition: ModelInventoryStore.candidate_review filters invalid, future and older-than-15-minute installed-model observation timestamps before candidate review; historical rows remain only diagnostic. Source src/sofia/cognition/model_inventory.py, unexecuted test/test_model_inventory_production.py. No automatic installation, provider switch or benchmark. Ollama candidate review now refuses digestless installed models and preserves historical inventory without treating it as currently usable. Out-of-order scans cannot regress the last canonical snapshot; test fixtures written but not run.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -15493,7 +15493,7 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 957,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/cognition/model_lifecycle.py",
         "src/sofia/cognition/routing.py",
@@ -15516,7 +15516,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Production cognition router already uses model-independent identity and the canonical Main session; current MatrixTrace persisted executed model steps. W4 adds exact assistant-message-id keyed origin table in canonical sofia.db written on genuine ConversationService persistence, storing observed role/model/host/succeeded without reply text, immutable once recorded, audience-scoped reads and on-delete purge. Unknown/failed model attempts remain unknown. Regressions authored, unexecuted.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18013,7 +18013,7 @@
       "phase": "14",
       "source_topic": "67",
       "master_line": 1110,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/evolve/training_policy.py"
       ],
@@ -18033,7 +18033,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Actual EVOLVE owner training-lab plan now binds exact enrolled Artemis Fleet host and existing Hephaestus Hyper-V VM IDs, independently reviewed train+heldout data digests, fixed seed, offline/private network, no root/SSH/secrets or canonical DB access, 2-8GiB RAM, 1-4 CPU, bounded scratch disk, hard wall/GPU/VRAM and financial caps, 30min plan lease and separate hypothetical Venus GPU source. Owner EVOLVE Settings creates immutable canonical reviewed plan; model reads only real read-only OPS blocker status. No OS exists and no GPU worker or trainer is installed, so every plan remains non-executable and cannot promote weights; source regressions authored not run. Option B cross-subsystem audit: training-lab source review now requires fresh ready_for_bootstrap_review and source-observed internal_isolation_observed from authenticated owner-created Hyper-V handoff, not only matching VM GUIDs; future guest/real GPU trust remains blocked.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18043,7 +18043,7 @@
       "phase": "14",
       "source_topic": "67",
       "master_line": 1111,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/evolve/training_policy.py",
         "test/test_evolve_training_holdout_separation.py",
@@ -18066,7 +18066,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run. Further production source preflight rejects overlapping train/held-out example prompts, exact SHA-256 changes during second inspection and re-recording permanently revoked datasets. src/sofia/evolve/training_policy.py and training_sources.py, deferred test/test_evolve_training_holdout_separation.py. Not executed; does not prove comprehensive poisoning detection. Additional reviewed local JSONL source proof: disallow redirected path ancestors, UNC source path, changed inode/size/mtime across open/read/close and overlarge streaming intake; align claimed licensed-public/owner-original/synthetic rights with public-source/owner-source provenance and reject whitespace-only examples. src/sofia/evolve/training_sources.py, test/test_training_dataset_source_identity.py deferred. Copyright ownership/license NOT externally verified.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18076,7 +18076,7 @@
       "phase": "14",
       "source_topic": "67",
       "master_line": 1112,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/evolve/training_policy.py"
       ],
@@ -18096,7 +18096,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Production owner-only EVOLVE dataset admission accepts only reviewed public/owner-original/synthetic JSONL with explicit license/provenance/owner receipts, 16MiB bounded content scan and dedup; rejects raw lifelong conversations, Discord, emotional/intimate journals, screenshots, voice and personal/secret patterns. Canonical store only retains digest/rights metadata, no raw content, and registered LoRA admission reopens/checks both train+heldout sources and forbids deployment. Owner retrieval/use never counts as weight-training consent. Deferred tests authored, not run.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18341,7 +18341,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1139,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
@@ -18363,7 +18363,7 @@
         "source_review_date": "2026-10-11",
         "observed": "One shared production NEURO runtime invokes CircuitCompetition after trusted TTL and eligibility filtering; output ranks only existing signals; tests authored and not executed.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18373,7 +18373,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1140,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
@@ -18395,7 +18395,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Competition scores, membership and winner consistency validated; exceptions and invalid results revert to deterministic salience; bounded iteration prevents unbounded recurrence; tests authored and not executed.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18405,7 +18405,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1141,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
@@ -18427,7 +18427,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Existing MEM retrieval now forms a principal/audience/promoted/query-overlap shortlist before optional NEURO sparse association scoring. Association may only rerank lexical/contextual ties, never append or unlock IDs. Source regression suite written, not run.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18437,7 +18437,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1142,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/connectome/association_store.py",
         "test/test_neuro_association_production.py",
@@ -18461,7 +18461,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Canonical opted-in audience-scoped reviewed association weights/receipt provenance, algorithm version, 64-event per-memory limit, +/-0.1 reinforcement cap, bounded score/decay and owner reset-to-baseline. No raw query persisted, and RUN schedules slow decay only while opted-in/not gaming. Tests written, not run. Additional privacy/correction hardening: neuro_association_revision_cleanup SQLite trigger erases old weights/event receipts on in-place content/principal/audience change, while no-op updates preserve receipts. Source src/sofia/neuro/connectome/association_store.py, unexecuted regression test/test_neuro_association_production.py. Does not create MEM authority or infer scientific brain equivalence.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18471,7 +18471,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1143,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
@@ -18493,7 +18493,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Actual production NeuroRuntime observes and bounded-decays project/goal/ops signals between turns, retains eligible project information in secondary attention and overrides foreground on the next user question/correction; Matrix topic history remains separately audience-scoped. W4 added explicit active-project/detour/expiry regression; not executed.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18503,7 +18503,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1144,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
@@ -18525,7 +18525,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Canonical NeuroRuntime already feeds per-turn expression via EmotionalConversationService->derive_expression_modulation, bounded ACT initiative through PresenceInitiativeEngine, and RUN background coordinator task priority. Workstream 4 added exact independent_life/autonomous_work task mapping so eligible selected attention influences their due/readiness-checked priority; no action authority. Source tests authored, unexecuted.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18590,7 +18590,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1147,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
@@ -18612,7 +18612,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Versioned salience input dictionary and competition parameters, per-turn selected/baseline/winner diagnostics, durable owner toggle and one-click reset epoch now feed the canonical runtime. Tests authored and not executed.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18622,7 +18622,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1148,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
@@ -18644,7 +18644,7 @@
         "source_review_date": "2026-10-11",
         "observed": "One shared production NEURO runtime retains bounded/decaying eligible external signals, discards prior foreground/domain signals on each user turn, and now explicitly prioritizes new conversation subject/correction before competition; channel-switch regression authored, not run.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18654,7 +18654,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1149,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/connectome/association_store.py",
         "test/test_neuro_association_production.py",
@@ -18678,7 +18678,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Production one-state association table keyed by authenticated principal/audience/candidate, opt-in disabled by default with owner Settings controls, SQLite revoke/delete triggers and JOIN status rechecks prevent stale/corrected memories from surviving. Source tests written, not run. Additional privacy/correction hardening: neuro_association_revision_cleanup SQLite trigger erases old weights/event receipts on in-place content/principal/audience change, while no-op updates preserve receipts. Source src/sofia/neuro/connectome/association_store.py, unexecuted regression test/test_neuro_association_production.py. Does not create MEM authority or infer scientific brain equivalence.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18688,7 +18688,7 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1150,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
@@ -18710,7 +18710,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Executable python -m sofia.verify.neuro_ablation uses real production NeuroRuntime, MemorySystem and canonical audience-scoped associations with disposable SQLite source fixtures. Four paired conditions compare selection accuracy, false memory eligibility, switches, signal noise, CPU/p50/p95 latency and unknown real GPU/wake data. Owner tests/host acceptance deferred.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -18881,7 +18881,7 @@
       "phase": "15",
       "source_topic": "20",
       "master_line": 1161,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
@@ -18903,7 +18903,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Production NEURO science registry persists null, refuted and adverse outcomes plus explicit control/limitation fields; typed review rejects subjective-experience claims and the Settings report explicitly prevents functional/supported behavioral results from becoming a consciousness assertion or badge. Source test authored, unrun.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -19070,7 +19070,7 @@
       "phase": "16",
       "source_topic": "8",
       "master_line": 1185,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/research_registry.py",
         "test/test_neuro_consciousness_registry_production.py",
@@ -19093,7 +19093,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Existing StudyReview never reports proof of consciousness; production canonical research report now explicitly states supported functional results cannot establish phenomenal consciousness and retains adverse/null findings. Owner input is required for independent result records. Source tests written, not executed. Follow-up protects result honesty: supported outcomes must meet original preregistered sample size; null/refuted require actual samples; full negative/adverse/refuted historical counts are rendered even if recent examples are truncated. Source src/sofia/neuro/research_registry.py, deferred tests test/test_neuro_consciousness_registry_production.py. No new scientific observation or experiment claimed.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -19103,7 +19103,7 @@
       "phase": "16",
       "source_topic": "8",
       "master_line": 1186,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/consciousness_research.py",
         "src/sofia/self_model/operational.py"
@@ -19124,7 +19124,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Production research register now separates functional agency, computational shared-workspace access, metacognitive calibration and untestable phenomenal subjectivity into explicit non-equivalent categories; biological Global Neuronal Workspace is not conflated with computational Global Workspace. Owner-reviewed protocols are restricted to falsifiable functional measures. Source tests authored, not run.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -19134,7 +19134,7 @@
       "phase": "16",
       "source_topic": "8",
       "master_line": 1187,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/consciousness_research.py",
         "src/sofia/self_model/operational.py"
@@ -19155,7 +19155,7 @@
         "source_review_date": "2026-10-11",
         "observed": "One production NeuroRuntime broadcasts at most three existing eligible machine-safe activations to ephemeral workspace with 90s expiry. Actual conversation and PERSONALITY consumers check identical snapshot generation before reading; canonical NEURO store retains bounded per-consumer read receipts, with no new scheduler, memory eligibility or action rights. Typed tests authored not executed; functional outcomes still require host ablations.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -19234,7 +19234,7 @@
       "phase": "16",
       "source_topic": "8",
       "master_line": 1191,
-      "status": "code_present_unverified",
+      "status": "partial_wiring",
       "code_paths": [
         "src/sofia/neuro/research_registry.py",
         "test/test_neuro_consciousness_registry_production.py",
@@ -19257,7 +19257,7 @@
         "source_review_date": "2026-10-11",
         "observed": "Canonical append-only-by-API NEURO research protocol and reviewed result tables retain baseline/control rules, evidence references, null/refuted/adverse/protocol-violation outcomes and limitations. Owner Settings offers preregistration and evidence-reviewed results; public report prohibits phenomenal proof claims. Tests authored, unrun. Follow-up protects result honesty: supported outcomes must meet original preregistered sample size; null/refuted require actual samples; full negative/adverse/refuted historical counts are rendered even if recent examples are truncated. Source src/sofia/neuro/research_registry.py, deferred tests test/test_neuro_consciousness_registry_production.py. No new scientific observation or experiment claimed. ResearchEvidenceRegistry now rejects duplicate exact evidence_ref submissions within a protocol under canonical SQLite BEGIN IMMEDIATE, preventing one result receipt from counting twice or reversing a stored adverse outcome; separate independent evidence remains appendable. Source src/sofia/neuro/research_registry.py, deferred test/test_neuro_consciousness_registry_production.py.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
-        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
         "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
@@ -19378,8 +19378,8 @@
     "source_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
     "verified_git_head": "3abde7cf61f20b342adbf30e9f69770459d7d047",
     "source_only": true,
-    "added_code_present_unverified": 22,
-    "added_partial_wiring": 36,
+    "added_code_present_unverified": 0,
+    "added_partial_wiring": 58,
     "accepted_delta": 0,
     "task_ids": [
       "CA-2101",
@@ -19441,6 +19441,7 @@
       "CA-808",
       "CA-812"
     ],
-    "note": "Per-ID workstream findings + existing source path verification, not test pass nor live host acceptance; other unassessed IDs unchanged."
+    "note": "All 58 reviewed WS4 sources carry verified existing paths, but absent the roadmap verifier-required production_wiring trace they remain partial_wiring. The WS4 report retains 22 source-ready candidates, not master code_present claims.",
+    "source_only_candidates_without_wiring_trace": 22
   }
 }
