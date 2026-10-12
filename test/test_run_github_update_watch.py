@@ -5,6 +5,7 @@ Release signature cryptography is also covered by existing release verifier test
 """
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -65,7 +66,8 @@ def test_unverified_push_never_requests_install_or_restart(tmp_path):
     path = tmp_path / "status.json"
     watch.publish_observation(observed, path=path)
     assert '"status":"awaiting_signed_release"' in path.read_text()
-    assert path.stat().st_mode & 0o077 == 0
+    if sys.platform != "win32":
+        assert path.stat().st_mode & 0o077 == 0
 
 
 def test_no_false_release_when_head_matches_installed(tmp_path):
@@ -129,6 +131,7 @@ def test_signature_rejection_blocks_inbox_promotion(tmp_path, monkeypatch):
     ) is None
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="requires POSIX symlinks")
 def test_installed_revision_receipt_rejects_symlinks(tmp_path):
     actual = tmp_path / "head"
     actual.write_text(REV_A)
