@@ -136,6 +136,9 @@ def test_approval_is_bound_to_external_ed25519_trust_root(tmp_path):
 
     assert loaded == approval
     assert verifier.active_capabilities(now=NOW) == ("evolve.apply",)
+    # A negative cryptographic check needs an independently first-installed
+    # disposable store; absence of state is its own earlier failure.
+    bootstrap_canonical_sqlite(tmp_path / "other.db")
     with pytest.raises(PermissionError, match="signature"):
         DurableEvolutionApprovalVerifier(
             tmp_path / "other.db",

@@ -1,4 +1,5 @@
 """Production owner model installation via canonical SAFE, tests not executed."""
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -7,6 +8,8 @@ import pytest
 from test.owner_auth_fixture import record_verified_owner_approval
 
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.config.defaults import production_storage_layout
+from sofia.identity.model import IdentityBootstrapMode
 from sofia.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
@@ -44,7 +47,15 @@ def setup(tmp_path, monkeypatch):
             ),
         ),
     )
-    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    # Mimic the complete supervised first install, not just an empty
+    # database. The production model-install entrypoint demands pre-existing
+    # protected Constitution and identity as well as canonical state.
+    layout = replace(
+        production_storage_layout(state_path=tmp_path / "sofia.db"),
+        identity_bootstrap_mode=IdentityBootstrapMode.FIRST_BOOTSTRAP,
+    )
+    layout.provision_from_source()
+    state = layout.state_path
     RuntimeUserSettingsStore(state).save(
         RuntimeUserSettings(cognitive_primary_model=MODEL)
     )
