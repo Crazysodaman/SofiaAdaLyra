@@ -131,6 +131,41 @@ class ControllerObservation:
         }
 
 
+def _hyperv_failure_code(exc: Exception) -> str:
+    """Expose bounded diagnostic categories, never raw host stderr/secrets."""
+    message = str(exc).casefold()[:4096]
+    if any(fragment in message for fragment in (
+        "access is denied", "access denied", "permission denied",
+        "unauthorizedaccess", "0x80070005", "e_accessdenied",
+    )):
+        category = "permission_denied"
+    elif any(fragment in message for fragment in (
+        "not recognized as the name", "commandnotfoundexception",
+        "module could not be loaded", "cannot find module",
+    )):
+        category = "powershell_hyperv_cmdlet_unavailable"
+    elif any(fragment in message for fragment in (
+        "rpc server is unavailable", "0x800706ba",
+        "virtual machine management service is not running",
+    )):
+        category = "hyperv_management_service_unavailable"
+    elif "cannot find" in message or "not found" in message:
+        category = "hyperv_object_unavailable"
+    else:
+        category = "hyperv_inventory_failed"
+    # Cmdlet tags identify the failing stage only if PowerShell reported it.
+    stages = (
+        ("get-vmharddiskdrive", "disk_inventory"),
+        ("get-vhd", "vhd_metadata"),
+        ("get-vmnetworkadapter", "vm_network"),
+        ("get-vmswitch", "switch_metadata"),
+        ("get-vmdvddrive", "dvd_metadata"),
+        ("get-vm", "vm_inventory"),
+    )
+    stage = next((tag for cmdlet, tag in stages if cmdlet in message), "unspecified")
+    return f"{stage}_{category}"
+
+
 def observe_exact_sofia(
     config: ArtemisControllerConfig,
     *,
@@ -144,6 +179,13 @@ def observe_exact_sofia(
     moment = now()
     try:
         report = inventory()
+    except Exception as exc:
+        # Hyper-V subprocess error details can contain paths, account names or
+        # other sensitive host data. Only a bounded reason is journaled.
+        return ControllerObservation(
+            "unavailable", None, None, (_hyperv_failure_code(exc),), moment,
+        )
+    try:
         if not isinstance(report, Mapping):
             raise ArtemisControllerError("Hyper-V inventory returned invalid object")
         vm = report.get("host_inventory")
