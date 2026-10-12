@@ -225,7 +225,12 @@ def publish_observation(observation: UpdateObservation, *, path: Path) -> None:
     descriptor, name = tempfile.mkstemp(prefix=".update-watch-", dir=path.parent)
     temporary = Path(name)
     try:
-        os.fchmod(descriptor, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, 0o600)
+        else:
+            # The runtime watcher is Debian-only; keep source-level tests
+            # importable on Windows where fchmod may not be provided.
+            os.chmod(temporary, 0o600)
         with os.fdopen(descriptor, "wb") as stream:
             stream.write(data)
             stream.flush()
