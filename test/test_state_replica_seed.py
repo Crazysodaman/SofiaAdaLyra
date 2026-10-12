@@ -10,6 +10,7 @@ import pytest
 
 from sofia.state.factory import _seed_sqlite
 from sofia.state.sqlite_access import SQLiteAccess, _ObservedConnection
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def _primary(path: Path) -> None:
@@ -70,7 +71,7 @@ def test_concurrent_publisher_is_not_replaced(tmp_path, monkeypatch):
 def test_failed_sqlite_initialization_releases_reader_and_handle(
     tmp_path, monkeypatch,
 ):
-    access = SQLiteAccess(tmp_path / "state.db", max_readers=1)
+    access = SQLiteAccess(bootstrap_canonical_sqlite(tmp_path / "state.db"), max_readers=1)
     original_execute = _ObservedConnection.execute
 
     class SetupFailure(Exception):

@@ -3,6 +3,8 @@ import sqlite3
 
 import pytest
 
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
 from sofia.state.component_schema import (
     PRODUCTION_COMPONENT_SCHEMAS,
     verify_production_component_schemas,
@@ -10,7 +12,7 @@ from sofia.state.component_schema import (
 
 
 def test_production_registration_is_idempotent(tmp_path):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     verify_production_component_schemas(state)
     verify_production_component_schemas(state)
     with sqlite3.connect(state) as db:
@@ -19,7 +21,7 @@ def test_production_registration_is_idempotent(tmp_path):
 
 
 def test_production_registration_fails_closed_without_rewriting_unknown_revision(tmp_path):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     verify_production_component_schemas(state)
     with sqlite3.connect(state) as db:
         db.execute("UPDATE state_schema_component SET current_revision=2, readable_min=2, readable_max=2, writable_min=2, writable_max=2 WHERE component='memory-reviewed'")

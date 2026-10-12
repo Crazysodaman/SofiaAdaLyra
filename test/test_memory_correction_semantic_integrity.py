@@ -5,14 +5,14 @@ import sqlite3
 import pytest
 
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.state.canonical_sqlite import CanonicalStateUnavailable, bootstrap_canonical_sqlite
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 from test.test_memory_reviewed_corrections import _candidate
 
 
 def _state(tmp_path):
-    path = tmp_path / "sofia.db"
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     plane = SQLiteStatePlane(path)
     store = DurableMemoryCandidateStore(path)
     original = _candidate("Old favorite railroad", 1)

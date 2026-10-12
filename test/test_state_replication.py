@@ -12,6 +12,7 @@ from sofia.state.replication import (
     WriterLeaseHeldError,
 )
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 4, 18, 0, tzinfo=timezone.utc)
@@ -58,9 +59,14 @@ class FlakyPlane(StatePlane):
         )
 
 
+def _bootstrapped_plane(path):
+    # This is an explicit disposable test setup, never an implicit owner write.
+    return SQLiteStatePlane(bootstrap_canonical_sqlite(path))
+
+
 def make_plane(tmp_path, *, replica=None, writer="writer-a", now=None):
-    primary = SQLiteStatePlane(tmp_path / "primary.db")
-    secondary = replica or SQLiteStatePlane(tmp_path / "secondary.db")
+    primary = _bootstrapped_plane(tmp_path / "primary.db")
+    secondary = replica or _bootstrapped_plane(tmp_path / "secondary.db")
     witness = SQLiteReplicationWitness(
         tmp_path / "witness.db", allow_first_bootstrap=True,
     )
@@ -90,7 +96,7 @@ def test_replicated_write_commits_to_every_target(tmp_path):
 
 
 def test_partial_commit_blocks_new_writes_until_repaired(tmp_path):
-    secondary = FlakyPlane(SQLiteStatePlane(tmp_path / "secondary.db"))
+    secondary = FlakyPlane(_bootstrapped_plane(tmp_path / "secondary.db"))
     plane, primary, _, witness = make_plane(tmp_path, replica=secondary)
     key = StateKey("test", "alpha")
     secondary.fail = True
@@ -139,7 +145,7 @@ def test_promotion_switches_read_primary_only_when_caught_up(tmp_path):
 
 
 def test_replicated_delete_is_idempotently_repairable(tmp_path):
-    secondary = FlakyPlane(SQLiteStatePlane(tmp_path / "secondary.db"))
+    secondary = FlakyPlane(_bootstrapped_plane(tmp_path / "secondary.db"))
     plane, primary, _, witness = make_plane(tmp_path, replica=secondary)
     key = StateKey("test", "alpha")
     plane.write(record(key, 1, b"one"), expected_revision=None)
