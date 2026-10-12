@@ -18,6 +18,7 @@ from sofia.environment.config import (
 )
 from sofia.environment.model import WeatherObservation
 from sofia.environment.provider import EnvironmentProviderObservation
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -45,6 +46,7 @@ class CapturingProvider(LLMProvider):
 
 
 def configuration(tmp_path: Path) -> SofiaConfiguration:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     personality = tmp_path / "personality.json"
     personality.write_text(
         """{

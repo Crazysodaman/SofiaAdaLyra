@@ -12,6 +12,7 @@ from sofia.safe.execution_approval import (
 )
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.ui.settings_service import install_approved_configured_model
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = pytest.mark.pkg_safe
 MODEL = "owner-reviewed/primary:9b"
@@ -43,7 +44,7 @@ def setup(tmp_path, monkeypatch):
             ),
         ),
     )
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     RuntimeUserSettingsStore(state).save(
         RuntimeUserSettings(cognitive_primary_model=MODEL)
     )

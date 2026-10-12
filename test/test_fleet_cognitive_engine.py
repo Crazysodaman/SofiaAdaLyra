@@ -18,6 +18,7 @@ from sofia.config.model import ProviderConfiguration
 from sofia.ops.capability import OpsToolService
 from sofia.ops.model import FleetHost, HostLifecycle, HostTelemetry
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW=datetime(2026,9,29,20,0,tzinfo=timezone.utc)
@@ -33,7 +34,7 @@ class LocalEngine(CognitiveEngine):
 
 
 def _ops(tmp_path,hosts):
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     ops=OpsToolService(
         state,
         state_plane=SQLiteStatePlane(state),
