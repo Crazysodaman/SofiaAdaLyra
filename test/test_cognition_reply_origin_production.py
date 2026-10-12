@@ -11,6 +11,7 @@ from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.reply_origin import ReplyModelOriginStore
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.social.principals import local_sparks_principal, discord_sparks_principal
 
 pytestmark = pytest.mark.pkg_core
@@ -29,7 +30,7 @@ def trace():
 
 
 def setup(tmp_path):
-    path=tmp_path/"sofia.db"
+    path=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     store=ConversationStore(path)
     session=store.create_session()
     return path,store,session

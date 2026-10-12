@@ -4,6 +4,7 @@ import pytest
 
 from sofia.application import SofiaApplication, SofiaApplicationError
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -89,6 +90,7 @@ def create_application(
     tmp_path: Path,
     state_path: Path,
 ) -> SofiaApplication:
+    bootstrap_canonical_sqlite(state_path)
     return SofiaApplication(
         create_configuration(
             tmp_path,

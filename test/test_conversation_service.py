@@ -412,7 +412,7 @@ def test_conversation_service_rejects_empty_response(
 
     with pytest.raises(
         ValueError,
-        match="ConversationService content must not be empty.",
+        match="ConversationService content must be nonempty text.",
     ):
         application.conversation.respond("   ")
 
@@ -427,8 +427,8 @@ def test_conversation_service_rejects_non_string_response(
     application.start()
 
     with pytest.raises(
-        TypeError,
-        match="ConversationService content must be a string.",
+        ValueError,
+        match="ConversationService content must be nonempty text.",
     ):
         application.conversation.respond(None)
 
@@ -1346,7 +1346,7 @@ def test_blank_input_does_not_bind_session_principal(
     assert session_id is not None
 
     try:
-        with pytest.raises(ValueError, match="must not be empty"):
+        with pytest.raises(ValueError, match="must be nonempty text"):
             application.conversation.respond(
                 "   ",
                 principal=local_sparks_principal(),

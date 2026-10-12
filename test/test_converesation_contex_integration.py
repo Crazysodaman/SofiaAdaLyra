@@ -8,6 +8,7 @@ from sofia.config.model import (
 from sofia.cognition.engine import CognitiveEngine
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.conversation.model import ConversationRole
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -64,6 +65,7 @@ def create_configuration(
     personality_path: Path,
     state_path: Path,
 ) -> SofiaConfiguration:
+    bootstrap_canonical_sqlite(state_path)
     return SofiaConfiguration(
         constitution_path=str(CONSTITUTION_PATH),
         constitution_hash_path=str(HASH_PATH),

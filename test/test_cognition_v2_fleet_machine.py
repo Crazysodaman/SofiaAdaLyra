@@ -7,6 +7,7 @@ from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.model import Capability
 from sofia.capability.system import CapabilitySystem
 from sofia.cognition.model import CognitiveToolDefinition
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.cognition.tools import CognitiveToolBinding, CognitiveToolDispatcher
 from sofia.cognition.v2 import (
     ActionRequirement,
@@ -80,7 +81,7 @@ def _coordinator(
             capability_name,
         ),),
     )
-    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     return FleetMachineAnswerCoordinator(
         dispatcher, EvidenceAcquisitionCoordinator(ledger)
     ), ledger

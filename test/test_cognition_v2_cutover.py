@@ -3,6 +3,7 @@ from pathlib import Path
 
 from sofia.application import SofiaApplication
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 ROOT = Path(__file__).parent.parent
@@ -15,6 +16,7 @@ RETIRED_IMPORTS = (
 
 
 def _configuration(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     personality = tmp_path / "personality.json"
     personality.write_text(
         '{"name":"Sofía","traits":["direct"],'

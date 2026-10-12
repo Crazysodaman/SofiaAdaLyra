@@ -17,6 +17,7 @@ from sofia.cognition.v2 import (
     merge_validated_drafts,
 )
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.personality.modulation import ExpressionModulation
 
 
@@ -120,6 +121,7 @@ def test_multi_question_drafts_merge_without_dropping_validated_claims():
 
 
 def _configuration(tmp_path: Path) -> SofiaConfiguration:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     personality = tmp_path / "personality.json"
     personality.write_text(
         '{"name":"Sofía","traits":["direct"],'

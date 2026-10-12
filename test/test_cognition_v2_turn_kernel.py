@@ -17,6 +17,7 @@ from sofia.cognition.v2 import (
     TurnKernelInput,
 )
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -36,6 +37,7 @@ def _turn(content: str, number: int, *, audience: str = "private:sparks"):
 
 
 def _kernel(path: Path) -> ProductionTurnKernel:
+    bootstrap_canonical_sqlite(path)
     return ProductionTurnKernel(
         SQLiteConversationFocusStore(path),
         entity_provider=lambda: (
@@ -195,7 +197,7 @@ def test_focus_is_restart_durable_and_audience_isolated(tmp_path):
 
 
 def test_store_rejects_stale_compare_and_swap(tmp_path):
-    store = SQLiteConversationFocusStore(tmp_path / "sofia.db")
+    store = SQLiteConversationFocusStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     empty = store.load(session_id="session:focus", audience_id="private:sparks")
     store.commit(replace(empty, revision=1), expected_revision=0)
 
@@ -281,6 +283,7 @@ def test_partial_evidence_cannot_settle_other_subject_or_audience(tmp_path):
 
 
 def _configuration(tmp_path: Path) -> SofiaConfiguration:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     personality_path = tmp_path / "personality.json"
     personality_path.write_text(
         '{"name":"Sofía","traits":["direct"],'

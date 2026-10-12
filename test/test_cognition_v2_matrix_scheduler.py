@@ -14,6 +14,7 @@ from sofia.cognition.v2 import (
     ValidatedCognitiveScheduler,
 )
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 
 
@@ -224,6 +225,7 @@ def test_scheduler_parallelizes_only_independent_evidence_tasks():
 
 
 def _configuration(tmp_path: Path) -> SofiaConfiguration:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     personality_path = tmp_path / "personality.json"
     personality_path.write_text(
         '{"name":"Sofía","traits":["direct"],'

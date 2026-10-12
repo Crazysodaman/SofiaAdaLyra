@@ -13,6 +13,8 @@ def test_conversation_trace_is_content_free(monkeypatch, capsys):
     service._model_lock = RLock()
     service._active_user_requests = 0
     service._last_user_activity = monotonic()
+    # Bypass __init__ to exercise lock timing on an already settled replay.
+    service._last_turn_replayed = True
     assert service.respond("canary-private-prompt") == "ok"
     trace = capsys.readouterr().err
     assert "[sofia-perf] conversation lock_wait_ms=" in trace
@@ -41,6 +43,8 @@ def test_contention_produces_nonzero_wait_without_data_leak(monkeypatch, capsys)
     service._model_lock = RLock()
     service._active_user_requests = 0
     service._last_user_activity = monotonic()
+    # Bypass __init__ to exercise lock timing on an already settled replay.
+    service._last_turn_replayed = True
     entered = Event()
     release = Event()
 
