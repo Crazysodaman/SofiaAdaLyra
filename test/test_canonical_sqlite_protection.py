@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime, timezone
+import os
 import sqlite3
 
 import pytest
@@ -44,6 +45,11 @@ def test_ordinary_owner_never_bootstraps_missing_state(tmp_path, owner):
 def test_guard_rejects_regular_file_replacement_after_start(tmp_path):
     path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     guard = CanonicalSQLiteGuard(path)
+    if os.name != "nt":
+        # A pinned open descriptor prevents inode number recycling after
+        # unlink, while the live owner still rejects the replacement.
+        assert guard._pinned_fd is not None
+        assert os.fstat(guard._pinned_fd).st_ino == path.stat().st_ino
     path.unlink()
     replacement = tmp_path / "replacement.db"
     with closing(sqlite3.connect(replacement)) as db:

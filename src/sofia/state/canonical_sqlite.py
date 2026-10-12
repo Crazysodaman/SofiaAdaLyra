@@ -59,9 +59,42 @@ class CanonicalSQLiteGuard:
     path: Path | str
     _absolute_path: Path = field(init=False, repr=False)
     _identity: tuple[int, int] = field(init=False, repr=False)
+    _pinned_fd: int | None = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
         self._absolute_path, self._identity = require_existing_sqlite(self.path)
+        if os.name != "nt":
+            # Unix can immediately recycle an inode after unlink. Pin the
+            # original filesystem object while this owner lives, otherwise
+            # (dev, ino) alone can accept a wholly different replacement.
+            flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+            flags |= getattr(os, "O_NOFOLLOW", 0)
+            try:
+                descriptor = os.open(self._absolute_path, flags)
+            except OSError as exc:
+                raise CanonicalStateUnavailable(
+                    "canonical SQLite file cannot be pinned for safe ownership"
+                ) from exc
+            try:
+                details = os.fstat(descriptor)
+                if (int(details.st_dev), int(details.st_ino)) != self._identity:
+                    raise CanonicalStateUnavailable(
+                        "canonical SQLite state changed while pinning ownership"
+                    )
+                self.validate()
+            except BaseException:
+                os.close(descriptor)
+                raise
+            self._pinned_fd = descriptor
+
+    def __del__(self) -> None:
+        descriptor = getattr(self, "_pinned_fd", None)
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+            self._pinned_fd = None
 
     @property
     def canonical_path(self) -> Path:
