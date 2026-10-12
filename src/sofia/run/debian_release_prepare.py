@@ -54,7 +54,8 @@ def prepare_candidate(
     environments: Path = Path("/opt/sofia/releases"),
 ) -> DebianPreparedCandidate:
     require_debian_guest()
-    if os.geteuid() != 0:
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is None or geteuid() != 0:
         raise PermissionError("Debian release preparation requires the external privileged installer")
     if not isinstance(revision, str) or _SHA.fullmatch(revision) is None:
         raise ValueError("exact committed source revision required")
