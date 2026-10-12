@@ -818,14 +818,26 @@ def test_named_domain_permission_contract_is_locked():
 def test_permissions_cli_grant_list_revoke_and_private(tmp_path, capsys):
     state = tmp_path / "sofia.db"
 
-    assert permissions_cli_main([
-        "--state-path", str(state),
-        "grant",
-        "portainer.container.restart",
-        "--scope-json", '{"container_id":"mealie"}',
-    ]) == 0
-    granted = json.loads(capsys.readouterr().out)
-    grant_id = granted["grant_id"]
+    # A CLI command cannot manufacture the owner's FIDO2 ceremony from
+    # a display name. Noninteractive scripts must not acquire standing grants.
+    with pytest.raises(SystemExit) as missing_credential:
+        permissions_cli_main([
+            "--state-path", str(state),
+            "grant",
+            "portainer.container.restart",
+            "--scope-json", '{"container_id":"mealie"}',
+        ])
+    assert missing_credential.value.code == 2
+    assert "--credential-id" in capsys.readouterr().err
+
+    # The canonical store is tested through a genuinely signed synthetic
+    # WebAuthn assertion, not by bypassing owner authentication.
+    store = PermissionStore(state)
+    granted = grant_with_signed_owner(
+        store, "portainer.container.restart",
+        scope={"container_id": "mealie"}, granted_by="Sparks",
+    )
+    grant_id = granted.grant_id
 
     assert permissions_cli_main([
         "--state-path", str(state),
@@ -836,26 +848,27 @@ def test_permissions_cli_grant_list_revoke_and_private(tmp_path, capsys):
     assert listed[0]["grant_id"] == grant_id
     assert listed[0]["scope"] == {"container_id": "mealie"}
 
+    private_with_signed_owner(
+        store,
+        private_chat=False,
+        adult_chat=True,
+        adult_avatar=True,
+        adult_external_delivery=False,
+        updated_by="Sparks",
+    )
     assert permissions_cli_main([
-        "--state-path", str(state),
-        "private",
-        "set",
-        "--adult-chat", "on",
-        "--adult-avatar", "on",
+        "--state-path", str(state), "private", "show",
     ]) == 0
     private = json.loads(capsys.readouterr().out)
     assert private["adult_chat"] is True
     assert private["adult_avatar"] is True
     assert private["adult_external_delivery"] is False
 
-    assert permissions_cli_main([
-        "--state-path", str(state),
-        "revoke",
-        grant_id,
-    ]) == 0
-    revoked = json.loads(capsys.readouterr().out)
-    assert revoked["grant_id"] == grant_id
-    assert revoked["revoked_at"] is not None
+    revoked = revoke_with_signed_owner(
+        store, grant_id, revoked_by="Sparks",
+    )
+    assert revoked.grant_id == grant_id
+    assert revoked.revoked_at is not None
 
 
 def test_permissions_cli_refuses_protected_standing_grant(tmp_path, capsys):
