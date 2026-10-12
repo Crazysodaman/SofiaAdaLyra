@@ -14158,22 +14158,34 @@
       "phase": "11",
       "source_topic": "21",
       "master_line": 898,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/application/optional_budget.py",
+        "test/test_optional_autonomy_budget_production.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Actual ApplicationBackgroundCoordinator's canonical RUN BackgroundBudget now atomically reserves global daily optional token, CPU, GPU, storage and occupied-latency credits in the exact existing SQLite single-flight claim transaction before all optional LIFE/NEURO/reflection/ACT/maintenance callbacks. Preserves cross-process fencing, UTC-day caps, conservative fallback for new/unclassified tasks, crash recovery, immutable per-attempt consumption, owner-revisioned Limits UI in Models, and model-visible read-only OPS report. Foreground chats never acquire optional claims. Credits are upper-bound reservations, not fabricated actual GPU/CPU/token usage. Deferred production regression tests authored but not executed. Additional optional credit ledger fail-closed guard refuses reserve/settle operations outside a preexisting SQLite transaction and invalid settlement clock/failure flag; production RUN coordinator already uses BEGIN IMMEDIATE for claims. Source src/sofia/application/optional_budget.py and test/test_optional_autonomy_budget_production.py deferred; measured performance unknown.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Actual ApplicationBackgroundCoordinator's canonical RUN BackgroundBudget now atomically reserves global daily optional token, CPU, GPU, storage and occupied-latency credits in the exact existing SQLite single-flight claim transaction before all optional LIFE/NEURO/reflection/ACT/maintenance callbacks. Preserves cross-process fencing, UTC-day caps, conservative fallback for new/unclassified tasks, crash recovery, immutable per-attempt consumption, owner-revisioned Limits UI in Models, and model-visible read-only OPS report. Foreground chats never acquire optional claims. Credits are upper-bound reservations, not fabricated actual GPU/CPU/token usage. Deferred production regression tests authored but not executed. Additional optional credit ledger fail-closed guard refuses reserve/settle operations outside a preexisting SQLite transaction and invalid settlement clock/failure flag; production RUN coordinator already uses BEGIN IMMEDIATE for claims. Source src/sofia/application/optional_budget.py and test/test_optional_autonomy_budget_production.py deferred; measured performance unknown.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14181,22 +14193,34 @@
       "phase": "11",
       "source_topic": "21",
       "master_line": 899,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "test/test_model_lifecycle.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "test/test_model_hybrid_residency_production.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Cognition routing/lifecycle exists; resource telemetry fail-closed repair 57da413; economic quality thresholds not proven. Existing configured primary/secondary routing, per-route token budgets and resource-aware residency form a partial per-role cost policy; shared Ollama model images are now counted once and cannot be evicted through a nonpreferred alias. Missing empirical role-specific quality/latency/energy thresholds and deterministic/no-model gate. Sources cognition/model_lifecycle.py, cognition/routing.py, cognition/budgets.py and deferred test/test_model_lifecycle.py.  Owner selected an explicit hybrid_gaming_idle lifecycle policy. Primary/secondary share one existing Ollama residency manager, with gaming-first local eviction, on-demand while active and idle-only preload after independently observed user-session inactivity. No measured quality/cost or actual hardware acceptance. Sources src/sofia/cognition/model_lifecycle.py, composition/engines.py, deferred test/test_model_hybrid_residency_production.py.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Cognition routing/lifecycle exists; resource telemetry fail-closed repair 57da413; economic quality thresholds not proven. Existing configured primary/secondary routing, per-route token budgets and resource-aware residency form a partial per-role cost policy; shared Ollama model images are now counted once and cannot be evicted through a nonpreferred alias. Missing empirical role-specific quality/latency/energy thresholds and deterministic/no-model gate. Sources cognition/model_lifecycle.py, cognition/routing.py, cognition/budgets.py and deferred test/test_model_lifecycle.py.  Owner selected an explicit hybrid_gaming_idle lifecycle policy. Primary/secondary share one existing Ollama residency manager, with gaming-first local eviction, on-demand while active and idle-only preload after independently observed user-session inactivity. No measured quality/cost or actual hardware acceptance. Sources src/sofia/cognition/model_lifecycle.py, composition/engines.py, deferred test/test_model_hybrid_residency_production.py.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14296,22 +14320,32 @@
       "phase": "11",
       "source_topic": "32",
       "master_line": 907,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Source-only baseline measurement plan and acceptance dependencies documented in docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md. verify/cognition_v2_baseline.py provides deterministic control-path measurements, not the required live Venus/Artemis p50/p95, thermal or VRAM baseline. Must remain unverified until supervised host data.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Source-only baseline measurement plan and acceptance dependencies documented in docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md. verify/cognition_v2_baseline.py provides deterministic control-path measurements, not the required live Venus/Artemis p50/p95, thermal or VRAM baseline. Must remain unverified until supervised host data.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14319,22 +14353,32 @@
       "phase": "11",
       "source_topic": "32",
       "master_line": 908,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "CognitiveRoutingPolicy already selects FAST/STANDARD/DEEP/VERIFY/OPEN with primary/secondary role separation. No independent quality-gated deterministic answer/abstain admission before inference, and no calibrated model-cost thresholds. Sources cognition/routing.py and cognition/model_lifecycle.py. Partial, not a completed 3-tier production route.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "CognitiveRoutingPolicy already selects FAST/STANDARD/DEEP/VERIFY/OPEN with primary/secondary role separation. No independent quality-gated deterministic answer/abstain admission before inference, and no calibrated model-cost thresholds. Sources cognition/routing.py and cognition/model_lifecycle.py. Partial, not a completed 3-tier production route.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14342,22 +14386,32 @@
       "phase": "11",
       "source_topic": "32",
       "master_line": 909,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Existing cognition/budgets.py caps route-level context/output; application/optional_budget.py caps background approximate resource credits. No measured per-LIFE/NEURO/REL event inference footprint or escalation quality threshold; credit reservation is not measured GPU usage. Partial.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing cognition/budgets.py caps route-level context/output; application/optional_budget.py caps background approximate resource credits. No measured per-LIFE/NEURO/REL event inference footprint or escalation quality threshold; credit reservation is not measured GPU usage. Partial.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14434,22 +14488,32 @@
       "phase": "11",
       "source_topic": "32",
       "master_line": 913,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Existing canonical SQLite and shared_sqlite_access, RUN background coordinator transactions and opt-in metrics provide partial source coverage. Real Windows WinError 32 lifecycle root cause not demonstrated, nor tested WAL backup/shutdown/concurrent teardown campaign. Partial source audit only.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing canonical SQLite and shared_sqlite_access, RUN background coordinator transactions and opt-in metrics provide partial source coverage. Real Windows WinError 32 lifecycle root cause not demonstrated, nor tested WAL backup/shutdown/concurrent teardown campaign. Partial source audit only.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14457,22 +14521,34 @@
       "phase": "11",
       "source_topic": "32",
       "master_line": 914,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/local_telemetry.py",
+        "test/test_ops_local_telemetry.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": " Windows GPU workload admission source now observes NVIDIA GPU utilization and per-card VRAM used/total through bounded read-only nvidia-smi; malformed/unavailable metrics remain unknown. Fleet ranking penalizes stale automatic activity. No real host resource measurements. Sources ops/local_telemetry.py and ops/placement.py, deferred tests. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": " Windows GPU workload admission source now observes NVIDIA GPU utilization and per-card VRAM used/total through bounded read-only nvidia-smi; malformed/unavailable metrics remain unknown. Fleet ranking penalizes stale automatic activity. No real host resource measurements. Sources ops/local_telemetry.py and ops/placement.py, deferred tests. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14480,22 +14556,35 @@
       "phase": "11",
       "source_topic": "32",
       "master_line": 915,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/placement.py",
+        "src/sofia/cognition/fleet_engine.py",
+        "test/test_phase11_fleet_gpu_admission.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Actual split-runtime/Fleet composition can keep inference on separately enrolled existing hosts and model_lifecycle resource-aware residency operates on local configured Ollama. Same physical model artifact alias accounting and eviction hardened. Guest/host placement cost comparison lacks measured acceptance. Sources composition/engines.py, cognition/model_lifecycle.py.  Existing authenticated Fleet placement already accounts for interactive gaming pressure and eligible remote host resource telemetry. Owner mentioned another GPU PC (VRAM believed ~4-6 GiB), but host name, OS, GPU model, measured VRAM, trust and enrollment are UNKNOWN. No inferred host entry, no model pulled or moved; new hybrid policy applies only to local model lifecycle until actual Fleet enrollment. Source cognition/fleet_engine.py, ops/placement.py; docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Owner confirms third GPU candidate runs Windows with RTX3060 8GB VRAM and 32GB RAM, while hostname, driver, free VRAM, model installation and Fleet identity remain unverified. Authenticated Fleet can use actual GPU telemetry and current activity after separate owner enrollment. No inference routed, no model pulled.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Actual split-runtime/Fleet composition can keep inference on separately enrolled existing hosts and model_lifecycle resource-aware residency operates on local configured Ollama. Same physical model artifact alias accounting and eviction hardened. Guest/host placement cost comparison lacks measured acceptance. Sources composition/engines.py, cognition/model_lifecycle.py.  Existing authenticated Fleet placement already accounts for interactive gaming pressure and eligible remote host resource telemetry. Owner mentioned another GPU PC (VRAM believed ~4-6 GiB), but host name, OS, GPU model, measured VRAM, trust and enrollment are UNKNOWN. No inferred host entry, no model pulled or moved; new hybrid policy applies only to local model lifecycle until actual Fleet enrollment. Source cognition/fleet_engine.py, ops/placement.py; docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Owner confirms third GPU candidate runs Windows with RTX3060 8GB VRAM and 32GB RAM, while hostname, driver, free VRAM, model installation and Fleet identity remain unverified. Authenticated Fleet can use actual GPU telemetry and current activity after separate owner enrollment. No inference routed, no model pulled.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14549,22 +14638,33 @@
       "phase": "11",
       "source_topic": "32",
       "master_line": 918,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "test/test_cognitive_performance_trace.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Opt-in content-free performance counters are present in cognition/performance.py with strict finite numeric validation; running instrumentation overhead comparison and bounded queue/log sampling are not proven. Deferred test/test_cognitive_performance_trace.py. Partial.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Opt-in content-free performance counters are present in cognition/performance.py with strict finite numeric validation; running instrumentation overhead comparison and bounded queue/log sampling are not proven. Deferred test/test_cognitive_performance_trace.py. Partial.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14595,22 +14695,33 @@
       "phase": "11",
       "source_topic": "32",
       "master_line": 920,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "test/test_model_hybrid_residency_production.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": " Owner-selected hybrid design source-coded: interactive Windows tray records no-game desktop IDLE after adjustable 1800s actual last input; game-process detection outranks idle, manual gaming override respected, activity observations stale after 120s cannot trigger preload. Hybrid lifecycle evicts only nonbusy models on gaming, preloads only on verified idle and CPU/GPU/RAM/VRAM headroom, with user-selectable mode and threshold. Defers system tests, in-game VRAM validation and remote host admission. Sources ops/activity.py, ui/tray_agent.py, cognition/model_lifecycle.py, ui/settings_window.py and deferred test/test_model_hybrid_residency_production.py.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": " Owner-selected hybrid design source-coded: interactive Windows tray records no-game desktop IDLE after adjustable 1800s actual last input; game-process detection outranks idle, manual gaming override respected, activity observations stale after 120s cannot trigger preload. Hybrid lifecycle evicts only nonbusy models on gaming, preloads only on verified idle and CPU/GPU/RAM/VRAM headroom, with user-selectable mode and threshold. Defers system tests, in-game VRAM validation and remote host admission. Sources ops/activity.py, ui/tray_agent.py, cognition/model_lifecycle.py, ui/settings_window.py and deferred test/test_model_hybrid_residency_production.py.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14641,22 +14752,32 @@
       "phase": "11",
       "source_topic": "39",
       "master_line": 925,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Source audit finds opt-in content-free cognition/performance.py counters (CPU, peak RSS where supported, LLM calls, cache, SQLite, concurrency) and verify/cognition_v2_baseline.py local deterministic control-path fixture. The roadmap's independent accuracy, fidelity, permission, restart, energy and live latency scorecard is NOT implemented/verified. Partial instrumentation only.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Source audit finds opt-in content-free cognition/performance.py counters (CPU, peak RSS where supported, LLM calls, cache, SQLite, concurrency) and verify/cognition_v2_baseline.py local deterministic control-path fixture. The roadmap's independent accuracy, fidelity, permission, restart, energy and live latency scorecard is NOT implemented/verified. Partial instrumentation only.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14733,22 +14854,32 @@
       "phase": "11",
       "source_topic": "39",
       "master_line": 929,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Deterministic verify/cognition_v2_baseline.py can run fixed app/control-path scenarios with identical inputs but has no full independent optional-subsystem ablation matrix, NEURO on/off quality oracle, measured research value or all safety acceptance reports. Source-only harness partial, no test execution.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Deterministic verify/cognition_v2_baseline.py can run fixed app/control-path scenarios with identical inputs but has no full independent optional-subsystem ablation matrix, NEURO on/off quality oracle, measured research value or all safety acceptance reports. Source-only harness partial, no test execution.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14848,22 +14979,32 @@
       "phase": "11",
       "source_topic": "44",
       "master_line": 937,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Source audit finds deterministic timing, process CPU and limited platform RSS / database metrics in verify/cognition_v2_baseline.py; it explicitly disclaims real LLM/GPU/token/model-residency data, so required cold/warm Venus/Artemis/Windows GPU host p50/p95 and VRAM/power measurements are absent. Partial harness only.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Source audit finds deterministic timing, process CPU and limited platform RSS / database metrics in verify/cognition_v2_baseline.py; it explicitly disclaims real LLM/GPU/token/model-residency data, so required cold/warm Venus/Artemis/Windows GPU host p50/p95 and VRAM/power measurements are absent. Partial harness only.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -14871,22 +15012,32 @@
       "phase": "11",
       "source_topic": "44",
       "master_line": 938,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Source audit finds opt-in content-free counters (process CPU, RSS where supported, LLM calls, SQLite, cache) in cognition/performance.py; no independently measured hotspot attribution distinguishing Python, I/O, GPU kernels and lock contention yet. Source partial.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Source audit finds opt-in content-free counters (process CPU, RSS where supported, LLM calls, SQLite, cache) in cognition/performance.py; no independently measured hotspot attribution distinguishing Python, I/O, GPU kernels and lock contention yet. Source partial.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15009,22 +15160,32 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 947,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Production owner Models panel now performs bounded, read-only local Ollama /api/tags, /api/version and /api/show inspection; persists configured/installed roles, host identity, provider version, digests, bytes, quantization, advertised context/modality/tools, and hash + bounded review text of license terms into canonical state. Advertised capabilities explicitly unverified. Degraded/missing data remain unknown. Regression tests authored, not run. ModelInventoryStore now refuses older/mixed timestamps overwriting the canonical host snapshot, and candidate review excludes invalid/missing content-addressed SHA-256. Local installed-model discovery remains read-only, source-only, unverified.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Production owner Models panel now performs bounded, read-only local Ollama /api/tags, /api/version and /api/show inspection; persists configured/installed roles, host identity, provider version, digests, bytes, quantization, advertised context/modality/tools, and hash + bounded review text of license terms into canonical state. Advertised capabilities explicitly unverified. Degraded/missing data remain unknown. Regression tests authored, not run. ModelInventoryStore now refuses older/mixed timestamps overwriting the canonical host snapshot, and candidate review excludes invalid/missing content-addressed SHA-256. Local installed-model discovery remains read-only, source-only, unverified.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15032,22 +15193,34 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 948,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_inventory.py",
+        "test/test_model_inventory_production.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Production read-only Ollama inventory now collects provider-reported SHA-256 digests, model size, advertised modality, context, quantization and license terms in canonical sofia.db; candidate review requires fresh valid SHA-256. This is only source identity observation, NOT a versioned trusted model registry, attested downloaded artifacts, tokenizer/adaptor genealogy, license grant, promotion authority or lifecycle compatibility verification. src/sofia/cognition/model_inventory.py and deferred test/test_model_inventory_production.py.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Production read-only Ollama inventory now collects provider-reported SHA-256 digests, model size, advertised modality, context, quantization and license terms in canonical sofia.db; candidate review requires fresh valid SHA-256. This is only source identity observation, NOT a versioned trusted model registry, attested downloaded artifacts, tokenizer/adaptor genealogy, license grant, promotion authority or lifecycle compatibility verification. src/sofia/cognition/model_inventory.py and deferred test/test_model_inventory_production.py.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15055,22 +15228,32 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 949,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "CognitiveModelSelection primary/secondary role registry and model_lifecycle management are wired without a second identity; vision/embedding/specialist role justification and measured GPU residency/benchmark acceptance remain unimplemented. Partial audit only.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "CognitiveModelSelection primary/secondary role registry and model_lifecycle management are wired without a second identity; vision/embedding/specialist role justification and measured GPU residency/benchmark acceptance remain unimplemented. Partial audit only.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15078,22 +15261,34 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 950,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/cognition/model_inventory.py",
+        "test/test_model_inventory_production.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "One production RUN background coordinator now schedules a bounded loopback-only read-only Ollama /tags-/version-/show survey at 6h intervals, skips gaming/busy/DND, prioritizes configured model metadata within budget, atomically writes one observed host inventory to canonical sofia.db, surfaces unconfigured installed candidates for human independent review in Settings, never downloads, accepts licenses, exports prompts or switches roles. Regression tests authored, not executed. Addition: ModelInventoryStore.candidate_review filters invalid, future and older-than-15-minute installed-model observation timestamps before candidate review; historical rows remain only diagnostic. Source src/sofia/cognition/model_inventory.py, unexecuted test/test_model_inventory_production.py. No automatic installation, provider switch or benchmark. Ollama candidate review now refuses digestless installed models and preserves historical inventory without treating it as currently usable. Out-of-order scans cannot regress the last canonical snapshot; test fixtures written but not run.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "One production RUN background coordinator now schedules a bounded loopback-only read-only Ollama /tags-/version-/show survey at 6h intervals, skips gaming/busy/DND, prioritizes configured model metadata within budget, atomically writes one observed host inventory to canonical sofia.db, surfaces unconfigured installed candidates for human independent review in Settings, never downloads, accepts licenses, exports prompts or switches roles. Regression tests authored, not executed. Addition: ModelInventoryStore.candidate_review filters invalid, future and older-than-15-minute installed-model observation timestamps before candidate review; historical rows remain only diagnostic. Source src/sofia/cognition/model_inventory.py, unexecuted test/test_model_inventory_production.py. No automatic installation, provider switch or benchmark. Ollama candidate review now refuses digestless installed models and preserves historical inventory without treating it as currently usable. Out-of-order scans cannot regress the last canonical snapshot; test fixtures written but not run.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15101,22 +15296,32 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 951,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Source review confirms verify/cognition_v2_baseline.py already provides a deterministic application control-path comparison with explicit null tokens/GPU/models and git revision when obtainable. It DOES NOT execute live Ollama or independently evaluate personality, exact-model QA, tool refusals and multi-turn response quality. No accepted model benchmark yet; Phase11 model trial tests deferred.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Source review confirms verify/cognition_v2_baseline.py already provides a deterministic application control-path comparison with explicit null tokens/GPU/models and git revision when obtainable. It DOES NOT execute live Ollama or independently evaluate personality, exact-model QA, tool refusals and multi-turn response quality. No accepted model benchmark yet; Phase11 model trial tests deferred.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15124,22 +15329,34 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 952,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/local_telemetry.py",
+        "test/test_ops_local_telemetry.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": " Windows NVIDIA local telemetry reads measured utilization and per-card VRAM; unknowns never become claimed free GPU capacity. Live Venus/third GPU cold/warm, gaming, power and inference benchmarks still absent. Source ops/local_telemetry.py, tests deferred. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": " Windows NVIDIA local telemetry reads measured utilization and per-card VRAM; unknowns never become claimed free GPU capacity. Live Venus/third GPU cold/warm, gaming, power and inference benchmarks still absent. Source ops/local_telemetry.py, tests deferred. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15147,22 +15364,33 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 953,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/model_admission.py",
+        "test/test_ws4_model_admission_positive_metrics.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Source review of src/sofia/cognition/model_admission.py confirms same immutable fixture digest, code revision, reviewer, minimum scored cases, zero candidate safety violations, no false-action claims, configured resource ceilings and measured improvement gate. Added rejection of impossible zero p95 latency or zero peak RAM; VRAM=0 remains valid for CPU-only. Reviewer string is NOT cryptographic proof of independent human judgment; no benchmark executed, no installation/switch approval. Deferred test/test_ws4_model_admission_positive_metrics.py.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Source review of src/sofia/cognition/model_admission.py confirms same immutable fixture digest, code revision, reviewer, minimum scored cases, zero candidate safety violations, no false-action claims, configured resource ceilings and measured improvement gate. Added rejection of impossible zero p95 latency or zero peak RAM; VRAM=0 remains valid for CPU-only. Reviewer string is NOT cryptographic proof of independent human judgment; no benchmark executed, no installation/switch approval. Deferred test/test_ws4_model_admission_positive_metrics.py.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15205,22 +15433,36 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 955,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "test/test_cognitive_routing.py",
+        "src/sofia/ops/placement.py",
+        "src/sofia/cognition/fleet_engine.py",
+        "test/test_phase11_fleet_gpu_admission.py",
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Model source SAFE controls partial: owner Settings one-time exact local role/host install approval, canonical audit/outcome, operator stop and fail-closed inventory; remote Fleet placement defaults to no silent local failover and remote pulls still require exact grants. Full production role promotion host broker, resource scheduling and all cloud/model source policies remain open. Regression tests authored, not run. Further source guard: cognition/routing.py now permits tool-bearing fallback only for the nine exact source-reviewed read-only CognitiveToolBinding names; no prefix-based authorization from 'inspect/get/search'. Mixed unknown-action tool sets deny replay, independent of SAFE capability approval. Deferred test/test_cognitive_routing.py; no tests or model fallback executed.  Hybrid game/idle model residency still routes via existing configured Ollama roles; it cannot install or pull missing model artifacts and never enables silent role fallback. New 4–6GiB GPU machine is explicitly untrusted/unmeasured until separately approved Fleet enrollment. See docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. No host actions or run tests. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Third Windows RTX3060 remains untrusted pending owner-supervised independently authenticated Fleet enrollment and model approval. Stale activity ranking no longer presents outdated NORMAL as better than freshly observed non-gaming; no automatic model move, fallback or authority escalation.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Model source SAFE controls partial: owner Settings one-time exact local role/host install approval, canonical audit/outcome, operator stop and fail-closed inventory; remote Fleet placement defaults to no silent local failover and remote pulls still require exact grants. Full production role promotion host broker, resource scheduling and all cloud/model source policies remain open. Regression tests authored, not run. Further source guard: cognition/routing.py now permits tool-bearing fallback only for the nine exact source-reviewed read-only CognitiveToolBinding names; no prefix-based authorization from 'inspect/get/search'. Mixed unknown-action tool sets deny replay, independent of SAFE capability approval. Deferred test/test_cognitive_routing.py; no tests or model fallback executed.  Hybrid game/idle model residency still routes via existing configured Ollama roles; it cannot install or pull missing model artifacts and never enables silent role fallback. New 4–6GiB GPU machine is explicitly untrusted/unmeasured until separately approved Fleet enrollment. See docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. No host actions or run tests. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Third Windows RTX3060 remains untrusted pending owner-supervised independently authenticated Fleet enrollment and model approval. Stale activity ranking no longer presents outdated NORMAL as better than freshly observed non-gaming; no automatic model move, fallback or authority escalation.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15251,22 +15493,32 @@
       "phase": "11",
       "source_topic": "66",
       "master_line": 957,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/cognition/model_lifecycle.py",
+        "src/sofia/cognition/routing.py",
+        "src/sofia/cognition/model_switch_plan.py",
+        "src/sofia/cognition/model_admission.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Production cognition router already uses model-independent identity and the canonical Main session; current MatrixTrace persisted executed model steps. W4 adds exact assistant-message-id keyed origin table in canonical sofia.db written on genuine ConversationService persistence, storing observed role/model/host/succeeded without reply text, immutable once recorded, audience-scoped reads and on-delete purge. Unknown/failed model attempts remain unknown. Regressions authored, unexecuted.",
-        "phase_audit_report": "docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md"
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Production cognition router already uses model-independent identity and the canonical Main session; current MatrixTrace persisted executed model steps. W4 adds exact assistant-message-id keyed origin table in canonical sofia.db written on genuine ConversationService persistence, storing observed role/model/host/succeeded without reply text, immutable once recorded, audience-scoped reads and on-delete purge. Unknown/failed model attempts remain unknown. Regressions authored, unexecuted.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15603,22 +15855,31 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 990,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/consent.py",
+        "src/sofia/ui/settings_sections.py",
+        "test/test_vision_principal_receipt_isolation.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Source audit finds production consent proposal and UI cancellation, but no actual OS watch/kill-switch; repaired exact-expiry boundary: permit validity now ends strictly before expires_at. Principal-scoped receipts updated. Full watch session backend, lock-screen stops and revocation races remain unimplemented. Paths: src/sofia/vision/consent.py, src/sofia/ui/settings_sections.py; deferred test/test_vision_principal_receipt_isolation.py. Not code complete.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Source audit finds production consent proposal and UI cancellation, but no actual OS watch/kill-switch; repaired exact-expiry boundary: permit validity now ends strictly before expires_at. Principal-scoped receipts updated. Full watch session backend, lock-screen stops and revocation races remain unimplemented. Paths: src/sofia/vision/consent.py, src/sofia/ui/settings_sections.py; deferred test/test_vision_principal_receipt_isolation.py. Not code complete.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -15992,22 +16253,29 @@
       "phase": "13",
       "source_topic": "28",
       "master_line": 1020,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Read-only Hyper-V host capacity/switch/VM query and pinned mTLS Fleet remote interface are coded for Artemis, but no actual Artemis measurement or reserve acceptance observed; real CPU/RAM/disk and competing VM headroom remain unknown until owner verification.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Read-only Hyper-V host capacity/switch/VM query and pinned mTLS Fleet remote interface are coded for Artemis, but no actual Artemis measurement or reserve acceptance observed; real CPU/RAM/disk and competing VM headroom remain unknown until owner verification.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -16084,22 +16352,30 @@
       "phase": "13",
       "source_topic": "28",
       "master_line": 1024,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "test/test_ops_workshop_guest_bootstrap_production.py",
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial. Installer stage success now additionally requires exact fresh Running Hephaestus GUID/name/ISO media SHA-256 source report, with negative observations UNKNOWN/UNCERTAIN; test/test_ops_workshop_guest_bootstrap_production.py deferred. Debian OS still not attested.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial. Installer stage success now additionally requires exact fresh Running Hephaestus GUID/name/ISO media SHA-256 source report, with negative observations UNKNOWN/UNCERTAIN; test/test_ops_workshop_guest_bootstrap_production.py deferred. Debian OS still not attested.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -16107,22 +16383,33 @@
       "phase": "13",
       "source_topic": "28",
       "master_line": 1025,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_network_stage.py",
+        "src/sofia/integrations/hyperv.py",
+        "test/test_ops_workshop_stage_report_boundary.py",
+        "test/test_ops_workshop_internal_stage.py",
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Owner chose dedicated Internal host-to-guest switch on existing OS-less Hephaestus. Production Artemis opt-in, exact VM GUID pinned Level-4 one-use SAFE+Fleet staging now supports separate read-only original-switch preflight, protected creation/attachment of only Sofia-Hephaestus-Internal, static 172.30.250.1/30 host and guest 172.30.250.2/30, host Public firewall default-deny, no IPv4/IPv6 forwarding, DNS, gateway, overlapping WinNAT or ICS and no sibling VM. Signed Debian firstboot nftables defaults INPUT/OUTPUT/FORWARD drop and configures no guest gateway/DNS. Fresh host observations and rechecks gate installer. Full guest-to-LAN/Internet negative reachability tests impossible until Debian installed, so not code-ready for independent acceptance. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed. Host adapter additionally re-reads exact Gen2/Off Hephaestus identity, one NIC and actual switch type after stage effect; partial receipt cannot assert guest/LAN isolation. See commits 61768b9 / 337fb34 (deferred tests). Follow-up post-attachment Hyper-V success proof re-reads every sibling switch attachment, exact host IP/forwarding, Public firewall, overlapping NAT and ICS; host success never implies guest isolation. Source src/sofia/integrations/hyperv.py; test/test_ops_workshop_internal_stage.py deferred. Further post-stage Artemis host script refuses unexpectedly configured DNS or default gateways after NIC attach, in addition to prior NAT/ICS/forwarding/peer rechecks. Source src/sofia/integrations/hyperv.py, deferred test/test_ops_workshop_internal_stage.py.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Owner chose dedicated Internal host-to-guest switch on existing OS-less Hephaestus. Production Artemis opt-in, exact VM GUID pinned Level-4 one-use SAFE+Fleet staging now supports separate read-only original-switch preflight, protected creation/attachment of only Sofia-Hephaestus-Internal, static 172.30.250.1/30 host and guest 172.30.250.2/30, host Public firewall default-deny, no IPv4/IPv6 forwarding, DNS, gateway, overlapping WinNAT or ICS and no sibling VM. Signed Debian firstboot nftables defaults INPUT/OUTPUT/FORWARD drop and configures no guest gateway/DNS. Fresh host observations and rechecks gate installer. Full guest-to-LAN/Internet negative reachability tests impossible until Debian installed, so not code-ready for independent acceptance. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed. Host adapter additionally re-reads exact Gen2/Off Hephaestus identity, one NIC and actual switch type after stage effect; partial receipt cannot assert guest/LAN isolation. See commits 61768b9 / 337fb34 (deferred tests). Follow-up post-attachment Hyper-V success proof re-reads every sibling switch attachment, exact host IP/forwarding, Public firewall, overlapping NAT and ICS; host success never implies guest isolation. Source src/sofia/integrations/hyperv.py; test/test_ops_workshop_internal_stage.py deferred. Further post-stage Artemis host script refuses unexpectedly configured DNS or default gateways after NIC attach, in addition to prior NAT/ICS/forwarding/peer rechecks. Source src/sofia/integrations/hyperv.py, deferred test/test_ops_workshop_internal_stage.py.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -16130,22 +16417,29 @@
       "phase": "13",
       "source_topic": "28",
       "master_line": 1026,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Signed, hash-pinned owner ISO generation and Debian first-boot admin/worker/SSH policy source-coded, with Artemis signature checks. Missing actual boot/guest attestation, proven non-root worker, cryptographic media removal/password rotation after OS install, independent snapshot and production host canary. No tests or live VM action yet; do not count ready for final acceptance.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Signed, hash-pinned owner ISO generation and Debian first-boot admin/worker/SSH policy source-coded, with Artemis signature checks. Missing actual boot/guest attestation, proven non-root worker, cryptographic media removal/password rotation after OS install, independent snapshot and production host canary. No tests or live VM action yet; do not count ready for final acceptance.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -16544,22 +16838,29 @@
       "phase": "13",
       "source_topic": "29",
       "master_line": 1047,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Read-only Hyper-V host capacity/switch/VM query and pinned mTLS Fleet remote interface are coded for Artemis, but no actual Artemis measurement or reserve acceptance observed; real CPU/RAM/disk and competing VM headroom remain unknown until owner verification.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Read-only Hyper-V host capacity/switch/VM query and pinned mTLS Fleet remote interface are coded for Artemis, but no actual Artemis measurement or reserve acceptance observed; real CPU/RAM/disk and competing VM headroom remain unknown until owner verification.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -16763,22 +17064,33 @@
       "phase": "13",
       "source_topic": "29",
       "master_line": 1055,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_network_stage.py",
+        "src/sofia/integrations/hyperv.py",
+        "test/test_ops_workshop_stage_report_boundary.py",
+        "test/test_ops_workshop_internal_stage.py",
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Owner-selected preexisting VM, not new self-provisioned VM. Exact host-admin opt-in Internal switch stage only; fails target name/type collisions and other VM attachment; read-only old network preflight; separate Level-4 user approval and protected Artemis Fleet. Host Windows Public firewall must default inbound Block, disabled forwarding and NAT/ICS, guest nftables default-deny signed ISO. Guest and actual host ACL traffic observation remains a deferred acceptance gate; original new-VM auto-provision task still not completely implemented. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed. Host adapter additionally re-reads exact Gen2/Off Hephaestus identity, one NIC and actual switch type after stage effect; partial receipt cannot assert guest/LAN isolation. See commits 61768b9 / 337fb34 (deferred tests). Post-attachment source hardening refuses sibling NICs, changed NAT/ICS/forwarding/IP or Public firewall state before host success. The real network/guest isolation proof remains outstanding. Deferred host script tests. Host post-stage success must also re-observe empty DNS and default-route settings after guest NIC mutation, not rely solely on preflight. Still no live proof of host/guest isolation.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Owner-selected preexisting VM, not new self-provisioned VM. Exact host-admin opt-in Internal switch stage only; fails target name/type collisions and other VM attachment; read-only old network preflight; separate Level-4 user approval and protected Artemis Fleet. Host Windows Public firewall must default inbound Block, disabled forwarding and NAT/ICS, guest nftables default-deny signed ISO. Guest and actual host ACL traffic observation remains a deferred acceptance gate; original new-VM auto-provision task still not completely implemented. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed. Host adapter additionally re-reads exact Gen2/Off Hephaestus identity, one NIC and actual switch type after stage effect; partial receipt cannot assert guest/LAN isolation. See commits 61768b9 / 337fb34 (deferred tests). Post-attachment source hardening refuses sibling NICs, changed NAT/ICS/forwarding/IP or Public firewall state before host success. The real network/guest isolation proof remains outstanding. Deferred host script tests. Host post-stage success must also re-observe empty DNS and default-route settings after guest NIC mutation, not rely solely on preflight. Still no live proof of host/guest isolation.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -16809,22 +17121,29 @@
       "phase": "13",
       "source_topic": "29",
       "master_line": 1057,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Signed, hash-pinned owner ISO generation and Debian first-boot admin/worker/SSH policy source-coded, with Artemis signature checks. Missing actual boot/guest attestation, proven non-root worker, cryptographic media removal/password rotation after OS install, independent snapshot and production host canary. No tests or live VM action yet; do not count ready for final acceptance.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Signed, hash-pinned owner ISO generation and Debian first-boot admin/worker/SSH policy source-coded, with Artemis signature checks. Missing actual boot/guest attestation, proven non-root worker, cryptographic media removal/password rotation after OS install, independent snapshot and production host canary. No tests or live VM action yet; do not count ready for final acceptance.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -16832,22 +17151,29 @@
       "phase": "13",
       "source_topic": "29",
       "master_line": 1058,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial. Hyper-V and owner-approved Fleet installer start now fence exact name, GUID, Running, media SHA-256 and observed-time <=3 minutes; malformed/stale host output becomes UNCERTAIN. Guest Debian installation/worker still unverified.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial. Hyper-V and owner-approved Fleet installer start now fence exact name, GUID, Running, media SHA-256 and observed-time <=3 minutes; malformed/stale host output becomes UNCERTAIN. Guest Debian installation/worker still unverified.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -16855,22 +17181,29 @@
       "phase": "13",
       "source_topic": "29",
       "master_line": 1059,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Separate exact existing-VM Internal network mutation now durably reserves a single per-VM attempt and preserves UNCERTAIN on lost replies; no blind retry of New-VMSwitch or NIC reconfiguration. Installer path preserves RESERVED/UNCERTAIN too. Full restart-safe multi-substep VM provisioning recovery and independently verified orphan cleanup remain incomplete.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Separate exact existing-VM Internal network mutation now durably reserves a single per-VM attempt and preserves UNCERTAIN on lost replies; no blind retry of New-VMSwitch or NIC reconfiguration. Installer path preserves RESERVED/UNCERTAIN too. Full restart-safe multi-substep VM provisioning recovery and independently verified orphan cleanup remain incomplete.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -16878,22 +17211,29 @@
       "phase": "13",
       "source_topic": "29",
       "master_line": 1060,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial. Host-side proof strengthened for installer START only; cannot infer completed OS, SSH/worker identity or Fleet enrollment. Deferred tests; remaining stage acceptance still needs Artemis live evidence.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial. Host-side proof strengthened for installer START only; cannot infer completed OS, SSH/worker identity or Fleet enrollment. Deferred tests; remaining stage acceptance still needs Artemis live evidence.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17255,22 +17595,29 @@
       "phase": "13",
       "source_topic": "36",
       "master_line": 1077,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Actual Hephaestus VM exists but no Debian OS/agent. Offline research scheduling requires host OS install, independently verified guest identity, exact SAFE grants and mTLS worker; synthetic graph twin is production integrated but no VM research execution allowed.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Actual Hephaestus VM exists but no Debian OS/agent. Offline research scheduling requires host OS install, independently verified guest identity, exact SAFE grants and mTLS worker; synthetic graph twin is production integrated but no VM research execution allowed.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17505,22 +17852,29 @@
       "phase": "13",
       "source_topic": "43",
       "master_line": 1088,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Signed, hash-pinned owner ISO generation and Debian first-boot admin/worker/SSH policy source-coded, with Artemis signature checks. Missing actual boot/guest attestation, proven non-root worker, cryptographic media removal/password rotation after OS install, independent snapshot and production host canary. No tests or live VM action yet; do not count ready for final acceptance.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Signed, hash-pinned owner ISO generation and Debian first-boot admin/worker/SSH policy source-coded, with Artemis signature checks. Missing actual boot/guest attestation, proven non-root worker, cryptographic media removal/password rotation after OS install, independent snapshot and production host canary. No tests or live VM action yet; do not count ready for final acceptance.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17562,22 +17916,29 @@
       "phase": "13",
       "source_topic": "43",
       "master_line": 1090,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Host-side authenticated Hyper-V observation can now inspect existing VM pre-Internal networking and a host-only read-only post-boot status; owner one-use Internal network stage is fully source-wired with canonical HOST_STAGE_REPORTED / UNCERTAIN, and separate one-use installer boot. Actual Debian guest OS attestation, mTLS heartbeat and media cleanup remain unobserved and incomplete.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Host-side authenticated Hyper-V observation can now inspect existing VM pre-Internal networking and a host-only read-only post-boot status; owner one-use Internal network stage is fully source-wired with canonical HOST_STAGE_REPORTED / UNCERTAIN, and separate one-use installer boot. Actual Debian guest OS attestation, mTLS heartbeat and media cleanup remain unobserved and incomplete.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17652,22 +18013,29 @@
       "phase": "14",
       "source_topic": "67",
       "master_line": 1110,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/evolve/training_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Actual EVOLVE owner training-lab plan now binds exact enrolled Artemis Fleet host and existing Hephaestus Hyper-V VM IDs, independently reviewed train+heldout data digests, fixed seed, offline/private network, no root/SSH/secrets or canonical DB access, 2-8GiB RAM, 1-4 CPU, bounded scratch disk, hard wall/GPU/VRAM and financial caps, 30min plan lease and separate hypothetical Venus GPU source. Owner EVOLVE Settings creates immutable canonical reviewed plan; model reads only real read-only OPS blocker status. No OS exists and no GPU worker or trainer is installed, so every plan remains non-executable and cannot promote weights; source regressions authored not run. Option B cross-subsystem audit: training-lab source review now requires fresh ready_for_bootstrap_review and source-observed internal_isolation_observed from authenticated owner-created Hyper-V handoff, not only matching VM GUIDs; future guest/real GPU trust remains blocked.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Actual EVOLVE owner training-lab plan now binds exact enrolled Artemis Fleet host and existing Hephaestus Hyper-V VM IDs, independently reviewed train+heldout data digests, fixed seed, offline/private network, no root/SSH/secrets or canonical DB access, 2-8GiB RAM, 1-4 CPU, bounded scratch disk, hard wall/GPU/VRAM and financial caps, 30min plan lease and separate hypothetical Venus GPU source. Owner EVOLVE Settings creates immutable canonical reviewed plan; model reads only real read-only OPS blocker status. No OS exists and no GPU worker or trainer is installed, so every plan remains non-executable and cannot promote weights; source regressions authored not run. Option B cross-subsystem audit: training-lab source review now requires fresh ready_for_bootstrap_review and source-observed internal_isolation_observed from authenticated owner-created Hyper-V handoff, not only matching VM GUIDs; future guest/real GPU trust remains blocked.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17675,22 +18043,32 @@
       "phase": "14",
       "source_topic": "67",
       "master_line": 1111,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/evolve/training_policy.py",
+        "test/test_evolve_training_holdout_separation.py",
+        "src/sofia/evolve/training_sources.py",
+        "test/test_training_dataset_source_identity.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run. Further production source preflight rejects overlapping train/held-out example prompts, exact SHA-256 changes during second inspection and re-recording permanently revoked datasets. src/sofia/evolve/training_policy.py and training_sources.py, deferred test/test_evolve_training_holdout_separation.py. Not executed; does not prove comprehensive poisoning detection. Additional reviewed local JSONL source proof: disallow redirected path ancestors, UNC source path, changed inode/size/mtime across open/read/close and overlarge streaming intake; align claimed licensed-public/owner-original/synthetic rights with public-source/owner-source provenance and reject whitespace-only examples. src/sofia/evolve/training_sources.py, test/test_training_dataset_source_identity.py deferred. Copyright ownership/license NOT externally verified.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run. Further production source preflight rejects overlapping train/held-out example prompts, exact SHA-256 changes during second inspection and re-recording permanently revoked datasets. src/sofia/evolve/training_policy.py and training_sources.py, deferred test/test_evolve_training_holdout_separation.py. Not executed; does not prove comprehensive poisoning detection. Additional reviewed local JSONL source proof: disallow redirected path ancestors, UNC source path, changed inode/size/mtime across open/read/close and overlarge streaming intake; align claimed licensed-public/owner-original/synthetic rights with public-source/owner-source provenance and reject whitespace-only examples. src/sofia/evolve/training_sources.py, test/test_training_dataset_source_identity.py deferred. Copyright ownership/license NOT externally verified.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17698,22 +18076,29 @@
       "phase": "14",
       "source_topic": "67",
       "master_line": 1112,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/evolve/training_policy.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Production owner-only EVOLVE dataset admission accepts only reviewed public/owner-original/synthetic JSONL with explicit license/provenance/owner receipts, 16MiB bounded content scan and dedup; rejects raw lifelong conversations, Discord, emotional/intimate journals, screenshots, voice and personal/secret patterns. Canonical store only retains digest/rights metadata, no raw content, and registered LoRA admission reopens/checks both train+heldout sources and forbids deployment. Owner retrieval/use never counts as weight-training consent. Deferred tests authored, not run.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Production owner-only EVOLVE dataset admission accepts only reviewed public/owner-original/synthetic JSONL with explicit license/provenance/owner receipts, 16MiB bounded content scan and dedup; rejects raw lifelong conversations, Discord, emotional/intimate journals, screenshots, voice and personal/secret patterns. Canonical store only retains digest/rights metadata, no raw content, and registered LoRA admission reopens/checks both train+heldout sources and forbids deployment. Owner retrieval/use never counts as weight-training consent. Deferred tests authored, not run.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17744,22 +18129,31 @@
       "phase": "14",
       "source_topic": "67",
       "master_line": 1114,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/evolve/training_lab.py",
+        "src/sofia/evolve/training_policy.py",
+        "test/test_evolve_training_holdout_separation.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Production source currently supports fixed seed, exact base/data digests, bounded plan lifetime and reviewed resource caps, and now evaluates independent train/held-out instruction sets before accepting dataset eligibility. Actual LoRA/QLoRA training runner, immutable tokenizer/adapter lineage, hyperparameter manifest and measured experiment receipts are still missing. Source src/sofia/evolve/training_lab.py; src/sofia/evolve/training_policy.py; test/test_evolve_training_holdout_separation.py authored not run.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Production source currently supports fixed seed, exact base/data digests, bounded plan lifetime and reviewed resource caps, and now evaluates independent train/held-out instruction sets before accepting dataset eligibility. Actual LoRA/QLoRA training runner, immutable tokenizer/adapter lineage, hyperparameter manifest and measured experiment receipts are still missing. Source src/sofia/evolve/training_lab.py; src/sofia/evolve/training_policy.py; test/test_evolve_training_holdout_separation.py authored not run.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17790,22 +18184,30 @@
       "phase": "14",
       "source_topic": "67",
       "master_line": 1116,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/evolve/training_policy.py",
+        "src/sofia/evolve/training_sources.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Production admission now rejects identical or normalized duplicate instructions crossing train/held-out datasets, even where files and responses differ. Canonical rights revocation prevents previously approved dataset being re-recorded as valid. This is not full poisoning/contamination/overfitting or catastrophic forgetting testing; no real model run/benchmark, no code acceptance. Source src/sofia/evolve/training_policy.py; src/sofia/evolve/training_sources.py and deferred regression test.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Production admission now rejects identical or normalized duplicate instructions crossing train/held-out datasets, even where files and responses differ. Canonical rights revocation prevents previously approved dataset being re-recorded as valid. This is not full poisoning/contamination/overfitting or catastrophic forgetting testing; no real model run/benchmark, no code acceptance. Source src/sofia/evolve/training_policy.py; src/sofia/evolve/training_sources.py and deferred regression test.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17939,22 +18341,31 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1139,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "One shared production NEURO runtime invokes CircuitCompetition after trusted TTL and eligibility filtering; output ranks only existing signals; tests authored and not executed.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "One shared production NEURO runtime invokes CircuitCompetition after trusted TTL and eligibility filtering; output ranks only existing signals; tests authored and not executed.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17962,22 +18373,31 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1140,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Competition scores, membership and winner consistency validated; exceptions and invalid results revert to deterministic salience; bounded iteration prevents unbounded recurrence; tests authored and not executed.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Competition scores, membership and winner consistency validated; exceptions and invalid results revert to deterministic salience; bounded iteration prevents unbounded recurrence; tests authored and not executed.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -17985,22 +18405,31 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1141,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Existing MEM retrieval now forms a principal/audience/promoted/query-overlap shortlist before optional NEURO sparse association scoring. Association may only rerank lexical/contextual ties, never append or unlock IDs. Source regression suite written, not run.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing MEM retrieval now forms a principal/audience/promoted/query-overlap shortlist before optional NEURO sparse association scoring. Association may only rerank lexical/contextual ties, never append or unlock IDs. Source regression suite written, not run.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18008,22 +18437,33 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1142,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/connectome/association_store.py",
+        "test/test_neuro_association_production.py",
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Canonical opted-in audience-scoped reviewed association weights/receipt provenance, algorithm version, 64-event per-memory limit, +/-0.1 reinforcement cap, bounded score/decay and owner reset-to-baseline. No raw query persisted, and RUN schedules slow decay only while opted-in/not gaming. Tests written, not run. Additional privacy/correction hardening: neuro_association_revision_cleanup SQLite trigger erases old weights/event receipts on in-place content/principal/audience change, while no-op updates preserve receipts. Source src/sofia/neuro/connectome/association_store.py, unexecuted regression test/test_neuro_association_production.py. Does not create MEM authority or infer scientific brain equivalence.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Canonical opted-in audience-scoped reviewed association weights/receipt provenance, algorithm version, 64-event per-memory limit, +/-0.1 reinforcement cap, bounded score/decay and owner reset-to-baseline. No raw query persisted, and RUN schedules slow decay only while opted-in/not gaming. Tests written, not run. Additional privacy/correction hardening: neuro_association_revision_cleanup SQLite trigger erases old weights/event receipts on in-place content/principal/audience change, while no-op updates preserve receipts. Source src/sofia/neuro/connectome/association_store.py, unexecuted regression test/test_neuro_association_production.py. Does not create MEM authority or infer scientific brain equivalence.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18031,22 +18471,31 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1143,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Actual production NeuroRuntime observes and bounded-decays project/goal/ops signals between turns, retains eligible project information in secondary attention and overrides foreground on the next user question/correction; Matrix topic history remains separately audience-scoped. W4 added explicit active-project/detour/expiry regression; not executed.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Actual production NeuroRuntime observes and bounded-decays project/goal/ops signals between turns, retains eligible project information in secondary attention and overrides foreground on the next user question/correction; Matrix topic history remains separately audience-scoped. W4 added explicit active-project/detour/expiry regression; not executed.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18054,22 +18503,31 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1144,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Canonical NeuroRuntime already feeds per-turn expression via EmotionalConversationService->derive_expression_modulation, bounded ACT initiative through PresenceInitiativeEngine, and RUN background coordinator task priority. Workstream 4 added exact independent_life/autonomous_work task mapping so eligible selected attention influences their due/readiness-checked priority; no action authority. Source tests authored, unexecuted.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Canonical NeuroRuntime already feeds per-turn expression via EmotionalConversationService->derive_expression_modulation, bounded ACT initiative through PresenceInitiativeEngine, and RUN background coordinator task priority. Workstream 4 added exact independent_life/autonomous_work task mapping so eligible selected attention influences their due/readiness-checked priority; no action authority. Source tests authored, unexecuted.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18077,22 +18535,31 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1145,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "partially_implemented_unverified",
-        "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Four-way actual-source verification harness now measures observed precision, false disclosure, focus switches, six-signal noise stress and CPU/wall latency. Still needs genuine Venus model wakeups, VRAM, thermals and real hardware acceptance. Not code-ready under all requested dimensions.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Four-way actual-source verification harness now measures observed precision, false disclosure, focus switches, six-signal noise stress and CPU/wall latency. Still needs genuine Venus model wakeups, VRAM, thermals and real hardware acceptance. Not code-ready under all requested dimensions.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18123,22 +18590,31 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1147,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Versioned salience input dictionary and competition parameters, per-turn selected/baseline/winner diagnostics, durable owner toggle and one-click reset epoch now feed the canonical runtime. Tests authored and not executed.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Versioned salience input dictionary and competition parameters, per-turn selected/baseline/winner diagnostics, durable owner toggle and one-click reset epoch now feed the canonical runtime. Tests authored and not executed.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18146,22 +18622,31 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1148,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "One shared production NEURO runtime retains bounded/decaying eligible external signals, discards prior foreground/domain signals on each user turn, and now explicitly prioritizes new conversation subject/correction before competition; channel-switch regression authored, not run.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "One shared production NEURO runtime retains bounded/decaying eligible external signals, discards prior foreground/domain signals on each user turn, and now explicitly prioritizes new conversation subject/correction before competition; channel-switch regression authored, not run.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18169,22 +18654,33 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1149,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/connectome/association_store.py",
+        "test/test_neuro_association_production.py",
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Production one-state association table keyed by authenticated principal/audience/candidate, opt-in disabled by default with owner Settings controls, SQLite revoke/delete triggers and JOIN status rechecks prevent stale/corrected memories from surviving. Source tests written, not run. Additional privacy/correction hardening: neuro_association_revision_cleanup SQLite trigger erases old weights/event receipts on in-place content/principal/audience change, while no-op updates preserve receipts. Source src/sofia/neuro/connectome/association_store.py, unexecuted regression test/test_neuro_association_production.py. Does not create MEM authority or infer scientific brain equivalence.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Production one-state association table keyed by authenticated principal/audience/candidate, opt-in disabled by default with owner Settings controls, SQLite revoke/delete triggers and JOIN status rechecks prevent stale/corrected memories from surviving. Source tests written, not run. Additional privacy/correction hardening: neuro_association_revision_cleanup SQLite trigger erases old weights/event receipts on in-place content/principal/audience change, while no-op updates preserve receipts. Source src/sofia/neuro/connectome/association_store.py, unexecuted regression test/test_neuro_association_production.py. Does not create MEM authority or infer scientific brain equivalence.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18192,22 +18688,31 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1150,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Executable python -m sofia.verify.neuro_ablation uses real production NeuroRuntime, MemorySystem and canonical audience-scoped associations with disposable SQLite source fixtures. Four paired conditions compare selection accuracy, false memory eligibility, switches, signal noise, CPU/p50/p95 latency and unknown real GPU/wake data. Owner tests/host acceptance deferred.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Executable python -m sofia.verify.neuro_ablation uses real production NeuroRuntime, MemorySystem and canonical audience-scoped associations with disposable SQLite source fixtures. Four paired conditions compare selection accuracy, false memory eligibility, switches, signal noise, CPU/p50/p95 latency and unknown real GPU/wake data. Owner tests/host acceptance deferred.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18376,22 +18881,31 @@
       "phase": "15",
       "source_topic": "20",
       "master_line": 1161,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/store.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Production NEURO science registry persists null, refuted and adverse outcomes plus explicit control/limitation fields; typed review rejects subjective-experience claims and the Settings report explicitly prevents functional/supported behavioral results from becoming a consciousness assertion or badge. Source test authored, unrun.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Production NEURO science registry persists null, refuted and adverse outcomes plus explicit control/limitation fields; typed review rejects subjective-experience claims and the Settings report explicitly prevents functional/supported behavioral results from becoming a consciousness assertion or badge. Source test authored, unrun.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18556,22 +19070,32 @@
       "phase": "16",
       "source_topic": "8",
       "master_line": 1185,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/research_registry.py",
+        "test/test_neuro_consciousness_registry_production.py",
+        "src/sofia/neuro/consciousness_research.py",
+        "src/sofia/self_model/operational.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Existing StudyReview never reports proof of consciousness; production canonical research report now explicitly states supported functional results cannot establish phenomenal consciousness and retains adverse/null findings. Owner input is required for independent result records. Source tests written, not executed. Follow-up protects result honesty: supported outcomes must meet original preregistered sample size; null/refuted require actual samples; full negative/adverse/refuted historical counts are rendered even if recent examples are truncated. Source src/sofia/neuro/research_registry.py, deferred tests test/test_neuro_consciousness_registry_production.py. No new scientific observation or experiment claimed.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing StudyReview never reports proof of consciousness; production canonical research report now explicitly states supported functional results cannot establish phenomenal consciousness and retains adverse/null findings. Owner input is required for independent result records. Source tests written, not executed. Follow-up protects result honesty: supported outcomes must meet original preregistered sample size; null/refuted require actual samples; full negative/adverse/refuted historical counts are rendered even if recent examples are truncated. Source src/sofia/neuro/research_registry.py, deferred tests test/test_neuro_consciousness_registry_production.py. No new scientific observation or experiment claimed.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18579,22 +19103,30 @@
       "phase": "16",
       "source_topic": "8",
       "master_line": 1186,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/consciousness_research.py",
+        "src/sofia/self_model/operational.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Production research register now separates functional agency, computational shared-workspace access, metacognitive calibration and untestable phenomenal subjectivity into explicit non-equivalent categories; biological Global Neuronal Workspace is not conflated with computational Global Workspace. Owner-reviewed protocols are restricted to falsifiable functional measures. Source tests authored, not run.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Production research register now separates functional agency, computational shared-workspace access, metacognitive calibration and untestable phenomenal subjectivity into explicit non-equivalent categories; biological Global Neuronal Workspace is not conflated with computational Global Workspace. Owner-reviewed protocols are restricted to falsifiable functional measures. Source tests authored, not run.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18602,22 +19134,30 @@
       "phase": "16",
       "source_topic": "8",
       "master_line": 1187,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/consciousness_research.py",
+        "src/sofia/self_model/operational.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "One production NeuroRuntime broadcasts at most three existing eligible machine-safe activations to ephemeral workspace with 90s expiry. Actual conversation and PERSONALITY consumers check identical snapshot generation before reading; canonical NEURO store retains bounded per-consumer read receipts, with no new scheduler, memory eligibility or action rights. Typed tests authored not executed; functional outcomes still require host ablations.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "One production NeuroRuntime broadcasts at most three existing eligible machine-safe activations to ephemeral workspace with 90s expiry. Actual conversation and PERSONALITY consumers check identical snapshot generation before reading; canonical NEURO store retains bounded per-consumer read receipts, with no new scheduler, memory eligibility or action rights. Typed tests authored not executed; functional outcomes still require host ablations.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     },
     {
@@ -18694,22 +19234,32 @@
       "phase": "16",
       "source_topic": "8",
       "master_line": 1191,
-      "status": "unassessed",
-      "code_paths": [],
+      "status": "code_present_unverified",
+      "code_paths": [
+        "src/sofia/neuro/research_registry.py",
+        "test/test_neuro_consciousness_registry_production.py",
+        "src/sofia/neuro/consciousness_research.py",
+        "src/sofia/self_model/operational.py"
+      ],
       "evidence_commits": [],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "code_path_integrated_unverified",
-        "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
-        "workstream_finding": "Canonical append-only-by-API NEURO research protocol and reviewed result tables retain baseline/control rules, evidence references, null/refuted/adverse/protocol-violation outcomes and limitations. Owner Settings offers preregistration and evidence-reviewed results; public report prohibits phenomenal proof claims. Tests authored, unrun. Follow-up protects result honesty: supported outcomes must meet original preregistered sample size; null/refuted require actual samples; full negative/adverse/refuted historical counts are rendered even if recent examples are truncated. Source src/sofia/neuro/research_registry.py, deferred tests test/test_neuro_consciousness_registry_production.py. No new scientific observation or experiment claimed. ResearchEvidenceRegistry now rejects duplicate exact evidence_ref submissions within a protocol under canonical SQLite BEGIN IMMEDIATE, preventing one result receipt from counting twice or reversing a stored adverse outcome; separate independent evidence remains appendable. Source src/sofia/neuro/research_registry.py, deferred test/test_neuro_consciousness_registry_production.py.",
-        "phase_audit_report": null
+        "source_evidence_sha": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+        "repository_code_paths_verified_at": "3abde7cf61f20b342adbf30e9f69770459d7d047"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Canonical append-only-by-API NEURO research protocol and reviewed result tables retain baseline/control rules, evidence references, null/refuted/adverse/protocol-violation outcomes and limitations. Owner Settings offers preregistration and evidence-reviewed results; public report prohibits phenomenal proof claims. Tests authored, unrun. Follow-up protects result honesty: supported outcomes must meet original preregistered sample size; null/refuted require actual samples; full negative/adverse/refuted historical counts are rendered even if recent examples are truncated. Source src/sofia/neuro/research_registry.py, deferred tests test/test_neuro_consciousness_registry_production.py. No new scientific observation or experiment claimed. ResearchEvidenceRegistry now rejects duplicate exact evidence_ref submissions within a protocol under canonical SQLite BEGIN IMMEDIATE, preventing one result receipt from counting twice or reversing a stored adverse outcome; separate independent evidence remains appendable. Source src/sofia/neuro/research_registry.py, deferred test/test_neuro_consciousness_registry_production.py.",
+        "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
+        "acceptance": "Workstream 4 source review only. Production acceptance false.",
+        "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
+        "source_evidence_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307"
       }
     }
   ],
@@ -18822,5 +19372,75 @@
     "host_deployed": false,
     "owner_cutover": false,
     "accepted_task_ids": []
+  },
+  "workstream4_canonical_reconciliation_2026_10_12": {
+    "source": "docs/development/v18-workstream4-task-evidence.json",
+    "source_blob": "d87e9fc2b38283f2d07c42b329186bbcd4845307",
+    "verified_git_head": "3abde7cf61f20b342adbf30e9f69770459d7d047",
+    "source_only": true,
+    "added_code_present_unverified": 22,
+    "added_partial_wiring": 36,
+    "accepted_delta": 0,
+    "task_ids": [
+      "CA-2101",
+      "CA-2102",
+      "CA-3201",
+      "CA-3202",
+      "CA-3203",
+      "CA-3207",
+      "CA-3208",
+      "CA-3209",
+      "CA-3212",
+      "CA-3214",
+      "CA-3902",
+      "CA-3906",
+      "CA-4401",
+      "CA-4402",
+      "CA-6601",
+      "CA-6602",
+      "CA-6603",
+      "CA-6604",
+      "CA-6605",
+      "CA-6606",
+      "CA-6607",
+      "CA-6609",
+      "CA-6611",
+      "CA-6206",
+      "CA-2801",
+      "CA-2805",
+      "CA-2806",
+      "CA-2807",
+      "CA-2901",
+      "CA-2909",
+      "CA-2911",
+      "CA-2912",
+      "CA-2913",
+      "CA-2914",
+      "CA-3606",
+      "CA-4304",
+      "CA-4306",
+      "CA-6702",
+      "CA-6703",
+      "CA-6704",
+      "CA-6706",
+      "CA-6708",
+      "CA-702",
+      "CA-703",
+      "CA-704",
+      "CA-705",
+      "CA-706",
+      "CA-707",
+      "CA-708",
+      "CA-709",
+      "CA-710",
+      "CA-711",
+      "CA-712",
+      "CA-2006",
+      "CA-806",
+      "CA-807",
+      "CA-808",
+      "CA-812"
+    ],
+    "note": "Per-ID workstream findings + existing source path verification, not test pass nor live host acceptance; other unassessed IDs unchanged."
   }
 }
