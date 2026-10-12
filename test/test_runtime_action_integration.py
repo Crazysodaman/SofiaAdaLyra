@@ -5,6 +5,7 @@ from sofia.config.model import (
     SofiaConfiguration,
 )
 from sofia.composition.root import compose
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_composed_runtime_contains_action_system(tmp_path):
@@ -13,7 +14,7 @@ def test_composed_runtime_contains_action_system(tmp_path):
     identity_path = tmp_path / "identity.json"
     personality_path = tmp_path / "personality.json"
     avatar_path = tmp_path / "avatar.json"
-    state_path = tmp_path / "state.db"
+    state_path = bootstrap_canonical_sqlite(tmp_path / "state.db")
 
     constitution_content = "Test constitution."
     constitution_path.write_text(
