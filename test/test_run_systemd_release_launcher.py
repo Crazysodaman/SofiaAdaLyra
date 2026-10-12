@@ -48,7 +48,8 @@ def test_trusted_prepared_release_is_selected_read_only(tmp_path, monkeypatch):
     home = tmp_path / "environments"
     target = home / "release-1"
     (target / "bin").mkdir(parents=True)
-    (target / "bin" / "python").symlink_to(sys.executable)
+    (target / "bin" / "python").write_bytes(b"test interpreter")
+    monkeypatch.setattr(launcher.os, "access", lambda *_args: True)
     (target / ".sofia-release.json").write_text(
         json.dumps(ReleaseEnvironmentManager._stamp(release))
     )
@@ -72,7 +73,8 @@ def test_tampered_version_stamp_denies_deployment(tmp_path, monkeypatch):
     home = tmp_path / "environments"
     target = home / release.release_id
     (target / "bin").mkdir(parents=True)
-    (target / "bin" / "python").symlink_to(sys.executable)
+    (target / "bin" / "python").write_bytes(b"test interpreter")
+    monkeypatch.setattr(launcher.os, "access", lambda *_args: True)
     (target / ".sofia-release.json").write_text(
         json.dumps({"release_id": "release-1", "manifest_sha256": "wrong"})
     )
@@ -83,6 +85,7 @@ def test_tampered_version_stamp_denies_deployment(tmp_path, monkeypatch):
         )
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="requires POSIX ownership/mode")
 def test_unprivileged_release_tree_is_rejected(tmp_path):
     home = tmp_path / "environments"
     home.mkdir(mode=0o777)
