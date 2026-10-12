@@ -6,19 +6,19 @@ from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.interaction.decision_expression import CandidateChoice, ReviewedFrame
 from sofia.verify.interaction import decision_expression_probe
 from sofia.verify.interaction.decision_expression_probe import main
-from sofia.config.defaults import create_default_configuration
+from test.isolated_interaction_config import isolated_interaction_configuration
 from sofia.interaction.decision_reason_audit import (
     DecisionReasonAudit, audit_decision_reason,
 )
 
 
 @pytest.fixture(autouse=True)
-def _state_free_diagnostic_configuration(monkeypatch):
+def _state_free_diagnostic_configuration(monkeypatch, tmp_path):
     # Synthetic CI decisions must not consult real ProgramData / sofia.db.
     monkeypatch.setattr(
         decision_expression_probe,
         "create_production_configuration",
-        create_default_configuration,
+        lambda: isolated_interaction_configuration(tmp_path),
     )
 
 

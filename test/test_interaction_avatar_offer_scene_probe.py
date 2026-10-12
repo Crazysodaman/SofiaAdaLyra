@@ -7,7 +7,7 @@ import pytest
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.verify.interaction import avatar_world_probe
-from sofia.config.defaults import create_default_configuration
+from test.isolated_interaction_config import isolated_interaction_configuration
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.expanded_service import action_prompt
 
@@ -68,7 +68,7 @@ def test_isolated_offer_scene_reaches_actual_provider_request(monkeypatch, tmp_p
     # defaults, not the real ProgramData configuration or saved user data.
     monkeypatch.setattr(
         avatar_world_probe, 'create_production_configuration',
-        create_default_configuration,
+        lambda: isolated_interaction_configuration(tmp_path),
     )
     monkeypatch.setattr(
         avatar_world_probe.SofiaApplication,
