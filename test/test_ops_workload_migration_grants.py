@@ -16,6 +16,7 @@ from sofia.safe.execution_approval import (
 )
 from sofia.ops.workload import ManagedWorkload, MigrationPlan, StateMode
 from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from test.owner_auth_fixture import record_verified_owner_approval
 
 import pytest
 
@@ -207,7 +208,8 @@ def test_old_approval_is_rejected_after_catalog_binding_changes(tmp_path):
         grant_specs=original_specs,
     )
     verifier = ExecutionApprovalVerifier(state)
-    verifier.record(
+    record_verified_owner_approval(
+        verifier,
         ExecutionApproval(
             approval_id="migration-catalog-old",
             capability="ops.migration.execute",
@@ -283,7 +285,8 @@ def test_old_approval_is_rejected_after_target_node_replacement(tmp_path):
         grant_specs=specs,
     )
     verifier = ExecutionApprovalVerifier(state)
-    verifier.record(
+    record_verified_owner_approval(
+        verifier,
         ExecutionApproval(
             approval_id="migration-node-old",
             capability="ops.migration.execute",

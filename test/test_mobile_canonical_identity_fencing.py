@@ -4,6 +4,7 @@ Deferred execution: tests and CI are intentionally not run during V18 coding.
 """
 import os
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -22,7 +23,9 @@ def test_existing_pairing_owner_fails_closed_after_database_replacement(tmp_path
     old_token = store.enroll("owner-phone")
 
     replacement = tmp_path / "replacement.db"
-    with sqlite3.connect(replacement) as db:
+    # sqlite3.Connection.__exit__ only ends the transaction; on Windows an
+    # unclosed source handle prevents os.replace before guard logic is tested.
+    with closing(sqlite3.connect(replacement)) as db, db:
         db.execute("PRAGMA user_version=1")
     os.replace(replacement, canonical)
 
@@ -57,7 +60,7 @@ def test_existing_mobile_environment_and_notifications_refuse_replaced_writer(tm
     gateway = MobileCompanionGateway(FakeApplication(), state_path=canonical)
 
     replacement = tmp_path / "replacement.db"
-    with sqlite3.connect(replacement) as db:
+    with closing(sqlite3.connect(replacement)) as db, db:
         db.execute("PRAGMA user_version=2")
     os.replace(replacement, canonical)
 
