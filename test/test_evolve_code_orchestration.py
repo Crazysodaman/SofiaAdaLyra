@@ -12,9 +12,15 @@ from sofia.evolve.lifecycle import EvolutionLifecycleStore
 from sofia.evolve.orchestrator import CodeEvolutionOrchestrator
 from sofia.run.release_rollout import ReleaseRolloutJournal, ReleaseRolloutResult
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 5, 14, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_evolution_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "state.db")
 
 
 def configuration(tmp_path):

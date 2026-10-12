@@ -22,9 +22,16 @@ from sofia.safe.evolve_approval import (
     revocation_signature_payload,
 )
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 5, 10, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_revision_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    bootstrap_canonical_sqlite(tmp_path / "state.db")
 
 
 def configuration(tmp_path) -> SofiaConfiguration:

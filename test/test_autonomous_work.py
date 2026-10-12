@@ -25,10 +25,17 @@ from sofia.run.work import (
     WorkResult, WorkStatus,
 )
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.safe.dev_approval import DevApprovalVerifier
 
 
 NOW = datetime(2026, 10, 10, 15, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_autonomous_work_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+
 
 
 def state(tmp_path):

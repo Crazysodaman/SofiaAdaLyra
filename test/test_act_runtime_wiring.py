@@ -18,7 +18,14 @@ from sofia.config.user_settings import (
     RuntimeUserSettingsStore,
 )
 from sofia.discord.binding import DiscordBindingStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _isolated_act_delivery_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "state.db")
 
 NOW = datetime(2026, 9, 28, 15, 0, tzinfo=timezone.utc)
 OWNER = 123456789012345678
