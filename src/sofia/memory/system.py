@@ -210,11 +210,27 @@ class MemorySystem:
             ):
                 continue
 
+            # The candidate and approval status can change while the
+            # first projected copy is being reviewed. Re-read the canonical
+            # candidate at the last handoff to the cognitive request; neither
+            # an earlier copied value nor a stale result grants access.
+            current = candidate_store.get(projected.candidate_id)
+            if (
+                current is None
+                or current != candidate
+                or current.principal_id != principal.principal_id
+                or current.audience_id not in (None, principal.audience_id)
+                or candidate_store.status(current.candidate_id)
+                is not CandidateStatus.PROMOTED
+                or not candidate_store.is_recall_eligible(current.candidate_id)
+            ):
+                continue
+
             records.append(
                 MemoryRecord(
-                    id=str(candidate.candidate_id),
-                    content=candidate.content,
-                    created_at=candidate.created_at,
+                    id=str(current.candidate_id),
+                    content=current.content,
+                    created_at=current.created_at,
                 )
             )
 

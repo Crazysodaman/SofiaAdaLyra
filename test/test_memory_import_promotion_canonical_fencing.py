@@ -3,6 +3,7 @@
 No tests executed in the concurrent V18 workstream.
 """
 from datetime import datetime, timezone
+from contextlib import closing
 import os
 import sqlite3
 
@@ -44,7 +45,9 @@ def test_reviewed_promotion_mapping_cannot_use_replaced_state(tmp_path):
         migration.close()
         imports.close()
         alternate = tmp_path / "replacement.db"
-        with sqlite3.connect(alternate) as db:
+        # A context-managed sqlite3 connection is still open on Windows
+        # unless explicitly closed after its transaction.
+        with closing(sqlite3.connect(alternate)) as db, db:
             db.execute("CREATE TABLE other (id INTEGER PRIMARY KEY)")
         os.replace(alternate, state)
         with pytest.raises(CanonicalStateUnavailable, match="replaced"):

@@ -3,13 +3,15 @@ from uuid import uuid4
 import pytest
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.memory.originals import ConversationOriginalRetriever
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.reviewed_workflow import ReviewedMemoryWorkflow
 
 
 def test_workflow_preserves_exact_persisted_source(tmp_path):
-    conversations = ConversationStore(tmp_path / "c.db")
+    canonical = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    conversations = ConversationStore(canonical)
     session = conversations.create_session()
     message_id = str(uuid4())
     now = datetime.now(timezone.utc)
@@ -22,7 +24,7 @@ def test_workflow_preserves_exact_persisted_source(tmp_path):
             created_at=now,
         )
     )
-    candidates = DurableMemoryCandidateStore(tmp_path / "m.db")
+    candidates = DurableMemoryCandidateStore(canonical)
     result = ReviewedMemoryWorkflow(
         ConversationOriginalRetriever(conversations),
         candidates,
@@ -39,10 +41,11 @@ def test_workflow_preserves_exact_persisted_source(tmp_path):
 
 
 def test_workflow_fails_if_any_requested_source_is_missing(tmp_path):
-    conversations = ConversationStore(tmp_path / "c.db")
+    canonical = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    conversations = ConversationStore(canonical)
     session = conversations.create_session()
     now = datetime.now(timezone.utc)
-    candidates = DurableMemoryCandidateStore(tmp_path / "m.db")
+    candidates = DurableMemoryCandidateStore(canonical)
     with pytest.raises(LookupError):
         ReviewedMemoryWorkflow(
             ConversationOriginalRetriever(conversations),
