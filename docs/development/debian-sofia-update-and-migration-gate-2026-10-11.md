@@ -112,3 +112,33 @@ chain and independent old-writer fence. Safe read-only Linux guest commands
 remain `findmnt`, `id`, `ip route`, `systemctl is-active` and
 `python -m sofia.run.systemd_runtime verify-guest` from the **installed**
 bootstrap wheel.
+
+## Linux release supply-chain update (same day)
+
+- Exact Debian 13 / Python 3.13 runtime hash lock committed at
+  `requirements.lock.linux-py313.txt`. Its Git blob SHA
+  `ec28d5436e87bb2f99c1eacd3f595d1043a2a579` matches the exact
+  byte contents of the successful GitHub lock snapshot artifact from run
+  `38186119612`.
+- Verified universal-wheel build and VERIFY tool locks at
+  `requirements.build.lock.linux-py313.txt` and
+  `requirements.verify.lock.linux-py313.txt`.
+- `.github/workflows/debian-release-candidate.yml` builds two Linux
+  Python 3.13 wheels from byte-identical clean Git source, requires
+  reproducible SHA-256, executes the installed-wheel provenance/VERIFY gate,
+  and uploads **unsigned** evidence for human-supervised promotion.
+- `.github/workflows/release-promotion.yml` now checks the run's exact
+  name, success, main branch and manifest Git SHA before permitting either
+  Windows or Debian release candidates to be signed using the protected
+  release-signing environment. No automatic signing or secret delivery.
+- `distributed/pki.py:issue_node_pair_from_existing_ca` can issue distinct
+  server/client leaf credentials for Sofia against the already operator-owned
+  Fleet CA without copying the CA private key to the VM. This is source-only;
+  no credentials were issued by ChatGPT, copied to the guest or enrolled.
+- Debian candidate workflow acceptance and the actual Debian guest
+  package/connection tests are still open. The pipeline is not a validated
+  production update path until exact-SHA CI and host receipts pass.
+
+**Critical distinction:** the signing chain and nonactivating staging are now
+coded, but no independently privileged *automatic activation* process has
+been accepted. The updater timer must not be enabled as an auto-installer.
