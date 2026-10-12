@@ -2,14 +2,16 @@
 
 Release acceptance still requires running these on the actual installed wheel.
 """
+from dataclasses import replace
 from pathlib import Path
 import tomllib
 
 import pytest
 
 from sofia.config.layout import RuntimeStorageLayout
+from sofia.identity.model import IdentityBootstrapMode
 import sofia.config.layout as layout_module
-from sofia.state.canonical_sqlite import require_existing_sqlite
+from sofia.state.canonical_sqlite import CanonicalStateUnavailable, require_existing_sqlite
 
 
 def test_missing_checkout_layout_uses_imported_wheel_seeds(tmp_path, monkeypatch):
@@ -71,3 +73,43 @@ def test_wheel_manifest_includes_every_first_install_seed():
         "personality/personality.json",
         "embodiment/avatar.json",
     }.issubset(included)
+
+def _existing_layout_after_bootstrap(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOFIA_STATE_ROOT", str(tmp_path / "state"))
+    monkeypatch.delenv("SOFIA_PROTECTED_ROOT", raising=False)
+    new = RuntimeStorageLayout.from_environment(
+        Path(__file__).resolve().parents[1], mode_override="development",
+    )
+    new.provision_from_source()
+    return replace(new, identity_bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING)
+
+
+def test_live_restart_never_reseeds_lost_identity(tmp_path, monkeypatch):
+    existing = _existing_layout_after_bootstrap(tmp_path, monkeypatch)
+    existing.identity_path.unlink()
+    with pytest.raises(CanonicalStateUnavailable, match="supervised restore"):
+        existing.provision_from_source()
+    assert not existing.identity_path.exists()
+    assert existing.state_path.is_file()
+
+
+def test_live_restart_never_reseeds_lost_personality(tmp_path, monkeypatch):
+    existing = _existing_layout_after_bootstrap(tmp_path, monkeypatch)
+    existing.personality_path.unlink()
+    existing.provision_from_source()
+    assert not existing.personality_path.exists()
+    assert existing.identity_path.is_file()
+
+
+def test_live_restart_rejects_redirected_identity(tmp_path, monkeypatch):
+    existing = _existing_layout_after_bootstrap(tmp_path, monkeypatch)
+    target = tmp_path / "saved-identity"
+    existing.identity_path.replace(target)
+    try:
+        existing.identity_path.symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable on this test host")
+    with pytest.raises(CanonicalStateUnavailable, match="redirected"):
+        existing.provision_from_source()
+    assert target.is_file()
+    assert existing.identity_path.is_symlink()

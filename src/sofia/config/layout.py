@@ -4,11 +4,13 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 import shutil
+import stat
 import tempfile
 
 from sofia.identity.model import IdentityBootstrapMode
 from sofia.state.canonical_sqlite import (
     bootstrap_canonical_sqlite,
+    CanonicalStateUnavailable,
     require_existing_sqlite,
 )
 
@@ -157,9 +159,17 @@ class RuntimeStorageLayout:
         personality, or avatar with a newer release's seed copy.
         """
         if self.identity_bootstrap_mode is IdentityBootstrapMode.REQUIRE_EXISTING:
-            # Normal/recovery startup must not create even the configured
-            # directory when canonical state is missing or unmounted.
+            # An existing database cannot authorize recreating lost protected
+            # identity or Constitution from the package. Recovery must restore
+            # the original bytes. No directories or optional seeds are created.
             require_existing_sqlite(self.state_path)
+            for authority in (
+                self.constitution_path,
+                self.constitution_hash_path,
+                self.identity_path,
+            ):
+                self._require_existing_authority(authority)
+            return
 
         self.state_root.mkdir(parents=True, exist_ok=True)
         self.protected_root.mkdir(parents=True, exist_ok=True)
@@ -200,6 +210,30 @@ class RuntimeStorageLayout:
 
         if self.identity_bootstrap_mode is IdentityBootstrapMode.FIRST_BOOTSTRAP:
             bootstrap_canonical_sqlite(self.state_path)
+
+    @staticmethod
+    def _require_existing_authority(path: Path) -> None:
+        """Reject lost and redirected protected authority on normal startup."""
+        target = path.absolute()
+        current = target
+        while True:
+            if current.is_symlink():
+                raise CanonicalStateUnavailable(
+                    f"protected authority path is redirected: {current}"
+                )
+            if current.parent == current:
+                break
+            current = current.parent
+        try:
+            details = target.stat(follow_symlinks=False)
+        except FileNotFoundError as exc:
+            raise CanonicalStateUnavailable(
+                f"protected authority is missing; supervised restore required: {target}"
+            ) from exc
+        if not stat.S_ISREG(details.st_mode):
+            raise CanonicalStateUnavailable(
+                f"protected authority is not a regular file: {target}"
+            )
 
     @staticmethod
     def _seed_file(
