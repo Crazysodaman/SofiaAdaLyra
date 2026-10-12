@@ -90,7 +90,7 @@ All drill outputs must include bounded workload, actual p95 read/recovery costs,
 
 - Which independent privileged system holds **exclusive old-writer fencing and epoch issuance**: an operator-controlled Artemis Hyper-V host broker, a separately enrolled third witness, or a deliberately manual offline controller? A witness located solely inside the to-be-promoted guest is not independent.
 - Where the **offline recovery key** and backup FIDO2 key are held and who may recover them when Venus and Artemis are both unavailable. Do not store every secret and every encrypted backup in one failure domain.
-- What the operator's quantitative **RPO/RTO**, protected archive retention, storage cap and external/offsite failure domains are; they cannot be inferred from current device names.
+- **RPO/RTO are now owner-selected engineering targets:** RPO <= 300 seconds, RTO <= 3,600 seconds (Option B, 2026-10-12). See `docs/development/v18-ca-3103-recovery-objectives-decision-2026-10-12.md`. Neither target is met merely by setting these numbers; protected archive retention beyond the existing two-snapshot-per-destination choice, storage cap, independent/offsite failure domains and recovery-key custody remain unresolved.
 - Whether/when an independently approved **owner-initiated active pointer cutover** is allowed; no autonomous cutover is currently approved.
 
 **Current safe next action:** continue source-only Phase 03 implementation, independent broker design and deferred fixture authoring. Do not stage/restore production state, update boot pointers, start the Debian guest as a canonical runtime, rotate keys, prune recovery copies or erase any live data.

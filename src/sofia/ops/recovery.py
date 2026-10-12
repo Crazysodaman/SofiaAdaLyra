@@ -11,8 +11,9 @@ class RecoveryDenied(PermissionError): pass
 class RecoveryObjectives:
     """Declared recovery targets, not proof that live recovery meets them."""
 
-    rpo_seconds: int = 3600
-    rto_seconds: int = 1800
+    # Owner-selected CA-3103 Option B targets, not evidence of live recovery.
+    rpo_seconds: int = 300
+    rto_seconds: int = 3600
 
     def __post_init__(self) -> None:
         if type(self.rpo_seconds) is not int or self.rpo_seconds <= 0:

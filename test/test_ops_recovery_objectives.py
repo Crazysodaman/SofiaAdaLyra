@@ -21,8 +21,8 @@ def backup_at(moment: datetime) -> BackupEvidence:
 
 
 def test_default_recovery_objectives_are_explicit():
-    assert DEFAULT_RECOVERY_OBJECTIVES.rpo_seconds == 3600
-    assert DEFAULT_RECOVERY_OBJECTIVES.rto_seconds == 1800
+    assert DEFAULT_RECOVERY_OBJECTIVES.rpo_seconds == 300
+    assert DEFAULT_RECOVERY_OBJECTIVES.rto_seconds == 3600
 
 
 def test_backup_age_is_measured_against_rpo():
