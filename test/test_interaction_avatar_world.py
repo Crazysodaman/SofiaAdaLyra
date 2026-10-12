@@ -9,6 +9,7 @@ from sofia.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.config.defaults import create_default_configuration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.avatar_world import avatar_world_guidance, gesture_provider_view
 from sofia.interaction.chat import interaction_prompt
@@ -105,9 +106,12 @@ def test_real_application_delivers_avatar_distinction_without_live_ollama(
         return CognitiveResponse(content='Isolated response.')
 
     monkeypatch.setattr(OllamaProvider, '_respond_once', fake_ollama_once)
+    isolated_state = bootstrap_canonical_sqlite(
+        tmp_path / 'isolated-avatar-world.db',
+    )
     configuration = replace(
         create_default_configuration(),
-        state_path=tmp_path / 'isolated-avatar-world.db',
+        state_path=isolated_state,
         filesystem_root=tmp_path,
     )
     application = SofiaApplication(configuration)

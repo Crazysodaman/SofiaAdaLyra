@@ -9,6 +9,7 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.provider import LLMProvider
 from sofia.composition.root import compose
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -64,6 +65,7 @@ class CapturingProvider(LLMProvider):
 def create_configuration(
     tmp_path,
 ) -> SofiaConfiguration:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     identity_path = tmp_path / "identity.json"
 
     identity_path.write_text(

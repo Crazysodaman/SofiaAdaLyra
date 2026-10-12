@@ -9,6 +9,7 @@ import pytest
 
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService, interaction_prompt
 from sofia.interaction.grammar import NaturalInteractionEngine
@@ -40,7 +41,7 @@ def test_exact_controls_and_ordinary_dialogue_keep_existing_route(content):
 
 
 def test_mixed_control_is_saved_but_neither_executed_nor_sent_to_model(tmp_path):
-    path = tmp_path / 'sofia.db'
+    path = bootstrap_canonical_sqlite(tmp_path / 'sofia.db')
     store = ConversationStore(path)
     session = store.create_session()
     service = object.__new__(InteractiveConversationService)
