@@ -10,6 +10,14 @@ from sofia.config.user_settings import (
     RuntimeUserSettingsStore,
 )
 from sofia.environment.model import LocationSubject
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture(autouse=True)
+def _disposable_owner_settings(tmp_path):
+    # Every settings-store mutation below follows an explicit test install.
+    for name in ("sofia.db", "legacy-sofia.db", "legacy-persisted.db"):
+        bootstrap_canonical_sqlite(tmp_path / name)
 
 
 NOW = datetime(2026, 9, 28, 20, 0, tzinfo=timezone.utc)

@@ -15,6 +15,16 @@ from sofia.safe.execution_approval import (
     execution_fingerprint,
 )
 from sofia.ops.workload import ManagedWorkload, MigrationPlan, StateMode
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _disposable_migration_approval_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+
+
 from sofia.ops.workload_backend import (
     HostWorkloadProfile,
     WorkloadExecutionCatalog,

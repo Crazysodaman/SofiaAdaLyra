@@ -3,6 +3,7 @@
 Authored but intentionally not executed during the V18 coding workstream.
 """
 from datetime import datetime, timezone
+from contextlib import closing
 import os
 import sqlite3
 from uuid import uuid4
@@ -12,7 +13,7 @@ import pytest
 from sofia.memory.originals import SourceMessage
 from sofia.memory.provenance import MemoryCandidate, CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.state.canonical_sqlite import CanonicalStateUnavailable, bootstrap_canonical_sqlite
 
 
 def _candidate():
@@ -32,7 +33,7 @@ def _candidate():
 
 
 def test_promoted_memory_refuses_missing_canonical_state_after_restart(tmp_path):
-    path = tmp_path / "sofia.db"
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = DurableMemoryCandidateStore(path)
     candidate = _candidate()
     store.propose(candidate)
@@ -46,7 +47,7 @@ def test_promoted_memory_refuses_missing_canonical_state_after_restart(tmp_path)
 
 
 def test_promoted_memory_refuses_replacement_after_restart(tmp_path):
-    path = tmp_path / "sofia.db"
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = DurableMemoryCandidateStore(path)
     candidate = _candidate()
     store.propose(candidate)
@@ -54,7 +55,7 @@ def test_promoted_memory_refuses_replacement_after_restart(tmp_path):
     store.close()
 
     alternate = tmp_path / "other.db"
-    with sqlite3.connect(alternate) as conn:
+    with closing(sqlite3.connect(alternate)) as conn, conn:
         conn.execute("CREATE TABLE decoy (x INTEGER)")
     os.replace(alternate, path)
 
@@ -66,13 +67,13 @@ def test_promoted_memory_refuses_replacement_after_restart(tmp_path):
 
 @pytest.mark.skipif(os.name == "nt", reason="Windows prevents replacement of open SQLite files")
 def test_open_memory_handle_refuses_orphaned_state_after_swap(tmp_path):
-    path = tmp_path / "sofia.db"
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = DurableMemoryCandidateStore(path)
     candidate = _candidate()
     store.propose(candidate)
     store.promote(candidate.candidate_id)
     alternate = tmp_path / "alternate.db"
-    with sqlite3.connect(alternate) as conn:
+    with closing(sqlite3.connect(alternate)) as conn, conn:
         conn.execute("CREATE TABLE decoy (x INTEGER)")
     try:
         os.replace(alternate, path)
