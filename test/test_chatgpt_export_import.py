@@ -11,6 +11,7 @@ from sofia.memory.import_chatgpt import main as import_chatgpt_main
 from sofia.memory.provenance import CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 9, 28, 18, 0, tzinfo=timezone.utc)
@@ -190,7 +191,7 @@ def test_full_export_evidence_is_principal_bound_and_idempotent(tmp_path: Path):
     source = tmp_path / "export.zip"
     _write_export(source)
     batch = parse_chatgpt_export_archive(source.read_bytes(), observed_at=NOW)
-    state_path = tmp_path / "sofia.db"
+    state_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = ChatGPTExportEvidenceStore(state_path)
 
     assert store.save(batch) is True
@@ -241,6 +242,8 @@ def test_full_export_cli_imports_evidence_without_creating_memory_candidates(
     ) == 0
     assert state_path.exists() is False
 
+    # An import mutates only an already-authorized canonical database.
+    bootstrap_canonical_sqlite(state_path)
     assert import_chatgpt_main(
         [str(source), "--state-path", str(state_path)]
     ) == 0
@@ -326,3 +329,12 @@ def test_full_export_parser_retains_attachment_only_visible_message(tmp_path: Pa
     message = batch.conversations[0].messages[0]
     assert message.content == ""
     assert message.attachments[0].file_name == "image-only.png"
+
+
+def test_full_export_cli_refuses_to_create_missing_canonical_authority(tmp_path: Path):
+    source = tmp_path / "export.zip"
+    _write_export(source)
+    missing = tmp_path / "uninstalled" / "sofia.db"
+    assert import_chatgpt_main([str(source), "--state-path", str(missing)]) == 2
+    assert not missing.exists()
+    assert not missing.parent.exists()

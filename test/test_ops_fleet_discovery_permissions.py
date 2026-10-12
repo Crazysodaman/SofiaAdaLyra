@@ -17,6 +17,12 @@ from sofia.safe.execution_approval import (
     execution_fingerprint,
 )
 from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture(autouse=True)
+def _disposable_fleet_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 
 class _DiscoverySource:

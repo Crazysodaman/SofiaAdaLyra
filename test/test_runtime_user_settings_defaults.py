@@ -1,3 +1,7 @@
+from dataclasses import replace
+
+from sofia.config.defaults import production_storage_layout
+from sofia.identity.model import IdentityBootstrapMode
 from sofia.config import (
     create_default_configuration,
     create_production_configuration,
@@ -7,6 +11,16 @@ from sofia.config.user_settings import (
     RuntimeUserSettingsStore,
 )
 from sofia.environment.model import LocationSubject
+
+
+def _first_install_settings(path):
+    """Synthetic owner installation, never a runtime restart workaround."""
+    layout = replace(
+        production_storage_layout(state_path=path),
+        identity_bootstrap_mode=IdentityBootstrapMode.FIRST_BOOTSTRAP,
+    )
+    layout.provision_from_source()
+    return RuntimeUserSettingsStore(layout.state_path)
 
 
 def _clear_environment_overrides(monkeypatch):
@@ -59,7 +73,7 @@ def test_default_configuration_applies_saved_owner_settings(
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
     _clear_environment_overrides(monkeypatch)
 
-    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+    _first_install_settings(state_root / "sofia.db").save(
         RuntimeUserSettings(
             provider_model="saved-model:latest",
             provider_context_size=32768,
@@ -99,7 +113,7 @@ def test_explicit_environment_override_beats_saved_setting(
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
     _clear_environment_overrides(monkeypatch)
 
-    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+    _first_install_settings(state_root / "sofia.db").save(
         RuntimeUserSettings(nws_enabled=True)
     )
     monkeypatch.setenv("SOFIA_ENVIRONMENT_NWS_ENABLED", "0")
@@ -116,7 +130,7 @@ def test_production_saved_weather_setting_beats_stale_environment_override(
 ):
     state = tmp_path / "production" / "sofia.db"
     _clear_environment_overrides(monkeypatch)
-    RuntimeUserSettingsStore(state).save(
+    _first_install_settings(state).save(
         RuntimeUserSettings(
             location_label="Home",
             location_timezone="America/Chicago",
@@ -148,7 +162,7 @@ def test_saved_owner_settings_can_enable_cognitive_routing(
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
     _clear_environment_overrides(monkeypatch)
 
-    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+    _first_install_settings(state_root / "sofia.db").save(
         RuntimeUserSettings(
             cognitive_routing_enabled=True,
             cognitive_primary_model="primary:saved",
@@ -181,7 +195,7 @@ def test_cognitive_environment_override_beats_saved_routing_setting(
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
     _clear_environment_overrides(monkeypatch)
 
-    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+    _first_install_settings(state_root / "sofia.db").save(
         RuntimeUserSettings(
             cognitive_routing_enabled=True,
             cognitive_primary_model="primary:saved",
@@ -206,7 +220,7 @@ def test_saved_owner_settings_can_enable_model_lifecycle(
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
     _clear_environment_overrides(monkeypatch)
 
-    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+    _first_install_settings(state_root / "sofia.db").save(
         RuntimeUserSettings(
             cognitive_model_auto_manage=True,
             cognitive_model_idle_unload_seconds=420,
@@ -230,7 +244,7 @@ def test_model_lifecycle_environment_override_beats_saved_setting(
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
     _clear_environment_overrides(monkeypatch)
 
-    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+    _first_install_settings(state_root / "sofia.db").save(
         RuntimeUserSettings(
             cognitive_model_auto_manage=False,
             cognitive_model_idle_unload_seconds=900,
@@ -295,7 +309,7 @@ def test_saved_owner_settings_configure_fleet_and_network_discovery(
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
     _clear_environment_overrides(monkeypatch)
 
-    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+    _first_install_settings(state_root / "sofia.db").save(
         RuntimeUserSettings(
             fleet_discovery_enabled=True,
             fleet_discovery_interval_seconds=75,
@@ -322,7 +336,7 @@ def test_fleet_discovery_environment_override_beats_saved_setting(
     monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
     monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
     _clear_environment_overrides(monkeypatch)
-    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+    _first_install_settings(state_root / "sofia.db").save(
         RuntimeUserSettings(
             fleet_discovery_enabled=False,
             fleet_discovery_scopes=("192.168.77.0/24",),
@@ -347,7 +361,7 @@ def test_production_saved_fleet_settings_beat_stale_environment_override(
     state = tmp_path / "production" / "sofia.db"
     state.parent.mkdir(parents=True, exist_ok=True)
     _clear_environment_overrides(monkeypatch)
-    RuntimeUserSettingsStore(state).save(
+    _first_install_settings(state).save(
         RuntimeUserSettings(
             fleet_discovery_enabled=False,
             fleet_discovery_interval_seconds=120,
