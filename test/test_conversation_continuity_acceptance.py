@@ -146,6 +146,7 @@ def test_restart_and_resume_preserves_cognitive_history(
         context_plan=None,
         privacy_plan=None,
         contextual_influence=None,
+        principal=None,
     ):
         captured_requests.append(request)
         captured_filesystem_results.append(

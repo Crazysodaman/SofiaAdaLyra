@@ -5,6 +5,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.safe.dev_approval import (
     DevApprovalVerifier,
     dev_approval_signature_payload,
@@ -42,7 +43,7 @@ def key_material():
 def test_dev_approval_requires_signature_and_is_consumed_once(tmp_path):
     private, public = key_material()
     verifier = DevApprovalVerifier(
-        tmp_path / "state.db",
+        bootstrap_canonical_sqlite(tmp_path / "state.db"),
         trusted_keys={"sparks-dev": public},
     )
     item = approval()
@@ -73,7 +74,7 @@ def test_dev_approval_requires_signature_and_is_consumed_once(tmp_path):
 def test_dev_approval_rejects_untrusted_or_invalid_signatures(tmp_path):
     private, public = key_material()
     verifier = DevApprovalVerifier(
-        tmp_path / "state.db",
+        bootstrap_canonical_sqlite(tmp_path / "state.db"),
         trusted_keys={"sparks-dev": public},
     )
     item = approval()

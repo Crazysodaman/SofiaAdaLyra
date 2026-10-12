@@ -283,7 +283,7 @@ def test_competing_session_binding_cannot_overwrite_first_writer(tmp_path):
             return created
 
         app.open_channel_conversation = concurrent_writer
-        with pytest.raises(RuntimeError, match="another mobile gateway owns"):
+        with pytest.raises(RuntimeError, match="legacy session binding changed concurrently"):
             gateway._conversation("android-owner", private_mode=False)
         with closing(sqlite3.connect(path)) as db:
             stored = db.execute(

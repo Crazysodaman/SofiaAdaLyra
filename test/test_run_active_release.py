@@ -16,6 +16,7 @@ from sofia.run.active_release import (
 from sofia.run.release import directory_sha256
 from sofia.safe.release import ReleaseActivationEvidence
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 3, 4, 0, tzinfo=timezone.utc)
@@ -37,7 +38,7 @@ def make_wheel(root: Path) -> Path:
 
 
 def active_release_fixture(tmp_path: Path):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     plane = SQLiteStatePlane(state)
     store = ReleaseStateStore(plane)
 

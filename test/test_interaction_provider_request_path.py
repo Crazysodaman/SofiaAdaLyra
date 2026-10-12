@@ -13,6 +13,7 @@ from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.config.defaults import create_default_configuration
 from sofia.interaction.ledger import InteractionLedger
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.mark.parametrize('text,region,gesture,kind', (
@@ -40,7 +41,7 @@ def test_real_application_projects_saved_user_action_to_ollama(
     monkeypatch.setattr(OllamaProvider, '_respond_once', fake_ollama_once)
     configuration = replace(
         create_default_configuration(),
-        state_path=tmp_path / 'isolated-sofia.db',
+        state_path=bootstrap_canonical_sqlite(tmp_path / 'isolated-sofia.db'),
         filesystem_root=tmp_path,
     )
     application = SofiaApplication(configuration)

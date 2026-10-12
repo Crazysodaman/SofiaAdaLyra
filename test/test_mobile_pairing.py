@@ -164,7 +164,7 @@ def test_mobile_delivery_ready_requires_active_enrollment(tmp_path, monkeypatch)
 
 def test_retired_global_mobile_token_is_not_a_server_fallback(tmp_path):
     _, gateway = _gateway(tmp_path)
-    with pytest.raises(TypeError, match="credentials"):
+    with pytest.raises(TypeError, match="unexpected keyword argument 'token'"):
         MobileCompanionServer(
             gateway, token="legacy-shared-token-that-would-have-worked",
             configuration=MobileServerConfiguration(port=0),

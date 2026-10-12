@@ -8,6 +8,7 @@ from sofia.run.release_rollout import (
     RolloutRing,
 )
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 class FakeOperator:
@@ -80,7 +81,7 @@ def targets():
 
 
 def test_rollout_runs_canary_normal_delayed_then_converges(tmp_path):
-    plane = SQLiteStatePlane(tmp_path / "sofia.db")
+    plane = SQLiteStatePlane(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     operator = FakeOperator()
     coordinator = ReleaseRolloutCoordinator(
         state_plane=plane,
@@ -111,7 +112,7 @@ def test_rollout_runs_canary_normal_delayed_then_converges(tmp_path):
 
 
 def test_wave_failure_stops_later_wave_and_rolls_back_activated_hosts(tmp_path):
-    plane = SQLiteStatePlane(tmp_path / "sofia.db")
+    plane = SQLiteStatePlane(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     operator = FakeOperator(fail_activate="normal")
     coordinator = ReleaseRolloutCoordinator(
         state_plane=plane,
@@ -134,7 +135,7 @@ def test_wave_failure_stops_later_wave_and_rolls_back_activated_hosts(tmp_path):
 
 
 def test_multi_host_rollout_requires_canary(tmp_path):
-    plane = SQLiteStatePlane(tmp_path / "sofia.db")
+    plane = SQLiteStatePlane(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     coordinator = ReleaseRolloutCoordinator(
         state_plane=plane,
         operator=FakeOperator(),
@@ -153,7 +154,7 @@ def test_multi_host_rollout_requires_canary(tmp_path):
 
 
 def test_unhealthy_canary_rolls_back_and_stops_later_waves(tmp_path):
-    plane = SQLiteStatePlane(tmp_path / "sofia.db")
+    plane = SQLiteStatePlane(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     operator = FakeOperator(unhealthy_host="canary")
     coordinator = ReleaseRolloutCoordinator(
         state_plane=plane,

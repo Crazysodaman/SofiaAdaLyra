@@ -33,7 +33,7 @@ def test_status_pins_read_snapshot_before_any_pairing_or_receipt_lookup(
     begin = next(i for i, sql in enumerate(queries) if sql == "BEGIN")
     credential = next(
         i for i, sql in enumerate(queries)
-        if "SELECT GENERATION FROM MOBILE_DEVICE_CREDENTIAL" in sql
+        if i > begin and "SELECT GENERATION FROM MOBILE_DEVICE_CREDENTIAL" in sql
     )
     receipt = next(
         i for i, sql in enumerate(queries)

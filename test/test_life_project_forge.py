@@ -733,7 +733,7 @@ def test_milestone_labels_or_unrelated_evidence_cannot_fake_completion(tmp_path)
                 evidence_refs=(evidence,),
                 now=now + timedelta(seconds=offset, milliseconds=500),
             )
-        with pytest.raises(ValueError, match="verified successful artifact evaluation"):
+        with pytest.raises(ValueError, match="completion requires current artifact bytes and independent PASS"):
             life.complete(
                 project.project_id, reason="Labels are not proof.",
                 now=now + timedelta(seconds=10),
@@ -1691,7 +1691,7 @@ def test_paused_life_project_cannot_claim_queued_grant(tmp_path):
         life.manager.tick(now=now + timedelta(seconds=5))
         settled = wait_for_job(life, job.job_id)
         assert settled.status is WorkStatus.BLOCKED
-        assert "no_longer_active" in settled.reason
+        assert settled.reason == "life_project_or_goal_original_authority_changed_no_execution"
         assert life.store.artifacts(project.project_id) == ()
         assert life.creative_store.latest(
             str(parameters["artifact_id"]), "sofia", project.audience_id,

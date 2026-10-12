@@ -15,6 +15,7 @@ from sofia.filesystem.observation import FilesystemEntry
 from sofia.operational.model import ContinuityEvidenceStatus, RuntimeContinuity
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 9, 20, 19, tzinfo=timezone.utc)
 
@@ -103,7 +104,7 @@ def test_invalid_path_rejected_and_unavailable_baseline_preserved(tmp_path):
 
 def test_application_filters_before_conversation_open_and_delivery(tmp_path, monkeypatch):
     monkeypatch.delenv("SOFIA_IDLE_REFLECTIONS", raising=False)
-    db = tmp_path / "state" / "sofia.db"
+    db = bootstrap_canonical_sqlite(tmp_path / "state" / "sofia.db")
     runtime = _runtime(tmp_path, _event(modified=(_change(db),)))
     runtime._personality = None
     runtime._embodiment = object()

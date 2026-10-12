@@ -332,7 +332,7 @@ def test_gateway_refuses_missing_canonical_database_without_file_or_folder_creat
     tmp_path,
 ):
     state = tmp_path / "unexpected-secondary-home" / "sofia.db"
-    with pytest.raises(FileNotFoundError, match="existing canonical"):
+    with pytest.raises(FileNotFoundError, match="canonical SQLite state is unavailable"):
         MobileCompanionGateway(FakeApplication(), state_path=state)
     assert not state.parent.exists()
     assert not state.exists()

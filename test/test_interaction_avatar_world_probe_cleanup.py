@@ -5,6 +5,7 @@ from sofia.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.config.defaults import create_default_configuration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch, tmp_path):
@@ -19,7 +20,7 @@ def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch,
         OllamaProvider, '_respond_once',
         lambda self, request: CognitiveResponse(content='Isolated test response.'),
     )
-    database = tmp_path / 'probe-only.db'
+    database = bootstrap_canonical_sqlite(tmp_path / 'probe-only.db')
     config = replace(
         create_default_configuration(), state_path=database, filesystem_root=tmp_path,
     )

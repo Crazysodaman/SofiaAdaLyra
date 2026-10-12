@@ -6,6 +6,7 @@ import pytest
 from sofia.application import SofiaApplication
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.life import SelfDirectedLifeCoordinator
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_run]
@@ -18,6 +19,7 @@ def configuration(tmp_path):
         '{"name":"Sofía","traits":["witty","warm","skeptical"],'
         '"communication_style":"Direct and evidence-minded."}', encoding="utf-8",
     )
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=project / "src/sofia/constitution/constitution.md",
         constitution_hash_path=project / "src/sofia/constitution/constitution.sha256",

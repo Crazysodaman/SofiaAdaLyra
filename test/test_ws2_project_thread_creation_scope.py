@@ -91,12 +91,15 @@ def test_legacy_mixed_audience_project_cannot_be_adopted_or_rewritten(tmp_path):
                 thread_id=project.thread_id,
                 source_message_id="original-2", principal=local,
             )
-        assert len(threads.visible_events(
-            thread_id=project.thread_id, principal=local,
-        )) == 1
-        assert len(threads.visible_events(
-            thread_id=project.thread_id, principal=foreign,
-        )) == 1
+        # A mixed-source legacy project stays quarantined in its entirety.
+        # Even the individual source audiences cannot render partial content.
+        for principal in (local, foreign):
+            assert threads.visible_events(
+                thread_id=project.thread_id, principal=principal,
+            ) == ()
+            assert threads.visible_messages(
+                thread_id=project.thread_id, principal=principal,
+            ) == ()
     finally:
         originals.close()
 

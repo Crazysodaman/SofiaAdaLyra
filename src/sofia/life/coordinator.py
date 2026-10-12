@@ -3821,6 +3821,7 @@ class SelfDirectedLifeCoordinator:
                 "scheduled": 0,
                 "jobs_started": 0,
                 "stop_reason": "operator_stop_active",
+                "follow_through": "operator_stop",
                 "run_outcomes_observed": len(observed),
                 "terminal_run_projects_settled": terminal_settled,
                 "goal_lifecycle_projects_settled": goal_settled,

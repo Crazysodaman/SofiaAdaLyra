@@ -216,6 +216,7 @@ def test_production_discord_reads_saved_settings_from_live_state(
     monkeypatch.setenv("SOFIA_PROTECTED_ROOT", str(protected_root))
     monkeypatch.delenv("SOFIA_DISCORD_ENABLED", raising=False)
 
+    bootstrap_canonical_sqlite(state_root / "sofia.db")
     RuntimeUserSettingsStore(state_root / "sofia.db").save(
         RuntimeUserSettings(
             discord_enabled=True,
