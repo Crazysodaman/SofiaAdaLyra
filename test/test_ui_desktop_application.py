@@ -2,6 +2,7 @@ from pathlib import Path
 
 from sofia.application import SofiaApplication
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.ui.desktop_controller import DesktopWorkbenchController
 
 
@@ -30,6 +31,7 @@ def _configuration(tmp_path: Path) -> SofiaConfiguration:
         ),
         encoding="utf-8",
     )
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=CONSTITUTION_PATH,
         constitution_hash_path=HASH_PATH,

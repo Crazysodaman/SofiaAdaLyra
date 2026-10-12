@@ -62,8 +62,11 @@ def test_application_never_exposes_foreign_project_names_for_same_owner(tmp_path
         local_visible = SofiaApplication.lifelong_threads_for(
             fixture_app, local, limit=2,
         )
+        # A never-linked project created in the authenticated local
+        # audience belongs to that audience and is safe to show there.
+        # It must never appear in a different original audience.
         assert [thread.name for thread in local_visible] == [
-            "Private desktop notes"
+            "Never linked to originals", "Private desktop notes"
         ]
         discord_visible = SofiaApplication.lifelong_threads_for(
             fixture_app, discord, limit=2,

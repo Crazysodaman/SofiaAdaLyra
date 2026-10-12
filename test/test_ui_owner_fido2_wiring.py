@@ -58,7 +58,7 @@ def test_settings_rejects_unenrolled_fido2_without_opening_browser(
     verifier = owner_approval_ui.OwnerWebAuthnVerifier(
         state, rp_id="localhost", origin="http://localhost:39872",
     )
-    with pytest.raises(PermissionError, match="no supervised FIDO2"):
+    with pytest.raises(PermissionError, match="no enrolled security_key owner credential"):
         owner_approval_ui.select_security_key_for_settings(
             state, parent=None,
         )

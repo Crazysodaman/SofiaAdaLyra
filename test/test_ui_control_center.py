@@ -1,3 +1,4 @@
+from contextlib import closing
 from datetime import datetime, timezone
 import sqlite3
 
@@ -20,7 +21,9 @@ NOW = datetime(2026, 9, 26, 20, 0, tzinfo=timezone.utc)
 
 def _state(tmp_path):
     path = tmp_path / "sofia.db"
-    with sqlite3.connect(path):
+    # sqlite3.Connection context management does NOT close the handle.
+    # A Windows rename regression needs the fixture's handle released.
+    with closing(sqlite3.connect(path)):
         pass
     return path
 

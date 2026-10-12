@@ -1,3 +1,4 @@
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
@@ -13,7 +14,7 @@ from sofia.ui.desktop_application import create_desktop_application
 
 def configuration(tmp_path: Path) -> SofiaConfiguration:
     state = tmp_path / "sofia.db"
-    with sqlite3.connect(state):
+    with closing(sqlite3.connect(state)):
         pass
     return SofiaConfiguration(
         constitution_path=tmp_path / "constitution.md",
@@ -29,7 +30,7 @@ def configuration(tmp_path: Path) -> SofiaConfiguration:
 
 def _seed_legacy_remote_mode(path: Path) -> None:
     store = DesktopControlSettingsStore(path)
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.execute(
             """
             INSERT INTO ui_control_settings (

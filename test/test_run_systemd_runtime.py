@@ -1,5 +1,7 @@
 """Headless canonical application service: source contracts, not host deployment."""
 from pathlib import Path, PurePosixPath
+from dataclasses import replace
+from sofia.config.defaults import create_default_configuration
 from threading import Event
 from types import SimpleNamespace
 
@@ -113,7 +115,7 @@ def test_runtime_uses_existing_application_and_always_shuts_down(
     monkeypatch.setattr(defaults, "production_state_path", lambda: state)
     monkeypatch.setattr(
         defaults, "create_production_configuration",
-        lambda: SimpleNamespace(state_path=state),
+        lambda: replace(create_default_configuration(), state_path=state),
     )
     actions = []
     monkeypatch.setattr(
@@ -169,8 +171,8 @@ def test_debian_13_trixie_guest_is_accepted_without_starting_service(
     monkeypatch.setattr(runtime, "sys", SimpleNamespace(platform="linux"))
     release = tmp_path / "os-release"
     release.write_text(
-        'PRETTY_NAME="Debian GNU/Linux 13 (trixie)"\\n'
-        'ID=debian\\nVERSION_ID="13"\\nVERSION_CODENAME=trixie\\n',
+        'PRETTY_NAME="Debian GNU/Linux 13 (trixie)"\n'
+        'ID=debian\nVERSION_ID="13"\nVERSION_CODENAME=trixie\n',
         encoding="utf-8",
     )
     runtime.require_debian_guest(os_release_path=release)
@@ -236,6 +238,8 @@ def test_fixed_systemd_notifications_use_unix_socket_without_shell(monkeypatch):
         def sendall(self, payload):
             messages.append(payload)
     monkeypatch.setenv("NOTIFY_SOCKET", "@sofia-control")
+    # The fake socket tests framing on Windows without opening Unix sockets.
+    monkeypatch.setattr(runtime.socket, "AF_UNIX", 1, raising=False)
     monkeypatch.setattr(runtime.socket, "socket", lambda family, socktype: Datagram())
     runtime.notify_systemd("READY=1")
     runtime.notify_systemd("STOPPING=1")
@@ -262,7 +266,7 @@ def test_shutdown_during_application_start_never_reports_systemd_ready(
     monkeypatch.setattr(defaults, "production_state_path", lambda: state)
     monkeypatch.setattr(
         defaults, "create_production_configuration",
-        lambda: SimpleNamespace(state_path=state),
+        lambda: replace(create_default_configuration(), state_path=state),
     )
     monkeypatch.setattr(runtime, "require_debian_guest", lambda: None)
     monkeypatch.setattr(runtime, "require_existing_sqlite", lambda path: None)

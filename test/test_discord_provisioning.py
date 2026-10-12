@@ -216,6 +216,17 @@ def test_production_discord_reads_saved_settings_from_live_state(
     monkeypatch.setenv("SOFIA_PROTECTED_ROOT", str(protected_root))
     monkeypatch.delenv("SOFIA_DISCORD_ENABLED", raising=False)
 
+    # A production restart must find the already installed protected
+    # Constitution and identity. Provision only this disposable fixture;
+    # do not let the production loader silently recreate missing authority.
+    seed_root = Path(__file__).resolve().parents[1] / "src" / "sofia"
+    protected_root.mkdir(parents=True)
+    for target, source in (
+        ("constitution.md", seed_root / "constitution" / "constitution.md"),
+        ("constitution.sha256", seed_root / "constitution" / "constitution.sha256"),
+        ("identity.json", seed_root / "identity" / "identity.json"),
+    ):
+        (protected_root / target).write_bytes(source.read_bytes())
     bootstrap_canonical_sqlite(state_root / "sofia.db")
     RuntimeUserSettingsStore(state_root / "sofia.db").save(
         RuntimeUserSettings(

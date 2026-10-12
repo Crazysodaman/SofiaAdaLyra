@@ -69,8 +69,8 @@ def _second_same_capability_project(life, first, now):
         now=now,
     )
     idea = ProjectIdea(
-        "idea:repeatable-foxfire-second",
-        "Second Independent Foxfire Note",
+        f"idea:repeatable-foxfire-{now:%Y%m%d%H%M%S%f}",
+        f"Second Independent Foxfire Note {now:%Y%m%d%H%M%S%f}",
         "Reproduce the typed check with an independently authored second artifact.",
         first.originating_interest,
         ("text_contains:Foxfire",), (),

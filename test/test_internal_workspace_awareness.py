@@ -177,6 +177,7 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
     app._configuration = runtime.configuration
     app._conversation_service = conversation
     app._channel_conversations = []
+    app._ui_draft_store = SimpleNamespace(open=lambda: None, close=lambda: None)
     app._idle_worker = None
     app._model_lock = RLock()
     app._tts = SimpleNamespace(

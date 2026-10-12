@@ -424,7 +424,11 @@ def _owner_only_outreach(life):
         ),
         policy=policy(
             recipient_id=SPARKS_PRINCIPAL_ID,
-            quiet_start_local=23, quiet_end_local=0,
+            # These tests use current UTC for the LIFE receipt. Keep test
+            # quiet hours twelve hours from that receipt so the permission
+            # and source-revocation branches actually get exercised.
+            quiet_start_local=(datetime.now(timezone.utc).hour + 12) % 24,
+            quiet_end_local=(datetime.now(timezone.utc).hour + 13) % 24,
             max_daily=1, social_max_daily=1,
         ),
         channel="desktop", destination="tray",
