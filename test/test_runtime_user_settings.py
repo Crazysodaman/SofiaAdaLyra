@@ -234,7 +234,8 @@ def test_legacy_saved_settings_migrate_to_dual_cognition(tmp_path):
     assert migrated.schema_version == CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
     assert migrated.cognitive_routing_enabled is True
     assert migrated.cognitive_model_auto_manage is True
-    assert migrated.cognitive_model_auto_install is True
+    # Legacy preferences cannot authorize unattended model downloads.
+    assert migrated.cognitive_model_auto_install is False
     assert migrated.cognitive_primary_model == "owner/primary:any"
     assert migrated.cognitive_secondary_model == "owner/secondary:any"
     assert migrated.provider_model == migrated.cognitive_primary_model
@@ -299,7 +300,7 @@ def test_loading_legacy_settings_persists_current_schema(tmp_path):
     assert persisted["schema_version"]==CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
     assert persisted["cognitive_routing_enabled"] is True
     assert persisted["cognitive_model_auto_manage"] is True
-    assert persisted["cognitive_model_auto_install"] is True
+    assert persisted["cognitive_model_auto_install"] is False
 
 
 def test_schema_v2_without_location_migrates_to_central_time(tmp_path):

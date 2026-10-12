@@ -5,6 +5,7 @@ import os
 import pytest
 
 from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.emotion.journal import EmotionalJournal
 from sofia.social.model import SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
@@ -31,7 +32,7 @@ def test_real_settings_save_reopen_and_wardrobe_submission(tmp_path, monkeypatch
     from sofia.ui import settings_window
     from sofia.avatar.wardrobe_review import WardrobeReviewStore
     from sofia.ui.control_center import DesktopControlSettingsStore, MASTER_SETTINGS_SECTIONS
-    path = tmp_path / "custom-selected.db"
+    path = bootstrap_canonical_sqlite(tmp_path / "custom-selected.db")
     original_root = tk.Tk
     captured = []
     original_sections = settings_window.SettingsSections
