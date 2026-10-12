@@ -133,6 +133,12 @@ class ControllerObservation:
 def _hyperv_failure_code(exc: Exception) -> str:
     """Expose bounded diagnostic categories, never raw host stderr/secrets."""
     message = str(exc).casefold()[:4096]
+    if (
+        message.startswith("host_snapshot_")
+        and len(message) <= 96
+        and all(ch.islower() or ch == "_" for ch in message)
+    ):
+        return message
     if any(fragment in message for fragment in (
         "access is denied", "access denied", "permission denied",
         "unauthorizedaccess", "0x80070005", "e_accessdenied",
