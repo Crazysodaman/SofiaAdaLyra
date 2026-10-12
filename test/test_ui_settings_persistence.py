@@ -9,6 +9,8 @@ import sys
 import pytest
 
 from sofia.config import create_production_configuration
+from sofia.config.defaults import production_storage_layout
+from sofia.identity.model import IdentityBootstrapMode
 from sofia.config.model import FleetCognitionConfiguration, FleetDiscoveryConfiguration
 from sofia.config.user_settings import OutreachSettings, RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.ops.activity import ActivityMode, HostActivityStore
@@ -19,10 +21,16 @@ from sofia.ui import settings_service
 
 def profile(tmp_path):
     path = tmp_path / "selected.db"
-    # Authorized first-install fixture, not an implicit settings-store create.
-    path.touch()
-    RuntimeUserSettingsStore(path)
-    return path
+    # Simulate a supervised first install including protected Constitution
+    # and identity, instead of creating a bare SQLite file. The production
+    # configuration must remain fail-closed when these protected files vanish.
+    layout = replace(
+        production_storage_layout(state_path=path),
+        identity_bootstrap_mode=IdentityBootstrapMode.FIRST_BOOTSTRAP,
+    )
+    layout.provision_from_source()
+    RuntimeUserSettingsStore(layout.state_path)
+    return layout.state_path
 
 
 def test_settings_survive_a_new_python_process_and_reach_configuration(tmp_path):

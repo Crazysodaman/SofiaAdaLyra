@@ -4,6 +4,7 @@ import sys
 from sofia.machine import location_cli
 from sofia.machine.discovery import MachineDiscoveryResult
 from sofia.machine.location import MachineLocationRegistry
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.machine.model import (
     MachineIdentity,
     OperatingSystemInfo,
@@ -34,6 +35,7 @@ def test_location_cli_set_local_persists_machine_identity(
     monkeypatch,
     capsys,
 ):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     monkeypatch.setattr(
         location_cli,
         "create_machine_discovery",

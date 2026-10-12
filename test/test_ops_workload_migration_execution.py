@@ -206,7 +206,7 @@ def test_uncertain_remote_outcome_never_triggers_automatic_rollback(tmp_path):
 
 
 def test_workload_result_path_supports_indexed_service_evidence(tmp_path):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     plane = SQLiteStatePlane(state)
     store = WorkloadInstanceStore(state)
     store.observe(

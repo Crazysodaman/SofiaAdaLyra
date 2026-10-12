@@ -12,6 +12,7 @@ from sofia.dev.release_signing import sign_manifest
 from sofia.distributed.release_agent import AgentReleaseService
 from sofia.run.release import directory_sha256
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 4, 23, 0, tzinfo=timezone.utc)
@@ -89,7 +90,7 @@ def make_bundle(root: Path, private, *, release_id="release-1"):
 def test_agent_release_service_verifies_stages_and_activates_signed_bundle(
     tmp_path,
 ):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     SQLiteStatePlane(state)
     private = Ed25519PrivateKey.generate()
     public = private.public_key().public_bytes(
