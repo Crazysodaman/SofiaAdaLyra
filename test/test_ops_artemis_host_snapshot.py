@@ -20,6 +20,7 @@ def config(tmp_path):
     root.mkdir(exist_ok=True)
     journal = root / "audit"
     journal.mkdir(exist_ok=True)
+    (root / "trusted").mkdir(exist_ok=True)
     return controller.ArtemisControllerConfig(
         expected_vm_id=VM_ID, audit_directory=journal,
     )
@@ -59,7 +60,7 @@ def test_host_export_and_restricted_controller_receipt(tmp_path, monkeypatch):
         "schema", "source", "host", "vm_id", "name", "state", "observed_at",
     }
     assert export["vm_id"] == str(VM_ID)
-    path = cfg.audit_directory.parent / "sofia-host-vm-observation.json"
+    path = cfg.audit_directory.parent / "trusted" / "sofia-host-vm-observation.json"
     assert json.loads(path.read_text()) == export
     observer = snap.ArtemisHostSnapshotObserver(
         config=cfg, now=lambda: NOW + timedelta(seconds=60),
