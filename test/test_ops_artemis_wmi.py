@@ -103,10 +103,11 @@ def test_actual_controller_once_selects_wmi_observer_by_default(
     monkeypatch, tmp_path,
 ):
     seen = []
+    original_observer = artemis_wmi.ArtemisWmiObserver
 
     def monitored(*, expected_vm_id):
         seen.append(expected_vm_id)
-        return lambda: artemis_wmi.ArtemisWmiObserver(
+        return lambda: original_observer(
             expected_vm_id=expected_vm_id,
             runner=lambda _: response(),
         )()
