@@ -16,6 +16,7 @@ from sofia.memory.system import MemorySystem
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 
 
@@ -41,6 +42,7 @@ def _import(
         PAYLOAD,
         observed_at=datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc),
     )
+    bootstrap_canonical_sqlite(state_path)
     store = ChatGPTMemoryImportStore(state_path)
     assert store.save(batch, original_payload=PAYLOAD) is True
     migration = ChatGPTMemoryMigrationService(
@@ -88,7 +90,7 @@ def test_parser_accepts_plain_text_memory_summary():
 def test_exact_import_is_durable_and_idempotent_across_restart(
     tmp_path: Path,
 ):
-    state_path = tmp_path / "sofia.db"
+    state_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     batch = parse_chatgpt_memory_dump(PAYLOAD)
 
     first = ChatGPTMemoryImportStore(state_path)
@@ -188,7 +190,7 @@ def test_semantic_integrity_links_promoted_memory_back_to_exact_import(
     tmp_path: Path,
 ):
     state_path = tmp_path / "sofia.db"
-    state_plane = SQLiteStatePlane(state_path)
+    state_plane = SQLiteStatePlane(bootstrap_canonical_sqlite(state_path))
     batch, store, migration, candidate_ids = _import(state_path)
 
     migration.promote(
@@ -246,6 +248,8 @@ def test_cli_dry_run_import_then_explicit_bulk_promotion(
     ) == 0
     assert state_path.exists() is False
 
+    # Explicit trusted first installation is separate from import.
+    bootstrap_canonical_sqlite(state_path)
     assert import_chatgpt_main(
         [
             str(source),
@@ -284,3 +288,12 @@ def test_cli_dry_run_import_then_explicit_bulk_promotion(
     output = capsys.readouterr().out
     assert "proposed_for_review" in output
     assert "memory_status=promoted" in output
+
+
+def test_import_cli_refuses_missing_database_without_creating_authority(tmp_path):
+    source = tmp_path / "synthetic-memory.json"
+    source.write_text(PAYLOAD, encoding="utf-8")
+    missing = tmp_path / "not-installed" / "sofia.db"
+    assert import_chatgpt_main([str(source), "--state-path", str(missing)]) == 2
+    assert not missing.exists()
+    assert not missing.parent.exists()

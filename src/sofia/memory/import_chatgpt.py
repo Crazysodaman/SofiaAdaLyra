@@ -9,6 +9,7 @@ from sofia.config import production_state_path
 from sofia.memory.chatgpt_export import parse_chatgpt_export_archive
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.chatgpt_import import parse_chatgpt_memory_dump
+from sofia.state.canonical_sqlite import require_existing_sqlite
 from sofia.memory.chatgpt_import_store import ChatGPTMemoryImportStore
 from sofia.memory.chatgpt_migration import ChatGPTMemoryMigrationService
 
@@ -84,6 +85,8 @@ def main(argv: list[str] | None = None) -> int:
                     f"digest={export_batch.source_digest}"
                 )
                 return 0
+            # Import into a preexisting canonical home, never a new writer.
+            require_existing_sqlite(state_path)
             export_store = ChatGPTExportEvidenceStore(state_path)
             created = export_store.save(export_batch)
             status = "imported" if created else "already_imported"
@@ -110,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        # No CLI option authorizes a second empty canonical database.
+        require_existing_sqlite(state_path)
         store = ChatGPTMemoryImportStore(state_path)
         migration = None
         try:

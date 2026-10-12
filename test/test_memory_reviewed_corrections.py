@@ -8,6 +8,7 @@ from sofia.memory.originals import SourceMessage
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.system import MemorySystem
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.social.principals import local_sparks_principal
 
 
@@ -31,7 +32,7 @@ def _candidate(text, index, *, audience="local:text"):
 
 
 def test_reviewed_memory_correction_supersedes_in_one_transaction_and_survives_restart(tmp_path):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = DurableMemoryCandidateStore(state)
     original = _candidate("Sparks prefers red model trains", 1)
     corrected = _candidate("Sparks prefers blue model trains", 2)
@@ -66,7 +67,7 @@ def test_reviewed_memory_correction_supersedes_in_one_transaction_and_survives_r
 
 
 def test_correction_cannot_join_different_audiences(tmp_path):
-    store = DurableMemoryCandidateStore(tmp_path / "sofia.db")
+    store = DurableMemoryCandidateStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     original = _candidate("Private desktop details", 1)
     replacement = _candidate(
         "Private phone details", 2, audience="mobile:private:phone",
@@ -84,7 +85,7 @@ def test_correction_cannot_join_different_audiences(tmp_path):
 
 
 def test_rejected_or_pre_revoked_correction_cannot_partially_promote(tmp_path):
-    store = DurableMemoryCandidateStore(tmp_path / "sofia.db")
+    store = DurableMemoryCandidateStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     original = _candidate("Old model trains hobby", 1)
     replacement = _candidate("New model trains hobby", 2)
     try:
@@ -102,7 +103,7 @@ def test_rejected_or_pre_revoked_correction_cannot_partially_promote(tmp_path):
 
 
 def test_correction_duplicate_or_competing_replacement_is_rejected(tmp_path):
-    store = DurableMemoryCandidateStore(tmp_path / "sofia.db")
+    store = DurableMemoryCandidateStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     original = _candidate("Old preference", 1)
     replacement = _candidate("Corrected preference", 2)
     other = _candidate("Another conflicting preference", 3)
@@ -119,7 +120,7 @@ def test_correction_duplicate_or_competing_replacement_is_rejected(tmp_path):
         store.close()
 
 def test_normal_promotion_preserves_previous_error_contract(tmp_path):
-    store = DurableMemoryCandidateStore(tmp_path / "sofia.db")
+    store = DurableMemoryCandidateStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     try:
         with pytest.raises(LookupError, match="does not exist"):
             store.promote(uuid4())

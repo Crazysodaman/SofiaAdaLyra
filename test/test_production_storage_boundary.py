@@ -1,4 +1,5 @@
 from pathlib import Path
+import pytest
 from types import SimpleNamespace
 import re
 
@@ -8,6 +9,7 @@ from sofia.config import (
 )
 from sofia.config.layout import RuntimeStorageLayout
 from sofia.identity.model import IdentityBootstrapMode
+from sofia.state.canonical_sqlite import CanonicalStateUnavailable
 import sofia.config.layout as layout_module
 
 
@@ -98,13 +100,15 @@ def test_production_configuration_ignores_development_mode_flag(
     monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
     monkeypatch.setenv("SOFIA_PROTECTED_ROOT", str(protected_root))
 
-    configuration = create_production_configuration()
-
-    assert configuration.state_path == state_root / "sofia.db"
-    assert (
-        configuration.identity_bootstrap_mode
-        is IdentityBootstrapMode.REQUIRE_EXISTING
+    layout = RuntimeStorageLayout.from_environment(
+        ROOT, mode_override="production",
     )
+    assert layout.mode == "production"
+    assert layout.state_path == state_root / "sofia.db"
+    assert layout.identity_bootstrap_mode is IdentityBootstrapMode.REQUIRE_EXISTING
+    with pytest.raises(CanonicalStateUnavailable, match="unavailable"):
+        create_production_configuration()
+    assert not layout.state_path.exists()
 
 
 def test_windows_production_layout_defaults_to_programdata(
