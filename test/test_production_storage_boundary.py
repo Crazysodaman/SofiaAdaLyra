@@ -71,17 +71,23 @@ def test_storage_environment_variables_are_centralized_in_layout():
     allowed = {
         SOURCE_ROOT / "config" / "layout.py",
     }
-    names = (
-        "SOFIA_RUNTIME_MODE",
-        "SOFIA_STATE_ROOT",
-        "SOFIA_PROTECTED_ROOT",
-    )
+    storage_names = ("SOFIA_STATE_ROOT", "SOFIA_PROTECTED_ROOT")
+    # These two systemd entry points check that the launcher is in
+    # production mode. They do not resolve filesystem roots or identity
+    # files, and must retain their fail-closed mode preflight.
+    mode_guards = {
+        SOURCE_ROOT / "run" / "systemd_runtime.py",
+        SOURCE_ROOT / "run" / "systemd_release_launcher.py",
+    }
     offenders = []
     for path in _source_files():
         if path in allowed:
             continue
         text = path.read_text(encoding="utf-8-sig")
-        if any(name in text for name in names):
+        forbidden = storage_names + (
+            () if path in mode_guards else ("SOFIA_RUNTIME_MODE",)
+        )
+        if any(name in text for name in forbidden):
             offenders.append(path.relative_to(ROOT).as_posix())
 
     assert offenders == [], (

@@ -57,6 +57,12 @@ def test_stopped_social_action_is_handled_before_model(monkeypatch, tmp_path):
 def test_compound_social_actions_not_projected_as_completed(monkeypatch):
     service = object.__new__(ExpandedConversationService)
     service._session = None
+    # This unit checks compound pre-model parsing, not session persistence.
+    # The production ordered-turn method still requires a started session.
+    monkeypatch.setattr(
+        ExpandedConversationService, '_respond_ordered_special',
+        lambda self, content, *, handler, **kwargs: handler(None),
+    )
     monkeypatch.setattr(ExpandedConversationService, '_guarded_reply',
                         lambda self, content, reply, **kwargs: reply)
     reply = service.respond('I hug you and kiss your cheek')
@@ -66,6 +72,10 @@ def test_compound_social_actions_not_projected_as_completed(monkeypatch):
 def test_subjectless_compound_social_actions_are_blocked_before_matrix(monkeypatch):
     service = object.__new__(ExpandedConversationService)
     service._session = None
+    monkeypatch.setattr(
+        ExpandedConversationService, '_respond_ordered_special',
+        lambda self, content, *, handler, **kwargs: handler(None),
+    )
     monkeypatch.setattr(
         ExpandedConversationService,
         "_guarded_reply",

@@ -1,0 +1,78 @@
+name: V18 Phases 05 06 07 Source Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/sofia/conversation/**'
+      - 'src/sofia/mobile/**'
+      - 'src/sofia/memory/**'
+      - 'src/sofia/state/**'
+      - 'src/sofia/application/conversation_service.py'
+      - 'test/test_ws2_*.py'
+      - 'test/test_memory_*.py'
+      - 'test/test_lifelong_*.py'
+      - 'test/test_mobile_main_*.py'
+      - 'test/test_conversation_continuity_acceptance.py'
+      - '.github/workflows/v18-continuity-memory-archive-gates.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v18-continuity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-integration:
+    name: Phases 05 06 07 ${{ matrix.os }} Python 3.12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install checked-out Sofia and tests
+        run: python -m pip install -e . pytest
+      - name: Compile original-source conversation and memory code
+        run: python -m compileall -q src/sofia/conversation src/sofia/mobile src/sofia/memory src/sofia/state
+      - name: Phase 05 original conversation and multi-device scope
+        run: >
+          python -m pytest -q
+          test/test_conversation_continuity_acceptance.py
+          test/test_lifelong_historical_reviewed_import.py
+          test/test_lifelong_application_header_scope.py
+          test/test_mobile_main_history.py
+          test/test_mobile_main_seen_receipts.py
+          test/test_ws2_completed_main_replay_source.py
+          test/test_ws2_conversation_utc_ordering.py
+          test/test_ws2_project_thread_creation_scope.py
+          test/test_ws2_project_read_scope_integrity.py
+      - name: Phase 06 reviewed memory, correction and private revocation
+        run: >
+          python -m pytest -q
+          test/test_memory_reviewed_corrections.py
+          test/test_memory_correction_semantic_integrity.py
+          test/test_memory_deletion_restore.py
+          test/test_ws2_memory_private_admission.py
+          test/test_ws2_memory_scoped_recall_fallback.py
+          test/test_ws2_fts_rebuild_revocation.py
+          test/test_ws2_historical_review_revocation.py
+      - name: Phase 07 archive, original-data recovery and erasure
+        run: >
+          python -m pytest -q
+          test/test_ws2_backup_restore_durability.py
+          test/test_ws2_backup_snapshot_plaintext_isolation.py
+          test/test_ws2_portable_export_validator.py
+          test/test_ws2_restore_erasure_lock.py
+          test/test_ws2_fts_readiness_structure.py
+      - name: Source acceptance is not live production approval
+        run: echo 'CI does not simulate real phone pairing on hardware, 10-year retention, complete erasure across physical backups, or owner-approved Venus to Artemis cutover.'
