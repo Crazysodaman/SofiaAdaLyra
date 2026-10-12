@@ -9,6 +9,7 @@ from sofia.config.model import (
     SofiaConfiguration,
 )
 from sofia.runtime.model import RuntimeState
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -91,6 +92,7 @@ def create_personality(
 def create_application(
     tmp_path: Path,
 ) -> SofiaApplication:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaApplication(
         create_configuration(
             create_personality(tmp_path),

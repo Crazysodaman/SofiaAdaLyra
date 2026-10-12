@@ -15,6 +15,7 @@ on:
       - 'test/test_presence_initiative.py'
       - 'test/test_idle_reflection_application.py'
       - 'test/test_proactive_continuity_awareness.py'
+      - 'test/test_operational_awareness_acceptance.py'
       - 'test/test_v18_presence_private_life_scope.py'
       - 'test/test_life_*.py'
       - 'test/test_ops_workshop_vm_separation.py'
@@ -57,6 +58,8 @@ jobs:
           test/test_v18_presence_private_life_scope.py
           test/test_idle_reflection_application.py
           test/test_proactive_continuity_awareness.py
+          test/test_operational_awareness_acceptance.py
+          test/test_operational_awareness_acceptance.py
           test/test_life_autonomous_followthrough.py
           test/test_life_verified_milestone_production.py
           test/test_life_atomic_admission.py
