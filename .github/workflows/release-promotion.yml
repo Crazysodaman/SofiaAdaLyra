@@ -51,8 +51,8 @@ jobs:
           }
           $Manifest = Get-Content -Raw $ManifestPath | ConvertFrom-Json
           $Run = gh api "repos/${{ github.repository }}/actions/runs/${{ inputs.candidate_run_id }}" | ConvertFrom-Json
-          if ($Run.name -ne "Release Candidate Build") {
-            throw "candidate_run_id is not a Release Candidate Build"
+          if ($Run.name -notin @("Release Candidate Build", "Debian Release Candidate Build")) {
+            throw "candidate_run_id is not an approved platform release candidate"
           }
           if ($Run.conclusion -ne "success") {
             throw "candidate workflow did not succeed"
