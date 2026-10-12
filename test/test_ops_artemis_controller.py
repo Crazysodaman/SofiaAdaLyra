@@ -103,7 +103,7 @@ def test_hyperv_unavailable_produces_explicit_unknown_receipt(tmp_path):
         hostname=lambda: "Artemis", now=lambda: NOW,
     )
     assert observation.outcome == "unavailable"
-    assert observation.blockers == ("host_inventory_not_trusted",)
+    assert observation.blockers == ("unspecified_hyperv_inventory_failed",)
 
 
 def test_host_refuses_non_artemis_before_hyperv_is_called(tmp_path):
@@ -191,3 +191,30 @@ def test_scoped_controller_service_registration_is_independent():
     assert admin.permitted_service_account("NT AUTHORITY\\LocalService") == admin.LOCAL_SERVICE
     assert admin.permitted_service_account("EXAMPLE\\sofia-host$") == "EXAMPLE\\sofia-host$"
     assert service.SofiaArtemisControllerService is not None
+
+
+@pytest.mark.parametrize("diagnostic,expected", [
+    ("Get-VM : Access is denied", "vm_inventory_permission_denied"),
+    ("Get-VHD : Access is denied", "vhd_metadata_permission_denied"),
+    ("Get-VMSwitch : Access is denied", "switch_metadata_permission_denied"),
+    ("Get-VMNetworkAdapter : Access is denied", "vm_network_permission_denied"),
+    ("Get-VM : The term 'Get-VM' is not recognized as the name of a cmdlet",
+     "vm_inventory_powershell_hyperv_cmdlet_unavailable"),
+    ("Get-VM : The RPC server is unavailable", "vm_inventory_hyperv_management_service_unavailable"),
+    ("No such Hyper-V object", "unspecified_hyperv_inventory_failed"),
+])
+def test_hyperv_subprocess_failure_is_sanitized_in_local_service_receipts(
+    tmp_path, diagnostic, expected,
+):
+    def broken():
+        raise RuntimeError(diagnostic + " at C:\\Private\\DoNotLog\\Secret.key")
+    observation = controller.observe_exact_sofia(
+        config(tmp_path), inventory=broken,
+        hostname=lambda: "Artemis", now=lambda: NOW,
+    )
+    assert observation.outcome == "unavailable"
+    assert observation.blockers == (expected,)
+    payload = observation.payload()
+    assert "Secret" not in json.dumps(payload)
+    assert not payload["migration_authorized"]
+    assert not payload["old_writer_fenced"]
