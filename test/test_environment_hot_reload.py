@@ -28,6 +28,13 @@ def application_shell(tmp_path):
         SofiaApplication._environment_fingerprint(initial)
     )
     app._runtime = FakeRuntime()
+    # Production hot reload also applies the persisted NEURO preference on
+    # every tick. This shell must include its real-call-shaped dependency.
+    app._neuro_settings_applied = []
+    app._neuro = SimpleNamespace(
+        set_competition_enabled=app._neuro_settings_applied.append,
+        reset_competition=lambda: app._neuro_settings_applied.append("reset"),
+    )
     app._presentation_routine = None
     return app, store, initial
 
