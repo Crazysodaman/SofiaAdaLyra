@@ -12,6 +12,8 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
 
 @dataclass(frozen=True, slots=True)
 class TemporalCandidate:
@@ -29,8 +31,9 @@ class TemporalCandidate:
 class TemporalCandidateStore:
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("canonical sofia.db required")
+        # Pin the authorized canonical writer identity before any schema
+        # access. A missing/replaced DB must never become a new memory home.
+        self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db, db:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS memory_temporal_candidate("
@@ -47,7 +50,7 @@ class TemporalCandidateStore:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         return db
 
