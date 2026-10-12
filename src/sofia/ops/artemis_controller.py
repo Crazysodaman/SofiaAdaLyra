@@ -193,9 +193,10 @@ def _exclusive_file_lock(path: Path) -> Iterator[None]:
     if path.is_symlink():
         raise ArtemisControllerError("controller lock redirection refused")
     with path.open("a+b") as handle:
-        handle.seek(0)
-        handle.write(b"\0")
-        handle.flush()
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
         handle.seek(0)
         if os.name == "nt":
             import msvcrt
