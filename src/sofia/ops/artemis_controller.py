@@ -332,12 +332,13 @@ def controller_once(
     if hostname().casefold().split(".")[0] != config.expected_host.casefold():
         raise ArtemisControllerError("controller cannot run outside Artemis")
     if inventory is None:
-        # The independently restricted SCM account can access this exact
-        # read-only CIM class, not the wider Get-VM / Get-VMSwitch commands.
-        # This path provides identity + EnabledState only, never full host
-        # preflight, operational readiness or canonical writer authority.
-        from sofia.ops.artemis_wmi import ArtemisWmiObserver
-        inventory = ArtemisWmiObserver(expected_vm_id=config.expected_vm_id)
+        # Hyper-V filters VM objects from LocalService in practice on Artemis;
+        # even WMI queries return no records. Never elevate this service.
+        # A separate, operator-installed SYSTEM task publishes a read-only,
+        # ACL-protected, short-lived exact-GUID snapshot. Unknown/stale data
+        # remain unavailable; the snapshot NEVER proves writer fencing.
+        from sofia.ops.artemis_host_snapshot import ArtemisHostSnapshotObserver
+        inventory = ArtemisHostSnapshotObserver(config=config)
     return ArtemisControllerJournal(config.audit_directory).append(
         observe_exact_sofia(config, inventory=inventory, hostname=hostname)
     )
