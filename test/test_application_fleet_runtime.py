@@ -16,6 +16,12 @@ from sofia.config.model import FleetBootstrapConfiguration
 from sofia.ops import InstallAuthority
 from sofia.ops.capability import OpsToolService
 from sofia.ops.reconciliation_journal import FleetReconciliationRecord
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture(autouse=True)
+def _disposable_fleet_application_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "state.db")
 
 
 def _act(tmp_path):

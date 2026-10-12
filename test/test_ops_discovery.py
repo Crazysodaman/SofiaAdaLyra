@@ -10,6 +10,12 @@ from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
 from sofia.ops.state_registry import StatePlaneFleetRegistry
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture(autouse=True)
+def _disposable_discovery_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "state.db")
 from sofia.ops import (
     FleetDiscoveryBootstrapCoordinator,
     FleetDiscoveryCoordinator,

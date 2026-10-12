@@ -2,6 +2,14 @@ from pathlib import Path
 from sofia.ops.model import FleetHost,HostLifecycle
 from sofia.ops.state_registry import StatePlaneFleetRegistry
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _disposable_fleet_registry_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 def host():
     return FleetHost("venus","windows","amd64",HostLifecycle.CANDIDATE,True)

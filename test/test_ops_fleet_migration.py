@@ -7,6 +7,12 @@ from sofia.ops.model import FleetHost, HostLifecycle
 from sofia.ops.state_registry import StatePlaneFleetRegistry
 from sofia.state.model import StateKey
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture(autouse=True)
+def _disposable_legacy_fleet_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 
 def candidate(host_id):
