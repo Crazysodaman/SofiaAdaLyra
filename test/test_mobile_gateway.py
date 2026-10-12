@@ -1,4 +1,5 @@
 """Private mobile chat, adult authority, and sensor gateway contracts."""
+from copy import copy
 from datetime import datetime, timezone
 from http.client import HTTPConnection
 import json
@@ -77,9 +78,17 @@ class FakeApplication:
     def __init__(self):
         self.runtime = FakeRuntime()
         self.conversation = FakeConversation()
+        self._sessions = {}
 
     def open_channel_conversation(self, *, session_id=None):
-        return self.conversation
+        if session_id is not None:
+            return self._sessions[session_id]
+        # A real app opens an independent audience-bound session for each
+        # device/mode, even though all sessions share the same runtime/model.
+        conversation = copy(self.conversation)
+        conversation.session_id = f"mobile-session-{len(self._sessions) + 1}"
+        self._sessions[conversation.session_id] = conversation
+        return conversation
 
 
 def _gateway(tmp_path):

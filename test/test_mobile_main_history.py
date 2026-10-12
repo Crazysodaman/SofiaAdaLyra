@@ -191,14 +191,24 @@ def test_mobile_modes_persist_distinct_sessions_and_reject_rebinding(tmp_path):
             shared.session_id, private.session_id,
         }
         # Recreated adapter checks the CURRENT social binding before reuse.
-        social.bind(
-            session_id=shared.session_id,
-            principal=PrincipalContext(
-                principal_id="another-owner",
-                audience_id="foreign-channel",
-                audience_kind=AudienceKind.SHARED,
-            ),
+        forged = PrincipalContext(
+            principal_id="another-owner",
+            audience_id="foreign-channel",
+            audience_kind=AudienceKind.SHARED,
         )
+        # The public API must reject attempts to relabel an established
+        # session; test the restart guard separately against a simulated
+        # external database compromise rather than expecting bind() to leak.
+        with pytest.raises(PermissionError, match="already bound"):
+            social.bind(session_id=shared.session_id, principal=forged)
+        with closing(sqlite3.connect(path)) as db, db:
+            db.execute(
+                "UPDATE social_session_principal "
+                "SET principal_id=?, audience_id=?, audience_kind=? "
+                "WHERE session_id=?",
+                (forged.principal_id, forged.audience_id,
+                 forged.audience_kind.value, shared.session_id),
+            )
         reloaded = MobileCompanionGateway(app, state_path=path)
         with pytest.raises(PermissionError, match="authenticated audience"):
             reloaded._conversation("android-owner", private_mode=False)
