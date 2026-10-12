@@ -23,6 +23,7 @@ from sofia.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.config.defaults import create_production_configuration
 from sofia.interaction.expanded_service import ExpandedConversationService
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 _CASES = (
     ('offer', 'I ask to hug you'),
@@ -110,7 +111,10 @@ def main(argv: list[str] | None = None) -> int:
             continue
         with TemporaryDirectory(prefix='sofia-avatar-world-') as directory:
             root = Path(directory)
-            config = replace(baseline, state_path=root / 'isolated.db',
+            # The diagnostic's explicitly disposable install is not a
+            # production restart and must never mint default host authority.
+            isolated_state = bootstrap_canonical_sqlite(root / 'isolated.db')
+            config = replace(baseline, state_path=isolated_state,
                              filesystem_root=root)
             app = SofiaApplication(config)
             changed = args.offer_scene and name == 'offer'

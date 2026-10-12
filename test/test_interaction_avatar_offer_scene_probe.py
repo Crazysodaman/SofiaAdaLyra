@@ -7,6 +7,7 @@ import pytest
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.verify.interaction import avatar_world_probe
+from sofia.config.defaults import create_default_configuration
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.expanded_service import action_prompt
 
@@ -63,6 +64,12 @@ def test_offer_scene_rejects_nonoffer_and_missing_authority():
 def test_isolated_offer_scene_reaches_actual_provider_request(monkeypatch, tmp_path):
     monkeypatch.setenv('SOFIA_IDLE_REFLECTIONS', '0')
     monkeypatch.setenv('SOFIA_COGNITION_MODEL_AUTO_MANAGE', '0')
+    # The CI probe has no production owner state. Give it public test
+    # defaults, not the real ProgramData configuration or saved user data.
+    monkeypatch.setattr(
+        avatar_world_probe, 'create_production_configuration',
+        create_default_configuration,
+    )
     monkeypatch.setattr(
         avatar_world_probe.SofiaApplication,
         '_evaluate_contextual_presentation',

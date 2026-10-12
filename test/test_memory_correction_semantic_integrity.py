@@ -1,6 +1,7 @@
 """Deferred canonical correction verification and state-loss regressions."""
 import os
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -60,7 +61,9 @@ def test_integrity_verifier_cannot_follow_replaced_state(tmp_path):
     path, plane, original, correction = _state(tmp_path)
     verifier = SemanticIntegrityVerifier(path, state_plane=plane)
     alternate = tmp_path / "different.db"
-    with sqlite3.connect(alternate) as db:
+    # sqlite3.Connection.__exit__ commits but does NOT close the handle.
+    # A still-open source database cannot be moved on Windows.
+    with closing(sqlite3.connect(alternate)) as db, db:
         db.execute("CREATE TABLE decoy (id INTEGER)")
     os.replace(alternate, path)
     with pytest.raises(CanonicalStateUnavailable, match="replaced"):
