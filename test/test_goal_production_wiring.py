@@ -1,5 +1,7 @@
 from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner
 from datetime import datetime, timedelta, timezone
+import pytest
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 import json
 import sqlite3
 
@@ -20,6 +22,12 @@ from sofia.state.model import StateClass, StateKey, StateRecord
 
 
 NOW = datetime(2026, 10, 6, 12, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_goal_canonical_home(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+
 
 
 def snapshot(kind: str, *, pressure: float = 0.1) -> NeuroStateSnapshot:

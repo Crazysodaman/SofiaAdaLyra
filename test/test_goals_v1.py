@@ -23,6 +23,7 @@ from sofia.goals.evidence import GoalEvidence
 from sofia.neuro import NeuralActivation, NeuroInputCoordinator, NeuroRuntime
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 6, 12, tzinfo=timezone.utc)
@@ -57,6 +58,9 @@ class TypedEvidenceVerifier:
 
 
 def service(tmp_path):
+    # GOALS composes against an already-authorized canonical DB; never
+    # rely on an unrelated subsystem to create one as a side effect.
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return GoalService(
         GoalStore(SQLiteStatePlane(tmp_path / "sofia.db")),
         evidence_verifier=TypedEvidenceVerifier(),

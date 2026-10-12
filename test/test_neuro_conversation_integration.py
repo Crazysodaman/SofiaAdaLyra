@@ -7,6 +7,7 @@ import pytest
 from sofia.application import SofiaApplication
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.registry import InteractionCatalog
 from sofia.interaction.reviewed_hug_question import CLARIFICATION
@@ -27,6 +28,7 @@ AVATAR_PATH = PROJECT_ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 def configuration(tmp_path: Path) -> SofiaConfiguration:
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     personality = tmp_path / "personality.json"
     personality.write_text(
         """{
