@@ -910,7 +910,10 @@ class MobileCompanionGateway:
                 raw_time = before["linked_at"]
                 if not isinstance(raw_time, str) or not 1 <= len(raw_time) <= 64:
                     raise ValueError("Main legacy cursor timestamp is invalid")
-                timestamp = datetime.fromisoformat(raw_time)
+                try:
+                    timestamp = datetime.fromisoformat(raw_time)
+                except ValueError as exc:
+                    raise ValueError("Main legacy cursor timestamp is invalid") from exc
                 if timestamp.tzinfo is None or timestamp.utcoffset() is None:
                     raise ValueError("Main cursor timestamp must be timezone-aware")
                 cursor = (timestamp, raw_id)

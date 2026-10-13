@@ -13,6 +13,9 @@ def test_require_existing_refuses_missing_state_without_creating_it(tmp_path):
         _configuration(tmp_path),
         identity_bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING,
     )
+    # The shared configuration helper explicitly first-installs the fixture;
+    # simulate actual state loss before testing REQUIRE_EXISTING preflight.
+    cfg.state_path.unlink()
     assert not cfg.state_path.exists()
     with pytest.raises(CanonicalStateUnavailable, match="unavailable"):
         compose(cfg)
@@ -21,17 +24,20 @@ def test_require_existing_refuses_missing_state_without_creating_it(tmp_path):
 
 
 def test_require_existing_refuses_redirected_state_file(tmp_path):
-    other = tmp_path / "other.db"
-    other.touch()
-    state = tmp_path / "sofia.db"
-    try:
-        state.symlink_to(other)
-    except (OSError, NotImplementedError):
-        pytest.skip("symlink creation unavailable on this host")
+    # Build the disposable real fixture first; then replace the state path
+    # with the malicious redirected symlink. Canonical startup must refuse.
     cfg = replace(
         _configuration(tmp_path),
         identity_bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING,
     )
+    cfg.state_path.unlink()
+    other = tmp_path / "other.db"
+    other.touch()
+    state = cfg.state_path
+    try:
+        state.symlink_to(other)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable on this host")
     with pytest.raises(CanonicalStateUnavailable, match="symbolic link"):
         compose(cfg)
     assert other.is_file()
