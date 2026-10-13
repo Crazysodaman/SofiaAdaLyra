@@ -154,3 +154,42 @@ def test_v18_crlf_checkout_does_not_accept_changed_roadmap_content(tmp_path):
     master.write_bytes(original.replace(b"CA-001", b"CA-999", 1))
     with pytest.raises(RoadmapIntegrityError, match="source bytes changed"):
         validate_repository(tmp_path)
+
+
+def test_v18_additional_ml_ga_sections_do_not_change_historic_700():
+    """Extension remains separate from the immutable original CA ledger."""
+    master = (ROOT / MASTER_RELATIVE).read_text(encoding="utf-8")
+    assert "## Machine learning addendum | ML-001" in master
+    assert "Sofia_Generalization_Lifelong_Learning_40_Task_Addendum.md" in master
+    original = original_tasks(ROOT / MASTER_RELATIVE)
+    assert len(original) == 700
+    assert original["CA-001"][0] == "00"
+    assert original["CA-812"][0] == "16"
+
+
+def test_v18_extension_cannot_inject_a_new_ca_checklist(tmp_path):
+    master, _, _ = _fixture(tmp_path)
+    with master.open("ab") as stream:
+        stream.write(b"\n- [ ] **CA-999 [GAP]** rogue source claim\n")
+    with pytest.raises(RoadmapIntegrityError, match="CA checklist injected"):
+        validate_repository(tmp_path)
+
+
+def test_v18_extension_cannot_redefine_a_priority_phase(tmp_path):
+    master, _, _ = _fixture(tmp_path)
+    with master.open("ab") as stream:
+        stream.write(b"\n## Priority phase 00: forged section\n")
+    with pytest.raises(RoadmapIntegrityError, match="CA checklist injected"):
+        validate_repository(tmp_path)
+
+
+def test_v18_extension_marker_removal_rejects_tampered_master(tmp_path):
+    master, _, _ = _fixture(tmp_path)
+    text = master.read_text(encoding="utf-8")
+    assert "## Machine learning addendum | ML-001" in text
+    master.write_text(text.replace(
+        "## Machine learning addendum | ML-001",
+        "## Unreviewed tasks | ML-001", 1,
+    ), encoding="utf-8")
+    with pytest.raises(RoadmapIntegrityError, match="source bytes changed"):
+        validate_repository(tmp_path)
