@@ -45,6 +45,13 @@ def _root_owned_directory(path: Path) -> None:
         raise DebianReleasePrepareError("release inbox/environments must be root-owned and not writable by untrusted users")
 
 
+def _require_root_owned_signer_key(trusted_key: Path) -> None:
+    """Require a real root-owned verifier; tests may inject a synthetic gate."""
+    if (trusted_key.is_symlink() or not trusted_key.is_file()
+            or trusted_key.stat().st_uid != 0):
+        raise PermissionError("approved root-owned release signer public key required")
+
+
 def prepare_candidate(
     *,
     inbox: Path,
@@ -61,8 +68,7 @@ def prepare_candidate(
         raise ValueError("exact committed source revision required")
     _root_owned_directory(inbox)
     _root_owned_directory(environments)
-    if trusted_key.is_symlink() or not trusted_key.is_file() or trusted_key.stat().st_uid != 0:
-        raise PermissionError("approved root-owned release signer public key required")
+    _require_root_owned_signer_key(trusted_key)
 
     accepted = verified_inbox_release(
         inbox=inbox, upstream_revision=revision,

@@ -607,10 +607,14 @@ class NeuroRuntime:
                 # Invalid engineered computation must not disrupt conversation.
                 self._last_competition_error = type(exc).__name__
                 selection_reason = "circuit invalid; deterministic salience retained"
-        signature = tuple(
+        # Homeostatic state follows the eligible observed signal *set*,
+        # not the temporary presentation order (current-turn foreground
+        # is intentionally pinned ahead of higher-scoring matrix signals).
+        # Equal-time snapshot reads must not inject another stimulus.
+        signature = tuple(sorted(
             (item.key, item.score, item.novelty)
             for item in activations
-        )
+        ))
         if stimulus or signature != self._last_homeostasis_signature:
             homeostasis = self._homeostasis.update(activations)
             self._last_homeostasis_signature = signature

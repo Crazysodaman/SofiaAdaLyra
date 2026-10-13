@@ -72,7 +72,12 @@ def test_neuro_turn_prefers_required_domain_without_creating_authority():
     )
 
     assert snapshot.focus is not None
-    assert snapshot.focus.key == "matrix-domain:domain:ops"
+    # Foreground conversation outranks Matrix domain as the presentation
+    # focus, but the required operational Matrix domain remains visible.
+    assert snapshot.focus.key == "foreground:conversation:conversation"
+    assert "matrix-domain:domain:ops" in {
+        item.key for item in snapshot.secondary
+    }
     assert snapshot.active_signal_count == 3
     prompt = snapshot.prompt()
     assert "NEURAL ATTENTION CONTEXT" in prompt

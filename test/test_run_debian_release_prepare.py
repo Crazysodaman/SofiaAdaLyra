@@ -97,3 +97,19 @@ def test_invalid_source_revision_is_not_accepted(tmp_path, monkeypatch):
             inbox=tmp_path, trusted_key=tmp_path / "key",
             signer_key_id="prod", revision="main",
         )
+
+
+def test_trusted_signer_gate_refuses_missing_or_redirected_public_key(tmp_path):
+    # Root signing trust cannot be inferred from a filename or a test stub.
+    missing = tmp_path / "missing-key.pem"
+    with pytest.raises(PermissionError, match="root-owned release signer"):
+        prepare._require_root_owned_signer_key(missing)
+    target = tmp_path / "real-key.pem"
+    target.write_bytes(b"untrusted")
+    redirected = tmp_path / "redirected-key.pem"
+    try:
+        redirected.symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable on this host")
+    with pytest.raises(PermissionError, match="root-owned release signer"):
+        prepare._require_root_owned_signer_key(redirected)
