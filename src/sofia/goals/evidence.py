@@ -159,14 +159,25 @@ class GoalEvidenceIndex:
                         bool(row[9]), row[10], row[11], row[12],
                     )
             if self._has(db, "conversation_messages"):
-                row = db.execute(
-                    "SELECT created_at FROM conversation_messages WHERE id=?", (evidence_ref,),
-                ).fetchone()
-                if row is not None:
-                    return GoalEvidence(
-                        evidence_ref, "conversation_message",
-                        datetime.fromisoformat(row[0]), source="conversation",
-                    )
+                # Some installed/legacy or test conversation schemas contain
+                # only id and role. They cannot prove an observed timestamp.
+                # Treat those as ineligible for timestamped goal evidence,
+                # rather than raising or inventing when the source occurred.
+                columns = {
+                    row[1] for row in db.execute(
+                        'PRAGMA table_info("conversation_messages")'
+                    ).fetchall()
+                }
+                if {"id", "created_at"} <= columns:
+                    row = db.execute(
+                        "SELECT created_at FROM conversation_messages WHERE id=?",
+                        (evidence_ref,),
+                    ).fetchone()
+                    if row is not None:
+                        return GoalEvidence(
+                            evidence_ref, "conversation_message",
+                            datetime.fromisoformat(row[0]), source="conversation",
+                        )
             if self._has(db, "ops_maintenance_receipt"):
                 row = db.execute("""
                     SELECT completed_at,outcome,operation,target
