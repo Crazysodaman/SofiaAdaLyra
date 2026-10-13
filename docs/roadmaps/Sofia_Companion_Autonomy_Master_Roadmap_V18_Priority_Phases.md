@@ -1349,3 +1349,11 @@ Each checklist line below preserves the original task wording and ID. Multiple o
   - **Acceptance:** Affected predictor disabled until safe retraining or independent proof; no undocumented retention or false erasure claim.
 
 **Verification / counting:** 40 unique ML checklist IDs, zero ML items accepted at creation; all 700 original CA IDs remain unchanged. 740 is the expanded *planning* count, NOT a statement that 740 production changes are necessary or complete. Update any derived progress ledger separately only after individual source audit and independently valid acceptance evidence.
+
+---
+
+## Generalization and lifelong-learning expansion (GA-001–GA-040; 2026-10-13)
+
+Owner-authorized additional planning inventory: **[40 GA tasks, with individual requirements, phase mapping and acceptance](Sofia_Generalization_Lifelong_Learning_40_Task_Addendum.md)**. The [independently blinded unfamiliar Task A -> Task B transfer evaluation](../development/sofia_generalization_transfer_acceptance_2026-10-13.md) is mandatory. This expansion includes long-horizon execution, reusable skill learning, grounded failure learning, experience-based memory, unfamiliar-system reasoning, better model/tool evaluation and verified improvement on *different unseen problems*.
+
+**Expanded count: 700 original CA + 40 ML + 40 GA = 780 planned tasks.** The original 700 CA checkboxes and all 40 existing ML checkboxes above are preserved verbatim. GA source-of-truth checkboxes live in the separately linked addendum to avoid rewriting historical CA evidence and existing V18 source-audit semantics. Zero GA tasks are accepted or claimed coded by this planning update. No live changes, permission expansion or tests authorized by the append.
