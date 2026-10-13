@@ -31,7 +31,12 @@ def _original_authorized_completion(life, project, evidence_ref, now):
         specification={
             "content": (
                 "Foxfire illuminated this original story, and its independently "
-                "checkable project objective appears in the stored bytes."
+                "checkable project objective appears in the stored bytes. "
+                # A managed SHA-256 blob is shared when two tests write exactly
+                # the same bytes. Include the original project identity so
+                # corrupting one proof source cannot corrupt an unrelated
+                # independently completed source through asset deduplication.
+                f"Independent original source project: {project.project_id}."
             ),
         },
         evidence_ref=evidence_ref, now=now + timedelta(seconds=3),
