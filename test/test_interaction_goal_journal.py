@@ -1,4 +1,5 @@
 """No active worker, no notifications and no production DB in these tests."""
+from contextlib import closing
 from datetime import datetime, timezone
 import sqlite3
 
@@ -12,7 +13,7 @@ NOW = datetime(2026, 9, 20, tzinfo=timezone.utc)
 @pytest.fixture
 def goals(tmp_path):
     db = tmp_path / 'state.db'
-    with sqlite3.connect(db) as cx:
+    with closing(sqlite3.connect(db)) as cx, cx:
         cx.execute('CREATE TABLE conversation_messages (id TEXT PRIMARY KEY, role TEXT)')
         cx.execute("INSERT INTO conversation_messages VALUES ('saved','user')")
         cx.execute("INSERT INTO conversation_messages VALUES ('assistant-message','assistant')")
