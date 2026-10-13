@@ -6,6 +6,7 @@ from sofia.config.model import (
 )
 from sofia.runtime.model import RuntimeState
 from sofia.__main__ import main
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -66,6 +67,7 @@ def create_configuration(
         encoding="utf-8",
     )
 
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=CONSTITUTION_PATH,
         constitution_hash_path=HASH_PATH,
@@ -138,6 +140,7 @@ def test_cli_exits_cleanly_on_eof(
 def test_cli_configuration_failure_returns_error(
     tmp_path: Path,
 ):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     configuration = SofiaConfiguration(
         constitution_path=tmp_path / "missing.md",
         constitution_hash_path=tmp_path / "missing.sha256",

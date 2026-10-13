@@ -6,6 +6,7 @@ import pytest
 from sofia.neuro import NeuralSignal, NeuroRuntime
 from sofia.neuro.connectome.competition import CircuitCompetition, CompetitionResult
 from sofia.neuro.store import NeuroObservabilityStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 pytestmark = pytest.mark.pkg_core
@@ -30,6 +31,7 @@ def signal(source, value):
 
 
 def test_circuit_is_in_single_runtime_path_and_observable(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     runtime = NeuroRuntime(competition=DeliberatelyContraryCompetition(),
                            observability=NeuroObservabilityStore(tmp_path / "sofia.db"))
     runtime.observe_signal(signal("a", 0.70))

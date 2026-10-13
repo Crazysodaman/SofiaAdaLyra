@@ -3,6 +3,8 @@ import sqlite3
 
 import pytest
 
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
 from sofia.application.background import (
     ApplicationBackgroundCoordinator,
     BackgroundBudget,
@@ -13,6 +15,7 @@ NOW = datetime(2026, 10, 3, 20, 0, tzinfo=timezone.utc)
 
 
 def test_empty_task_readiness_does_not_consume_background_budget(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     from types import SimpleNamespace
     coordinator = ApplicationBackgroundCoordinator.__new__(ApplicationBackgroundCoordinator)
     coordinator.service = SimpleNamespace(ready_for_idle_reflection=lambda **kwargs: True)
@@ -173,6 +176,7 @@ def test_heartbeat_failure_is_diagnostic_not_scheduler_failure():
 
 
 def test_operator_pause_prevents_all_optional_background_dispatch(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     """Central scheduler must not wake reflection, LIFE, ACT or Fleet on PAUSE."""
     from types import SimpleNamespace
 

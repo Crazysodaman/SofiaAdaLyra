@@ -8,6 +8,7 @@ from sofia.config.model import (
     SofiaConfiguration,
 )
 from sofia.runtime.model import RuntimeState
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -68,6 +69,8 @@ def configuration(tmp_path: Path) -> SofiaConfiguration:
         encoding="utf-8",
     )
 
+    # Explicit disposable first-install setup: production must never infer it.
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=CONSTITUTION_PATH,
         constitution_hash_path=HASH_PATH,

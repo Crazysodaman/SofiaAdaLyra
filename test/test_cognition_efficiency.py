@@ -11,6 +11,7 @@ from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.config.model import ProviderConfiguration
 from sofia.runtime.hot_state import HotState, HotStateEntry
 from sofia.state.sqlite_access import shared_sqlite_access
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 9, tzinfo=timezone.utc)
@@ -82,6 +83,7 @@ def test_hot_state_publication_wakes_event_waiter():
 
 
 def test_shared_sqlite_access_enables_wal_verifies_indexes_and_counts(tmp_path: Path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     access = shared_sqlite_access(tmp_path / "sofia.db")
     assert access is shared_sqlite_access(tmp_path / "sofia.db")
     before = efficiency_snapshot()

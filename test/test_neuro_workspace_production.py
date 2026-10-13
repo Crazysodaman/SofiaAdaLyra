@@ -8,6 +8,7 @@ from sofia.application.conversation_service import ConversationService
 from sofia.neuro import NeuralSignal, NeuroRuntime
 from sofia.neuro.store import NeuroObservabilityStore
 from sofia.neuro.workspace import NeuroSharedWorkspace
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark=pytest.mark.pkg_core
 NOW=datetime(2026,10,11,12,tzinfo=timezone.utc)
@@ -19,6 +20,11 @@ def _signal(name, *, offset=0):
         novelty=.7,urgency=.6,observed_at=NOW+timedelta(seconds=offset),
         ttl_seconds=300,
     )
+
+
+@pytest.fixture(autouse=True)
+def _installed_canonical_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 
 def test_workspace_never_carries_more_than_three_eligible_nodes(tmp_path):

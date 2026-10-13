@@ -5,7 +5,9 @@ import sqlite3
 import pytest
 
 import sofia.state.factory as factory
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.state.canonical_sqlite import (
+    CanonicalStateUnavailable, bootstrap_canonical_sqlite,
+)
 from sofia.state.replication import (
     ReplicatedStatePlane, SQLiteReplicationWitness, ReplicationError,
 )
@@ -18,6 +20,8 @@ def _paths(tmp_path, monkeypatch):
     witness = tmp_path / "separate-witness" / "writer.db"
     primary.parent.mkdir()
     replica.parent.mkdir()
+    bootstrap_canonical_sqlite(primary)
+    bootstrap_canonical_sqlite(replica)
     SQLiteStatePlane(primary)
     SQLiteStatePlane(replica)
     monkeypatch.setenv("SOFIA_STATE_REPLICATION_ENABLED", "true")

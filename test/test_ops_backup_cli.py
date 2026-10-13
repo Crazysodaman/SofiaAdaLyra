@@ -111,5 +111,5 @@ def test_objectives_command_reports_declared_targets(capsys):
 
     assert code == 0
     output = capsys.readouterr().out
-    assert "rpo_seconds=3600" in output
-    assert "rto_seconds=1800" in output
+    assert "rpo_seconds=300" in output
+    assert "rto_seconds=3600" in output

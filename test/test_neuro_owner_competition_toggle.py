@@ -15,6 +15,7 @@ from sofia.config.user_settings import (
     RuntimeUserSettingsStore,
 )
 from sofia.neuro import NeuroRuntime, NeuralSignal
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 pytestmark = pytest.mark.pkg_core
@@ -26,6 +27,12 @@ def _signal(name, value):
         source=name, kind="diagnostic", value=value, confidence=0.8,
         novelty=0.8, urgency=0.8, observed_at=NOW,
     )
+
+
+@pytest.fixture(autouse=True)
+def _disposable_canonical_neuro_state(tmp_path):
+    # All cases exercise a first-installed owner settings DB, never auto-boot.
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 
 def test_owner_neuro_toggle_persists_and_legacy_settings_migrate(tmp_path):

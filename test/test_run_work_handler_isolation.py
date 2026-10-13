@@ -7,6 +7,7 @@ from sofia.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkResult, WorkStatus,
 )
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 pytestmark = pytest.mark.pkg_run
@@ -14,6 +15,7 @@ pytestmark = pytest.mark.pkg_run
 
 def test_multiple_application_coordinators_only_claim_their_reviewed_job_kinds(tmp_path):
     path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
     SQLiteStatePlane(path)
     store = DurableWorkStore(path)
     handler = lambda _job, _cancel: WorkResult(
