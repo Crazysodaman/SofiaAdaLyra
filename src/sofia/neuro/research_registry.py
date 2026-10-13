@@ -28,6 +28,11 @@ _OUTCOMES = frozenset({
     "adverse", "protocol_violation",
 })
 
+# Owner-approved V18 CA-3907 bounds. Scientific registry only: this does not
+# grant experiment execution, self-approval, or wider independent LIFE rights.
+MAX_ACTIVE_RESEARCH_EXPERIMENTS = 5
+MAX_UNRESOLVED_RESEARCH_HYPOTHESES = 15
+
 # Distinct scientific questions. Computation may quantify functional
 # capabilities, but cannot turn third-person behavior into first-person proof.
 # Computational workspace/broadcast hypotheses are not evidence of the
@@ -142,6 +147,30 @@ class ResearchEvidenceRegistry:
                 );
                 CREATE INDEX IF NOT EXISTS neuro_research_result_scope_idx
                     ON neuro_research_result(protocol_id, observed_at);
+                CREATE TABLE IF NOT EXISTS neuro_research_portfolio_state (
+                    protocol_id TEXT PRIMARY KEY REFERENCES neuro_research_protocol(protocol_id),
+                    status TEXT NOT NULL CHECK(status IN
+                        ('proposed','active','paused','resolved')),
+                    updated_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS neuro_research_portfolio_status_idx
+                    ON neuro_research_portfolio_state(status);
+            """)
+            # The pre-existing research registry had no experiment status.
+            # Keep its original records: a reviewed conclusive result is
+            # resolved, while the rest are proposed, not magically active.
+            db.execute("""
+                INSERT OR IGNORE INTO neuro_research_portfolio_state
+                    (protocol_id,status,updated_at)
+                SELECT p.protocol_id,
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM neuro_research_result AS r
+                        WHERE r.protocol_id=p.protocol_id AND
+                          json_extract(r.outcome_json,'$.result') IN
+                          ('supported','refuted','null','adverse','protocol_violation')
+                    ) THEN 'resolved' ELSE 'proposed' END,
+                    p.preregistered_at
+                FROM neuro_research_protocol AS p
             """)
 
     def _connect(self):
@@ -175,12 +204,106 @@ class ResearchEvidenceRegistry:
                     )
                 db.commit()
                 return study.protocol.protocol_id
+            # The count and original insert are serialized inside this
+            # BEGIN IMMEDIATE. A concurrent second request cannot exceed the
+            # 15 unresolved scientific hypothesis owner allowance.
+            outstanding = db.execute(
+                "SELECT COUNT(*) FROM neuro_research_portfolio_state "
+                "WHERE status!='resolved'"
+            ).fetchone()[0]
+            if outstanding >= MAX_UNRESOLVED_RESEARCH_HYPOTHESES:
+                raise PermissionError(
+                    "owner research portfolio has 15 unresolved hypotheses"
+                )
             db.execute(
-                "INSERT INTO neuro_research_protocol VALUES(?,?,?,?)",
+                "INSERT INTO neuro_research_protocol VALUES(?,?,?,?)"
                 (study.protocol.protocol_id, payload, moment, study.reviewed_by),
+            )
+            db.execute(
+                "INSERT INTO neuro_research_portfolio_state VALUES(?,?,?)",
+                (study.protocol.protocol_id, "proposed", moment),
             )
             db.commit()
         return study.protocol.protocol_id
+
+    def portfolio_counts(self) -> dict[str, int]:
+        """Return exact durable scientific slot counts, not actual RUN jobs."""
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT status,COUNT(*) FROM neuro_research_portfolio_state "
+                "GROUP BY status"
+            ).fetchall()
+        counts = {key: 0 for key in ("proposed", "active", "paused", "resolved")}
+        for status, total in rows:
+            if status not in counts:
+                raise ValueError("invalid stored research portfolio status")
+            counts[status] = int(total)
+        counts["unresolved"] = (
+            counts["proposed"] + counts["active"] + counts["paused"]
+        )
+        return counts
+
+    def activate_experiment(
+        self, protocol_id: str, *, reviewed_by: str,
+    ) -> bool:
+        """Reserve an active scientific slot; NOT consent or RUN permission.
+
+        Reviewer's name is historical metadata, NOT authentication: caller
+        must already have obtained independent owner authority from SAFE.
+        """
+        if reviewed_by != "Sparks":
+            raise PermissionError("owner-reviewed experiment reservation required")
+        if not isinstance(protocol_id, str) or not _ID.fullmatch(protocol_id):
+            raise ValueError("exact preregistered scientific protocol ID required")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT status FROM neuro_research_portfolio_state "
+                "WHERE protocol_id=?", (protocol_id,),
+            ).fetchone()
+            if row is None:
+                raise LookupError("scientific protocol not preregistered")
+            if row[0] == "resolved":
+                raise PermissionError("resolved study cannot be restarted")
+            if row[0] == "active":
+                return False  # Idempotent, not an additional slot.
+            active = db.execute(
+                "SELECT COUNT(*) FROM neuro_research_portfolio_state "
+                "WHERE status='active'"
+            ).fetchone()[0]
+            if active >= MAX_ACTIVE_RESEARCH_EXPERIMENTS:
+                raise PermissionError("owner research portfolio has 5 active experiments")
+            db.execute(
+                "UPDATE neuro_research_portfolio_state SET status='active', "
+                "updated_at=? WHERE protocol_id=?",
+                (_timestamp(datetime.now(timezone.utc)), protocol_id),
+            )
+            return True
+
+    def pause_experiment(
+        self, protocol_id: str, *, reviewed_by: str,
+    ) -> bool:
+        """Free an active scientific slot without deleting its hypothesis."""
+        if reviewed_by != "Sparks":
+            raise PermissionError("owner-reviewed scientific pause required")
+        if not isinstance(protocol_id, str) or not _ID.fullmatch(protocol_id):
+            raise ValueError("exact preregistered scientific protocol ID required")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT status FROM neuro_research_portfolio_state "
+                "WHERE protocol_id=?", (protocol_id,),
+            ).fetchone()
+            if row is None:
+                raise LookupError("scientific protocol not preregistered")
+            if row[0] != "active":
+                return False
+            db.execute(
+                "UPDATE neuro_research_portfolio_state SET status='paused', "
+                "updated_at=? WHERE protocol_id=?",
+                (_timestamp(datetime.now(timezone.utc)), protocol_id),
+            )
+            return True
 
     def record_reviewed_result(
         self, outcome: EvaluatedResearchOutcome,
@@ -238,6 +361,22 @@ class ResearchEvidenceRegistry:
                     payload["observed_at"],
                 ),
             )
+            # A conclusive independent review closes the unresolved slot.
+            # Inconclusive evidence never counts as completion: pause instead
+            # of falsely clearing the unanswered hypothesis.
+            if outcome.result == "inconclusive":
+                db.execute(
+                    "UPDATE neuro_research_portfolio_state "
+                    "SET status='paused', updated_at=? "
+                    "WHERE protocol_id=? AND status!='resolved'",
+                    (payload["observed_at"], outcome.protocol_id),
+                )
+            else:
+                db.execute(
+                    "UPDATE neuro_research_portfolio_state "
+                    "SET status='resolved', updated_at=? WHERE protocol_id=?",
+                    (payload["observed_at"], outcome.protocol_id),
+                )
             db.commit()
         return result_id
 
@@ -270,8 +409,11 @@ class ResearchEvidenceRegistry:
             counted.setdefault(key, {})[result_kind] = int(total)
         for protocol_id, raw in results:
             by_protocol.setdefault(protocol_id, []).append(json.loads(raw))
+        slots = self.portfolio_counts()
         lines = [
             "CONSCIOUSNESS-INSPIRED SCIENTIFIC STUDIES",
+            "Owner research slots: active=" + str(slots["active"])
+            + "/5; unanswered=" + str(slots["unresolved"]) + "/15",
             "All measures report only functional outcomes; they are "
             "behaviorally observable, not measures of subjective experience.",
             "Even supported outcomes cannot establish phenomenal consciousness.",
