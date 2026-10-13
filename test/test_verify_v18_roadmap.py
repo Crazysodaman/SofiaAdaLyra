@@ -26,6 +26,15 @@ def _fixture(tmp_path):
     master.write_bytes((ROOT / MASTER_RELATIVE).read_bytes().replace(
         b"\r\n", b"\n",
     ))
+    # The original 700 ledger is supplemented by independently maintained
+    # ML/GA plans. Include both source inventories in isolated fixtures.
+    for relative in (
+        Path("docs/Sofia_V18_700_Tasks_Brief_Table.md"),
+        Path("docs/roadmaps/Sofia_Generalization_Lifelong_Learning_40_Task_Addendum.md"),
+    ):
+        source = tmp_path / relative
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_bytes((ROOT / relative).read_bytes())
     contents = json.loads((ROOT / LEDGER_RELATIVE).read_text(encoding="utf-8"))
     ledger.write_text(json.dumps(contents), encoding="utf-8")
     for item in contents["tasks"]:
@@ -192,4 +201,43 @@ def test_v18_extension_marker_removal_rejects_tampered_master(tmp_path):
         "## Unreviewed tasks | ML-001", 1,
     ), encoding="utf-8")
     with pytest.raises(RoadmapIntegrityError, match="source bytes changed"):
+        validate_repository(tmp_path)
+
+
+def test_v18_expanded_planning_inventory_verified_without_acceptance():
+    report = validate_repository(ROOT)
+    scope = report["expanded_planning_inventory"]
+    assert scope == {
+        "original_tasks": 700,
+        "ml_planned": 40,
+        "ga_planned": 40,
+        "planned_tasks": 780,
+    }
+
+
+def test_v18_expanded_table_missing_ga_task_fails_closed(tmp_path):
+    _fixture(tmp_path)
+    brief = tmp_path / "docs/Sofia_V18_700_Tasks_Brief_Table.md"
+    text = brief.read_text(encoding="utf-8")
+    assert "| GA-040 |" in text
+    brief.write_text(text.replace("| GA-040 |", "| GA-999 |", 1), encoding="utf-8")
+    with pytest.raises(RoadmapIntegrityError, match="expanded table disagrees"):
+        validate_repository(tmp_path)
+
+
+def test_v18_ga_addendum_duplicates_rejected(tmp_path):
+    _fixture(tmp_path)
+    ga = tmp_path / "docs/roadmaps/Sofia_Generalization_Lifelong_Learning_40_Task_Addendum.md"
+    text = ga.read_text(encoding="utf-8")
+    assert "**GA-040 [PLANNED" in text
+    ga.write_text(text.replace("**GA-040 [PLANNED", "**GA-039 [PLANNED", 1), encoding="utf-8")
+    with pytest.raises(RoadmapIntegrityError, match="supplemental ML or GA"):
+        validate_repository(tmp_path)
+
+
+def test_v18_expansion_rejects_missing_ga_addendum(tmp_path):
+    _fixture(tmp_path)
+    ga = tmp_path / "docs/roadmaps/Sofia_Generalization_Lifelong_Learning_40_Task_Addendum.md"
+    ga.unlink()
+    with pytest.raises(RoadmapIntegrityError, match="missing or symlinked"):
         validate_repository(tmp_path)
