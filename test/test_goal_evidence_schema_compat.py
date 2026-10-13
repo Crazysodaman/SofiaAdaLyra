@@ -36,3 +36,46 @@ def test_timestamped_conversation_schema_remains_a_valid_evidence_source(tmp_pat
     assert result.kind == "conversation_message"
     assert result.observed_at == observed
     assert result.source == "conversation"
+
+ 
+def test_goal_evidence_fails_closed_if_database_swapped_during_read_open(
+    tmp_path, monkeypatch,
+):
+    from contextlib import closing
+    import os
+    import pytest
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    replacement = bootstrap_canonical_sqlite(tmp_path / "other.db")
+    index = GoalEvidenceIndex(state)
+    actual_connect = sqlite3.connect
+    swapped = []
+
+    def swap_during_sqlite_open(database, *args, **kwargs):
+        if not swapped:
+            # The existing owner has already validated the original inode.
+            # A rogue state replacement before sqlite3_open must be rejected
+            # even if the replacement itself has a well-formed SQLite schema.
+            os.replace(replacement, state)
+            swapped.append(True)
+        return actual_connect(database, *args, **kwargs)
+
+    monkeypatch.setattr(
+        "sofia.state.canonical_sqlite.sqlite3.connect",
+        swap_during_sqlite_open,
+    )
+    with pytest.raises(CanonicalStateUnavailable, match="replaced"):
+        index.lookup("goal-evidence:forged")
+    assert swapped == [True]
+
+
+def test_guard_read_only_connection_cannot_mutate_database(tmp_path):
+    from contextlib import closing
+    import pytest
+    from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    with closing(CanonicalSQLiteGuard(path).connect(read_only=True)) as db:
+        with pytest.raises(sqlite3.OperationalError):
+            db.execute("CREATE TABLE unauthorized_evidence(id TEXT PRIMARY KEY)")

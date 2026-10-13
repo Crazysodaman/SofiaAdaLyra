@@ -114,10 +114,14 @@ class CanonicalSQLiteGuard:
         timeout: float = 10.0,
         check_same_thread: bool = True,
         factory: type[sqlite3.Connection] = sqlite3.Connection,
+        read_only: bool = False,
     ) -> sqlite3.Connection:
+        if type(read_only) is not bool:
+            raise TypeError("read_only must be bool")
         path = self.validate()
         database = sqlite3.connect(
-            path.as_uri() + "?mode=rw", uri=True, timeout=timeout,
+            path.as_uri() + ("?mode=ro" if read_only else "?mode=rw"),
+            uri=True, timeout=timeout,
             check_same_thread=check_same_thread, factory=factory,
         )
         # A canonical file can be swapped between path validation and the

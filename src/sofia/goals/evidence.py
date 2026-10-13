@@ -140,8 +140,9 @@ class GoalEvidenceIndex:
     def lookup(self, evidence_ref: str) -> GoalEvidence | None:
         if not isinstance(evidence_ref, str) or not evidence_ref.strip():
             return None
-        uri = self._guard.validate().as_uri() + "?mode=ro"
-        with closing(sqlite3.connect(uri, uri=True, timeout=5)) as db:
+        # Resolve via the canonical guard's pre/post-open identity checks.
+        # A swapped database must never supply fabricated goal evidence.
+        with closing(self._guard.connect(timeout=5, read_only=True)) as db:
             if self._has(db, "goal_evidence_record"):
                 row = db.execute("""
                     SELECT kind,observed_at,successful,goal_id,action_id,assertion,
