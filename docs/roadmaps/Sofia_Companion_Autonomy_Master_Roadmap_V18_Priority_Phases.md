@@ -1215,3 +1215,137 @@ Each checklist line below preserves the original task wording and ID. Multiple o
 - **Performance and research scoreboard:** measured baseline, accepted maximum load on Venus, independent model and NEURO comparisons, reject low-value complexity.
 
 **Counts verification:** every V17 `CA-` task appears in exactly one priority phase. 700 unique IDs, 700 checklist lines, 69 source topic groups, 17 ordered execution phases. The full text of old V17 preambles and research citations remains in its unchanged source file.
+
+---
+
+## Machine learning addendum | ML-001–ML-040 (new work, 2026-10-13)
+
+**Owner request:** incorporate the researched machine-learning expansion into the ideal/master task inventory. The **original 700 CA tasks, IDs, wording, 17 V18 phases and audit status remain unchanged**; these 40 ML-prefixed entries are additional scoped requirements, not renamed CA entries, inherited V17 tasks, acceptance credit or proof of implementation. **Total planning inventory: 700 CA + 40 ML = 740 items.** This extension does not alter the historical 700-only count statement above or past source audit ledgers.
+
+**Architecture:** one shared, permission-governed learning service building on current canonical `sofia.db`, MEMORY/HABIT/LIFE/ACT/FLEET/NEURO/COGNITION/EVOLVE/RUN/SAFE, with CPU-first predictive models and a Fleet shadow pilot. Store model bytes outside the DB with digest/provenance; never create a second writer or scheduler. Learned outputs are only suggestions. Existing authority, truth, source scope, STOP, privacy and consent gates are never learned or overridden. No training, tests, installations, CI, DB migration or live host effects are authorized by this planning change.
+
+**Owner constraints retained:** Venus single-writer until separately approved verified cutover to Debian `Sofia` VM on Artemis; existing gaming exclusion and 30-minute verified idle; quiet 22:00–08:00 America/Chicago, <=15 ordinary proactive sends/day and >=30 minutes between sends; 200,000 optional estimated background tokens/day, 1 hour reserved GPU/day; <=5 concurrent research experiments and <=15 unresolved hypotheses; temporary authorized capture media 2 GiB/host, proper 24h success/failure deletion rules, no ML retention exemption; reviewed/offsite recovery and independent offline keys. All future LoRA weight training, guest activation, model promotion, data use and deployment require their own authority checks.
+
+**Delivery order:** ML-00 foundation -> ML-01 Fleet shadow pilot -> ML-02 memory -> ML-03 LIFE/social -> ML-04 NEURO/cognition -> ML-05 EVOLVE -> ML-06 isolated LoRA lab, with ML-07 verification across every stage. Cross-references are **dependencies/possible overlap**, not new CA implementation status. Reconcile each item with its referenced CA task before coding to avoid double implementation. The detailed proposal was authored 2026-10-13; its first ten engineering tickets preserve the same ML-001–ML-010 meanings (numbers 009/010 deliberately grouped by delivery owner below).
+
+### ML-00 Foundations
+
+**Related V18 phases:** 00, 01, 02, 06, 07. Baseline source ownership, consent, provenance, evaluation, registry and no-authority shadow path.
+
+- [ ] **ML-001 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 00; references CA-1204, CA-3302) Audit existing MEMORY, HABIT, LIFE, FLEET, NEURO, COGNITION, EVOLVE, SAFE and RUN owners, model/data paths and relevant CA requirements; document reuse/retire/extend decisions without building a second scheduler, database authority or feedback engine.
+  - **Acceptance:** Source-to-consumer map with deduplicated interfaces and identified production gaps.
+- [ ] **ML-002 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 02; references CA-3105, CA-6704) Define typed no-authority prediction contracts and a per-data-use permission matrix separating observation, storage, feature extraction, statistical training, LLM weight training and deployment; prohibit predicted consent, authority and factual evidence.
+  - **Acceptance:** Negative approval/consent and cross-principal/audience cases remain fail-closed.
+- [ ] **ML-003 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 07; references CA-1204, CA-4906) Wire canonical observation/outcome references, independently grounded labels, expiry and training-use lineage through existing single-writer state; admit no ambient raw chat, screen, audio or private journals by default.
+  - **Acceptance:** Every eligible sample links exact source, principal, audience, time, retention and permission; deletion policy applies to derivatives.
+- [ ] **ML-004 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 06; references CA-5801, CA-3306) Build versioned point-in-time feature views with freshness, missingness, redaction, source-scope filtering, leakage prevention, revocation propagation and immutable dataset manifests.
+  - **Acceptance:** Features cannot reference future labels, wrong audiences or expired/disallowed source material.
+- [ ] **ML-005 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 01; references CA-007, CA-1205) Add deterministic baseline and independent candidate evaluation harness with chronological/group-separated train/validation/holdout splits, seed/schema/library hashes, paired metrics and a strict unknown-outcome class.
+  - **Acceptance:** Reproducible independent holdout results; no self-generated positive success labels.
+- [ ] **ML-006 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 01; references CA-6709, CA-3103) Implement a content-addressed candidate registry in the existing canonical writer, with signed/hash-pinned external model artifacts, export/runtime compatibility, bounded CPU/RAM/time use, fallback and atomic rollback.
+  - **Acceptance:** Corrupt, stale, revoked or incompatible artifacts never load; previous candidate survives restart and rollback.
+- [ ] **ML-007 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 01; references CA-006, CA-1206) Add OBSERVE -> SHADOW -> ADVISORY -> LIMITED predictive modes to existing diagnostic/UI routes, logging compared decisions without granting model-driven execution; expose reasons, uncertainty, revocation and reset.
+  - **Acceptance:** SHADOW performs zero real actions and no promotions without independent accepted evidence.
+- [ ] **ML-009 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 02; references CA-1206, CA-3311) Author adversarial and integration regressions for data poisoning, forged praise, scope leakage, withdrawn permission, replay, stale sensors, gaming/STOP, retention expiry, tampered model bytes and restoring prior versions.
+  - **Acceptance:** No authority/privacy regression across every new prediction consumer.
+
+### ML-01 FLEET pilot
+
+**Related V18 phases:** 01, 11. First measured CPU-first predictor; real telemetry labels, no unauthorized placement or competing gaming loads.
+
+- [ ] **ML-008 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 11; references CA-6608, CA-2101) Train the first bounded CPU-only future-host-pressure forecast from fresh existing Fleet telemetry; compare with last-value/EWMA predictors and store time-delayed outcome receipts.
+  - **Acceptance:** Out-of-time forecast beats eligible baseline or stays shadow; no model loads or moves driven by ML.
+- [ ] **ML-010 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 01; references CA-007, CA-6608) Run an exact-revision approved Fleet canary and at least two-week shadow comparison covering cold/restarted workers, actual host pressure, latency, detection errors and rollback; never claim an unrun trial complete.
+  - **Acceptance:** Measured CPU/latency/capacity evidence and separately authorized advancement decision.
+- [ ] **ML-011 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 11; references CA-6608, CA-2101) Define per-enrolled-host 5/15/30-minute CPU, RAM, GPU and VRAM prediction targets from authentic timestamped samples, with gaps, gaming state and unknown devices handled explicitly.
+  - **Acceptance:** No labels fabricated across telemetry gaps, host mismatch or out-of-order observations.
+- [ ] **ML-012 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 11; references CA-2101, CA-6608) Offer advisory anomaly candidates using bounded statistical detectors compared with fixed operational thresholds; include explanation and false-alarm logging.
+  - **Acceptance:** No automatic incident response, credential changes, transfers or workload intervention.
+- [ ] **ML-013 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 11; references CA-6608, CA-6609) Produce advisory host-placement cost/latency predictions only after mTLS trust, fresh capacity and current gaming checks pass; send eligible suggestions to existing Fleet/OPS policy owner.
+  - **Acceptance:** No learned proposal can enroll an unknown machine, force a model load or defeat gaming limits.
+- [ ] **ML-014 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 11; references CA-2101, CA-6712) Measure prediction drift, skipped data, resource overhead, model errors and actual forecasting utility; automatically disable advisory use on regressions while preserving deterministic scheduling.
+  - **Acceptance:** Tracked fallback and restore across crashes, disconnects and model rollback.
+
+### ML-02 Memory learning
+
+**Related V18 phases:** 06, 07. Only rerank already-authorized eligible memories; correction, erasure and independently judged relevance.
+
+- [ ] **ML-015 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 06; references CA-1204, CA-5801) Collect explicit user-approved relevance/correction judgments from already eligible retrieved memories; keep source/candidate IDs and unknown/missing feedback distinct from negatives.
+  - **Acceptance:** No inference of preference or correctness from silence, mere retrieval or LLM self-praise.
+- [ ] **ML-016 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 06; references CA-5801, CA-3306) Train bounded pointwise/pairwise memory-ranking scorer that operates only after existing principal/audience/source/status eligibility, query relevance and factual verification gates.
+  - **Acceptance:** Retrieved results cannot become newly eligible from model score alone.
+- [ ] **ML-017 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 06; references CA-3306, CA-1205) Calibrate ranking uncertainty with minimum-label and rare-topic safeguards; fallback to deterministic order when scores are weak, outdated or unsupported.
+  - **Acceptance:** Eligible abstention and deterministic fallback work for sparse/contradictory topics.
+- [ ] **ML-018 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 07; references CA-4906, CA-5801) On owner correction, deletion, source revocation or privacy change, invalidate derived memory training rows and affected published scorers; track trained influence and retraining/review need.
+  - **Acceptance:** Erasure and correction semantics work across backups, archives and model lineage without false claims of universal deletion.
+- [ ] **ML-019 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 06; references CA-1205, CA-3306) Verify recall@5, NDCG@5, timeline/correction truth and longitudinal source accuracy against existing retrieval on independent future conversations.
+  - **Acceptance:** Measured relevance benefit with zero forbidden cross-audience recall.
+
+### ML-03 LIFE / HABIT / social
+
+**Related V18 phases:** 08, 09. Opt-in, non-coercive preference learning; hard quiet/mute/game/safety rules dominate.
+
+- [ ] **ML-020 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 08; references CA-3310, CA-1204) Provide opt-in, easily reversible usefulness/interruptiveness feedback for project sharing and ordinary updates, without requiring constant ratings.
+  - **Acceptance:** Unknown, unopened and silent interactions remain unknown, not negative labels.
+- [ ] **ML-021 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 08; references CA-404, CA-410) Learn advisory outreach receptiveness/timing from eligible opt-in feedback and verified busy/game/mute/quiet signals; preserve ACT deterministic eligibility and owner limits.
+  - **Acceptance:** No unsolicited send in 22:00-08:00 Central, gaming/STOP, or outside 15/day and 30-minute spacing limits.
+- [ ] **ML-022 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 09; references CA-101, CA-3501) Use independently checked project evaluations and explicit interests to rank optional LIFE ideas and what is worth sharing, while preserving Sofía's ability to choose silence.
+  - **Acceptance:** No project accepted on model self-evaluation; no pressure to contact or automatic goal permissions.
+- [ ] **ML-023 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 08; references CA-3310, CA-1204) Add explicit owner-facing inspection and correction for learned social patterns and hard suppressions; measure negative outcomes without rewarding dependency or engagement volume.
+  - **Acceptance:** Owner can inspect/disable corrections immediately and priority remains with authenticated policy.
+- [ ] **ML-024 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 08; references CA-404, CA-1206) Run multiweek, scoped, opt-in comparisons for useful interactions versus rule-only baseline, measuring false/welcome interruptions and refusal/stop compliance.
+  - **Acceptance:** Only advance if real opt-in helpfulness improves with no rise in unwanted outreach.
+
+### ML-04 NEURO / cognition
+
+**Related V18 phases:** 11, 15. Advisory salience and model-routing efficiency versus deterministic baselines, never route truth/authority.
+
+- [ ] **ML-025 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 15; references CA-701, CA-709) Add learned advisory salience/relevance score alongside existing deterministic NEURO winner, keeping bounded feature weights, stable fallbacks and no evidence/authority mutation.
+  - **Acceptance:** Model never changes consent, canonical memory promotion, factual truth or STOP.
+- [ ] **ML-026 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 15; references CA-708, CA-712) Version exact feature dictionaries and compare deterministic, competition, sparse-association and learned attention variants with paired ablations and resource measurements.
+  - **Acceptance:** Measurable downstream improvement or learned variant remains disabled.
+- [ ] **ML-027 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 11; references CA-6608, CA-6711) Predict verified fast/deep/multi-worker costs and latency from actual model/host measurements; offer compute-route hints to the existing cognition scheduler.
+  - **Acceptance:** No new route authority; fallback on unobserved GPU capacity or incomplete metrics.
+- [ ] **ML-028 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 11; references CA-1206, CA-6709) Preserve TurnPlan explicit DEEP/VERIFY, privacy, subject-specific evidence and busy-game controls before using any ML routing hint; forbid verification downgrades.
+  - **Acceptance:** All protected routes and evidence obligations unchanged in negative tests.
+- [ ] **ML-029 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 11; references CA-6712, CA-2101) Measure answer quality, p95 latency, CPU/RAM/VRAM, model wakeups and repeated-context behavior in side-by-side baseline and proposed routing trials.
+  - **Acceptance:** Accept only demonstrable resource/quality gain without user-facing regression.
+
+### ML-05 EVOLVE optimizer
+
+**Related V18 phases:** 09, 16. Outcome-derived experiment prioritization subject to existing limits and independent review.
+
+- [ ] **ML-030 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 09; references CA-3501, CA-113) Collect independent artifact/objective outcomes and rejected/unknown results as separately sourced experiment labels; never treat LLM success claims as completed work.
+  - **Acceptance:** Completion based on verified receipts or explicitly reviewed subjective evaluation.
+- [ ] **ML-031 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 09; references CA-3304, CA-1204) Rank eligible LIFE/EVOLVE experiments by expected verified usefulness, cost, uncertainty and distinctiveness, with abstention and owner-readable alternatives.
+  - **Acceptance:** No self-reward hacking, self-granted goals or promotion of unverified experiments.
+- [ ] **ML-032 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 09; references CA-2101, CA-3907) Use existing RUN resource/experiment admission policy: at most 5 active research experiments, 15 unanswered hypotheses, 200k estimated optional tokens/day and 1h reserved GPU/day.
+  - **Acceptance:** No bypass of quotas, protected projects, owner approval or quiet/game restrictions.
+- [ ] **ML-033 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 16; references CA-812, CA-3304) Compare learned experiment selection against simple deterministic plans using preregistered controls, negative results and long-horizon causal tracking.
+  - **Acceptance:** Independent verified improvement; no consciousness or sentience claims.
+
+### ML-06 Hephaestus / LoRA
+
+**Related V18 phases:** 13, 14. Future isolated and explicitly approved model adaptation after real guest and source-rights proof.
+
+- [ ] **ML-034 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 13; references CA-2806, CA-6702) Complete independent Debian Hephaestus VM installation, owner-approved internal isolation, enrolled guest identity, snapshot/recovery proof and resource caps before any training execution.
+  - **Acceptance:** No training on OS-less/unattested guest, no canonical DB/secrets mount, no live host action without separate authorization.
+- [ ] **ML-035 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 14; references CA-6703, CA-6704) Enforce reviewed dataset rights, training-purpose consent, privacy scope, deduplication and train/heldout isolation; disallow private chat/screens/journals without a separately established explicit policy.
+  - **Acceptance:** No unauthorized model-weight reuse of personal learning features or protected capture bytes.
+- [ ] **ML-036 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 14; references CA-6706, CA-6710) Wire a separately approved, isolated LoRA/QLoRA executor with pinned base/tokenizer, deterministic manifest, measured job quotas, cancellation, restart and artifact verification.
+  - **Acceptance:** Training run is isolated; worker cannot deploy, change identity, grant permissions or mutate canonical runtime.
+- [ ] **ML-037 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 14; references CA-6705, CA-6708) Independently benchmark candidate adapters against base models, prompts and RAG for accuracy, safety, contamination, generalization, cost and personality drift.
+  - **Acceptance:** Holdout and adversarial evidence justify or reject the candidate; no benchmark-overlap shortcut.
+- [ ] **ML-038 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 14; references CA-6709, CA-6712) Separate model-training acceptance from signed production promotion, canary, previous-model retention, stop, rollback and operator authorization.
+  - **Acceptance:** No unreviewed weight/model switch and no opportunistic fleet fallback.
+
+### ML-07 Long-term verification
+
+**Related V18 phases:** 01, 07. Continuous drift, privacy revocation and real recovery validation.
+
+- [ ] **ML-039 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 01; references CA-007, CA-1206) Add periodic model/data drift, performance, privacy and permissions audits for each predictor, with lineage reports, shadow replay, disable controls and owner-visible diagnostics.
+  - **Acceptance:** Independent exact-SHA CI and live host proof for each active learner; unknown results remain explicitly unknown.
+- [ ] **ML-040 [NEW, PLAN / NOT ACCEPTED]** (primary V18 phase 07; references CA-3103, CA-4906) Prove that source revocation, media expiry, deletion/retraining, state relocation, offline restore and rollback preserve single-writer semantics and invalidate ineligible learned artifacts.
+  - **Acceptance:** Affected predictor disabled until safe retraining or independent proof; no undocumented retention or false erasure claim.
+
+**Verification / counting:** 40 unique ML checklist IDs, zero ML items accepted at creation; all 700 original CA IDs remain unchanged. 740 is the expanded *planning* count, NOT a statement that 740 production changes are necessary or complete. Update any derived progress ledger separately only after individual source audit and independently valid acceptance evidence.
