@@ -18,7 +18,7 @@ Checked against docs/Sofia_V18_700_Tasks_Brief_Table.md, the original V18 master
 
 | Tasks | Narrow unanswered parameter | Existing implementation or conservative default |
 |---|---|---|
-| CA-4906 | Exact retention periods and per-format storage quotas for audio clips, screenshots, video and generated assets, separately from capture consent. | Sensitive capture/share stays opt-in and scope-bound. Two encrypted database backup snapshots do **not** specify media retention. |
+| CA-4906 | **Owner preferred direction (2026-10-12):** after an authorized, accurately grounded, durable memory summary, delete eligible temporary raw media. Exact grace period, quota, ineligible/sensitive-capture behavior and separate completed creative-original preservation are *not yet numerically settled*. | See `v18-ca-4906-media-summary-then-delete-preference-2026-10-12.md`. Capture consent remains independent, candidate erasure is not media deletion, and two backup snapshots do not prove raw-media purge. |
 | CA-5108 | Optional digital legacy trustee, destruction or post-mortem/death/absence delegation. | **No third-party disclosure or automatic destruction** without exact independent future owner instructions. Not a blocker for ordinary private operation. |
 | CA-404, CA-410 | Owner has approved discretionary outreach but not separately confirmed the numeric quiet-time and notification frequency settings. | Source OutreachSettings defaults: quiet 22:00–08:00 America/Chicago; max 1 ordinary/social outreach per day, 360-minute social interval; separately governed critical operational alerts may bypass quiet. These are CODE DEFAULTS, not newly approved personal preferences. |
 | CA-105, CA-3507 | Any owner-specific subjective artistic quality thresholds or custom cost overrides. | Source-based objective validation and bounded projects; use engineering-configured safe caps, avoid inventing owner ratings. |
@@ -27,9 +27,13 @@ Checked against docs/Sofia_V18_700_Tasks_Brief_Table.md, the original V18 master
 
 ## Rationalized remaining question sequence
 
-1. CA-4906: exact media retention and quota, if this is needed before enabling capture/archive functionality.
+1. CA-4906: record the **already expressed summary-then-delete preference**, ask only grace period, per-format quota and creative-original exception; separate capture consent.
 2. CA-404/410: whether to keep the existing quiet-hour/once-per-day defaults or select custom behavior; do not re-ask about voluntary LIFE messages.
 3. CA-3203/3907: numerical optional LLM/research ceilings before enabling substantial new background compute.
 4. CA-5108: optional digital-legacy directive later. Remain private and non-disclosing until explicitly authorized.
 
 All entries are owner-decision inventory only; retain conservative source/test/production classifications. No live host, credentials, runtime, model, VM, database writer or user settings changed.
+
+## 2026-10-12 one-batch response format
+
+The owner explicitly requested the **whole remaining owner-decision queue together**, not one question at a time. Group the distinct open policy numbers (media cleanup, allowed captures, outreach numeric limits, inference/research budget, recovery-domain/key custody, optional project subjective rubric, digital-legacy directions) in a single table with existing defaults/recommended options. Do not convert a recommendation to an owner-approved value without a reply. The previously confirmed CA-5305 Hybrid option is not open.
