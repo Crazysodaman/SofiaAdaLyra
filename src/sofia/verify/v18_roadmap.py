@@ -135,8 +135,13 @@ def _expanded_task_inventory(
     expected_ml = [f"ML-{n:03d}" for n in range(1, 41)]
     expected_ga = [f"GA-{n:03d}" for n in range(1, 41)]
     expected_ca = set(original)
-    if ml != expected_ml or ga != expected_ga:
-        raise RoadmapIntegrityError("supplemental ML or GA task IDs missing, reordered, or duplicated")
+    # ML items are deliberately grouped by implementation owner, so their
+    # checklist order is not numeric. GA items are sequential in its addendum.
+    if (
+        len(ml) != 40 or len(set(ml)) != 40 or set(ml) != set(expected_ml)
+        or ga != expected_ga
+    ):
+        raise RoadmapIntegrityError("supplemental ML or GA task IDs missing or duplicated")
     if len(all_rows) != 780 or len(set(all_rows)) != 780:
         raise RoadmapIntegrityError("expanded 780-task table has missing or duplicate IDs")
     if set(all_rows) != expected_ca | set(expected_ml) | set(expected_ga):
