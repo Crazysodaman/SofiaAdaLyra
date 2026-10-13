@@ -103,7 +103,9 @@ def _seed_sqlite(source: Path, destination: Path) -> None:
         wal = Path(str(staged) + "-wal")
         if wal.exists() and wal.stat().st_size:
             raise RuntimeError("replica seed has uncheckpointed WAL bytes")
-        with staged.open("rb") as content:
+        # Windows _commit (os.fsync) requires a write-capable file handle;
+        # the verified staged bytes are not modified by opening r+b.
+        with staged.open("r+b") as content:
             os.fsync(content.fileno())
         # A replaced source invalidates this entire snapshot. An orphaned
         # SQLite handle cannot authorize publication as current replica truth.
