@@ -65,7 +65,10 @@ def fake_fleet(state,scope,*,remote_timeout=False):
         ExecutionApprovalVerifier(state).consume(
             approval_id=payload["approval_id"],
             capability="workshop.network.create",
-            parameters=scope,now=datetime.now(timezone.utc),
+            # Use the same synthetic approval clock as the reserved stage.
+            # This module may be collected long before a slow CI suite runs;
+            # real wall time can expire its 10-minute fixture approval.
+            parameters=scope,now=NOW+timedelta(seconds=1),
         )
         if remote_timeout:
             raise TimeoutError("Hyper-V network stage outcome is unknown")
