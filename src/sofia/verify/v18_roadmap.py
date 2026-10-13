@@ -50,19 +50,38 @@ def _within(repo: Path, relative: str) -> Path:
     return result
 
 
+# Delimiter begins AFTER the historical original's final newline.
+# Keep the 700-task ledger bound to its exact original bytes even when reviewed
+# new ML/GA sections are appended as separately governed scope.
+EXTENSION_DELIMITER = b"\n---\n\n## Machine learning addendum | ML-001"
+
+
+def _original_source_bytes(raw: bytes) -> bytes:
+    """Only the byte-identical historic 700-item source can pass the V18 gate."""
+    normalized = raw.replace(b"\r\n", b"\n")
+    if b"\r" in normalized:
+        raise RoadmapIntegrityError("V18 source bytes changed; update via reviewed new version")
+    if EXTENSION_DELIMITER in normalized:
+        if normalized.count(EXTENSION_DELIMITER) != 1:
+            raise RoadmapIntegrityError("ambiguous expanded V18 source boundary")
+        original, extension = normalized.split(EXTENSION_DELIMITER, 1)
+        # An appended checklist may never pretend to extend/replace the 700
+        # original CA records. Supplementary GA/ML inventories are audited
+        # separately and receive no acceptance credit from this validator.
+        if re.search(rb"(?m)^- \[[ xX]\] \*\*CA-\d+", extension) or (
+            b"\n## Priority phase " in extension
+        ):
+            raise RoadmapIntegrityError("CA checklist injected into extension")
+    else:
+        original = normalized
+    if sha256(original).hexdigest() != MASTER_SHA256:
+        raise RoadmapIntegrityError("V18 source bytes changed; update via reviewed new version")
+    return original
+
+
 def original_tasks(master: Path) -> dict[str, tuple[str, str, int]]:
     """Return each original CA ID with its exact phase/topic/line ownership."""
-    source = master.read_bytes()
-    if sha256(source).hexdigest() != MASTER_SHA256:
-        # On Windows, git autocrlf may materialize the exact signed Git text
-        # blob with CRLF. Permit ONLY that canonical platform EOL change;
-        # every other byte, task ID, phase and source line remains SHA-bound.
-        normalized = source.replace(b"\r\n", b"\n")
-        if (b"\r\n" not in source
-            or b"\r" in normalized
-            or sha256(normalized).hexdigest() != MASTER_SHA256):
-            raise RoadmapIntegrityError("V18 source bytes changed; update via reviewed new version")
-        source = normalized
+    source = _original_source_bytes(master.read_bytes())
     current_phase = current_topic = None
     task_map: dict[str, tuple[str, str, int]] = {}
     for lineno, line in enumerate(source.decode("utf-8").splitlines(), 1):
