@@ -14,26 +14,21 @@ Checked against docs/Sofia_V18_700_Tasks_Brief_Table.md, the original V18 master
 | CA-3203 (model residency portion) | Gaming takes priority; independently verified desktop idle for 30 minutes before capacity-aware on-demand/preload. No automatic model downloads/fallbacks. This does not answer daily inference/research budgets. |
 | CA-105 (independent creative choice), CA-3507 (objective evidence) | Independent LIFE goal/artifact critique, bounded revision and verified success principles are approved, without automatic permission grants. Their full coding/CI evaluation matrix remains unfinished; no need to re-ask whether Sofía can work creatively on her own. |
 
-## Owner-policy parameters still not established
+## Owner answers to the nine questions, confirmed 2026-10-12
 
-| Tasks | Narrow unanswered parameter | Existing implementation or conservative default |
+| Task IDs | Confirmed decision | Current implementation boundary |
 |---|---|---|
-| CA-4906 | **Owner preferred direction (2026-10-12):** after an authorized, accurately grounded, durable memory summary, delete eligible temporary raw media. Exact grace period, quota, ineligible/sensitive-capture behavior and separate completed creative-original preservation are *not yet numerically settled*. | See `v18-ca-4906-media-summary-then-delete-preference-2026-10-12.md`. Capture consent remains independent, candidate erasure is not media deletion, and two backup snapshots do not prove raw-media purge. |
-| CA-5108 | Optional digital legacy trustee, destruction or post-mortem/death/absence delegation. | **No third-party disclosure or automatic destruction** without exact independent future owner instructions. Not a blocker for ordinary private operation. |
-| CA-404, CA-410 | Owner has approved discretionary outreach but not separately confirmed the numeric quiet-time and notification frequency settings. | Source OutreachSettings defaults: quiet 22:00–08:00 America/Chicago; max 1 ordinary/social outreach per day, 360-minute social interval; separately governed critical operational alerts may bypass quiet. These are CODE DEFAULTS, not newly approved personal preferences. |
-| CA-105, CA-3507 | Any owner-specific subjective artistic quality thresholds or custom cost overrides. | Source-based objective validation and bounded projects; use engineering-configured safe caps, avoid inventing owner ratings. |
-| CA-3203, CA-3907 | Daily background inference tokens/CPU/GPU caps, concurrent research experiments and maximum unanswered hypotheses. | Existing optional admission credits are estimates; 30-minute idle policy does not settle these limits. Request only if preparing major autonomous workload and no safe measured default suffices. |
-| CA-3103 remaining implementation | Independent failure domain, backup key custody, incremental replication method, measured RPO/RTO and storage caps. | Design targets are approved but no operator-approved deployment location or measured live drill. |
+| CA-4906 | Successful summary: delete eligible temporary raw media 24h **after verified summary**. Failed summary: keep trying within 24h **of capture**, then purge raw media and log a non-content failure. Completed creative works require owner cleanup. Cap temporary captures at 2 GiB per host; deny new capture when full. | Summary-to-purge worker, failure quarantine and per-host quota not yet accepted. See `v18-owner-nine-policy-decisions-2026-10-12.md`. |
+| CA-5108 | Do not automatically disclose, transfer or erase private memories due to absence/death; require separately authenticated explicit owner instructions. | No estate delegate has been nominated; no legacy trigger may run. |
+| CA-404 / CA-410 | Owner approved 22:00–08:00 America/Chicago quiet, up to 15 ordinary social messages/day, at least 30min apart. | Source defaults for *new* OutreachSettings aligned. Existing saved owner overrides not mutated; channel/platform/live acknowledgment remains unverified. |
+| CA-3203 / CA-3907 | Max 200,000 estimated optional tokens/day and 1 hour reserved GPU time/day, excluding foreground; at most 5 simultaneous research experiments and 15 unresolved hypotheses, owner revisable. | New optional budget defaults aligned; actual host measurements and research portfolio count enforcement still unverified/not fully implemented. |
+| CA-3103 / CA-5207 / CA-6108 | Independently protected/offsite recovery copy; two owner-held **offline recovery-key copies**; exact location only during approved deployment planning. | Storage/keys/site and RPO/RTO actual rehearsal not provisioned or verified. Existing two encrypted snapshots/destination remain distinct. |
+| CA-105 / CA-3507 | Self-directed bounded creative work and honest independently checkable outcome claims are already approved in principle, without arbitrary subjective quality scoring. | Further measurable appraisal research, proof and safe source work are engineering tasks rather than an open yes/no owner policy question. |
 
-## Rationalized remaining question sequence
+## Owner design queue: resolved for the current nine choices
 
-1. CA-4906: record the **already expressed summary-then-delete preference**, ask only grace period, per-format quota and creative-original exception; separate capture consent.
-2. CA-404/410: whether to keep the existing quiet-hour/once-per-day defaults or select custom behavior; do not re-ask about voluntary LIFE messages.
-3. CA-3203/3907: numerical optional LLM/research ceilings before enabling substantial new background compute.
-4. CA-5108: optional digital-legacy directive later. Remain private and non-disclosing until explicitly authorized.
+All nine requested owner policy values were explicitly answered on 2026-10-12. Do not repeat the questionnaire. Full source of truth: `docs/development/v18-owner-nine-policy-decisions-2026-10-12.md`.
 
-All entries are owner-decision inventory only; retain conservative source/test/production classifications. No live host, credentials, runtime, model, VM, database writer or user settings changed.
+**Remaining engineering and future deployment decisions are not nine unanswered policy questions:** implement and verify timed media cleanup and quota; carry 5/15 research limits into a real scheduler; reconcile stored user settings under a supervised saved-settings change; select and verify offsite copy location, key custody and measured recovery; obtain hardware test evidence; choose any owner-specific subjective artwork rating rubric only if actually needed. Do not infer execution, safe erasure or live rollout from a GitHub document.
 
-## 2026-10-12 one-batch response format
-
-The owner explicitly requested the **whole remaining owner-decision queue together**, not one question at a time. Group the distinct open policy numbers (media cleanup, allowed captures, outreach numeric limits, inference/research budget, recovery-domain/key custody, optional project subjective rubric, digital-legacy directions) in a single table with existing defaults/recommended options. Do not convert a recommendation to an owner-approved value without a reply. The previously confirmed CA-5305 Hybrid option is not open.
+Global V18 task statuses remain Workstream 1's responsibility. Live hosts, canonical state and previously saved user options remain untouched.

@@ -16,9 +16,10 @@ from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 @dataclass(frozen=True,slots=True)
 class OptionalBudgetLimits:
-    tokens:int=400_000
+    # Owner-selected V18 background admission defaults. Estimates, not metered usage.
+    tokens:int=200_000
     cpu_ms:int=10_800_000
-    gpu_ms:int=5_400_000
+    gpu_ms:int=3_600_000
     storage_bytes:int=536_870_912
     occupied_latency_ms:int=7_200_000
 

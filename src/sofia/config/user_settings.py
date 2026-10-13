@@ -38,11 +38,12 @@ class OutreachSettings:
     quiet_start_local: int = 22
     quiet_end_local: int = 8
     timezone_name: str = "America/Chicago"
-    min_interval_minutes: int = 360
-    max_daily: int = 1
-    social_min_interval_minutes: int = 360
+    # V18 CA-404/410 owner-selected ordinary outreach limits (2026-10-12).
+    min_interval_minutes: int = 30
+    max_daily: int = 15
+    social_min_interval_minutes: int = 30
     operational_min_interval_minutes: int = 30
-    social_max_daily: int = 1
+    social_max_daily: int = 15
     operational_max_daily: int = 8
     allow_critical_operational_during_quiet: bool = True
 
