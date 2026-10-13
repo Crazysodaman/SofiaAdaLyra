@@ -257,15 +257,13 @@ def test_revoke_requires_fido2_proof_and_keeps_at_least_one_security_key(
         serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo,
     )
     one = b64(b"external-fido2-primary")
-    two = b64(b"external-fido2-backup")
     with sqlite3.connect(state) as db:
-        for credential in (one, two):
-            db.execute(
-                "INSERT INTO safe_owner_credential "
-                "(credential_id,public_key_der,credential_kind,sign_count,enrolled_at) "
-                "VALUES(?,?,?,?,?)",
-                (credential, signer_der, "security_key", 0, NOW.isoformat()),
-            )
+        db.execute(
+            "INSERT INTO safe_owner_credential "
+            "(credential_id,public_key_der,credential_kind,sign_count,enrolled_at) "
+            "VALUES(?,?,?,?,?)",
+            (one, signer_der, "security_key", 0, NOW.isoformat()),
+        )
     with pytest.raises(PermissionError, match="last active security"):
         # First remove backup in a properly authorized operation, then
         # refuse to remove the surviving primary key.
@@ -283,6 +281,17 @@ def test_revoke_requires_fido2_proof_and_keeps_at_least_one_security_key(
             expires_at=NOW + timedelta(minutes=5),
         )
         record_verified_owner_approval(approver, approval)
+        # The approval fixture adds a second independently signed FIDO2 key.
+        # Use that key as the actual surviving backup so the final-key
+        # revocation path is exercised, rather than accidentally testing
+        # an unrelated third-key scenario.
+        with sqlite3.connect(state) as db:
+            active_keys = [row[0] for row in db.execute(
+                "SELECT credential_id FROM safe_owner_credential "
+                "WHERE credential_kind='security_key' AND revoked_at IS NULL"
+            )]
+        assert len(active_keys) == 2 and one in active_keys
+        two = next(key for key in active_keys if key != one)
         revoke_enrollment(
             verifier, credential_id=target,
             approval_id=approval.approval_id, now=NOW + timedelta(seconds=3),

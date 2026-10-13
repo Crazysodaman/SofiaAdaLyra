@@ -32,6 +32,11 @@ def _paths(tmp_path, monkeypatch, version):
     monkeypatch.setattr(prepare, "require_debian_guest", lambda: None)
     monkeypatch.setattr(prepare.os, "geteuid", lambda: 0, raising=False)
     monkeypatch.setattr(prepare, "_root_owned_directory", lambda _: None)
+    # Only these isolated version/staging tests supply a synthetic root key.
+    # The separate signer-gate regression still exercises real ownership checks.
+    def require_fixture_signer(path):
+        assert path == key and path.read_bytes() == b"test public key"
+    monkeypatch.setattr(prepare, "_require_root_owned_signer_key", require_fixture_signer)
     monkeypatch.setattr(prepare, "verified_inbox_release", lambda **_:
         SimpleNamespace(revision=SHA, release_id="release-1", manifest_sha256=DIGEST))
     monkeypatch.setattr(prepare, "verify_release_evidence", lambda path: manifest)

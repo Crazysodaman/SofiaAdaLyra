@@ -118,7 +118,7 @@ def test_runtime_uses_existing_application_and_always_shuts_down(
         # This tests a substituted application lifecycle, not pointer enrollment.
         # Production configuration is separately verified and must not be
         # reconstructed here from an unsigned synthetic host environment.
-        lambda: SimpleNamespace(state_path=state),
+        lambda: replace(create_default_configuration(), state_path=state),
     )
     actions = []
     monkeypatch.setattr(
@@ -272,7 +272,7 @@ def test_shutdown_during_application_start_never_reports_systemd_ready(
         # This tests a substituted application lifecycle, not pointer enrollment.
         # Production configuration is separately verified and must not be
         # reconstructed here from an unsigned synthetic host environment.
-        lambda: SimpleNamespace(state_path=state),
+        lambda: replace(create_default_configuration(), state_path=state),
     )
     monkeypatch.setattr(runtime, "require_debian_guest", lambda: None)
     monkeypatch.setattr(runtime, "require_existing_sqlite", lambda path: None)

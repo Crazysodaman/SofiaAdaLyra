@@ -34,7 +34,7 @@ def test_removed_state_fails_closed_on_stop_read_and_update(tmp_path):
         store.current()
     with pytest.raises(FileNotFoundError):
         store.set(active=True, updated_by="Sparks", reason="no ghost canonical state")
-    with pytest.raises(PermissionError, match="authenticated approval"):
+    with pytest.raises(FileNotFoundError, match="canonical SQLite state is unavailable"):
         store.set(active=False, updated_by="Sparks", reason="do not restore authority")
     assert not path.exists()
 
