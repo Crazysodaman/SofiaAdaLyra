@@ -1,4 +1,4 @@
-# Sofía V18: Original 700 Tasks + ML Expansion (40)
+# Sofía V18: Original 700 + 40 ML + 40 GA (780 planned tasks)
 
 The original CA task IDs and V18 priority phases are retained. Descriptions are shortened for scanning; see the workbook’s **Original Wording** sheet or the original master roadmap for complete scope and safety conditions.
 
@@ -754,3 +754,52 @@ The original 700 CA rows above remain unchanged. This extension adds **40 new ML
 | ML-040 | 07 | Prove that source revocation, media expiry, deletion/retraining, state relocation, offline restore and rollback preserve single-writer semantics and invalidate ineligible learned artifacts. |
 
 **Count check:** 700 original CA entries + 40 new ML entries = 740 planned entries. No changes to the original 700-item V18 acceptance ledger.
+
+## GA addendum: 40 generalization and lifelong-learning tasks
+
+These are additional **planned** items. The authoritative task descriptions, phase dependencies and acceptance checks are in [GA-001–GA-040](roadmaps/Sofia_Generalization_Lifelong_Learning_40_Task_Addendum.md), with a separate [blinded A-to-B unfamiliar-problem verification protocol](development/sofia_generalization_transfer_acceptance_2026-10-13.md). Their goal is to prove that Sofía can investigate problem A, learn from independently verified experience, then solve a different unseen problem B better than an untrained control. No production completion is implied.
+
+| Task number | Phase | What it does |
+|---|:---:|---|
+| GA-001 | 00 | Audit end-to-end investigate, plan, test, learn and transfer through the existing GOALS/LIFE/RUN/DEV/MEM/SAFE/VERIFY owners. |
+| GA-002 | 01 | Benchmark baseline reasoning, inference routes, tool use and problem-solving on genuinely unseen tasks. |
+| GA-003 | 01 | Create sealed novel-problem suites covering Windows, Linux, Docker, coding and new simulation environments. |
+| GA-004 | 01 | Use independently checked objective and partial-progress graders instead of self-reported task completion. |
+| GA-005 | 02 | Bind learning, experiences, tools, skills and experiments to exact authenticated principal/audience, data-use consent and retention scope. |
+| GA-006 | 01 | Apply current SAFE/RUN limits to all exploratory learning: STOP, gaming, budgets, CPU/GPU load and uncertain side effects. |
+| GA-007 | 01 | Show capability measurements and learning evidence in owner UI/CLI with revision, baselines, interventions and failures. |
+| GA-008 | 09 | Translate a novel goal into durable hierarchical subgoals, dependencies, expected effects and verified completion constraints. |
+| GA-009 | 09 | Plan bounded multistep work using current dependencies, risk, available resources and information value. |
+| GA-010 | 09 | Persist task checkpoints, artifact identities, actions and unresolved outcomes through restarts and model unloads. |
+| GA-011 | 09 | Replan when hypotheses fail or environments change, preserving the original task and evidence. |
+| GA-012 | 02 | Reconcile multistep external writes, idempotency keys, approvals, rollback candidates and partial failures. |
+| GA-013 | 05 | Resume long-running work across approved desktop, Discord and future mobile channels with correct session/audience isolation. |
+| GA-014 | 01 | Measure reliability on one-step, multistep, restarted, 24-hour and 72-hour tasks with real clocks. |
+| GA-015 | 10 | Capture candidate reusable procedures exclusively from independently proven task outcomes. |
+| GA-016 | 10 | Define versioned typed procedural skills with inputs, scope, prerequisites, postconditions, risk and authorized tools. |
+| GA-017 | 10 | Extract portable principles with distinct verified Windows and Linux implementation adapters. |
+| GA-018 | 10 | Rehearse/run skills through existing approved DEV/SKILL/RUN sandbox with effect receipts and rollback controls. |
+| GA-019 | 10 | Test skills on unseen variations, missing dependencies, version changes and deliberate counterexamples. |
+| GA-020 | 10 | Track provenance, version, revocation, invalidation, supersession and deprecation for every learned skill. |
+| GA-021 | 10 | Apply a learned skill on a substantively different unfamiliar service, machine or OS. |
+| GA-022 | 07 | Store grounded failures with task, observed state, attempted actions, receipts, errors and uncertainty. |
+| GA-023 | 09 | Reflect on failure to propose multiple falsifiable explanations rather than asserting a lesson automatically. |
+| GA-024 | 09 | Distinguish tool fault, permission denial, stale observation, planning error, state drift and genuinely unknown failure. |
+| GA-025 | 09 | Use known mistakes to propose bounded revised experiments and safe retries without duplicating uncertain effects. |
+| GA-026 | 01 | Ablate failure-driven learning against no-reflection and replay-only baselines on unseen later tasks. |
+| GA-027 | 06 | Index full intent-observation-hypothesis-action-outcome-correction episodes in canonical provenance-backed memory. |
+| GA-028 | 06 | Recall relevant verified successes, failures, contradictions and changed contexts with bounded search. |
+| GA-029 | 06 | Extract potential transferable principles while distinguishing fact, inference, simulation and speculation. |
+| GA-030 | 06 | Feed eligible prior experiences into planning decisions with inspectable reason and ablation traces. |
+| GA-031 | 07 | Propagate correction/deletion/data-use revocation into lessons, skills, features, associations and learned models. |
+| GA-032 | 12 | Observe unfamiliar Windows/Linux tools and interfaces through explicitly permitted read-only screen/API/command routes. |
+| GA-033 | 13 | Represent tentative causal dependencies, state transitions and predictions in unknown systems with uncertainty. |
+| GA-034 | 13 | Choose safe discriminatory experiments in an approved Hephaestus/synthetic digital twin to test rival explanations. |
+| GA-035 | 10 | Apply abstract learned diagnostic/navigation principles to a different withheld environment with new tool commands. |
+| GA-036 | 13 | Recognize world-model drift from updates, missing services, UI changes, topology and permissions, then revise or abstain. |
+| GA-037 | 01 | Pre-register Task A and seal distinct unseen Task B before A; freeze all learning before B, including hidden context. |
+| GA-038 | 01 | Run paired transfer experiments in two or more substantively different domains plus negative-transfer and restart controls. |
+| GA-039 | 01 | Evaluate with licensed/versioned time-horizon, episodic-memory, computer-use and unfamiliar-environment suites, plus private hidden tests. |
+| GA-040 | 01 | Gate promotion on measured beneficial blind transfer, resource fitness, safe failures, privacy/authority correctness and rollback. |
+
+**Expanded count: 700 original CA + 40 ML + 40 GA = 780 planned items.** Original CA and ML entries and their audit statuses remain unchanged. All 40 GA tasks have planning status, not accepted.
