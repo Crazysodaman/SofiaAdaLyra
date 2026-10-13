@@ -1,13 +1,27 @@
 """Headless canonical application service: source contracts, not host deployment."""
 from pathlib import Path, PurePosixPath
-from dataclasses import replace
-from sofia.config.defaults import create_default_configuration
+from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.identity.model import IdentityBootstrapMode
 from threading import Event
 from types import SimpleNamespace
 
 import pytest
 
 from sofia.run import systemd_runtime as runtime
+
+def _headless_fixture_configuration(state: Path) -> SofiaConfiguration:
+    """Typed inert fixture; never discover or bootstrap a production state home."""
+    return SofiaConfiguration(
+        constitution_path=state.parent / "constitution.md",
+        constitution_hash_path=state.parent / "constitution.sha256",
+        identity_path=state.parent / "identity.json",
+        personality_path=state.parent / "personality.json",
+        avatar_path=state.parent / "avatar.json",
+        state_path=state,
+        provider=ProviderConfiguration(provider="ollama", model="fixture-only"),
+        filesystem_root=state.parent,
+        identity_bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING,
+    )
 
 
 def spec() -> runtime.SystemdRuntimeSpec:
@@ -118,7 +132,7 @@ def test_runtime_uses_existing_application_and_always_shuts_down(
         # This tests a substituted application lifecycle, not pointer enrollment.
         # Production configuration is separately verified and must not be
         # reconstructed here from an unsigned synthetic host environment.
-        lambda: replace(create_default_configuration(), state_path=state),
+        lambda: _headless_fixture_configuration(state),
     )
     actions = []
     monkeypatch.setattr(
@@ -272,7 +286,7 @@ def test_shutdown_during_application_start_never_reports_systemd_ready(
         # This tests a substituted application lifecycle, not pointer enrollment.
         # Production configuration is separately verified and must not be
         # reconstructed here from an unsigned synthetic host environment.
-        lambda: replace(create_default_configuration(), state_path=state),
+        lambda: _headless_fixture_configuration(state),
     )
     monkeypatch.setattr(runtime, "require_debian_guest", lambda: None)
     monkeypatch.setattr(runtime, "require_existing_sqlite", lambda path: None)
