@@ -1,4 +1,4 @@
-# Sofía V18: All 700 Tasks
+# Sofía V18: Original 700 Tasks + ML Expansion (40)
 
 The original CA task IDs and V18 priority phases are retained. Descriptions are shortened for scanning; see the workbook’s **Original Wording** sheet or the original master roadmap for complete scope and safety conditions.
 
@@ -704,3 +704,53 @@ The original CA task IDs and V18 priority phases are retained. Descriptions are 
 | CA-810 | 16 | Extend the self-model with explicit uncertainty, action ownership, short-/long-term goals, body/virtual-world distinctions, and mismatch/error… |
 | CA-811 | 16 | Use contemporary theory-derived consciousness indicators and independent critical review. |
 | CA-812 | 16 | Maintain an evidence registry of falsifiable hypotheses, ablations, controls, limitations and adverse results; do not translate improved character… |
+
+
+## ML addendum: 40 additional tasks (ML-001–ML-040)
+
+The original 700 CA rows above remain unchanged. This extension adds **40 new ML tasks** mapped to existing V18 phases, for **740 planned entries total**. Status of every new ML task: **planned, unimplemented/unverified until individual source inspection**. Related CA scope must be reused where possible; no completed acceptance is implied. Full requirements and criteria: [V18 master addendum](roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md#machine-learning-addendum--ml-001ml-040-new-work-2026-10-13).
+
+| Task number | Phase | What it does |
+|---|:---:|---|
+| ML-001 | 00 | Audit existing MEMORY, HABIT, LIFE, FLEET, NEURO, COGNITION, EVOLVE, SAFE and RUN owners, model/data paths and relevant CA requirements; document reuse/retire/extend decisions without building a second scheduler, database authority or feedback engine. |
+| ML-002 | 02 | Define typed no-authority prediction contracts and a per-data-use permission matrix separating observation, storage, feature extraction, statistical training, LLM weight training and deployment; prohibit predicted consent, authority and factual evidence. |
+| ML-003 | 07 | Wire canonical observation/outcome references, independently grounded labels, expiry and training-use lineage through existing single-writer state; admit no ambient raw chat, screen, audio or private journals by default. |
+| ML-004 | 06 | Build versioned point-in-time feature views with freshness, missingness, redaction, source-scope filtering, leakage prevention, revocation propagation and immutable dataset manifests. |
+| ML-005 | 01 | Add deterministic baseline and independent candidate evaluation harness with chronological/group-separated train/validation/holdout splits, seed/schema/library hashes, paired metrics and a strict unknown-outcome class. |
+| ML-006 | 01 | Implement a content-addressed candidate registry in the existing canonical writer, with signed/hash-pinned external model artifacts, export/runtime compatibility, bounded CPU/RAM/time use, fallback and atomic rollback. |
+| ML-007 | 01 | Add OBSERVE -> SHADOW -> ADVISORY -> LIMITED predictive modes to existing diagnostic/UI routes, logging compared decisions without granting model-driven execution; expose reasons, uncertainty, revocation and reset. |
+| ML-008 | 11 | Train the first bounded CPU-only future-host-pressure forecast from fresh existing Fleet telemetry; compare with last-value/EWMA predictors and store time-delayed outcome receipts. |
+| ML-009 | 02 | Author adversarial and integration regressions for data poisoning, forged praise, scope leakage, withdrawn permission, replay, stale sensors, gaming/STOP, retention expiry, tampered model bytes and restoring prior versions. |
+| ML-010 | 01 | Run an exact-revision approved Fleet canary and at least two-week shadow comparison covering cold/restarted workers, actual host pressure, latency, detection errors and rollback; never claim an unrun trial complete. |
+| ML-011 | 11 | Define per-enrolled-host 5/15/30-minute CPU, RAM, GPU and VRAM prediction targets from authentic timestamped samples, with gaps, gaming state and unknown devices handled explicitly. |
+| ML-012 | 11 | Offer advisory anomaly candidates using bounded statistical detectors compared with fixed operational thresholds; include explanation and false-alarm logging. |
+| ML-013 | 11 | Produce advisory host-placement cost/latency predictions only after mTLS trust, fresh capacity and current gaming checks pass; send eligible suggestions to existing Fleet/OPS policy owner. |
+| ML-014 | 11 | Measure prediction drift, skipped data, resource overhead, model errors and actual forecasting utility; automatically disable advisory use on regressions while preserving deterministic scheduling. |
+| ML-015 | 06 | Collect explicit user-approved relevance/correction judgments from already eligible retrieved memories; keep source/candidate IDs and unknown/missing feedback distinct from negatives. |
+| ML-016 | 06 | Train bounded pointwise/pairwise memory-ranking scorer that operates only after existing principal/audience/source/status eligibility, query relevance and factual verification gates. |
+| ML-017 | 06 | Calibrate ranking uncertainty with minimum-label and rare-topic safeguards; fallback to deterministic order when scores are weak, outdated or unsupported. |
+| ML-018 | 07 | On owner correction, deletion, source revocation or privacy change, invalidate derived memory training rows and affected published scorers; track trained influence and retraining/review need. |
+| ML-019 | 06 | Verify recall@5, NDCG@5, timeline/correction truth and longitudinal source accuracy against existing retrieval on independent future conversations. |
+| ML-020 | 08 | Provide opt-in, easily reversible usefulness/interruptiveness feedback for project sharing and ordinary updates, without requiring constant ratings. |
+| ML-021 | 08 | Learn advisory outreach receptiveness/timing from eligible opt-in feedback and verified busy/game/mute/quiet signals; preserve ACT deterministic eligibility and owner limits. |
+| ML-022 | 09 | Use independently checked project evaluations and explicit interests to rank optional LIFE ideas and what is worth sharing, while preserving Sofía's ability to choose silence. |
+| ML-023 | 08 | Add explicit owner-facing inspection and correction for learned social patterns and hard suppressions; measure negative outcomes without rewarding dependency or engagement volume. |
+| ML-024 | 08 | Run multiweek, scoped, opt-in comparisons for useful interactions versus rule-only baseline, measuring false/welcome interruptions and refusal/stop compliance. |
+| ML-025 | 15 | Add learned advisory salience/relevance score alongside existing deterministic NEURO winner, keeping bounded feature weights, stable fallbacks and no evidence/authority mutation. |
+| ML-026 | 15 | Version exact feature dictionaries and compare deterministic, competition, sparse-association and learned attention variants with paired ablations and resource measurements. |
+| ML-027 | 11 | Predict verified fast/deep/multi-worker costs and latency from actual model/host measurements; offer compute-route hints to the existing cognition scheduler. |
+| ML-028 | 11 | Preserve TurnPlan explicit DEEP/VERIFY, privacy, subject-specific evidence and busy-game controls before using any ML routing hint; forbid verification downgrades. |
+| ML-029 | 11 | Measure answer quality, p95 latency, CPU/RAM/VRAM, model wakeups and repeated-context behavior in side-by-side baseline and proposed routing trials. |
+| ML-030 | 09 | Collect independent artifact/objective outcomes and rejected/unknown results as separately sourced experiment labels; never treat LLM success claims as completed work. |
+| ML-031 | 09 | Rank eligible LIFE/EVOLVE experiments by expected verified usefulness, cost, uncertainty and distinctiveness, with abstention and owner-readable alternatives. |
+| ML-032 | 09 | Use existing RUN resource/experiment admission policy: at most 5 active research experiments, 15 unanswered hypotheses, 200k estimated optional tokens/day and 1h reserved GPU/day. |
+| ML-033 | 16 | Compare learned experiment selection against simple deterministic plans using preregistered controls, negative results and long-horizon causal tracking. |
+| ML-034 | 13 | Complete independent Debian Hephaestus VM installation, owner-approved internal isolation, enrolled guest identity, snapshot/recovery proof and resource caps before any training execution. |
+| ML-035 | 14 | Enforce reviewed dataset rights, training-purpose consent, privacy scope, deduplication and train/heldout isolation; disallow private chat/screens/journals without a separately established explicit policy. |
+| ML-036 | 14 | Wire a separately approved, isolated LoRA/QLoRA executor with pinned base/tokenizer, deterministic manifest, measured job quotas, cancellation, restart and artifact verification. |
+| ML-037 | 14 | Independently benchmark candidate adapters against base models, prompts and RAG for accuracy, safety, contamination, generalization, cost and personality drift. |
+| ML-038 | 14 | Separate model-training acceptance from signed production promotion, canary, previous-model retention, stop, rollback and operator authorization. |
+| ML-039 | 01 | Add periodic model/data drift, performance, privacy and permissions audits for each predictor, with lineage reports, shadow replay, disable controls and owner-visible diagnostics. |
+| ML-040 | 07 | Prove that source revocation, media expiry, deletion/retraining, state relocation, offline restore and rollback preserve single-writer semantics and invalidate ineligible learned artifacts. |
+
+**Count check:** 700 original CA entries + 40 new ML entries = 740 planned entries. No changes to the original 700-item V18 acceptance ledger.
