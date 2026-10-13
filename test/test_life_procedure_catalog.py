@@ -43,11 +43,21 @@ def _original_authorized_completion(life, project, evidence_ref, now):
     artifact = str(complete_job.result["artifact_id"])
     revision = complete_job.result["revision"]
     receipt = str(complete_job.result["evidence_ref"])
+    source_path, _media = life.creative_explorer.verified_preview(
+        artifact, owner_principal_id="sofia", audience_id=project.audience_id,
+    )
+    source_text = source_path.read_text(encoding="utf-8")
+    objective_results = {}
+    for objective in project.brief.objectives:
+        kind, separator, expected = objective.partition(":")
+        assert kind == "text_contains" and separator and expected
+        objective_results[objective] = expected in source_text
+    assert objective_results and all(objective_results.values())
     evaluation = life.evaluate_artifact(
         project.project_id, artifact_id=artifact,
         technical_outcome=TechnicalOutcome.VALID,
         personal_judgment=PersonalJudgment.UNKNOWN,
-        objective_results={"text_contains:Foxfire": True},
+        objective_results=objective_results,
         reason="Independently inspected original text source.",
         evidence_refs=(receipt,), preserve_for_research=False,
         now=now + timedelta(seconds=5),
@@ -340,6 +350,14 @@ def test_procedure_catalog_refuses_fabricated_job_and_source_receipt(tmp_path):
         job, receipt = _original_authorized_completion(
             life, project, evidence, now,
         )
+        # Prove invalid RUN evidence against the current completed project,
+        # rather than failing earlier on an obsolete ACTIVE project snapshot.
+        project = life.store.get(
+            project.project_id,
+            owner_principal_id=project.owner_principal_id,
+            audience_id=project.audience_id,
+        )
+        assert project.status is ProjectStatus.COMPLETED
         catalog = LifeProcedureCatalog(life.path)
         with pytest.raises(ValueError, match="real original scoped RUN"):
             catalog.record_verified_attempt(
