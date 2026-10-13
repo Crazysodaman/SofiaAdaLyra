@@ -9,6 +9,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
+import sqlite3
 from uuid import UUID,uuid4
 
 from sofia.distributed.authorization import RemoteGrant
@@ -57,14 +58,22 @@ class WorkshopNetworkStageStore:
     def reserve(self,*,node:UUID,vm:UUID,approval_id:str,now:datetime):
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("aware owner stage time required")
-        with closing(self.guard.connect(timeout=10)) as db,db:
-            db.execute("BEGIN IMMEDIATE")
-            db.execute(
-                "INSERT INTO ops_workshop_internal_network_stage "
-                "VALUES(?,?,?,?,?,?,?)",
-                (str(vm),str(node),network_policy_digest(),approval_id,
-                 "RESERVED",None,now.astimezone(timezone.utc).isoformat()),
-            )
+        try:
+            with closing(self.guard.connect(timeout=10)) as db,db:
+                db.execute("BEGIN IMMEDIATE")
+                db.execute(
+                    "INSERT INTO ops_workshop_internal_network_stage "
+                    "VALUES(?,?,?,?,?,?,?)",
+                    (str(vm),str(node),network_policy_digest(),approval_id,
+                     "RESERVED",None,now.astimezone(timezone.utc).isoformat()),
+                )
+        except sqlite3.IntegrityError as exc:
+            # A prior RESERVED/UNCERTAIN stage, or a reused approval ID,
+            # must remain an explicit authority denial. Never dispatch
+            # another host mutation after an uncertain first attempt.
+            raise PermissionError(
+                "network stage already reserved for this VM or owner approval"
+            ) from exc
 
     def settle(self,*,vm:UUID,status:str,request_id:str|None,now:datetime):
         if status not in {"HOST_STAGE_REPORTED","UNCERTAIN"}:
