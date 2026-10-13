@@ -162,3 +162,23 @@ def test_git_tree_cleanliness_fails_closed_on_git_error(monkeypatch, tmp_path):
     )
     with pytest.raises(RuntimeError, match="working-tree"):
         gate._tracked_tree_clean(tmp_path)
+
+
+def test_candidate_and_full_use_isolated_semantic_proof_but_prelive_is_live():
+    for phase in ("full", "candidate"):
+        assert dict(_PHASES[phase])["semantic"] == (
+            "-m", "sofia.verify.semantic", "--isolated-fixture",
+        )
+    assert dict(_PHASES["prelive"])["semantic"] == (
+        "-m", "sofia.verify.semantic",
+    )
+
+
+def test_fixture_argv_cannot_replace_required_full_gate_command():
+    from dataclasses import replace
+
+    commands = list(_gate_commands("full"))
+    semantic = commands[-1]
+    assert semantic.argv[-1] == "--isolated-fixture"
+    commands[-1] = replace(semantic, argv=semantic.argv[:-1])
+    assert not _evidence("full", clean=True, commands=tuple(commands)).accepted

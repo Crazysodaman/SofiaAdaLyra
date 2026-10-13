@@ -108,7 +108,7 @@ _PHASES = {
             "pytest",
             ("-m", "pytest", "-q", "-m", "not integration"),
         ),
-        ("semantic", ("-m", "sofia.verify.semantic")),
+        ("semantic", ("-m", "sofia.verify.semantic", "--isolated-fixture")),
     ),
     "candidate": (
         *_STATIC_COMMANDS,
@@ -116,7 +116,7 @@ _PHASES = {
             "pytest",
             ("-m", "pytest", "-q", "-m", "not integration"),
         ),
-        ("semantic", ("-m", "sofia.verify.semantic")),
+        ("semantic", ("-m", "sofia.verify.semantic", "--isolated-fixture")),
     ),
     "prelive": (
         *_STATIC_COMMANDS,
