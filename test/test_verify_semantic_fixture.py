@@ -22,7 +22,6 @@ def test_live_semantic_verification_never_bootstraps_missing_state(
     capsys, monkeypatch, tmp_path,
 ):
     from types import SimpleNamespace
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
 
     missing = tmp_path / "not-installed" / "sofia.db"
     monkeypatch.setattr(
@@ -32,4 +31,4 @@ def test_live_semantic_verification_never_bootstraps_missing_state(
     assert semantic.main([]) == 3
     assert not missing.exists()
     assert not missing.parent.exists()
-    assert "canonical SQLite state is unavailable" in capsys.readouterr().err
+    assert "existing application state database required" in capsys.readouterr().err
