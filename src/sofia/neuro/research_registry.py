@@ -216,7 +216,7 @@ class ResearchEvidenceRegistry:
                     "owner research portfolio has 15 unresolved hypotheses"
                 )
             db.execute(
-                "INSERT INTO neuro_research_protocol VALUES(?,?,?,?)"
+                "INSERT INTO neuro_research_protocol VALUES(?,?,?,?)",
                 (study.protocol.protocol_id, payload, moment, study.reviewed_by),
             )
             db.execute(
