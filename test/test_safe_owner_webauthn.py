@@ -127,7 +127,9 @@ def test_platform_credential_cannot_satisfy_physical_key_gate(tmp_path):
     pending = verifier.issue(
         credential_id=credential, action_fingerprint=FINGERPRINT, now=NOW,
     )
-    with pytest.raises(PermissionError, match="security"):
+    # Generic denial does not reveal whether a credential is platform,
+    # expired, mis-scoped or unknown; no credential-type oracle.
+    with pytest.raises(PermissionError, match="wrong-scope or used owner challenge"):
         verifier.verify(
             challenge=pending["challenge"], credential_id=credential,
             action_fingerprint=FINGERPRINT, security_key_required=True,

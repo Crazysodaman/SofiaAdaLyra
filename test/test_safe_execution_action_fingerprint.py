@@ -95,7 +95,7 @@ def test_exact_target_and_effect_bound_approval_only_consumes_once(tmp_path):
 
 def test_missing_state_cannot_bootstrap_new_safe_approval_authority(tmp_path):
     state = tmp_path / "wrong-home" / "sofia.db"
-    with pytest.raises(FileNotFoundError, match="existing canonical"):
+    with pytest.raises(FileNotFoundError, match="canonical SQLite state is unavailable"):
         ExecutionApprovalVerifier(state)
     assert not state.exists()
     assert not state.parent.exists()
@@ -109,7 +109,7 @@ def test_existing_verifier_cannot_recreate_missing_canonical_state(tmp_path):
     grant = _approval(approved,identifier="recovered-approval-no-new-state")
     record_verified_owner_approval(verifier, grant)
     state.unlink()
-    with pytest.raises(FileNotFoundError, match="missing or redirected"):
+    with pytest.raises(FileNotFoundError, match="canonical SQLite state is unavailable"):
         verifier.consume(
             approval_id=grant.approval_id,capability=grant.capability,
             parameters=approved,now=NOW+timedelta(seconds=1),

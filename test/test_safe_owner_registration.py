@@ -128,7 +128,7 @@ def test_first_hello_once_then_second_key_requires_signed_platform_proof(
         assert db.execute(
             "SELECT windows_sid FROM safe_owner_host_identity"
         ).fetchone() == ("S-1-5-21-TEST-OWNER",)
-    with pytest.raises(PermissionError, match="first enrollment"):
+    with pytest.raises(PermissionError, match="existing owner identity"):
         persist_enrollment(
             verifier, credential_id=b64(b"alternate"),
             public_key_der=platform_der, count=0, kind="platform", first=True,
