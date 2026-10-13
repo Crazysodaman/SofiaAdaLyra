@@ -339,3 +339,20 @@ def test_restart_preserves_artifact_identity_access_and_hash(tmp_path):
     assert CreativeStore(store.path).history(
         artifact_id, "sofia", "local:text",
     )[-1] == second
+
+
+def test_managed_asset_reuse_checks_existing_content_address(tmp_path):
+    assets = ManagedAssetStore(tmp_path / "assets")
+    source = tmp_path / "original.txt"
+    source.write_text("Independent original proof", encoding="utf-8")
+    digest, stored, size = assets.import_file(source)
+    assert stored.is_file()
+    assert assets.import_file(source) == (digest, stored, size)
+
+    # Two artifacts may legitimately share the same immutable digest path.
+    # Corrupting that path must fail closed on the very next import and
+    # cannot silently create another apparently valid original source.
+    stored.write_text("corrupted source", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="content address"):
+        assets.import_file(source)
+    assert stored.read_text(encoding="utf-8") == "corrupted source"

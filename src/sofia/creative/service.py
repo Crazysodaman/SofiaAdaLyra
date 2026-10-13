@@ -71,6 +71,13 @@ class ManagedAssetStore:
                 temporary.unlink(missing_ok=True)
                 raise RuntimeError("managed asset failed post-copy hash verification")
             os.replace(temporary, destination)
+        # Assets are addressed by immutable SHA-256. An existing digest path
+        # may be shared by many independent projects, so a corrupt cached
+        # blob must never be silently reused as a new successful artifact.
+        # Verify both the reused and newly published content before claiming
+        # an import succeeded.
+        if destination.is_symlink() or not destination.is_file() or self.digest(destination) != digest:
+            raise RuntimeError("managed asset bytes do not match content address")
         return digest, destination, size
 
 
