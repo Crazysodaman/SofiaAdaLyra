@@ -87,3 +87,11 @@ The previously listed `PermissionStore.grant/revoke`, Level-5 private/adult upda
 Regression source was added/updated for permission replay, exact-bound scope, key revocation, historical grants, Level-5 effective projections, GUI source wiring, and Tray model/service dispatch. **No test was run.**
 
 **Still incomplete:** independent hardware/manufacturer attestation for security-key classification, offline last-key recovery, cryptographically authenticated Debian/Fleet delegation after writer transfer, consent authority for every DEV/EVOLVE/ACT plugin, selected live host acceptance and full CI. **Do not install keys or move `sofia.db` through an automated deployment.**
+
+## 2026-10-12 owner decision: CA-6505 balanced graduation (Option B)
+
+The owner selected the balanced autonomy-graduation policy. After **10 distinct, independently verified successful original operations** for the same eligible Level 3 capability and compatible scope, Sofía may **propose** an exact-scope standing grant with a **maximum seven-day expiry**. Proposing is not granting: a fresh action-bound **owner FIDO2 approval** is still mandatory. Relevant failures, incidents, revoked results or uncertain evidence block further graduation until reviewed. Level 4/5 authority never graduates and there is no automatic scope expansion or renewal.
+
+Canonical decision record: `docs/development/v18-ca-6505-owner-approved-autonomy-graduation-2026-10-12.md`.
+
+**Implementation distinction:** `PermissionStore.grant` currently accepts optional expiry on general owner-initiated grants; existing permission source does **not** by itself prove enforced ten-success admission or the seven-day ceiling for graduate proposals. They remain production wiring and verification tasks; no permissions were granted by recording this decision.
