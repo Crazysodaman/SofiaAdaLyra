@@ -14,14 +14,20 @@ import sys
 import tempfile
 
 from sofia.config import create_production_configuration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard, bootstrap_canonical_sqlite
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 
 
 def _verifier(path: Path) -> SemanticIntegrityVerifier:
+    # SQLiteStatePlane initializes schema and can create a missing file.
+    # Canonical state must therefore be validated BEFORE constructing it,
+    # and revalidated after schema inspection, not manufactured by VERIFY.
+    guard = CanonicalSQLiteGuard(path)
+    plane = SQLiteStatePlane(guard.canonical_path)
+    guard.validate()
     return SemanticIntegrityVerifier(
-        path, state_plane=SQLiteStatePlane(path),
+        guard.canonical_path, state_plane=plane,
     )
 
 

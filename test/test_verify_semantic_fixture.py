@@ -31,4 +31,4 @@ def test_live_semantic_verification_never_bootstraps_missing_state(
     assert semantic.main([]) == 3
     assert not missing.exists()
     assert not missing.parent.exists()
-    assert "existing application state database required" in capsys.readouterr().err
+    assert "canonical SQLite state is unavailable" in capsys.readouterr().err
