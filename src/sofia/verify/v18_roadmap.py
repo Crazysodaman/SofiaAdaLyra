@@ -111,12 +111,57 @@ def original_tasks(master: Path) -> dict[str, tuple[str, str, int]]:
     return task_map
 
 
+EXPANDED_TABLE_RELATIVE = Path("docs/Sofia_V18_700_Tasks_Brief_Table.md")
+GA_ADDENDUM_RELATIVE = Path(
+    "docs/roadmaps/Sofia_Generalization_Lifelong_Learning_40_Task_Addendum.md"
+)
+ML_TASK_RE = re.compile(r"(?m)^- \[ \] \*\*(ML-\d{3}) \[NEW, PLAN / NOT ACCEPTED\]\*\*")
+GA_TASK_RE = re.compile(r"(?m)^- \[ \] \*\*(GA-\d{3}) \[PLANNED, NOT CODED OR ACCEPTED\]\*\*")
+TABLE_TASK_RE = re.compile(r"(?m)^\| ((?:CA|ML|GA)-\d+) \|")
+
+
+def _expanded_task_inventory(
+    repo: Path, master: Path, original: dict[str, tuple[str, str, int]],
+) -> dict[str, int]:
+    """Check the separate 40+40 inventories without changing 700 CA evidence."""
+    source = master.read_bytes().replace(b"\r\n", b"\n")
+    if EXTENSION_DELIMITER not in source:
+        return {"original_tasks": len(original), "planned_tasks": len(original)}
+    summary = _within(repo, EXPANDED_TABLE_RELATIVE.as_posix())
+    ga_path = _within(repo, GA_ADDENDUM_RELATIVE.as_posix())
+    ml = ML_TASK_RE.findall(source.decode("utf-8"))
+    ga = GA_TASK_RE.findall(ga_path.read_text(encoding="utf-8"))
+    all_rows = TABLE_TASK_RE.findall(summary.read_text(encoding="utf-8"))
+    expected_ml = [f"ML-{n:03d}" for n in range(1, 41)]
+    expected_ga = [f"GA-{n:03d}" for n in range(1, 41)]
+    expected_ca = set(original)
+    if ml != expected_ml or ga != expected_ga:
+        raise RoadmapIntegrityError("supplemental ML or GA task IDs missing, reordered, or duplicated")
+    if len(all_rows) != 780 or len(set(all_rows)) != 780:
+        raise RoadmapIntegrityError("expanded 780-task table has missing or duplicate IDs")
+    if set(all_rows) != expected_ca | set(expected_ml) | set(expected_ga):
+        raise RoadmapIntegrityError("expanded table disagrees with authoritative task IDs")
+    if (
+        GA_ADDENDUM_RELATIVE.name.encode("utf-8") not in source
+        or b"sofia_generalization_transfer_acceptance_2026-10-13.md"
+           not in ga_path.read_bytes()
+    ):
+        raise RoadmapIntegrityError("GA addendum or sealed transfer protocol linkage missing")
+    return {
+        "original_tasks": len(original),
+        "ml_planned": len(ml),
+        "ga_planned": len(ga),
+        "planned_tasks": len(all_rows),
+    }
+
+
 def validate_repository(repo_root: Path) -> dict[str, object]:
     """Reject an incomplete, inflated or source-free review ledger."""
     repo = repo_root.resolve(strict=True)
     master = _within(repo, MASTER_RELATIVE.as_posix())
     ledger_path = _within(repo, LEDGER_RELATIVE.as_posix())
     source = original_tasks(master)
+    expansion = _expanded_task_inventory(repo, master, source)
     ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
     if not isinstance(ledger, dict) or ledger.get("schema") != "sofia.v18-task-evidence-v1":
         raise RoadmapIntegrityError("unsupported task ledger schema")
@@ -233,6 +278,7 @@ def validate_repository(repo_root: Path) -> dict[str, object]:
         "master_sha256": MASTER_SHA256,
         "reviewed_main_sha": ledger["reviewed_main_sha"],
         "total_original_tasks": len(source),
+        "expanded_planning_inventory": expansion,
         "source_topic_groups": 69,
         "priority_phases": 17,
         "task_status_counts": dict(sorted(counts.items())),
