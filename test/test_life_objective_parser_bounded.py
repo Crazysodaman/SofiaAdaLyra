@@ -127,3 +127,55 @@ def test_oversized_or_mutated_content_never_promotes_objective(tmp_path):
         revision=record, path=path, objectives=("min_bytes:1",),
     )
     assert mismatch.integrity is ObjectiveDisposition.FAIL
+
+
+def test_word_count_criterion_is_kind_scoped_and_measured_from_actual_utf8(tmp_path):
+    from dataclasses import replace
+    content = b"One two three four five"
+    path = tmp_path / "words.txt"
+    path.write_bytes(content)
+    record = revision_for(path, content)
+    report = inspect_objective_artifact(
+        revision=record, path=path,
+        objectives=("min_words:5", "min_words:6"),
+    )
+    assert [r.disposition for r in report.findings] == [
+        ObjectiveDisposition.PASS, ObjectiveDisposition.FAIL,
+    ]
+    assert not report.eligible_for_independent_completion
+    unknown = inspect_objective_artifact(
+        revision=replace(record, kind=ArtifactKind.MUSIC), path=path,
+        objectives=("min_words:5",),
+    )
+    assert unknown.findings[0].disposition is ObjectiveDisposition.UNKNOWN
+    bad = inspect_objective_artifact(
+        revision=record, path=path,
+        objectives=("min_words:" + "5" * 5000,),
+    )
+    assert bad.findings[0].disposition is ObjectiveDisposition.UNKNOWN
+
+
+def test_python_code_syntax_is_checked_without_running_program(tmp_path):
+    from dataclasses import replace
+    content = b"raise RuntimeError('should never run')\\n"
+    content = content.replace(b"\\\\n", b"\\n")
+    path = tmp_path / "example.py"
+    path.write_bytes(content)
+    record = replace(revision_for(path, content), kind=ArtifactKind.CODE)
+    accepted = inspect_objective_artifact(
+        revision=record, path=path, objectives=("python_syntax:python",),
+    )
+    assert accepted.findings[0].disposition is ObjectiveDisposition.PASS
+    broken = b"def broken(:\\n  pass"
+    broken = broken.replace(b"\\\\n", b"\\n")
+    path.write_bytes(broken)
+    failed = inspect_objective_artifact(
+        revision=replace(revision_for(path, broken), kind=ArtifactKind.CODE),
+        path=path, objectives=("python_syntax:python",),
+    )
+    assert failed.findings[0].disposition is ObjectiveDisposition.FAIL
+    path.write_bytes(content)
+    unsupported = inspect_objective_artifact(
+        revision=record, path=path, objectives=("python_syntax:javascript",),
+    )
+    assert unsupported.findings[0].disposition is ObjectiveDisposition.UNKNOWN

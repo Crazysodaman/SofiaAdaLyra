@@ -7,6 +7,7 @@ This module cannot mutate project/goal/memory/SAFE state.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import ast
 from enum import Enum
 from hashlib import sha256
 from pathlib import Path
@@ -83,10 +84,49 @@ def _min_bytes(objective: str, *, content: bytes, kind: ArtifactKind) -> Objecti
     return ObjectiveFinding(objective, ObjectiveDisposition.PASS if passed else ObjectiveDisposition.FAIL, "min_bytes", "size criterion met" if passed else "too small")
 
 
+def _min_words(objective: str, *, content: bytes, kind: ArtifactKind) -> ObjectiveFinding:
+    """Count real UTF-8 whitespace-separated words, not a generator claim."""
+    if kind not in {ArtifactKind.TEXT, ArtifactKind.STORY, ArtifactKind.CODE}:
+        return ObjectiveFinding(objective, ObjectiveDisposition.UNKNOWN, "min_words", "kind is not UTF-8 text")
+    raw = objective.split(":", 1)[1].strip()
+    if not raw.isascii() or not raw.isdecimal() or len(raw) > 6:
+        return ObjectiveFinding(objective, ObjectiveDisposition.UNKNOWN, "min_words", "invalid word criterion")
+    minimum = int(raw)
+    if minimum < 1 or minimum > 100_000:
+        return ObjectiveFinding(objective, ObjectiveDisposition.UNKNOWN, "min_words", "out-of-policy word count")
+    try:
+        visible = content.decode("utf-8", "strict")
+    except UnicodeError:
+        return ObjectiveFinding(objective, ObjectiveDisposition.FAIL, "min_words", "invalid UTF-8")
+    passed = len(visible.split()) >= minimum
+    return ObjectiveFinding(objective, ObjectiveDisposition.PASS if passed else ObjectiveDisposition.FAIL,
+                            "min_words", "original word count met" if passed else "too few original words")
+
+
+def _python_syntax(objective: str, *, content: bytes, kind: ArtifactKind) -> ObjectiveFinding:
+    """Syntax-only CODE check; no eval, import, exec or quality self-score."""
+    if kind is not ArtifactKind.CODE:
+        return ObjectiveFinding(objective, ObjectiveDisposition.UNKNOWN, "python_syntax", "only CODE artifacts supported")
+    if objective.split(":", 1)[1].strip().casefold() != "python":
+        return ObjectiveFinding(objective, ObjectiveDisposition.UNKNOWN, "python_syntax", "unsupported language")
+    if len(content) > 256_000:
+        return ObjectiveFinding(objective, ObjectiveDisposition.UNKNOWN, "python_syntax", "code exceeds parser budget")
+    try:
+        source = content.decode("utf-8", "strict")
+        ast.parse(source, filename="<artifact>", mode="exec")
+    except UnicodeError:
+        return ObjectiveFinding(objective, ObjectiveDisposition.FAIL, "python_syntax", "invalid UTF-8")
+    except (SyntaxError, ValueError, RecursionError):
+        return ObjectiveFinding(objective, ObjectiveDisposition.FAIL, "python_syntax", "Python syntax invalid")
+    return ObjectiveFinding(objective, ObjectiveDisposition.PASS, "python_syntax", "Python parses; behavior not proved")
+
+
 # A closed, externally reviewed registry. The model does not register validators.
 _VALIDATORS = {
     "text_contains": _ObjectiveRule("text_contains", _text_contains),
     "min_bytes": _ObjectiveRule("min_bytes", _min_bytes),
+    "min_words": _ObjectiveRule("min_words", _min_words),
+    "python_syntax": _ObjectiveRule("python_syntax", _python_syntax),
 }
 
 
