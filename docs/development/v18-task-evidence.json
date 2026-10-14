@@ -198,7 +198,7 @@
         "7dbe8511a795e890b475b23467aae5fc523908cf",
         "a57fb3bbfb012be68f6461c2bc2aa86f8c48837d",
         "3e1cfc4b15d9cabd84666dfe0206163e9c4740cf",
-        "125bcb684634a1de069d3c82111595ac10db9827"
+        "125bcb6873fe850f6e1e57898c3b62c71df90527"
       ],
       "accepted": false,
       "audit_observation": {
@@ -236,7 +236,7 @@
       },
       "phase00_2026_10_14": {
         "source_base_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
-        "implementation_commit": "125bcb684634a1de069d3c82111595ac10db9827",
+        "implementation_commit": "125bcb6873fe850f6e1e57898c3b62c71df90527",
         "implementation": "Typed non-authoritative connection contract covers authority separation, evidence refs, principal/audience pairing, observation/expiry/confidence, resource refs and explicit error states; Matrix/GOALS/LIFE/RUN/ACT adapters preserve existing source ownership.",
         "production_entrypoint": "SofiaApplication.latest_companion_decision_trace",
         "focused_local_tests": "58 focused projection/evidence-ledger tests passed; broader production cognition/channel selection 141 passed with loopback access",
@@ -266,7 +266,7 @@
         "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
         "99bec15e6b9f2b4ab02c32ad16541b381df9c768",
         "8202ad16fafef728bcd7860ffa239483bbf04f24",
-        "125bcb684634a1de069d3c82111595ac10db9827"
+        "125bcb6873fe850f6e1e57898c3b62c71df90527"
       ],
       "accepted": false,
       "audit_observation": {
@@ -304,7 +304,7 @@
       },
       "phase00_2026_10_14": {
         "source_base_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
-        "implementation_commit": "125bcb684634a1de069d3c82111595ac10db9827",
+        "implementation_commit": "125bcb6873fe850f6e1e57898c3b62c71df90527",
         "implementation": "Production entry points re-audited: ordinary, owner-tool, guarded interaction, Desktop, Discord and mobile paths converge on ProductionTurnKernel; Matrix is the downstream safeguard and cognition.routing is the dual-worker executor, not another semantic owner.",
         "focused_local_tests": "Cognition v2, production dual cognition and channel selection: 141 passed with loopback access",
         "ci": "pending exact pushed revision",
@@ -335,7 +335,7 @@
       ],
       "evidence_commits": [
         "ae616efd5fe81017bce1606543f43c0ceb2d95fd",
-        "125bcb684634a1de069d3c82111595ac10db9827"
+        "125bcb6873fe850f6e1e57898c3b62c71df90527"
       ],
       "accepted": false,
       "audit_observation": {
@@ -374,7 +374,7 @@
       },
       "phase00_2026_10_14": {
         "source_base_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
-        "implementation_commit": "125bcb684634a1de069d3c82111595ac10db9827",
+        "implementation_commit": "125bcb6873fe850f6e1e57898c3b62c71df90527",
         "implementation": "Executable field ownership map plus typed Matrix/GOALS/LIFE/RUN/ACT adapters; verified SOCIAL scope and canonical response evidence are projected without a new truth store.",
         "focused_local_tests": "58 focused projection/evidence-ledger tests passed; broader production cognition/channel selection 141 passed with loopback access",
         "ci": "pending exact pushed revision",
@@ -400,7 +400,7 @@
       ],
       "evidence_commits": [
         "1925361e1362520c11980987167a410a6635deb0",
-        "125bcb684634a1de069d3c82111595ac10db9827"
+        "125bcb6873fe850f6e1e57898c3b62c71df90527"
       ],
       "accepted": false,
       "audit_observation": {
@@ -438,7 +438,7 @@
       },
       "phase00_2026_10_14": {
         "source_base_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
-        "implementation_commit": "125bcb684634a1de069d3c82111595ac10db9827",
+        "implementation_commit": "125bcb6873fe850f6e1e57898c3b62c71df90527",
         "implementation": "CompanionDecisionTrace schema v2 joins canonical Matrix event/scope, exact same-turn NEURO winner and rejected activations, eligible evidence references, typed selected GOALS/LIFE events when supplied, model execution decision and typed outcomes. It remains read-only and cannot authorize.",
         "focused_local_tests": "58 focused projection/evidence-ledger tests passed including negative scope and restart reprojection",
         "ci": "pending exact pushed revision",
