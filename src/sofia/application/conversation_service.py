@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
@@ -156,10 +157,23 @@ def _retrieve_specific_conversation(
         remaining = _MAX_SPECIFIC_RETRIEVAL_CHARACTERS - used
         if remaining <= 0:
             break
-        if len(message.content) > remaining and bounded:
+        if len(message.content) > remaining:
+            if bounded:
+                break
+            # The original persisted row is untouched. A retrieved message
+            # longer than the entire prompt budget must never bypass that
+            # budget by being first in the result set. Clearly identify that
+            # the presented text is an excerpt, not the complete statement.
+            suffix = " [excerpt truncated]"
+            if remaining <= len(suffix):
+                break
+            bounded.append(replace(
+                message, content=message.content[:remaining - len(suffix)] + suffix,
+            ))
+            used += remaining
             break
         bounded.append(message)
-        used += min(len(message.content), remaining)
+        used += len(message.content)
     return tuple(bounded)
 
 
