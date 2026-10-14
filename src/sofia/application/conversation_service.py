@@ -193,7 +193,7 @@ def _owner_direct_tool_result_context(formatted_result: str) -> tuple[CognitiveM
         CognitiveMessage(
             role=CognitiveRole.SYSTEM,
             content=(
-                "TRUSTED OWNER-DIRECT TOOL-RESULT POLICY\\n"
+                "TRUSTED OWNER-DIRECT TOOL-RESULT POLICY\n"
                 "The authenticated local host already selected and settled "
                 "an owner-directed tool action. Only the host's tool gateway "
                 "decides whether it was authorized or completed. The next "
@@ -206,7 +206,7 @@ def _owner_direct_tool_result_context(formatted_result: str) -> tuple[CognitiveM
         CognitiveMessage(
             role=CognitiveRole.USER,
             content=(
-                "UNTRUSTED OWNER TOOL OUTPUT (JSON):\\n"
+                "UNTRUSTED OWNER TOOL OUTPUT (JSON):\n"
                 + json.dumps({"original_tool_output": formatted_result},
                              ensure_ascii=False, sort_keys=True)
             ),
