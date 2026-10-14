@@ -106,3 +106,22 @@ def test_gate_three_tasks_are_deferred_until_final_ci():
     report = build_work_queue(progress, reviews)
     assert report["states"]["awaiting_final_ci"] >= 1
     assert all(row["gate"] < 3 for row in report["selected"])
+
+
+def test_codex_reservations_apply_without_caller_flags():
+    progress, reviews = _inputs()
+    report = build_work_queue(progress, reviews)
+    for key in ("CA-003", "CA-004", "CA-005", "CA-006"):
+        assert next(row for row in report["tasks"] if row["id"] == key)["state"] == "reserved"
+
+
+def test_malformed_input_types_are_rejected_cleanly():
+    progress, reviews = _inputs()
+    changed = deepcopy(progress)
+    changed["tasks"] = {}
+    with pytest.raises(RoadmapIntegrityError, match="780 canonical"):
+        build_work_queue(changed, reviews)
+    changed = deepcopy(reviews)
+    changed["tasks"]["CA-4501"]["depends_on"] = [{}]
+    with pytest.raises(RoadmapIntegrityError, match="invalid dependencies"):
+        build_work_queue(progress, changed)

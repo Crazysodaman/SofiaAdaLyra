@@ -24,10 +24,11 @@ SCHEMA = "sofia.v18-dependency-review-v1"
 ID_RE = re.compile(r"(?:CA-\d+|ML-\d{3}|GA-\d{3})\Z")
 SHA_RE = re.compile(r"[a-f0-9]{40}\Z")
 SIZES = {"small": 0, "medium": 1, "large": 2}
+DEFAULT_RESERVED = ("CA-003", "CA-004", "CA-005", "CA-006")
 
 
 def build_work_queue(
-    progress: dict, reviews: dict, *, reserved: Iterable[str] = (),
+    progress: dict, reviews: dict, *, reserved: Iterable[str] = DEFAULT_RESERVED,
     limit: int = 5,
 ) -> dict:
     """Fail closed on malformed review graphs and never schedule unknown deps."""
@@ -35,11 +36,12 @@ def build_work_queue(
         raise RoadmapIntegrityError("queue limit must be an integer from 1 to 10")
     if not isinstance(progress, dict):
         raise RoadmapIntegrityError("missing canonical gate progress")
-    rows = progress.get("tasks", []) + progress.get("supplemental_tasks", [])
-    if (not isinstance(progress.get("tasks"), list)
-            or not isinstance(progress.get("supplemental_tasks"), list)
-            or len(rows) != 780):
+    originals = progress.get("tasks")
+    supplementals = progress.get("supplemental_tasks")
+    if (not isinstance(originals, list) or len(originals) != 700
+            or not isinstance(supplementals, list) or len(supplementals) != 80):
         raise RoadmapIntegrityError("work queue requires all 780 canonical task IDs")
+    rows = originals + supplementals
     by_id = {}
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("id"), str):
@@ -63,9 +65,10 @@ def build_work_queue(
         if not isinstance(item, dict) or item.get("complexity") not in SIZES:
             raise RoadmapIntegrityError("missing reviewed complexity for " + key)
         deps = item.get("depends_on")
-        if (not isinstance(deps, list) or len(deps) != len(set(deps))
+        if (not isinstance(deps, list)
                 or any(not isinstance(d, str) or d not in by_id or d == key
-                       for d in deps)):
+                       for d in deps)
+                or len(deps) != len(set(deps))):
             raise RoadmapIntegrityError("invalid dependencies for " + key)
         if (not isinstance(item.get("reviewer"), str)
                 or not item["reviewer"].strip()
@@ -165,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--limit", type=int, default=5)
-    parser.add_argument("--reserve", action="append", default=[])
+    parser.add_argument("--reserve", action="append", default=list(DEFAULT_RESERVED))
     args = parser.parse_args(argv)
     try:
         root = args.repo.resolve(strict=True)
