@@ -1,0 +1,48 @@
+name: V18 Gate 4 Progress
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v18-gate4-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install package and pytest
+        run: python -m pip install -e . pytest
+      - name: Test gate tracking and source integrity
+        run: python -m pytest -q test/test_v18_gate4.py
+      - name: Generate 700-task Gate 4 report
+        run: >-
+          python -m sofia.verify.v18_gate4
+          --repo .
+          --output gate4-progress.json
+          --markdown-output gate4-progress.md
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gate4-progress-${{ github.sha }}
+          path: |
+            gate4-progress.json
+            gate4-progress.md
+          if-no-files-found: warn
+          retention-days: 30

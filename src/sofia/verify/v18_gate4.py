@@ -1,0 +1,184 @@
+"""Read-only evidence-backed Gate 4 status of the original V18 700 tasks."""
+from __future__ import annotations
+import argparse
+from collections import Counter
+from hashlib import sha256
+import json
+from pathlib import Path
+import re
+import sys
+from sofia.verify.v18_roadmap import (
+    LEDGER_RELATIVE, MASTER_RELATIVE, RoadmapIntegrityError, _within,
+    validate_repository,
+)
+
+_SHA = re.compile(r"[0-9a-f]{40}\Z")
+_HASH = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def verified_gate_count(root: Path, task: dict) -> int:
+    """Unverified code paths and CI associations do not count as passed gates."""
+    proofs = task.get("gate4_proofs", [])
+    if not isinstance(proofs, list) or len(proofs) > 4:
+        raise RoadmapIntegrityError("invalid gate evidence for " + task["id"])
+    for index, proof in enumerate(proofs, 1):
+        if not isinstance(proof, dict) or proof.get("gate") != index:
+            raise RoadmapIntegrityError("out-of-order gate proof for " + task["id"])
+        revision, digest, reviewer = (proof.get("revision"), proof.get("sha256"),
+                                      proof.get("reviewer"))
+        if (not isinstance(revision, str) or not _SHA.fullmatch(revision)
+                or not isinstance(digest, str) or not _HASH.fullmatch(digest)
+                or not isinstance(reviewer, str) or not reviewer.strip()):
+            raise RoadmapIntegrityError("incomplete gate provenance for " + task["id"])
+        if sha256(_within(root, proof.get("evidence_path")).read_bytes()).hexdigest() != digest:
+            raise RoadmapIntegrityError("gate evidence digest mismatch for " + task["id"])
+        if index == 4:
+            ci = proof.get("ci")
+            if (not isinstance(ci, dict)
+                    or type(ci.get("run_id")) is not int or ci["run_id"] < 1
+                    or ci.get("head_sha") != revision
+                    or ci.get("conclusion") != "success"
+                    or not isinstance(ci.get("test_ids"), list)
+                    or not ci["test_ids"]
+                    or any(not isinstance(x, str) or not x.strip()
+                           for x in ci["test_ids"])):
+                raise RoadmapIntegrityError("missing exact CI test receipt for " + task["id"])
+    return len(proofs)
+
+
+def _kind(line: str) -> str:
+    if "[DESIGN/RESEARCH]" in line:
+        return "design/research"
+    if "[VERIFY]" in line or "[VERIFY / HARDEN]" in line:
+        return "verification"
+    return "implementation"
+
+
+def _next(task: dict, gate: int, kind: str) -> str:
+    if gate == 4:
+        return "Gate 4 proof recorded; defer production gates 5-6."
+    if gate == 3:
+        return "Run task-specific tests and failure cases at an exact revision."
+    if gate == 2:
+        return "Audit all requirements, permission paths, recovery and resources."
+    if gate == 1:
+        return "Integrate approved design or real canonical runtime/effect paths."
+    if kind == "design/research":
+        return "Complete and independently review the research/design deliverable."
+    if kind == "verification":
+        return "Run the original specified independent verification, with receipts."
+    return {
+        "unassessed": "Trace the exact original requirement, implement missing code, identify tests.",
+        "partial_wiring": "Close the missing end-to-end production path before full tests.",
+        "code_present_unverified": "Verify coverage, audit behavior and run focused/integration tests.",
+        "accepted": "Reconcile prior acceptance with explicit Gate 1-4 proof.",
+    }[task["status"]]
+
+
+def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
+    root = root.resolve(strict=True)
+    validate_repository(root)
+    data = ledger if ledger is not None else json.loads(
+        _within(root, LEDGER_RELATIVE.as_posix()).read_text(encoding="utf-8"))
+    tasks = data.get("tasks")
+    if not isinstance(tasks, list) or len(tasks) != 700:
+        raise RoadmapIntegrityError("all 700 original task records are required")
+    original = _within(root, MASTER_RELATIVE.as_posix()).read_text(
+        encoding="utf-8").splitlines()
+    per_phase, counts, output, seen = {}, Counter(), [], set()
+    for task in tasks:
+        task_id, phase, status = task["id"], task["phase"], task["status"]
+        if task_id in seen:
+            raise RoadmapIntegrityError("duplicate task " + task_id)
+        seen.add(task_id)
+        line = original[task["master_line"] - 1]
+        if "**" + task_id + " " not in line:
+            raise RoadmapIntegrityError("task source mismatch " + task_id)
+        gate = verified_gate_count(root, task)
+        kind = _kind(line)
+        phase_row = per_phase.setdefault(phase, {
+            "total": 0, "unassessed": 0, "partial_wiring": 0,
+            "code_present_unverified": 0, "accepted": 0, "gate4": 0,
+        })
+        if status not in phase_row:
+            raise RoadmapIntegrityError("invalid task status " + task_id)
+        phase_row["total"] += 1
+        phase_row[status] += 1
+        phase_row["gate4"] += int(gate == 4)
+        counts[status] += 1
+        counts["gate4"] += int(gate == 4)
+        gap = ((task.get("phase00_batch30_review") or {}).get("unresolved_requirement")
+               or (task.get("audit_observation") or {}).get("missing")
+               or (task.get("production_wiring") or {}).get("remaining"))
+        output.append({
+            "id": task_id, "phase": phase, "kind": kind, "source_status": status,
+            "original_requirement": line,
+            "gate_with_recorded_proof": gate, "gate4": gate == 4,
+            "next_gate": min(gate + 1, 4),
+            "next_action": _next(task, gate, kind),
+            "known_missing": gap if isinstance(gap, str) else None,
+            "code_paths": task.get("code_paths", [])[:6],
+        })
+    ranking = {"code_present_unverified": 0, "partial_wiring": 1,
+               "unassessed": 2, "accepted": 3}
+    focus = sorted((t for t in output if not t["gate4"]),
+                   key=lambda x: (ranking[x["source_status"]], x["phase"]))[:20]
+    return {
+        "schema": "sofia.v18-gate4-progress-v1",
+        "target": 4, "deferred": [5, 6], "original_total": 700,
+        "counts": {**{key: counts[key] for key in
+                      ("unassessed", "partial_wiring", "code_present_unverified", "accepted")},
+                   "gate4_recorded": counts["gate4"],
+                   "still_without_gate4_proof": 700 - counts["gate4"]},
+        "phases": per_phase, "focus_next": focus, "tasks": output,
+        "warning": "Source records alone do not authenticate external CI. "
+                   "Independent reviewer must validate run result and task test coverage.",
+    }
+
+
+def markdown_summary(data: dict) -> str:
+    c = data["counts"]
+    lines = ["# Sofía V18 Gate 4 Progress", "",
+             "Development target is 700 original tasks through Gate 4. Gates 5-6 deferred.",
+             f"**Gate 4 evidence recorded: {c['gate4_recorded']}/700.** "
+             f"Still without complete proof: {c['still_without_gate4_proof']}.",
+             f"Source triage: {c['unassessed']} unassessed; "
+             f"{c['partial_wiring']} partially wired; "
+             f"{c['code_present_unverified']} code present but unverified.", "",
+             "| Phase | Total | Unassessed | Partial | Code unverified | Gate4 |",
+             "| --- | ---: | ---: | ---: | ---: | ---: |"]
+    for phase, row in sorted(data["phases"].items()):
+        lines.append(f"| {phase} | {row['total']} | {row['unassessed']} | "
+                     f"{row['partial_wiring']} | {row['code_present_unverified']} | "
+                     f"{row['gate4']} |")
+    lines += ["", "## Next 20 candidate tasks", "",
+              "| ID | Phase | Source status | Next work |",
+              "| --- | --- | --- | --- |"]
+    for t in data["focus_next"]:
+        lines.append(f"| {t['id']} | {t['phase']} | {t['source_status']} | "
+                     + t["next_action"].replace("|", "/") + " |")
+    return "\n".join(lines) + "\n"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--markdown-output", type=Path)
+    args = parser.parse_args(argv)
+    try:
+        report = gate4_snapshot(args.repo)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        if args.markdown_output:
+            args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
+            args.markdown_output.write_text(markdown_summary(report), encoding="utf-8")
+        print(f"gate4={report['counts']['gate4_recorded']}/700")
+        return 0
+    except (OSError, ValueError, RuntimeError) as error:
+        print("Gate4 report rejected: " + str(error), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
