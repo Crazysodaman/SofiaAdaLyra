@@ -368,7 +368,9 @@ def test_conflicting_grounded_judgments_remain_bounded_and_auditable(tmp_path):
 
 
 def wait_for_job(life, job_id):
-    deadline = time.monotonic() + 5
+    # Windows CI can delay asynchronous RUN callbacks under concurrent package load.
+    # Keep a bounded wait; never treat a still-running job as successful.
+    deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         job = life.work_store.get(job_id)
         if job.status in {
