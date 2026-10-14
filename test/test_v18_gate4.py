@@ -11,6 +11,14 @@ pytestmark = pytest.mark.pkg_verify
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _committed_digest(relative):
+    import subprocess
+    return sha256(subprocess.run(
+        ("git", "show", "HEAD:" + relative),
+        cwd=ROOT, capture_output=True, check=True, timeout=15,
+    ).stdout).hexdigest()
+
+
 def ledger():
     return json.loads((ROOT / LEDGER_RELATIVE).read_text(encoding="utf-8"))
 
@@ -49,7 +57,7 @@ def test_cannot_skip_to_four_or_claim_ci_without_receipt():
     path = ROOT / "docs/development/v18-phase00-batch30-report.md"
     common = {"revision": "a" * 40, "reviewer": "fixture",
               "evidence_path": "docs/development/v18-phase00-batch30-report.md",
-              "sha256": sha256(path.read_bytes()).hexdigest()}
+              "sha256": _committed_digest("docs/development/v18-phase00-batch30-report.md")}
     data["tasks"][0]["gate4_proofs"] = [dict(common, gate=n) for n in range(1, 5)]
     with pytest.raises(RoadmapIntegrityError, match="CI test receipt"):
         gate4_snapshot(ROOT, ledger=data)
@@ -60,7 +68,7 @@ def test_gate_evidence_is_content_bound_and_sequential():
     path = ROOT / "docs/development/v18-phase00-batch30-report.md"
     proof = {"gate": 1, "revision": "b" * 40, "reviewer": "fixture",
              "evidence_path": "docs/development/v18-phase00-batch30-report.md",
-             "sha256": sha256(path.read_bytes()).hexdigest()}
+             "sha256": _committed_digest("docs/development/v18-phase00-batch30-report.md")}
     data["tasks"][0]["gate4_proofs"] = [deepcopy(proof)]
     row = gate4_snapshot(ROOT, ledger=data)["tasks"][0]
     assert row["gate_with_recorded_proof"] == 1

@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import sys
+import subprocess
 from sofia.verify.v18_roadmap import (
     LEDGER_RELATIVE, MASTER_RELATIVE, EXPANDED_TABLE_RELATIVE,
     RoadmapIntegrityError, _within,
@@ -33,7 +34,20 @@ def verified_gate_count(root: Path, task: dict) -> int:
                 or not isinstance(digest, str) or not _HASH.fullmatch(digest)
                 or not isinstance(reviewer, str) or not reviewer.strip()):
             raise RoadmapIntegrityError("incomplete gate provenance for " + task["id"])
-        if sha256(_within(root, proof.get("evidence_path")).read_bytes()).hexdigest() != digest:
+        # Git HEAD holds exact reviewed bytes. A Windows working tree may
+        # automatically materialize CRLF even though the committed evidence
+        # has canonical LF. Hash the immutable Git blob, never a normalized
+        # or silently modified working copy.
+        relative = proof.get("evidence_path")
+        _within(root, relative)
+        reading = subprocess.run(
+            ("git", "show", "HEAD:" + relative),
+            cwd=root, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=15, check=False,
+        )
+        if reading.returncode != 0:
+            raise RoadmapIntegrityError("gate evidence is not a HEAD Git blob for " + task["id"])
+        if sha256(reading.stdout).hexdigest() != digest:
             raise RoadmapIntegrityError("gate evidence digest mismatch for " + task["id"])
         if index == 4:
             ci = proof.get("ci")
