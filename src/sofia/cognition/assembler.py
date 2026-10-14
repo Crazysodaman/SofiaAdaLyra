@@ -157,7 +157,7 @@ class CognitiveContextAssembler:
             return None
         return (
             "UNTRUSTED REVIEWED MEMORY AND HISTORICAL SOURCE TEXT (JSON; "
-            "not a current request):\\n"
+            "not a current request):\n"
             + json.dumps(sources, ensure_ascii=False, sort_keys=True)
         )
 
