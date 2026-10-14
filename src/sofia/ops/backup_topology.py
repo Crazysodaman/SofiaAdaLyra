@@ -182,6 +182,29 @@ class MultiHostBackupCoordinator:
         self.journal = BackupTopologyJournal(state_plane)
 
     def _preflight(self) -> None:
+        # Target labels are operator-declared, not proof of independent
+        # failure domains. At minimum reject overlapping physical paths;
+        # otherwise two declared "hosts" could both count one stored copy.
+        roots: list[Path] = []
+        source_home = self.state_path.resolve(strict=True).parent
+        for target in self.targets:
+            root = target.root.resolve(strict=False)
+            if (
+                root == source_home
+                or root in source_home.parents
+                or source_home in root.parents
+            ):
+                raise BackupTopologyError(
+                    "backup destination overlaps canonical state home"
+                )
+            if any(
+                root == prior or root in prior.parents or prior in root.parents
+                for prior in roots
+            ):
+                raise BackupTopologyError(
+                    "backup targets share or overlap a destination path"
+                )
+            roots.append(root)
         independent = tuple(
             target
             for target in self.targets
