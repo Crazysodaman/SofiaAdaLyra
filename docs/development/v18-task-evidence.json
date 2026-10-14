@@ -49,9 +49,18 @@
       "phase": "00",
       "source_topic": "0",
       "master_line": 65,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/cognition_v2_baseline.py",
+        "src/sofia/verify/v18_companion_baseline.py",
+        "test/test_cognition_v2_baseline.py",
+        "test/test_v18_companion_baseline.py",
+        ".github/workflows/v18-companion-baseline.yml",
+        "docs/development/v18-phase00-baseline-evidence.md"
+      ],
+      "evidence_commits": [
+        "66a50bd8bdcf0a672dc3dbe4d8fdd31f87064db1"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -61,6 +70,17 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "latest_phase00_baseline_audit": {
+        "source_sha": "66a50bd8bdcf0a672dc3dbe4d8fdd31f87064db1",
+        "date_utc": "2026-10-13",
+        "evidence_path": "docs/development/v18-phase00-baseline-evidence.md",
+        "ci_workflow_run_id": 38488338339,
+        "linux_ci_baseline": "passed",
+        "windows_ci_baseline": "passed",
+        "scope": "Isolated deterministic Cognition v2 production control path; source-pinned four-turn persistence/overhead measurement",
+        "remaining": "Live Venus/Artemis workload, memory/interaction accuracy, model/voice/avatar behavior and longitudinal acceptance; per-task promotion stages",
+        "acceptance": "partial_wiring: both focused CI jobs passed; no production live or full phase acceptance"
       }
     },
     {
@@ -216,11 +236,18 @@
       "master_line": 70,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/v18_roadmap.py"
+        "src/sofia/verify/v18_roadmap.py",
+        "src/sofia/verify/cognition_v2_baseline.py",
+        "src/sofia/verify/v18_companion_baseline.py",
+        "test/test_cognition_v2_baseline.py",
+        "test/test_v18_companion_baseline.py",
+        ".github/workflows/v18-companion-baseline.yml",
+        "docs/development/v18-phase00-baseline-evidence.md"
       ],
       "evidence_commits": [
         "288b030537b6c54794dd7641cfc975e815de4556",
-        "855d74e3ec206b9dd52667a7f4e15e3c7cb30b09"
+        "855d74e3ec206b9dd52667a7f4e15e3c7cb30b09",
+        "66a50bd8bdcf0a672dc3dbe4d8fdd31f87064db1"
       ],
       "accepted": false,
       "audit_observation": {
@@ -236,6 +263,17 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "latest_phase00_baseline_audit": {
+        "source_sha": "66a50bd8bdcf0a672dc3dbe4d8fdd31f87064db1",
+        "date_utc": "2026-10-13",
+        "evidence_path": "docs/development/v18-phase00-baseline-evidence.md",
+        "ci_workflow_run_id": 38488338339,
+        "linux_ci_baseline": "passed",
+        "windows_ci_baseline": "passed",
+        "scope": "Isolated deterministic Cognition v2 production control path; source-pinned four-turn persistence/overhead measurement",
+        "remaining": "Live Venus/Artemis workload, memory/interaction accuracy, model/voice/avatar behavior and longitudinal acceptance; per-task promotion stages",
+        "acceptance": "partial_wiring: both focused CI jobs passed; no production live or full phase acceptance"
       }
     },
     {
