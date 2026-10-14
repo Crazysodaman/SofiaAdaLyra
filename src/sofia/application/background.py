@@ -374,7 +374,10 @@ class ApplicationBackgroundCoordinator:
         # Individual consequential effects still require their own fresh
         # SAFE checks because PAUSE may arrive during a running callback.
         from sofia.safe.operator_stop import OperatorStopStore
-        if OperatorStopStore(self.budget.path).current().active:
+        # Keep one canonical STOP reader throughout the dispatch; a pause can
+        # arrive after the initial check while readiness/budget callbacks run.
+        operator_stop = OperatorStopStore(self.budget.path)
+        if operator_stop.current().active:
             return "operator_stopped"
         if not self.service.ready_for_idle_reflection(
             idle_seconds=self.idle_seconds
@@ -411,6 +414,10 @@ class ApplicationBackgroundCoordinator:
                     raise RuntimeError(
                         "reflection opportunity claimed while reflection is disabled"
                     )
+                if operator_stop.current().active:
+                    self.periodic.finish(opportunity.slot_id, status="no_event")
+                    self.budget.finish(claim_id, now=moment)
+                    return "operator_stopped"
                 event_id = self.idle.run_once(now=moment)
                 if event_id is None:
                     self.periodic.finish(
@@ -458,6 +465,11 @@ class ApplicationBackgroundCoordinator:
                 if claim_id is None:
                     return "budget_busy"
                 try:
+                    # Read STOP again after readiness and after claiming the
+                    # budget. Never dispatch ACT with a previously-read PAUSE.
+                    if operator_stop.current().active:
+                        self.budget.finish(claim_id, now=moment)
+                        return "operator_stopped"
                     result = self._act_delivery(moment)
                     self._act_last_run = moment
                     self.budget.finish(claim_id, now=moment)
@@ -504,6 +516,11 @@ class ApplicationBackgroundCoordinator:
                 if claim_id is None:
                     return "budget_busy"
                 try:
+                    # LIFE/Fleet/maintenance readiness can block while an
+                    # operator requests STOP. Re-check before each callback.
+                    if operator_stop.current().active:
+                        self.budget.finish(claim_id, now=moment)
+                        return "operator_stopped"
                     result = self._tasks[task_kind](moment)
                     self._task_last_run[task_kind] = moment
                     self.budget.finish(claim_id, now=moment)
