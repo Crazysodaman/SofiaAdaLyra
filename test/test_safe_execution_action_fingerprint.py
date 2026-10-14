@@ -116,3 +116,102 @@ def test_existing_verifier_cannot_recreate_missing_canonical_state(tmp_path):
             parameters=approved,now=NOW+timedelta(seconds=1),
         )
     assert not state.exists()
+
+
+def test_level3_exact_execution_refuses_unverified_owner_label(tmp_path):
+    """CA-1904: a string 'Sparks' alone must never authorize a reversible effect."""
+    state = tmp_path / "sofia.db"
+    state.touch()
+    verifier = ExecutionApprovalVerifier(state)
+    exact = {"service": "example"}
+    approval = ExecutionApproval(
+        approval_id="reversible-auth-required",
+        capability="local.service.restart",
+        request_fingerprint=execution_fingerprint("local.service.restart", exact),
+        approved_by="Sparks",
+        approved_at=NOW,
+        expires_at=NOW + timedelta(minutes=5),
+    )
+    with pytest.raises(PermissionError, match="level-3"):
+        verifier.record(approval)
+    assert verifier.matches_unconsumed(
+        approval_id=approval.approval_id,
+        capability=approval.capability,
+        parameters=exact,
+        now=NOW + timedelta(seconds=1),
+    ) is False
+
+    # Simulate a legacy unverified row from before the stronger SAFE gate.
+    # All three read/execute paths must still reject it.
+    with closing(sqlite3.connect(state)) as db, db:
+        db.execute(
+            "INSERT INTO safe_execution_approval "
+            "(approval_id,capability,request_fingerprint,approved_by,"
+            "approved_at,expires_at,consumed_at) VALUES (?,?,?,?,?,?,NULL)",
+            (
+                approval.approval_id, approval.capability,
+                approval.request_fingerprint, approval.approved_by,
+                approval.approved_at.isoformat(), approval.expires_at.isoformat(),
+            ),
+        )
+    assert "local.service.restart" not in verifier.active_capabilities(
+        now=NOW + timedelta(seconds=1)
+    )
+    assert not verifier.matches_unconsumed(
+        approval_id=approval.approval_id,
+        capability=approval.capability,
+        parameters=exact,
+        now=NOW + timedelta(seconds=1),
+    )
+    with pytest.raises(PermissionError, match="verified owner authentication"):
+        verifier.consume(
+            approval_id=approval.approval_id,
+            capability=approval.capability,
+            parameters=exact,
+            now=NOW + timedelta(seconds=1),
+        )
+
+
+def test_level3_verified_windows_hello_can_authorize_exact_once(tmp_path):
+    """L3 accepts signed user-verification; L4 still requires a security key."""
+    state = tmp_path / "sofia.db"
+    state.touch()
+    verifier = ExecutionApprovalVerifier(state)
+    exact = {"service": "example"}
+    approval = ExecutionApproval(
+        approval_id="reversible-with-valid-proof",
+        capability="local.service.restart",
+        request_fingerprint=execution_fingerprint("local.service.restart", exact),
+        approved_by="Sparks",
+        approved_at=NOW,
+        expires_at=NOW + timedelta(minutes=5),
+    )
+    record_verified_owner_approval(
+        verifier, approval, credential_kind="platform",
+    )
+    assert verifier.matches_unconsumed(
+        approval_id=approval.approval_id,
+        capability=approval.capability,
+        parameters=exact,
+        now=NOW + timedelta(seconds=1),
+    )
+    assert verifier.consume(
+        approval_id=approval.approval_id,
+        capability=approval.capability,
+        parameters=exact,
+        now=NOW + timedelta(seconds=1),
+    ) == approval
+
+
+def test_level3_execution_cli_requires_web_authentication(tmp_path, capsys):
+    from sofia.safe.approve_execution import main
+
+    state = tmp_path / "sofia.db"
+    state.touch()
+    result = main([
+        "--state-path", str(state),
+        "--capability", "local.service.restart",
+        "--parameters-json", '{"service":"example"}',
+    ])
+    assert result == 2
+    assert "level-3+" in capsys.readouterr().err
