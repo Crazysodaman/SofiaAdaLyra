@@ -96,7 +96,12 @@ def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) ->
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "task_count": 65,
         "category_counts": dict(categories),
-        "ledger_status_counts": dict(counters),
+        "ledger_status_counts": {
+            name: counters[name] for name in (
+                "unassessed", "partial_wiring", "code_present_unverified",
+                "accepted",
+            )
+        },
         "gate4_recorded": counters["gate4"],
         "tasks_without_gate4": 65 - counters["gate4"],
         "source_audit_executed": True,
@@ -112,7 +117,7 @@ def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) ->
 def markdown_summary(report: dict) -> str:
     lines = [
         "# V18 Phase 00: exact source review for 65 original tasks", "",
-        f"Revision: \`{report['exact_revision']}\`", "",
+        f"Revision: `{report['exact_revision']}`", "",
         f"Original items: {report['task_count']}; Gate 4 receipts: "
         f"{report['gate4_recorded']}; still without Gate 4: "
         f"{report['tasks_without_gate4']}.", "",

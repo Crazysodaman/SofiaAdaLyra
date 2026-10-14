@@ -98,3 +98,24 @@ def test_explicit_user_only_retrieval_cannot_import_assistant_content():
     )
     assert found and all(x.role is ConversationRole.USER for x in found)
     assert sum(len(x.content) for x in found) <= _MAX_SPECIFIC_RETRIEVAL_CHARACTERS
+
+
+def test_topic_recall_without_any_source_overlap_abstains():
+    prior = (
+        message("prior-a", "Nothing about this observation mentions the target."),
+        message("prior-b", "A separate unrelated owner conversation."),
+    )
+    result = _retrieve_specific_conversation(
+        prior, current_message_id="new",
+        query="What did I say about rare-unobserved-quartz?",
+    )
+    assert result == ()
+
+
+def test_non_topical_recall_can_still_use_recent_bounded_source():
+    prior = (message("prior-a", "I prefer carefully checked details."),)
+    result = _retrieve_specific_conversation(
+        prior, current_message_id="new", query="What did I say?",
+    )
+    assert len(result) == 1
+    assert result[0].id == "prior-a"

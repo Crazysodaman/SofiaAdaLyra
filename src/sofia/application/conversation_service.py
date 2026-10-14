@@ -143,7 +143,9 @@ def _retrieve_specific_conversation(
             )[:_MAX_SPECIFIC_RETRIEVAL_MESSAGES]
         )
         if not selected:
-            selected = candidates[-_MAX_SPECIFIC_RETRIEVAL_MESSAGES:]
+            # A topical recall without evidence overlap must not inject
+            # unrelated recent conversation as an authoritative excerpt.
+            return ()
     else:
         selected = candidates[-_MAX_SPECIFIC_RETRIEVAL_MESSAGES:]
 
