@@ -72,7 +72,7 @@ def _text_contains(objective: str, *, content: bytes, kind: ArtifactKind) -> Obj
 
 def _min_bytes(objective: str, *, content: bytes, kind: ArtifactKind) -> ObjectiveFinding:
     raw = objective.split(":", 1)[1].strip()
-    if not raw.isascii() or not raw.isdecimal():
+    if not raw.isascii() or not raw.isdecimal() or len(raw) > 8:
         return ObjectiveFinding(objective, ObjectiveDisposition.UNKNOWN, "min_bytes", "invalid integer criterion")
     minimum = int(raw)
     if minimum < 1 or minimum > 64 * 1024 * 1024:
