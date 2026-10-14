@@ -46,3 +46,23 @@ def test_invalid_json_tool_arguments_fail_closed():
     )
     with pytest.raises(LLMProviderError, match="invalid JSON"):
         provider.respond(CognitiveRequest(messages=()))
+
+def test_tool_call_response_does_not_trigger_quality_retry():
+    """An action candidate must never be sent through text-only repair."""
+    class CapturingClient:
+        calls = 0
+
+        def chat(self, **kwargs):
+            self.calls += 1
+            return SimpleNamespace(message=SimpleNamespace(
+                content="",
+                tool_calls=(SimpleNamespace(function=SimpleNamespace(
+                    name="example", arguments={"ok": True}), id="call-1"),),
+            ))
+
+    client = CapturingClient()
+    provider = OllamaProvider(create_default_configuration().provider, client=client)
+    result = provider.respond(CognitiveRequest(messages=()))
+    assert client.calls == 1
+    assert len(result.tool_calls) == 1
+    assert result.tool_calls[0].name == "example"
