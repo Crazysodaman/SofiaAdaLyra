@@ -151,3 +151,84 @@ def test_unknown_previous_outcome_blocks_new_artifact_attempt(tmp_path):
         assert life.store.jobs(project.project_id) == (uncertain.job_id,)
     finally:
         life.close()
+
+
+@pytest.mark.pkg_run
+def test_provisioned_authority_link_and_job_all_roll_back_before_commit(tmp_path, monkeypatch):
+    """Crash after LIFE authorization/link INSERT but before RUN commits."""
+    life, _goals, now = infrastructure(tmp_path)
+    project, evidence_ref = active_project(life, now)
+    original = life.store.provision_artifact_job
+    try:
+        def after_both_life_inserts(db, **kwargs):
+            original(db, **kwargs)
+            linked = db.execute(
+                "SELECT count(*) FROM life_project_job WHERE project_id=?",
+                (project.project_id,),
+            ).fetchone()[0]
+            grants = db.execute(
+                "SELECT count(*) FROM life_artifact_authorization WHERE project_id=?",
+                (project.project_id,),
+            ).fetchone()[0]
+            assert linked == grants == 1
+            raise RuntimeError("simulated crash after both LIFE writes")
+
+        monkeypatch.setattr(life.store, "provision_artifact_job", after_both_life_inserts)
+        with pytest.raises(RuntimeError, match="after both LIFE writes"):
+            life.schedule_artifact(
+                project.project_id, artifact_kind=ArtifactKind.TEXT,
+                title="Rollback after link", specification={"content": "never dispatched"},
+                evidence_ref=evidence_ref, now=now + timedelta(seconds=3),
+            )
+        with closing(sqlite3.connect(life.path)) as db:
+            assert db.execute("SELECT count(*) FROM life_artifact_authorization").fetchone()[0] == 0
+            assert db.execute("SELECT count(*) FROM life_project_job").fetchone()[0] == 0
+            assert db.execute("SELECT count(*) FROM autonomous_work_job").fetchone()[0] == 0
+            assert db.execute("SELECT count(*) FROM autonomous_work_event").fetchone()[0] == 0
+    finally:
+        life.close()
+    # A new instance cannot see or execute phantom grants/jobs from the crash.
+    restarted, _goals, _ = infrastructure(tmp_path)
+    try:
+        assert restarted.store.jobs(project.project_id) == ()
+        assert restarted.work_store.list() == ()
+    finally:
+        restarted.close()
+
+
+@pytest.mark.pkg_run
+def test_unknown_commit_acknowledgment_does_not_duplicate_effect(tmp_path, monkeypatch):
+    """Crash after successful RUN commit is not permission to enqueue twice."""
+    life, _goals, now = infrastructure(tmp_path)
+    project, evidence_ref = active_project(life, now)
+    original_submit = life.manager.submit
+    try:
+        def after_commit(**kwargs):
+            original_submit(**kwargs)
+            raise RuntimeError("lost commit acknowledgement")
+
+        monkeypatch.setattr(life.manager, "submit", after_commit)
+        with pytest.raises(RuntimeError, match="lost commit acknowledgement"):
+            life.schedule_artifact(
+                project.project_id, artifact_kind=ArtifactKind.TEXT,
+                title="Already committed", specification={"content": "not yet run"},
+                evidence_ref=evidence_ref, now=now + timedelta(seconds=3),
+            )
+        assert len(life.store.jobs(project.project_id)) == 1
+        assert len(life.work_store.list()) == 1
+        with closing(sqlite3.connect(life.path)) as db:
+            assert db.execute("SELECT count(*) FROM life_artifact_authorization").fetchone()[0] == 1
+    finally:
+        life.close()
+    restarted, _goals, _ = infrastructure(tmp_path)
+    try:
+        with pytest.raises(RuntimeError, match="unsettled RUN job"):
+            restarted.schedule_artifact(
+                project.project_id, artifact_kind=ArtifactKind.TEXT,
+                title="Unsafe duplicate", specification={"content": "same effect"},
+                evidence_ref=evidence_ref, now=now + timedelta(seconds=5),
+            )
+        assert len(restarted.store.jobs(project.project_id)) == 1
+        assert len(restarted.work_store.list()) == 1
+    finally:
+        restarted.close()
