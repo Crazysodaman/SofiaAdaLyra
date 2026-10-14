@@ -126,3 +126,67 @@ def test_operator_resume_audit_failure_rolls_back_approval_consumption(tmp_path,
         parameters=exact,
         now=NOW + timedelta(seconds=3),
     )
+
+
+@pytest.mark.parametrize(
+    "second_at",
+    (NOW, NOW - timedelta(minutes=5)),
+    ids=("same-clock-tick", "clock-moved-backwards"),
+)
+def test_repeated_operator_stop_cannot_reuse_signed_resume_revision(tmp_path, second_at):
+    """A second STOP must fence an old resume even with identical/backwards clocks."""
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    stop = OperatorStopStore(state)
+    stop.set(active=True, updated_by="Sparks", reason="first stop", at=NOW)
+    first = stop.current().updated_at
+    parameters = {
+        "active": False,
+        "reason": "stale resume",
+        "expected_updated_at": first.isoformat(),
+    }
+    approval = ExecutionApproval(
+        approval_id=str(uuid4()),
+        capability="operator.stop.resume",
+        request_fingerprint=execution_fingerprint(
+            "operator.stop.resume", parameters
+        ),
+        approved_by="Sparks",
+        approved_at=NOW + timedelta(seconds=1),
+        expires_at=NOW + timedelta(minutes=5),
+    )
+    verifier = ExecutionApprovalVerifier(state)
+    record_verified_owner_approval(verifier, approval)
+
+    stop.set(
+        active=True, updated_by="Sparks",
+        reason="newer emergency stop", at=second_at,
+    )
+    second = stop.current()
+    assert second.active and second.reason == "newer emergency stop"
+    assert second.updated_at > first
+    with pytest.raises(PermissionError, match="changed since"):
+        stop.set(
+            active=False, updated_by="Sparks", reason="stale resume",
+            approval_id=approval.approval_id,
+            expected_updated_at=first.isoformat(),
+            at=NOW + timedelta(seconds=2),
+        )
+    assert stop.current() == second
+    assert verifier.matches_unconsumed(
+        approval_id=approval.approval_id,
+        capability="operator.stop.resume",
+        parameters=parameters,
+        now=NOW + timedelta(seconds=3),
+    )
+
+
+def test_operator_stop_revisions_remain_unique_across_rapid_restart(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    first = OperatorStopStore(state)
+    first.set(active=True, updated_by="Sparks", reason="first", at=NOW)
+    rev1 = first.current().updated_at
+    restarted = OperatorStopStore(state)
+    restarted.set(active=True, updated_by="Sparks", reason="repeat", at=NOW)
+    rev2 = restarted.current().updated_at
+    assert rev2 > rev1
+    assert OperatorStopStore(state).current().updated_at == rev2
