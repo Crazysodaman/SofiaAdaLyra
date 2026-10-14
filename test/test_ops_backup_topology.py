@@ -125,3 +125,53 @@ def test_failed_destination_is_journaled_and_policy_fails(tmp_path, monkeypatch)
     latest = BackupTopologyJournal(plane).latest()
     assert latest["accepted"] is False
     assert {item["error_type"] for item in latest["copies"]} == {None, "OSError"}
+
+
+@pytest.mark.parametrize("second", ["identical", "nested", "parent"])
+def test_differently_labeled_targets_cannot_count_same_storage(tmp_path, second):
+    state = make_state(tmp_path)
+    a = tmp_path / "copies" / "one"
+    b = {
+        "identical": a,
+        "nested": a / "child",
+        "parent": a.parent,
+    }[second]
+    coordinator = MultiHostBackupCoordinator(
+        state_path=state,
+        engine=BackupEngine(BackupCipher(b"k" * 32)),
+        state_plane=SQLiteStatePlane(state),
+        source_host_id="venus",
+        source_failure_domain="desk-a",
+        targets=(
+            BackupTarget("artemis", "artemis", "rack-a", a),
+            BackupTarget("eos", "eos", "rack-b", b),
+        ),
+    )
+    with pytest.raises(BackupTopologyError, match="share or overlap"):
+        coordinator.run(now=NOW)
+
+
+@pytest.mark.parametrize("target_root", ["state_home", "ancestor", "descendant"])
+def test_backup_copy_may_not_write_inside_or_enclose_live_state(
+    tmp_path, target_root,
+):
+    state = make_state(tmp_path)
+    home = state.parent
+    unsafe = {
+        "state_home": home,
+        "ancestor": tmp_path,
+        "descendant": home / "nested",
+    }[target_root]
+    coordinator = MultiHostBackupCoordinator(
+        state_path=state,
+        engine=BackupEngine(BackupCipher(b"k" * 32)),
+        state_plane=SQLiteStatePlane(state),
+        source_host_id="venus",
+        source_failure_domain="desk-a",
+        targets=(
+            BackupTarget("artemis", "artemis", "rack-a", unsafe),
+            BackupTarget("eos", "eos", "rack-b", tmp_path / "independent"),
+        ),
+    )
+    with pytest.raises(BackupTopologyError, match="overlaps canonical state"):
+        coordinator.run(now=NOW)
