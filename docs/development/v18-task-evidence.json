@@ -22,10 +22,18 @@
         "src/sofia/life/model.py",
         "src/sofia/run/work.py",
         "src/sofia/application/act_service.py",
-        "src/sofia/social/model.py"
+        "src/sofia/social/model.py",
+        "src/sofia/application/decision_persistence.py",
+        "src/sofia/cognition/matrix/trace.py",
+        "src/sofia/conversation/store.py",
+        "src/sofia/social/store.py",
+        "test/test_v18_decision_persistence.py",
+        ".github/workflows/v18-decision-persistence.yml",
+        "docs/development/v18-phase00-ca001-canonical-turn-correlation.md"
       ],
       "evidence_commits": [
-        "ae616efd5fe81017bce1606543f43c0ceb2d95fd"
+        "ae616efd5fe81017bce1606543f43c0ceb2d95fd",
+        "15cb4e4e174c9e9aacb185a444080272ab2c5f4a"
       ],
       "accepted": false,
       "audit_observation": {
@@ -42,6 +50,26 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "latest_phase00_correlation_audit": {
+        "source_sha": "15cb4e4e174c9e9aacb185a444080272ab2c5f4a",
+        "document": "docs/development/v18-phase00-ca001-canonical-turn-correlation.md",
+        "production_path": "SofiaApplication.latest_companion_decision_trace() -> inspect_turn_persistence() -> CanonicalSQLiteGuard(read_only=True) -> existing CONVERSATION/MATRIX/SOCIAL rows",
+        "scope": "Same-turn event/session/principal persistence proof; no new state tables, permissions, LLM invocation or original-content projection",
+        "completed_source_features": [
+          "read-only source/Matrix join",
+          "same-session and persisted role verification",
+          "independent principal/audience binding evidence",
+          "corruption, mismatch and missing database fail-closed cases"
+        ],
+        "test_scope": "Windows/Linux focused workflow and existing package suite initiated; results not yet final as of ledger commit",
+        "acceptance": "partial_wiring, neither full CA-001 causal chain nor live effect/restart test accepted",
+        "remaining": [
+          "turn-correlated NEURO focus",
+          "memory/GOALS/LIFE provenance",
+          "SAFE/RUN actual effect and ACT delivery receipt correlation",
+          "live multi-device and longitudinal verification"
+        ]
       }
     },
     {
