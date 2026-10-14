@@ -39,12 +39,13 @@ class CompanionDecisionTrace:
     act_delivery_ref: str | None = None
     objective_verified: bool = False
     canonical_persistence: CompanionTurnPersistence | None = None
+    neuro_observed_for_turn_at: datetime | None = None
 
     @property
     def limitations(self) -> tuple[str, ...]:
         return (
             "diagnostic projection only; never authority or proof of action",
-            "NEURO snapshot is not turn-correlated unless explicit provenance exists",
+            "same-turn NEURO observation is ephemeral, not proof of causal use",
             "goal/LIFE/ACT outcomes not joined without typed source references",
             "evidence references are not automatically independent validation",
         )
@@ -55,6 +56,7 @@ def project_companion_decision(
     matrix_trace: MatrixTrace | None,
     neuro_snapshot: NeuroStateSnapshot | None,
     canonical_persistence: CompanionTurnPersistence | None = None,
+    neuro_turn_snapshot: NeuroStateSnapshot | None = None,
 ) -> CompanionDecisionTrace | None:
     """Project only typed observations, never infer cause or success.
 
@@ -70,6 +72,11 @@ def project_companion_decision(
     ):
         raise TypeError("neuro_snapshot must be NeuroStateSnapshot or None")
 
+    if neuro_turn_snapshot is not None:
+        if not isinstance(neuro_turn_snapshot, NeuroStateSnapshot):
+            raise TypeError("neuro_turn_snapshot must be a NEURO observation")
+        if neuro_turn_snapshot.generated_at > matrix_trace.created_at:
+            raise ValueError("NEURO observation cannot follow the completed decision")
     if canonical_persistence is not None:
         if not isinstance(canonical_persistence, CompanionTurnPersistence):
             raise TypeError("canonical_persistence must be typed proof or None")
@@ -115,6 +122,10 @@ def project_companion_decision(
         neuro_latest_at=(
             None if neuro_snapshot is None else neuro_snapshot.generated_at
         ),
-        neuro_turn_correlated=False,
+        neuro_turn_correlated=neuro_turn_snapshot is not None,
         canonical_persistence=canonical_persistence,
+        neuro_observed_for_turn_at=(
+            None if neuro_turn_snapshot is None
+            else neuro_turn_snapshot.generated_at
+        ),
     )

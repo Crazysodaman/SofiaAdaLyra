@@ -165,3 +165,59 @@ def test_live_application_projection_uses_real_persisted_turn(tmp_path):
         assert not proof.same_turn_verified
     finally:
         app.shutdown()
+
+
+def test_turn_neuro_provenance_is_exact_and_ephemeral(tmp_path):
+    from sofia.application.conversation_service import ConversationService
+    from sofia.neuro.model import NeuroStateSnapshot
+
+    path, matrix = _fixture(tmp_path)
+    snapshot = NeuroStateSnapshot(generated_at=NOW, focus=None)
+    service = object.__new__(ConversationService)
+    service._current_neuro_snapshot = snapshot
+    service._current_neuro_message_id = matrix.envelope.message_id
+    service._current_matrix_message_id = matrix.envelope.message_id
+    assert service.neuro_observation_for_turn(
+        message_id=matrix.envelope.message_id,
+    ) is snapshot
+    assert service.neuro_observation_for_turn(message_id="unrelated-turn") is None
+    with pytest.raises(ValueError, match="message_id"):
+        service.neuro_observation_for_turn(message_id="")
+
+    evidence = project_companion_decision(
+        matrix_trace=matrix, neuro_snapshot=snapshot,
+        neuro_turn_snapshot=snapshot,
+        canonical_persistence=inspect_turn_persistence(path, matrix_trace=matrix),
+    )
+    assert evidence.neuro_turn_correlated
+    assert evidence.neuro_observed_for_turn_at == NOW
+    assert not evidence.objective_verified
+
+    # A new message, a missing observation or reset state cannot inherit
+    # an earlier snapshot merely because NEURO last_snapshot is non-null.
+    service._current_matrix_message_id = "newer-message"
+    assert service.neuro_observation_for_turn(
+        message_id=matrix.envelope.message_id,
+    ) is None
+    uncorrelated = project_companion_decision(
+        matrix_trace=matrix, neuro_snapshot=snapshot,
+        neuro_turn_snapshot=None,
+    )
+    assert not uncorrelated.neuro_turn_correlated
+    assert uncorrelated.neuro_observed_for_turn_at is None
+    assert uncorrelated.neuro_latest_at == NOW
+
+
+def test_neuro_snapshot_cannot_be_claimed_before_it_was_observed(tmp_path):
+    from sofia.neuro.model import NeuroStateSnapshot
+
+    _path, matrix = _fixture(tmp_path)
+    future = NeuroStateSnapshot(
+        generated_at=matrix.created_at + timedelta(seconds=1),
+        focus=None,
+    )
+    with pytest.raises(ValueError, match="cannot follow"):
+        project_companion_decision(
+            matrix_trace=matrix, neuro_snapshot=future,
+            neuro_turn_snapshot=future,
+        )

@@ -535,9 +535,10 @@ class SofiaApplication:
     def latest_companion_decision_trace(self):
         """Read-only, non-authoritative projection of the latest session turn.
 
-        This view joins only source-identified Matrix facts. A NEURO snapshot
-        without a turn correlation key is labeled separate, not causal proof.
-        No new durable store, LLM call, memory promotion or authority is created.
+        This view verifies canonical source/decision rows. NEURO can only
+        be attributed to the current message when the conversation service
+        retains the exact observed turn ID; a newer snapshot stays separate.
+        No new store, LLM call, memory promotion or authority is created.
         """
         from sofia.application.decision_trace import project_companion_decision
         from sofia.application.decision_persistence import inspect_turn_persistence
@@ -553,6 +554,12 @@ class SofiaApplication:
             matrix_trace=matrix_trace,
             neuro_snapshot=self._neuro.last_snapshot,
             canonical_persistence=persistence,
+            neuro_turn_snapshot=(
+                None if matrix_trace is None else
+                self._conversation_service.neuro_observation_for_turn(
+                    message_id=matrix_trace.envelope.message_id,
+                )
+            ),
         )
 
     @property

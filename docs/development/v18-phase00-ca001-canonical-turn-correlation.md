@@ -28,6 +28,20 @@ authenticated principal/audience-linked turn. Nothing in these rows alone
 proves consent, a model's reasoning, historical memory eligibility, action
 execution, external delivery or an objective achieved.
 
+## Ephemeral NEURO turn attribution
+
+`ConversationService.neuro_observation_for_turn(message_id=...)` exposes an
+already-observed `NeuroStateSnapshot` only when **both** the active NEURO
+message key and Matrix message key equal the requested turn. It does not read
+the global latest snapshot as a substitute for this proof. The application
+projects `neuro_observed_for_turn_at` and sets `neuro_turn_correlated` only
+for an exact in-process match. Restart, new message, missing observation or
+future-dated mismatches cannot silently inherit the older turn's snapshot.
+
+This confirms turn attribution of an *observation*, not that the model
+consumed it, that its chosen focus caused the reply, or that the snapshot
+was durably persisted. The NEURO global latest timestamp remains separate.
+
 ## Regression and acceptance
 
 `test/test_v18_decision_persistence.py` checks same-event positive cases,
@@ -39,8 +53,9 @@ release suites provide additional integration evidence after they finish.
 
 ## Missing CA-001 stages
 
-- Correlate the NEURO attention winner to **that exact turn**, not the latest
-  unrelated NEURO snapshot.
+- Independently persist NEURO source/consumer receipts and prove that the
+  actual selected focus was consumed for that turn. The in-process association
+  is implemented but is not durable causal evidence.
 - Join actual eligible memory source IDs and corrections without cross-audience
   disclosure.
 - Trace objective-linked LIFE/GOALS decisions, rejected alternatives and

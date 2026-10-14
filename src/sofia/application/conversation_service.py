@@ -563,6 +563,24 @@ class ConversationService(ConversationMatrixMixin):
         """Return the latest local prioritization snapshot for diagnostics."""
         return self._current_neuro_snapshot
 
+    def neuro_observation_for_turn(
+        self, *, message_id: str,
+    ) -> NeuroStateSnapshot | None:
+        """Return only the ephemeral NEURO observation for this exact turn.
+
+        This is a local in-process association, not durable NEURO causality,
+        model-consumption evidence or permission. A background/newer snapshot
+        cannot be mistaken for the prior conversation turn's observation.
+        """
+        if not isinstance(message_id, str) or not message_id.strip():
+            raise ValueError("message_id must be nonempty")
+        if (
+            self._current_neuro_message_id != message_id
+            or self._current_matrix_message_id != message_id
+        ):
+            return None
+        return self._current_neuro_snapshot
+
     @property
     def last_neuro_error(self) -> str | None:
         """Return the latest non-fatal NEURO observation failure."""
