@@ -29,11 +29,15 @@
         "src/sofia/social/store.py",
         "test/test_v18_decision_persistence.py",
         ".github/workflows/v18-decision-persistence.yml",
-        "docs/development/v18-phase00-ca001-canonical-turn-correlation.md"
+        "docs/development/v18-phase00-ca001-canonical-turn-correlation.md",
+        "src/sofia/application/conversation_service.py",
+        "test/test_v18_settled_response_trace.py"
       ],
       "evidence_commits": [
         "ae616efd5fe81017bce1606543f43c0ceb2d95fd",
-        "15cb4e4e174c9e9aacb185a444080272ab2c5f4a"
+        "15cb4e4e174c9e9aacb185a444080272ab2c5f4a",
+        "902b8d51b2be154d7421897ac0da7b33447694d7",
+        "285e0070c376876e8a984b45f121d604e8ee4390"
       ],
       "accepted": false,
       "audit_observation": {
@@ -52,24 +56,34 @@
         "evidence_level": "existing_shared_ledger_evidence"
       },
       "latest_phase00_correlation_audit": {
-        "source_sha": "15cb4e4e174c9e9aacb185a444080272ab2c5f4a",
-        "document": "docs/development/v18-phase00-ca001-canonical-turn-correlation.md",
-        "production_path": "SofiaApplication.latest_companion_decision_trace() -> inspect_turn_persistence() -> CanonicalSQLiteGuard(read_only=True) -> existing CONVERSATION/MATRIX/SOCIAL rows",
-        "scope": "Same-turn event/session/principal persistence proof; no new state tables, permissions, LLM invocation or original-content projection",
-        "completed_source_features": [
-          "read-only source/Matrix join",
-          "same-session and persisted role verification",
-          "independent principal/audience binding evidence",
-          "corruption, mismatch and missing database fail-closed cases"
+        "source_sha": "285e0070c376876e8a984b45f121d604e8ee4390",
+        "inspected_at_utc": "2026-10-13",
+        "production_entrypoint": "SofiaApplication.latest_companion_decision_trace",
+        "implementation_path": "src/sofia/application/decision_persistence.py",
+        "regression_workflow": "V18 Decision Persistence Proof",
+        "regression_run_id": 38489692400,
+        "regression_linux": "passed",
+        "regression_windows": "passed",
+        "completed_slices": [
+          "Canonical USER message + completed Matrix decision same source/session/channel",
+          "SOCIAL independent principal/audience link validation",
+          "Exact in-process NEURO observation bound to current Matrix/user message",
+          "Canonical completed stable-source turn + matching persisted assistant response"
         ],
-        "test_scope": "Windows/Linux focused workflow and existing package suite initiated; results not yet final as of ledger commit",
-        "acceptance": "partial_wiring, neither full CA-001 causal chain nor live effect/restart test accepted",
+        "negative_evidence": [
+          "Spoofed principal/channel/role/audience",
+          "Missing or replaced canonical state",
+          "Missing response, inconsistent JSON, failed/uncertain turn",
+          "Unrelated or newer NEURO snapshot"
+        ],
         "remaining": [
-          "turn-correlated NEURO focus",
-          "memory/GOALS/LIFE provenance",
-          "SAFE/RUN actual effect and ACT delivery receipt correlation",
-          "live multi-device and longitudinal verification"
-        ]
+          "Durable causal NEURO consumption/winner and action rejection evidence",
+          "Audience-eligible MEM source/correction joins",
+          "GOALS and LIFE source-linked decision/revision outcomes",
+          "Actual SAFE/RUN effect/ACT delivery or nonaction verified receipt",
+          "End-to-end restart/multihost/live acceptance"
+        ],
+        "acceptance": "partial_wiring: focused Windows/Linux tests passed; full original CA-001 scope is not verified"
       }
     },
     {
