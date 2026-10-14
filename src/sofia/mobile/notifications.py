@@ -10,7 +10,7 @@ import re
 import secrets
 import sqlite3
 
-from sofia.act.diagnostics import OutreachTraceStore
+from sofia.act.diagnostics import ensure_outreach_trace_schema, record_outreach_trace
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
@@ -71,6 +71,9 @@ class MobileNotificationStore:
                     "ALTER TABLE mobile_notification "
                     "ADD COLUMN claimed_generation INTEGER"
                 )
+            # ACT delivery receipts must participate in the SAME SQLite
+            # commit as the canonical displayed status, not a later write.
+            ensure_outreach_trace_schema(db)
 
     def _connect(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
@@ -294,23 +297,25 @@ class MobileNotificationStore:
                 raise PermissionError(
                     "mobile notification belongs to another pairing generation"
                 )
-            if row["status"] == "displayed" and row["claimed_device"] == device:
-                return
-            changed = db.execute(
-                "UPDATE mobile_notification SET status='displayed',displayed_at=? "
-                "WHERE notification_id=? AND status='claimed' "
-                "AND claimed_device=? AND (? IS NULL OR claimed_generation=?)",
-                (moment.isoformat(), key, device, generation, generation),
+            already_displayed = (
+                row["status"] == "displayed" and row["claimed_device"] == device
             )
-            if changed.rowcount != 1:
-                raise PermissionError(
-                    "mobile notification is not claimed by this device"
+            if not already_displayed:
+                changed = db.execute(
+                    "UPDATE mobile_notification SET status='displayed',displayed_at=? "
+                    "WHERE notification_id=? AND status='claimed' "
+                    "AND claimed_device=? AND (? IS NULL OR claimed_generation=?)",
+                    (moment.isoformat(), key, device, generation, generation),
                 )
-        if key.startswith("act:"):
-            notice_id = key.removeprefix("act:")
-            OutreachTraceStore(self.path).confirm_recipient(
-                notice_id=notice_id,
-                channel="mobile",
-                recorded_at=moment,
-                receipt_id=f"mobile-ack:{notice_id}",
-            )
+                if changed.rowcount != 1:
+                    raise PermissionError(
+                        "mobile notification is not claimed by this device"
+                    )
+            if key.startswith("act:"):
+                notice_id = key.removeprefix("act:")
+                record_outreach_trace(
+                    db, notice_id=notice_id, stage="recipient_confirmed",
+                    reason="mobile_acknowledged", recorded_at=moment,
+                    channel="mobile", receipt_id=f"mobile-ack:{notice_id}",
+                    recipient_confirmed=True,
+                )
