@@ -7,6 +7,7 @@ from datetime import datetime
 from hashlib import sha256
 import json
 
+from sofia.cognition.strict_json import loads_strict_model_json
 from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
@@ -134,7 +135,7 @@ class ProjectIdeaAgent:
         ):
             raise ProjectIdeaGenerationError("project idea reply exceeds bounded cognitive budget")
         try:
-            value = json.loads(response.content)
+            value = loads_strict_model_json(response.content)
         except (TypeError, ValueError) as exc:
             raise ProjectIdeaGenerationError("project idea must be valid JSON") from exc
         keys = {

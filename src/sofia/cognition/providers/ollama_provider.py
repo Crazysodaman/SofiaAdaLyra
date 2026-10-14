@@ -29,6 +29,7 @@ from sofia.cognition.quality_repair import (
     grounded_quality_fallback,
 )
 from sofia.config.model import ProviderConfiguration
+from sofia.cognition.strict_json import loads_strict_model_json
 
 
 # Provider-supplied JSON is not an authority grant. Bound resource use at the
@@ -37,20 +38,6 @@ _MAX_TOOL_CALLS = 16
 _MAX_TOOL_ARGUMENT_BYTES = 64 * 1024
 _MAX_TOOL_ARGUMENT_NODES = 4096
 _MAX_TOOL_ARGUMENT_DEPTH = 16
-
-
-def _unique_json_object(pairs: list[tuple[str, object]]) -> dict:
-    """Reject ambiguous duplicate JSON keys instead of silently using last wins."""
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("duplicate JSON object key")
-        result[key] = value
-    return result
-
-
-def _reject_nonfinite_json(value: str):
-    raise ValueError("non-finite JSON constant")
 
 
 def _validate_tool_arguments(arguments: dict) -> None:
@@ -300,11 +287,7 @@ class OllamaProvider(LLMProvider):
             if len(arguments) > _MAX_TOOL_ARGUMENT_BYTES:
                 raise LLMProviderError("Ollama returned tool arguments exceeding safety limits.")
             try:
-                arguments = json.loads(
-                    arguments,
-                    object_pairs_hook=_unique_json_object,
-                    parse_constant=_reject_nonfinite_json,
-                )
+                arguments = loads_strict_model_json(arguments)
             except (json.JSONDecodeError, ValueError) as exc:
                 raise LLMProviderError("Ollama returned invalid JSON tool arguments.") from exc
         _validate_tool_arguments(arguments)

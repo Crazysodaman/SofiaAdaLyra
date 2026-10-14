@@ -11,6 +11,7 @@ from datetime import datetime
 import json
 from typing import Callable
 
+from sofia.cognition.strict_json import loads_strict_model_json
 from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
@@ -113,7 +114,7 @@ class ProjectOutreachChoiceAgent:
         ):
             raise ProjectOutreachChoiceError("outreach choice must be bounded text-only")
         try:
-            raw = json.loads(response.content)
+            raw = loads_strict_model_json(response.content)
             if not isinstance(raw, dict) or set(raw) != {
                 "share_now", "tone", "reason",
             }:

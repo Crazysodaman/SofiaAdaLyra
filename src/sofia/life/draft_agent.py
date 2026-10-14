@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from typing import Callable
 
+from sofia.cognition.strict_json import loads_strict_model_json
 from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
@@ -117,7 +118,7 @@ class ProjectDraftAgent:
         ):
             raise ProjectDraftGenerationError("draft exceeds model response budget")
         try:
-            value = json.loads(result.content)
+            value = loads_strict_model_json(result.content)
         except (TypeError, ValueError) as exc:
             raise ProjectDraftGenerationError("draft is not JSON") from exc
         if not isinstance(value, dict) or set(value) != {"content"}:
