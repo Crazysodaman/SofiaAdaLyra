@@ -1,5 +1,6 @@
 """Thirty original V18 Phase 00 tasks: source proof, non-acceptance and tamper tests."""
 from copy import deepcopy
+from hashlib import file_digest
 import json
 from pathlib import Path
 
@@ -66,11 +67,25 @@ def test_audit_rejects_unrelated_git_revision_before_inspection():
         audit_phase00_batch(ROOT, expected_revision="0" * 40)
 
 
+def _canonical_sqlite_file_snapshot():
+    """Check for audit-side mutations even if earlier tests created state."""
+    snapshot = {}
+    for suffix in ("", "-wal", "-shm"):
+        path = ROOT / f"sofia.db{suffix}"
+        if not path.exists():
+            snapshot[path.name] = None
+            continue
+        with path.open("rb") as stream:
+            snapshot[path.name] = file_digest(stream, "sha256").hexdigest()
+    return snapshot
+
+
 def test_audit_does_not_change_canonical_ledger_or_bootstrap_state():
     original = (ROOT / "docs/development/v18-task-evidence.json").read_bytes()
+    state_before = _canonical_sqlite_file_snapshot()
     audit_phase00_batch(ROOT)
     assert (ROOT / "docs/development/v18-task-evidence.json").read_bytes() == original
-    assert not (ROOT / "sofia.db").exists()
+    assert _canonical_sqlite_file_snapshot() == state_before
 
 
 def test_act_graph_contract_requires_real_turn_neuro_key_guard_not_literal_false():

@@ -27,6 +27,8 @@ def test_conversation_and_idle_thought_share_a_model_lock(monkeypatch):
     service._model_lock = RLock()
     service._active_user_requests = 0
     service._last_user_activity = monotonic() - 60
+    # Mocked base respond() skips the state update made by the real service.
+    service._last_turn_replayed = True
 
     def reflect(self, *, event_id):
         calls.append("reflection:start")
