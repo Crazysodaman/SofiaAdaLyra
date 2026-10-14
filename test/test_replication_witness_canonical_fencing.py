@@ -3,6 +3,7 @@
 The witness is NOT sofia.db; it must live in an independent failure domain.
 Live runtime never creates a missing epoch-one witness.
 """
+from contextlib import closing
 from datetime import datetime, timezone
 import os
 import sqlite3
@@ -55,7 +56,7 @@ def test_witness_file_replacement_rejected_by_existing_owner(tmp_path):
     witness = SQLiteReplicationWitness(path, allow_first_bootstrap=True)
     witness.acquire_writer("Venus", now=NOW, ttl_seconds=30)
     other = tmp_path / "imposter.db"
-    with sqlite3.connect(other) as db:
+    with closing(sqlite3.connect(other)) as db, db:
         db.execute("CREATE TABLE decoy (x INTEGER)")
     os.replace(other, path)
     with pytest.raises(CanonicalStateUnavailable, match="replaced"):
@@ -66,11 +67,26 @@ def test_witness_file_replacement_rejected_by_existing_owner(tmp_path):
 
 def test_existing_empty_witness_cannot_be_accepted_as_prior_authority(tmp_path):
     path = tmp_path / "witness.db"
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.execute("CREATE TABLE empty (x INTEGER)")
     with pytest.raises(ReplicationError, match="witness schema missing"):
         SQLiteReplicationWitness(path)
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db:
         assert db.execute(
             "SELECT name FROM sqlite_master WHERE name='replication_writer'"
         ).fetchone() is None
+
+
+def test_restarted_witness_rejects_replaced_file(tmp_path):
+    path = tmp_path / "witness.db"
+    first = SQLiteReplicationWitness(path, allow_first_bootstrap=True)
+    first.acquire_writer("Venus", now=NOW, ttl_seconds=30)
+    restarted = SQLiteReplicationWitness(path)
+    replacement = tmp_path / "replacement.db"
+    with closing(sqlite3.connect(replacement)) as db, db:
+        db.execute("CREATE TABLE decoy (x INTEGER)")
+    os.replace(replacement, path)
+    with pytest.raises(CanonicalStateUnavailable, match="replaced"):
+        restarted.current_writer()
+    with pytest.raises(ReplicationError, match="witness schema missing"):
+        SQLiteReplicationWitness(path)
