@@ -1,0 +1,897 @@
+{
+  "schema": "sofia.v18-gate4-fifty-batch-v1",
+  "origin": "The 6 source-wired tasks plus 44 dependency-linked Phase 09/01/00 tasks",
+  "ledger": "docs/development/v18-task-evidence.json",
+  "goal_gate": 4,
+  "production_gates_deferred": [
+    5,
+    6
+  ],
+  "total": 50,
+  "progress_is_not_acceptance": true,
+  "tasks": [
+    {
+      "id": "CA-2201",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-2201 P0 [GAP]** Introduce an **artifact-kind objective validator registry**. Each verified artifact receives typed checks tied to actual brief objectives, concrete file content and capability receipts; do not allow model-supplied `true` fields to substitute for independent proof.",
+      "ledger_status": "code_present_unverified",
+      "production_code_paths": [
+        "src/sofia/life/validation.py",
+        "src/sofia/life/coordinator.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py"
+      ],
+      "workstream": "focused-functional-proof",
+      "focused_test_paths": [
+        "test/test_life_objective_parser_bounded.py",
+        "test/test_life_autonomous_followthrough.py"
+      ],
+      "gate4_claim": false,
+      "gate4_blocker": "Required focused and cross-platform CI must pass at one exact implementation revision and test coverage must be independently reviewed."
+    },
+    {
+      "id": "CA-2204",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-2204 P1 [VERIFY / HARDEN]** Audit the crash window between `manager.submit`, `authorize_artifact` and `link_job`; implement a transactional or idempotently recoverable reservation/provisioning sequence. Test restart at every write boundary.",
+      "ledger_status": "code_present_unverified",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "src/sofia/run/work.py",
+        "test/test_life_atomic_admission.py",
+        "src/sofia/application/bootstrap.py"
+      ],
+      "workstream": "focused-functional-proof",
+      "focused_test_paths": [
+        "test/test_life_atomic_admission.py",
+        "test/test_life_goal_run_resume_fence.py"
+      ],
+      "gate4_claim": false,
+      "gate4_blocker": "Required focused and cross-platform CI must pass at one exact implementation revision and test coverage must be independently reviewed."
+    },
+    {
+      "id": "CA-3001",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3001 P0 [CODED, ACCEPTANCE OPEN]** Reconcile the **merged Project Forge Windows path repair** on `main`: `src/sofia/creative/paths.py`, `creative/service.py`, `creative/__init__.py` and six new tests in `test/test_creative_infrastructure.py`. Preserve canonical SQLite IDs and SHA-derived filesystem paths. Verify on a clean, exact-SHA Windows environment; save test/run receipts; do not redo the code merely because an old roadmap line says unmerged.",
+      "ledger_status": "code_present_unverified",
+      "production_code_paths": [
+        "src/sofia/creative/paths.py",
+        "src/sofia/creative/service.py",
+        "test/test_creative_infrastructure.py",
+        "src/sofia/application/bootstrap.py"
+      ],
+      "workstream": "focused-functional-proof",
+      "focused_test_paths": [
+        "test/test_creative_infrastructure.py"
+      ],
+      "gate4_claim": false,
+      "gate4_blocker": "Required focused and cross-platform CI must pass at one exact implementation revision and test coverage must be independently reviewed."
+    },
+    {
+      "id": "CA-3003",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3003 P0 [CONFIRMED CI BUG]** Fix `.github/workflows/release-candidate.yml`/verification-gate source layout: `git archive` to nested `release-source` currently causes `ImportPathMismatchError` during pytest collection for `test.conftest`, `sofia.cognition.providers.test_provider` and `sofia.cognition.test_engine`. Avoid collecting two copies; preserve revision-bound source/package validation and do not suppress all tests. Acceptance: exact SHA release-gate passes actual tests and emits accepted evidence.",
+      "ledger_status": "code_present_unverified",
+      "production_code_paths": [
+        ".github/workflows/release-candidate.yml",
+        "src/sofia/verify/source_provenance.py",
+        "pyproject.toml",
+        "src/sofia/verify/gate.py",
+        "src/sofia/verify/v18_roadmap.py"
+      ],
+      "workstream": "focused-functional-proof",
+      "focused_test_paths": [
+        "test/test_verify_release_stage_git_tree.py",
+        "test/test_verify_installed_wheel_release.py"
+      ],
+      "gate4_claim": false,
+      "gate4_blocker": "Required focused and cross-platform CI must pass at one exact implementation revision and test coverage must be independently reviewed."
+    },
+    {
+      "id": "CA-103",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-103 [GAP]** Expand `SelfDirectedLifeCoordinator.tick()` beyond first-artifact scheduling to inspect finished jobs and enter automatic review.",
+      "ledger_status": "code_present_unverified",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/life/store.py"
+      ],
+      "workstream": "focused-functional-proof",
+      "focused_test_paths": [
+        "test/test_life_autonomous_followthrough.py",
+        "test/test_life_postrun_verification.py"
+      ],
+      "gate4_claim": false,
+      "gate4_blocker": "Required focused and cross-platform CI must pass at one exact implementation revision and test coverage must be independently reviewed."
+    },
+    {
+      "id": "CA-111",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-111 [GAP]** After a successful RUN receipt, verify exact artifact hash/revision through `CreativeExplorer.verified_preview()`, gather objective-specific checks, then prepare an eligible critique request. Never equate a file's existence with success.",
+      "ledger_status": "code_present_unverified",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/creative/service.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/life/validation.py"
+      ],
+      "workstream": "focused-functional-proof",
+      "focused_test_paths": [
+        "test/test_life_autonomous_followthrough.py",
+        "test/test_life_verified_milestone_production.py"
+      ],
+      "gate4_claim": false,
+      "gate4_blocker": "Required focused and cross-platform CI must pass at one exact implementation revision and test coverage must be independently reviewed."
+    },
+    {
+      "id": "CA-101",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-101 [GAP]** Connect trusted, eligible ordinary observations and experiences to LIFE interest creation/revision, with confidence, evidence, and optional retirement. `revise_interest()` exists, but production experience-to-interest wiring was not found.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-102",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-102 [EXISTS → VERIFY]** Keep evidence-gated independent project suggestion and project activation from `consider_new_project()`, with busy/quiet/resource and daily-budget gating.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/application/background_runtime.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-104",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-104 [GAP]** Trigger grounded `evaluate_artifact()` for completed outputs, recording technical checks, personal judgment, objective results, evidence, and preference changes.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/validation.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-105",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-105 [GAP]** Independently decide to critique, revise, produce another artifact, advance a milestone, pause, abandon, or complete a project. Require justified limits on rework and cost.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/model.py",
+        "src/sofia/life/store.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-106",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-106 [GAP]** Automatically reconcile LIFE state with canonical GOALS and RUN receipts after each decision, including failures, rejection, and uncertain results.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/run/work.py",
+        "src/sofia/life/store.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-110",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-110 [GAP]** Add a durable project `review_due` / `awaiting_verification` / `next_milestone_due` decision policy derived from existing project/jobs/evaluation records, using idempotent keys rather than an independent new state machine.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "src/sofia/application/background_runtime.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-112",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-112 [GAP]** Trigger `evaluate_artifact()` from the recurring LIFE worker with typed objective results, bounded personal judgment, source receipts and failure/unknown handling; speculative LLM critique alone is not evidence.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/validation.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-113",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-113 [GAP]** Implement a policy-driven transition table: `CREATE → VERIFY → CRITIQUE → REVISE | COMPLETE | PAUSE | ABANDON`; track milestone status using the already implemented `update_milestone()` and `complete()` methods.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "src/sofia/application/background_runtime.py",
+        "test/test_life_verified_milestone_production.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3501",
+      "phase": "09",
+      "original_requirement": "- [ ] **CA-3501 P0 [DESIGN/RESEARCH]** Define a **trusted success oracle** per activity class: file digest is existence, validator is technical correctness, user feedback is subjective usefulness, and project milestone is an explicit policy outcome.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/validation.py",
+        "src/sofia/life/coordinator.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-914",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-914 [VERIFY]** Establish promotion gates per task: focused unit → cross-package integration → full repository → live single-host → multi-day soak → supervised Fleet/hardware. Use real receipts, not claims of completion.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/verify/gate.py",
+        "test/test_verify_gate_contract.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-2202",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-2202 P0 [GAP]** Replace `_initial_specification()` boilerplate with a bounded, tool-free **creative authoring pass** for approved media kinds. Preserve starter templates as safe fallbacks, but never claim a cube/colored SVG/half-second sine tone is a sophisticated original finished work.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/draft_agent.py",
+        "src/sofia/application/background_runtime.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-2205",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-2205 P0 [GAP]** Create a durable LIFE job-result reconciler that handles `COMPLETED`, `FAILED`, `BLOCKED`, `CANCELLED`, `UNCERTAIN` and expired jobs independently; never replay an uncertain mutation without proof.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/run/work.py",
+        "src/sofia/life/store.py",
+        "test/test_life_run_outcome_reconciliation.py",
+        "test/test_run_unstarted_expiration.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-2216",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-2216 P2 [GAP]** Add canonical-derived operator diagnostics for the exact reason LIFE is idle, blocked, reviewing, awaiting permission, uncertain or finished, with no second authoritative scheduler state.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/store.py",
+        "src/sofia/life/coordinator.py",
+        "test/test_life_operator_diagnostics.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-2302",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-2302 P0 [RED CI]** Investigate Release Candidate Build run `38063542675` failing at `Run revision-bound verification gate`; obtain gate output, exact failing check and revision evidence. Do not infer cause from job status alone.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/verify/gate.py",
+        ".github/workflows/release-candidate.yml"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-2304",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-2304 P0 [VERIFY]** Reconcile markers and failing package suites, especially `pkg_body` test selection, without relabeling or hiding failures to make badges green. Record separate unique test roots versus multiply marked copies.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "test/conftest.py",
+        ".github/workflows/package-tests.yml",
+        "src/sofia/verify/package_selection.py",
+        "test/test_package_selection_receipts.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3004",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3004 P0 [VERIFY]** Add a **release packaging truth check**: confirm the code tested is precisely the archived/wheel-installed revision, the gate does not accidentally test a different editable checkout, and wheel reproducibility/signing prerequisites remain enforced. Distinguish source verification from installed-wheel smoke verification.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        ".github/workflows/release-candidate.yml",
+        "src/sofia/verify/source_provenance.py",
+        "src/sofia/verify/gate.py",
+        "src/sofia/verify/package_selection.py",
+        "test/conftest.py",
+        "test/test_verify_installed_wheel_release.py",
+        "requirements.build.lock.windows-py312.txt"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3005",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3005 P0 [CONFIRMED WINDOWS FAILURE]** Reproduce the `pkg_verify` Windows `WinError 32` from `test_cognition_v2_baseline.py` / `src/sofia/verify/cognition_v2_baseline.py` `TemporaryDirectory` deletion of `sofia.db`. Investigate application shutdown, open SQLite connections, `RUN`/LIFE worker futures, WAL/checkpoint activity, and delayed file handles; close owners deterministically before cleanup. Do not mask by sleeping blindly or ignoring cleanup errors.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/verify/cognition_v2_baseline.py",
+        "src/sofia/state/sqlite_access.py",
+        "src/sofia/mobile/sensors.py",
+        "test/test_mobile_sensors.py",
+        "src/sofia/run/work.py",
+        "src/sofia/life/coordinator.py",
+        "src/sofia/application/autonomous_work.py",
+        "test/test_run_shutdown_sqlite_drain.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3006",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3006 P0 [CONFIRMED CI CONFIG GAP]** Fix `pkg_body` test selection: `test/test_body_matrix.py` exists but no `test_body_` filename mapping in `test/conftest.py`; presently `pytest -q -m \"pkg_body and not integration\"` selects zero tests (`4036 deselected`). Add explicit package ownership and required real BODY safety/simulator coverage. Assert package selection remains nonempty.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "test/conftest.py",
+        "test/test_body_matrix.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3008",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3008 P0 [DOCS]** Update canonical `ROADMAP.md` Phase 6 line claiming the Windows patch is *uncommitted/not merged* and claiming setup script was untracked. State the two actual commits, distinguish code repair from outstanding live-host acceptance, and append actual CI evidence rather than stale local test counts.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "ROADMAP.md",
+        "src/sofia/creative/paths.py",
+        "src/sofia/creative/service.py",
+        "src/sofia/creative/__init__.py",
+        "test/test_creative_infrastructure.py",
+        "Setup-SofiaFleetArtemis.ps1"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3009",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3009 P1 [AUDIT]** Review `Setup-SofiaFleetArtemis.ps1` as **human-supervised canary only**. Validate three phases (`Prepare`, `Artemis`, `Verify`), exact wheel source SHA, node identity, expected mTLS pins, idempotent re-run and operator preflight. No assumption that it creates Hephaestus, installs a virtual guest or grants Fleet trust automatically.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "Setup-SofiaFleetArtemis.ps1",
+        "src/sofia/ops/discovery_canary.py",
+        "requirements.build.lock.windows-py312.txt"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3010",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3010 P1 [SECURITY]** Audit Artemis server TLS **private key** written into `$FleetRoot/bundle/certs` and transferred to `C$`: host ACLs, ownership, writable SMB staging scope, key lifecycle, absence in Git/logs/backups, scrub after staged install, rotation and revocation. Recommend avoiding persistent bundle copies of private keys when feasible.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "Setup-SofiaFleetArtemis.ps1",
+        "test/test_ops_windows_bootstrap.py",
+        "src/sofia/ops/windows_bootstrap.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3011",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3011 P1 [SECURITY]** Replace/parameterize the canary firewall's `-RemoteAddress LocalSubnet -Profile Any` with a **reviewed exact controller source and active profile** when promoted beyond short canary use; add rule expiry/removal on failed or stopped canaries. Test no unintended workstation, NAS, guest or internet endpoints are admitted.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/ops/windows_bootstrap.py",
+        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "test/test_ops_windows_bootstrap.py",
+        "Setup-SofiaFleetArtemis.ps1"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3012",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3012 P1 [SUPPLY CHAIN]** Enforce reviewed dependency hashes/version pins for canary guest agent installation. Present script creates a venv but invokes unpinned `pip install cryptography pywin32` on Artemis; separate reproducibility/agent-integrity gates must confirm approved wheels and local source revision.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/ops/windows_bootstrap.py",
+        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "test/test_ops_windows_bootstrap.py",
+        "Setup-SofiaFleetArtemis.ps1",
+        "requirements.build.lock.windows-py312.txt",
+        "test/test_fleet_build_backend_hash_lock.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3014",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3014 P1 [STILL MISSING]** With path repair merged, close LIFE's remaining automatic artifact evaluation, objective verification, staged critique, iterative revisions, milestone/status advancement and truly verified long-term memory/interest feedback. Current `life/coordinator.py:905` still dispatches an initial artifact only.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "test/test_life_postrun_verification.py",
+        "src/sofia/application/background_runtime.py",
+        "test/test_life_verified_milestone_production.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3015",
+      "phase": "01",
+      "original_requirement": "- [ ] **CA-3015 P1 [INTEGRATION BOUNDARY]** Keep Artemis Fleet canary and **Hephaestus VM provisioning separate**: later typed VM create/guest bootstrap broker requires new protected capabilities, owner approval, host isolation proof, distinct guest identity, and RUN receipts. Do not repurpose the broad SMB/PowerShell canary script as an autonomous hypervisor agent.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/integrations/hyperv.py",
+        "src/sofia/integrations/capabilities.py",
+        "src/sofia/distributed/agent_tools.py",
+        "src/sofia/distributed/authorization.py",
+        "src/sofia/safe/permissions.py",
+        "src/sofia/cognition/matrix/tool_exposure.py",
+        "test/test_ops_sofia_guest_readiness.py",
+        "test/test_ops_workshop_vm_separation.py",
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/distributed/capability.py",
+        "src/sofia/run/systemd_runtime.py",
+        "test/test_run_systemd_runtime.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-001",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-001 [VERIFY]** Trace a real event through COGNITION v2 → NEURO → MEM → PERSONALITY/EMOTION → LIFE/GOALS → RUN/ACT → evaluation → persistence. Identify missing production callers, not only implemented methods.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/application/decision_trace.py",
+        "src/sofia/cognition/matrix/model.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/life/model.py",
+        "src/sofia/run/work.py",
+        "src/sofia/application/act_service.py",
+        "src/sofia/social/model.py",
+        "src/sofia/application/decision_persistence.py",
+        "src/sofia/cognition/matrix/trace.py",
+        "src/sofia/conversation/store.py",
+        "src/sofia/social/store.py",
+        "test/test_v18_decision_persistence.py",
+        ".github/workflows/v18-decision-persistence.yml",
+        "docs/development/v18-phase00-ca001-canonical-turn-correlation.md",
+        "src/sofia/application/conversation_service.py",
+        "test/test_v18_settled_response_trace.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-002",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-002 [VERIFY]** Capture the current baseline: memory correctness, topic continuity, unsolicited outreach quality, real avatar/voice synchronization, idle model wakeups, CPU/GPU/RAM use, p50/p95 latency, and restart behavior on Venus.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/verify/cognition_v2_baseline.py",
+        "src/sofia/verify/v18_companion_baseline.py",
+        "test/test_cognition_v2_baseline.py",
+        "test/test_v18_companion_baseline.py",
+        ".github/workflows/v18-companion-baseline.yml",
+        "docs/development/v18-phase00-baseline-evidence.md"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-003",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-003 [VERIFY]** Document authority, evidence, privacy, principal/audience, resource and error-state contracts for every new connection. Keep `sofia.db` canonical.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/ui/settings_window.py",
+        "src/sofia/ui/tray_agent.py",
+        "test/test_ui_settings_persistence.py",
+        "src/sofia/interaction/goal_journal.py",
+        "src/sofia/ui/control_center.py",
+        "src/sofia/ui/desktop_application.py",
+        "src/sofia/ui/settings_service.py",
+        "src/sofia/ui/settings_sections.py",
+        "test/test_interaction_goal_journal.py",
+        "test/test_ui_control_center.py",
+        "test/test_ui_desktop_storage_authority.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-004",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-004 [VERIFY]** Preserve the already implemented COGNITION v2 and dual-model production interfaces; avoid restoring removed v1 ownership or adding competing runtime controllers.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/composition/engines.py",
+        "test/test_production_dual_cognition.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-005",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-005 [VERIFY]** Publish a source-to-sink ownership map for the canonical event/evidence envelope: `event_id`, source, subject, principal, audience, observed time, expiry, confidence, evidence references, action/goal/project IDs, consent class and renderer/transport receipt. Use adapters over existing tables, not a new truth ledger.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/application/decision_trace.py",
+        "src/sofia/cognition/matrix/model.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/life/model.py",
+        "src/sofia/run/work.py",
+        "src/sofia/application/act_service.py",
+        "src/sofia/social/model.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-006",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-006 [GAP]** Add a revisioned `CompanionDecisionTrace` projection joining NEURO winner, eligible memories, chosen goal/activity, rejected alternatives, execution/ACT decision, and outcome. Derive it from canonical owners; it must be non-authoritative.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/application/decision_trace.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-007",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-007 [VERIFY]** Add a reproducible baseline snapshot and test gates per commit. “Coded”, “unit passed”, “CI accepted”, “Venus live accepted” and “multi-host accepted” are separate states; block ambiguous green checkmarks.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/verify/v18_roadmap.py",
+        "src/sofia/verify/cognition_v2_baseline.py",
+        "src/sofia/verify/v18_companion_baseline.py",
+        "test/test_cognition_v2_baseline.py",
+        "test/test_v18_companion_baseline.py",
+        ".github/workflows/v18-companion-baseline.yml",
+        "docs/development/v18-phase00-baseline-evidence.md"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-1201",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-1201 [VERIFY]** Write a `companion-autonomy-contract.md` defining event inputs, canonical owners, allowed downstream effects, idempotency, execution scope, failure semantics and audience boundaries for every adapter.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/safe/permissions.py",
+        "src/sofia/safe/execution_approval.py",
+        "src/sofia/safe/operator_stop.py",
+        "src/sofia/safe/owner_browser.py",
+        "src/sofia/ui/settings_window.py",
+        "src/sofia/ui/tray_agent.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-1202",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-1202 [VERIFY]** Define a versioned decision state transition graph with replay, dedupe, correction and restart tests; each optional action needs an expected-effect predicate and receipt-based settlement.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "test/test_life_state_graph_contract.py",
+        "src/sofia/life/model.py",
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "src/sofia/run/work.py",
+        "src/sofia/goals/coordinator.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-1203",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-1203 [VERIFY]** Build an explicit context-window budget for episodic retrieval, workspace broadcasts, affect/style, project status and factual evidence. Suppress low-confidence or irrelevant content instead of flooding the LLM.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/cognition/budgets.py",
+        "src/sofia/cognition/context_evidence.py",
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/cognition/matrix/context_plan.py",
+        "src/sofia/application/conversation_matrix.py",
+        "src/sofia/application/optional_budget.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-1204",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-1204 [VERIFY]** Add a governed feedback loop: receipts and user corrections update preference/association proposals after validity checks; never let model self-praise manufacture reinforcement.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/application/conversation_learning.py",
+        "test/test_memory_reviewed_corrections.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-1207",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-1207 [VERIFY]** Add explicit model/provider outage and invalid-JSON handling with human-readable diagnostics; background project work must not wedge conversation or bypass deterministic gates.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/cognition/llm_engine.py",
+        "test/test_default_runtime_provider_boundary.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-1208",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-1208 [VERIFY]** Check privacy/data minimization: consent to retain optional episodes, scoped correction/deletion, retention windows and immutable audit evidence where required, without exposing confidential records in LLM context by default.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/memory/provenance_store.py",
+        "test/test_memory_deletion_restore.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3101",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-3101 P0 [DESIGN/RESEARCH]** Map a single **component ownership table** for COGNITION v2, LIFE, GOALS, RUN, SAFE, ACT, MEM, NEURO, WORLD, DEV, Fleet and VM; record authoritative writer, consumers, error states and data retention. Design deliverable: reviewed owners table and 3 end-to-end sequence diagrams.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/verify/architecture_inventory.py",
+        "docs/development/phase00-static-ownership-harness.md",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3102",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-3102 P0 [DESIGN/RESEARCH]** Decide **canonical Sofía runtime location and failover ownership** before adding Hephaestus. Distinguish runtime process, logical canonical `sofia.db`, user-visible UI and disposable workers. Design deliverable: one-writer state diagram with host-failure behavior.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/composition/engines.py",
+        "test/test_production_dual_cognition.py",
+        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/integrations/hyperv.py",
+        "test/test_ops_workshop_vm_separation.py",
+        "test/test_tools_completion_acceptance.py",
+        "src/sofia/run/systemd_runtime.py",
+        "test/test_run_systemd_runtime.py",
+        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/integrations/capabilities.py",
+        "src/sofia/distributed/agent_tools.py",
+        "src/sofia/distributed/authorization.py",
+        "src/sofia/safe/permissions.py",
+        "src/sofia/cognition/matrix/tool_exposure.py",
+        "test/test_ops_sofia_guest_readiness.py",
+        "src/sofia/distributed/capability.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3103",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-3103 P0 [DESIGN/RESEARCH]** Resolve the desired **two-location database redundancy** without two independent writers corrupting SQLite. Compare encrypted snapshot replication, SQLite backup/WAL shipping, single-writer replicated storage, and promoted-standby failover; specify RPO/RTO, fencing, reconciliation and failback.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "src/sofia/state/replication.py",
+        "src/sofia/ops/backup.py",
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/composition/engines.py",
+        "test/test_production_dual_cognition.py",
+        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/integrations/hyperv.py",
+        "test/test_ops_workshop_vm_separation.py",
+        "test/test_tools_completion_acceptance.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3104",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-3104 P0 [DESIGN/RESEARCH]** Formalize the **LIFE state machine** for queued, running, completed, waiting-approval, blocked, failed, uncertain, paused, abandoned and verified objective complete. Spell out which state triggers critique, retry, operator question, next milestone or silence.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "test/test_life_state_graph_contract.py",
+        "src/sofia/life/model.py",
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "src/sofia/run/work.py",
+        "src/sofia/goals/coordinator.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3105",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-3105 P0 [DESIGN/RESEARCH]** Define a **decision-rights matrix** across read-only sensing, safe autonomous tasks, scoped reversible actions, protected changes and never-self-authorized permissions; identify exactly which provisioning steps require fresh operator consent and which can be leased.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/companion-autonomy-contract.md",
+        "src/sofia/safe/permissions.py",
+        "src/sofia/safe/execution_approval.py",
+        "src/sofia/safe/operator_stop.py",
+        "src/sofia/safe/owner_browser.py",
+        "src/sofia/ui/settings_window.py",
+        "src/sofia/ui/tray_agent.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    },
+    {
+      "id": "CA-3106",
+      "phase": "00",
+      "original_requirement": "- [ ] **CA-3106 P0 [DESIGN/RESEARCH]** Choose **Artemis-to-guest network topology** for the actual hypervisor: fully offline private virtual switch; host-reachable internal switch with strict firewall/ACL; or broker-VM relay. Prove the broker can actually reach the worker without exposing the home LAN. NAT alone does not constitute isolation.",
+      "ledger_status": "partial_wiring",
+      "production_code_paths": [
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/integrations/hyperv.py",
+        "test/test_ops_workshop_vm_separation.py",
+        "test/test_tools_completion_acceptance.py",
+        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/integrations/capabilities.py",
+        "src/sofia/distributed/agent_tools.py",
+        "src/sofia/distributed/authorization.py",
+        "src/sofia/safe/permissions.py",
+        "src/sofia/cognition/matrix/tool_exposure.py",
+        "test/test_ops_sofia_guest_readiness.py"
+      ],
+      "workstream": "integration-gap-reconciliation",
+      "focused_test_paths": [],
+      "gate4_claim": false,
+      "gate4_blocker": "Complete original scope and source-to-effect integration, audit then run task-specific tests before awarding Gate 4."
+    }
+  ]
+}
