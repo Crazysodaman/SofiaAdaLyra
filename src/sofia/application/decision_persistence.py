@@ -9,6 +9,7 @@ from __future__ import annotations
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
+import json
 from pathlib import Path
 import sqlite3
 
@@ -25,6 +26,10 @@ class CompanionTurnPersistence:
     matrix_decision_persisted: bool
     principal_scope_verified: bool
     same_turn_verified: bool
+    assistant_reply_persisted: bool = False
+    canonical_turn_settled: bool = False
+    canonical_event_id: str | None = None
+    assistant_message_id: str | None = None
     limitation: str = (
         "Source/decision persistence is not model quality, consent, "
         "NEURO causal linkage, goal outcome, execution or delivery proof."
@@ -44,6 +49,8 @@ def inspect_turn_persistence(
         raise TypeError("matrix_trace must be MatrixTrace")
     envelope = matrix_trace.envelope
     message_ok = decision_ok = scope_ok = False
+    reply_ok = settled = False
+    event_id = assistant_id = bound_audience = None
     guard = CanonicalSQLiteGuard(state_path)
     with closing(guard.connect(timeout=5, read_only=True)) as db:
         db.execute("BEGIN")
@@ -55,7 +62,7 @@ def inspect_turn_persistence(
                 row[0] for row in db.execute(
                     "SELECT name FROM sqlite_master WHERE type='table' "
                     "AND name IN ('conversation_messages','cognition_matrix_trace',"
-                    "'social_session_principal')"
+                    "'social_session_principal','canonical_conversation_turn')"
                 )
             }
             if required_tables <= present:
@@ -131,6 +138,71 @@ def inspect_turn_persistence(
                             or matrix_trace.privacy.audience_id == binding[1]
                         )
                     )
+                    if scope_ok:
+                        bound_audience = binding[1]
+            # Stable authenticated source events have a separate canonical
+            # settlement owner. A generated response, Matrix record or model
+            # assertion cannot stand in for that completed and source-bound
+            # durable admission. Normal anonymous/local turns have no row.
+            if (
+                message_ok and decision_ok and scope_ok
+                and "canonical_conversation_turn" in present
+            ):
+                turn_columns = {
+                    item[1] for item in db.execute(
+                        'PRAGMA table_info("canonical_conversation_turn")'
+                    )
+                }
+                required = {
+                    "event_id", "user_message_id", "assistant_message_id",
+                    "owner_principal_id", "source_audience_id",
+                    "source_channel", "source_session_id", "status",
+                    "response_json", "settled_at",
+                }
+                if required <= turn_columns:
+                    entry = db.execute(
+                        "SELECT event_id,assistant_message_id,"
+                        "owner_principal_id,source_audience_id,"
+                        "source_channel,source_session_id,status,"
+                        "response_json,settled_at "
+                        "FROM canonical_conversation_turn WHERE user_message_id=?",
+                        (envelope.message_id,),
+                    ).fetchone()
+                    if entry is not None and (
+                        isinstance(entry[0], str) and bool(entry[0])
+                        and isinstance(entry[1], str) and bool(entry[1])
+                        and entry[2] == envelope.principal_id
+                        and entry[3] == bound_audience
+                        and entry[4] == envelope.channel
+                        and entry[5] == envelope.session_id
+                        and entry[6] == "completed"
+                    ):
+                        try:
+                            when = datetime.fromisoformat(entry[8])
+                            payload = json.loads(entry[7])
+                        except (TypeError, ValueError):
+                            pass
+                        else:
+                            if (
+                                when.tzinfo is not None
+                                and when.utcoffset() is not None
+                                and isinstance(payload, dict)
+                                and isinstance(payload.get("content"), str)
+                            ):
+                                assistant = db.execute(
+                                    "SELECT session_id,role,content "
+                                    "FROM conversation_messages WHERE id=?",
+                                    (entry[1],),
+                                ).fetchone()
+                                reply_ok = (
+                                    assistant is not None
+                                    and assistant[0] == envelope.session_id
+                                    and assistant[1] == "assistant"
+                                    and assistant[2] == payload["content"]
+                                )
+                                if reply_ok:
+                                    settled = True
+                                    event_id, assistant_id = entry[0], entry[1]
         finally:
             db.rollback()
     # A session principal is not proven by the claim in the Matrix row.
@@ -143,4 +215,8 @@ def inspect_turn_persistence(
         matrix_decision_persisted=decision_ok,
         principal_scope_verified=scope_ok,
         same_turn_verified=message_ok and decision_ok and scope_ok,
+        assistant_reply_persisted=reply_ok,
+        canonical_turn_settled=settled,
+        canonical_event_id=event_id,
+        assistant_message_id=assistant_id,
     )

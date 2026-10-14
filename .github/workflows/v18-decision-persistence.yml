@@ -36,4 +36,4 @@ jobs:
         run: python -m pip install -e . pytest
 
       - name: Prove source/decision persistence with fail-closed scenarios
-        run: python -m pytest -q test/test_v18_decision_persistence.py
+        run: python -m pytest -q test/test_v18_decision_persistence.py test/test_v18_settled_response_trace.py

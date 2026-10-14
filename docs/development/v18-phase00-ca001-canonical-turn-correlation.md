@@ -42,6 +42,21 @@ This confirms turn attribution of an *observation*, not that the model
 consumed it, that its chosen focus caused the reply, or that the snapshot
 was durably persisted. The NEURO global latest timestamp remains separate.
 
+## Settled assistant reply (authenticated stable events only)
+
+The same read-only SQLite snapshot can additionally inspect the existing
+`canonical_conversation_turn` settlement. A reply counts as **persisted** only
+when status is `completed`, the original user event ID and separate SOCIAL
+principal/audience/channel/session binding match, and the exact assistant
+message ID exists with role `assistant` and bytes matching the sealed
+`response_json.content`. The response text is compared in memory but never
+included in the projection or evidence artifacts.
+
+`CompanionTurnPersistence.canonical_turn_settled` and
+`assistant_reply_persisted` are not delivery receipts or tool execution
+proof. Local/unpaired turns and older stores without `canonical_conversation_turn`
+remain explicitly unverified. No new canonical tables or write paths are added.
+
 ## Regression and acceptance
 
 `test/test_v18_decision_persistence.py` checks same-event positive cases,
