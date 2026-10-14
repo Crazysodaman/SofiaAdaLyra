@@ -20,7 +20,8 @@ permissions:
   contents: read
 
 # Preserve a running exact-SHA proof when more development lands on main.
-# A source change gets one own SHA-bound run. Unrelated concurrent pushes must\n# not cancel even a pending verification for this revision.
+# A source change gets one own SHA-bound run. Unrelated concurrent pushes must
+# not cancel even a pending verification for this revision.
 concurrency:
   group: v18-phase01-02-${{ github.sha }}
   cancel-in-progress: false
