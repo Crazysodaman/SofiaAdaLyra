@@ -112,3 +112,105 @@ def test_text_only_request_rejects_unexpected_model_tool_call():
     )
     with pytest.raises(LLMProviderError, match="text-only"):
         provider.respond(CognitiveRequest(messages=(), allow_tools=False))
+
+
+@pytest.mark.parametrize("raw", [
+    '{"path":"safe","path":"unsafe"}',
+    '{"gain":NaN}',
+    '{"gain":Infinity}',
+    '{"gain":-Infinity}',
+    '{"config":{"scope":"owner","scope":"other"}}',
+])
+def test_ambiguous_or_nonfinite_json_tool_arguments_are_rejected(raw):
+    tool_call = SimpleNamespace(
+        function=SimpleNamespace(name="inspect", arguments=raw),
+        id="call-raw",
+    )
+    provider = OllamaProvider(
+        create_default_configuration().provider,
+        client=MalformedClient(SimpleNamespace(message=SimpleNamespace(
+            content="", tool_calls=(tool_call,),
+        ))),
+    )
+    with pytest.raises(LLMProviderError, match="invalid JSON"):
+        provider.respond(CognitiveRequest(messages=()))
+
+
+@pytest.mark.parametrize("arguments", [
+    {"x": float("nan")},
+    {"x": float("inf")},
+    {1: "non-string key"},
+    {"x": object()},
+    {"x": {"y": tuple(range(2))}},
+    {"x": "a" * 65537},
+    {"x": [0] * 4097},
+    {"x": "ok", "y": "\ud800"},
+])
+def test_native_tool_arguments_must_be_bounded_json(arguments):
+    tool_call = SimpleNamespace(
+        function=SimpleNamespace(name="inspect", arguments=arguments),
+        id="call-native",
+    )
+    provider = OllamaProvider(
+        create_default_configuration().provider,
+        client=MalformedClient(SimpleNamespace(message=SimpleNamespace(
+            content="", tool_calls=(tool_call,),
+        ))),
+    )
+    with pytest.raises(LLMProviderError):
+        provider.respond(CognitiveRequest(messages=()))
+
+
+def test_tool_arguments_reject_cycle_and_excessive_nesting():
+    circular = {}
+    circular["self"] = circular
+    deep = {}
+    pointer = deep
+    for _ in range(20):
+        pointer["child"] = {}
+        pointer = pointer["child"]
+    for arguments in (circular, deep):
+        tool = SimpleNamespace(
+            function=SimpleNamespace(name="inspect", arguments=arguments),
+        )
+        provider = OllamaProvider(
+            create_default_configuration().provider,
+            client=MalformedClient(SimpleNamespace(message=SimpleNamespace(
+                content="", tool_calls=(tool,),
+            ))),
+        )
+        with pytest.raises(LLMProviderError, match="safety limits"):
+            provider.respond(CognitiveRequest(messages=()))
+
+
+def test_tool_call_fanout_is_capped_before_candidate_dispatch():
+    calls = tuple(SimpleNamespace(
+        function=SimpleNamespace(name="inspect", arguments={"ok": True}),
+    ) for _ in range(17))
+    provider = OllamaProvider(
+        create_default_configuration().provider,
+        client=MalformedClient(SimpleNamespace(message=SimpleNamespace(
+            content="", tool_calls=calls,
+        ))),
+    )
+    with pytest.raises(LLMProviderError, match="too many tool calls"):
+        provider.respond(CognitiveRequest(messages=()))
+
+
+def test_valid_bounded_nested_tool_arguments_keep_original_values():
+    arguments = '{"nested":{"path":"café","flags":[true,null,3.5]}}'
+    call = SimpleNamespace(
+        function=SimpleNamespace(name="inspect", arguments=arguments),
+        id="call-valid",
+    )
+    provider = OllamaProvider(
+        create_default_configuration().provider,
+        client=MalformedClient(SimpleNamespace(message=SimpleNamespace(
+            content="", tool_calls=(call,),
+        ))),
+    )
+    result = provider.respond(CognitiveRequest(messages=()))
+    assert result.tool_calls[0].arguments == {
+        "nested": {"path": "café", "flags": [True, None, 3.5]},
+    }
+    assert result.tool_calls[0].call_id == "call-valid"

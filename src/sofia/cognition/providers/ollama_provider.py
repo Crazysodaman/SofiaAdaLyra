@@ -1,5 +1,6 @@
 """Ollama provider adapter with opt-in, content-free timing diagnostics."""
 import json
+import math
 from time import perf_counter
 
 from ollama import Client
@@ -28,6 +29,68 @@ from sofia.cognition.quality_repair import (
     grounded_quality_fallback,
 )
 from sofia.config.model import ProviderConfiguration
+
+
+# Provider-supplied JSON is not an authority grant. Bound resource use at the
+# adapter before its tool candidates reach the governed dispatcher.
+_MAX_TOOL_CALLS = 16
+_MAX_TOOL_ARGUMENT_BYTES = 64 * 1024
+_MAX_TOOL_ARGUMENT_NODES = 4096
+_MAX_TOOL_ARGUMENT_DEPTH = 16
+
+
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict:
+    """Reject ambiguous duplicate JSON keys instead of silently using last wins."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object key")
+        result[key] = value
+    return result
+
+
+def _reject_nonfinite_json(value: str):
+    raise ValueError("non-finite JSON constant")
+
+
+def _validate_tool_arguments(arguments: dict) -> None:
+    """Require bounded, serializable JSON data without executing model content."""
+    if type(arguments) is not dict:
+        raise LLMProviderError("Ollama returned tool arguments that are not an object.")
+    stack = [(arguments, 0)]
+    visited = 0
+    while stack:
+        value, depth = stack.pop()
+        visited += 1
+        if depth > _MAX_TOOL_ARGUMENT_DEPTH or visited > _MAX_TOOL_ARGUMENT_NODES:
+            raise LLMProviderError("Ollama returned tool arguments exceeding safety limits.")
+        if type(value) is dict:
+            if len(value) > _MAX_TOOL_ARGUMENT_NODES:
+                raise LLMProviderError("Ollama returned tool arguments exceeding safety limits.")
+            for key, child in value.items():
+                if type(key) is not str or len(key) > _MAX_TOOL_ARGUMENT_BYTES:
+                    raise LLMProviderError("Ollama returned invalid JSON tool arguments.")
+                stack.append((child, depth + 1))
+        elif type(value) is list:
+            if len(value) > _MAX_TOOL_ARGUMENT_NODES:
+                raise LLMProviderError("Ollama returned tool arguments exceeding safety limits.")
+            stack.extend((child, depth + 1) for child in value)
+        elif type(value) is float:
+            if not math.isfinite(value):
+                raise LLMProviderError("Ollama returned invalid JSON tool arguments.")
+        elif type(value) is str:
+            if len(value) > _MAX_TOOL_ARGUMENT_BYTES:
+                raise LLMProviderError("Ollama returned tool arguments exceeding safety limits.")
+        elif value is not None and type(value) not in (int, bool):
+            raise LLMProviderError("Ollama returned invalid JSON tool arguments.")
+    try:
+        encoded = json.dumps(
+            arguments, allow_nan=False, ensure_ascii=False, separators=(",", ":"),
+        )
+        if len(encoded.encode("utf-8")) > _MAX_TOOL_ARGUMENT_BYTES:
+            raise LLMProviderError("Ollama returned tool arguments exceeding safety limits.")
+    except (TypeError, ValueError, OverflowError, UnicodeError, RecursionError) as exc:
+        raise LLMProviderError("Ollama returned invalid JSON tool arguments.") from exc
 
 
 class OllamaProvider(LLMProvider):
@@ -219,6 +282,8 @@ class OllamaProvider(LLMProvider):
             raw_tool_calls = ()
         if not isinstance(raw_tool_calls, (list, tuple)):
             raise LLMProviderError("Ollama returned malformed tool calls.")
+        if len(raw_tool_calls) > _MAX_TOOL_CALLS:
+            raise LLMProviderError("Ollama returned too many tool calls.")
         tool_calls = tuple(cls._tool_call_from_ollama(call) for call in raw_tool_calls)
         return CognitiveResponse(content=content, tool_calls=tool_calls)
 
@@ -232,12 +297,17 @@ class OllamaProvider(LLMProvider):
             raise LLMProviderError("Ollama returned a tool call without a valid function name.")
         arguments = getattr(function, "arguments", {})
         if isinstance(arguments, str):
+            if len(arguments) > _MAX_TOOL_ARGUMENT_BYTES:
+                raise LLMProviderError("Ollama returned tool arguments exceeding safety limits.")
             try:
-                arguments = json.loads(arguments)
-            except json.JSONDecodeError as exc:
+                arguments = json.loads(
+                    arguments,
+                    object_pairs_hook=_unique_json_object,
+                    parse_constant=_reject_nonfinite_json,
+                )
+            except (json.JSONDecodeError, ValueError) as exc:
                 raise LLMProviderError("Ollama returned invalid JSON tool arguments.") from exc
-        if not isinstance(arguments, dict):
-            raise LLMProviderError("Ollama returned tool arguments that are not an object.")
+        _validate_tool_arguments(arguments)
         return CognitiveToolCall(
             name=name,
             arguments=arguments,
