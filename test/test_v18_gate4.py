@@ -18,6 +18,10 @@ def ledger():
 def test_every_task_has_next_action_and_phase_tracking():
     report = gate4_snapshot(ROOT)
     assert report["original_total"] == len(report["tasks"]) == 700
+    assert report["planned_total"] == 780
+    assert len(report["supplemental_tasks"]) == 80
+    assert len({x["id"] for x in report["supplemental_tasks"]}) == 80
+    assert report["overall_gate4_recorded"] + report["overall_without_gate4_proof"] == 780
     assert len({row["id"] for row in report["tasks"]}) == 700
     assert sum(p["total"] for p in report["phases"].values()) == 700
     n = report["counts"]

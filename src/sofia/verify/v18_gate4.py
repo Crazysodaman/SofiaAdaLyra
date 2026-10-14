@@ -8,12 +8,15 @@ from pathlib import Path
 import re
 import sys
 from sofia.verify.v18_roadmap import (
-    LEDGER_RELATIVE, MASTER_RELATIVE, RoadmapIntegrityError, _within,
+    LEDGER_RELATIVE, MASTER_RELATIVE, EXPANDED_TABLE_RELATIVE,
+    RoadmapIntegrityError, _within,
     validate_repository,
 )
 
 _SHA = re.compile(r"[0-9a-f]{40}\Z")
-_HASH = re.compile(r"[0-9a-f]{64}\Z")
+_HASH = re.compile(r"[0-9a-f]{64}\\Z")
+_EXTRA_ROW = re.compile(r"^\\| ((?:ML|GA)-[0-9]{3}) \\| ([0-9]{2}) \\| (.*) \\|$")
+_EXTRA_PROOFS = "docs/development/v18-supplemental-gate4-proofs.json"
 
 
 def verified_gate_count(root: Path, task: dict) -> int:
@@ -123,14 +126,49 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
                "unassessed": 2, "accepted": 3}
     focus = sorted((t for t in output if not t["gate4"]),
                    key=lambda x: (ranking[x["source_status"]], x["phase"]))[:20]
+    # The 40 ML and 40 GA addenda remain distinct from the original CA ledger.
+    # Their separate proof file is only a receipt overlay, never a new state writer.
+    supplemental_proofs = json.loads(_within(root, _EXTRA_PROOFS).read_text(
+        encoding="utf-8"))
+    if (supplemental_proofs.get("schema") != "sofia.v18-supplemental-gate4-v1"
+            or not isinstance(supplemental_proofs.get("tasks"), dict)):
+        raise RoadmapIntegrityError("invalid supplemental gate evidence schema")
+    extra = []
+    for line in _within(root, EXPANDED_TABLE_RELATIVE.as_posix()).read_text(
+            encoding="utf-8").splitlines():
+        match = _EXTRA_ROW.fullmatch(line)
+        if match is None:
+            continue
+        key, phase, requirement = match.groups()
+        passed = verified_gate_count(root, {
+            "id": key, "gate4_proofs": supplemental_proofs["tasks"].get(key, []),
+        })
+        extra.append({
+            "id": key, "phase": phase, "kind": "additional planned ML/GA task",
+            "original_requirement": requirement, "gate_with_recorded_proof": passed,
+            "gate4": passed == 4, "next_gate": min(passed + 1, 4),
+            "next_action": ("Gate 4 proof recorded; host sign-off deferred." if passed == 4
+                            else "Implement and audit planned item; validate original "
+                                 "ML/GA acceptance and focused tests."),
+        })
+    if len(extra) != 80 or len({x["id"] for x in extra}) != 80:
+        raise RoadmapIntegrityError("expected 40 ML and 40 GA supplemental tasks")
+    if set(supplemental_proofs["tasks"]) - {x["id"] for x in extra}:
+        raise RoadmapIntegrityError("unknown supplemental task proof")
+    extras_at_four = sum(x["gate4"] for x in extra)
     return {
         "schema": "sofia.v18-gate4-progress-v1",
         "target": 4, "deferred": [5, 6], "original_total": 700,
+        "planned_total": 780, "supplemental_total": 80,
+        "supplemental_gate4_recorded": extras_at_four,
+        "overall_gate4_recorded": counts["gate4"] + extras_at_four,
+        "overall_without_gate4_proof": 780 - counts["gate4"] - extras_at_four,
         "counts": {**{key: counts[key] for key in
                       ("unassessed", "partial_wiring", "code_present_unverified", "accepted")},
                    "gate4_recorded": counts["gate4"],
                    "still_without_gate4_proof": 700 - counts["gate4"]},
         "phases": per_phase, "focus_next": focus, "tasks": output,
+        "supplemental_tasks": extra,
         "warning": "Source records alone do not authenticate external CI. "
                    "Independent reviewer must validate run result and task test coverage.",
     }
@@ -139,9 +177,11 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
 def markdown_summary(data: dict) -> str:
     c = data["counts"]
     lines = ["# Sofía V18 Gate 4 Progress", "",
-             "Development target is 700 original tasks through Gate 4. Gates 5-6 deferred.",
+             "Development target is all 780 planned tasks (700 CA + 40 ML + 40 GA) through Gate 4. Gates 5-6 deferred.",
              f"**Gate 4 evidence recorded: {c['gate4_recorded']}/700.** "
-             f"Still without complete proof: {c['still_without_gate4_proof']}.",
+             f"Still without complete CA proof: {c['still_without_gate4_proof']}.",
+             f"Overall Gate 4 evidence: {data['overall_gate4_recorded']}/780; "
+             f"remaining: {data['overall_without_gate4_proof']}.",
              f"Source triage: {c['unassessed']} unassessed; "
              f"{c['partial_wiring']} partially wired; "
              f"{c['code_present_unverified']} code present but unverified.", "",
@@ -157,6 +197,9 @@ def markdown_summary(data: dict) -> str:
     for t in data["focus_next"]:
         lines.append(f"| {t['id']} | {t['phase']} | {t['source_status']} | "
                      + t["next_action"].replace("|", "/") + " |")
+    lines.append("")
+    lines.append("ML and GA addenda: 80 supplemental planned items, "
+                 f"{data['supplemental_gate4_recorded']} with Gate 4 proof.")
     return "\n".join(lines) + "\n"
 
 
