@@ -11,7 +11,9 @@ import ast
 from enum import Enum
 from hashlib import sha256
 from pathlib import Path
+from itertools import islice
 import os
+import re
 import stat
 
 from sofia.creative.model import ArtifactRevision, ArtifactKind
@@ -98,7 +100,10 @@ def _min_words(objective: str, *, content: bytes, kind: ArtifactKind) -> Objecti
         visible = content.decode("utf-8", "strict")
     except UnicodeError:
         return ObjectiveFinding(objective, ObjectiveDisposition.FAIL, "min_words", "invalid UTF-8")
-    passed = len(visible.split()) >= minimum
+    # Iterate Unicode whitespace-delimited words without allocating a list
+    # of every word from an artifact that can be as large as 64 MiB.
+    # Stop scanning as soon as the independently typed minimum is reached.
+    passed = sum(1 for _ in islice(re.finditer(r"\S+", visible), minimum)) >= minimum
     return ObjectiveFinding(objective, ObjectiveDisposition.PASS if passed else ObjectiveDisposition.FAIL,
                             "min_words", "original word count met" if passed else "too few original words")
 

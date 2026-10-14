@@ -177,3 +177,31 @@ def test_python_code_syntax_is_checked_without_running_program(tmp_path):
         revision=record, path=path, objectives=("python_syntax:javascript",),
     )
     assert unsupported.findings[0].disposition is ObjectiveDisposition.UNKNOWN
+
+
+def test_unicode_whitespace_word_count_stays_exact_for_many_words(tmp_path):
+    # 96,000 words formerly allocated an intermediate list of every token.
+    content = ("alpha\u00a0beta\tgamma\n\u03b4elta " * 24_000).encode("utf-8")
+    path = tmp_path / "unicode-words.txt"
+    path.write_bytes(content)
+    record = revision_for(path, content)
+    report = inspect_objective_artifact(
+        revision=record, path=path,
+        objectives=("min_words:96000", "min_words:96001"),
+    )
+    assert report.integrity is ObjectiveDisposition.PASS
+    assert [finding.disposition for finding in report.findings] == [
+        ObjectiveDisposition.PASS, ObjectiveDisposition.FAIL,
+    ]
+    assert not report.eligible_for_independent_completion
+
+
+def test_unicode_whitespace_minimum_can_short_circuit(tmp_path):
+    content = ("one two three\n" * 30_000).encode("utf-8")
+    path = tmp_path / "short-circuit.txt"
+    path.write_bytes(content)
+    report = inspect_objective_artifact(
+        revision=revision_for(path, content), path=path,
+        objectives=("min_words:2",),
+    )
+    assert report.findings[0].disposition is ObjectiveDisposition.PASS

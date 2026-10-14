@@ -32,7 +32,14 @@ def test_original_fifty_requirements_are_in_order_and_have_real_sources():
         assert task["original_requirement"] == original_lines[original["master_line"] - 1]
         assert task["phase"] == original["phase"]
         assert task["ledger_status"] == original["status"]
-        assert task["production_code_paths"] == original["code_paths"]
+        # Frozen batch inventory is a historical minimum, not a replacement
+        # for the additive canonical evidence ledger. Every reviewed path must
+        # still exist, in the original order; new audit paths may be appended.
+        reviewed_paths = task["production_code_paths"]
+        canonical_paths = original["code_paths"]
+        assert reviewed_paths
+        assert len(reviewed_paths) == len(set(reviewed_paths))
+        assert [p for p in canonical_paths if p in set(reviewed_paths)] == reviewed_paths
         assert type(task["gate4_claim"]) is bool
         assert task["gate4_blocker"]
         for path in task["production_code_paths"]:
