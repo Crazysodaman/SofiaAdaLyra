@@ -151,7 +151,55 @@ This table maps the *requested envelope semantics* to currently existing typed s
 
 **Observed independent paths:** `application/bootstrap.py:SofiaApplication` composes canonical cognition/NEURO/MEM/LIFE/GOALS/ACT; `application/background_runtime.py` supplies distinct asynchronous LIFE and backup/ACT workers. `application/decision_trace.py:project_companion_decision` currently surfaces Matrix `message_id`, `session_id`, principal and referenced evidence. Its `neuro_turn_correlated` flag is true only for a supplied, exact current-message NEURO observation; the conversation service rejects stale or mismatched message IDs before that read-only correlation. Missing goal/project/ACT effect receipts and `objective_verified=False` remain **explicit truthfulness boundaries**. A correlated observation does not prove NEURO caused the reply or an external action.
 
-**Outstanding CA-005 work:** one source-verified adapter interface per producer, independent typed evidence/receipt links for MEM/GOALS/LIFE/RUN/ACT across a single turn, audience checks before projection, operational retention/expiry policy, and tests for missing/stale/revoked/contradictory inputs, restart and multi-host cutover. Same-message NEURO correlation now has focused tests; no complete causal chain or downstream effect proof has been validated. **Do not manufacture a universal event ledger or declare CA-005 accepted.**
+### Executable CA-003/CA-005 contract (2026-10-14)
+
+`application/event_contracts.py` now makes the table above executable without
+creating another event store. `EventOwnershipProjection` covers event/source/
+subject identity; principal and audience as an inseparable pair; observation
+and expiry; confidence; evidence; action, goal and project identity; consent
+classification; delivery receipt; resource references; and an explicit error
+state. Its `can_authorize` result is permanently false. Matrix, GOALS, LIFE,
+RUN and ACT adapters accept their existing typed canonical models and reject
+cross-source links. In particular:
+
+- Matrix principal scope is exposed only after the independent SOCIAL binding
+  in canonical SQLite matches. A channel name is never treated as audience.
+- Matrix authority is not projected as consent.
+- RUN `COMPLETED` is still only a job outcome; the adapter does not manufacture
+  an external-effect receipt.
+- ACT `OUTCOME_UNKNOWN` has no delivery receipt, while a typed delivered result
+  may expose its transport receipt without claiming human observation.
+- Missing, stale, revoked, failed and uncertain source states stay distinct.
+
+`EVENT_FIELD_OWNERS` is the machine-checkable field-to-owner map used by
+regressions. The static table remains the human-readable source/sink and
+retention contract.
+
+**Outstanding CA-005 acceptance:** source adapters and the Matrix production
+projection are implemented and locally focused-tested. Fleet cutover, every
+external adapter, and a single real effect traversing SAFE/RUN/ACT still need
+exact-revision CI and supervised host evidence. **Do not manufacture a
+universal event ledger or declare host acceptance from this projection.**
+
+### CA-006 CompanionDecisionTrace revision 2 (2026-10-14)
+
+`SofiaApplication.latest_companion_decision_trace()` remains the production
+entry point. Revision 2 joins the canonical Matrix event envelope, same-turn
+NEURO winner and bounded rejected secondary activations, audience-eligible
+memory/evidence references, explicitly referenced goal/LIFE identifiers and
+typed selected GOALS/LIFE events when supplied by their canonical owners,
+authority/tool exposure and actual model-route steps, response validation, and
+canonical response settlement. The join is content-minimal and deterministic
+for the same typed inputs. Restart reconstructs durable Matrix/response data;
+ephemeral NEURO correlation correctly becomes absent rather than being inferred
+from the latest unrelated snapshot.
+
+The projection cannot authorize execution, promote memory, validate evidence,
+establish consent, or claim an external effect. A response validation result is
+not independent outcome proof. Selected goal/LIFE and ACT outcome fields remain
+absent unless an explicit typed owner projection exists; nearest-time and text
+similarity are never used as joins. A referenced identifier is displayed
+separately and is not mislabeled as the selected goal or activity.
 
 ## CA-001: end-to-end event-trace static audit boundary
 

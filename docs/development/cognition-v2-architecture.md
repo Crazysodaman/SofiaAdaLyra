@@ -5,6 +5,25 @@ the sole semantic coordinator; resource-aware dual-model residency, concurrent
 role workers, one authoritative cognition status projection, typed domain
 answers, and personality-after-truth are live in the normal application path.
 
+## Phase 00 ownership re-audit (2026-10-14)
+
+The production entry paths were re-traced from terminal, Desktop, Discord,
+mobile, owner-direct tool narration, guarded interaction controls, and staged
+offers. They converge on `ConversationService._coordinate_turn()` (directly or
+through `_respond_ordered_special()`), which invokes the single
+`ProductionTurnKernel`. Subclasses add serialization, deterministic safety
+guards, emotion/expression, or transport ordering; they do not own semantic
+planning. `sofia.cognition.matrix` remains the deterministic compatibility
+safeguard/trace layer fed by the v2 `TurnPlan`, and `cognition.routing` remains
+the dual-model execution worker router. Neither is a parallel semantic
+coordinator.
+
+The dual-model interface continues to preserve distinct primary/secondary
+roles, exact observed model/host execution steps, no silent fallback by
+default, and a single runtime state projection. Local focused regression can
+verify composition and failure behavior; live Venus/Artemis model residency,
+latency and host identity remain host acceptance and are not inferred here.
+
 ## Batch 12 production cutover
 
 Every ordinary, owner-direct, guarded interaction, clarification, and live-offer

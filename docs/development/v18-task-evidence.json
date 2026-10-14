@@ -180,7 +180,10 @@
         "src/sofia/ui/settings_sections.py",
         "test/test_interaction_goal_journal.py",
         "test/test_ui_control_center.py",
-        "test/test_ui_desktop_storage_authority.py"
+        "test/test_ui_desktop_storage_authority.py",
+        "src/sofia/application/event_contracts.py",
+        "docs/development/companion-autonomy-contract.md",
+        "test/test_v18_phase00_contracts.py"
       ],
       "evidence_commits": [
         "664bfc02b518620085300fb7c2c04a6821e4ad45",
@@ -229,6 +232,16 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
+      },
+      "phase00_2026_10_14": {
+        "source_base_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+        "implementation": "Typed non-authoritative connection contract covers authority separation, evidence refs, principal/audience pairing, observation/expiry/confidence, resource refs and explicit error states; Matrix/GOALS/LIFE/RUN/ACT adapters preserve existing source ownership.",
+        "production_entrypoint": "SofiaApplication.latest_companion_decision_trace",
+        "focused_local_tests": "58 focused projection/evidence-ledger tests passed; broader production cognition/channel selection 141 passed with loopback access",
+        "ci": "pending exact pushed revision",
+        "gate": 3,
+        "accepted": false,
+        "remaining": "Exact-revision CI and supervised external/Fleet adapter acceptance"
       }
     },
     {
@@ -240,7 +253,12 @@
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
         "src/sofia/composition/engines.py",
-        "test/test_production_dual_cognition.py"
+        "test/test_production_dual_cognition.py",
+        "docs/development/cognition-v2-architecture.md",
+        "src/sofia/cognition/v2/kernel.py",
+        "src/sofia/application/conversation_service.py",
+        "test/test_cognition_v2_turn_kernel.py",
+        "test/test_cognition_v2_cutover.py"
       ],
       "evidence_commits": [
         "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
@@ -280,6 +298,15 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
+      },
+      "phase00_2026_10_14": {
+        "source_base_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+        "implementation": "Production entry points re-audited: ordinary, owner-tool, guarded interaction, Desktop, Discord and mobile paths converge on ProductionTurnKernel; Matrix is the downstream safeguard and cognition.routing is the dual-worker executor, not another semantic owner.",
+        "focused_local_tests": "Cognition v2, production dual cognition and channel selection: 141 passed with loopback access",
+        "ci": "pending exact pushed revision",
+        "gate": 3,
+        "accepted": false,
+        "remaining": "Exact-revision CI and live Venus/Artemis provider/host acceptance"
       }
     },
     {
@@ -297,7 +324,10 @@
         "src/sofia/life/model.py",
         "src/sofia/run/work.py",
         "src/sofia/application/act_service.py",
-        "src/sofia/social/model.py"
+        "src/sofia/social/model.py",
+        "src/sofia/application/event_contracts.py",
+        "src/sofia/application/decision_persistence.py",
+        "test/test_v18_phase00_contracts.py"
       ],
       "evidence_commits": [
         "ae616efd5fe81017bce1606543f43c0ceb2d95fd"
@@ -336,6 +366,15 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
+      },
+      "phase00_2026_10_14": {
+        "source_base_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+        "implementation": "Executable field ownership map plus typed Matrix/GOALS/LIFE/RUN/ACT adapters; verified SOCIAL scope and canonical response evidence are projected without a new truth store.",
+        "focused_local_tests": "58 focused projection/evidence-ledger tests passed; broader production cognition/channel selection 141 passed with loopback access",
+        "ci": "pending exact pushed revision",
+        "gate": 3,
+        "accepted": false,
+        "remaining": "Exact-revision CI, every external adapter, and supervised effect-to-delivery path"
       }
     },
     {
@@ -345,7 +384,13 @@
       "master_line": 69,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/decision_trace.py"
+        "src/sofia/application/decision_trace.py",
+        "src/sofia/application/decision_persistence.py",
+        "src/sofia/application/event_contracts.py",
+        "src/sofia/application/bootstrap.py",
+        "test/test_v18_phase00_contracts.py",
+        "test/test_v18_decision_persistence.py",
+        "test/test_v18_settled_response_trace.py"
       ],
       "evidence_commits": [
         "1925361e1362520c11980987167a410a6635deb0"
@@ -383,6 +428,15 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
+      },
+      "phase00_2026_10_14": {
+        "source_base_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+        "implementation": "CompanionDecisionTrace schema v2 joins canonical Matrix event/scope, exact same-turn NEURO winner and rejected activations, eligible evidence references, typed selected GOALS/LIFE events when supplied, model execution decision and typed outcomes. It remains read-only and cannot authorize.",
+        "focused_local_tests": "58 focused projection/evidence-ledger tests passed including negative scope and restart reprojection",
+        "ci": "pending exact pushed revision",
+        "gate": 3,
+        "accepted": false,
+        "remaining": "Exact-revision CI and supervised SAFE/RUN/ACT external-effect receipt correlation"
       }
     },
     {

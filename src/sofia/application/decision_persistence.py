@@ -30,6 +30,8 @@ class CompanionTurnPersistence:
     canonical_turn_settled: bool = False
     canonical_event_id: str | None = None
     assistant_message_id: str | None = None
+    verified_audience_id: str | None = None
+    response_evidence_refs: tuple[str, ...] = ()
     limitation: str = (
         "Source/decision persistence is not model quality, consent, "
         "NEURO causal linkage, goal outcome, execution or delivery proof."
@@ -51,6 +53,7 @@ def inspect_turn_persistence(
     message_ok = decision_ok = scope_ok = False
     reply_ok = settled = False
     event_id = assistant_id = bound_audience = None
+    response_refs: tuple[str, ...] = ()
     guard = CanonicalSQLiteGuard(state_path)
     with closing(guard.connect(timeout=5, read_only=True)) as db:
         db.execute("BEGIN")
@@ -189,6 +192,18 @@ def inspect_turn_persistence(
                                 and isinstance(payload, dict)
                                 and isinstance(payload.get("content"), str)
                             ):
+                                raw_refs = payload.get("evidence_refs", [])
+                                refs_valid = (
+                                    isinstance(raw_refs, list)
+                                    and len(raw_refs) <= 64
+                                    and all(
+                                        isinstance(item, str)
+                                        and bool(item.strip())
+                                        and len(item) <= 240
+                                        for item in raw_refs
+                                    )
+                                    and len(set(raw_refs)) == len(raw_refs)
+                                )
                                 assistant = db.execute(
                                     "SELECT session_id,role,content "
                                     "FROM conversation_messages WHERE id=?",
@@ -199,10 +214,12 @@ def inspect_turn_persistence(
                                     and assistant[0] == envelope.session_id
                                     and assistant[1] == "assistant"
                                     and assistant[2] == payload["content"]
+                                    and refs_valid
                                 )
                                 if reply_ok:
                                     settled = True
                                     event_id, assistant_id = entry[0], entry[1]
+                                    response_refs = tuple(raw_refs)
         finally:
             db.rollback()
     # A session principal is not proven by the claim in the Matrix row.
@@ -219,4 +236,6 @@ def inspect_turn_persistence(
         canonical_turn_settled=settled,
         canonical_event_id=event_id,
         assistant_message_id=assistant_id,
+        verified_audience_id=(bound_audience if scope_ok else None),
+        response_evidence_refs=response_refs,
     )
