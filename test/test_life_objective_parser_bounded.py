@@ -63,3 +63,67 @@ def test_file_integrity_and_unreviewed_objectives_do_not_claim_success(tmp_path)
     )
     assert corrupted.integrity is ObjectiveDisposition.FAIL
     assert not corrupted.eligible_for_independent_completion
+
+def test_same_byte_size_replacement_between_lstat_and_open_fails(tmp_path, monkeypatch):
+    import os
+    from sofia.life import validation
+
+    content = b"content with a trustworthy receipt"
+    original_file = tmp_path / "item.txt"
+    original_file.write_bytes(content)
+    replacement = tmp_path / "replacement.txt"
+    replacement.write_bytes(content)
+    record = revision_for(original_file, content)
+    real_open = os.open
+
+    def switch_file(path, flags, *args, **kwargs):
+        os.replace(replacement, original_file)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(validation.os, "open", switch_file)
+    report = inspect_objective_artifact(
+        revision=record, path=original_file, objectives=("min_bytes:2",),
+    )
+    assert report.integrity is ObjectiveDisposition.FAIL
+    assert not report.eligible_for_independent_completion
+
+
+def test_symlink_or_directory_never_verifies_original_artifact(tmp_path):
+    content = b"independently verified bytes"
+    original_file = tmp_path / "original.txt"
+    original_file.write_bytes(content)
+    alias = tmp_path / "alias.txt"
+    try:
+        alias.symlink_to(original_file)
+    except (OSError, NotImplementedError):
+        pytest.skip("symbolic links disabled for this runner")
+    report = inspect_objective_artifact(
+        revision=revision_for(alias, content), path=alias,
+        objectives=("min_bytes:2",),
+    )
+    assert report.integrity is ObjectiveDisposition.FAIL
+    assert not report.eligible_for_independent_completion
+    directory = tmp_path / "folder"
+    directory.mkdir()
+    report = inspect_objective_artifact(
+        revision=revision_for(directory, content), path=directory,
+        objectives=("min_bytes:2",),
+    )
+    assert report.integrity is ObjectiveDisposition.FAIL
+
+
+def test_oversized_or_mutated_content_never_promotes_objective(tmp_path):
+    content = b"Bounded content"
+    path = tmp_path / "item.txt"
+    path.write_bytes(content)
+    record = revision_for(path, content)
+    too_small = inspect_objective_artifact(
+        revision=record, path=path, objectives=("min_bytes:1",),
+        max_inspect_bytes=len(content)-1,
+    )
+    assert too_small.integrity is ObjectiveDisposition.FAIL
+    path.write_bytes(content + b"!")
+    mismatch = inspect_objective_artifact(
+        revision=record, path=path, objectives=("min_bytes:1",),
+    )
+    assert mismatch.integrity is ObjectiveDisposition.FAIL
