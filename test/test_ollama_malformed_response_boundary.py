@@ -93,3 +93,19 @@ def test_disallowed_tools_are_not_sent_to_ollama():
     result = provider.respond(request)
     assert result.content == "Allowed text."
     assert "tools" not in client.kwargs
+
+
+def test_text_only_request_rejects_unexpected_model_tool_call():
+    call = SimpleNamespace(
+        function=SimpleNamespace(name="unexpected", arguments={}),
+        id="call-2",
+    )
+    payload = SimpleNamespace(
+        message=SimpleNamespace(content="", tool_calls=(call,)),
+    )
+    provider = OllamaProvider(
+        create_default_configuration().provider,
+        client=MalformedClient(payload),
+    )
+    with pytest.raises(LLMProviderError, match="text-only"):
+        provider.respond(CognitiveRequest(messages=(), allow_tools=False))
