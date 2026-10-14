@@ -128,7 +128,12 @@ class OllamaProvider(LLMProvider):
         # Keep provider internals out of user-facing errors and never execute
         # partially decoded tool calls.
         try:
-            return self._response_from_ollama(response)
+            parsed = self._response_from_ollama(response)
+            if parsed.tool_calls and not request.allow_tools:
+                raise LLMProviderError(
+                    "Ollama returned tool calls for a text-only request."
+                )
+            return parsed
         except LLMProviderError:
             raise
         except (AttributeError, TypeError, ValueError, KeyError) as exc:
