@@ -540,10 +540,19 @@ class SofiaApplication:
         No new durable store, LLM call, memory promotion or authority is created.
         """
         from sofia.application.decision_trace import project_companion_decision
+        from sofia.application.decision_persistence import inspect_turn_persistence
 
+        matrix_trace = self._conversation_service.latest_matrix_trace()
+        persistence = (
+            None if matrix_trace is None else inspect_turn_persistence(
+                self._conversation_service.database_path,
+                matrix_trace=matrix_trace,
+            )
+        )
         return project_companion_decision(
-            matrix_trace=self._conversation_service.latest_matrix_trace(),
+            matrix_trace=matrix_trace,
             neuro_snapshot=self._neuro.last_snapshot,
+            canonical_persistence=persistence,
         )
 
     @property

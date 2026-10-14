@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from sofia.application.decision_persistence import CompanionTurnPersistence
 from sofia.cognition.matrix.model import MatrixTrace
 from sofia.neuro.model import NeuroStateSnapshot
 
@@ -37,6 +38,7 @@ class CompanionDecisionTrace:
     life_project_id: str | None = None
     act_delivery_ref: str | None = None
     objective_verified: bool = False
+    canonical_persistence: CompanionTurnPersistence | None = None
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -52,6 +54,7 @@ def project_companion_decision(
     *,
     matrix_trace: MatrixTrace | None,
     neuro_snapshot: NeuroStateSnapshot | None,
+    canonical_persistence: CompanionTurnPersistence | None = None,
 ) -> CompanionDecisionTrace | None:
     """Project only typed observations, never infer cause or success.
 
@@ -66,6 +69,15 @@ def project_companion_decision(
         neuro_snapshot, NeuroStateSnapshot
     ):
         raise TypeError("neuro_snapshot must be NeuroStateSnapshot or None")
+
+    if canonical_persistence is not None:
+        if not isinstance(canonical_persistence, CompanionTurnPersistence):
+            raise TypeError("canonical_persistence must be typed proof or None")
+        if (
+            canonical_persistence.message_id != matrix_trace.envelope.message_id
+            or canonical_persistence.session_id != matrix_trace.envelope.session_id
+        ):
+            raise ValueError("canonical proof belongs to another turn")
 
     refs: list[str] = []
     if matrix_trace.evidence is not None:
@@ -104,4 +116,5 @@ def project_companion_decision(
             None if neuro_snapshot is None else neuro_snapshot.generated_at
         ),
         neuro_turn_correlated=False,
+        canonical_persistence=canonical_persistence,
     )
