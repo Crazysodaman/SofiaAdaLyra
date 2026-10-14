@@ -84,6 +84,25 @@
           "End-to-end restart/multihost/live acceptance"
         ],
         "acceptance": "partial_wiring: focused Windows/Linux tests passed; full original CA-001 scope is not verified"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/application/decision_persistence.py",
+        "source_anchor": "def inspect_turn_persistence",
+        "related_test": "test/test_v18_settled_response_trace.py",
+        "observed_behavior": "Canonical USER/Matrix/SOCIAL and settled reply read-only joins exist",
+        "unresolved_requirement": "No single witnessed MEM/GOALS/LIFE/SAFE/RUN/ACT chain",
+        "next_action": "Correlate typed effect receipts with one canonical event",
+        "rejection_rule": "Do not accept model text or a reply as execution proof",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -123,6 +142,25 @@
         "scope": "Isolated deterministic Cognition v2 production control path; source-pinned four-turn persistence/overhead measurement",
         "remaining": "Live Venus/Artemis workload, memory/interaction accuracy, model/voice/avatar behavior and longitudinal acceptance; per-task promotion stages",
         "acceptance": "partial_wiring: both focused CI jobs passed; no production live or full phase acceptance"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/verify/v18_companion_baseline.py",
+        "source_anchor": "def capture_v18_baseline",
+        "related_test": "test/test_v18_companion_baseline.py",
+        "observed_behavior": "Four-turn isolated control-path timing baseline exists",
+        "unresolved_requirement": "No live Venus GPU, avatar/voice, memory quality or 3-day restart metrics",
+        "next_action": "Collect consent-scoped live/longitudinal measurements",
+        "rejection_rule": "Do not extrapolate CI time to live Ollama",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -172,6 +210,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "docs/development/companion-autonomy-contract.md",
+        "source_anchor": "## Invariants",
+        "related_test": "test/test_safe_permissions.py",
+        "observed_behavior": "Authority, scope, evidence and errors described in source contract",
+        "unresolved_requirement": "No witnessed every-adapter enforcement or retention inventory",
+        "next_action": "Bind contracts to actual ingress/egress effects",
+        "rejection_rule": "Reject any adapter widening principal/audience",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -204,6 +261,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/cognition/v2/kernel.py",
+        "source_anchor": "class ProductionTurnKernel",
+        "related_test": "test/test_cognition_v2_turn_kernel.py",
+        "observed_behavior": "Single turn-sequencing owner implemented",
+        "unresolved_requirement": "Dual provider and live startup ABI still need full witnessed coverage",
+        "next_action": "Test exact production init with both approved routes",
+        "rejection_rule": "Reject parallel cognitive authority or silent model substitution",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -241,6 +317,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "docs/development/companion-autonomy-contract.md",
+        "source_anchor": "## Typed event and authority semantics",
+        "related_test": "test/test_v18_decision_persistence.py",
+        "observed_behavior": "Event/source ownership documented, partial durable turn join exists",
+        "unresolved_requirement": "Audience-scoped expiry/consent and all effect/transport receipts not joined",
+        "next_action": "Map every source field to producer and sink with receipt",
+        "rejection_rule": "Reject new competing truth ledger",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -269,6 +364,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/application/decision_trace.py",
+        "source_anchor": "class CompanionDecisionTrace",
+        "related_test": "test/test_v18_decision_persistence.py",
+        "observed_behavior": "Revisioned read-only trace and same-turn NEURO association exist",
+        "unresolved_requirement": "No exact goal/selected alternative/MEM/ACT effect provenance",
+        "next_action": "Join only independently correlated canonical owners",
+        "rejection_rule": "Reject inference of objective_verified from model prose",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -316,6 +430,25 @@
         "scope": "Isolated deterministic Cognition v2 production control path; source-pinned four-turn persistence/overhead measurement",
         "remaining": "Live Venus/Artemis workload, memory/interaction accuracy, model/voice/avatar behavior and longitudinal acceptance; per-task promotion stages",
         "acceptance": "partial_wiring: both focused CI jobs passed; no production live or full phase acceptance"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/verify/v18_companion_baseline.py",
+        "source_anchor": "def summarize_control_baseline",
+        "related_test": "test/test_v18_companion_baseline.py",
+        "observed_behavior": "Revision-pinned Windows/Linux deterministic baseline implemented",
+        "unresolved_requirement": "No per-task thresholds or Venus and multi-host acceptance",
+        "next_action": "Version task-specific evidence and release thresholds",
+        "rejection_rule": "Reject code-only green completion",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -351,6 +484,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "docs/development/companion-autonomy-contract.md",
+        "source_anchor": "## Authoritative writer / consumer / failure table",
+        "related_test": "test/test_safe_permissions.py",
+        "observed_behavior": "Existing writer/consumer and failure semantics documented",
+        "unresolved_requirement": "DEV/Mobile/Fleet/ACT/WORLD effect adapters not all witnessed",
+        "next_action": "Prove each real adapter preserves exact owner and audience",
+        "rejection_rule": "Reject unauthorized effect-side execution",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -387,6 +539,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/life/model.py",
+        "source_anchor": "PROJECT_TRANSITIONS",
+        "related_test": "test/test_life_state_graph_contract.py",
+        "observed_behavior": "LIFE state transitions and uncertain-work blocking coded",
+        "unresolved_requirement": "Incomplete all-action expected effects, restart, dedupe tests",
+        "next_action": "Write restart/receipt matrix across GOALS/LIFE/RUN",
+        "rejection_rule": "Reject retry of uncertain external effect",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -422,6 +593,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/cognition/budgets.py",
+        "source_anchor": "class ModelTokenBudget",
+        "related_test": "test/test_cognitive_context_assembler.py",
+        "observed_behavior": "Per-model route budgets are typed",
+        "unresolved_requirement": "No measured per-source occupancy or all negative freshness scopes",
+        "next_action": "Meter selected token classes and reject stale/private overflow",
+        "rejection_rule": "Reject overflow and cross-audience context",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -429,9 +619,15 @@
       "phase": "00",
       "source_topic": "12",
       "master_line": 77,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/conversation_learning.py",
+        "test/test_memory_reviewed_corrections.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "evidence_commits": [
+        "dff20e19106c37d112d70e8f4428b098c70c05a8"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -441,6 +637,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/application/conversation_learning.py",
+        "source_anchor": "class ConversationLearningCoordinator",
+        "related_test": "test/test_memory_reviewed_corrections.py",
+        "observed_behavior": "Persisted user text creates proposed memory only",
+        "unresolved_requirement": "No independent quality-graded preference feedback/reward loop",
+        "next_action": "Gate rewards on validated external outcomes or reviewed correction",
+        "rejection_rule": "Reject self-praise as reinforcement signal",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -460,6 +675,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/verify/cognition_v2_baseline.py",
+        "source_anchor": "def capture_baseline",
+        "related_test": "test/test_cognition_v2_baseline.py",
+        "observed_behavior": "Isolated baseline only; not a named external benchmark",
+        "unresolved_requirement": "No adapted LongMemEval/LoCoMo sample, scoring or ablation",
+        "next_action": "Build sealed licensed adapted evaluation suite and report denominators",
+        "rejection_rule": "Reject benchmark performance claims without datasets",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -479,6 +713,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/verify/package_selection.py",
+        "source_anchor": "class PackageSelectionProbe",
+        "related_test": "test/test_cognition_matrix.py",
+        "observed_behavior": "Package marker coverage checks exist",
+        "unresolved_requirement": "No combinatorial route/source/audience/modality matrix",
+        "next_action": "Require negative scoped cross-product tests and hand receipts",
+        "rejection_rule": "Reject representative samples as exhaustive coverage",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -486,9 +739,15 @@
       "phase": "00",
       "source_topic": "12",
       "master_line": 80,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/llm_engine.py",
+        "test/test_default_runtime_provider_boundary.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "evidence_commits": [
+        "dff20e19106c37d112d70e8f4428b098c70c05a8"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -498,6 +757,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/cognition/llm_engine.py",
+        "source_anchor": "class LLMCognitiveEngine",
+        "related_test": "test/test_default_runtime_provider_boundary.py",
+        "observed_behavior": "Typed provider error boundary exists",
+        "unresolved_requirement": "No complete outage/invalid-JSON background isolation live proof",
+        "next_action": "Test real provider diagnostics, degraded deterministic behavior",
+        "rejection_rule": "Reject invented response and blocked foreground conversation",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -505,9 +783,15 @@
       "phase": "00",
       "source_topic": "12",
       "master_line": 81,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/memory/provenance_store.py",
+        "test/test_memory_deletion_restore.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "evidence_commits": [
+        "dff20e19106c37d112d70e8f4428b098c70c05a8"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -517,6 +801,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/memory/provenance_store.py",
+        "source_anchor": "class DurableMemoryCandidateStore",
+        "related_test": "test/test_memory_deletion_restore.py",
+        "observed_behavior": "Provenance and scoped memory deletion tests exist",
+        "unresolved_requirement": "Policy-wide consent, 24h cleanup and redaction not witnessed",
+        "next_action": "Audit actual retention/consent/LLM projection on each host",
+        "rejection_rule": "Reject private data crossing audience without grant",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -550,6 +853,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/verify/architecture_inventory.py",
+        "source_anchor": "OWNERS:",
+        "related_test": "test/test_v18_decision_persistence.py",
+        "observed_behavior": "Owner inventory and three source-to-sink diagrams available",
+        "unresolved_requirement": "No real per-owner ABI reachability or multisystem event witness",
+        "next_action": "Trace imports/writers/retention/receipts on actual entrypoints",
+        "rejection_rule": "Reject diagram-only acceptance",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -654,6 +976,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "source_anchor": "## Two-stage location decision",
+        "related_test": "test/test_production_dual_cognition.py",
+        "observed_behavior": "Venus sole writer now; future Debian Sofia VM and remote GPU planned",
+        "unresolved_requirement": "No approved completed guest migration/failover witness",
+        "next_action": "Supervise cutover with fencing, backup and rollback",
+        "rejection_rule": "Reject any dual-writer or silent production migration",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -700,6 +1041,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/state/replication.py",
+        "source_anchor": "class SQLiteReplicationWitness",
+        "related_test": "test/test_ops_recovery_objectives.py",
+        "observed_behavior": "Partial fenced StatePlane replication available",
+        "unresolved_requirement": "Does not replicate all direct SQLite legacy tables; RPO/RTO not proven",
+        "next_action": "Qualify complete backup + offline recovery + failback",
+        "rejection_rule": "Reject StatePlane-only snapshot as whole sofia.db redundancy",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -736,6 +1096,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/life/model.py",
+        "source_anchor": "PROJECT_TRANSITIONS",
+        "related_test": "test/test_life_run_outcome_reconciliation.py",
+        "observed_behavior": "LIFE statuses and uncertain RUN outcomes modeled",
+        "unresolved_requirement": "No full cross-state verified-objective/restart review proof",
+        "next_action": "Exercise Project x Work x Goal legal-state matrix",
+        "rejection_rule": "Reject completed assertion without independent objective receipt",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -771,6 +1150,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/safe/permissions.py",
+        "source_anchor": "class PermissionLevel",
+        "related_test": "test/test_safe_permissions.py",
+        "observed_behavior": "SAFE five-level policy and permission checks implemented",
+        "unresolved_requirement": "No whole-effect command inventory or all host auth verification",
+        "next_action": "Exercise independently authenticated sensitive effect cases",
+        "rejection_rule": "Reject owner bypass and self-granted high privilege",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -827,6 +1225,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/ops/workshop_provision.py",
+        "source_anchor": "class WorkshopProvisionPlan",
+        "related_test": "test/test_ops_workshop_internal_network.py",
+        "observed_behavior": "Immutable workshop plan with internal networking boundary",
+        "unresolved_requirement": "Actual Artemis ACL and guest broker path unproven",
+        "next_action": "Verify network isolation and enforced broker reachability",
+        "rejection_rule": "Reject NAT-only isolation assumption",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -834,9 +1251,15 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 91,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_provision.py",
+        "test/test_ops_workshop_hyperv_production.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "evidence_commits": [
+        "dff20e19106c37d112d70e8f4428b098c70c05a8"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -846,6 +1269,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/ops/workshop_provision.py",
+        "source_anchor": "fingerprint_sha256",
+        "related_test": "test/test_ops_workshop_hyperv_production.py",
+        "observed_behavior": "Immutable plan digest and separate Hyper-V executor present",
+        "unresolved_requirement": "JEA least privilege and non-reusable approvals not live-verified",
+        "next_action": "Prove least privilege on Artemis and preserved admin audit logs",
+        "rejection_rule": "Reject broadly privileged unsupervised VM creation",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -853,9 +1295,15 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 92,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/distributed/identity_durable.py",
+        "test/test_distributed_identity_durable.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "evidence_commits": [
+        "dff20e19106c37d112d70e8f4428b098c70c05a8"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -865,6 +1313,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/distributed/identity_durable.py",
+        "source_anchor": "class DurableNodeIdentityRegistry",
+        "related_test": "test/test_distributed_identity_durable.py",
+        "observed_behavior": "Durable public fingerprint enrollment and retirement exist",
+        "unresolved_requirement": "Key rotation/escrow/image scrubbing across hosts unproven",
+        "next_action": "Exercise credential renewal, revocation and leakage tests",
+        "rejection_rule": "Reject keys in shared images or SMB locations",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -894,6 +1361,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/cognition/context_evidence.py",
+        "source_anchor": "def format_continuity_event",
+        "related_test": "test/test_memory_provenance.py",
+        "observed_behavior": "Source observations are projected to context; provenance exists",
+        "unresolved_requirement": "Eight epistemic grades and source correction not end-to-end enforced",
+        "next_action": "Prove typed grades and audience propagation across consumers",
+        "rejection_rule": "Reject promotion of inferred/stale as verified",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -951,6 +1437,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/run/systemd_runtime.py",
+        "source_anchor": "systemd",
+        "related_test": "test/test_run_systemd_runtime.py",
+        "observed_behavior": "Debian service runtime configuration implemented",
+        "unresolved_requirement": "No measured host vs disposable guest cost/restore comparison",
+        "next_action": "Benchmark isolation, snapshot recovery and resource overhead",
+        "rejection_rule": "Reject unmeasured claims of always-on VM superiority",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -983,6 +1488,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "source_anchor": "## Two-stage location decision",
+        "related_test": "test/test_production_dual_cognition.py",
+        "observed_behavior": "Writer/inference split and some degraded modes decided",
+        "unresolved_requirement": "No complete failure injection for power/DNS/PKI/NAS/NWS/HA",
+        "next_action": "Build dependency failure matrix and exercise deterministic recovery",
+        "rejection_rule": "Reject silent fallback or state promotion after partition",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -990,9 +1514,15 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 96,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/voice/tts.py",
+        "test/test_avatar_presentation_runtime.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "evidence_commits": [
+        "dff20e19106c37d112d70e8f4428b098c70c05a8"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -1002,6 +1532,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/voice/tts.py",
+        "source_anchor": "class TTSPlaybackReceipt",
+        "related_test": "test/test_avatar_presentation_runtime.py",
+        "observed_behavior": "Voice playback receipt and headless avatar contracts exist",
+        "unresolved_requirement": "No end-to-end actual frame/speech/Discord observed receipts",
+        "next_action": "Tie user-facing claims to measured channel renderer/audio receipts",
+        "rejection_rule": "Reject semantic outfit state as physical/screen output",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -1009,9 +1558,15 @@
       "phase": "00",
       "source_topic": "33",
       "master_line": 100,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/v18_roadmap.py",
+        "test/test_v18_companion_baseline.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "evidence_commits": [
+        "dff20e19106c37d112d70e8f4428b098c70c05a8"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -1021,6 +1576,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/verify/v18_roadmap.py",
+        "source_anchor": "def validate_repository",
+        "related_test": "test/test_v18_companion_baseline.py",
+        "observed_behavior": "Original ledger integrity gate present",
+        "unresolved_requirement": "No enforced per-task design readiness rubric yet",
+        "next_action": "Enforce explicit alternatives/risk/cost/acceptance/rejection on batch",
+        "rejection_rule": "Reject item readiness based only on a checklist",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -1052,6 +1626,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "src/sofia/verify/v18_roadmap.py",
+        "source_anchor": "SOURCE_STATES",
+        "related_test": "test/test_v18_companion_baseline.py",
+        "observed_behavior": "Canonical 700-item source-status ledger exists",
+        "unresolved_requirement": "Research/design/blocked axes are not fully reconciled",
+        "next_action": "Attach individual findings and evidence without acceptance inflation",
+        "rejection_rule": "Reject source presence as tests or production proof",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -1059,9 +1652,14 @@
       "phase": "00",
       "source_topic": "33",
       "master_line": 102,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "test/test_life_state_graph_contract.py",
+        "docs/development/v18-phase00-batch30-report.md"
+      ],
+      "evidence_commits": [
+        "dff20e19106c37d112d70e8f4428b098c70c05a8"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -1071,6 +1669,25 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase00_batch30_review": {
+        "audited_against_sha": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+        "reviewed_utc": "2026-10-13",
+        "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
+        "audit_report": "docs/development/v18-phase00-batch30-report.md",
+        "source_observed": "test/test_life_state_graph_contract.py",
+        "source_anchor": "test_life_decision_contract_refuses_second_scheduler_or_false_neuro_link",
+        "related_test": "test/test_life_state_graph_contract.py",
+        "observed_behavior": "Observed pkg_act old literal NEURO assertion failure and unknown pkg_cognition marker",
+        "unresolved_requirement": "Missing exact-current revision fixed CI run; historical failure modes need comparison",
+        "next_action": "Fix policy test/marker, run package and release jobs at exact commit",
+        "rejection_rule": "Reject 'all green' from prior SHA or cancelled workflows",
+        "specific_task_acceptance": false,
+        "source_audit_workflow_id": 38491106024,
+        "source_and_representative_tests_linux": "passed",
+        "source_and_representative_tests_windows": "passed",
+        "full_matrix_and_release": "not_yet_accepted",
+        "real_host": "not_tested"
       }
     },
     {
@@ -19523,5 +20140,61 @@
     ],
     "note": "All 58 reviewed WS4 sources carry verified existing paths, but absent the roadmap verifier-required production_wiring trace they remain partial_wiring. The WS4 report retains 22 source-ready candidates, not master code_present claims.",
     "source_only_candidates_without_wiring_trace": 22
+  },
+  "phase00_batch30_review": {
+    "reviewed_utc": "2026-10-13",
+    "source_commit": "dff20e19106c37d112d70e8f4428b098c70c05a8",
+    "run_id": 38491106024,
+    "original_task_count": 30,
+    "reviewed_ids": [
+      "CA-001",
+      "CA-002",
+      "CA-003",
+      "CA-004",
+      "CA-005",
+      "CA-006",
+      "CA-007",
+      "CA-1201",
+      "CA-1202",
+      "CA-1203",
+      "CA-1204",
+      "CA-1205",
+      "CA-1206",
+      "CA-1207",
+      "CA-1208",
+      "CA-3101",
+      "CA-3102",
+      "CA-3103",
+      "CA-3104",
+      "CA-3105",
+      "CA-3106",
+      "CA-3107",
+      "CA-3108",
+      "CA-3109",
+      "CA-3110",
+      "CA-3111",
+      "CA-3112",
+      "CA-3301",
+      "CA-3302",
+      "CA-3303"
+    ],
+    "source_anchors_verified": 30,
+    "related_test_paths_verified": 30,
+    "functional_regressions": "representative_selection_only_not_all_30_requirements",
+    "windows": "passed",
+    "linux": "passed",
+    "live": false,
+    "fully_accepted_tasks": 0,
+    "new_partial_source_reclassifications": [
+      "CA-1204",
+      "CA-1207",
+      "CA-1208",
+      "CA-3107",
+      "CA-3108",
+      "CA-3112",
+      "CA-3301",
+      "CA-3303"
+    ],
+    "pending": "exact ledger-revision CI, complete production integrations, live acceptance"
   }
 }
