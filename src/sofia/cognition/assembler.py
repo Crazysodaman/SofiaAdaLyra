@@ -153,6 +153,22 @@ class CognitiveContextAssembler:
                 ),
                 "content": evidence.content,
             })
+        continuity_event = context.continuity_event
+        events = (
+            None if continuity_event is None else continuity_event.workspace_changes,
+            None if context.operational_self_model is None
+            else context.operational_self_model.workspace_changes,
+            context.workspace_changes,
+        )
+        distinct_events = set()
+        for event in events:
+            if event is None or id(event) in distinct_events:
+                continue
+            distinct_events.add(id(event))
+            sources.append({
+                "kind": "workspace_change_observation",
+                "lines": format_workspace_changes(event),
+            })
         for result in context.filesystem_results:
             sources.append({
                 "kind": "filesystem_inspection_result",
@@ -612,7 +628,7 @@ class CognitiveContextAssembler:
         if continuity_event is not None:
             sections.extend(
                 format_continuity_event(
-                    continuity_event
+                    continuity_event, include_workspace_changes=False
                 )
             )
 
@@ -648,20 +664,8 @@ class CognitiveContextAssembler:
                 ]
             )
 
-            if self_model.workspace_changes is not None:
-                sections.extend(
-                    format_workspace_changes(
-                        self_model.workspace_changes
-                    )
-                )
-
-        if context.workspace_changes is not None:
-            if context.operational_self_model is None:
-                sections.extend(
-                    format_workspace_changes(
-                        context.workspace_changes
-                    )
-                )
+        # Filename/path observations are lower-trust source data.
+        # They are quoted in the budgeted USER-role JSON channel.
 
         if context.filesystem_results:
             sections.extend(

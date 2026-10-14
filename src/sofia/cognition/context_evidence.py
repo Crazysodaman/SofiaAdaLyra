@@ -6,6 +6,8 @@ from sofia.filesystem.changes import FilesystemChangeEvent
 
 def format_continuity_event(
     event: ContinuityEvent,
+    *,
+    include_workspace_changes: bool = True,
 ) -> list[str]:
     lines = [
         "",
@@ -68,7 +70,7 @@ def format_continuity_event(
             "No new continuity or workspace change event was detected."
         )
 
-    if event.workspace_changes is not None:
+    if event.workspace_changes is not None and include_workspace_changes:
         lines.extend(
             format_workspace_changes(
                 event.workspace_changes
