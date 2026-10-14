@@ -43,6 +43,7 @@ jobs:
           test/test_ws4_model_admission_positive_metrics.py
           test/test_v18_decision_persistence.py
           test/test_v18_settled_response_trace.py
+          test/test_v18_phase00_contracts.py
           test/test_v18_companion_baseline.py
           test/test_cognition_v2_turn_kernel.py
           test/test_safe_permissions.py
