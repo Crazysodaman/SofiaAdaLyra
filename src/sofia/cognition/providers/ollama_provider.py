@@ -85,7 +85,12 @@ class OllamaProvider(LLMProvider):
 
     def _respond_once(self, request: CognitiveRequest) -> CognitiveResponse:
         messages = [self._message_to_ollama(message) for message in request.messages]
-        tools = [self._tool_to_ollama(tool) for tool in request.tools]
+        # An explicit no-tools request must never advertise executable tools
+        # to the model, even if a caller supplies stale tool definitions.
+        tools = (
+            [self._tool_to_ollama(tool) for tool in request.tools]
+            if request.allow_tools else []
+        )
         kwargs = self._build_chat_kwargs(request=request, messages=messages, tools=tools)
         started = perf_counter()
         model_call_started()
