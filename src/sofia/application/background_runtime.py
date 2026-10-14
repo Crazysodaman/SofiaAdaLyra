@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
+import logging
 import socket
 from typing import TYPE_CHECKING
 
@@ -37,6 +38,34 @@ from sofia.run.heartbeat import ApplicationHeartbeat
 
 if TYPE_CHECKING:
     from sofia.application.bootstrap import SofiaApplication
+
+
+_LOG = logging.getLogger(__name__)
+
+
+def _consider_life_idea_without_wedging_worker(
+    life, *, generate, now: datetime, busy: bool, resource_pressure: float,
+):
+    """Model outage/invalid ideation declines this optional idea only.
+
+    Do not swallow operator-stop, SQLite corruption, authorization failure,
+    or unrelated code errors. The normal LIFE tick must still reconcile
+    existing work, previously approved goals and durable RUN receipts.
+    """
+    from sofia.cognition.engine import CognitiveEngineError
+    from sofia.life.idea_agent import ProjectIdeaGenerationError
+    try:
+        return life.consider_new_project(
+            generate=generate, now=now, busy=busy,
+            resource_pressure=resource_pressure,
+        )
+    except (CognitiveEngineError, ProjectIdeaGenerationError) as exc:
+        _LOG.warning(
+            "Optional LIFE idea skipped: provider unavailable or invalid "
+            "model output (%s); existing work reconciliation continues.",
+            type(exc).__name__,
+        )
+        return None
 
 
 def bridge_voluntary_life_outreach(
@@ -539,7 +568,8 @@ def create_background_coordinator(
             )
             with application._model_lock:
                 learning = life.learn_from_experiences(now=now, limit=16)
-                project = life.consider_new_project(
+                project = _consider_life_idea_without_wedging_worker(
+                    life,
                     generate=lambda request: application._runtime.respond(
                         request, principal=local_sparks_principal(),
                     ),
