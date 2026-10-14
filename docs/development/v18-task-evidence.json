@@ -3322,7 +3322,8 @@
       ],
       "evidence_commits": [
         "7c6e42d2e49e86eb84b8b392e5519cf0eac24f9e",
-        "7b1c1d80f58d1ed8b1e328a33e34021e6a50dfa3"
+        "7b1c1d80f58d1ed8b1e328a33e34021e6a50dfa3",
+        "efd4e9be3c8a346f81f83d2686af133274b70d87"
       ],
       "accepted": false,
       "coding_update": {
@@ -3338,6 +3339,15 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "latest_phase01_02_slice": {
+        "source_review_sha": "88c6d845422928a3fbda2a5d442a8081e415f978",
+        "coding_evidence": [
+          "efd4e9be3c8a346f81f83d2686af133274b70d87"
+        ],
+        "interpretation": "Package CI no longer cancels an already-running exact-revision proof when main receives new commits; positive 22/22 package test results still must be collected at a pinned SHA.",
+        "tests_executed": false,
+        "gate4_accepted": false
       }
     },
     {
@@ -3383,9 +3393,15 @@
       "phase": "01",
       "source_topic": "23",
       "master_line": 211,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        ".github/workflows/v18-phase01-02-safe-release-gate.yml",
+        "test/test_application_background.py",
+        "test/test_safe_execution_action_fingerprint.py"
+      ],
+      "evidence_commits": [
+        "88c6d845422928a3fbda2a5d442a8081e415f978"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -3395,6 +3411,15 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "latest_phase01_02_slice": {
+        "source_review_sha": "88c6d845422928a3fbda2a5d442a8081e415f978",
+        "coding_evidence": [
+          "88c6d845422928a3fbda2a5d442a8081e415f978"
+        ],
+        "interpretation": "Added targeted Ubuntu/Windows exact-SHA SAFE integration and release-source evidence workflow with JUnit and Gate 4 reports; covers a selected subset of failure injections only. Stage-wide matrix (renderer, disk-full, remote UNCERTAIN, etc.) and passing CI proof remain open.",
+        "tests_executed": false,
+        "gate4_accepted": false
       }
     },
     {
@@ -4801,7 +4826,8 @@
         "test/test_ui_tray_lifecycle.py",
         "src/sofia/ui/settings_sections.py",
         "test/test_ui_workshop_owner_webauthn.py",
-        "test/test_safe_operator_stop_revision.py"
+        "test/test_safe_operator_stop_revision.py",
+        "test/test_safe_audit.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -4930,7 +4956,11 @@
         "719f17e06a6ed997f702d6d8297e30d87c0debff",
         "eefbf24b37f52c5622bb7883839036963b7ad609",
         "8dd55ee7069a8278df23ac8194889b4bf9b10001",
-        "4ef4b8d69191fa090f9ce54511459e4843e52841"
+        "4ef4b8d69191fa090f9ce54511459e4843e52841",
+        "4b46119d7b548dbfcc2fd9a788066b87839ade4b",
+        "080e6274c186566bc4f7c6258b9ea06c1fa62d6b",
+        "092cf0f0c65c043b3b4661276287c0b7ccf987c2",
+        "510d88b6964612ab6b39d370ed977e4f686c6eb9"
       ],
       "accepted": false,
       "coding_update": {
@@ -5193,6 +5223,18 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "latest_phase01_02_slice": {
+        "source_review_sha": "88c6d845422928a3fbda2a5d442a8081e415f978",
+        "coding_evidence": [
+          "4b46119d7b548dbfcc2fd9a788066b87839ade4b",
+          "080e6274c186566bc4f7c6258b9ea06c1fa62d6b",
+          "092cf0f0c65c043b3b4661276287c0b7ccf987c2",
+          "510d88b6964612ab6b39d370ed977e4f686c6eb9"
+        ],
+        "interpretation": "Fresh WebAuthn binding is now required for reversible L3 exact approvals (including legacy DB rows at read/consume), not merely protected L4. CLI also refuses unsigned L3 approvals. Synthetic signed WebAuthn and forged legacy-row tests authored. Cross-platform exact-SHA workflow dispatched; not yet established passing.",
+        "tests_executed": false,
+        "gate4_accepted": false
       }
     },
     {
@@ -5392,7 +5434,9 @@
         "ec6bb304db62d630b26d8d6835bcece74e188a8c",
         "62ada59108356658ab8c8f9bab2d818921bec21f",
         "17d871011ad500988ede1f1f3cf8578ce5f34bfd",
-        "bc764a6af3bc8e5867d85e8393ff97d9998a30a6"
+        "bc764a6af3bc8e5867d85e8393ff97d9998a30a6",
+        "6821f04de68ad07c72d3fbf190286cd8dff2d797",
+        "74931fe91413c4697f59e2bb09cdffed99cc3205"
       ],
       "accepted": false,
       "audit_observation": {
@@ -5420,6 +5464,16 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "latest_phase01_02_slice": {
+        "source_review_sha": "88c6d845422928a3fbda2a5d442a8081e415f978",
+        "coding_evidence": [
+          "6821f04de68ad07c72d3fbf190286cd8dff2d797",
+          "74931fe91413c4697f59e2bb09cdffed99cc3205"
+        ],
+        "interpretation": "Canonical operator STOP now rechecked immediately before reflection, ACT delivery and LIFE/Fleet task callbacks after readiness/budget admission. Newly paused pending claims settle and no callback is dispatched. Cannot terminate callbacks already executing; effect handlers still require fresh SAFE gates. Tests authored; no exact-SHA pass yet.",
+        "tests_executed": false,
+        "gate4_accepted": false
       }
     },
     {
@@ -5597,13 +5651,17 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/verify/gate.py",
-        "test/test_verify_gate_contract.py"
+        "test/test_verify_gate_contract.py",
+        ".github/workflows/matrix-tests.yml",
+        ".github/workflows/v18-phase01-02-safe-release-gate.yml"
       ],
       "evidence_commits": [
         "83746a777f4703fdfbd6eec14f18bcf58a72d69e",
         "0464dfac3cd73d833985cd5d016230f7e16549d4",
         "0993e5199ff25dc4a51a76b2cab0abb41741d9bc",
-        "6d7d72151b7c7569ce6d53bbc410f4b0f8c45a78"
+        "6d7d72151b7c7569ce6d53bbc410f4b0f8c45a78",
+        "1fbeb2a9e975ca9a1aa996f33fd7d6ad45153ced",
+        "88c6d845422928a3fbda2a5d442a8081e415f978"
       ],
       "accepted": false,
       "audit_observation": {
@@ -5619,6 +5677,16 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "latest_phase01_02_slice": {
+        "source_review_sha": "88c6d845422928a3fbda2a5d442a8081e415f978",
+        "coding_evidence": [
+          "1fbeb2a9e975ca9a1aa996f33fd7d6ad45153ced",
+          "88c6d845422928a3fbda2a5d442a8081e415f978"
+        ],
+        "interpretation": "Added exact-revision, OS-specific JUnit and Gate 4 artifact outputs, preserving started matrix CI runs across rapid main commits. The canonical ledger is NOT promoted; host/Gaia/Fleet receipts and rollback proof remain open.",
+        "tests_executed": false,
+        "gate4_accepted": false
       }
     },
     {
