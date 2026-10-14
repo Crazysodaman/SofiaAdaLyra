@@ -70,6 +70,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
 }
 
 FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("test_life_objective_parser_bounded.py", ("pkg_core", "pkg_verify")),
     ("test_fleet_build_backend_hash_lock.py", ("pkg_ops", "pkg_verify")),
     ("test_life_state_graph_contract.py", ("pkg_act", "pkg_run")),
     ("test_mobile_continuation_scope.py", ("pkg_ui", "pkg_net", "pkg_social")),
