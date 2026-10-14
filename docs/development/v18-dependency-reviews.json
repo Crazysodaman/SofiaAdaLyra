@@ -1,0 +1,52 @@
+{
+  "schema": "sofia.v18-dependency-review-v1",
+  "reviewed_at_utc": "2026-10-14T19:00:00Z",
+  "note": "Narrow reviewed candidate set only. All other 774 tasks require dependency review before scheduling; no gate is awarded by this file.",
+  "tasks": {
+    "CA-4501": {
+      "complexity": "small",
+      "depends_on": [],
+      "source_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+      "reviewer": "2026-10-14 source triage; independent Gate 1 review pending",
+      "rationale": "Terminology ADR is self-contained and does not require implementation or another task's effect."
+    },
+    "CA-4505": {
+      "complexity": "small",
+      "depends_on": [],
+      "source_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+      "reviewer": "2026-10-14 source triage; independent Gate 1 review pending",
+      "rationale": "Kernel deferral cost/risk comparison is a standalone architecture decision."
+    },
+    "CA-5401": {
+      "complexity": "small",
+      "depends_on": [],
+      "source_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+      "reviewer": "2026-10-14 source triage; independent Gate 1 review pending",
+      "rationale": "Owner has already approved the current user-level operating-layer hosting decision."
+    },
+    "CA-5403": {
+      "complexity": "small",
+      "depends_on": [],
+      "source_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+      "reviewer": "2026-10-14 source triage; independent Gate 1 review pending",
+      "rationale": "Owner has separately approved a future appliance image while deferring its construction."
+    },
+    "CA-5408": {
+      "complexity": "small",
+      "depends_on": [],
+      "source_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+      "reviewer": "2026-10-14 source triage; independent Gate 1 review pending",
+      "rationale": "Explicit kernel scope exclusion does not depend on implementing the optional appliance."
+    },
+    "CA-4503": {
+      "complexity": "medium",
+      "depends_on": [
+        "CA-4501",
+        "CA-5401"
+      ],
+      "source_sha": "1df02e23698c059ab81299b759a3eff9e418ea59",
+      "reviewer": "2026-10-14 source triage; independent Gate 1 review pending",
+      "rationale": "Formal service interface specification needs approved terminology and hosting ownership first."
+    }
+  }
+}
