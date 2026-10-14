@@ -56,10 +56,13 @@ class OllamaProvider(LLMProvider):
         if issue is None:
             return response
 
-        # No tools or external actions are available on this path. Retrying
-        # generates text only; neither candidate is saved by the provider.
-        # A single retry prevents latency spirals while giving generic fallback
-        # completions one explicit chance to obey the grounded conversation state.
+        # Quality retries must not execute or solicit tools. A model response
+        # containing tool calls is returned to the authoritative dispatcher,
+        # not retried by the text-only quality repair path.
+        if response.tool_calls:
+            return response
+        # A single retry prevents latency spirals. Neither candidate is saved
+        # or executed by this provider.
         try:
             alternate = self._respond_once(build_rephrase_request(request, issue=issue))
         except LLMProviderError:
