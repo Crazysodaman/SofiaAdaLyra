@@ -119,3 +119,19 @@ def test_non_topical_recall_can_still_use_recent_bounded_source():
     )
     assert len(result) == 1
     assert result[0].id == "prior-a"
+
+
+@pytest.mark.parametrize(("context", "expected_output"), (
+    (1, 1), (8, 2), (64, 21), (96, 32), (128, 42),
+    (512, 170), (1024, 341),
+))
+def test_phase00_route_output_never_exceeds_configured_context(
+    context, expected_output,
+):
+    from sofia.cognition.budgets import model_token_budget
+    budget = model_token_budget(
+        "verify", configured_context=context, configured_output=5000,
+    )
+    assert budget.context_tokens == context
+    assert budget.output_tokens == expected_output
+    assert 0 < budget.output_tokens <= budget.context_tokens

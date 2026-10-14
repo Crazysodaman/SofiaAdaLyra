@@ -45,6 +45,9 @@ def model_token_budget(
         context = min(context, configured_context)
     if configured_output is not None:
         output = min(output, configured_output)
-    # Leave enough room for at least a small response on constrained models.
-    output = min(output, max(128, context // 3))
+    # The configured output must never be larger than the complete context
+    # budget. The old 128-token floor silently violated this for small
+    # operator-selected windows (e.g. 64-context -> 128 output).
+    # On very small windows, keep a positive but proportionate response.
+    output = min(output, max(1, context // 3))
     return ModelTokenBudget(context, output)

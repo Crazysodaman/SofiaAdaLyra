@@ -66,3 +66,15 @@ gap without fabricating completion.
 The current Venus canonical writer remains sole writer. No secret keys,
 permission grant, production host or Fleet authority is changed. Revert
 requires no data migration. The new audit is independent of canonical state.
+
+
+## CA-1203 additional production budget correction
+
+`model_token_budget()` previously used a 128-token output floor after
+clamping the context budget. With an explicitly configured 64-token
+context, it could request 128 output tokens. The route-aware provider's
+actual `num_predict` now remains within the configured context and
+reserves proportionally less space for tiny windows. This is tested for
+seven small context sizes, including the 1-token edge case. Normal 2048+
+route budget outcomes are preserved. Full evidence-type allocation and
+real provider quality calibration are still separate open requirements.
