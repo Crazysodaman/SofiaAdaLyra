@@ -34,6 +34,8 @@ jobs:
           test/test_conversation_continuity_acceptance.py
           test/test_environment_runtime_projection.py
           test/test_v18_owner_tool_result_authority.py
+          test/test_cognitive_context_assembler.py
+          test/test_memory_runtime_wiring.py
           test/test_v18_phase00_contracts.py
           test/test_v18_companion_baseline.py
           test/test_v18_gate4.py
