@@ -1,3 +1,4 @@
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from threading import Event
 from types import SimpleNamespace
@@ -45,7 +46,7 @@ def infrastructure(tmp_path, *, authorized=True, share_callback=None):
     # The real application bootstraps conversation storage before ACT/INTERACT;
     # LIFE-only tests compose those services directly and must preserve that
     # precondition rather than weakening GoalJournal's fail-closed check.
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.execute("CREATE TABLE IF NOT EXISTS conversation_messages(id TEXT PRIMARY KEY, role TEXT)")
     plane = SQLiteStatePlane(path)
     goals = GoalService(
@@ -268,7 +269,7 @@ def test_interest_learning_rechecks_original_source_inside_atomic_commit(
             if kwargs["outcome"] == "applied" and not mutated:
                 # Simulate another writer changing the original experience
                 # AFTER source verification, before the final interest CAS.
-                with sqlite3.connect(life.path) as db:
+                with closing(sqlite3.connect(life.path)) as db, db:
                     db.execute(
                         "UPDATE life_experience SET summary=? WHERE experience_id=?",
                         ("Changed after the review snapshot.", experience.experience_id),
@@ -292,7 +293,7 @@ def test_interest_learning_rechecks_original_source_inside_atomic_commit(
             item.experience_id == experience.experience_id
             for item in life.store.pending_interest_experiences()
         )
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             assert db.execute(
                 "SELECT COUNT(*) FROM life_interest_learning WHERE experience_id=?",
                 (experience.experience_id,),
@@ -754,7 +755,7 @@ def test_missing_original_interest_evidence_blocks_optional_run(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
         project, evidence = active_project(life, now)
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             db.execute(
                 "DELETE FROM goal_evidence_record WHERE evidence_ref=?",
                 (evidence,),
@@ -794,7 +795,7 @@ def test_queued_optional_creative_job_blocks_after_interest_source_revocation(
             title="Previously queued", specification={"content": "Do not write"},
             evidence_ref=evidence, now=now + timedelta(seconds=3),
         )
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             db.execute(
                 "DELETE FROM goal_evidence_record WHERE evidence_ref=?",
                 (evidence,),
@@ -826,7 +827,7 @@ def test_original_interest_source_loss_during_ideation_rejects_model_draft(tmp_p
         def generate(request):
             calls.append(request)
             # External source revocation races untrusted model latency.
-            with sqlite3.connect(life.path) as db:
+            with closing(sqlite3.connect(life.path)) as db, db:
                 db.execute(
                     "DELETE FROM goal_evidence_record WHERE evidence_ref=?",
                     (evidence,),
@@ -938,7 +939,7 @@ def test_ideation_rejects_original_experience_snapshot_changed_during_model(
         def source_changes_during_model(request):
             observed.append(request)
             import sqlite3
-            with sqlite3.connect(life.path) as db:
+            with closing(sqlite3.connect(life.path)) as db, db:
                 if changed_field == "summary":
                     db.execute(
                         "UPDATE life_experience SET summary=? WHERE experience_id=?",
@@ -2278,7 +2279,7 @@ def test_legacy_duplicate_life_objectives_cannot_complete_or_grant_milestones(
             project.brief,
             objectives=("text_contains:Foxfire", "text_contains:Foxfire"),
         )
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             db.execute(
                 "UPDATE life_project SET brief_json=? WHERE project_id=?",
                 (life.store._brief(ambiguous), project.project_id),
@@ -3134,7 +3135,7 @@ def test_life_causal_trace_refuses_inverted_or_malformed_source_time(
             {"source_state": "not_trusted_before_event"},
         ))
         if source_problem == "invalid_iso":
-            with sqlite3.connect(life.path) as db:
+            with closing(sqlite3.connect(life.path)) as db, db:
                 db.execute(
                     "UPDATE goal_evidence_record SET observed_at=? "
                     "WHERE evidence_ref=?",
