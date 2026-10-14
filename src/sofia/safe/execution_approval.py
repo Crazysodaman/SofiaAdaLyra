@@ -128,13 +128,12 @@ class ExecutionApprovalVerifier:
             raise TypeError("approval must be an ExecutionApproval")
         if approval.approved_by != "Sparks":
             raise PermissionError("non-owner execution approval denied")
-        protected = (
-            capability_permission_policy(approval.capability).level
-            >= PermissionLevel.PROTECTED
-        )
-        if protected and not authentication_event_id:
+        level = capability_permission_policy(approval.capability).level
+        owner_proof_required = level >= PermissionLevel.REVERSIBLE_SCOPED
+        protected = level >= PermissionLevel.PROTECTED
+        if owner_proof_required and not authentication_event_id:
             raise PermissionError(
-                "protected execution requires freshly verified owner FIDO2 authentication"
+                "level-3+ execution requires freshly verified owner FIDO2 authentication"
             )
         if authentication_event_id is not None and (
             not isinstance(authentication_event_id, str)
@@ -259,7 +258,7 @@ class ExecutionApprovalVerifier:
             if row["approved_by"] != "Sparks":
                 continue
             if (
-                capability_permission_policy(row["capability"]).level >= PermissionLevel.PROTECTED
+                capability_permission_policy(row["capability"]).level >= PermissionLevel.REVERSIBLE_SCOPED
                 and not row["owner_proof_bound"]
             ):
                 continue
@@ -329,7 +328,7 @@ class ExecutionApprovalVerifier:
         if row is None or row["consumed_at"] is not None:
             return False
         if (
-            capability_permission_policy(capability).level >= PermissionLevel.PROTECTED
+            capability_permission_policy(capability).level >= PermissionLevel.REVERSIBLE_SCOPED
             and not row["owner_proof_bound"]
         ):
             return False
@@ -412,11 +411,11 @@ class ExecutionApprovalVerifier:
             if row["consumed_at"] is not None:
                 raise PermissionError("execution approval was already consumed")
             if (
-                capability_permission_policy(capability).level >= PermissionLevel.PROTECTED
+                capability_permission_policy(capability).level >= PermissionLevel.REVERSIBLE_SCOPED
                 and not row["owner_proof_bound"]
             ):
                 raise PermissionError(
-                    "protected execution approval lacks verified owner authentication"
+                    "level-3+ execution approval lacks verified owner authentication"
                 )
 
             approval = ExecutionApproval(
