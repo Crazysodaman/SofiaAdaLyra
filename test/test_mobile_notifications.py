@@ -1,5 +1,9 @@
 """Durable paired-phone notification delivery contracts."""
 from datetime import datetime, timedelta, timezone
+import sqlite3
+
+from sofia.act.diagnostics import OutreachTraceStore
+import sofia.mobile.notifications as notification_module
 
 import pytest
 
@@ -135,3 +139,50 @@ def test_delivery_handle_survives_notification_reclaim_and_receipt(tmp_path):
         device_id="phone-second",
         now=NOW + timedelta(minutes=7),
     )
+
+
+def test_act_receipt_failure_rolls_back_notification_ack(tmp_path, monkeypatch):
+    store = _store(tmp_path)
+    store.enqueue(
+        notification_id="act:atomic-ack", title="Sofía",
+        content="Bound to an ACT receipt", created_at=NOW,
+    )
+    store.claim_next(device_id="phone-a", now=NOW)
+    original = notification_module.record_outreach_trace
+
+    def fail_during_same_transaction(*args, **kwargs):
+        raise RuntimeError("simulated crash before commit")
+
+    monkeypatch.setattr(notification_module, "record_outreach_trace", fail_during_same_transaction)
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        store.acknowledge("act:atomic-ack", device_id="phone-a", now=NOW)
+    with sqlite3.connect(store.path) as db:
+        assert db.execute(
+            "SELECT status FROM mobile_notification WHERE notification_id=?",
+            ("act:atomic-ack",),
+        ).fetchone()[0] == "claimed"
+    assert OutreachTraceStore(store.path).history(notice_id="atomic-ack") == ()
+
+    monkeypatch.setattr(notification_module, "record_outreach_trace", original)
+    store.acknowledge("act:atomic-ack", device_id="phone-a", now=NOW)
+    assert len(OutreachTraceStore(store.path).history(notice_id="atomic-ack")) == 1
+
+
+def test_ack_retry_repairs_legacy_missing_act_trace_without_duplicate(tmp_path):
+    store = _store(tmp_path)
+    store.enqueue(
+        notification_id="act:lost-ack-trace", title="Sofía",
+        content="The first trace was lost", created_at=NOW,
+    )
+    store.claim_next(device_id="phone-a", now=NOW)
+    store.acknowledge("act:lost-ack-trace", device_id="phone-a", now=NOW)
+    with sqlite3.connect(store.path) as db:
+        db.execute(
+            "DELETE FROM act_outreach_trace WHERE notice_id=?",
+            ("lost-ack-trace",),
+        )
+    store.acknowledge("act:lost-ack-trace", device_id="phone-a", now=NOW)
+    store.acknowledge("act:lost-ack-trace", device_id="phone-a", now=NOW)
+    traces = OutreachTraceStore(store.path).history(notice_id="lost-ack-trace")
+    assert len(traces) == 1
+    assert traces[0].recipient_confirmed
