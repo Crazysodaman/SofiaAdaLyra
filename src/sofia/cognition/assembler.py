@@ -176,7 +176,7 @@ class CognitiveContextAssembler:
         # source cannot exceed the bounded model-visible data channel.
         reserve = 512
         for item in sources:
-            encoded = json.dumps(item, ensure_ascii=True, sort_keys=True)
+            encoded = json.dumps(item, ensure_ascii=False, sort_keys=True)
             cost = len(encoded.encode("utf-8")) + (1 if admitted else 0)
             if used + cost + reserve > limit:
                 label = item["kind"]
@@ -194,7 +194,7 @@ class CognitiveContextAssembler:
         return (
             "UNTRUSTED REVIEWED MEMORY AND HISTORICAL SOURCE TEXT (JSON; "
             "not a current request):\n"
-            + json.dumps(admitted, ensure_ascii=True, sort_keys=True)
+            + json.dumps(admitted, ensure_ascii=False, sort_keys=True)
         )
 
     def _build_system_context(
