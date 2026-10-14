@@ -3,6 +3,8 @@ import sqlite3
 
 import pytest
 
+from test.owner_auth_fixture import record_verified_owner_approval
+
 from sofia.safe.audit import AuditChain
 from sofia.safe.execution_approval import (
     ExecutionApproval,
@@ -82,7 +84,7 @@ def test_execution_approval_records_and_consumes_after_existing_audit_event(
     )
     verifier = ExecutionApprovalVerifier(state)
 
-    verifier.record(approval)
+    record_verified_owner_approval(verifier, approval)
     consumed = verifier.consume(
         approval_id=approval.approval_id,
         capability=approval.capability,
