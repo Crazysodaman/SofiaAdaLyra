@@ -1,0 +1,58 @@
+name: V18 Companion Baseline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v18-companion-baseline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install the same project used for package verification
+        run: python -m pip install -e . pytest
+
+      - name: Run exact Phase 00 baseline contract tests
+        run: python -m pytest -q test/test_v18_companion_baseline.py
+
+      - name: Capture exact commit's deterministic application baseline
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: >-
+          python -m sofia.verify.v18_companion_baseline
+          --repo .
+          --expected-revision "$EXPECTED_SHA"
+          --output v18-companion-baseline.json
+        shell: bash
+
+      - name: Store revision-bound baseline (not live acceptance)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: v18-companion-baseline-${{ matrix.os }}-${{ github.sha }}
+          path: v18-companion-baseline.json
+          if-no-files-found: warn
+          retention-days: 30
