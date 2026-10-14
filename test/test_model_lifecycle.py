@@ -581,3 +581,10 @@ def test_shared_model_kept_for_secondary_is_not_unloaded_as_primary():
         protected_roles={CognitiveModelRole.SECONDARY},
     ) == ()
     assert backend.resident == {model}
+
+
+def test_missing_model_inventory_has_no_reported_sizes():
+    from sofia.cognition.model_lifecycle import _model_sizes
+
+    assert _model_sizes(None) == {}
+    assert _model_sizes({"models": None}) == {}
