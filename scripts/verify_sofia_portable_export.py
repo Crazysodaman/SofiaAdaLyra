@@ -37,6 +37,16 @@ def _reject_json_constant(value: str) -> None:
     raise ValueError("non-finite JSON number is forbidden")
 
 
+def _unique_object_fields(pairs: list[tuple[str, object]]) -> dict:
+    """Reject ambiguous JSON. Checksums do not establish field semantics."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate portable JSON field")
+        result[key] = value
+    return result
+
+
 def _require_nonempty_text(item: dict, field: str) -> None:
     value = item.get(field)
     if not isinstance(value, str) or not value:
@@ -77,6 +87,7 @@ def verify_portable_export(
                 record = json.loads(
                     raw.decode("utf-8"),
                     parse_constant=_reject_json_constant,
+                    object_pairs_hook=_unique_object_fields,
                 )
             except (UnicodeDecodeError, ValueError) as exc:
                 raise ValueError(
@@ -91,6 +102,13 @@ def verify_portable_export(
                 if record.get("privacy") != "ALL_AUDIENCES_SENSITIVE_PLAINTEXT":
                     raise ValueError("portable export privacy label is missing")
                 _require_nonempty_text(record, "created_at")
+                if (
+                    record.get("authority")
+                    != "offline_operator_export_not_a_channel_grant"
+                    or record.get("source")
+                    != "verified_offline_canonical_sqlite"
+                ):
+                    raise ValueError("portable export authority/source labels invalid")
                 digest.update(raw)
                 continue
             if kind == "footer":
@@ -113,11 +131,19 @@ def verify_portable_export(
                     "currently_bound", "unbound_not_authorized",
                 ):
                     raise ValueError("unknown original binding classification")
+                binding_fields = ("principal_id", "audience_id", "audience_kind")
+                if record["binding"] == "currently_bound":
+                    for field in binding_fields:
+                        _require_nonempty_text(record, field)
+                elif any(record.get(field) is not None for field in binding_fields):
+                    raise ValueError("unbound original has audience credentials")
             elif kind == "thread":
                 for field in (
                     "thread_id", "owner_principal_id", "kind", "name", "created_at",
                 ):
                     _require_nonempty_text(record, field)
+                if record.get("access") != "catalog_not_a_cross_channel_grant":
+                    raise ValueError("portable thread catalog access label invalid")
             elif kind == "thread_source_link":
                 for field in (
                     "thread_id", "source_message_id", "source_session_id",
@@ -130,6 +156,13 @@ def verify_portable_export(
                 ):
                     if type(record.get(field)) is not bool:
                         raise ValueError("source availability labels must be booleans")
+                if record.get("access") != "reference_only_not_an_authorization":
+                    raise ValueError("portable link access label invalid")
+                if (
+                    record["current_source_audience_matches"]
+                    and not record["current_original_available"]
+                ):
+                    raise ValueError("missing original cannot match source audience")
             counts[kind] += 1
             digest.update(raw)
         if footer is None:
