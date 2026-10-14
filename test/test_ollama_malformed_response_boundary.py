@@ -214,3 +214,15 @@ def test_valid_bounded_nested_tool_arguments_keep_original_values():
         "nested": {"path": "café", "flags": [True, None, 3.5]},
     }
     assert result.tool_calls[0].call_id == "call-valid"
+
+
+def test_ollama_rejects_unpaired_surrogate_content_before_persistence():
+    model = SimpleNamespace(message=SimpleNamespace(
+        content="unpaired " + chr(0xD800), tool_calls=(),
+    ))
+    provider = OllamaProvider(
+        create_default_configuration().provider,
+        client=MalformedClient(model),
+    )
+    with pytest.raises(LLMProviderError, match="Unicode"):
+        provider.respond(CognitiveRequest(messages=()))

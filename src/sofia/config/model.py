@@ -1,4 +1,5 @@
 ﻿from dataclasses import dataclass, field
+import math
 from typing import Any
 from pathlib import Path
 
@@ -41,27 +42,24 @@ class ProviderConfiguration:
             )
 
         if self.temperature is not None:
-            if not isinstance(
-                self.temperature,
-                (int, float),
-            ):
+            if type(self.temperature) not in (int, float):
                 raise TypeError(
                     "ProviderConfiguration temperature must be numeric or None."
                 )
 
-            if self.temperature < 0:
+            if not math.isfinite(self.temperature) or self.temperature < 0:
                 raise ValueError(
-                    "ProviderConfiguration temperature must be >= 0."
+                    "ProviderConfiguration temperature must be finite and >= 0."
                 )
 
         if self.seed is not None:
-            if not isinstance(self.seed, int):
+            if type(self.seed) is not int:
                 raise TypeError(
                     "ProviderConfiguration seed must be an int or None."
                 )
 
         if self.context_size is not None:
-            if not isinstance(self.context_size, int):
+            if type(self.context_size) is not int:
                 raise TypeError(
                     "ProviderConfiguration context_size must be an int or None."
                 )
@@ -72,7 +70,7 @@ class ProviderConfiguration:
                 )
 
         if self.max_output_tokens is not None:
-            if not isinstance(self.max_output_tokens, int):
+            if type(self.max_output_tokens) is not int:
                 raise TypeError(
                     "ProviderConfiguration max_output_tokens must be an int or None."
                 )

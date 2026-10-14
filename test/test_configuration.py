@@ -360,3 +360,14 @@ def test_filesystem_root_must_be_path():
             ),
             filesystem_root=".",
         )
+
+@pytest.mark.parametrize("value", (float("nan"), float("inf"), float("-inf"), True))
+def test_provider_configuration_rejects_invalid_temperature(value):
+    with pytest.raises((TypeError, ValueError)):
+        ProviderConfiguration(provider="ollama", model="test", temperature=value)
+
+
+@pytest.mark.parametrize("field", ("seed", "context_size", "max_output_tokens"))
+def test_provider_configuration_rejects_boolean_numeric_controls(field):
+    with pytest.raises(TypeError):
+        ProviderConfiguration(provider="ollama", model="test", **{field: True})

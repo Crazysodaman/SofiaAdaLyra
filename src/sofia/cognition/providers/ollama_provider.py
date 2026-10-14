@@ -264,6 +264,12 @@ class OllamaProvider(LLMProvider):
         # Reject invalid content before quality-repair or persistence paths.
         if not isinstance(content, str):
             raise LLMProviderError("Ollama returned non-text response content.")
+        try:
+            # SQLite, IPC and Ollama transports require serializable UTF-8.
+            # A lone surrogate is not a safe persisted model response.
+            content.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise LLMProviderError("Ollama returned invalid Unicode response content.") from exc
         raw_tool_calls = getattr(message, "tool_calls", None)
         if raw_tool_calls is None:
             raw_tool_calls = ()
