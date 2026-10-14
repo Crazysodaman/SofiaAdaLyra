@@ -98,6 +98,12 @@ def test_act_graph_contract_requires_real_turn_neuro_key_guard_not_literal_false
     assert "neuro_turn_correlated=neuro_turn_snapshot is not None" in code
     assert "self._current_neuro_message_id != message_id" in service
     assert "self._current_matrix_message_id != message_id" in service
+    contract = (ROOT / "docs/development/companion-autonomy-contract.md").read_text(
+        encoding="utf-8",
+    )
+    assert "`neuro_turn_correlated=False`" not in contract
+    assert "exact current-message NEURO observation" in contract
+    assert "does not prove NEURO caused the reply" in contract
 
 
 def test_catalog_has_no_duplicate_or_misclassified_test_marker():
