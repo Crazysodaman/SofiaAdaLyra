@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 from uuid import uuid4
@@ -143,13 +143,28 @@ class OperatorStopStore:
                 raise RuntimeError("operator stop row missing; cannot audit transition")
             if not active and previous[1] != expected_updated_at:
                 raise PermissionError("new operator stop revision superseded resume approval")
+            # The ISO timestamp is also the compare-and-swap revision used
+            # by signed resume requests. Two operator STOPs inside one clock
+            # tick (or across a backwards host-clock adjustment) must NEVER
+            # reuse a revision and revive a stale signed resume.
+            # Keep real wall-clock time in the append-only audit event.
+            previous_revision = datetime.fromisoformat(previous[1])
+            if previous_revision.tzinfo is None or previous_revision.utcoffset() is None:
+                raise RuntimeError("invalid operator STOP revision; fail closed")
+            previous_revision = previous_revision.astimezone(timezone.utc)
+            requested_revision = moment.astimezone(timezone.utc)
+            revision = (
+                requested_revision
+                if requested_revision > previous_revision
+                else previous_revision + timedelta(microseconds=1)
+            )
             changed = db.execute("""
                 UPDATE safe_operator_stop
                 SET active=?,updated_at=?,updated_by=?,reason=?
                 WHERE singleton=1
             """,(
                 1 if active else 0,
-                moment.astimezone(timezone.utc).isoformat(),
+                revision.isoformat(),
                 updated_by,
                 reason.strip(),
             ))
