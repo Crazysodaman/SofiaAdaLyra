@@ -204,6 +204,12 @@ def test_run_and_act_adapters_preserve_error_and_receipt_semantics():
 
 def test_companion_trace_accepts_only_typed_selected_sources_and_outcomes(tmp_path):
     state, matrix = _fixture(tmp_path)
+    matrix = replace(
+        matrix, evidence=EvidenceMatrix(records=(
+            EvidenceRecord("goal", EvidenceState.AVAILABLE, "goal:one"),
+            EvidenceRecord("act", EvidenceState.AVAILABLE, "message:one"),
+        )),
+    )
     selected = EventOwnershipProjection(
         schema_version=1, event_id="goal-event:one",
         owner=CanonicalEventOwner.GOALS, source_id="goal-event:one",
@@ -233,4 +239,32 @@ def test_companion_trace_accepts_only_typed_selected_sources_and_outcomes(tmp_pa
         project_companion_decision(
             matrix_trace=matrix, neuro_snapshot=None,
             selected_goal_event=foreign,
+        )
+
+
+def test_trace_refuses_unrelated_goal_and_act_receipts(tmp_path):
+    state, matrix = _fixture(tmp_path)
+    foreign_goal = EventOwnershipProjection(
+        schema_version=1, event_id="goal-event:unrelated",
+        owner=CanonicalEventOwner.GOALS, source_id="goal-event:unrelated",
+        subject_id="goal:unrelated", principal_id=None, audience_id=None,
+        observed_at=NOW, goal_id="goal:unrelated",
+    )
+    foreign_act = project_act_delivery(
+        BoundMessage(
+            "message:unrelated", "goal:unrelated", "evidence:one",
+            "not projected", NOW, "recipient:one", "discord", "channel:one",
+            NOW + timedelta(minutes=5),
+        ),
+        send_result=SendResult(DeliveryOutcome.DELIVERED, "ack:unrelated"),
+    )
+    with pytest.raises(ValueError, match="same-turn source reference"):
+        project_companion_decision(
+            matrix_trace=matrix, neuro_snapshot=None,
+            selected_goal_event=foreign_goal,
+        )
+    with pytest.raises(ValueError, match="same-turn source reference"):
+        project_companion_decision(
+            matrix_trace=matrix, neuro_snapshot=None,
+            outcome_events=(foreign_act,),
         )

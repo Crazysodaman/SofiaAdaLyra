@@ -187,6 +187,28 @@ def project_companion_decision(
         ):
             raise PermissionError("decision event crosses principal/audience scope")
 
+    # Typed event wrappers prove their own source shape, not that an unrelated
+    # event participated in this turn.  A causal projection needs at least
+    # one explicit ID reference in the already-persisted Matrix evidence or
+    # source-owned canonical response evidence.  Never attach by timestamp.
+    linked_refs = {
+        record.source_ref
+        for record in (() if matrix_trace.evidence is None
+                       else matrix_trace.evidence.records)
+        if record.source_ref is not None
+    }
+    if canonical_persistence is not None:
+        linked_refs.update(canonical_persistence.response_evidence_refs)
+    for event in selected_events:
+        source_keys = {event.event_id, event.source_id,
+                       event.goal_id, event.project_id}
+        if not source_keys.intersection(linked_refs):
+            raise ValueError("selected decision event lacks same-turn source reference")
+    for event in outcome_events:
+        source_keys = {event.event_id, event.source_id, event.action_id}
+        if not source_keys.intersection(linked_refs):
+            raise ValueError("outcome event lacks same-turn source reference")
+
     refs: list[str] = []
     if matrix_trace.evidence is not None:
         for item in matrix_trace.evidence.records:
