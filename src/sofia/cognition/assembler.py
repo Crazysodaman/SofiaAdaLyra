@@ -153,6 +153,11 @@ class CognitiveContextAssembler:
                 ),
                 "content": evidence.content,
             })
+        for result in context.filesystem_results:
+            sources.append({
+                "kind": "filesystem_inspection_result",
+                "lines": format_filesystem_result(result),
+            })
         if not sources:
             return None
         return (
@@ -644,10 +649,9 @@ class CognitiveContextAssembler:
                 ]
             )
 
-            for result in context.filesystem_results:
-                sections.extend(
-                    format_filesystem_result(result)
-                )
-
+            # Tool output, file bytes, external paths and diagnostic
+            # messages are untrusted data even if the filesystem operation
+            # itself was authorized. Preserve exact formatter output in
+            # the separate USER-role JSON quotation, never SYSTEM.
 
         return "\n".join(sections)
