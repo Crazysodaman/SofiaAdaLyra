@@ -177,7 +177,8 @@ class CognitiveContextAssembler:
         reserve = 512
         for item in sources:
             encoded = json.dumps(item, ensure_ascii=False, sort_keys=True)
-            cost = len(encoded.encode("utf-8")) + (1 if admitted else 0)
+            # json.dumps() default separators render array commas as ", ".
+            cost = len(encoded.encode("utf-8")) + (2 if admitted else 0)
             if used + cost + reserve > limit:
                 label = item["kind"]
                 skipped[label] = skipped.get(label, 0) + 1

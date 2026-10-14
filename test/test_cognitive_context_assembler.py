@@ -854,3 +854,29 @@ def test_source_budget_prefers_reviewed_memory_over_bulk_historical_data():
     assert data[1]["kind"] == "source_budget_omission"
     assert "history:huge" not in messages[0].content
     assert len(messages[1].content.encode("utf-8")) < 9000
+
+
+def test_many_short_memories_never_overflow_fast_source_json_ceiling():
+    records = tuple(
+        MemoryRecord(
+            id=f"memory:{i}", content=f"Fact {i}: source-backed.",
+            created_at=datetime.now(timezone.utc),
+        )
+        for i in range(700)
+    )
+    context = CognitiveContext(
+        request=CognitiveRequest(messages=(
+            CognitiveMessage(role=CognitiveRole.USER, content="Recall one fact."),
+        ), route_hint="fast"),
+        memories=records,
+    )
+    assembled = CognitiveContextAssembler().assemble(context)
+    assert len(assembled.messages) == 3
+    json_body = assembled.messages[1].content.split("\n", 1)[1]
+    assert len(json_body.encode("utf-8")) <= 8192
+    sources = json.loads(json_body)
+    assert sources
+    assert sources[0]["source_id"] == "memory:0"
+    assert sources[-1]["kind"] == "source_budget_omission"
+    assert sources[-1]["omitted_counts"]["explicit_memory"] > 0
+    assert sources[-1]["source_content_available"] is False
