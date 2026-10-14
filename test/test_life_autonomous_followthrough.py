@@ -397,19 +397,19 @@ def test_life_completed_receipt_must_match_original_sha_and_size(tmp_path, monke
             assert not life._confirmed_artifact_run_receipt(project, **kwargs)
             monkeypatch.setattr(life.work_store, "get", real_get)
 
-        original_latest = life.creative_store.latest
+        original_latest = life.creative_store.history
         canonical = original_latest(
             artifact_id, "sofia", project.audience_id,
-        )
+        )[0]
         assert canonical is not None
         monkeypatch.setattr(
-            life.creative_store, "latest",
-            lambda *args, **kwargs: replace(
+            life.creative_store, "history",
+            lambda *args, **kwargs: (replace(
                 canonical, content_sha256="0" * 64,
-            ),
+            ),),
         )
         assert not life._confirmed_artifact_run_receipt(project, **kwargs)
-        monkeypatch.setattr(life.creative_store, "latest", original_latest)
+        monkeypatch.setattr(life.creative_store, "history", original_latest)
 
         reviewed = life.tick(now=now + timedelta(minutes=2))
         assert reviewed["follow_through"] == "independently_completed"

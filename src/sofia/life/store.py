@@ -747,7 +747,7 @@ class LifeStore:
                 LEFT JOIN life_interest_learning learning
                   ON learning.experience_id=experience.experience_id
                 WHERE learning.experience_id IS NULL
-                ORDER BY experience.recorded_at,experience.experience_id LIMIT ?""",
+                ORDER BY (experience.kind != 'artifact_evaluated'),experience.recorded_at,experience.experience_id LIMIT ?""",
                 (limit,),
             ).fetchall()
         return tuple(ExperienceRecord(

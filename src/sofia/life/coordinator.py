@@ -2794,9 +2794,14 @@ class SelfDirectedLifeCoordinator:
                 continue
             job = self.work_store.get(job_id)
             result = job.result if isinstance(job.result, dict) else {}
-            artifact = self.creative_store.latest(
-                artifact_id, SOFIA_CREATIVE_OWNER, project.audience_id,
-            )
+            # Resolve the exact historical revision rather than latest:
+            # publishing a second draft must not invalidate earlier RUN proof.
+            artifact = next((
+                item for item in self.creative_store.history(
+                    artifact_id, SOFIA_CREATIVE_OWNER, project.audience_id,
+                ) if item.revision == revision
+                and item.project_id == project.project_id
+            ), None)
             # RUN's result must name the same immutable content revision as
             # the scoped creative store. A completed flag or attached receipt
             # without matching original bytes is never a proof of work.

@@ -586,6 +586,12 @@ def test_unsatisfactory_artifact_can_be_revised_and_opinion_changes(tmp_path):
         assert life.creative_store.latest(
             artifact_id, "sofia", "local:text",
         ).revision == 2
+        assert life._confirmed_artifact_run_receipt(
+            project, artifact_id=artifact_id,
+            revision=int(first_job.result["revision"]),
+            evidence_ref=str(first_job.result["evidence_ref"]),
+            now=now + timedelta(seconds=7),
+        )
         life.evaluate_artifact(
             project.project_id, artifact_id=artifact_id,
             technical_outcome=TechnicalOutcome.INCONCLUSIVE,
@@ -3240,5 +3246,39 @@ def test_phase09_active_project_retains_source_and_goal_authority(tmp_path):
         assert life.compare_optional_choices(
             now=at, busy=False, resource_pressure=0.0
         )["selected_project_id"] == project.project_id
+    finally:
+        life.close()
+
+
+def test_review_priority_does_not_starve_interest_learning(tmp_path):
+    """One bounded tick reaches a reviewed artifact amid unrelated experiences."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        for index in range(30):
+            life._experience(
+                project=project, kind="unrelated-observation",
+                summary=f"Unrelated observation {index}",
+                evidence_refs=(evidence,), now=now + timedelta(seconds=2),
+                metadata={"index": index},
+            )
+        record_interest_signal(
+            life, project, evidence_ref=evidence,
+            judgment=PersonalJudgment.LIKE,
+            when=now + timedelta(seconds=3),
+        )
+        first = life.learn_from_experiences(
+            now=now + timedelta(seconds=4), limit=8,
+        )
+        assert first["applied"] == 1
+        assert first["ineligible"] == 7
+        second = life.learn_from_experiences(
+            now=now + timedelta(seconds=5), limit=8,
+        )
+        assert second["applied"] == 0
+        assert second["ineligible"] == 8
+        assert life.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        ).revision == 2
     finally:
         life.close()
