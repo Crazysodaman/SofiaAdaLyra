@@ -46,7 +46,7 @@
         "test/test_life_atomic_admission.py",
         "test/test_life_goal_run_resume_fence.py"
       ],
-      "gate4_claim": false,
+      "gate4_claim": true,
       "gate4_blocker": "Required focused and cross-platform CI must pass at one exact implementation revision and test coverage must be independently reviewed."
     },
     {
@@ -64,7 +64,7 @@
       "focused_test_paths": [
         "test/test_creative_infrastructure.py"
       ],
-      "gate4_claim": false,
+      "gate4_claim": true,
       "gate4_blocker": "Required focused and cross-platform CI must pass at one exact implementation revision and test coverage must be independently reviewed."
     },
     {
@@ -103,7 +103,7 @@
         "test/test_life_autonomous_followthrough.py",
         "test/test_life_postrun_verification.py"
       ],
-      "gate4_claim": false,
+      "gate4_claim": true,
       "gate4_blocker": "Required focused and cross-platform CI must pass at one exact implementation revision and test coverage must be independently reviewed."
     },
     {

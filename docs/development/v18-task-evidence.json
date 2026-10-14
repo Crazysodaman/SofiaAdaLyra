@@ -2838,7 +2838,46 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 1
+        },
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 2
+        },
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 3
+        },
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 4,
+          "ci": {
+            "run_id": 38497096964,
+            "head_sha": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_life_atomic_admission.py",
+              "test/test_life_goal_run_resume_fence.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-2205",
@@ -3387,7 +3426,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 1
+        },
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 2
+        },
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 3
+        },
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 4,
+          "ci": {
+            "run_id": 38497096964,
+            "head_sha": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_creative_infrastructure.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3002",
@@ -12921,7 +12998,47 @@
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence",
         "phase_audit_report": "docs/development/v18-workstream-3-phase09-source-audit-2026-10-11.md"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 1
+        },
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 2
+        },
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 3
+        },
+        {
+          "revision": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+          "sha256": "486a51a4cafdae4e6e7af4ca99914c26856c8eaab9a43d93ebcdfe7a53bf16f5",
+          "evidence_path": "docs/development/v18-gate4-batch50-proof-3975fac.txt",
+          "reviewer": "Independent source and CI review 2026-10-13",
+          "gate": 4,
+          "ci": {
+            "run_id": 38497096964,
+            "head_sha": "3975fac43a6956d069a70eaa1ff31b7ef81fcc09",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_life_autonomous_followthrough.py",
+              "test/test_life_postrun_verification.py",
+              "test/test_life_verified_milestone_production.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-104",

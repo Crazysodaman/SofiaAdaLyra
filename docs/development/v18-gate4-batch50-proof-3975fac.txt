@@ -1,0 +1,16 @@
+V18 Gate 4 evidence for CA-2204, CA-3001, CA-103
+Reviewed implementation revision: 3975fac43a6956d069a70eaa1ff31b7ef81fcc09
+Functional GitHub Actions run: 38497096964
+Linux: 97 passed. Windows: 97 passed.
+Reviewer: independent source and CI review, 2026-10-13.
+
+CA-2204: LIFE coordinator schedules RUN with same-SQLite after_enqueue; provisioning checks canonical project revision, one-use request digest, existing active work, and linked job. Tested transactional precommit rollback, post-LIFE-inserts rollback, lost committed-acknowledgment restart, duplicate block and uncertain-outcome block in test_life_atomic_admission.py. No second job writer.
+
+CA-3001: Creative paths are safe SHA-derived components independent of colon-bearing canonical SQLite identifiers. test_creative_infrastructure.py covers six Windows/path/identity cases including symlinks, content addresses, restart and audience scope. Both CI OS checkouts verify the exact reviewed revision; no Venus deployment claimed.
+
+CA-103: Production SelfDirectedLifeCoordinator.tick calls _settle_personal_project after actual completed RUN receipt. Tests test_life_autonomous_followthrough.py, test_life_postrun_verification.py and test_life_verified_milestone_production.py verify automatic review, restart replay, abstention, idempotency and no bogus success.
+
+Gates 1-2: original specified behavior and production caller wiring verified in the named source paths.
+Gate 3: source-to-effect and failure/authority/restart review completed; no critical gap found within these three limited task contracts.
+Gate 4: named exact-revision CI test selection passed in both operating systems, independently cross-checked against workflow job logs.
+This certificate does not cover the remaining 47 batch items; it does not assert live host acceptance or final production promotion.

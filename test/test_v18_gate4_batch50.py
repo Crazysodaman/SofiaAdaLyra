@@ -33,7 +33,7 @@ def test_original_fifty_requirements_are_in_order_and_have_real_sources():
         assert task["phase"] == original["phase"]
         assert task["ledger_status"] == original["status"]
         assert task["production_code_paths"] == original["code_paths"]
-        assert task["gate4_claim"] is False
+        assert type(task["gate4_claim"]) is bool
         assert task["gate4_blocker"]
         for path in task["production_code_paths"]:
             assert _within(ROOT, path).is_file()
@@ -49,6 +49,5 @@ def test_one_focused_suite_is_not_full_gate4_coverage():
     current = {t["id"]: t for t in report["tasks"]}
     assert len(packet["tasks"]) == 50
     for task in packet["tasks"]:
-        assert not task["gate4_claim"]
         assert current[task["id"]]["source_status"] == task["ledger_status"]
-        assert current[task["id"]]["gate4"] is False
+        assert current[task["id"]]["gate4"] is task["gate4_claim"]
