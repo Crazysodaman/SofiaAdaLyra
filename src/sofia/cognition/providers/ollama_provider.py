@@ -116,7 +116,17 @@ class OllamaProvider(LLMProvider):
             context_budget=budget.context_tokens,
             output_budget=budget.output_tokens,
         )
-        return self._response_from_ollama(response)
+        # A malformed provider payload is an outage, not an assistant answer.
+        # Keep provider internals out of user-facing errors and never execute
+        # partially decoded tool calls.
+        try:
+            return self._response_from_ollama(response)
+        except LLMProviderError:
+            raise
+        except (AttributeError, TypeError, ValueError, KeyError) as exc:
+            raise LLMProviderError(
+                "Ollama returned a malformed cognitive response."
+            ) from exc
 
     def _build_chat_kwargs(
         self, *, request: CognitiveRequest, messages: list[dict], tools: list[dict],
