@@ -41,6 +41,8 @@ jobs:
           test/test_creative_infrastructure.py
           test/test_verify_release_stage_git_tree.py
           test/test_life_autonomous_followthrough.py
+          test/test_life_project_forge.py
+          test/test_life_procedure_catalog.py
           test/test_life_postrun_verification.py
           test/test_life_verified_milestone_production.py
           test/test_life_goal_run_resume_fence.py
