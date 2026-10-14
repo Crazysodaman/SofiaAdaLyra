@@ -22,6 +22,8 @@ class MalformedClient:
     SimpleNamespace(message=None),
     SimpleNamespace(message=SimpleNamespace(content=123, tool_calls=())),
     SimpleNamespace(message=SimpleNamespace(content="", tool_calls=(None,))),
+    SimpleNamespace(message=SimpleNamespace(content="", tool_calls="bad")),
+    SimpleNamespace(message=SimpleNamespace(content="", tool_calls=123)),
 ])
 def test_malformed_ollama_payload_raises_provider_error(payload):
     provider = OllamaProvider(
