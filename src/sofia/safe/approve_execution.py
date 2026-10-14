@@ -56,13 +56,14 @@ def main(argv: list[str] | None = None) -> int:
             if args.state_path
             else production_state_path()
         )
-        if capability_permission_policy(args.capability).level >= PermissionLevel.PROTECTED:
+        policy = capability_permission_policy(args.capability)
+        if policy.level >= PermissionLevel.REVERSIBLE_SCOPED:
             if not args.credential_id:
                 raise PermissionError(
-                    "protected operation requires --credential-id and fresh FIDO2 verification"
+                    "level-3+ execution requires --credential-id and fresh FIDO2 verification"
                 )
             if args.ttl_seconds > 900:
-                raise ValueError("protected approval TTL cannot exceed 900 seconds")
+                raise ValueError("level-3+ approval TTL cannot exceed 900 seconds")
             approval = authorize_exact_action(
                 state_path, capability=args.capability, parameters=parameters,
                 credential_id=args.credential_id,
