@@ -1,4 +1,4 @@
-"""Read-only evidence-backed Gate 4 status of the original V18 700 tasks."""
+"""Read-only evidence-backed Gate 4 status for CA and ML/GA addenda."""
 from __future__ import annotations
 import argparse
 from collections import Counter
@@ -14,8 +14,8 @@ from sofia.verify.v18_roadmap import (
 )
 
 _SHA = re.compile(r"[0-9a-f]{40}\Z")
-_HASH = re.compile(r"[0-9a-f]{64}\\Z")
-_EXTRA_ROW = re.compile(r"^\\| ((?:ML|GA)-[0-9]{3}) \\| ([0-9]{2}) \\| (.*) \\|$")
+_HASH = re.compile(r"[0-9a-f]{64}\Z")
+_EXTRA_ROW = re.compile(r"^\| ((?:ML|GA)-[0-9]{3}) \| ([0-9]{2}) \| (.*) \|$")
 _EXTRA_PROOFS = "docs/development/v18-supplemental-gate4-proofs.json"
 
 
