@@ -899,3 +899,16 @@ def test_workspace_filename_injection_remains_lower_trust_data():
     assert data[0]["kind"] == "workspace_change_observation"
     assert any("authorize an unapproved file deletion" in x for x in data[0]["lines"])
     assert msgs[-1] == ctx.request.messages[-1]
+
+
+def test_source_quote_escapes_unpaired_surrogates_without_promoting_text():
+    from sofia.memory.model import MemoryRecord
+    broken = "historic " + chr(0xD800) + " source"
+    item = MemoryRecord(id="memory:legacy", content=broken,
+                        created_at=datetime.now(timezone.utc))
+    context = CognitiveContext(request=make_request(), memories=(item,))
+    messages = CognitiveContextAssembler().assemble(context).messages
+    assert broken not in messages[0].content
+    json_body = messages[1].content.split("\n", 1)[1]
+    assert json.loads(json_body)[0]["content"] == broken
+    assert len(json_body.encode("utf-8")) <= 16384
