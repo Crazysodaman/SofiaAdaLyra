@@ -44,5 +44,11 @@ def test_life_decision_contract_refuses_second_scheduler_or_false_neuro_link():
     assert "read-only projection" in document
     assert "Never automatically retry an effect" in document
     diagnostics = _read("src/sofia/application/decision_trace.py")
-    assert "neuro_turn_correlated=False" in diagnostics
+    # Explicit same-turn NEURO observation may be attributed, but a global
+    # latest snapshot is not evidence of causal consumption or execution.
+    assert "neuro_turn_correlated=neuro_turn_snapshot is not None" in diagnostics
+    assert "if neuro_turn_snapshot is not None" in diagnostics
+    conversation = _read("src/sofia/application/conversation_service.py")
+    assert "self._current_neuro_message_id != message_id" in conversation
+    assert "self._current_matrix_message_id != message_id" in conversation
     assert "objective_verified: bool = False" in diagnostics

@@ -8,7 +8,7 @@ from sofia.cognition.model_admission import (
 )
 
 
-pytestmark = pytest.mark.pkg_cognition
+pytestmark = pytest.mark.pkg_core
 
 
 def reviewed(model="owner/candidate"):

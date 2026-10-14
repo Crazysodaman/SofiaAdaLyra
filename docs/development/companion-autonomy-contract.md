@@ -89,7 +89,7 @@ Priority order: active user intent and protected instructions; fresh authoritati
 
 ## Decision tracing: limited, truthful first implementation
 
-`SofiaApplication.latest_companion_decision_trace()` provides a content-minimal view over the current session's *existing* Matrix trace and the latest NEURO snapshot. `neuro_turn_correlated` is **false**, because a timestamp from another subsystem does not demonstrate causal participation in this turn. LIFE/GOALS/ACT and final verified outcomes are **unset**, not invented. No writes, permissions or model calls are involved. Future explicit event correlation may enrich this view only after verifying source IDs and audiences.
+`SofiaApplication.latest_companion_decision_trace()` provides a content-minimal read-only projection over existing Matrix, conversation, SOCIAL and authenticated stable-turn settlement records. It can attribute an **in-process NEURO observation** only when the conversation service's current NEURO message ID and Matrix message ID equal the exact user event; the latest global NEURO timestamp alone is not proof. Verified canonical response persistence is distinct from transport delivery, actual action execution and independently validated objective completion. LIFE/GOALS/ACT outcomes remain **unset**, not invented. No new authority or state ledger is created. On restart a missing ephemeral NEURO correlation remains unknown, not retrospectively inferred.
 
 ## Failure policy and model outage
 

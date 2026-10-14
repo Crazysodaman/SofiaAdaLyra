@@ -1,0 +1,611 @@
+{
+  "schema": "sofia.v18-phase00-batch30-audit-v1",
+  "canonical_ledger": "docs/development/v18-task-evidence.json",
+  "original_task_count": 700,
+  "audit_scope": "first_thirty_phase00_original_CA_ids",
+  "provenance": "source inspection at main 14df9c27a3a2db4fd0f11af56f07202d4354135e; deployment not performed",
+  "task_count": 30,
+  "acceptance_statement": "Paths/anchors/tests are source pointers only. Test execution is separate CI evidence; no task is fully accepted by this audit.",
+  "tasks": [
+    {
+      "id": "CA-001",
+      "source": "src/sofia/application/decision_persistence.py",
+      "source_anchor": "def inspect_turn_persistence",
+      "related_test": "test/test_v18_settled_response_trace.py",
+      "observed_source": "Canonical USER/Matrix/SOCIAL and settled reply read-only joins exist",
+      "missing_evidence": "No single witnessed MEM/GOALS/LIFE/SAFE/RUN/ACT chain",
+      "next_work": "Correlate typed effect receipts with one canonical event",
+      "rejection_rule": "Do not accept model text or a reply as execution proof",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-002",
+      "source": "src/sofia/verify/v18_companion_baseline.py",
+      "source_anchor": "def capture_v18_baseline",
+      "related_test": "test/test_v18_companion_baseline.py",
+      "observed_source": "Four-turn isolated control-path timing baseline exists",
+      "missing_evidence": "No live Venus GPU, avatar/voice, memory quality or 3-day restart metrics",
+      "next_work": "Collect consent-scoped live/longitudinal measurements",
+      "rejection_rule": "Do not extrapolate CI time to live Ollama",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-003",
+      "source": "docs/development/companion-autonomy-contract.md",
+      "source_anchor": "## Invariants",
+      "related_test": "test/test_safe_permissions.py",
+      "observed_source": "Authority, scope, evidence and errors described in source contract",
+      "missing_evidence": "No witnessed every-adapter enforcement or retention inventory",
+      "next_work": "Bind contracts to actual ingress/egress effects",
+      "rejection_rule": "Reject any adapter widening principal/audience",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-004",
+      "source": "src/sofia/cognition/v2/kernel.py",
+      "source_anchor": "class ProductionTurnKernel",
+      "related_test": "test/test_cognition_v2_turn_kernel.py",
+      "observed_source": "Single turn-sequencing owner implemented",
+      "missing_evidence": "Dual provider and live startup ABI still need full witnessed coverage",
+      "next_work": "Test exact production init with both approved routes",
+      "rejection_rule": "Reject parallel cognitive authority or silent model substitution",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-005",
+      "source": "docs/development/companion-autonomy-contract.md",
+      "source_anchor": "## Typed event and authority semantics",
+      "related_test": "test/test_v18_decision_persistence.py",
+      "observed_source": "Event/source ownership documented, partial durable turn join exists",
+      "missing_evidence": "Audience-scoped expiry/consent and all effect/transport receipts not joined",
+      "next_work": "Map every source field to producer and sink with receipt",
+      "rejection_rule": "Reject new competing truth ledger",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-006",
+      "source": "src/sofia/application/decision_trace.py",
+      "source_anchor": "class CompanionDecisionTrace",
+      "related_test": "test/test_v18_decision_persistence.py",
+      "observed_source": "Revisioned read-only trace and same-turn NEURO association exist",
+      "missing_evidence": "No exact goal/selected alternative/MEM/ACT effect provenance",
+      "next_work": "Join only independently correlated canonical owners",
+      "rejection_rule": "Reject inference of objective_verified from model prose",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-007",
+      "source": "src/sofia/verify/v18_companion_baseline.py",
+      "source_anchor": "def summarize_control_baseline",
+      "related_test": "test/test_v18_companion_baseline.py",
+      "observed_source": "Revision-pinned Windows/Linux deterministic baseline implemented",
+      "missing_evidence": "No per-task thresholds or Venus and multi-host acceptance",
+      "next_work": "Version task-specific evidence and release thresholds",
+      "rejection_rule": "Reject code-only green completion",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-1201",
+      "source": "docs/development/companion-autonomy-contract.md",
+      "source_anchor": "## Authoritative writer / consumer / failure table",
+      "related_test": "test/test_safe_permissions.py",
+      "observed_source": "Existing writer/consumer and failure semantics documented",
+      "missing_evidence": "DEV/Mobile/Fleet/ACT/WORLD effect adapters not all witnessed",
+      "next_work": "Prove each real adapter preserves exact owner and audience",
+      "rejection_rule": "Reject unauthorized effect-side execution",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-1202",
+      "source": "src/sofia/life/model.py",
+      "source_anchor": "PROJECT_TRANSITIONS",
+      "related_test": "test/test_life_state_graph_contract.py",
+      "observed_source": "LIFE state transitions and uncertain-work blocking coded",
+      "missing_evidence": "Incomplete all-action expected effects, restart, dedupe tests",
+      "next_work": "Write restart/receipt matrix across GOALS/LIFE/RUN",
+      "rejection_rule": "Reject retry of uncertain external effect",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-1203",
+      "source": "src/sofia/cognition/budgets.py",
+      "source_anchor": "class ModelTokenBudget",
+      "related_test": "test/test_cognitive_context_assembler.py",
+      "observed_source": "Per-model route budgets are typed",
+      "missing_evidence": "No measured per-source occupancy or all negative freshness scopes",
+      "next_work": "Meter selected token classes and reject stale/private overflow",
+      "rejection_rule": "Reject overflow and cross-audience context",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-1204",
+      "source": "src/sofia/application/conversation_learning.py",
+      "source_anchor": "class ConversationLearningCoordinator",
+      "related_test": "test/test_memory_reviewed_corrections.py",
+      "observed_source": "Persisted user text creates proposed memory only",
+      "missing_evidence": "No independent quality-graded preference feedback/reward loop",
+      "next_work": "Gate rewards on validated external outcomes or reviewed correction",
+      "rejection_rule": "Reject self-praise as reinforcement signal",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-1205",
+      "source": "src/sofia/verify/cognition_v2_baseline.py",
+      "source_anchor": "def capture_baseline",
+      "related_test": "test/test_cognition_v2_baseline.py",
+      "observed_source": "Isolated baseline only; not a named external benchmark",
+      "missing_evidence": "No adapted LongMemEval/LoCoMo sample, scoring or ablation",
+      "next_work": "Build sealed licensed adapted evaluation suite and report denominators",
+      "rejection_rule": "Reject benchmark performance claims without datasets",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-1206",
+      "source": "src/sofia/verify/package_selection.py",
+      "source_anchor": "class PackageSelectionProbe",
+      "related_test": "test/test_cognition_matrix.py",
+      "observed_source": "Package marker coverage checks exist",
+      "missing_evidence": "No combinatorial route/source/audience/modality matrix",
+      "next_work": "Require negative scoped cross-product tests and hand receipts",
+      "rejection_rule": "Reject representative samples as exhaustive coverage",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-1207",
+      "source": "src/sofia/cognition/llm_engine.py",
+      "source_anchor": "class LLMCognitiveEngine",
+      "related_test": "test/test_default_runtime_provider_boundary.py",
+      "observed_source": "Typed provider error boundary exists",
+      "missing_evidence": "No complete outage/invalid-JSON background isolation live proof",
+      "next_work": "Test real provider diagnostics, degraded deterministic behavior",
+      "rejection_rule": "Reject invented response and blocked foreground conversation",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-1208",
+      "source": "src/sofia/memory/provenance_store.py",
+      "source_anchor": "class DurableMemoryCandidateStore",
+      "related_test": "test/test_memory_deletion_restore.py",
+      "observed_source": "Provenance and scoped memory deletion tests exist",
+      "missing_evidence": "Policy-wide consent, 24h cleanup and redaction not witnessed",
+      "next_work": "Audit actual retention/consent/LLM projection on each host",
+      "rejection_rule": "Reject private data crossing audience without grant",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3101",
+      "source": "src/sofia/verify/architecture_inventory.py",
+      "source_anchor": "OWNERS:",
+      "related_test": "test/test_v18_decision_persistence.py",
+      "observed_source": "Owner inventory and three source-to-sink diagrams available",
+      "missing_evidence": "No real per-owner ABI reachability or multisystem event witness",
+      "next_work": "Trace imports/writers/retention/receipts on actual entrypoints",
+      "rejection_rule": "Reject diagram-only acceptance",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3102",
+      "source": "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+      "source_anchor": "## Two-stage location decision",
+      "related_test": "test/test_production_dual_cognition.py",
+      "observed_source": "Venus sole writer now; future Debian Sofia VM and remote GPU planned",
+      "missing_evidence": "No approved completed guest migration/failover witness",
+      "next_work": "Supervise cutover with fencing, backup and rollback",
+      "rejection_rule": "Reject any dual-writer or silent production migration",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3103",
+      "source": "src/sofia/state/replication.py",
+      "source_anchor": "class SQLiteReplicationWitness",
+      "related_test": "test/test_ops_recovery_objectives.py",
+      "observed_source": "Partial fenced StatePlane replication available",
+      "missing_evidence": "Does not replicate all direct SQLite legacy tables; RPO/RTO not proven",
+      "next_work": "Qualify complete backup + offline recovery + failback",
+      "rejection_rule": "Reject StatePlane-only snapshot as whole sofia.db redundancy",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3104",
+      "source": "src/sofia/life/model.py",
+      "source_anchor": "PROJECT_TRANSITIONS",
+      "related_test": "test/test_life_run_outcome_reconciliation.py",
+      "observed_source": "LIFE statuses and uncertain RUN outcomes modeled",
+      "missing_evidence": "No full cross-state verified-objective/restart review proof",
+      "next_work": "Exercise Project x Work x Goal legal-state matrix",
+      "rejection_rule": "Reject completed assertion without independent objective receipt",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3105",
+      "source": "src/sofia/safe/permissions.py",
+      "source_anchor": "class PermissionLevel",
+      "related_test": "test/test_safe_permissions.py",
+      "observed_source": "SAFE five-level policy and permission checks implemented",
+      "missing_evidence": "No whole-effect command inventory or all host auth verification",
+      "next_work": "Exercise independently authenticated sensitive effect cases",
+      "rejection_rule": "Reject owner bypass and self-granted high privilege",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3106",
+      "source": "src/sofia/ops/workshop_provision.py",
+      "source_anchor": "class WorkshopProvisionPlan",
+      "related_test": "test/test_ops_workshop_internal_network.py",
+      "observed_source": "Immutable workshop plan with internal networking boundary",
+      "missing_evidence": "Actual Artemis ACL and guest broker path unproven",
+      "next_work": "Verify network isolation and enforced broker reachability",
+      "rejection_rule": "Reject NAT-only isolation assumption",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3107",
+      "source": "src/sofia/ops/workshop_provision.py",
+      "source_anchor": "fingerprint_sha256",
+      "related_test": "test/test_ops_workshop_hyperv_production.py",
+      "observed_source": "Immutable plan digest and separate Hyper-V executor present",
+      "missing_evidence": "JEA least privilege and non-reusable approvals not live-verified",
+      "next_work": "Prove least privilege on Artemis and preserved admin audit logs",
+      "rejection_rule": "Reject broadly privileged unsupervised VM creation",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3108",
+      "source": "src/sofia/distributed/identity_durable.py",
+      "source_anchor": "class DurableNodeIdentityRegistry",
+      "related_test": "test/test_distributed_identity_durable.py",
+      "observed_source": "Durable public fingerprint enrollment and retirement exist",
+      "missing_evidence": "Key rotation/escrow/image scrubbing across hosts unproven",
+      "next_work": "Exercise credential renewal, revocation and leakage tests",
+      "rejection_rule": "Reject keys in shared images or SMB locations",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3109",
+      "source": "src/sofia/cognition/context_evidence.py",
+      "source_anchor": "def format_continuity_event",
+      "related_test": "test/test_memory_provenance.py",
+      "observed_source": "Source observations are projected to context; provenance exists",
+      "missing_evidence": "Eight epistemic grades and source correction not end-to-end enforced",
+      "next_work": "Prove typed grades and audience propagation across consumers",
+      "rejection_rule": "Reject promotion of inferred/stale as verified",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3110",
+      "source": "src/sofia/run/systemd_runtime.py",
+      "source_anchor": "systemd",
+      "related_test": "test/test_run_systemd_runtime.py",
+      "observed_source": "Debian service runtime configuration implemented",
+      "missing_evidence": "No measured host vs disposable guest cost/restore comparison",
+      "next_work": "Benchmark isolation, snapshot recovery and resource overhead",
+      "rejection_rule": "Reject unmeasured claims of always-on VM superiority",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3111",
+      "source": "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+      "source_anchor": "## Two-stage location decision",
+      "related_test": "test/test_production_dual_cognition.py",
+      "observed_source": "Writer/inference split and some degraded modes decided",
+      "missing_evidence": "No complete failure injection for power/DNS/PKI/NAS/NWS/HA",
+      "next_work": "Build dependency failure matrix and exercise deterministic recovery",
+      "rejection_rule": "Reject silent fallback or state promotion after partition",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3112",
+      "source": "src/sofia/voice/tts.py",
+      "source_anchor": "class TTSPlaybackReceipt",
+      "related_test": "test/test_avatar_presentation_runtime.py",
+      "observed_source": "Voice playback receipt and headless avatar contracts exist",
+      "missing_evidence": "No end-to-end actual frame/speech/Discord observed receipts",
+      "next_work": "Tie user-facing claims to measured channel renderer/audio receipts",
+      "rejection_rule": "Reject semantic outfit state as physical/screen output",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3301",
+      "source": "src/sofia/verify/v18_roadmap.py",
+      "source_anchor": "def validate_repository",
+      "related_test": "test/test_v18_companion_baseline.py",
+      "observed_source": "Original ledger integrity gate present",
+      "missing_evidence": "No enforced per-task design readiness rubric yet",
+      "next_work": "Enforce explicit alternatives/risk/cost/acceptance/rejection on batch",
+      "rejection_rule": "Reject item readiness based only on a checklist",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3302",
+      "source": "src/sofia/verify/v18_roadmap.py",
+      "source_anchor": "SOURCE_STATES",
+      "related_test": "test/test_v18_companion_baseline.py",
+      "observed_source": "Canonical 700-item source-status ledger exists",
+      "missing_evidence": "Research/design/blocked axes are not fully reconciled",
+      "next_work": "Attach individual findings and evidence without acceptance inflation",
+      "rejection_rule": "Reject source presence as tests or production proof",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    },
+    {
+      "id": "CA-3303",
+      "source": "test/test_life_state_graph_contract.py",
+      "source_anchor": "test_life_decision_contract_refuses_second_scheduler_or_false_neuro_link",
+      "related_test": "test/test_life_state_graph_contract.py",
+      "observed_source": "Observed pkg_act old literal NEURO assertion failure and unknown pkg_cognition marker",
+      "missing_evidence": "Missing exact-current revision fixed CI run; historical failure modes need comparison",
+      "next_work": "Fix policy test/marker, run package and release jobs at exact commit",
+      "rejection_rule": "Reject 'all green' from prior SHA or cancelled workflows",
+      "review_status": "partially_observed_not_accepted",
+      "design_choices": [
+        "Extend existing canonical source with typed adapter",
+        "Parallel subsystem or independent truth owner (rejected without security proof)"
+      ],
+      "security_review": "must preserve exact principal/audience and independent operator authority when applicable",
+      "resource_overhead": "not measured; profile before changing budgets or routing",
+      "verification_result": "not_attested_by_manifest",
+      "live_result": "not_attested_by_manifest",
+      "accepted": false
+    }
+  ]
+}
