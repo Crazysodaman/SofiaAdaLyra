@@ -1,0 +1,74 @@
+name: V18 Phase 01-02 SAFE and Release Source Gate
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Preserve a running exact-SHA proof when more development lands on main.
+# Superseding pending revisions is fine; cancelling an in-flight proof is not.
+concurrency:
+  group: v18-phase01-02-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  phase01-02:
+    name: Phase 01-02 deterministic ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - name: Checkout exact source revision
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install project and test runner
+        run: python -m pip install -e . pytest
+
+      - name: Compile SAFE and integration boundary paths
+        run: python -m compileall -q src/sofia/safe src/sofia/application/background.py src/sofia/verify
+
+      - name: Exercise owner authority, PAUSE races and gate truth
+        run: >-
+          python -m pytest -q
+          test/test_application_background.py
+          test/test_safe_execution_action_fingerprint.py
+          test/test_safe_audit.py
+          test/test_safe_operator_stop_revision.py
+          test/test_safe_operator_stop_state_loss.py
+          test/test_safe_permission_owner_auth.py
+          test/test_v18_gate4.py
+          test/test_verify_v18_roadmap.py
+          --junitxml=phase01-02-tests.xml
+
+      - name: Validate source-bound Gate 4 evidence without promotion
+        run: >-
+          python -m sofia.verify.v18_gate4
+          --repo .
+          --output phase01-02-gate-progress.json
+          --markdown-output phase01-02-gate-progress.md
+
+      - name: Upload exact-revision verification receipts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: phase01-02-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            phase01-02-tests.xml
+            phase01-02-gate-progress.json
+            phase01-02-gate-progress.md
+          if-no-files-found: warn
+          retention-days: 30
