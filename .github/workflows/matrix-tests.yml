@@ -8,7 +8,9 @@ on:
 
 concurrency:
   group: matrix-tests-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep a started revision alive for exact-SHA evidence even when main
+  # receives subsequent commits. GitHub may still replace pending runs.
+  cancel-in-progress: false
 
 jobs:
   matrix:
