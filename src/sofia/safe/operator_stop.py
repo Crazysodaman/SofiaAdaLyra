@@ -42,6 +42,10 @@ class OperatorStopStore:
         self.audit = AuditChain(self.path)
         with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
+            existed = db.execute(
+                "SELECT 1 FROM sqlite_master "
+                "WHERE type='table' AND name='safe_operator_stop'"
+            ).fetchone() is not None
             db.execute("""
                 CREATE TABLE IF NOT EXISTS safe_operator_stop (
                     singleton INTEGER PRIMARY KEY CHECK(singleton=1),
@@ -55,6 +59,18 @@ class OperatorStopStore:
                 "SELECT 1 FROM safe_operator_stop WHERE singleton=1"
             ).fetchone()
             if row is None:
+                # A missing row in an already-initialized authority is
+                # corruption, not permission to silently clear a STOP. Even
+                # a dropped table cannot erase earlier audited STOP history.
+                previously_used = db.execute(
+                    "SELECT 1 FROM safe_audit_event "
+                    "WHERE event_type LIKE 'operator.stop.%' LIMIT 1"
+                ).fetchone() is not None
+                if existed or previously_used:
+                    raise RuntimeError(
+                        "operator stop state missing after initialization; "
+                        "canonical recovery and owner review required"
+                    )
                 db.execute("""
                     INSERT INTO safe_operator_stop(
                         singleton,active,updated_at,updated_by,reason
