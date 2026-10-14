@@ -110,3 +110,45 @@ def test_failure_to_audit_operator_transition_rolls_back_stop_mutation(
             "SELECT count(*) FROM safe_audit_event "
             "WHERE event_type LIKE 'operator.stop.%'"
         ).fetchone()[0] == 0
+
+
+def test_reopening_after_deleted_operator_stop_row_does_not_reset_pause(tmp_path):
+    """A reboot cannot silently turn corrupt STOP state into 'inactive'."""
+    state = _canonical_db(tmp_path)
+    stop = OperatorStopStore(state)
+    stop.set(active=True, updated_by="Sparks", reason="emergency halt")
+    with closing(sqlite3.connect(state)) as db, db:
+        db.execute("DELETE FROM safe_operator_stop")
+
+    with pytest.raises(RuntimeError, match="missing after initialization"):
+        OperatorStopStore(state)
+    with closing(sqlite3.connect(state)) as db:
+        assert db.execute(
+            "SELECT count(*) FROM safe_operator_stop"
+        ).fetchone()[0] == 0
+
+
+def test_dropped_operator_stop_table_with_audit_history_cannot_reset_pause(tmp_path):
+    """Prior STOP audit evidence fences destructive table-loss recovery."""
+    state = _canonical_db(tmp_path)
+    store = OperatorStopStore(state)
+    store.set(active=True, updated_by="Sparks", reason="owner halt")
+    with closing(sqlite3.connect(state)) as db, db:
+        db.execute("DROP TABLE safe_operator_stop")
+
+    with pytest.raises(RuntimeError, match="canonical recovery"):
+        OperatorStopStore(state)
+    # The failed reopen must roll back CREATE TABLE in the same transaction.
+    with closing(sqlite3.connect(state)) as db:
+        assert db.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='safe_operator_stop'"
+        ).fetchone() is None
+
+
+def test_fresh_canonical_state_bootstraps_stop_only_once(tmp_path):
+    state = _canonical_db(tmp_path)
+    first = OperatorStopStore(state)
+    assert not first.current().active
+    again = OperatorStopStore(state)
+    assert again.current() == first.current()
