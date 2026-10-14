@@ -2,6 +2,7 @@
 
 Authored for the deferred test gate. No live approval or execution here.
 """
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 import sqlite3
 
@@ -38,7 +39,7 @@ def test_nonowner_approval_denied_before_record_or_capability_consumption(tmp_pa
     record_verified_owner_approval(verifier, active)
     # Legacy corruption or an older build's forged row must never be
     # returned as a valid approval, even if its exact digest still matches.
-    with sqlite3.connect(state) as db:
+    with closing(sqlite3.connect(state)) as db, db:
         db.execute(
             "UPDATE safe_execution_approval SET approved_by='model:self' "
             "WHERE approval_id=?", (active.approval_id,),
