@@ -11,6 +11,7 @@ on:
       - 'mobile/android/**'
       - 'test/test_ws2_portable_export_validator.py'
       - 'test/test_ops_backup_topology.py'
+      - 'test/test_ops_backup_topology.py'
       - 'test/test_mobile_*.py'
       - '.github/workflows/v18-phase03-04-gate4.yml'
   workflow_dispatch:
