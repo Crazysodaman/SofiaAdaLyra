@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 import hmac
 import json
+import ntpath
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import shutil
@@ -45,6 +46,20 @@ from sofia.constitution.store import (
 
 _MAX_BACKUP_MANIFEST_BYTES = 16 * 1024 * 1024
 _AESGCM_TAG_BYTES = 16
+
+
+def _windows_reserved_name(name: str) -> bool:
+    """Check portable Windows device names on Windows and Unix hosts.
+
+    Python 3.13+ supplies ntpath.isreserved for platform-independent
+    Windows name checks. Python 3.12 still needs the older pathlib fallback.
+    Do not call deprecated PureWindowsPath.is_reserved on Python 3.13+:
+    it is scheduled for removal in Python 3.15.
+    """
+    checker = getattr(ntpath, "isreserved", None)
+    if checker is not None:
+        return checker(name)
+    return PureWindowsPath(name).is_reserved()
 
 
 class BackupError(RuntimeError):
@@ -211,7 +226,7 @@ class BackupEntry:
             or any(
                 not part or part != part.rstrip(" .")
                 or any(ord(ch) < 32 for ch in part)
-                or PureWindowsPath(part).is_reserved()
+                or _windows_reserved_name(part)
                 for part in logical.parts
             )
         ):
@@ -226,7 +241,7 @@ class BackupEntry:
             or PureWindowsPath(self.payload_name).drive
             or self.payload_name != self.payload_name.rstrip(" .")
             or any(ord(ch) < 32 for ch in self.payload_name)
-            or PureWindowsPath(self.payload_name).is_reserved()
+            or _windows_reserved_name(self.payload_name)
         ):
             raise ValueError("payload_name must be a simple file name")
         if len(self.sha256) != 64:

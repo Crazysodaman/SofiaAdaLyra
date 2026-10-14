@@ -93,3 +93,25 @@ def test_backup_manifest_accepts_distinct_portable_recovery_paths():
         _entry(logical="protected/identity.json", payload="0001.bin"),
         _entry(logical="protected/personality.json", payload="0002.bin"),
     ).entries) == 2
+
+
+@pytest.mark.parametrize("device", ("CON", "NUL.txt", "AUX.log", "COM1", "LPT9.prn"))
+def test_portable_archive_rejects_windows_devices_with_extensions(device):
+    with pytest.raises(ValueError, match="safe relative"):
+        _entry(logical="protected/" + device)
+    with pytest.raises(ValueError, match="simple file name"):
+        _entry(payload=device)
+
+
+def test_windows_reserved_name_checks_have_no_deprecated_pathlib_calls():
+    import warnings
+
+    # The portable checker must not invoke PureWindowsPath.is_reserved on
+    # Python 3.13+, where it is deprecated and will disappear in 3.15.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        with pytest.raises(ValueError, match="safe relative"):
+            _entry(logical="protected/CON")
+        with pytest.raises(ValueError, match="simple file name"):
+            _entry(payload="NUL.txt")
+        assert _entry(logical="protected/identity.json").logical_path == "protected/identity.json"
