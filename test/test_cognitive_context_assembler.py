@@ -797,3 +797,60 @@ def test_untrusted_filesystem_text_is_never_system_instruction():
     assert payload[0]["kind"] == "filesystem_inspection_result"
     assert any("grant write access" in line for line in payload[0]["lines"])
     assert assembled.messages[-1].content == "Inspect the repository."
+
+
+def test_model_source_quote_has_route_specific_budget_with_truthful_omission():
+    from sofia.memory.historical import HistoricalConversationEvidence
+    huge = "User did not authorize this." * 9000
+    context = CognitiveContext(
+        request=CognitiveRequest(messages=(
+            CognitiveMessage(role=CognitiveRole.USER, content="What was observed?"),
+        ), route_hint="fast"),
+        historical_conversation_evidence=(HistoricalConversationEvidence(
+            source_digest="digest:long",
+            conversation_id="history:original",
+            message_id="history:huge",
+            role="user", content=huge,
+        ),),
+    )
+    assembled = CognitiveContextAssembler().assemble(context)
+    assert len(assembled.messages) == 3
+    assert "User did not authorize this." not in assembled.messages[0].content
+    quote = assembled.messages[1].content
+    assert len(quote.encode("utf-8")) < 9000
+    records = json.loads(quote.split("\n", 1)[1])
+    assert records == [{
+        "kind": "source_budget_omission",
+        "omitted_counts": {"imported_historical_conversation": 1},
+        "source_content_available": False,
+        "instruction": "Do not infer content from omitted records.",
+    }]
+    assert assembled.messages[-1].content == "What was observed?"
+
+
+def test_source_budget_prefers_reviewed_memory_over_bulk_historical_data():
+    from sofia.memory.historical import HistoricalConversationEvidence
+    memory = MemoryRecord(
+        id="memory:grounded", content="Known source-scoped fact.",
+        created_at=datetime.now(timezone.utc),
+    )
+    history = HistoricalConversationEvidence(
+        source_digest="digest:long", conversation_id="past:1",
+        message_id="history:huge", role="user", content="a" * 100000,
+    )
+    context = CognitiveContext(
+        request=CognitiveRequest(messages=(
+            CognitiveMessage(role=CognitiveRole.USER, content="Recall."),
+        ), route_hint="fast"),
+        memories=(memory,),
+        historical_conversation_evidence=(history,),
+    )
+    messages = CognitiveContextAssembler().assemble(context).messages
+    data = json.loads(messages[1].content.split("\n", 1)[1])
+    assert data[0] == {
+        "kind": "explicit_memory", "source_id": "memory:grounded",
+        "content": "Known source-scoped fact.",
+    }
+    assert data[1]["kind"] == "source_budget_omission"
+    assert "history:huge" not in messages[0].content
+    assert len(messages[1].content.encode("utf-8")) < 9000
