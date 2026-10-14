@@ -84,48 +84,49 @@ class ModelResidencyDecision:
     unloaded_models: tuple[str, ...] = ()
 
 
-def _model_names(payload: Any) -> frozenset[str]:
+def _inventory_items(payload: Any) -> tuple[Any, ...]:
+    """Decode one Ollama inventory without treating malformed data as empty."""
     if payload is None:
-        return frozenset()
-    if isinstance(payload, Mapping):
-        items = payload.get("models", ())
-    else:
-        items = getattr(payload, "models", ())
+        return ()
+    items = (
+        payload.get("models", ())
+        if isinstance(payload, Mapping)
+        else getattr(payload, "models", ())
+    )
     if items is None:
-        items = ()
-    names: set[str] = set()
-    for item in items:
-        if isinstance(item, Mapping):
-            value = item.get("name") or item.get("model")
-        else:
-            value = getattr(item, "name", None) or getattr(item, "model", None)
-        if isinstance(value, str) and value.strip():
-            names.add(value.strip())
-    return frozenset(names)
+        return ()
+    if not isinstance(items, (list, tuple)):
+        raise TypeError("invalid model inventory collection")
+    return tuple(items)
+
+
+def _inventory_name(item: Any) -> str:
+    if item is None or isinstance(item, (str, bytes)):
+        raise TypeError("invalid model inventory entry")
+    if isinstance(item, Mapping):
+        value = item.get("name") or item.get("model")
+    else:
+        value = getattr(item, "name", None) or getattr(item, "model", None)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("model inventory entry has no valid identity")
+    return value.strip()
+
+
+def _model_names(payload: Any) -> frozenset[str]:
+    return frozenset(_inventory_name(item) for item in _inventory_items(payload))
 
 
 def _model_sizes(payload: Any) -> dict[str, int]:
-    if payload is None:
-        return {}
-    if isinstance(payload, Mapping):
-        items = payload.get("models", ())
-    else:
-        items = getattr(payload, "models", ())
     result: dict[str, int] = {}
-    for item in items or ():
-        if isinstance(item, Mapping):
-            name = item.get("name") or item.get("model")
-            size = item.get("size")
-        else:
-            name = getattr(item, "name", None) or getattr(item, "model", None)
-            size = getattr(item, "size", None)
-        if (
-            isinstance(name, str)
-            and name.strip()
-            and type(size) is int
-            and size > 0
-        ):
-            result[name.strip()] = size
+    for item in _inventory_items(payload):
+        name = _inventory_name(item)
+        size = (
+            item.get("size")
+            if isinstance(item, Mapping)
+            else getattr(item, "size", None)
+        )
+        if type(size) is int and size > 0:
+            result[name] = size
     return result
 
 
@@ -724,9 +725,14 @@ class ModelLifecycleManager:
                 )
             return decision
         with self._lock:
-            inventory = self.backend.models()
-            installed = _model_names(inventory)
-            sizes = _model_sizes(inventory)
+            try:
+                inventory = self.backend.models()
+                installed = _model_names(inventory)
+                sizes = _model_sizes(inventory)
+            except Exception as exc:
+                raise ModelLifecycleError(
+                    f"{self.managed_provider} model inventory failed"
+                ) from exc
             observation = self._resource_observation()
             plan = self._residency_plan(
                 model_sizes=sizes,
