@@ -43,23 +43,23 @@ def test_queue_covers_all_780_without_implicit_independence():
     assert report["gate4_recorded"] == progress["overall_gate4_recorded"]
 
 
-def test_dependency_is_not_satisfied_by_gate_one_or_source_status():
+def test_dependency_is_not_satisfied_by_gate_two_or_source_status():
     progress, reviews = _inputs()
     changed = deepcopy(progress)
     task = next(row for row in changed["tasks"] if row["id"] == "CA-4501")
-    task["gate_with_recorded_proof"] = 1
+    task["gate_with_recorded_proof"] = 2
     result = build_work_queue(changed, reviews)
     dependent = next(row for row in result["tasks"] if row["id"] == "CA-4503")
     assert dependent["state"] == "blocked_on_prerequisite"
     assert dependent["blocked_by"] == ["CA-4501", "CA-5401"]
 
 
-def test_verified_prerequisites_unlock_dependent_after_gate_four():
+def test_audited_prerequisites_unlock_dependent_at_gate_three():
     progress, reviews = _inputs()
     changed = deepcopy(progress)
     for key in ("CA-4501", "CA-5401"):
         row = next(row for row in changed["tasks"] if row["id"] == key)
-        row["gate_with_recorded_proof"] = 4
+        row["gate_with_recorded_proof"] = 3
     report = build_work_queue(changed, reviews)
     dependent = next(row for row in report["tasks"] if row["id"] == "CA-4503")
     assert dependent["state"] == "ready"
@@ -99,3 +99,10 @@ def test_queue_does_not_modify_gate_evidence():
     before = json.dumps(progress, sort_keys=True)
     build_work_queue(progress, reviews)
     assert json.dumps(progress, sort_keys=True) == before
+
+
+def test_gate_three_tasks_are_deferred_until_final_ci():
+    progress, reviews = _inputs()
+    report = build_work_queue(progress, reviews)
+    assert report["states"]["awaiting_final_ci"] >= 1
+    assert all(row["gate"] < 3 for row in report["selected"])

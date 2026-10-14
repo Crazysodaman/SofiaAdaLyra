@@ -22,7 +22,9 @@ writers and permission brokers.
 Run the **existing** Sofía services on established Windows/Linux. Retain one
 canonical identity and logical `sofia.db` writer. SAFE controls permission
 decisions, RUN owns work/receipts, Fleet owns authenticated remote capabilities,
-and conversation/MEM own their respective canonical records. Desktop/Discord
+and conversation/MEM own their respective canonical records. Typed platform
+capability drivers are OS-specific adapters behind SAFE-authorized interfaces;
+no driver may bypass the central grant, lease or audit decision. Desktop/Discord
 are clients/transports, not independent decision authorities. LLM providers
 produce candidate text or plans, never grants, database writer leases or
 physical action receipts.

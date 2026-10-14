@@ -2,7 +2,7 @@
 
 A missing dependency review is UNKNOWN, never equivalent to no dependencies.
 The queue is scheduling advice, not authority to change code, grants, hosts or
-the canonical database. Only Gate 4 proof can settle a prerequisite.
+the canonical database. Recorded Gate 3 audit proof settles a development prerequisite; Gate 4 requires final CI.
 """
 from __future__ import annotations
 
@@ -102,9 +102,11 @@ def build_work_queue(
         item = decisions.get(key)
         deps = [] if item is None else item["depends_on"]
         blocked = [d for d in deps
-                   if by_id[d]["gate_with_recorded_proof"] < 4]
+                   if by_id[d]["gate_with_recorded_proof"] < 3]
         if gate == 4:
             state = "complete"
+        elif gate == 3:
+            state = "awaiting_final_ci"
         elif key in reserved_set:
             state = "reserved"
         elif item is None:
@@ -134,7 +136,7 @@ def build_work_queue(
         "gate4_recorded": counts["complete"],
         "reviewed_dependencies": len(decisions),
         "states": {key: counts[key] for key in (
-            "complete", "ready", "blocked_on_prerequisite", "reserved",
+            "complete", "awaiting_final_ci", "ready", "blocked_on_prerequisite", "reserved",
             "dependency_review_required",
         )},
         "target_per_run": limit,
