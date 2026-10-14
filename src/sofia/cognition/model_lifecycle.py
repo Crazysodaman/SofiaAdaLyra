@@ -105,6 +105,8 @@ def _model_names(payload: Any) -> frozenset[str]:
 
 
 def _model_sizes(payload: Any) -> dict[str, int]:
+    if payload is None:
+        return {}
     if isinstance(payload, Mapping):
         items = payload.get("models", ())
     else:
