@@ -97,3 +97,99 @@ def test_capped_line_read_refuses_unbounded_content(tmp_path):
     )
     with pytest.raises(ValueError, match="maximum size"):
         verify_portable_export(path, max_line_bytes=1024)
+
+
+def _rewrite(records):
+    """Build a self-consistent checksum for semantic forgery tests."""
+    footer = records[-1].copy()
+    body = b"".join(_line(item) for item in records[:-1])
+    footer["preceding_lines_sha256"] = sha256(body).hexdigest()
+    return body + _line(footer)
+
+
+def test_duplicate_json_keys_rejected_before_footer_checksum(tmp_path):
+    path = tmp_path / "duplicate.jsonl"
+    path.write_bytes(_document().replace(
+        b'"privacy":"ALL_AUDIENCES_SENSITIVE_PLAINTEXT"',
+        b'"privacy":"ALL_AUDIENCES_SENSITIVE_PLAINTEXT","privacy":"PUBLIC"',
+    ))
+    with pytest.raises(ValueError, match="invalid UTF-8 JSON"):
+        verify_portable_export(path)
+
+
+@pytest.mark.parametrize("field,invalid", [
+    ("authority", "unrestricted_channel_grant"),
+    ("source", "unverified_legacy_database"),
+])
+def test_recomputed_checksum_cannot_forge_recovery_authority(
+    tmp_path, field, invalid,
+):
+    records = [json.loads(line) for line in _document().splitlines()]
+    records[0][field] = invalid
+    path = tmp_path / "forged-label.jsonl"
+    path.write_bytes(_rewrite(records))
+    with pytest.raises(ValueError, match="authority/source"):
+        verify_portable_export(path)
+
+
+def test_unbound_message_cannot_carry_audience_grants_even_with_valid_hash(
+    tmp_path,
+):
+    records = [json.loads(line) for line in _document().splitlines()]
+    records[1]["binding"] = "unbound_not_authorized"
+    path = tmp_path / "ambiguous-audience.jsonl"
+    path.write_bytes(_rewrite(records))
+    with pytest.raises(ValueError, match="unbound original"):
+        verify_portable_export(path)
+
+
+def test_bound_message_requires_original_audience_fields(tmp_path):
+    records = [json.loads(line) for line in _document().splitlines()]
+    records[1]["audience_id"] = None
+    path = tmp_path / "missing-audience.jsonl"
+    path.write_bytes(_rewrite(records))
+    with pytest.raises(ValueError, match="missing audience_id"):
+        verify_portable_export(path)
+
+
+@pytest.mark.parametrize("kind,expected", [
+    ("thread", "thread catalog access"),
+    ("thread_source_link", "link access"),
+    ("missing_original", "missing original"),
+])
+def test_thread_and_link_provenance_never_conveys_permission(
+    tmp_path, kind, expected,
+):
+    records = [json.loads(line) for line in _document().splitlines()]
+    thread = dict(
+        record_type="thread", thread_id="synthetic:thread:1",
+        owner_principal_id="person:synthetic", kind="main", name="Test",
+        created_at="2026-10-11T18:00:00+00:00",
+        access="catalog_not_a_cross_channel_grant",
+    )
+    link = dict(
+        record_type="thread_source_link", thread_id="synthetic:thread:1",
+        source_message_id="synthetic:message:1",
+        source_session_id="synthetic:session:1",
+        source_audience_id="private:synthetic", visibility="private",
+        linked_at="2026-10-11T18:00:00+00:00",
+        current_original_available=True,
+        current_source_audience_matches=True,
+        access="reference_only_not_an_authorization",
+    )
+    if kind == "thread":
+        thread["access"] = "unrestricted"
+    elif kind == "thread_source_link":
+        link["access"] = "unrestricted"
+    else:
+        link["current_original_available"] = False
+    records[1:1] = [thread, link] if not records[1:-1] else []
+    # Original messages must precede the thread catalog.
+    records = [records[0], *[r for r in records[1:-1] if r["record_type"] == "original_message"],
+               thread, link, records[-1]]
+    records[-1]["thread_count"] = 1
+    records[-1]["thread_source_link_count"] = 1
+    path = tmp_path / "invalid-provenance.jsonl"
+    path.write_bytes(_rewrite(records))
+    with pytest.raises(ValueError, match=expected):
+        verify_portable_export(path)
