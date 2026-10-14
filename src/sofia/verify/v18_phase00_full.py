@@ -25,6 +25,18 @@ from sofia.verify.v18_roadmap import (
 _SHA = re.compile(r"[a-f0-9]{40}\Z")
 
 
+_DESIGN_CANDIDATES = {
+    "CA-1205": "docs/development/v18-phase00-ca1205-memory-benchmark-protocol.md",
+    "CA-1206": "docs/development/v18-phase00-ca1206-acceptance-matrix-2026-10-14.md",
+    **{f"CA-{n}": "docs/development/v18-batch50-science-safety.md"
+       for n in range(3304, 3313)},
+    **{f"CA-{n}": "docs/development/v18-batch50-references-os.md"
+       for n in (*range(4001, 4007), 4501, 4503, 4505, 4506)},
+    **{f"CA-{n}": "docs/development/v18-batch50-experience-hosting.md"
+       for n in (*range(4701, 4707), 5401, 5402, 5404, 5405, 5407, 5408)},
+}
+
+
 def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) -> dict:
     root = root.resolve(strict=True)
     if expected_revision is not None and (
@@ -49,6 +61,7 @@ def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) ->
     counters = Counter()
     categories = Counter()
     rows = []
+    candidate_docs = 0
     for task, proof in zip(candidates, expected, strict=True):
         requirement = source[task["master_line"] - 1]
         if not requirement.startswith("- [") or "**" + task["id"] + " " not in requirement:
@@ -60,6 +73,15 @@ def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) ->
         source_paths = task["code_paths"]
         for path in source_paths:
             _within(root, path)
+        candidate_path = None
+        if task["status"] == "unassessed":
+            candidate_path = _DESIGN_CANDIDATES.get(task["id"])
+            if candidate_path is None:
+                raise RoadmapIntegrityError("unreviewed design task has no candidate evidence")
+            contents = _within(root, candidate_path).read_text(encoding="utf-8")
+            if task["id"] not in contents:
+                raise RoadmapIntegrityError("design candidate lacks original task anchor")
+            candidate_docs += 1
         gate = proof["gate_with_recorded_proof"]
         if type(gate) is not int or not 0 <= gate <= 4:
             raise RoadmapIntegrityError("invalid exact Phase 00 proof state")
@@ -78,6 +100,8 @@ def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) ->
             "category": category, "ledger_status": task["status"],
             "gate_with_recorded_proof": gate,
             "canonical_source_paths": list(source_paths),
+            "unassessed_design_review_candidate": candidate_path,
+            "candidate_not_independently_reviewed": candidate_path is not None,
             "static_paths_exist": True,
             "code_present_claimed": task["status"] in {
                 "code_present_unverified", "accepted",
@@ -102,6 +126,7 @@ def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) ->
                 "accepted",
             )
         },
+        "candidate_unassessed_documents_verified": candidate_docs,
         "gate4_recorded": counters["gate4"],
         "tasks_without_gate4": 65 - counters["gate4"],
         "source_audit_executed": True,

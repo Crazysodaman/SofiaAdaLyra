@@ -135,3 +135,21 @@ def test_phase00_route_output_never_exceeds_configured_context(
     assert budget.context_tokens == context
     assert budget.output_tokens == expected_output
     assert 0 < budget.output_tokens <= budget.context_tokens
+
+
+def test_all_unassessed_phase00_design_tasks_have_source_backed_review_candidates():
+    report = all_phase00_snapshot(ROOT)
+    unassessed = [
+        row for row in report["tasks"]
+        if row["ledger_status"] == "unassessed"
+    ]
+    assert len(unassessed) == report["candidate_unassessed_documents_verified"]
+    assert len(unassessed) == 33
+    assert all(row["candidate_not_independently_reviewed"] is True for row in unassessed)
+    for row in unassessed:
+        candidate = row["unassessed_design_review_candidate"]
+        assert candidate.startswith("docs/development/")
+        content = (ROOT / candidate).read_text(encoding="utf-8")
+        assert row["id"] in content
+        assert row["production_accepted_in_canonical_ledger"] is False
+        assert row["code_present_claimed"] is False

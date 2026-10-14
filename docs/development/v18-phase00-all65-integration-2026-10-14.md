@@ -78,3 +78,17 @@ reserves proportionally less space for tiny windows. This is tested for
 seven small context sizes, including the 1-token edge case. Normal 2048+
 route budget outcomes are preserved. Full evidence-type allocation and
 real provider quality calibration are still separate open requirements.
+
+
+## Phase 00 33 previously unassessed design candidates
+
+The source audit now looks for exact CA-ID anchors in existing research
+candidate files: CA-3304..3312 in `v18-batch50-science-safety.md`;
+CA-4001..4006 and CA-4501/4503/4505/4506 in
+`v18-batch50-references-os.md`; CA-4701..4706 and
+CA-5401/5402/5404/5405/5407/5408 in
+`v18-batch50-experience-hosting.md`; CA-1206 in the dedicated
+acceptance matrix, and CA-1205 in its new benchmark protocol. This
+fills **33 candidate source references**, not the authoritative
+`code_paths` field, because research text is not production wiring
+nor independent approval. No original task status or acceptance was changed.
