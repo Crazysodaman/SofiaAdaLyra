@@ -193,9 +193,14 @@ class OllamaProvider(LLMProvider):
         content = getattr(message, "content", "")
         if content is None:
             content = ""
+        # Reject invalid content before quality-repair or persistence paths.
+        if not isinstance(content, str):
+            raise LLMProviderError("Ollama returned non-text response content.")
         raw_tool_calls = getattr(message, "tool_calls", None)
         if raw_tool_calls is None:
             raw_tool_calls = ()
+        if not isinstance(raw_tool_calls, (list, tuple)):
+            raise LLMProviderError("Ollama returned malformed tool calls.")
         tool_calls = tuple(cls._tool_call_from_ollama(call) for call in raw_tool_calls)
         return CognitiveResponse(content=content, tool_calls=tool_calls)
 
