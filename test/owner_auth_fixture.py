@@ -7,6 +7,7 @@ not bypass the cryptographic assertion verifier or approval receipt binding.
 from __future__ import annotations
 
 import base64
+from contextlib import closing
 from datetime import timedelta
 from hashlib import sha256
 import json
@@ -42,7 +43,7 @@ def record_verified_owner_approval(
         serialization.Encoding.DER,
         serialization.PublicFormat.SubjectPublicKeyInfo,
     )
-    with sqlite3.connect(store.path) as db:
+    with closing(sqlite3.connect(store.path)) as db, db:
         db.execute(
             "INSERT INTO safe_owner_credential "
             "(credential_id, public_key_der, credential_kind, sign_count, enrolled_at) "
