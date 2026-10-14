@@ -174,7 +174,7 @@ class CognitiveContextAssembler:
         used = 2  # JSON array delimiters.
         # Reserve space for the omission indicator so even a final skipped
         # source cannot exceed the bounded model-visible data channel.
-        reserve = 160
+        reserve = 512
         for item in sources:
             encoded = json.dumps(item, ensure_ascii=True, sort_keys=True)
             cost = len(encoded.encode("utf-8")) + (1 if admitted else 0)
