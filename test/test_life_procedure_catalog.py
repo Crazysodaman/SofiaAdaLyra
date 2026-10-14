@@ -3,6 +3,7 @@
 Authored for the final user-run test campaign. No synthetic tool result is
 allowed to promote a procedure or create new SAFE/RUN authority.
 """
+from contextlib import closing
 from datetime import timedelta
 import json
 import sqlite3
@@ -122,7 +123,7 @@ def test_two_distinct_real_checked_projects_promote_nonexecutable_procedure(
         first_proof = life.procedures.has_source_project(first.project_id)
         assert first_proof
         assert life.procedures.available_for_project(first) == ()
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             assert db.execute(
                 "SELECT status FROM life_procedure_catalog",
             ).fetchone()[0] == "candidate"
@@ -281,7 +282,7 @@ def test_hybrid_quarantine_requires_new_nonexecutable_verified_generation(
             procedure_id=replacement[0].procedure_id,
             now=fourth_at + timedelta(seconds=8),
         )
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             recorded = db.execute(
                 "SELECT status,version,quarantine_reason "
                 "FROM life_procedure_catalog WHERE procedure_id=?",
@@ -554,7 +555,7 @@ def test_procedure_promotion_rechecks_original_source_under_writer_lock(
             report = original_checker(**kwargs)
             # The catalog has already checked the old RUN/evidence identity.
             # Change canonical state just before its final writer transaction.
-            with sqlite3.connect(life.path) as db:
+            with closing(sqlite3.connect(life.path)) as db, db:
                 if alter_original == "revoke_receipt":
                     db.execute(
                         "DELETE FROM goal_evidence_record WHERE evidence_ref=?",
@@ -583,7 +584,7 @@ def test_procedure_promotion_rechecks_original_source_under_writer_lock(
             )
         assert altered == [True]
         assert life.procedures.has_source_project(project.project_id) is False
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             assert db.execute(
                 "SELECT COUNT(*) FROM life_procedure_catalog",
             ).fetchone()[0] == 0
@@ -945,7 +946,7 @@ def test_procedure_precedent_rejects_tampered_original_job_receipt(tmp_path):
         procedure_id = found[0].procedure_id
         real = life.procedures.proof_receipts_for_procedure(procedure_id)
         assert len(real) == 2
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             db.execute(
                 "UPDATE life_procedure_proof SET evidence_ref=? "
                 "WHERE procedure_id=? AND project_id=?",
@@ -983,7 +984,7 @@ def test_procedure_proof_check_rejects_original_job_mismatch(tmp_path):
             life, first, now + timedelta(minutes=2),
         )
         procedure_id = life.procedures.available_for_project(third)[0].procedure_id
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             db.execute(
                 "UPDATE life_procedure_proof SET job_id=? "
                 "WHERE procedure_id=? AND project_id=?",
@@ -1034,7 +1035,7 @@ def test_goal_dependency_view_keeps_exact_provenance_without_global_newest_page(
             row for row in view if row["project_id"] == future.project_id
         )
         assert future_row["verified_procedures"] == (record.procedure_id,)
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             db.execute(
                 "UPDATE life_procedure_proof SET evidence_ref=? "
                 "WHERE procedure_id=? AND project_id=?",
@@ -1084,7 +1085,7 @@ def test_verified_skill_refuses_stale_native_tool_version_and_quarantines(
         )) == 1
         source_job = life.work_store.get(life.store.jobs(first.project_id)[0])
         original_artifact = source_job.result["artifact_id"]
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             db.execute(
                 "UPDATE creative_artifact_revision SET tool_version=? "
                 "WHERE artifact_id=? AND revision=?",
@@ -1115,7 +1116,7 @@ def test_procedure_promotion_requires_original_current_native_tool_version(
         job, receipt = _original_authorized_completion(
             life, project, evidence, now,
         )
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             db.execute(
                 "UPDATE creative_artifact_revision SET tool_id=? "
                 "WHERE artifact_id=? AND revision=?",
@@ -1168,7 +1169,7 @@ def test_quarantine_preserves_first_original_reason_and_timestamp(tmp_path):
             procedure_id, reason="Later diagnostic must not replace first.",
             now=first_time + timedelta(minutes=1),
         ) is False
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             state = db.execute(
                 "SELECT status,quarantine_reason,updated_at "
                 "FROM life_procedure_catalog WHERE procedure_id=?",
@@ -1198,7 +1199,7 @@ def test_quarantine_rejects_candidate_or_unknown_procedure(tmp_path):
         assert life._reconcile_procedure_catalog(
             now=now + timedelta(seconds=8),
         ) == 1
-        with sqlite3.connect(life.path) as db:
+        with closing(sqlite3.connect(life.path)) as db, db:
             candidate = db.execute(
                 "SELECT procedure_id FROM life_procedure_catalog "
                 "WHERE status='candidate'",
