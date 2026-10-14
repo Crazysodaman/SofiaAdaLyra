@@ -2794,12 +2794,27 @@ class SelfDirectedLifeCoordinator:
                 continue
             job = self.work_store.get(job_id)
             result = job.result if isinstance(job.result, dict) else {}
+            artifact = self.creative_store.latest(
+                artifact_id, SOFIA_CREATIVE_OWNER, project.audience_id,
+            )
+            # RUN's result must name the same immutable content revision as
+            # the scoped creative store. A completed flag or attached receipt
+            # without matching original bytes is never a proof of work.
             return (
                 job.status is WorkStatus.COMPLETED
                 and result.get("artifact_id") == artifact_id
                 and type(result.get("revision")) is int
                 and result["revision"] == revision
                 and result.get("evidence_ref") == evidence_ref
+                and isinstance(result.get("sha256"), str)
+                and isinstance(result.get("byte_size"), int)
+                and type(result.get("byte_size")) is int
+                and artifact is not None
+                and artifact.project_id == project.project_id
+                and artifact.artifact_id == artifact_id
+                and artifact.revision == revision
+                and artifact.content_sha256 == result["sha256"]
+                and artifact.byte_size == result["byte_size"]
                 and (artifact_id, revision) in self.store.artifacts(project.project_id)
             )
         return False

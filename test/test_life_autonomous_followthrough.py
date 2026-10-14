@@ -351,3 +351,68 @@ def test_revision_abstains_if_goal_pauses_during_generator(tmp_path):
         assert len(life.store.evaluations(project.project_id)) == 1
     finally:
         life.close()
+
+
+def test_life_completed_receipt_must_match_original_sha_and_size(tmp_path, monkeypatch):
+    """A signed job status without matching creative source cannot authorize review."""
+    from dataclasses import replace
+
+    life, _goals, now = infrastructure(tmp_path)
+    project = typed_active_project(
+        life, now, objectives=("text_contains:Foxfire",),
+    )
+    try:
+        created = life.tick(
+            now=now + timedelta(seconds=3),
+            generate=lambda request: _draft(
+                "Foxfire was documented in an independently testable note."
+            ),
+        )
+        assert created["scheduled"] == 1
+        job_id = life.store.jobs(project.project_id)[0]
+        assert wait_for_job(life, job_id).status is WorkStatus.COMPLETED
+        job = life.work_store.get(job_id)
+        assert job.result is not None
+        original = dict(job.result)
+        evidence_ref = original["evidence_ref"]
+        artifact_id = original["artifact_id"]
+        revision = original["revision"]
+        kwargs = dict(
+            artifact_id=artifact_id, revision=revision,
+            evidence_ref=evidence_ref, now=now + timedelta(minutes=1),
+        )
+        assert life._confirmed_artifact_run_receipt(project, **kwargs)
+
+        real_get = life.work_store.get
+        for changed in (
+            {**original, "sha256": "0" * 64},
+            {**original, "byte_size": int(original["byte_size"]) + 1},
+            {key: val for key, val in original.items() if key != "sha256"},
+        ):
+            monkeypatch.setattr(
+                life.work_store, "get",
+                lambda key, data=changed: replace(job, result=data)
+                if key == job_id else real_get(key),
+            )
+            assert not life._confirmed_artifact_run_receipt(project, **kwargs)
+            monkeypatch.setattr(life.work_store, "get", real_get)
+
+        original_latest = life.creative_store.latest
+        canonical = original_latest(
+            artifact_id, "sofia", project.audience_id,
+        )
+        assert canonical is not None
+        monkeypatch.setattr(
+            life.creative_store, "latest",
+            lambda *args, **kwargs: replace(
+                canonical, content_sha256="0" * 64,
+            ),
+        )
+        assert not life._confirmed_artifact_run_receipt(project, **kwargs)
+        monkeypatch.setattr(life.creative_store, "latest", original_latest)
+
+        reviewed = life.tick(now=now + timedelta(minutes=2))
+        assert reviewed["follow_through"] == "independently_completed"
+        assert life._project(project.project_id).status is ProjectStatus.COMPLETED
+    finally:
+        life.close()
