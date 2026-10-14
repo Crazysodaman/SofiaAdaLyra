@@ -66,3 +66,30 @@ def test_tool_call_response_does_not_trigger_quality_retry():
     assert client.calls == 1
     assert len(result.tool_calls) == 1
     assert result.tool_calls[0].name == "example"
+
+def test_disallowed_tools_are_not_sent_to_ollama():
+    from sofia.cognition.model import CognitiveToolDefinition
+
+    class CapturingClient:
+        kwargs = None
+
+        def chat(self, **kwargs):
+            self.kwargs = kwargs
+            return SimpleNamespace(
+                message=SimpleNamespace(content="Allowed text.", tool_calls=()),
+            )
+
+    client = CapturingClient()
+    provider = OllamaProvider(create_default_configuration().provider, client=client)
+    request = CognitiveRequest(
+        messages=(),
+        tools=(CognitiveToolDefinition(
+            name="dangerous_action",
+            description="A tool that must not be exposed to this request.",
+            parameters={"type": "object"},
+        ),),
+        allow_tools=False,
+    )
+    result = provider.respond(request)
+    assert result.content == "Allowed text."
+    assert "tools" not in client.kwargs
