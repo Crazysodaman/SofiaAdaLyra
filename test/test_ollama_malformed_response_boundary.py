@@ -20,6 +20,7 @@ class MalformedClient:
 @pytest.mark.parametrize("payload", [
     None,
     SimpleNamespace(message=None),
+    SimpleNamespace(message=SimpleNamespace()),
     SimpleNamespace(message=SimpleNamespace(content=123, tool_calls=())),
     SimpleNamespace(message=SimpleNamespace(content="", tool_calls=(None,))),
     SimpleNamespace(message=SimpleNamespace(content="", tool_calls="bad")),

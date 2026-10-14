@@ -203,7 +203,12 @@ class OllamaProvider(LLMProvider):
     @classmethod
     def _response_from_ollama(cls, response) -> CognitiveResponse:
         message = response.message
-        content = getattr(message, "content", "")
+        # Ollama's ChatResponse always has a message. Treat a missing or
+        # structurally incomplete payload as an outage, not a legitimate
+        # empty assistant answer that quality repair might substitute.
+        if message is None or not hasattr(message, "content"):
+            raise LLMProviderError("Ollama returned a missing message payload.")
+        content = message.content
         if content is None:
             content = ""
         # Reject invalid content before quality-repair or persistence paths.

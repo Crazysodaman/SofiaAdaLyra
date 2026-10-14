@@ -103,8 +103,21 @@ def test_queue_does_not_modify_gate_evidence():
 
 def test_gate_three_tasks_are_deferred_until_final_ci():
     progress, reviews = _inputs()
-    report = build_work_queue(progress, reviews)
-    assert report["states"]["awaiting_final_ci"] >= 1
+    # The real evidence ledger may correctly contain zero Gate 3 tasks.
+    # Exercise the deferral with an explicit synthetic gate, never rewrite
+    # canonical evidence just to satisfy this test.
+    baseline = build_work_queue(progress, reviews)
+    assert baseline["states"]["awaiting_final_ci"] == sum(
+        row["gate_with_recorded_proof"] == 3
+        for row in progress["tasks"] + progress["supplemental_tasks"]
+    )
+    changed = deepcopy(progress)
+    target = next(row for row in changed["tasks"] if row["id"] == "CA-4501")
+    assert target["gate_with_recorded_proof"] < 3
+    target["gate_with_recorded_proof"] = 3
+    report = build_work_queue(changed, reviews)
+    assert report["states"]["awaiting_final_ci"] == baseline["states"]["awaiting_final_ci"] + 1
+    assert next(row for row in report["tasks"] if row["id"] == "CA-4501")["state"] == "awaiting_final_ci"
     assert all(row["gate"] < 3 for row in report["selected"])
 
 
