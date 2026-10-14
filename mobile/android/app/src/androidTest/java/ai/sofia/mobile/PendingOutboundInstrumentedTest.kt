@@ -1,6 +1,10 @@
 package ai.sofia.mobile
 
 import android.content.Context
+import android.util.Base64
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.SecretKey
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
@@ -168,6 +172,46 @@ class PendingOutboundInstrumentedTest {
             }
             assertEquals(pending, store.pendingOutbound())
         }
+    }
+
+
+    @Test
+    fun corruptIncomingCiphertextBlocksNewArrivalWithoutAcknowledgmentOrOverwrite() {
+        val prefs = context.getSharedPreferences("sofia-mobile", Context.MODE_PRIVATE)
+        val encryptedCorrupt = "not-an-aes-gcm-record"
+        assertTrue(prefs.edit().putString("incoming_messages", encryptedCorrupt).commit())
+        val store = SecureSettings(context)
+        try {
+            store.storeIncoming("notification-new", "Should not erase protected originals")
+            fail("An incoming notification must not erase unreadable protected history")
+        } catch (_: IllegalStateException) {
+            // The caller must withhold the host ACK and retain original bytes.
+        }
+        assertEquals(encryptedCorrupt, prefs.getString("incoming_messages", null))
+    }
+
+    @Test
+    fun structurallyCorruptAuthenticatedInboxIsNeverSilentlyConsumed() {
+        val prefs = context.getSharedPreferences("sofia-mobile", Context.MODE_PRIVATE)
+        val store = SecureSettings(context)
+        store.storeIncoming("notification-valid", "Retain me")
+        val key = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            .getKey("sofia-mobile-api-token", null) as SecretKey
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        val invalidPlaintext = "[{}]".toByteArray(Charsets.UTF_8)
+        val corruptRecord = Base64.encodeToString(
+            cipher.iv + cipher.doFinal(invalidPlaintext),
+            Base64.NO_WRAP,
+        )
+        assertTrue(prefs.edit().putString("incoming_messages", corruptRecord).commit())
+        try {
+            store.consumeIncoming()
+            fail("Malformed authenticated inbox contents must not disappear")
+        } catch (_: IllegalStateException) {
+            // Canonical acknowledgment remains blocked; owner may inspect/discard.
+        }
+        assertEquals(corruptRecord, prefs.getString("incoming_messages", null))
     }
 
 }
