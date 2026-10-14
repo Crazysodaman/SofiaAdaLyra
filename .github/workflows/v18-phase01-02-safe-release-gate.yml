@@ -3,15 +3,26 @@ name: V18 Phase 01-02 SAFE and Release Source Gate
 on:
   push:
     branches: [main]
+    # The phase-specific proof should not run on every unrelated roadmap
+    # edit from other workers. Repository-wide gates retain full coverage.
+    paths:
+      - 'src/sofia/safe/**'
+      - 'src/sofia/application/background.py'
+      - 'src/sofia/verify/**'
+      - 'test/test_safe_*.py'
+      - 'test/test_application_background.py'
+      - 'test/test_v18_gate4.py'
+      - 'test/test_verify_v18_roadmap.py'
+      - '.github/workflows/v18-phase01-02-safe-release-gate.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 # Preserve a running exact-SHA proof when more development lands on main.
-# Superseding pending revisions is fine; cancelling an in-flight proof is not.
+# A source change gets one own SHA-bound run. Unrelated concurrent pushes must\n# not cancel even a pending verification for this revision.
 concurrency:
-  group: v18-phase01-02-${{ github.ref }}
+  group: v18-phase01-02-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
