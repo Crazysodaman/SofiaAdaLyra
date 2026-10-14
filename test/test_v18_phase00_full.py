@@ -144,7 +144,10 @@ def test_all_unassessed_phase00_design_tasks_have_source_backed_review_candidate
         if row["ledger_status"] == "unassessed"
     ]
     assert len(unassessed) == report["candidate_unassessed_documents_verified"]
-    assert len(unassessed) == 33
+    # A legitimate later ledger review may promote candidate status.
+    # The audit must follow current source truth, not freeze yesterday's
+    # unassessed count as a perpetual requirement.
+    assert len(unassessed) == report["ledger_status_counts"]["unassessed"]
     assert all(row["candidate_not_independently_reviewed"] is True for row in unassessed)
     for row in unassessed:
         candidate = row["unassessed_design_review_candidate"]
