@@ -157,8 +157,7 @@ def test_word_count_criterion_is_kind_scoped_and_measured_from_actual_utf8(tmp_p
 
 def test_python_code_syntax_is_checked_without_running_program(tmp_path):
     from dataclasses import replace
-    content = b"raise RuntimeError('should never run')\\n"
-    content = content.replace(b"\\\\n", b"\\n")
+    content = b"raise RuntimeError('should never run')"
     path = tmp_path / "example.py"
     path.write_bytes(content)
     record = replace(revision_for(path, content), kind=ArtifactKind.CODE)
@@ -166,8 +165,7 @@ def test_python_code_syntax_is_checked_without_running_program(tmp_path):
         revision=record, path=path, objectives=("python_syntax:python",),
     )
     assert accepted.findings[0].disposition is ObjectiveDisposition.PASS
-    broken = b"def broken(:\\n  pass"
-    broken = broken.replace(b"\\\\n", b"\\n")
+    broken = b"def broken(:"
     path.write_bytes(broken)
     failed = inspect_objective_artifact(
         revision=replace(revision_for(path, broken), kind=ArtifactKind.CODE),
