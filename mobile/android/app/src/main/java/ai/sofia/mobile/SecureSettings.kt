@@ -344,8 +344,13 @@ class SecureSettings(private val context: Context) {
 
     fun storeIncoming(notificationId: String, content: String) {
         require(notificationId.isNotBlank() && content.isNotBlank())
-        val existing = decrypt(prefs.getString("incoming_messages", "") ?: "")
+        val ciphertext = prefs.getString("incoming_messages", "") ?: ""
+        val existing = decrypt(ciphertext)
         // Corrupt protected inbox state is never treated as an empty inbox.
+        // Decryption can fail to an empty string, so test the stored bytes too.
+        check(ciphertext.isBlank() || existing.isNotBlank()) {
+            "Protected incoming cache cannot be decrypted; retain ciphertext"
+        }
         val current = if (existing.isBlank()) JSONArray() else try {
             JSONArray(existing)
         } catch (failure: Exception) {
@@ -386,8 +391,13 @@ class SecureSettings(private val context: Context) {
                 failure,
             )
         }
-        val content = (0 until values.length()).mapNotNull {
-            values.optJSONObject(it)?.optString("content")?.takeIf(String::isNotBlank)
+        val content = (0 until values.length()).map { index ->
+            val entry = values.optJSONObject(index)
+                ?: throw IllegalStateException("Protected inbox contains an invalid record")
+            check(entry.optString("id").isNotBlank() &&
+                entry.optString("content").isNotBlank()
+            ) { "Protected inbox contains an incomplete record" }
+            entry.getString("content")
         }
         check(prefs.edit().remove("incoming_messages").commit()) {
             "Protected incoming cache could not be acknowledged locally"
