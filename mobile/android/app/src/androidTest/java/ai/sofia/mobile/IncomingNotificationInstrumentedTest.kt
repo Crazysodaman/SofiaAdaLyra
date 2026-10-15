@@ -30,7 +30,7 @@ class IncomingNotificationInstrumentedTest {
     @Test fun notificationPersistsAcrossSettingsRecreationBeforeLocalConsumption() {
         val initial = SecureSettings(context)
         initial.storeIncoming("notification-1", "Durable private preview")
-        initial.storeIncoming("notification-1", "Duplicate must not replace original")
+        initial.storeIncoming("notification-1", "Durable private preview")
 
         val restarted = SecureSettings(context)
         assertEquals(listOf("Durable private preview"), restarted.consumeIncoming())
@@ -88,6 +88,41 @@ class IncomingNotificationInstrumentedTest {
         assertEquals(2, restarted.messages.size)
         store.clearIncoming()
         assertTrue(SecureSettings(context).readIncoming().isEmpty())
+    }
+
+
+    @Test fun conflictingNotificationIdFailsClosedWithoutAlteringFirstReceipt() {
+        val store = SecureSettings(context)
+        store.storeIncoming("notice-conflict", "Original persisted delivery")
+        try {
+            store.storeIncoming("notice-conflict", "Different response from host")
+            fail("An acknowledged notification ID must not change its original bytes")
+        } catch (_: IllegalStateException) {
+            // The original encrypted body is authoritative for this phone.
+        }
+        assertEquals(
+            listOf(CachedMobileNotification("notice-conflict", "Original persisted delivery")),
+            SecureSettings(context).readIncoming(),
+        )
+    }
+
+    @Test fun fullInboxRefusesNewAckWithoutEvictingAnyReceivedOriginal() {
+        val store = SecureSettings(context)
+        for (i in 0 until 49) {
+            store.storeIncoming("notice-" + i, "Exact message " + i)
+        }
+        val originals = store.readIncoming()
+        assertEquals(49, originals.size)
+        try {
+            store.storeIncoming("notice-50", "Not yet durably admitted")
+            fail("Full protected inbox must reject new delivery rather than discard originals")
+        } catch (_: IllegalStateException) {
+            // The server claim must remain unresolved and retryable.
+        }
+        assertEquals(originals, SecureSettings(context).readIncoming())
+        // Idempotent redelivery of an already stored notice is permitted.
+        store.storeIncoming("notice-0", "Exact message 0")
+        assertEquals(originals, store.readIncoming())
     }
 
 }
