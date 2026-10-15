@@ -7,7 +7,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: matrix-tests-${{ github.ref }}
+  # Explicit Gate-4 dispatches are SHA-specific and never displaced by
+  # unrelated rapid main pushes. Automatic push runs still coalesce by ref.
+  group: matrix-tests-${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
   # Keep a started revision alive for exact-SHA evidence even when main
   # receives subsequent commits. GitHub may still replace pending runs.
   cancel-in-progress: false
