@@ -1,5 +1,6 @@
 """Deferred stdlib-only portable JSONL verifier compatibility contracts."""
 from pathlib import Path
+from hashlib import sha256
 import json
 import runpy
 
@@ -89,4 +90,86 @@ def test_standalone_verifier_does_not_trust_footer_counts(tmp_path):
     lines[-1] = (json.dumps(footer, sort_keys=True) + "\n").encode("utf-8")
     path.write_bytes(b"".join(lines))
     with pytest.raises(ValueError, match="footer original_message_count"):
+        _verifier()(path)
+
+
+def _rebuild_with_valid_checksum(records):
+    body = b"".join(
+        (json.dumps(row, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n").encode("utf-8")
+        for row in records[:-1]
+    )
+    footer = {**records[-1], "preceding_lines_sha256": sha256(body).hexdigest()}
+    return body + (
+        json.dumps(footer, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+
+
+@pytest.mark.parametrize("field,forged", [
+    ("authority", "granted_unrestricted_access"),
+    ("source", "unreviewed_database"),
+])
+def test_independent_recovery_verifier_rejects_forged_source_labels(
+    tmp_path, field, forged,
+):
+    state, path, _ = _fixture(tmp_path)
+    export_portable_conversations(
+        state_path=state, destination=path,
+        approve_sensitive_plaintext=True,
+    )
+    records = [json.loads(line) for line in path.read_bytes().splitlines()]
+    records[0][field] = forged
+    path.write_bytes(_rebuild_with_valid_checksum(records))
+    with pytest.raises(ValueError, match="incomplete portable export header"):
+        _verifier()(path)
+
+
+def test_independent_recovery_verifier_rejects_duplicate_keys(tmp_path):
+    state, path, _ = _fixture(tmp_path)
+    export_portable_conversations(
+        state_path=state, destination=path,
+        approve_sensitive_plaintext=True,
+    )
+    raw = path.read_bytes()
+    path.write_bytes(raw.replace(
+        b'"privacy":"ALL_AUDIENCES_SENSITIVE_PLAINTEXT"',
+        b'"privacy":"ALL_AUDIENCES_SENSITIVE_PLAINTEXT","privacy":"PUBLIC"',
+        1,
+    ))
+    with pytest.raises(ValueError, match="valid UTF-8 JSON"):
+        _verifier()(path)
+
+
+def test_independent_recovery_verifier_rejects_forged_thread_access(tmp_path):
+    state, path, _ = _fixture(tmp_path)
+    export_portable_conversations(
+        state_path=state, destination=path,
+        approve_sensitive_plaintext=True,
+    )
+    records = [json.loads(line) for line in path.read_bytes().splitlines()]
+    thread = next(row for row in records if row["record_type"] == "thread")
+    thread["access"] = "unrestricted"
+    path.write_bytes(_rebuild_with_valid_checksum(records))
+    with pytest.raises(ValueError, match="invalid thread"):
+        _verifier()(path)
+
+
+def test_independent_recovery_verifier_rejects_impossible_link_provenance(tmp_path):
+    state, path, _ = _fixture(tmp_path)
+    export_portable_conversations(
+        state_path=state, destination=path,
+        approve_sensitive_plaintext=True,
+    )
+    records = [json.loads(line) for line in path.read_bytes().splitlines()]
+    link = next(row for row in records if row["record_type"] == "thread_source_link")
+    link["current_original_available"] = False
+    link["current_source_audience_matches"] = True
+    path.write_bytes(_rebuild_with_valid_checksum(records))
+    with pytest.raises(ValueError, match="impossible audience provenance"):
+        _verifier()(path)
+
+
+def test_independent_recovery_verifier_capped_reader_rejects_long_line(tmp_path):
+    path = tmp_path / "oversized.jsonl"
+    path.write_bytes(b'{"' + b"a" * (16 * 1024 * 1024) + b'"}\n')
+    with pytest.raises(ValueError, match="exceeds safety limit"):
         _verifier()(path)
