@@ -20,7 +20,9 @@ on:
         type: string
 
 concurrency:
-  group: release-candidate-${{ github.ref }}
+  # Explicit Gate-4 dispatches are SHA-specific and never displaced by
+  # unrelated rapid main pushes. Automatic push runs still coalesce by ref.
+  group: release-candidate-${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
   cancel-in-progress: false
 
 jobs:
