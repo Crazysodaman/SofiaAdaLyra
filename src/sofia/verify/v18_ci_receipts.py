@@ -21,7 +21,7 @@ from sofia.verify.v18_gate4 import gate4_snapshot
 from sofia.verify.v18_roadmap import RoadmapIntegrityError, LEDGER_RELATIVE
 
 _REPO = "Crazysodaman/SofiaAdaLyra"
-_TEST = re.compile(r"^test/test_[A-Za-z0-9_./-]+\\.py(?:::[A-Za-z0-9_\\[\\]-]+)?$")
+_TEST = re.compile(r"^test/test_[A-Za-z0-9_./-]+\.py(?:::[A-Za-z0-9_]+)?$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 _EXTRA = "docs/development/v18-supplemental-gate4-proofs.json"
 
@@ -163,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
         loader = github_run_loader(os.environ.get("GITHUB_TOKEN", ""))
         result = audit_ci_receipts(args.repo.resolve(strict=True), loader=loader)
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(result, indent=2) + "\\n", encoding="utf-8")
+        args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(
             f"authenticated_ci_runs={len(result['authenticated_run_ids'])} "
             f"task_claims={result['authenticated_claims']}"
