@@ -7,6 +7,14 @@ on:
       - 'scripts/verify_sofia_portable_export.py'
       - 'tools/verify_sofia_portable_jsonl.py'
       - 'src/sofia/ops/recovery_export.py'
+      - 'src/sofia/ops/state_*.py'
+      - 'src/sofia/config/state_home_pointer.py'
+      - 'test/test_state_relocation*.py'
+      - 'test/test_state_home_pointer*.py'
+      - 'test/test_backup*.py'
+      - 'test/test_ws2_backup*.py'
+      - 'test/test_ws2_restore*.py'
+      - 'test/test_ws2_pending_pointer*.py'
       - 'src/sofia/ops/backup*.py'
       - 'src/sofia/mobile/**'
       - 'mobile/android/**'
@@ -59,6 +67,22 @@ jobs:
           test/test_mobile_canonical_identity_fencing.py
           test/test_mobile_notifications.py
           test/test_ws2_mobile_notification_epoch_fence.py
+      - name: Exercise Phase 03 relocation and restore failure gates
+        run: >-
+          python -m pytest -q
+          test/test_state_relocation_atomic_publish.py
+          test/test_state_relocation_local_preflight.py
+          test/test_state_home_pointer_redirects.py
+          test/test_ws2_pending_pointer_handoff_recheck.py
+          test/test_ws2_partial_bundle_restore_uncertainty.py
+          test/test_ws2_backup_archive_publication.py
+          test/test_ws2_backup_restore_durability.py
+          test/test_ws2_backup_restore_temp_symlink.py
+          test/test_ws2_restore_erasure_lock.py
+          test/test_ws2_restore_whole_bundle_no_replace.py
+          test/test_backup_archive_input_fencing.py
+          test/test_backup_canonical_identity_fencing.py
+          test/test_backup_rotation_fencing.py
 
   android-keystore:
     name: Android encrypted inbox instrumentation
