@@ -345,7 +345,9 @@ class SecureSettings(private val context: Context) {
     }
 
     fun storeIncoming(notificationId: String, content: String) {
-        require(notificationId.isNotBlank() && content.isNotBlank())
+        require(notificationId.isNotBlank() && notificationId.length <= 128 &&
+            content.isNotBlank() && content.length <= 2_000
+        ) { "Protected notification ID or content exceeds mobile storage bounds" }
         val ciphertext = prefs.getString("incoming_messages", "") ?: ""
         val existing = decrypt(ciphertext)
         // Corrupt protected inbox state is never treated as an empty inbox.
@@ -358,10 +360,21 @@ class SecureSettings(private val context: Context) {
         } catch (failure: Exception) {
             throw IllegalStateException("Protected incoming cache is unreadable", failure)
         }
-        if ((0 until current.length()).any {
-                current.optJSONObject(it)?.optString("id") == notificationId
-            }
-        ) return
+        check(current.length() <= 49) {
+            "Protected inbox exceeds its bounded canonical delivery cache"
+        }
+        val knownIds = mutableSetOf<String>()
+        for (index in 0 until current.length()) {
+            val original = current.optJSONObject(index)
+                ?: throw IllegalStateException("Protected inbox contains an invalid record")
+            val id = original.optString("id")
+            val message = original.optString("content")
+            check(id.isNotBlank() && id.length <= 128 &&
+                message.isNotBlank() && message.length <= 2_000 &&
+                knownIds.add(id)
+            ) { "Protected inbox has damaged or duplicate original records" }
+        }
+        if (notificationId in knownIds) return
         val retained = JSONArray()
         for (index in maxOf(0, current.length() - 48) until current.length()) {
             retained.put(current.get(index))
@@ -394,14 +407,19 @@ class SecureSettings(private val context: Context) {
                 failure,
             )
         }
+        check(values.length() <= 49) {
+            "Protected inbox exceeded mobile storage bounds"
+        }
+        val knownIds = mutableSetOf<String>()
         return (0 until values.length()).map { index ->
             val entry = values.optJSONObject(index)
                 ?: throw IllegalStateException("Protected inbox contains an invalid record")
             val id = entry.optString("id")
             val content = entry.optString("content")
-            check(id.isNotBlank() && content.isNotBlank()) {
-                "Protected inbox contains an incomplete record"
-            }
+            check(id.isNotBlank() && id.length <= 128 &&
+                content.isNotBlank() && content.length <= 2_000 &&
+                knownIds.add(id)
+            ) { "Protected inbox contains an invalid or duplicate record" }
             CachedMobileNotification(id = id, content = content)
         }
     }
