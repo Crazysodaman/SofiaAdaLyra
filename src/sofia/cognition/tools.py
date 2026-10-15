@@ -26,6 +26,12 @@ from sofia.safe.permissions import (
 # Tool data can contain large retrieved logs or repository files. The model
 # never receives an unbounded single-tool payload.
 MAX_FORMATTED_TOOL_RESULT_CHARS = 32_000
+_UNTRUSTED_SECRET_FIELDS = frozenset({
+    "password", "passwd", "passphrase", "api_key", "access_token",
+    "refresh_token", "authorization", "proxy_authorization",
+    "cookie", "set_cookie", "private_key", "client_secret",
+    "secret_key", "auth_token", "bearer_token", "credential",
+})
 
 
 class CognitiveToolError(Exception):
@@ -560,7 +566,20 @@ class CognitiveToolDispatcher:
                         if index >= 128:
                             result["[TRUNCATED]"] = sentinel
                             break
-                        result[str(key)[:512]] = normalize(child, depth + 1)
+                        # Tool results are observational data, not a
+                        # credential-delivery channel to the model. Avoid
+                        # executing custom key __str__ implementations and
+                        # suppress obvious secret-bearing structured fields.
+                        text_key = (
+                            str(key)[:512]
+                            if isinstance(key, (str, int, float, bool))
+                            else "[OMITTED: unsupported evidence key]"
+                        )
+                        canonical_key = text_key.casefold().replace("-", "_").replace(" ", "_")
+                        if canonical_key in _UNTRUSTED_SECRET_FIELDS:
+                            result[text_key] = "[REDACTED: untrusted secret field]"
+                        else:
+                            result[text_key] = normalize(child, depth + 1)
                     return result
                 if isinstance(item, (tuple, list, set, frozenset)):
                     result = []
