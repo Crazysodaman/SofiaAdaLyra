@@ -147,4 +147,27 @@ class IncomingNotificationInstrumentedTest {
         assertTrue(store.readIncoming().isEmpty())
     }
 
+
+    @Test fun newDeliveryDuringDeleteReviewIsNeverSilentlyDiscarded() {
+        val store = SecureSettings(context)
+        store.storeIncoming("before-review", "First persisted notification")
+        val application = context.applicationContext as android.app.Application
+        val model = MainViewModel(application)
+        model.requestClearInbox()
+        assertTrue(model.confirmClearInbox)
+        // Same-process service and UI have different store objects.
+        SecureSettings(context).storeIncoming(
+            "after-review", "Arrived while the owner reviewed deletion",
+        )
+        model.clearInboxAfterConfirmation()
+        assertEquals(false, model.confirmClearInbox)
+        assertEquals(
+            listOf("before-review", "after-review"),
+            store.readIncoming().map { it.id },
+        )
+        model.requestClearInbox()
+        model.clearInboxAfterConfirmation()
+        assertTrue(store.readIncoming().isEmpty())
+    }
+
 }
