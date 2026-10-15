@@ -359,9 +359,15 @@ class CognitiveToolDispatcher:
                 expected, sort_keys=True, separators=(",", ":"),
                 ensure_ascii=False, allow_nan=False,
             )
-        except (TypeError, ValueError, RecursionError):
-            return False
-        if len(actual_json.encode("utf-8")) > 64_000:
+            # Encoding is part of the trust check. Lone Unicode surrogates
+            # may be accepted by json.dumps but must not crash effect
+            # settlement when encoded into a real transport.
+            if (
+                len(actual_json.encode("utf-8")) > 64_000
+                or len(expected_json.encode("utf-8")) > 64_000
+            ):
+                return False
+        except (TypeError, ValueError, RecursionError, UnicodeError):
             return False
         return actual_json == expected_json
 
