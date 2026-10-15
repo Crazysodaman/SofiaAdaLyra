@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: v18-gate4-${{ github.ref }}
@@ -29,13 +30,20 @@ jobs:
       - name: Install package and pytest
         run: python -m pip install -e . pytest
       - name: Test gate tracking and source integrity
-        run: python -m pytest -q test/test_v18_gate4.py
+        run: python -m pytest -q test/test_v18_gate4.py test/test_v18_ci_receipts.py
       - name: Generate 700-task Gate 4 report
         run: >-
           python -m sofia.verify.v18_gate4
           --repo .
           --output gate4-progress.json
           --markdown-output gate4-progress.md
+      - name: Authenticate recorded successful GitHub runs at exact revisions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python -m sofia.verify.v18_ci_receipts
+          --repo .
+          --output gate4-remote-ci-receipts.json
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -44,5 +52,6 @@ jobs:
           path: |
             gate4-progress.json
             gate4-progress.md
+            gate4-remote-ci-receipts.json
           if-no-files-found: warn
           retention-days: 30
