@@ -20,6 +20,9 @@ from sofia.ops.state_mobility import _filesystem_kind, _unsafe_ancestor
 
 _EXPORT_SCHEMA = "sofia.portable-conversations.v1"
 _BATCH = 256
+# Match the smallest supported independent recovery-kit reader. Never
+# silently truncate a protected original to make a portable archive fit.
+_MAX_PORTABLE_LINE_BYTES = 16 * 1024 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +40,10 @@ def _append(output, digest, record: dict[str, object]) -> None:
         json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         + "\n"
     ).encode("utf-8")
+    if len(line) > _MAX_PORTABLE_LINE_BYTES:
+        raise ValueError(
+            "original portable recovery record exceeds the independent reader budget"
+        )
     output.write(line)
     digest.update(line)
 
