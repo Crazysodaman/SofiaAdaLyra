@@ -212,6 +212,13 @@ class PendingOutboundInstrumentedTest {
             // Canonical acknowledgment remains blocked; owner may inspect/discard.
         }
         assertEquals(corruptRecord, prefs.getString("incoming_messages", null))
+        try {
+            store.storeIncoming("notification-new", "Must not claim host delivery")
+            fail("Malformed authenticated inbox must reject and preserve a new delivery")
+        } catch (_: IllegalStateException) {
+            // ACK must be withheld and the older authenticated bytes retained.
+        }
+        assertEquals(corruptRecord, prefs.getString("incoming_messages", null))
     }
 
 }
