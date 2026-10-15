@@ -1176,3 +1176,50 @@ def test_successful_matched_host_capability_still_has_execution_receipt():
     assert dispatcher.tool_result_produces_execution_receipt(
         "inspect_test", result
     )
+
+
+@pytest.mark.parametrize("fake", [1, 1.0, "true", None, "1"])
+def test_boolean_effect_receipt_cannot_be_satisfied_by_different_json_type(fake):
+    dispatcher = create_dispatcher(
+        produces_execution_receipt=True,
+        execution_receipt_evidence_match=("effect_applied", True),
+    )
+    result = CapabilityResult(
+        capability="test.inspect",
+        kind=CapabilityResultKind.SUCCESS,
+        evidence={"effect_applied": fake},
+    )
+    assert not dispatcher.tool_result_produces_execution_receipt(
+        "inspect_test", result
+    )
+
+
+@pytest.mark.parametrize("fake", [float("nan"), float("inf"), -float("inf")])
+def test_nonfinite_execution_receipt_evidence_is_untrusted(fake):
+    dispatcher = create_dispatcher(
+        produces_execution_receipt=True,
+        execution_receipt_evidence_match=("verification", 1),
+    )
+    result = CapabilityResult(
+        capability="test.inspect",
+        kind=CapabilityResultKind.SUCCESS,
+        evidence={"verification": fake},
+    )
+    assert not dispatcher.tool_result_produces_execution_receipt(
+        "inspect_test", result
+    )
+
+
+def test_verification_receipt_with_real_boolean_evidence_remains_usable():
+    dispatcher = create_dispatcher(
+        produces_execution_receipt=True,
+        execution_receipt_evidence_match=("effect_applied", True),
+    )
+    result = CapabilityResult(
+        capability="test.inspect",
+        kind=CapabilityResultKind.SUCCESS,
+        evidence={"effect_applied": True},
+    )
+    assert dispatcher.tool_result_produces_execution_receipt(
+        "inspect_test", result
+    )
