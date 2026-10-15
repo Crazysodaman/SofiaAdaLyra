@@ -48,6 +48,8 @@ data class PendingMobileTurn(
         tokenFingerprint == SecureSettings.tokenFingerprint(settings.token)
 }
 
+data class CachedMobileNotification(val id: String, val content: String)
+
 class SecureSettings(private val context: Context) {
     private val prefs = context.getSharedPreferences("sofia-mobile", Context.MODE_PRIVATE)
     private val alias = "sofia-mobile-api-token"
@@ -380,7 +382,8 @@ class SecureSettings(private val context: Context) {
         }
     }
 
-    fun consumeIncoming(): List<String> {
+    /** Read encrypted notifications without deleting the only crash-safe copy. */
+    fun readIncoming(): List<CachedMobileNotification> {
         val encrypted = prefs.getString("incoming_messages", "") ?: ""
         if (encrypted.isBlank()) return emptyList()
         val values = try {
@@ -391,14 +394,22 @@ class SecureSettings(private val context: Context) {
                 failure,
             )
         }
-        val content = (0 until values.length()).map { index ->
+        return (0 until values.length()).map { index ->
             val entry = values.optJSONObject(index)
                 ?: throw IllegalStateException("Protected inbox contains an invalid record")
-            check(entry.optString("id").isNotBlank() &&
-                entry.optString("content").isNotBlank()
-            ) { "Protected inbox contains an incomplete record" }
-            entry.getString("content")
+            val id = entry.optString("id")
+            val content = entry.optString("content")
+            check(id.isNotBlank() && content.isNotBlank()) {
+                "Protected inbox contains an incomplete record"
+            }
+            CachedMobileNotification(id = id, content = content)
         }
+    }
+
+    /** Legacy destructive consumption; the live UI must use readIncoming. */
+    fun consumeIncoming(): List<String> {
+        val content = readIncoming().map { it.content }
+        if (content.isEmpty()) return content
         check(prefs.edit().remove("incoming_messages").commit()) {
             "Protected incoming cache could not be acknowledged locally"
         }
