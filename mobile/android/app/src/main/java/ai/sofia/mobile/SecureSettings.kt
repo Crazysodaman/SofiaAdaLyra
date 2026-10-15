@@ -374,15 +374,25 @@ class SecureSettings(private val context: Context) {
                 knownIds.add(id)
             ) { "Protected inbox has damaged or duplicate original records" }
         }
-        if (notificationId in knownIds) return
-        val retained = JSONArray()
-        for (index in maxOf(0, current.length() - 48) until current.length()) {
-            retained.put(current.get(index))
+        if (notificationId in knownIds) {
+            val original = (0 until current.length())
+                .map { current.getJSONObject(it) }
+                .first { it.getString("id") == notificationId }
+            check(original.getString("content") == content) {
+                "Notification ID was reused with different protected content"
+            }
+            return
         }
-        retained.put(JSONObject().put("id", notificationId).put("content", content))
+        // Never evict a previously ACKed but not owner-discarded original.
+        // At capacity, withhold this new ACK so the canonical host retains
+        // responsibility for delivery instead of silently losing an inbox item.
+        check(current.length() < 49) {
+            "Protected inbox full; explicitly review or clear before new delivery"
+        }
+        current.put(JSONObject().put("id", notificationId).put("content", content))
         // Host acknowledgement is permitted only after durable local storage.
         check(prefs.edit()
-            .putString("incoming_messages", encrypt(retained.toString()))
+            .putString("incoming_messages", encrypt(current.toString()))
             .commit()
         ) { "Incoming message was not saved durably; do not acknowledge host" }
     }
