@@ -1327,3 +1327,23 @@ def test_untrusted_dataclass_secret_fields_are_redacted_before_property_access()
     assert "must-not-reach-model" not in formatted
     assert payload["name"] == "Eos"
     assert "REDACTED" in payload["api_key"]
+
+
+def test_filesystem_tool_evidence_is_bounded_before_context_join(tmp_path):
+    from sofia.filesystem.model import (
+        FilesystemOperation, FilesystemResult, FilesystemResultKind,
+    )
+    from sofia.cognition.tools import MAX_FORMATTED_TOOL_RESULT_CHARS
+
+    result = FilesystemResult(
+        operation=FilesystemOperation.READ_FILE,
+        kind=FilesystemResultKind.SUCCESS,
+        path=tmp_path / "large-log.txt",
+        message="source available",
+        entries=tuple(tmp_path / f"log-{i}.txt" for i in range(500)),
+        content="z" * (MAX_FORMATTED_TOOL_RESULT_CHARS * 100),
+    )
+    parts = CognitiveToolDispatcher._format_filesystem_result(result)
+    assert any("TRUNCATED: filesystem entries" in part for part in parts)
+    assert any("TRUNCATED: filesystem evidence" in part for part in parts)
+    assert len("\n".join(parts)) < MAX_FORMATTED_TOOL_RESULT_CHARS * 5
