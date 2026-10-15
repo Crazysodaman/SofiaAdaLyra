@@ -64,4 +64,30 @@ class IncomingNotificationInstrumentedTest {
         store.clearIncoming()
         assertTrue(SecureSettings(context).consumeIncoming().isEmpty())
     }
+
+    @Test fun protectedInboxRemainsDurableAcrossUiRecreationAndDeduplicates() {
+        val store = SecureSettings(context)
+        store.storeIncoming("notification-keep-1", "Never lose this private message")
+        val application = context.applicationContext as android.app.Application
+
+        val first = MainViewModel(application)
+        assertEquals(1, first.messages.size)
+        first.receivePending()  // Called both during init and activity creation.
+        assertEquals(1, first.messages.size)
+        assertEquals(1, SecureSettings(context).readIncoming().size)
+
+        store.storeIncoming("notification-keep-2", "Second protected message")
+        first.receivePending()
+        assertEquals(2, first.messages.size)
+        assertEquals(2, store.readIncoming().size)
+
+        // A cold-start-style new ViewModel still finds its originals.
+        val restarted = MainViewModel(application)
+        assertEquals(2, restarted.messages.size)
+        restarted.receivePending()
+        assertEquals(2, restarted.messages.size)
+        store.clearIncoming()
+        assertTrue(SecureSettings(context).readIncoming().isEmpty())
+    }
+
 }
