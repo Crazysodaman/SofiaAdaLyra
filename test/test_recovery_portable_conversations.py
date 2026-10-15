@@ -182,3 +182,30 @@ def test_source_export_is_streamed_across_page_boundaries(tmp_path):
         x.get("binding") == "unbound_not_authorized"
         for x in rows
     )
+
+
+def test_portable_recovery_rejects_unreadable_oversized_original_without_truncation(
+    tmp_path, monkeypatch,
+):
+    # Exercise the real exporter with a tiny synthetic version of the
+    # independent tool's size limit. The full limit is 16 MiB.
+    monkeypatch.setattr(
+        "sofia.ops.recovery_export._MAX_PORTABLE_LINE_BYTES", 512,
+    )
+    state, output, _ = _fixture(tmp_path)
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE conversation_messages SET content=? WHERE id=?",
+            ("x" * 1024, "original:one"),
+        )
+    with pytest.raises(ValueError, match="independent reader budget"):
+        export_portable_conversations(
+            state_path=state, destination=output,
+            approve_sensitive_plaintext=True,
+        )
+    assert not output.exists(), "Partial sensitive plaintext must be removed"
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT length(content) FROM conversation_messages WHERE id=?",
+            ("original:one",),
+        ).fetchone()[0] == 1024
