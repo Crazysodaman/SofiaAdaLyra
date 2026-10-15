@@ -42,6 +42,10 @@ class OperatorStopStore:
         self.audit = AuditChain(self.path)
         with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
+            # SQLite DDL alone does not start a Python-managed transaction.
+            # Reserve an explicit write transaction before schema creation so
+            # a refused recovery cannot leave an empty table behind.
+            db.execute("BEGIN IMMEDIATE")
             existed = db.execute(
                 "SELECT 1 FROM sqlite_master "
                 "WHERE type='table' AND name='safe_operator_stop'"
