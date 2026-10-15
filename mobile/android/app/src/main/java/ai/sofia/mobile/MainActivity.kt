@@ -104,6 +104,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingRequestId: String? = null
     private var pendingPrivateMode: Boolean? = null
     private val displayedInboxIds = mutableSetOf<String>()
+    var confirmClearInbox by mutableStateOf(false)
+        private set
 
     init {
         recoverOfflineDraft()
@@ -258,6 +260,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         } catch (_: Exception) {
             status = "Protected incoming messages cannot be read; cache retained for recovery."
+        }
+    }
+
+    fun hasStoredIncoming(): Boolean =
+        try { secure.readIncoming().isNotEmpty() } catch (_: Exception) { true }
+
+    fun requestClearInbox() {
+        if (!busy) confirmClearInbox = true
+    }
+
+    fun cancelClearInbox() {
+        confirmClearInbox = false
+    }
+
+    fun clearInboxAfterConfirmation() {
+        if (busy || !confirmClearInbox) return
+        try {
+            secure.clearIncoming()
+            displayedInboxIds.clear()
+            confirmClearInbox = false
+            status = "Encrypted local notifications discarded. Server receipts are unchanged."
+        } catch (_: Exception) {
+            status = "Protected notification cache could not be cleared."
         }
     }
 
@@ -946,6 +971,34 @@ private fun SofiaScreen(model: MainViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Discard unresolved send on this phone")
+                    }
+                }
+            }
+            if (!model.historyOpen && model.hasStoredIncoming()) {
+                Text(
+                    "Delivered notifications remain encrypted on this phone until you " +
+                        "explicitly discard them. A full inbox pauses new notification ACKs.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (!model.confirmClearInbox) {
+                    Button(
+                        onClick = model::requestClearInbox,
+                        enabled = !model.busy,
+                    ) { Text("Review clearing saved notifications") }
+                } else {
+                    Text(
+                        "This permanently deletes the local encrypted notification " +
+                            "cache, not the canonical server's receipts.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Row {
+                        Button(onClick = model::cancelClearInbox) {
+                            Text("Keep notifications")
+                        }
+                        Button(
+                            onClick = model::clearInboxAfterConfirmation,
+                            enabled = !model.busy,
+                        ) { Text("Confirm local deletion") }
                     }
                 }
             }
