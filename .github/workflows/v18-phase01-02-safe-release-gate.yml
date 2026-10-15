@@ -8,9 +8,11 @@ on:
     paths:
       - 'src/sofia/safe/**'
       - 'src/sofia/application/background.py'
+      - 'src/sofia/cognition/tools.py'
       - 'src/sofia/verify/**'
       - 'test/test_safe_*.py'
       - 'test/test_application_background.py'
+      - 'test/test_cognitive_tools.py'
       - 'test/test_v18_gate4.py'
       - 'test/test_verify_v18_roadmap.py'
       - '.github/workflows/v18-phase01-02-safe-release-gate.yml'
@@ -58,6 +60,7 @@ jobs:
         run: >-
           python -m pytest -q
           test/test_application_background.py
+          test/test_cognitive_tools.py
           test/test_safe_execution_action_fingerprint.py
           test/test_safe_audit.py
           test/test_safe_operator_stop_revision.py
