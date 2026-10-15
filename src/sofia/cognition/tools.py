@@ -609,28 +609,30 @@ class CognitiveToolDispatcher:
     def _format_filesystem_result(
         result: FilesystemResult,
     ) -> list[str]:
+        def bounded(value: str) -> str:
+            if len(value) <= MAX_FORMATTED_TOOL_RESULT_CHARS:
+                return value
+            return (
+                value[:MAX_FORMATTED_TOOL_RESULT_CHARS]
+                + "[TRUNCATED: filesystem evidence exceeded tool context bound]"
+            )
+
         lines = [
             f"Operation: {result.operation.value}",
             f"Kind: {result.kind.value}",
-            f"Path: {result.path}",
-            f"Message: {result.message}",
+            "Path: " + bounded(str(result.path)),
+            "Message: " + bounded(result.message),
         ]
 
         if result.entries:
             lines.append("Entries:")
-
-            for entry in result.entries:
-                lines.append(
-                    f"- {entry}"
-                )
+            for entry in result.entries[:128]:
+                lines.append("- " + bounded(str(entry)))
+            if len(result.entries) > 128:
+                lines.append("[TRUNCATED: filesystem entries exceed 128]")
 
         if result.content is not None:
-            lines.extend(
-                [
-                    "File content:",
-                    result.content,
-                ]
-            )
+            lines.extend(["File content:", bounded(result.content)])
 
         return lines
 
