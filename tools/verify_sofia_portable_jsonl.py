@@ -17,6 +17,24 @@ import sys
 
 SCHEMA = "sofia.portable-conversations.v1"
 _MAX_LINE_BYTES = 16 * 1024 * 1024
+_RECORD_ORDER = {"original_message": 1, "thread": 2, "thread_source_link": 3}
+
+
+def _no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
+    record = {}
+    for key, value in pairs:
+        if key in record:
+            raise ValueError("duplicate portable JSON key")
+        record[key] = value
+    return record
+
+
+def _no_nonfinite(value: str) -> None:
+    raise ValueError("nonfinite JSON number is forbidden")
+
+
+def _required(record: dict, *fields: str) -> bool:
+    return all(isinstance(record.get(key), str) and bool(record[key]) for key in fields)
 
 
 def verify(path: Path) -> dict[str, int | str]:
@@ -29,14 +47,26 @@ def verify(path: Path) -> dict[str, int | str]:
     digest = sha256()
     footer = None
     header_seen = False
+    phase = 0
     with path.open("rb") as source:
-        for line_number, raw in enumerate(source, start=1):
+        line_number = 0
+        while True:
+            # Iterating a file in binary mode allocates an unbounded line
+            # before a length check. Reject oversized hostile files first.
+            raw = source.readline(_MAX_LINE_BYTES + 1)
+            if not raw:
+                break
+            line_number += 1
             if len(raw) > _MAX_LINE_BYTES:
                 raise ValueError(f"line {line_number} exceeds safety limit")
             if not raw.endswith(b"\n"):
                 raise ValueError(f"line {line_number} missing newline terminator")
             try:
-                record = json.loads(raw.decode("utf-8"))
+                record = json.loads(
+                    raw.decode("utf-8"),
+                    object_pairs_hook=_no_duplicate_keys,
+                    parse_constant=_no_nonfinite,
+                )
             except (UnicodeError, ValueError) as exc:
                 raise ValueError(f"line {line_number} is not valid UTF-8 JSON") from exc
             if not isinstance(record, dict):
@@ -48,6 +78,10 @@ def verify(path: Path) -> dict[str, int | str]:
                 if (
                     kind != "header" or record.get("schema") != SCHEMA
                     or record.get("privacy") != "ALL_AUDIENCES_SENSITIVE_PLAINTEXT"
+                    or record.get("authority")
+                        != "offline_operator_export_not_a_channel_grant"
+                    or record.get("source") != "verified_offline_canonical_sqlite"
+                    or not _required(record, "created_at")
                 ):
                     raise ValueError("unknown or incomplete portable export header")
                 header_seen = True
@@ -66,30 +100,50 @@ def verify(path: Path) -> dict[str, int | str]:
                 footer = record
                 continue
             elif kind in counts:
+                next_phase = _RECORD_ORDER[kind]
+                if next_phase < phase:
+                    raise ValueError("portable record classes out of order")
+                phase = next_phase
                 if kind == "original_message":
-                    if not all(
-                        isinstance(record.get(field), str)
-                        for field in (
-                            "message_id", "session_id", "role", "content",
-                            "created_at", "binding",
-                        )
-                    ):
+                    if not _required(
+                        record, "message_id", "session_id", "role", "created_at",
+                    ) or not isinstance(record.get("content"), str):
                         raise ValueError(f"line {line_number} has invalid original")
+                    if record.get("binding") == "currently_bound":
+                        if not _required(record, "principal_id", "audience_id", "audience_kind"):
+                            raise ValueError("bound original missing audience scope")
+                    elif record.get("binding") == "unbound_not_authorized":
+                        if any(
+                            record.get(field) is not None
+                            for field in ("principal_id", "audience_id", "audience_kind")
+                        ):
+                            raise ValueError("unbound original carries audience scope")
+                    else:
+                        raise ValueError("unknown original audience binding")
                 elif kind == "thread":
-                    if not all(
-                        isinstance(record.get(field), str)
-                        for field in ("thread_id", "owner_principal_id", "kind", "name")
-                    ):
+                    if not _required(
+                        record, "thread_id", "owner_principal_id", "kind",
+                        "name", "created_at",
+                    ) or record.get("access") != "catalog_not_a_cross_channel_grant":
                         raise ValueError(f"line {line_number} has invalid thread")
                 else:
-                    if not all(
-                        isinstance(record.get(field), str)
-                        for field in (
-                            "thread_id", "source_message_id",
-                            "source_session_id", "visibility",
-                        )
-                    ):
+                    if not _required(
+                        record, "thread_id", "source_message_id",
+                        "source_session_id", "source_audience_id",
+                        "visibility", "linked_at",
+                    ) or record.get("access") != "reference_only_not_an_authorization":
                         raise ValueError(f"line {line_number} has invalid source link")
+                    if any(
+                        type(record.get(field)) is not bool
+                        for field in (
+                            "current_original_available",
+                            "current_source_audience_matches",
+                        )
+                    ) or (
+                        record["current_source_audience_matches"]
+                        and not record["current_original_available"]
+                    ):
+                        raise ValueError("source link has impossible audience provenance")
                 counts[kind] += 1
             else:
                 raise ValueError(f"line {line_number} uses unknown record type")
