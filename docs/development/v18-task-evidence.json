@@ -2681,7 +2681,11 @@
       "evidence_commits": [
         "5d34724fc72fa984cef6ec454b50c5c3b2e5c226",
         "92118089e3d114a152146fd1868891c65f99a715",
-        "5b3e851906b4d1b091c72fd8c97b456c11fba34f"
+        "5b3e851906b4d1b091c72fd8c97b456c11fba34f",
+        "82473ce34426c600c1921ea6a332a8cba489aa1b",
+        "19fd977e490934a3f9a7d094c0f03358e5590de4",
+        "3c36c816f76523fcecc8d7d0ae92ac5c4f4e84d4",
+        "f1dd645fe08f5dad217bfe8d27b7b6d171d84cd7"
       ],
       "accepted": false,
       "workstream_reconciliation": {
@@ -2696,6 +2700,11 @@
       "latest_phase01_02_continuation": {
         "source_review_sha": "5b3e851906b4d1b091c72fd8c97b456c11fba34f",
         "interpretation": "Cognitive host result is accepted as execution receipt only if canonical result kind is SUCCESS and capability identity matches expected host tool. Forged denied/unavailable/failed and mismatched tool tests added; remaining original adversarial corpus and live tool proof open.",
+        "gate4_accepted": false
+      },
+      "latest_phase01_02_security_batch": {
+        "reviewed_source": "acc64fcc6ed8abb674067a31c927a5bdf1a3b8a2",
+        "scope": "Execution receipts now require canonical SUCCESS and matching tool capability; typed JSON expected-effect equality excludes bool/int confusion, non-finite evidence and malformed Unicode. Windows/Linux targeted CI passed at f1dd645fe08f5dad217bfe8d27b7b6d171d84cd7; broader adversarial memory/privacy/full-host suite open.",
         "gate4_accepted": false
       }
     },
@@ -5334,7 +5343,11 @@
         "b7837372d43cb98d77e045d3d2f3121689537784",
         "59c1bb10fae9ed3a90a9857cbf7bc14cce3494a8",
         "830da4b8dc2a1a68a85f819a133866ca146daa70",
-        "e28745679a3cc99a74805b151efa552d970aea62"
+        "e28745679a3cc99a74805b151efa552d970aea62",
+        "dc6eb34c553f39915112a7f0d3f850aa0ef9812c",
+        "40f46432709db2a76f96af100ad6c1af0cfec06a",
+        "7c4e3f1fe0352b666201f51740d456705f025459",
+        "acc64fcc6ed8abb674067a31c927a5bdf1a3b8a2"
       ],
       "accepted": false,
       "audit_observation": {
@@ -5390,6 +5403,11 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "latest_phase01_02_security_batch": {
+        "reviewed_source": "acc64fcc6ed8abb674067a31c927a5bdf1a3b8a2",
+        "scope": "Untrusted tool result normalization now has bounded recursion, width and string length, cycle detection, safe opaque-object fallback, and obvious structured secret field masking. Focused cross-platform CI is pending for newest patch. Still needs broad exfiltration/hostile-file testing.",
+        "gate4_accepted": false
       }
     },
     {
@@ -5599,7 +5617,10 @@
       ],
       "evidence_commits": [
         "5d34724fc72fa984cef6ec454b50c5c3b2e5c226",
-        "92118089e3d114a152146fd1868891c65f99a715"
+        "92118089e3d114a152146fd1868891c65f99a715",
+        "82473ce34426c600c1921ea6a332a8cba489aa1b",
+        "19fd977e490934a3f9a7d094c0f03358e5590de4",
+        "3c36c816f76523fcecc8d7d0ae92ac5c4f4e84d4"
       ],
       "accepted": false,
       "workstream_reconciliation": {
@@ -5614,6 +5635,11 @@
       "latest_phase01_02_continuation": {
         "source_review_sha": "5b3e851906b4d1b091c72fd8c97b456c11fba34f",
         "interpretation": "Host result receipt gate now rejects fabricated completion evidence from failed tool responses, including matching structured evidence supplied alongside denial. Full multi-seam injection exercise remains open.",
+        "gate4_accepted": false
+      },
+      "latest_phase01_02_security_batch": {
+        "reviewed_source": "acc64fcc6ed8abb674067a31c927a5bdf1a3b8a2",
+        "scope": "Added direct hostile receipt tests for false success values, type-confusable expected effects and malformed Unicode. Full adversarial prompt-injection source matrix remains open.",
         "gate4_accepted": false
       }
     },
