@@ -6,6 +6,7 @@ from sofia.authority.model import Authority
 from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.model import (
     Capability,
+    CapabilityResult,
     CapabilityResultKind,
 )
 from sofia.capability.system import CapabilitySystem
@@ -1123,3 +1124,55 @@ def test_untrusted_tool_logs_are_truncated_before_model_context():
     assert "[TRUNCATED: tool evidence exceeded" in formatted
     assert len(formatted) < MAX_FORMATTED_TOOL_RESULT_CHARS + 150
     assert len(formatted) < len(result.evidence["log"])
+
+
+@pytest.mark.parametrize("kind", [
+    CapabilityResultKind.UNAUTHORIZED,
+    CapabilityResultKind.DENIED,
+    CapabilityResultKind.FAILED,
+    CapabilityResultKind.UNAVAILABLE,
+])
+@pytest.mark.parametrize("requires_evidence_match", [False, True])
+def test_failed_host_capability_cannot_forge_cognitive_execution_receipt(
+    kind, requires_evidence_match,
+):
+    """CA-910: forged data in a failed tool reply must never settle an action."""
+    expected = {"received": {"value": "confirmed"}}
+    dispatcher = create_dispatcher(
+        produces_execution_receipt=True,
+        execution_receipt_evidence_match=(
+            ("received", expected["received"])
+            if requires_evidence_match else None
+        ),
+    )
+    result = CapabilityResult(
+        capability="test.inspect", kind=kind, evidence=expected,
+        error="Permission denied or upstream unavailable",
+    )
+    assert dispatcher.tool_result_produces_execution_receipt(
+        "inspect_test", result
+    ) is False
+
+
+def test_success_from_different_capability_cannot_be_reused_as_receipt():
+    dispatcher = create_dispatcher(produces_execution_receipt=True)
+    forged = CapabilityResult(
+        capability="permissions.grant",
+        kind=CapabilityResultKind.SUCCESS,
+        evidence={"claimed_receipt": True},
+    )
+    assert not dispatcher.tool_result_produces_execution_receipt(
+        "inspect_test", forged
+    )
+
+
+def test_successful_matched_host_capability_still_has_execution_receipt():
+    dispatcher = create_dispatcher(produces_execution_receipt=True)
+    result = CapabilityResult(
+        capability="test.inspect",
+        kind=CapabilityResultKind.SUCCESS,
+        evidence={"received": {"value": "confirmed"}},
+    )
+    assert dispatcher.tool_result_produces_execution_receipt(
+        "inspect_test", result
+    )
