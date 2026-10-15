@@ -69,7 +69,11 @@ _SENSITIVE_AUTO_MEMORY = re.compile(
     r"debit[ _-]?card[ _-]?(?:numbers?|details?)|"
     r"passport[ _-]?numbers?)\b|"
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----|"
-    r"\b(?:Bearer\s+[A-Za-z0-9._~+/-]{12,})",
+    r"\b(?:Bearer\s+[A-Za-z0-9._~+/-]{12,})|"
+    r"\bAuthorization\s*:\s*(?:Basic|Bearer|Digest)\s+[^\s,;]+|"
+    r"\b(?:password|passwd|token|secret|api[ _-]?key|credential)\s*[:=]\s*[^\s,;]+|"
+    r"\b(?:https?|postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqps?|sftp)://"
+    r"[^/\s:@]+:[^/\s@]+@",
     re.IGNORECASE,
 )
 

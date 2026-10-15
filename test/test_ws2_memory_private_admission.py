@@ -96,3 +96,18 @@ def test_sensitive_original_remains_in_source_but_creates_no_memory_candidate(
     finally:
         candidates.close()
         source.close()
+
+
+@pytest.mark.parametrize("text", (
+    "Remember that Authorization: Basic ZmFrZTpzZWNyZXQ= must never be saved",
+    "I prefer Authorization: Bearer SYNTHETIC_SERVICE_TOKEN",
+    "Remember that https://user:syntheticpass@example.invalid/private is the URL",
+    "I use postgresql://username:syntheticpass@db.invalid:5432/sofia",
+    "Remember that redis://agent:syntheticpass@cache.invalid/0 was used",
+    "My test system config is credential=SYNTHETIC_ONLY",
+    "Remember that secret=synthetic_value",
+))
+def test_embedded_secret_syntax_never_generates_optional_memory_candidate(text):
+    accepted, reason = ConversationLearningCoordinator._is_learnable(text)
+    assert accepted is False
+    assert reason == "private credential or identity data is not auto-proposed"
