@@ -1,0 +1,69 @@
+V18 Gate 4 evidence for CA-3703, CA-3705, CA-3706, CA-3710, CA-6109, CA-6406, CA-6409
+Reviewed implementation revision: bfb38f6bb971048e8c1670b73f943faf73f1021c
+Functional GitHub Actions run: 38661524153 (.github/workflows/v18-phase03-04-contracts.yml)
+Linux: success. Windows: success. Both matrix jobs passed at the exact revision.
+Reviewer: OpenCode source and exact-revision CI audit, 2026-10-15.
+Independence note: this is an automated source+CI audit. Independent human
+review of run authenticity and task-test relevance remains pending and is a
+genuine external dependency. No live host, database, VM or credential was
+touched.
+
+All seven original tasks are [DESIGN/RESEARCH]. Per the V18 Gate 4 standard a
+design task needs a completed decision (Gate 1) incorporated into the relevant
+specification (Gate 2); to make Gate 4 meaningful each decision is expressed as
+a pure, fail-closed, side-effect-free contract module with behavioral tests.
+Design decisions are recorded in
+docs/development/v18-phase03-04-executable-contracts-2026-10-15.md.
+
+CA-3703: saga-style operation-effect classification (src/sofia/ops/saga.py).
+Every named operation is classified fully_reversible / compensable /
+retryable_idempotent / externally_irreversible / unknown, with the original
+concrete examples (Discord, Git, Home Assistant, JMRI, Hephaestus). An
+unregistered operation fails closed to unknown. Tests in
+test/test_v18_saga_contracts.py.
+
+CA-3705: commitment record projected from the canonical GOALS owner
+(src/sofia/ops/commitment.py). Projects an existing sofia.goals.model.Goal into
+who asked, what was promised, due date, preconditions, uncertainty,
+cancellability and a deterministic follow-up predicate; introduces no new table
+or writer. Tests in test/test_v18_commitment_projection.py.
+
+CA-3706: bounded compensating actions and escalation for partial external
+success (plan_compensation in src/sofia/ops/saga.py). Irreversible effects can
+never present a compensating reversal and escalate to the operator; compensable
+effects require operator review; idempotent effects retry under the same key.
+The staged-but-never-started Hephaestus case is covered. Tests in
+test/test_v18_saga_contracts.py.
+
+CA-3710: failure-resolution decision tree (src/sofia/ops/failure_triage.py)
+separating code_defect, test_configuration, stale_editable_installation,
+environment_windows_lock, absent_package_tests and unverifiable_deployment. A
+green rerun cannot conceal a deterministic code defect. Tests in
+test/test_v18_failure_triage.py.
+
+CA-6109: capacity budgets, degraded modes and pre-exhaustion triggers
+(src/sofia/ops/capacity.py). Ordered inclusive thresholds with fail-closed WARN
+for unbudgeted resources and explicit STOP shedding. Tests in
+test/test_v18_capacity_budgets.py.
+
+CA-6406: sensory contradiction handling
+(src/sofia/knowledge/observation_conflict.py). Preserves disagreements between
+observations, ranks authoritative receipts above transient views, requires
+authorized verification between weak sources and never reorders history from an
+untrusted wall clock. Tests in test/test_v18_observation_conflict.py.
+
+CA-6409: safety/accuracy regression drift scorecard
+(src/sofia/verify/drift.py). Evidence-backed verdicts (improved /
+within_tolerance / warn / regressed / unverifiable); no improvement is claimed
+without reproducible samples; regressions beyond the fail threshold recommend
+rollback. Tests in test/test_v18_drift_scorecard.py.
+
+Gates 1-2: original design requirements satisfied and incorporated in the named
+specification document and executable modules.
+Gate 3: source-to-effect, authority, privacy and failure-path review completed;
+the contracts perform no effect and hold no authority.
+Gate 4: the named test files passed on both matrix operating systems at the
+exact revision above.
+
+This certificate covers only these seven tasks. It does not assert live host
+acceptance, production Gates 5-6, or independent human review.

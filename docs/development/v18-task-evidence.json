@@ -5190,7 +5190,7 @@
             "test/test_ui_tray_model_roles.py",
             "test/test_ui_tray_lifecycle.py"
           ],
-          "production_route": "Sofía owner Windows SID -> supervised WebAuthn register -> exact FIDO2 signed approval -> ExecutionApprovalVerifier -> canonical PermissionStore durable Level-3/5 grants plus operator policies -> Settings/Tray/CLI -> guarded runtime service effect.",
+          "production_route": "Sof\u00eda owner Windows SID -> supervised WebAuthn register -> exact FIDO2 signed approval -> ExecutionApprovalVerifier -> canonical PermissionStore durable Level-3/5 grants plus operator policies -> Settings/Tray/CLI -> guarded runtime service effect.",
           "fulfilled_slice": "Eliminated graphical TTY gating, authenticated Level-3 standing grant/revoke and Level-5 authority writes, quarantined historical unsigned grants, revoked-key invalidation, and signed model/Fleet/tray service paths. Regression sources migrated; no tests executed.",
           "remaining": "Physical authenticator attestation vs supervised classification, actual Hello/FIDO2, offline recovery, remote Artemis principal, full mutation inventory, host acceptance and source-wide tests are open. Existing consumed-approval/separate-effect crash gap remains."
         },
@@ -5220,7 +5220,7 @@
             "src/sofia/ops/workshop_guest_bootstrap.py",
             "test/test_ui_workshop_owner_webauthn.py"
           ],
-          "production_route": "Human reviewed Hephaestus host network or Debian installer target → local FIDO2 credential selection on UI thread → signed exact one-use WebAuthn approval in existing worker → pinned mTLS Fleet remote inspect/proof → host-specific handler repeats exact SAFE grant matching → guarded host effect with uncertain-outcome receipt and no automatic replay.",
+          "production_route": "Human reviewed Hephaestus host network or Debian installer target \u2192 local FIDO2 credential selection on UI thread \u2192 signed exact one-use WebAuthn approval in existing worker \u2192 pinned mTLS Fleet remote inspect/proof \u2192 host-specific handler repeats exact SAFE grant matching \u2192 guarded host effect with uncertain-outcome receipt and no automatic replay.",
           "fulfilled_slice": "Replaced both remaining Workshop Settings actor-only ExecutionApproval constructions with signed FIDO2 challenges; preserved existing no-retry UNCERTAIN semantics; static production caller regressions authored.",
           "remaining": "End-to-end Hyper-V/Artemis host acceptance, physical owner key, workshop isolation and all deferred tests; signed remote principal migration still open. Never executed host operations."
         },
@@ -6102,9 +6102,16 @@
       "phase": "03",
       "source_topic": "37",
       "master_line": 320,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/saga.py",
+        "test/test_v18_saga_contracts.py",
+        "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
+        ".github/workflows/v18-phase03-04-contracts.yml"
+      ],
+      "evidence_commits": [
+        "bfb38f6bb971048e8c1670b73f943faf73f1021c"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 2,
@@ -6114,7 +6121,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "not_individually_traced_in_workstream_report"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38661524153,
+            "head_sha": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_saga_contracts.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3704",
@@ -6161,9 +6206,16 @@
       "phase": "03",
       "source_topic": "37",
       "master_line": 322,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/commitment.py",
+        "test/test_v18_commitment_projection.py",
+        "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
+        ".github/workflows/v18-phase03-04-contracts.yml"
+      ],
+      "evidence_commits": [
+        "bfb38f6bb971048e8c1670b73f943faf73f1021c"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 2,
@@ -6173,16 +6225,61 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "not_individually_traced_in_workstream_report"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38661524153,
+            "head_sha": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_commitment_projection.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3706",
       "phase": "03",
       "source_topic": "37",
       "master_line": 323,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/saga.py",
+        "test/test_v18_saga_contracts.py",
+        "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
+        ".github/workflows/v18-phase03-04-contracts.yml"
+      ],
+      "evidence_commits": [
+        "bfb38f6bb971048e8c1670b73f943faf73f1021c"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 2,
@@ -6192,7 +6289,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "not_individually_traced_in_workstream_report"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38661524153,
+            "head_sha": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_saga_contracts.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3707",
@@ -6266,9 +6401,16 @@
       "phase": "03",
       "source_topic": "37",
       "master_line": 327,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/failure_triage.py",
+        "test/test_v18_failure_triage.py",
+        "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
+        ".github/workflows/v18-phase03-04-contracts.yml"
+      ],
+      "evidence_commits": [
+        "bfb38f6bb971048e8c1670b73f943faf73f1021c"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 2,
@@ -6278,7 +6420,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "not_individually_traced_in_workstream_report"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38661524153,
+            "head_sha": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_failure_triage.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-5201",
@@ -6872,9 +7052,16 @@
       "phase": "03",
       "source_topic": "61",
       "master_line": 350,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/capacity.py",
+        "test/test_v18_capacity_budgets.py",
+        "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
+        ".github/workflows/v18-phase03-04-contracts.yml"
+      ],
+      "evidence_commits": [
+        "bfb38f6bb971048e8c1670b73f943faf73f1021c"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 2,
@@ -6884,7 +7071,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "not_individually_traced_in_workstream_report"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38661524153,
+            "head_sha": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_capacity_budgets.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-6110",
@@ -8144,9 +8369,16 @@
       "phase": "04",
       "source_topic": "64",
       "master_line": 410,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/knowledge/observation_conflict.py",
+        "test/test_v18_observation_conflict.py",
+        "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
+        ".github/workflows/v18-phase03-04-contracts.yml"
+      ],
+      "evidence_commits": [
+        "bfb38f6bb971048e8c1670b73f943faf73f1021c"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 2,
@@ -8156,7 +8388,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "not_individually_traced_in_workstream_report"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38661524153,
+            "head_sha": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_observation_conflict.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-6407",
@@ -8201,9 +8471,16 @@
       "phase": "04",
       "source_topic": "64",
       "master_line": 413,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/drift.py",
+        "test/test_v18_drift_scorecard.py",
+        "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
+        ".github/workflows/v18-phase03-04-contracts.yml"
+      ],
+      "evidence_commits": [
+        "bfb38f6bb971048e8c1670b73f943faf73f1021c"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 2,
@@ -8213,7 +8490,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "not_individually_traced_in_workstream_report"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+          "sha256": "f4cb201d3394ef658f6e4cffc12f0ccaba2930e36eb6ac8eb96c727dfce6c60d",
+          "evidence_path": "docs/development/v18-gate4-phase03-04-contracts-bfb38f6.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15 (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38661524153,
+            "head_sha": "bfb38f6bb971048e8c1670b73f943faf73f1021c",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_drift_scorecard.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-6410",
@@ -16529,7 +16844,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Model source SAFE controls partial: owner Settings one-time exact local role/host install approval, canonical audit/outcome, operator stop and fail-closed inventory; remote Fleet placement defaults to no silent local failover and remote pulls still require exact grants. Full production role promotion host broker, resource scheduling and all cloud/model source policies remain open. Regression tests authored, not run. Further source guard: cognition/routing.py now permits tool-bearing fallback only for the nine exact source-reviewed read-only CognitiveToolBinding names; no prefix-based authorization from 'inspect/get/search'. Mixed unknown-action tool sets deny replay, independent of SAFE capability approval. Deferred test/test_cognitive_routing.py; no tests or model fallback executed.  Hybrid game/idle model residency still routes via existing configured Ollama roles; it cannot install or pull missing model artifacts and never enables silent role fallback. New 4–6GiB GPU machine is explicitly untrusted/unmeasured until separately approved Fleet enrollment. See docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. No host actions or run tests. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Third Windows RTX3060 remains untrusted pending owner-supervised independently authenticated Fleet enrollment and model approval. Stale activity ranking no longer presents outdated NORMAL as better than freshly observed non-gaming; no automatic model move, fallback or authority escalation.",
+        "observed": "Model source SAFE controls partial: owner Settings one-time exact local role/host install approval, canonical audit/outcome, operator stop and fail-closed inventory; remote Fleet placement defaults to no silent local failover and remote pulls still require exact grants. Full production role promotion host broker, resource scheduling and all cloud/model source policies remain open. Regression tests authored, not run. Further source guard: cognition/routing.py now permits tool-bearing fallback only for the nine exact source-reviewed read-only CognitiveToolBinding names; no prefix-based authorization from 'inspect/get/search'. Mixed unknown-action tool sets deny replay, independent of SAFE capability approval. Deferred test/test_cognitive_routing.py; no tests or model fallback executed.  Hybrid game/idle model residency still routes via existing configured Ollama roles; it cannot install or pull missing model artifacts and never enables silent role fallback. New 4\u20136GiB GPU machine is explicitly untrusted/unmeasured until separately approved Fleet enrollment. See docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. No host actions or run tests. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Third Windows RTX3060 remains untrusted pending owner-supervised independently authenticated Fleet enrollment and model approval. Stale activity ranking no longer presents outdated NORMAL as better than freshly observed non-gaming; no automatic model move, fallback or authority escalation.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Workstream 4 source review only. Production acceptance false.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -18749,7 +19064,7 @@
         "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
         "workstream_tests_executed": true,
-        "workstream_finding": "Production OPS digital twin now distinguishes hypothetical JMRI route/roster scenarios from independently authenticated occupancy observation, real track power, turnout and locomotive commands. No physical action or grant from simulated outcomes; matrix available to Sofía and Settings, tests written.",
+        "workstream_finding": "Production OPS digital twin now distinguishes hypothetical JMRI route/roster scenarios from independently authenticated occupancy observation, real track power, turnout and locomotive commands. No physical action or grant from simulated outcomes; matrix available to Sof\u00eda and Settings, tests written.",
         "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
       },
       "audit_observation": {
