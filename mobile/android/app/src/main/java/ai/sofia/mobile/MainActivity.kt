@@ -103,6 +103,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingText: String? = null
     private var pendingRequestId: String? = null
     private var pendingPrivateMode: Boolean? = null
+    private val displayedInboxIds = mutableSetOf<String>()
 
     init {
         recoverOfflineDraft()
@@ -248,7 +249,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun receivePending() {
         try {
-            secure.consumeIncoming().forEach { messages += ChatLine("Sofía", it) }
+            // Merely rendering into volatile Compose state is not a durable
+            // acknowledgement. Retain Keystore ciphertext across app crashes.
+            secure.readIncoming().forEach { notification ->
+                if (displayedInboxIds.add(notification.id)) {
+                    messages += ChatLine("Sofía", notification.content)
+                }
+            }
         } catch (_: Exception) {
             status = "Protected incoming messages cannot be read; cache retained for recovery."
         }
@@ -284,6 +291,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return
             }
             messages.clear()
+            displayedInboxIds.clear()
             mainHistory.clear()
             projectThreads.clear()
             selectedProjectId = null
@@ -333,6 +341,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return
             }
             messages.clear()
+            displayedInboxIds.clear()
             mainHistory.clear()
             projectThreads.clear()
             selectedProjectId = null
