@@ -2672,9 +2672,17 @@
       "phase": "01",
       "source_topic": "9",
       "master_line": 176,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/tools.py",
+        "test/test_cognitive_tools.py",
+        ".github/workflows/v18-phase01-02-safe-release-gate.yml"
+      ],
+      "evidence_commits": [
+        "5d34724fc72fa984cef6ec454b50c5c3b2e5c226",
+        "92118089e3d114a152146fd1868891c65f99a715",
+        "5b3e851906b4d1b091c72fd8c97b456c11fba34f"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -2684,6 +2692,11 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "latest_phase01_02_continuation": {
+        "source_review_sha": "5b3e851906b4d1b091c72fd8c97b456c11fba34f",
+        "interpretation": "Cognitive host result is accepted as execution receipt only if canonical result kind is SUCCESS and capability identity matches expected host tool. Forged denied/unavailable/failed and mismatched tool tests added; remaining original adversarial corpus and live tool proof open.",
+        "gate4_accepted": false
       }
     },
     {
@@ -3465,9 +3478,15 @@
       "phase": "01",
       "source_topic": "23",
       "master_line": 214,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/v18_ci_receipts.py",
+        "test/test_v18_ci_receipts.py"
+      ],
+      "evidence_commits": [
+        "602ef3aaefc682535e191eb650436b901982cb8a",
+        "20e34378e08a057d807f883219ea6dbff789137b"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -3477,6 +3496,11 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "latest_phase01_02_continuation": {
+        "source_review_sha": "5b3e851906b4d1b091c72fd8c97b456c11fba34f",
+        "interpretation": "Recorded CI run identity is now independently checked against GitHub when workflow verifier runs. Does not promote any original task or replace per-CA requirement-specific evidence.",
+        "gate4_accepted": false
       }
     },
     {
@@ -5395,7 +5419,8 @@
         "test/test_safe_operator_stop_state_loss.py",
         "src/sofia/act/outreach.py",
         "src/sofia/application/background.py",
-        "test/test_application_background.py"
+        "test/test_application_background.py",
+        "test/test_safe_operator_stop_revision.py"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -5436,7 +5461,12 @@
         "17d871011ad500988ede1f1f3cf8578ce5f34bfd",
         "bc764a6af3bc8e5867d85e8393ff97d9998a30a6",
         "6821f04de68ad07c72d3fbf190286cd8dff2d797",
-        "74931fe91413c4697f59e2bb09cdffed99cc3205"
+        "74931fe91413c4697f59e2bb09cdffed99cc3205",
+        "a5bd430d10e1ed94259e2eb822dcd5b94eab617c",
+        "faca57a8ef895ace0ff97b3cc3cbc6bc170e5d1d",
+        "91285dcaa49dff712a70cdb6236ed863b87d9fb6",
+        "4b034140298436226e97763a5246b259edef7a88",
+        "fcad131fae19ee3181f228c2300ed4b9eaba314f"
       ],
       "accepted": false,
       "audit_observation": {
@@ -5473,6 +5503,11 @@
         ],
         "interpretation": "Canonical operator STOP now rechecked immediately before reflection, ACT delivery and LIFE/Fleet task callbacks after readiness/budget admission. Newly paused pending claims settle and no callback is dispatched. Cannot terminate callbacks already executing; effect handlers still require fresh SAFE gates. Tests authored; no exact-SHA pass yet.",
         "tests_executed": false,
+        "gate4_accepted": false
+      },
+      "latest_phase01_02_continuation": {
+        "source_review_sha": "5b3e851906b4d1b091c72fd8c97b456c11fba34f",
+        "interpretation": "Operator STOP now keeps monotonic compare-and-swap revisions even under repeated clocks, fails closed on deleted state/table, and initializes state in a write transaction. Focused Phase 01-02 Windows/Linux matrix completed successfully on commit fcad131fae19ee3181f228c2300ed4b9eaba314f; cross-package full original task still requires independent audit and live host.",
         "gate4_accepted": false
       }
     },
@@ -5557,9 +5592,15 @@
       "phase": "02",
       "source_topic": "27",
       "master_line": 286,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/tools.py",
+        "test/test_cognitive_tools.py"
+      ],
+      "evidence_commits": [
+        "5d34724fc72fa984cef6ec454b50c5c3b2e5c226",
+        "92118089e3d114a152146fd1868891c65f99a715"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -5569,6 +5610,11 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "latest_phase01_02_continuation": {
+        "source_review_sha": "5b3e851906b4d1b091c72fd8c97b456c11fba34f",
+        "interpretation": "Host result receipt gate now rejects fabricated completion evidence from failed tool responses, including matching structured evidence supplied alongside denial. Full multi-seam injection exercise remains open.",
+        "gate4_accepted": false
       }
     },
     {
@@ -5653,7 +5699,10 @@
         "src/sofia/verify/gate.py",
         "test/test_verify_gate_contract.py",
         ".github/workflows/matrix-tests.yml",
-        ".github/workflows/v18-phase01-02-safe-release-gate.yml"
+        ".github/workflows/v18-phase01-02-safe-release-gate.yml",
+        "src/sofia/verify/v18_ci_receipts.py",
+        "test/test_v18_ci_receipts.py",
+        ".github/workflows/v18-gate4.yml"
       ],
       "evidence_commits": [
         "83746a777f4703fdfbd6eec14f18bcf58a72d69e",
@@ -5661,7 +5710,12 @@
         "0993e5199ff25dc4a51a76b2cab0abb41741d9bc",
         "6d7d72151b7c7569ce6d53bbc410f4b0f8c45a78",
         "1fbeb2a9e975ca9a1aa996f33fd7d6ad45153ced",
-        "88c6d845422928a3fbda2a5d442a8081e415f978"
+        "88c6d845422928a3fbda2a5d442a8081e415f978",
+        "602ef3aaefc682535e191eb650436b901982cb8a",
+        "6362b6feb3c1dfd1b5076b9e46bc5a0ce5e9394c",
+        "20e34378e08a057d807f883219ea6dbff789137b",
+        "65af097b05394ca346a96c7b7d9eb84c870eb3b0",
+        "321966c388302100fd2c5a16adde7ddeef2d0d21"
       ],
       "accepted": false,
       "audit_observation": {
@@ -5686,6 +5740,11 @@
         ],
         "interpretation": "Added exact-revision, OS-specific JUnit and Gate 4 artifact outputs, preserving started matrix CI runs across rapid main commits. The canonical ledger is NOT promoted; host/Gaia/Fleet receipts and rollback proof remain open.",
         "tests_executed": false,
+        "gate4_accepted": false
+      },
+      "latest_phase01_02_continuation": {
+        "source_review_sha": "5b3e851906b4d1b091c72fd8c97b456c11fba34f",
+        "interpretation": "Added remote read-only GitHub Actions receipt authentication for source-claimed Gate 4 runs, covering exact revision, branch, repo and success. Historical checks not replaced; host/Fleet receipt and task coverage review remain open.",
         "gate4_accepted": false
       }
     },
