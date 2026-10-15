@@ -7,6 +7,7 @@ from typing import Any
 from sofia.authority.model import Authority
 from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.model import CapabilityResult
+from sofia.capability.model import CapabilityResultKind
 from sofia.capability.model import CapabilityProposal
 from sofia.cognition.model import (
     CognitiveToolCall,
@@ -330,6 +331,15 @@ class CognitiveToolDispatcher:
                 f"Unknown cognitive tool: {tool_name}"
             ) from exc
         if not binding.produces_execution_receipt:
+            return False
+        # A denied, failed or unavailable capability may carry a payload
+        # containing model-supplied "success" fields. Only the canonical
+        # executor's SUCCESS result for the matching host capability can
+        # settle an action receipt; retrieved prose is never that proof.
+        if (
+            result.kind is not CapabilityResultKind.SUCCESS
+            or result.capability != binding.capability_name
+        ):
             return False
         match = binding.execution_receipt_evidence_match
         if match is None:
