@@ -125,4 +125,26 @@ class IncomingNotificationInstrumentedTest {
         assertEquals(originals, store.readIncoming())
     }
 
+
+    @Test fun inboxClearRequiresTwoExplicitOwnerStepsAndKeepsUnrelatedOutbox() {
+        val store = SecureSettings(context)
+        store.storeIncoming("notice-saved", "Sensitive local notification")
+        val app = context.applicationContext as android.app.Application
+        val model = MainViewModel(app)
+        assertTrue(model.hasStoredIncoming())
+        assertEquals(false, model.confirmClearInbox)
+        // A direct confirmation without the preceding review request is inert.
+        model.clearInboxAfterConfirmation()
+        assertEquals(1, store.readIncoming().size)
+        model.requestClearInbox()
+        assertTrue(model.confirmClearInbox)
+        model.cancelClearInbox()
+        assertEquals(false, model.confirmClearInbox)
+        assertEquals(1, store.readIncoming().size)
+        model.requestClearInbox()
+        model.clearInboxAfterConfirmation()
+        assertEquals(false, model.confirmClearInbox)
+        assertTrue(store.readIncoming().isEmpty())
+    }
+
 }
