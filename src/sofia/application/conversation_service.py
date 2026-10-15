@@ -180,6 +180,41 @@ def _retrieve_specific_conversation(
     return tuple(bounded)
 
 
+_MAX_OWNER_TOOL_SOURCE_BYTES = 4096
+
+
+def _bounded_owner_tool_quote(formatted_result: str) -> str:
+    """Bound the provider-visible text, without mutating original receipts.
+
+    The direct tool formatter may supply 32 KiB of untrusted logs. That is
+    far beyond a fast model's usable source budget. Never silently chop the
+    output or present an excerpt as an entire inspection.
+    """
+    value = {"original_tool_output": formatted_result}
+    encoded = json.dumps(value, ensure_ascii=True, sort_keys=True)
+    if len(encoded.encode("utf-8")) <= _MAX_OWNER_TOOL_SOURCE_BYTES:
+        return encoded
+    start, end, best = 0, len(formatted_result), ""
+    while start <= end:
+        midpoint = (start + end) // 2
+        excerpt = formatted_result[:midpoint]
+        payload = {
+            "complete": False,
+            "original_tool_output_excerpt": excerpt,
+            "omitted_characters": len(formatted_result) - midpoint,
+            "reason": "source output exceeded model context budget",
+        }
+        candidate = json.dumps(payload, ensure_ascii=True, sort_keys=True)
+        if len(candidate.encode("utf-8")) <= _MAX_OWNER_TOOL_SOURCE_BYTES:
+            best = candidate
+            start = midpoint + 1
+        else:
+            end = midpoint - 1
+    if not best:
+        raise ValueError("unable to bound owner tool result quotation")
+    return best
+
+
 def _owner_direct_tool_result_context(formatted_result: str) -> tuple[CognitiveMessage, ...]:
     """Keep host-validated action provenance separate from untrusted tool bytes.
 
@@ -189,6 +224,7 @@ def _owner_direct_tool_result_context(formatted_result: str) -> tuple[CognitiveM
     """
     if not isinstance(formatted_result, str) or not formatted_result.strip():
         raise ValueError("nonempty formatted tool result required")
+    bounded_data = _bounded_owner_tool_quote(formatted_result)
     return (
         CognitiveMessage(
             role=CognitiveRole.SYSTEM,
@@ -206,9 +242,7 @@ def _owner_direct_tool_result_context(formatted_result: str) -> tuple[CognitiveM
         CognitiveMessage(
             role=CognitiveRole.USER,
             content=(
-                "UNTRUSTED OWNER TOOL OUTPUT (JSON):\n"
-                + json.dumps({"original_tool_output": formatted_result},
-                             ensure_ascii=False, sort_keys=True)
+                "UNTRUSTED OWNER TOOL OUTPUT (JSON):\n" + bounded_data
             ),
         ),
     )
