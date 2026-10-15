@@ -1,4 +1,4 @@
-from dataclasses import asdict,dataclass,is_dataclass
+from dataclasses import dataclass,fields,is_dataclass
 from pathlib import Path
 from enum import Enum
 import json
@@ -515,24 +515,72 @@ class CognitiveToolDispatcher:
 
     @staticmethod
     def _format_generic_evidence(value: Any) -> str:
-        def normalize(item):
-            if is_dataclass(item):
-                return normalize(asdict(item))
-            if isinstance(item, Enum):
-                return item.value
-            if isinstance(item, Path):
-                return str(item)
-            if isinstance(item, dict):
-                return {str(k): normalize(v) for k,v in item.items()}
-            if isinstance(item, (tuple,list,set,frozenset)):
-                return [normalize(v) for v in item]
-            if item is None or isinstance(item,(str,int,float,bool)):
+        """Bound normalization BEFORE rendering hostile logs into model context.
+
+        Truncating only the final string does not bound recursive input walk,
+        pathological nesting, cyclic objects or arbitrarily large collections.
+        No untrusted __str__ fallback may escape the observation budget.
+        """
+        remaining = 2048
+        active: set[int] = set()
+        sentinel = "[TRUNCATED: source evidence budget exceeded]"
+
+        def normalize(item: Any, depth: int = 0) -> Any:
+            nonlocal remaining
+            if remaining <= 0 or depth > 16:
+                return sentinel
+            remaining -= 1
+            if item is None or isinstance(item, (int, float, bool)):
                 return item
-            return str(item)
+            if isinstance(item, str):
+                if len(item) > MAX_FORMATTED_TOOL_RESULT_CHARS:
+                    return item[:MAX_FORMATTED_TOOL_RESULT_CHARS] + sentinel
+                return item
+            if isinstance(item, Enum):
+                return normalize(item.value, depth + 1)
+            if isinstance(item, Path):
+                return normalize(str(item), depth + 1)
+
+            # Each container has a shallow item cap AND the complete walk has
+            # a shared node cap. Track only active recursion to detect cycles
+            # without mistaking a legitimately repeated reference for one.
+            identifier = id(item)
+            if identifier in active:
+                return "[OMITTED: cyclic tool evidence]"
+            active.add(identifier)
+            try:
+                if is_dataclass(item) and not isinstance(item, type):
+                    return {
+                        field.name: normalize(getattr(item, field.name), depth + 1)
+                        for field in fields(item)[:128]
+                    }
+                if isinstance(item, dict):
+                    result = {}
+                    for index, (key, child) in enumerate(item.items()):
+                        if index >= 128:
+                            result["[TRUNCATED]"] = sentinel
+                            break
+                        result[str(key)[:512]] = normalize(child, depth + 1)
+                    return result
+                if isinstance(item, (tuple, list, set, frozenset)):
+                    result = []
+                    for index, child in enumerate(item):
+                        if index >= 128:
+                            result.append(sentinel)
+                            break
+                        result.append(normalize(child, depth + 1))
+                    return result
+                return "[OMITTED: unsupported evidence type]"
+            finally:
+                active.remove(identifier)
+
         try:
-            return json.dumps(normalize(value),ensure_ascii=False,sort_keys=True,indent=2)
-        except (TypeError,ValueError):
-            return str(value)
+            return json.dumps(
+                normalize(value), ensure_ascii=False, sort_keys=True, indent=2,
+                allow_nan=False,
+            )
+        except (TypeError, ValueError, RecursionError, UnicodeError):
+            return '"[OMITTED: unrenderable untrusted tool evidence]"'
 
     @staticmethod
     def _format_filesystem_result(
