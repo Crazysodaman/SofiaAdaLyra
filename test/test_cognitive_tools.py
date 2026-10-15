@@ -1238,3 +1238,42 @@ def test_lone_surrogate_in_execution_evidence_fails_closed():
     assert not dispatcher.tool_result_produces_execution_receipt(
         "inspect_test", result
     )
+
+
+def test_untrusted_tool_evidence_formatter_rejects_cyclic_containers():
+    import json
+
+    cyclic = []
+    cyclic.append(cyclic)
+    formatted = CognitiveToolDispatcher._format_generic_evidence(
+        {"external_log": cyclic}
+    )
+    parsed = json.loads(formatted)
+    assert "cyclic tool evidence" in parsed["external_log"][0]
+
+
+def test_untrusted_tool_evidence_formatter_caps_depth_and_collection_width():
+    import json
+
+    deep = "leaf"
+    for _ in range(40):
+        deep = [deep]
+    wide = [{"line": index} for index in range(10_000)]
+    result = json.loads(CognitiveToolDispatcher._format_generic_evidence({
+        "deep": deep,
+        "wide": wide,
+    }))
+    assert "TRUNCATED" in str(result["deep"])
+    assert len(result["wide"]) <= 129
+    assert "TRUNCATED" in str(result["wide"][-1])
+
+
+def test_tool_formatter_never_calls_arbitrary_opaque_object_str():
+    class HostileEvidence:
+        def __str__(self):
+            pytest.fail("untrusted object str must not execute during model formatting")
+
+    result = CognitiveToolDispatcher._format_generic_evidence(
+        {"opaque": HostileEvidence()}
+    )
+    assert "unsupported evidence type" in result
