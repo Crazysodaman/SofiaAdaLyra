@@ -21,8 +21,10 @@ on:
 permissions:
   contents: read
 
+# Preserve a revision-pinned proof even while another coding batch lands.
+# GitHub otherwise replaces an older pending run in the same ref group.
 concurrency:
-  group: phase03-04-${{ github.ref }}
+  group: phase03-04-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
