@@ -14,6 +14,7 @@ on:
       - 'test/test_application_background.py'
       - 'test/test_cognitive_tools.py'
       - 'test/test_v18_gate4.py'
+      - 'test/test_v18_ci_receipts.py'
       - 'test/test_verify_v18_roadmap.py'
       - '.github/workflows/v18-phase01-02-safe-release-gate.yml'
   workflow_dispatch:
