@@ -128,6 +128,10 @@ class SecureSettings(private val context: Context) {
     }
 
     companion object {
+        // The UI and background service create distinct SecureSettings objects,
+        // but their read/modify/write inbox operations must share one lock.
+        private val incomingLock = Any()
+
         fun tokenFingerprint(token: String): String =
             MessageDigest.getInstance("SHA-256")
                 .digest(token.toByteArray(Charsets.UTF_8))
@@ -344,7 +348,10 @@ class SecureSettings(private val context: Context) {
         }
     }
 
-    fun storeIncoming(notificationId: String, content: String) {
+    fun storeIncoming(notificationId: String, content: String) =
+        synchronized(incomingLock) { storeIncomingLocked(notificationId, content) }
+
+    private fun storeIncomingLocked(notificationId: String, content: String) {
         require(notificationId.isNotBlank() && notificationId.length <= 128 &&
             content.isNotBlank() && content.length <= 2_000
         ) { "Protected notification ID or content exceeds mobile storage bounds" }
@@ -397,7 +404,23 @@ class SecureSettings(private val context: Context) {
         ) { "Incoming message was not saved durably; do not acknowledge host" }
     }
 
-    fun clearIncoming() {
+    fun clearIncoming() = synchronized(incomingLock) { clearIncomingLocked() }
+
+    /** Opaque digest only: never return plaintext merely to confirm erasure. */
+    fun incomingCiphertextFingerprint(): String = synchronized(incomingLock) {
+        tokenFingerprint(prefs.getString("incoming_messages", "") ?: "")
+    }
+
+    /** A new notification between review and confirmation invalidates consent. */
+    fun clearIncomingIfUnchanged(expectedFingerprint: String) =
+        synchronized(incomingLock) {
+            check(expectedFingerprint == tokenFingerprint(
+                prefs.getString("incoming_messages", "") ?: ""
+            )) { "Protected inbox changed since deletion review; review again" }
+            clearIncomingLocked()
+        }
+
+    private fun clearIncomingLocked() {
         // A previous server/token/privacy mode cannot leave encrypted
         // unopened content that later resurfaces in the new audience UI.
         check(prefs.edit().remove("incoming_messages").commit()) {
