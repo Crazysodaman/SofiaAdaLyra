@@ -3801,9 +3801,18 @@
       "phase": "01",
       "source_topic": "30",
       "master_line": 224,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        ".github/workflows/package-tests.yml",
+        ".github/workflows/matrix-tests.yml",
+        ".github/workflows/release-candidate.yml",
+        "docs/development/v18-phase01-02-security-ci-evidence-2026-10-14.md"
+      ],
+      "evidence_commits": [
+        "941a6a2d5e46f464893799bd164ac274e1ee85ae",
+        "762a59af3728b5d6d743011b63154f5c0ab67ddf",
+        "a089b9cf66bf10535f9eed069115870513a2fb29"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 1,
@@ -3813,6 +3822,11 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
+      },
+      "phase01_02_latest_review": {
+        "source_review_sha": "cb30dac3c800a122bce8c38cf1e330a1b1456f12",
+        "interpretation": "Workflow dispatch now reserves SHA-specific concurrency groups for package/matrix/release to preserve explicitly initiated Gate 4 runs while automatic push activity coalesces. Full 22 package, release and live acceptance remains pending.",
+        "gate4_accepted": false
       }
     },
     {
@@ -5327,7 +5341,8 @@
         "src/sofia/cognition/tools.py",
         "test/test_cognitive_tools.py",
         "src/sofia/integrations/http.py",
-        "test/test_integrations_http_timeout.py"
+        "test/test_integrations_http_timeout.py",
+        "docs/development/v18-phase01-02-security-ci-evidence-2026-10-14.md"
       ],
       "evidence_commits": [
         "6ef64f1bcb4823033902835d0ea688af7b71e08f",
@@ -5347,7 +5362,11 @@
         "dc6eb34c553f39915112a7f0d3f850aa0ef9812c",
         "40f46432709db2a76f96af100ad6c1af0cfec06a",
         "7c4e3f1fe0352b666201f51740d456705f025459",
-        "acc64fcc6ed8abb674067a31c927a5bdf1a3b8a2"
+        "acc64fcc6ed8abb674067a31c927a5bdf1a3b8a2",
+        "11a9d570daa2670d5e59df87c213086741d53d46",
+        "4b91d5ecbf6feb381665b15f0e116278afe700af",
+        "9ab332589da4b5da8760c39ef89cfe542221c4d7",
+        "c1e599e6d87936fcce41bdb3387971744b781535"
       ],
       "accepted": false,
       "audit_observation": {
@@ -5407,6 +5426,11 @@
       "latest_phase01_02_security_batch": {
         "reviewed_source": "acc64fcc6ed8abb674067a31c927a5bdf1a3b8a2",
         "scope": "Untrusted tool result normalization now has bounded recursion, width and string length, cycle detection, safe opaque-object fallback, and obvious structured secret field masking. Focused cross-platform CI is pending for newest patch. Still needs broad exfiltration/hostile-file testing.",
+        "gate4_accepted": false
+      },
+      "phase01_02_latest_review": {
+        "source_review_sha": "cb30dac3c800a122bce8c38cf1e330a1b1456f12",
+        "interpretation": "Source-bounded observation and structured secret redaction hardening extended to dataclasses and raw filesystem content/entries. Windows/Linux SAFE gate passes for dataclass redaction snapshot 4b91d5ec; newest changes are not yet proven.",
         "gate4_accepted": false
       }
     },
@@ -5728,7 +5752,8 @@
         ".github/workflows/v18-phase01-02-safe-release-gate.yml",
         "src/sofia/verify/v18_ci_receipts.py",
         "test/test_v18_ci_receipts.py",
-        ".github/workflows/v18-gate4.yml"
+        ".github/workflows/v18-gate4.yml",
+        "docs/development/v18-phase01-02-security-ci-evidence-2026-10-14.md"
       ],
       "evidence_commits": [
         "83746a777f4703fdfbd6eec14f18bcf58a72d69e",
@@ -5741,7 +5766,10 @@
         "6362b6feb3c1dfd1b5076b9e46bc5a0ce5e9394c",
         "20e34378e08a057d807f883219ea6dbff789137b",
         "65af097b05394ca346a96c7b7d9eb84c870eb3b0",
-        "321966c388302100fd2c5a16adde7ddeef2d0d21"
+        "321966c388302100fd2c5a16adde7ddeef2d0d21",
+        "a513847682a509f5581beaa9fe0dc19068bfa00f",
+        "4a0cbbbacb029dff3fa2e7f3930d33120a14d1f5",
+        "cb30dac3c800a122bce8c38cf1e330a1b1456f12"
       ],
       "accepted": false,
       "audit_observation": {
@@ -5771,6 +5799,11 @@
       "latest_phase01_02_continuation": {
         "source_review_sha": "5b3e851906b4d1b091c72fd8c97b456c11fba34f",
         "interpretation": "Added remote read-only GitHub Actions receipt authentication for source-claimed Gate 4 runs, covering exact revision, branch, repo and success. Historical checks not replaced; host/Fleet receipt and task coverage review remain open.",
+        "gate4_accepted": false
+      },
+      "phase01_02_latest_review": {
+        "source_review_sha": "cb30dac3c800a122bce8c38cf1e330a1b1456f12",
+        "interpretation": "Remote Gate 4 run metadata validation now rejects source selectors without present files, and matching test file changes trigger the dedicated Windows/Linux gate.",
         "gate4_accepted": false
       }
     },
@@ -5929,7 +5962,8 @@
         "src/sofia/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "test/test_ops_sofia_guest_readiness.py",
-        "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "docs/development/v18-phase01-02-security-ci-evidence-2026-10-14.md"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -5957,7 +5991,10 @@
         "2cfd27f5f0d1c6b3030fc02b67b6c4a9593aff17",
         "ee395411f1eddd615b72ad39086ca74462a3073e",
         "099b25710f6ff564393a23c5df091258daee5fe7",
-        "b8ebd7ec34b68e9ca12fc64e58b7f566526afae3"
+        "b8ebd7ec34b68e9ca12fc64e58b7f566526afae3",
+        "a5bd430d10e1ed94259e2eb822dcd5b94eab617c",
+        "91285dcaa49dff712a70cdb6236ed863b87d9fb6",
+        "fcad131fae19ee3181f228c2300ed4b9eaba314f"
       ],
       "accepted": false,
       "audit_observation": {
@@ -5973,6 +6010,11 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
+      },
+      "phase01_02_latest_review": {
+        "source_review_sha": "cb30dac3c800a122bce8c38cf1e330a1b1456f12",
+        "interpretation": "Red STOP persistence/canonical recovery incidents now fail closed, including same-tick stop revision reuse, lost table/row and transactional DDL rollback. Full cross-service stop behavior and protected recovery tooling remain design and acceptance gaps.",
+        "gate4_accepted": false
       }
     },
     {
