@@ -18,7 +18,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from sofia.verify.v18_gate4 import gate4_snapshot
-from sofia.verify.v18_roadmap import RoadmapIntegrityError, LEDGER_RELATIVE
+from sofia.verify.v18_roadmap import RoadmapIntegrityError, LEDGER_RELATIVE, _within
 
 _REPO = "Crazysodaman/SofiaAdaLyra"
 _TEST = re.compile(r"^test/test_[A-Za-z0-9_./-]+\.py(?:::[A-Za-z0-9_]+)?$")
@@ -44,6 +44,7 @@ def gate4_ci_claims(root: Path) -> tuple[tuple[str, dict], ...]:
 
 def validate_ci_run(
     task_id: str, proof: dict, run: dict, *, repository: str = _REPO,
+    root: Path | None = None,
 ) -> None:
     """A claimed successful run must exist and belong to the exact SHA/repo."""
     ci = proof.get("ci", {})
@@ -86,6 +87,11 @@ def validate_ci_run(
             raise RoadmapIntegrityError(
                 f"{task_id}: unsafe or unsupported task test selector"
             )
+        if root is not None:
+            # A source-bound claim must at least reference a real, tracked
+            # local test file rather than an invented test name. Confirming
+            # its execution and relevance remains independent review.
+            _within(root, selector.split("::", 1)[0])
 
 
 def github_run_loader(token: str, repository: str = _REPO) -> Callable[[int], dict]:
@@ -142,7 +148,7 @@ def audit_ci_receipts(
     for run_id, groups in by_run.items():
         run = loader(run_id)
         for task_id, proof in groups:
-            validate_ci_run(task_id, proof, run, repository=repository)
+            validate_ci_run(task_id, proof, run, repository=repository, root=root)
     return {
         "schema": "sofia.v18-ci-remote-receipts-v1",
         "authenticated_run_ids": sorted(by_run),
