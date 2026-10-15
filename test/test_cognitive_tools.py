@@ -1277,3 +1277,36 @@ def test_tool_formatter_never_calls_arbitrary_opaque_object_str():
         {"opaque": HostileEvidence()}
     )
     assert "unsupported evidence type" in result
+
+
+def test_nested_untrusted_secret_fields_do_not_enter_model_evidence():
+    import json
+    source = {
+        "service": "Eos",
+        "authorization": "Bearer-never-display-this",
+        "nested": {
+            "client-secret": "secret-value",
+            "api_key": "super-sensitive-key",
+            "token_count": 230,
+        },
+    }
+    serialized = CognitiveToolDispatcher._format_generic_evidence(source)
+    result = json.loads(serialized)
+    assert "never-display" not in serialized
+    assert "secret-value" not in serialized
+    assert "super-sensitive" not in serialized
+    assert "REDACTED" in result["authorization"]
+    assert "REDACTED" in result["nested"]["client-secret"]
+    assert result["nested"]["token_count"] == 230
+
+
+def test_malicious_untrusted_dictionary_key_is_not_stringified():
+    class Key:
+        def __hash__(self):
+            return 42
+
+        def __str__(self):
+            pytest.fail("untrusted map key __str__ cannot be used for formatting")
+
+    serialized = CognitiveToolDispatcher._format_generic_evidence({Key(): "value"})
+    assert "unsupported evidence key" in serialized
