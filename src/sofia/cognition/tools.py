@@ -345,10 +345,25 @@ class CognitiveToolDispatcher:
         if match is None:
             return True
         key, expected = match
-        return (
-            isinstance(result.evidence, dict)
-            and result.evidence.get(key) == expected
-        )
+        if not isinstance(result.evidence, dict) or key not in result.evidence:
+            return False
+        # Python considers True == 1. Receipt evidence must preserve JSON
+        # value types so an integer or string cannot satisfy a boolean
+        # expected-effect predicate. Reject non-finite/recursive values.
+        try:
+            actual_json = json.dumps(
+                result.evidence[key], sort_keys=True, separators=(",", ":"),
+                ensure_ascii=False, allow_nan=False,
+            )
+            expected_json = json.dumps(
+                expected, sort_keys=True, separators=(",", ":"),
+                ensure_ascii=False, allow_nan=False,
+            )
+        except (TypeError, ValueError, RecursionError):
+            return False
+        if len(actual_json.encode("utf-8")) > 64_000:
+            return False
+        return actual_json == expected_json
 
     def dispatch(
         self,
