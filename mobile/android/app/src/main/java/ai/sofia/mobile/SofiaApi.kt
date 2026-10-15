@@ -4,7 +4,14 @@ import org.json.JSONObject
 import java.io.IOException
 import java.security.MessageDigest
 import java.net.URL
+import java.net.HttpURLConnection
 import javax.net.ssl.HttpsURLConnection
+
+/** Never forward a bearer or private POST body to a redirect destination. */
+internal fun forbidSofiaRedirects(connection: HttpURLConnection): HttpURLConnection {
+    connection.instanceFollowRedirects = false
+    return connection
+}
 
 data class ProactiveNotification(
     val id: String,
@@ -28,7 +35,9 @@ class SofiaApi(private val settings: SecureSettings) {
             config.token.startsWith("sm1_") && config.token.length >= 52) {
             "Configure an HTTPS server and pairing token first"
         }
-        val connection = URL(config.baseUrl + path).openConnection() as HttpsURLConnection
+        val connection = forbidSofiaRedirects(
+            URL(config.baseUrl + path).openConnection() as HttpsURLConnection
+        )
         try {
             connection.requestMethod = "POST"
             connection.connectTimeout = 10_000
