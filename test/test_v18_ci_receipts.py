@@ -116,3 +116,17 @@ def test_existing_gate4_claims_are_grouped_by_run_and_never_request_network():
     assert set(receipt["authenticated_run_ids"]) == set(by_run)
     assert sorted(visited) == sorted(by_run)
     assert receipt["authenticated_task_ids"] == sorted(id for id, _ in claims)
+
+
+def test_ci_receipt_rejects_nonexistent_test_file_in_source_root(tmp_path):
+    with pytest.raises(RoadmapIntegrityError, match="missing or symlinked"):
+        validate_ci_run(
+            "CA-1907", _proof(), _run(), root=tmp_path.resolve(),
+        )
+
+
+def test_ci_receipt_accepts_present_bound_test_file(tmp_path):
+    target = tmp_path / "test" / "test_safe_operator_stop_revision.py"
+    target.parent.mkdir()
+    target.write_text("def test_valid(): pass\n", encoding="utf-8")
+    validate_ci_run("CA-1907", _proof(), _run(), root=tmp_path.resolve())
