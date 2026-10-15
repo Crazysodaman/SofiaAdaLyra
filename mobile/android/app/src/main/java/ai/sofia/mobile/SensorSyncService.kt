@@ -72,6 +72,18 @@ class SensorSyncService : Service(), SensorEventListener, LocationListener {
                                 api.claimNotification()
                             }.getOrNull() ?: break
                             if (display(notification, config)) {
+                                val current = settings.load()
+                                if (
+                                    current.baseUrl != config.baseUrl ||
+                                    current.token != config.token ||
+                                    current.privateMode != config.privateMode ||
+                                    !current.proactiveNotifications
+                                ) {
+                                    // A paired audience switch may have cleared
+                                    // the old cache after local rendering.
+                                    // Never confirm a now-stale delivery.
+                                    break
+                                }
                                 runCatching { api.acknowledgeNotification(notification.id) }
                                 delivered += 1
                             } else {
@@ -132,7 +144,9 @@ class SensorSyncService : Service(), SensorEventListener, LocationListener {
         // stored under this device's encrypted inbox. Storage failures leave
         // the server claim unacknowledged for safe lease-based redelivery.
         if (runCatching {
-                settings.storeIncoming(notification.id, notification.content)
+                settings.storeIncomingForPairing(
+                    notification.id, notification.content, original,
+                )
             }.isFailure
         ) return false
         val launch = PendingIntent.getActivity(
