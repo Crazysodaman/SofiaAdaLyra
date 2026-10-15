@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 # Preserve a running exact-SHA proof when more development lands on main.
 # A source change gets one own SHA-bound run. Unrelated concurrent pushes must
@@ -63,6 +64,7 @@ jobs:
           test/test_safe_operator_stop_state_loss.py
           test/test_safe_permission_owner_auth.py
           test/test_v18_gate4.py
+          test/test_v18_ci_receipts.py
           test/test_verify_v18_roadmap.py
           --junitxml=phase01-02-tests.xml
 
@@ -73,6 +75,13 @@ jobs:
           --output phase01-02-gate-progress.json
           --markdown-output phase01-02-gate-progress.md
 
+      - name: Cross-check existing Gate 4 CI IDs with GitHub
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python -m sofia.verify.v18_ci_receipts
+          --repo .
+          --output phase01-02-ci-run-authenticity.json
       - name: Upload exact-revision verification receipts
         if: always()
         uses: actions/upload-artifact@v7
@@ -82,5 +91,6 @@ jobs:
             phase01-02-tests.xml
             phase01-02-gate-progress.json
             phase01-02-gate-progress.md
+            phase01-02-ci-run-authenticity.json
           if-no-files-found: warn
           retention-days: 30
