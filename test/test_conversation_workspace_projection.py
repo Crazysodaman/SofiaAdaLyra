@@ -70,7 +70,8 @@ def test_unrelated_gesture_omits_initial_startup_and_workspace_records_only_in_p
     full = CognitiveContextAssembler().assemble(context)
     compact = ConversationalContextAssembler().assemble(context)
     assert STARTUP in tuple(item.content for item in full.messages)
-    assert 'WORKSPACE CHANGE EVENT' in full.messages[0].content
+    assert full.messages[1].role is CognitiveRole.USER
+    assert 'WORKSPACE CHANGE EVENT' in full.messages[1].content
     assert STARTUP not in tuple(item.content for item in compact.messages)
     assert 'WORKSPACE CHANGE EVENT' not in compact.messages[0].content
     assert all('workspace-snapshot:abc123' not in item.content for item in compact.messages)
@@ -87,7 +88,8 @@ def test_explicit_workspace_question_keeps_original_startup_and_verified_evidenc
     context = _context('What changed in the workspace since restart?')
     result = ConversationalContextAssembler().assemble(context)
     assert STARTUP in tuple(item.content for item in result.messages)
-    assert 'WORKSPACE CHANGE EVENT' in result.messages[0].content
+    assert result.messages[1].role is CognitiveRole.USER
+    assert 'WORKSPACE CHANGE EVENT' in result.messages[1].content
     assert any('workspace-snapshot:abc123' in item.content for item in result.messages)
     assert any('workspace-change:abc123' in item.content for item in result.messages)
     assert result.messages[-1] is context.request.messages[-1]
@@ -109,7 +111,8 @@ def test_no_user_turn_retains_proactive_awareness_evidence():
     request = CognitiveRequest(messages=(CognitiveMessage(
         role=CognitiveRole.SYSTEM, content='Produce a startup awareness report.'),))
     result = ConversationalContextAssembler().assemble(replace(context, request=request))
-    assert 'WORKSPACE CHANGE EVENT' in result.messages[0].content
+    assert result.messages[1].role is CognitiveRole.USER
+    assert 'WORKSPACE CHANGE EVENT' in result.messages[1].content
     assert result.messages[-1] is request.messages[0]
 
 

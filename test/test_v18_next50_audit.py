@@ -67,3 +67,15 @@ def test_review_does_not_write_canonical_task_ledger():
     before = path.read_bytes()
     audit_next50(ROOT)
     assert path.read_bytes() == before
+
+
+
+def test_historical_review_status_can_advance_without_faking_acceptance():
+    # CA-910 was unassessed when the review was recorded.
+    original = _manifest()
+    item = next(row for row in original["tasks"] if row["id"] == "CA-910")
+    assert item["original_status"] == "unassessed"
+    report = audit_next50(ROOT)
+    current = next(row for row in report["tasks"] if row["id"] == "CA-910")
+    assert current["ledger_status"] == "partial_wiring"
+    assert current["production_accepted"] is False

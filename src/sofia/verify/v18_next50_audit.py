@@ -16,6 +16,8 @@ from sofia.verify.v18_roadmap import (
 BATCH_RELATIVE = Path("docs/development/v18-next50-audit.json")
 SCHEMA = "sofia.v18-next50-source-review-v1"
 REVISION = re.compile(r"^[a-f0-9]{40}$")
+_STATUS_ORDER = {"unassessed": 0, "partial_wiring": 1,
+                 "code_present_unverified": 2, "accepted": 3}
 
 
 def _head(root: Path) -> str:
@@ -71,8 +73,14 @@ def audit_next50(
             candidate.get("id") != task["id"]
             or candidate.get("phase") != task["phase"]
             or candidate.get("source_topic") != task["source_topic"]
-            or candidate.get("original_status") != task["status"]
         ):
+            raise RoadmapIntegrityError(f"task ID/order/status mismatch at index {index}")
+        # The source review is a historical snapshot, not a second status writer.
+        prior = candidate.get("original_status")
+        current = task["status"]
+        if (prior not in _STATUS_ORDER
+                or _STATUS_ORDER[prior] > _STATUS_ORDER[current]
+                or (prior != current and not task["evidence_commits"])):
             raise RoadmapIntegrityError(f"task ID/order/status mismatch at index {index}")
         if (
             candidate.get("review_state") != "reviewed_not_accepted"
