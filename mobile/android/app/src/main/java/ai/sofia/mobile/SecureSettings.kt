@@ -110,11 +110,17 @@ class SecureSettings(private val context: Context) {
         shareAmbient = prefs.getBoolean("share_ambient", true),
     )
 
-    fun save(value: CompanionSettings) {
+    fun save(value: CompanionSettings) = synchronized(incomingLock) {
         require(value.baseUrl.isBlank() || value.baseUrl.startsWith("https://")) {
             "The Sofía server URL must use HTTPS"
         }
-        check(prefs.edit()
+        val prior = load()
+        val changedAudience = (
+            prior.baseUrl != value.baseUrl.trimEnd('/') ||
+            prior.token != value.token ||
+            prior.privateMode != value.privateMode
+        )
+        val editor = prefs.edit()
             .putString("base_url", value.baseUrl.trimEnd('/'))
             .putString("token", encrypt(value.token))
             .putBoolean("private_mode", value.privateMode)
@@ -123,8 +129,14 @@ class SecureSettings(private val context: Context) {
             .putBoolean("share_location", value.shareLocation)
             .putBoolean("share_activity", value.shareActivity)
             .putBoolean("share_ambient", value.shareAmbient)
-            .commit()
-        ) { "Paired settings could not be persisted; old pairing retained" }
+        // A new pairing/privacy mode and the prior audience's locally
+        // encrypted content must never become visible in separate commits.
+        if (changedAudience) {
+            editor.remove("incoming_messages").remove("offline_main_page_v1")
+        }
+        check(editor.commit()) {
+            "Paired settings and audience cache reset could not be persisted"
+        }
     }
 
     companion object {
@@ -350,6 +362,18 @@ class SecureSettings(private val context: Context) {
 
     fun storeIncoming(notificationId: String, content: String) =
         synchronized(incomingLock) { storeIncomingLocked(notificationId, content) }
+
+    fun storeIncomingForPairing(
+        notificationId: String, content: String, expected: CompanionSettings,
+    ) = synchronized(incomingLock) {
+        val current = load()
+        check(current.baseUrl == expected.baseUrl.trimEnd('/') &&
+            current.token == expected.token &&
+            current.privateMode == expected.privateMode &&
+            current.proactiveNotifications
+        ) { "Pairing or notification consent changed before local delivery" }
+        storeIncomingLocked(notificationId, content)
+    }
 
     private fun storeIncomingLocked(notificationId: String, content: String) {
         require(notificationId.isNotBlank() && notificationId.length <= 128 &&
