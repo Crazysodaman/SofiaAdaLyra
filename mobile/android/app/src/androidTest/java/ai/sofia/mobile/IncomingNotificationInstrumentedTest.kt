@@ -170,4 +170,45 @@ class IncomingNotificationInstrumentedTest {
         assertTrue(store.readIncoming().isEmpty())
     }
 
+
+    @Test fun audienceChangeAtomicallyResetsCacheAndRejectsStaleServiceDelivery() {
+        val store = SecureSettings(context)
+        val original = CompanionSettings(
+            baseUrl = "https://synthetic.example.invalid",
+            token = "sm1_" + "a".repeat(64),
+            privateMode = false,
+            proactiveNotifications = true,
+            shareSensors = false,
+            shareLocation = false,
+            shareActivity = false,
+            shareAmbient = false,
+        )
+        store.save(original)
+        store.storeIncomingForPairing(
+            "old-notification", "Prior audience ciphertext", original,
+        )
+        assertEquals(1, store.readIncoming().size)
+
+        // A permission toggle within the same audience retains the inbox.
+        store.save(original.copy(shareSensors = true))
+        assertEquals(1, store.readIncoming().size)
+
+        val newAudience = original.copy(privateMode = true)
+        store.save(newAudience)
+        assertTrue(store.readIncoming().isEmpty())
+        try {
+            SecureSettings(context).storeIncomingForPairing(
+                "stale-notification", "No post-switch delivery", original,
+            )
+            fail("A delayed old-audience service must not recreate private cache")
+        } catch (_: IllegalStateException) {
+            // Not recorded locally: caller withholds canonical notification ACK.
+        }
+        assertTrue(store.readIncoming().isEmpty())
+        store.storeIncomingForPairing(
+            "new-notification", "Current private recipient", newAudience,
+        )
+        assertEquals("Current private recipient", store.readIncoming().single().content)
+    }
+
 }
