@@ -168,7 +168,7 @@ class MultiHostBackupCoordinator:
             raise TypeError("state_plane must be StatePlane")
         if not targets:
             raise ValueError("at least one backup target is required")
-        if len({item.target_id for item in targets}) != len(targets):
+        if len({item.target_id.strip().casefold() for item in targets}) != len(targets):
             raise ValueError("backup target IDs must be unique")
         if not source_host_id.strip() or not source_failure_domain.strip():
             raise ValueError("source host/failure domain required")
@@ -182,6 +182,16 @@ class MultiHostBackupCoordinator:
         self.journal = BackupTopologyJournal(state_plane)
 
     def _preflight(self) -> None:
+        source_host = self.source_host_id.strip().casefold()
+        source_domain = self.source_failure_domain.strip().casefold()
+        if any(
+            target.host_id.strip().casefold() == source_host
+            and target.failure_domain.strip().casefold() != source_domain
+            for target in self.targets
+        ):
+            raise BackupTopologyError(
+                "source host cannot masquerade as an independent backup host"
+            )
         # Target labels are operator-declared, not proof of independent
         # failure domains. At minimum reject overlapping physical paths;
         # otherwise two declared "hosts" could both count one stored copy.
@@ -208,19 +218,20 @@ class MultiHostBackupCoordinator:
         independent = tuple(
             target
             for target in self.targets
-            if target.failure_domain != self.source_failure_domain
+            if target.failure_domain.strip().casefold() != source_domain
+                and target.host_id.strip().casefold() != source_host
         )
         if len(independent) < self.policy.minimum_copies:
             raise BackupTopologyError(
                 "insufficient backup targets outside source failure domain"
             )
-        if len({item.failure_domain for item in independent}) < (
+        if len({item.failure_domain.strip().casefold() for item in independent}) < (
             self.policy.minimum_failure_domains
         ):
             raise BackupTopologyError(
                 "insufficient independent backup failure domains"
             )
-        if len({item.host_id for item in independent}) < self.policy.minimum_hosts:
+        if len({item.host_id.strip().casefold() for item in independent}) < self.policy.minimum_hosts:
             raise BackupTopologyError(
                 "insufficient independent backup hosts"
             )
@@ -232,7 +243,12 @@ class MultiHostBackupCoordinator:
         copies: list[BackupCopyResult] = []
 
         for target in self.targets:
-            if target.failure_domain == self.source_failure_domain:
+            if (
+                target.failure_domain.strip().casefold()
+                == self.source_failure_domain.strip().casefold()
+                or target.host_id.strip().casefold()
+                == self.source_host_id.strip().casefold()
+            ):
                 copies.append(
                     BackupCopyResult(
                         target.target_id,
@@ -291,9 +307,9 @@ class MultiHostBackupCoordinator:
         verified = tuple(item for item in copies if item.verified)
         accepted = (
             len(verified) >= self.policy.minimum_copies
-            and len({item.failure_domain for item in verified})
+            and len({item.failure_domain.strip().casefold() for item in verified})
                 >= self.policy.minimum_failure_domains
-            and len({item.host_id for item in verified})
+            and len({item.host_id.strip().casefold() for item in verified})
                 >= self.policy.minimum_hosts
         )
         result = BackupSetResult(
