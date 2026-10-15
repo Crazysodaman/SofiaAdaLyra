@@ -1310,3 +1310,20 @@ def test_malicious_untrusted_dictionary_key_is_not_stringified():
 
     serialized = CognitiveToolDispatcher._format_generic_evidence({Key(): "value"})
     assert "unsupported evidence key" in serialized
+
+
+def test_untrusted_dataclass_secret_fields_are_redacted_before_property_access():
+    from dataclasses import dataclass
+    import json
+
+    @dataclass
+    class HostPayload:
+        api_key: str
+        name: str
+
+    value = HostPayload(api_key="must-not-reach-model", name="Eos")
+    formatted = CognitiveToolDispatcher._format_generic_evidence(value)
+    payload = json.loads(formatted)
+    assert "must-not-reach-model" not in formatted
+    assert payload["name"] == "Eos"
+    assert "REDACTED" in payload["api_key"]
