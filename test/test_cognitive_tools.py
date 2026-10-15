@@ -1223,3 +1223,18 @@ def test_verification_receipt_with_real_boolean_evidence_remains_usable():
     assert dispatcher.tool_result_produces_execution_receipt(
         "inspect_test", result
     )
+
+
+def test_lone_surrogate_in_execution_evidence_fails_closed():
+    dispatcher = create_dispatcher(
+        produces_execution_receipt=True,
+        execution_receipt_evidence_match=("note", "verified"),
+    )
+    result = CapabilityResult(
+        capability="test.inspect",
+        kind=CapabilityResultKind.SUCCESS,
+        evidence={"note": chr(0xD800)},
+    )
+    assert not dispatcher.tool_result_produces_execution_receipt(
+        "inspect_test", result
+    )
