@@ -557,7 +557,11 @@ class CognitiveToolDispatcher:
             try:
                 if is_dataclass(item) and not isinstance(item, type):
                     return {
-                        field.name: normalize(getattr(item, field.name), depth + 1)
+                        field.name: (
+                            "[REDACTED: untrusted secret field]"
+                            if field.name.casefold().replace("-", "_") in _UNTRUSTED_SECRET_FIELDS
+                            else normalize(getattr(item, field.name), depth + 1)
+                        )
                         for field in fields(item)[:128]
                     }
                 if isinstance(item, dict):
