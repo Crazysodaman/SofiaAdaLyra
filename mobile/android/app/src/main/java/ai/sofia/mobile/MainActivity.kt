@@ -106,6 +106,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val displayedInboxIds = mutableSetOf<String>()
     var confirmClearInbox by mutableStateOf(false)
         private set
+    private var reviewedInboxCiphertext: String? = null
 
     init {
         recoverOfflineDraft()
@@ -267,22 +268,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         try { secure.readIncoming().isNotEmpty() } catch (_: Exception) { true }
 
     fun requestClearInbox() {
-        if (!busy) confirmClearInbox = true
+        if (busy) return
+        reviewedInboxCiphertext = secure.incomingCiphertextFingerprint()
+        confirmClearInbox = true
     }
 
     fun cancelClearInbox() {
+        reviewedInboxCiphertext = null
         confirmClearInbox = false
     }
 
     fun clearInboxAfterConfirmation() {
         if (busy || !confirmClearInbox) return
+        val reviewed = reviewedInboxCiphertext ?: return
         try {
-            secure.clearIncoming()
+            secure.clearIncomingIfUnchanged(reviewed)
             displayedInboxIds.clear()
-            confirmClearInbox = false
             status = "Encrypted local notifications discarded. Server receipts are unchanged."
         } catch (_: Exception) {
-            status = "Protected notification cache could not be cleared."
+            status = "Protected inbox changed or could not be cleared. Review again."
+        } finally {
+            cancelClearInbox()
         }
     }
 
@@ -317,6 +323,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             messages.clear()
             displayedInboxIds.clear()
+            cancelClearInbox()
             mainHistory.clear()
             projectThreads.clear()
             selectedProjectId = null
@@ -367,6 +374,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             messages.clear()
             displayedInboxIds.clear()
+            cancelClearInbox()
             mainHistory.clear()
             projectThreads.clear()
             selectedProjectId = null
