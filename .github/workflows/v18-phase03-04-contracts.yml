@@ -1,0 +1,55 @@
+name: V18 Phase 03-04 executable contracts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/sofia/ops/saga.py'
+      - 'src/sofia/ops/failure_triage.py'
+      - 'src/sofia/ops/capacity.py'
+      - 'src/sofia/ops/commitment.py'
+      - 'src/sofia/knowledge/observation_conflict.py'
+      - 'src/sofia/verify/drift.py'
+      - 'test/test_v18_saga_contracts.py'
+      - 'test/test_v18_failure_triage.py'
+      - 'test/test_v18_capacity_budgets.py'
+      - 'test/test_v18_commitment_projection.py'
+      - 'test/test_v18_observation_conflict.py'
+      - 'test/test_v18_drift_scorecard.py'
+      - '.github/workflows/v18-phase03-04-contracts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase03-04-contracts-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  contracts:
+    name: ${{ matrix.os }} / phase 03-04 contract decisions
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install distribution and pytest
+        run: python -m pip install . pytest
+      - name: Run executable contract decisions
+        run: >-
+          python -m pytest -q
+          test/test_v18_saga_contracts.py
+          test/test_v18_failure_triage.py
+          test/test_v18_capacity_budgets.py
+          test/test_v18_commitment_projection.py
+          test/test_v18_observation_conflict.py
+          test/test_v18_drift_scorecard.py
