@@ -93,9 +93,6 @@ class ClothingActionService:
                 "operator_stop_store must be OperatorStopStore or None"
             )
         self.bundle = bundle
-        self._appearance_actions = AppearanceActionService(
-            bundle, operator_stop_store=operator_stop_store,
-        )
         self.autonomy = autonomy or WardrobeAutonomyPolicy()
         self.context_provider = context_provider
         self.parser = ClothingActionParser()
@@ -103,6 +100,10 @@ class ClothingActionService:
             state_path=bundle.store.database_path,
             adult_verified=adult_verified,
             operator_stop_store=operator_stop_store,
+        )
+        self._appearance_actions = AppearanceActionService(
+            bundle,
+            operator_stop_store=self._grant_resolver._operator_stop_store,
         )
         self._lock = RLock()
         self._blueprints = {
