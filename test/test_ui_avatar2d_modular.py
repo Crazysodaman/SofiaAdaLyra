@@ -208,3 +208,20 @@ def test_private_projection_never_enters_public_character_pack(
     assert receipts[0][1] is False
     assert fallback.calls == []
     assert canvas.final_frame() == ()
+
+
+
+def test_unavailable_character_recolor_is_not_falsely_reported_as_rendered(
+    tmp_path, monkeypatch,
+):
+    renderer, _, canvas, fallback, _, projection = configured(
+        tmp_path, monkeypatch,
+    )
+    recolored = replace(
+        projection, appearance=replace(
+            projection.appearance, hair_color="#4169E1",
+        ),
+    )
+    renderer.render_idle(recolored)
+    assert fallback.calls == ["fallback_idle"]
+    assert canvas.final_frame() == ()
