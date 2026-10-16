@@ -302,13 +302,28 @@ class Avatar2DAssetGateway:
             "covered public presentation" if fallback else "public presentation",
         )
 
+    def _verified_grant(
+        self, *,
+        principal: PrincipalContext | None,
+        explicit_current_opt_in: bool,
+    ):
+        # Permission-store corruption, missing STOP evidence and unexpected
+        # host errors must revoke visibility, not preserve cached private art.
+        try:
+            return self._resolver.resolve(
+                principal=principal,
+                explicit_current_opt_in=explicit_current_opt_in,
+            )
+        except Exception:
+            return None
+
     def private(
         self,
         *,
         principal: PrincipalContext | None,
         explicit_current_opt_in: bool,
     ) -> Avatar2DArtSelection:
-        grant = self._resolver.resolve(
+        grant = self._verified_grant(
             principal=principal,
             explicit_current_opt_in=explicit_current_opt_in,
         )
@@ -342,7 +357,7 @@ class Avatar2DAssetGateway:
         # read. The actual renderer MUST repeat this check before each frame.
         if (
             self._authority.current.revision != revision
-            or self._resolver.resolve(
+            or self._verified_grant(
                 principal=principal,
                 explicit_current_opt_in=explicit_current_opt_in,
             ) is None
@@ -367,7 +382,7 @@ class Avatar2DAssetGateway:
             not selection.bundle._closed
             and self._authority.current.private_only
             and self._authority.current.revision == selection.projection.source_revision
-            and self._resolver.resolve(
+            and self._verified_grant(
                 principal=principal,
                 explicit_current_opt_in=explicit_current_opt_in,
             ) is not None
