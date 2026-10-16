@@ -47,6 +47,6 @@ These are visual observations, not automated fidelity guarantees. The earlier co
 
 ## Scope and open work
 
-The source contains 275 JSON garment definitions and a handful of in-code canonical garments. Every public garment can receive a source brief; only *visible* wardrobe parts need waist-up sprite art now. The 47 private-only JSON designs are not eligible for public art generation.
+The source contains 295 JSON garment definitions and a handful of in-code canonical garments. Every public garment can receive a source brief; only *visible* wardrobe parts need waist-up sprite art now. The 51 private-only JSON designs are not eligible for public art generation.
 
 High-quality source-exact 2D art for the complete wardrobe is **not yet done**, neither is a fully rigged 2D avatar. Continue artwork in small item batches and show two representative candidate/reviewed images for each slot category as available. Use public covered fallback until private art and authorization are independently verified. This documentation and new source code do not move any V18 task to Gate 4.
