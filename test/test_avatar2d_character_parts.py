@@ -17,7 +17,7 @@ def test_all_character_groups_include_independent_variants(tmp_path):
     report = generate_public_character_parts(out)
     manifest = json.loads((out / "manifest.json").read_text("utf-8"))
     options = character_part_options()
-    assert report.groups == len(options) == 9
+    assert report.groups == len(options) == 10
     assert report.parts == sum(map(len, options.values()))
     assert report.parts >= 20
     assert manifest["fixed_topology"] == {"ears": 2, "tails": 1}
@@ -67,6 +67,6 @@ def test_character_parts_do_not_mint_private_body_or_new_anatomy(tmp_path):
     assert "private_anatomy" not in json.dumps(manifest)
     assert manifest["face_geometry"]=="illustrative_not_a_canonical_measurement"
     assert set(manifest["groups"]) == {
-        "face","eyes","brows","mouth","hair_back",
+        "face","eyes","brows","mouth","freckles","hair_back",
         "hair_front","ear_left","ear_right","tail",
     }
