@@ -1,0 +1,95 @@
+name: V18 Phase 00 batch30 canonical owners gate 4
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v18-phase00-batch30-owners.yml'
+      - 'test/test_v18_settled_response_trace.py'
+      - 'test/test_v18_companion_baseline.py'
+      - 'test/test_safe_permissions.py'
+      - 'test/test_cognition_v2_turn_kernel.py'
+      - 'test/test_v18_decision_persistence.py'
+      - 'test/test_life_state_graph_contract.py'
+      - 'test/test_cognitive_context_assembler.py'
+      - 'test/test_memory_reviewed_corrections.py'
+      - 'test/test_cognition_v2_baseline.py'
+      - 'test/test_cognition_matrix.py'
+      - 'test/test_default_runtime_provider_boundary.py'
+      - 'test/test_memory_deletion_restore.py'
+      - 'test/test_production_dual_cognition.py'
+      - 'test/test_ops_recovery_objectives.py'
+      - 'test/test_life_run_outcome_reconciliation.py'
+      - 'test/test_ops_workshop_internal_network.py'
+      - 'test/test_ops_workshop_hyperv_production.py'
+      - 'test/test_distributed_identity_durable.py'
+      - 'test/test_memory_provenance.py'
+      - 'test/test_run_systemd_runtime.py'
+      - 'test/test_avatar_presentation_runtime.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase00-batch30-owners-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  owners:
+    name: ${{ matrix.os }} / phase 00 batch30 declared-owner tests
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install production source and pytest
+        run: python -m pip install -e . pytest
+      - name: Run declared-owner task tests for the canonical first 30
+        run: >-
+          python -m pytest -q
+          test/test_v18_settled_response_trace.py
+          test/test_v18_companion_baseline.py
+          test/test_safe_permissions.py
+          test/test_cognition_v2_turn_kernel.py
+          test/test_v18_decision_persistence.py
+          test/test_life_state_graph_contract.py
+          test/test_cognitive_context_assembler.py
+          test/test_memory_reviewed_corrections.py
+          test/test_cognition_v2_baseline.py
+          test/test_cognition_matrix.py
+          test/test_default_runtime_provider_boundary.py
+          test/test_memory_deletion_restore.py
+          test/test_production_dual_cognition.py
+          test/test_ops_recovery_objectives.py
+          test/test_life_run_outcome_reconciliation.py
+          test/test_ops_workshop_internal_network.py
+          test/test_ops_workshop_hyperv_production.py
+          test/test_distributed_identity_durable.py
+          test/test_memory_provenance.py
+          test/test_run_systemd_runtime.py
+          test/test_avatar_presentation_runtime.py
+      - name: Audit canonical first 30 at the exact checked-out revision
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        shell: bash
+        run: >-
+          python -m sofia.verify.v18_phase00_audit
+          --repo .
+          --expected-revision "$EXPECTED_SHA"
+          --output v18-phase00-batch30-owners-proof.json
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: v18-phase00-batch30-owners-${{ matrix.os }}-${{ github.sha }}
+          path: v18-phase00-batch30-owners-proof.json
+          if-no-files-found: warn
+          retention-days: 30
