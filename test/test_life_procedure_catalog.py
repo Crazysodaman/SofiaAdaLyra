@@ -59,6 +59,9 @@ def _original_authorized_completion(life, project, evidence_ref, now):
         assert kind == "text_contains" and separator and expected
         objective_results[objective] = expected in source_text
     assert objective_results and all(objective_results.values())
+    confirmed = life.evidence_index.lookup(receipt)
+    assert confirmed is not None and confirmed.kind == "operation_receipt"
+    evaluate_at = max(now + timedelta(seconds=5), confirmed.observed_at)
     evaluation = life.evaluate_artifact(
         project.project_id, artifact_id=artifact,
         technical_outcome=TechnicalOutcome.VALID,
@@ -66,13 +69,18 @@ def _original_authorized_completion(life, project, evidence_ref, now):
         objective_results=objective_results,
         reason="Independently inspected original text source.",
         evidence_refs=(receipt,), preserve_for_research=False,
-        now=now + timedelta(seconds=5),
+        now=evaluate_at,
     )
     assert evaluation.artifact_revision == revision
+    # A real RUN receipt can arrive later than the artificial scheduler tick
+    # on a busy Windows CI worker. Never backdate completion before the
+    # observed, independently recorded operation receipt.
+    settled_at = max(now + timedelta(seconds=6),
+                     evaluate_at + timedelta(microseconds=1))
     assert life.complete(
         project.project_id,
         reason="Original text predicate passed on source bytes.",
-        now=now + timedelta(seconds=6),
+        now=settled_at,
     ).status is ProjectStatus.COMPLETED
     return complete_job, receipt
 
@@ -834,8 +842,13 @@ def test_exact_draft_source_lookup_is_not_global_recent_catalog_page(
         first, evidence = active_project(
             life, now, objectives=("text_contains:Foxfire",),
         )
-        _original_authorized_completion(life, first, evidence, now)
-        later = now + timedelta(minutes=1)
+        _first_job, first_receipt = _original_authorized_completion(
+            life, first, evidence, now,
+        )
+        first_observed = life.evidence_index.lookup(first_receipt)
+        assert first_observed is not None
+        later = max(now + timedelta(minutes=1),
+                    first_observed.observed_at + timedelta(minutes=1))
         second, evidence2 = _second_same_capability_project(life, first, later)
         _original_authorized_completion(life, second, evidence2, later)
         assert life._reconcile_procedure_catalog(
@@ -882,8 +895,13 @@ def test_catalog_writer_rejection_does_not_abort_other_completed_learning(
         first, first_evidence = active_project(
             life, now, objectives=("text_contains:Foxfire",),
         )
-        _original_authorized_completion(life, first, first_evidence, now)
-        later = now + timedelta(minutes=1)
+        _first_job, first_receipt = _original_authorized_completion(
+            life, first, first_evidence, now,
+        )
+        first_observed = life.evidence_index.lookup(first_receipt)
+        assert first_observed is not None
+        later = max(now + timedelta(minutes=1),
+                    first_observed.observed_at + timedelta(minutes=1))
         second, second_evidence = _second_same_capability_project(
             life, first, later,
         )

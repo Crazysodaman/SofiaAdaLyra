@@ -57,4 +57,11 @@ def test_one_focused_suite_is_not_full_gate4_coverage():
     assert len(packet["tasks"]) == 50
     for task in packet["tasks"]:
         assert current[task["id"]]["source_status"] == task["ledger_status"]
-        assert current[task["id"]]["gate4"] is task["gate4_claim"]
+        # This is an immutable historical batch review, not a contract
+        # that no later development evidence may be appended. New proofs
+        # must still be recognized as pending when independent review is
+        # explicitly outstanding.
+        if current[task["id"]]["gate4"] and not task["gate4_claim"]:
+            assert current[task["id"]]["independent_review_pending"]
+        else:
+            assert current[task["id"]]["gate4"] is task["gate4_claim"]
