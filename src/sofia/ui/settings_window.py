@@ -1026,7 +1026,31 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     ttk.Button(
         permissions, text="Open durable FIDO2 approval inbox",
         command=show_owner_approval_inbox,
+    ).pack(anchor="w", pady=(0, 6))
+    owner_inbox_count = tk.StringVar(value="Checking pending owner approvals...")
+    ttk.Label(
+        permissions, textvariable=owner_inbox_count,
+        wraplength=700,
     ).pack(anchor="w", pady=(0, 12))
+
+    def poll_owner_approval_count() -> None:
+        try:
+            from sofia.safe.approval_inbox import ApprovalInbox
+            inbox = ApprovalInbox(config.state_path)
+            inbox.recover()
+            pending = inbox.list_requests(status="pending", limit=200)
+            unread = inbox.notifications(limit=100)
+            owner_inbox_count.set(
+                f"Owner FIDO2 inbox: {len(pending)} pending requests, "
+                f"{len(unread)} undelivered notification event(s)."
+            )
+        except (OSError, RuntimeError, PermissionError, ValueError) as exc:
+            owner_inbox_count.set(
+                f"Owner approval inbox unavailable: {type(exc).__name__}: {exc}"
+            )
+        root.after(15000, poll_owner_approval_count)
+
+    root.after(2000, poll_owner_approval_count)
 
     stop_frame = ttk.LabelFrame(
         permissions, text="Operator stop for optional autonomy", padding=8,
