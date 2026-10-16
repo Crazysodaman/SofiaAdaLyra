@@ -10,7 +10,6 @@ blendshapes, cloth physics and mesh assets belong solely to the 3D driver.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from hashlib import sha256
 import re
 from typing import Callable, Protocol, runtime_checkable
 
@@ -33,9 +32,17 @@ class Avatar3DRig:
     supported_poses: frozenset[str]
 
     def __post_init__(self) -> None:
-        if not _ID.fullmatch(self.model_id) or not _ID.fullmatch(self.rig_id):
+        if (
+            not isinstance(self.model_id, str)
+            or not isinstance(self.rig_id, str)
+            or not _ID.fullmatch(self.model_id)
+            or not _ID.fullmatch(self.rig_id)
+        ):
             raise ValueError("valid rig/model ID required")
-        if not _DIGEST.fullmatch(self.model_sha256):
+        if (
+            not isinstance(self.model_sha256, str)
+            or not _DIGEST.fullmatch(self.model_sha256)
+        ):
             raise ValueError("verified 3D model digest required")
         if (
             not isinstance(self.supported_gestures, frozenset)
@@ -102,6 +109,9 @@ class Avatar3DRenderer:
             raise TypeError("trusted AvatarRenderRequest required")
         if not callable(completed):
             raise TypeError("completion callback required")
+        # A rejected audience or stale revision must never leave the
+        # prior frame/animation visible in a shared 3D viewport.
+        self.stop()
         projection = request.presentation
         decision = request.decision
         if (
@@ -114,7 +124,6 @@ class Avatar3DRenderer:
         if decision.presentation_revision != projection.source_revision:
             completed(decision.decision_id, False, "stale 3D appearance revision")
             return
-        self.stop()
         gesture = decision.gesture
         pose = decision.pose
         if gesture is not None and gesture not in self._rig.supported_gestures:
