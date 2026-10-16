@@ -101,8 +101,10 @@ def select_character_parts(
     choices={
         "face":"neutral",
         "freckles":"on" if optional_freckles else "off",
-        "eyes":eyes,
-        "brows":brows,
+        "eye_left":"closed" if expression == "wink" else eyes,
+        "eye_right":eyes,
+        "brow_left":brows,
+        "brow_right":"neutral" if expression == "skeptical" else brows,
         "mouth":mouth,
         "hair_back":hair,
         "hair_front":hair,
