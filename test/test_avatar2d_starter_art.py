@@ -117,6 +117,13 @@ def test_existing_art_not_overwritten_and_image_quality_explicit(tmp_path):
     assert manifest["art_quality"] == "procedural_starter"
     assert manifest["outfit_id"] == "day.default"
     assert manifest["audience"] == "public"
+    assert manifest["fidelity_status"] == "unreviewed_not_exact"
+    garment_layers = [layer for layer in manifest["layers"]
+                      if layer.get("role") == "garment"]
+    assert garment_layers
+    assert all(layer["visual_review_status"] ==
+               "unreviewed_procedural_starter" for layer in garment_layers)
+    assert all(len(layer["source_sha256"]) == 64 for layer in garment_layers)
     assert not any(item.get("audience") == "private" for item in manifest["layers"])
     before = (out / "base" / "body.png").read_bytes()
     with pytest.raises(FileExistsError):
@@ -150,6 +157,10 @@ def test_full_visible_public_wardrobe_library_is_reusable_and_excludes_private(t
     assert manifest["schema"] == "sofia.avatar2d.public_sprite_library.v1"
     assert report.asset_count == len(manifest["assets"])
     assert report.asset_count >= 40
+    assert manifest["fidelity_status"] == "unreviewed_not_exact"
+    assert all(len(i["source_sha256"]) == 64 for i in manifest["assets"])
+    assert all(i["visual_review_status"] == "unreviewed_procedural_starter"
+               for i in manifest["assets"])
     reviewed_public = {
         bp.garment.item_id for bp in catalog.blueprints
         if not bp.private_only and not bp.garment.private_only
