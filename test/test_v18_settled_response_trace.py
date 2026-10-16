@@ -157,3 +157,24 @@ def test_assistant_reply_requires_causal_timestamp_evidence(tmp_path, timestamp)
 def test_assistant_reply_at_settlement_boundary_remains_valid(tmp_path):
     state, matrix = _settled(tmp_path)
     assert inspect_turn_persistence(state, matrix_trace=matrix).canonical_turn_settled
+
+
+
+def test_canonical_settlement_is_not_independent_quality_or_effect_proof(tmp_path):
+    from sofia.application.decision_trace import project_companion_decision
+
+    state, matrix = _settled(tmp_path)
+    settled = inspect_turn_persistence(state, matrix_trace=matrix)
+    assert settled.canonical_turn_settled
+    trace = project_companion_decision(
+        matrix_trace=matrix, neuro_snapshot=None,
+        canonical_persistence=settled,
+    )
+    assert trace is not None
+    outcomes = [x for x in trace.outcomes if x.kind == "canonical_response"]
+    assert len(outcomes) == 1
+    assert outcomes[0].status == "settled"
+    assert outcomes[0].source_ref == "assistant-response-1"
+    assert not outcomes[0].independently_verified
+    assert trace.objective_verified is False
+    assert trace.act_delivery_ref is None

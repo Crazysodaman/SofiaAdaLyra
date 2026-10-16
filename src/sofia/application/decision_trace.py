@@ -276,7 +276,9 @@ def project_companion_decision(
             "canonical_response",
             "settled" if canonical_persistence.canonical_turn_settled else "unverified",
             canonical_persistence.assistant_message_id,
-            canonical_persistence.canonical_turn_settled,
+            # Cross-table settlement establishes canonical durability,
+            # not independent, human-reviewed answer/effect validation.
+            False,
         ))
     for event in outcome_events:
         outcomes.append(DecisionOutcome(
