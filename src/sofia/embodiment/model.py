@@ -1,16 +1,17 @@
 ﻿from dataclasses import dataclass
+from math import isfinite
 
 
 @dataclass(frozen=True)
 class Measurement:
-    value: float
+    value: float | None
     unit: str
 
     def __post_init__(self) -> None:
-        if not isinstance(self.value, (int, float)):
-            raise TypeError(
-                "Measurement value must be numeric."
-            )
+        if self.value is not None and (
+            type(self.value) not in (int, float) or not isfinite(self.value)
+        ):
+            raise TypeError("Measurement value must be finite numeric or None.")
 
         if not self.unit:
             raise ValueError(
@@ -80,6 +81,7 @@ class PhysicalSelf:
     measurements: tuple[tuple[str, Measurement], ...] = ()
     appearance: tuple[tuple[str, str], ...] = ()
     anatomy: tuple[tuple[str, str], ...] = ()
+    private_anatomy: tuple[tuple[str, str | None], ...] = ()
 
     def __post_init__(self) -> None:
         if not self.form:
@@ -136,6 +138,28 @@ class PhysicalSelf:
                 "PhysicalSelf anatomy must be a tuple."
             )
 
+        # Stable topology is an identity rule, not an autonomous style field.
+        canonical_topology = {
+            "ears": "2 fox ears",
+            "tail": "1 fox tail",
+            "limbs": "2 arms, 2 legs",
+        }
+        for key, value in self.anatomy:
+            if key in canonical_topology and value != canonical_topology[key]:
+                raise ValueError("Canonical anatomy topology cannot change")
+        if not isinstance(self.private_anatomy, tuple):
+            raise TypeError("PhysicalSelf private_anatomy must be a tuple")
+        allowed_private = {"nipple_color", "vulva_color", "anus_color"}
+        seen_private: set[str] = set()
+        for key, value in self.private_anatomy:
+            if key not in allowed_private or key in seen_private:
+                raise ValueError("Unknown or duplicate private anatomy field")
+            seen_private.add(key)
+            if value is not None and (
+                not isinstance(value, str) or not value.strip()
+                or len(value) > 80 or any(ch in value for ch in "\\r\\n\\x00")
+            ):
+                raise ValueError("Invalid private anatomy color")
         for key, value in self.anatomy:
             if not isinstance(key, str):
                 raise TypeError(
