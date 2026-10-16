@@ -8,6 +8,7 @@ presentation surfaces over application-owned decisions, never state authority.
 from __future__ import annotations
 
 import json
+import os
 from queue import Empty, Queue
 from dataclasses import replace
 from pathlib import Path
@@ -388,9 +389,23 @@ class _TkDesktopWorkbench:
         )
         if self._avatar_renderer_enabled:
             self._avatar_canvas.pack(fill="x", pady=(0, 10))
-        self._avatar_renderer = TkAvatarRenderer(
+        symbolic_renderer = TkAvatarRenderer(
             root=self._root, canvas=self._avatar_canvas,
         )
+        art_dir = os.environ.get("SOFIA_AVATAR2D_PUBLIC_ROOT", "").strip()
+        if art_dir and self._avatar_renderer_enabled:
+            # Explicit owner-configured public PNGs only. Private artwork
+            # must NEVER be discovered through this public desktop path.
+            from sofia.ui.avatar2d_renderer import TkLayered2DRenderer
+            self._avatar_renderer = TkLayered2DRenderer(
+                root=self._root,
+                canvas=self._avatar_canvas,
+                public_root=Path(art_dir),
+                state_path=self._configuration.state_path,
+                fallback=symbolic_renderer,
+            )
+        else:
+            self._avatar_renderer = symbolic_renderer
 
         self._history_shell = self._tk.Canvas(
             outer,
