@@ -41,6 +41,11 @@ def _appearance_from_embodiment(embodiment: Embodiment) -> AppearanceState:
         hair_color=appearance.get("hair_color", appearance.get("hair_hex", "deep crimson")),
         tail_color=appearance.get("tail_color", appearance.get("tail_hex", "dark violet")),
         style_tags=("canonical", "engineer"),
+        hair_length=appearance.get("hair_length"),
+        hair_design=appearance.get("hair_design"),
+        eye_color=appearance.get("eye_color"),
+        posture=appearance.get("posture"),
+        fur_style=appearance.get("fur_texture"),
     )
 
 
