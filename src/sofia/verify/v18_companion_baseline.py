@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 from hashlib import sha256
+from math import ceil
 import json
 from pathlib import Path
 import re
@@ -171,17 +172,46 @@ def summarize_control_baseline(
 
 def capture_v18_baseline(*, repo: Path,
                          expected_revision: str,
-                         capture: Callable[[], dict[str, object]] = capture_baseline
+                         capture: Callable[[], dict[str, object]] = capture_baseline,
+                         repetitions: int = 1,
                          ) -> dict[str, object]:
+    if type(repetitions) is not int or not 1 <= repetitions <= 20:
+        raise BaselineIntegrityError("repetitions must be 1..20")
     checkout = repo.resolve(strict=True)
     if not (checkout / ".git").exists():
         raise BaselineIntegrityError("exact Git checkout required")
     before = _exact_revision(checkout)
     if expected_revision != before:
         raise BaselineIntegrityError("requested revision differs from checked-out HEAD")
-    result = summarize_control_baseline(capture(), expected_revision=before)
-    if _exact_revision(checkout) != before:
-        raise BaselineIntegrityError("Git HEAD changed during measurement")
+    snapshots = []
+    for _ in range(repetitions):
+        snapshots.append(
+            summarize_control_baseline(capture(), expected_revision=before)
+        )
+        if _exact_revision(checkout) != before:
+            raise BaselineIntegrityError("Git HEAD changed during measurement")
+    result = snapshots[0]
+    distributions = {}
+    for case in (*SCENARIOS, "startup", "idle_250ms"):
+        measurements = (
+            [snap["scenario_timings"][case] for snap in snapshots]
+            if case in SCENARIOS else
+            [snap["startup_timing"] if case == "startup"
+             else snap["idle_250ms_timing"] for snap in snapshots]
+        )
+        distributions[case] = {}
+        for key in _MEASUREMENTS:
+            observed = sorted(
+                v for row in measurements if (v := row[key]) is not None
+            )
+            distributions[case][key] = {
+                "samples": len(observed),
+                "p50": None if not observed else observed[ceil(len(observed) * .5)-1],
+                "p95": None if not observed else observed[ceil(len(observed) * .95)-1],
+            }
+    result["repetitions"] = repetitions
+    result["timing_distributions"] = distributions
+    result["distribution_scope"] = "test-provider isolation, not live-model latency"
     return result
 
 
@@ -189,11 +219,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m sofia.verify.v18_companion_baseline")
     parser.add_argument("--repo", required=True, type=Path)
     parser.add_argument("--expected-revision", required=True)
+    parser.add_argument("--repetitions", type=int, default=1)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args(argv)
     try:
         report = capture_v18_baseline(
             repo=args.repo, expected_revision=args.expected_revision,
+            repetitions=args.repetitions,
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(
