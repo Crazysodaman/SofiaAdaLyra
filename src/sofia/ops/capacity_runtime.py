@@ -79,6 +79,7 @@ def record_local_capacity(
         predicate="storage.capacity",
         source_id="ops:capacity_probe",
         observed_at=instant,
+        audience_id=None,  # system-only storage diagnostic; no private content
         freshness=timedelta(minutes=15),
         confidence=1.0,
         epistemic_state=WorldEpistemicState.OBSERVED,
