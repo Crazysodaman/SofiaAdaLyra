@@ -128,6 +128,17 @@ class TkLayered2DRenderer:
         # Stop can cancel the prior frame before completion, never report the
         # old frame as if it actually finished.
         self.stop()
+        if not self._verified_public(request.presentation):
+            # A public-only renderer must never hand a private/nude request to
+            # its symbolic fallback, which has no private-art grant context.
+            self.canvas.delete("avatar")
+            self.canvas.delete("avatar2d")
+            self._images.clear()
+            completed(
+                request.decision.decision_id, False,
+                "no audience-safe covered public projection available",
+            )
+            return
         try:
             count = self._paint(request.presentation)
         except Exception:
@@ -157,6 +168,11 @@ class TkLayered2DRenderer:
 
     def render_idle(self, presentation: PresentationProjection) -> None:
         self.stop()
+        if not self._verified_public(presentation):
+            self.canvas.delete("avatar")
+            self.canvas.delete("avatar2d")
+            self._images.clear()
+            return
         try:
             self._paint(presentation)
         except Exception:
