@@ -11,6 +11,19 @@ Status: source integrated on main; separate focused Windows CI and real Venus ac
 - Character pack files are hash-checked and audience-constrained; only the actual selected sprites are loaded. Missing pack uses legacy approved public art. Invalid pack falls back to safe symbolic rendering rather than layering corrupted pictures.
 - 3D mode and private-only wardrobe assets are NOT part of this public renderer. A renderer selection never grants private access.
 
+## Verified combined public asset archive
+
+The source-verified build generated and checked **21 current public outfit packs** plus the separate 33-variant character-part library. Public wardrobe catalog item IDs are reused; do not confuse the 21 public outfits with the larger 244 public garment records, or equate draft PNGs with finished art.
+
+GitHub Actions run: https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/38946148863
+Successful archive: https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/38946148863/artifacts/12067195040
+
+On Venus, download the artifact ZIP, then extract it to an owner-controlled **public** directory so the folder has both:
+    Public-V2\outfits\day.default\manifest.json
+    Public-V2\character\manifest.json
+
+The archive is a transient CI artifact (30-day retention). Do not place private wardrobe assets, private session grants or any secret tokens in this public folder.
+
 ## Set up public 2D on Venus
 
 From a pulled latest main checkout with Sofía installed:
