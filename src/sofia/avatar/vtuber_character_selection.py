@@ -84,7 +84,7 @@ def select_character_parts(
             warnings.append("fully flattened fox ears need another sprite")
     else:
         ears="perked"
-    if gesture in ("tail-swish","slow-tail-sway","tail-flick"):
+    if gesture in ("tail-swish","slow-tail-sway","tail-flick","tail-wag"):
         tail="flick"
     elif appearance.tail_pose=="raised":
         tail="raised"
@@ -101,8 +101,8 @@ def select_character_parts(
     choices={
         "face":"neutral",
         "freckles":"on" if optional_freckles else "off",
-        "eye_left":"closed" if expression == "wink" else eyes,
-        "eye_right":eyes,
+        "eye_left":"closed" if expression in ("blink","wink") else eyes,
+        "eye_right":"closed" if expression == "blink" else eyes,
         "brow_left":brows,
         "brow_right":"neutral" if expression == "skeptical" else brows,
         "mouth":mouth,
