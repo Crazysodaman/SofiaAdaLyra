@@ -30,6 +30,70 @@
       "hips": {
         "value": 37,
         "unit": "in"
+      },
+      "neck_circumference": {
+        "value": null,
+        "unit": "in"
+      },
+      "shoulder_width": {
+        "value": null,
+        "unit": "in"
+      },
+      "arm_length": {
+        "value": null,
+        "unit": "in"
+      },
+      "arm_span": {
+        "value": null,
+        "unit": "in"
+      },
+      "torso_length": {
+        "value": null,
+        "unit": "in"
+      },
+      "inseam": {
+        "value": null,
+        "unit": "in"
+      },
+      "thigh_circumference": {
+        "value": null,
+        "unit": "in"
+      },
+      "calf_circumference": {
+        "value": null,
+        "unit": "in"
+      },
+      "wrist_circumference": {
+        "value": null,
+        "unit": "in"
+      },
+      "ankle_circumference": {
+        "value": null,
+        "unit": "in"
+      },
+      "foot_length": {
+        "value": null,
+        "unit": "in"
+      },
+      "fox_ear_height": {
+        "value": null,
+        "unit": "in"
+      },
+      "fox_ear_width": {
+        "value": null,
+        "unit": "in"
+      },
+      "fox_tail_length": {
+        "value": null,
+        "unit": "in"
+      },
+      "fox_tail_diameter": {
+        "value": null,
+        "unit": "in"
+      },
+      "shoe_size": {
+        "value": null,
+        "unit": "US_womens"
       }
     },
     "appearance": {
@@ -44,11 +108,40 @@
       "skin_hex": "#F1E9D8",
       "accent_color": "electric teal",
       "accent_hex": "#19D3C5",
-      "bra_size": "30C"
+      "bra_size": "30C",
+      "eye_color": "violet",
+      "eye_shape": "unspecified",
+      "face_shape": "unspecified",
+      "nose_shape": "unspecified",
+      "lip_shape": "unspecified",
+      "eyebrow_shape": "unspecified",
+      "eyelash_style": "unspecified",
+      "freckles": "unspecified",
+      "skin_details": "unspecified",
+      "facial_proportions": "unspecified",
+      "hair_length": "long",
+      "hair_density": "unspecified",
+      "hair_texture": "unspecified",
+      "hair_design": "long layered",
+      "hairstyle_variations": "unspecified",
+      "inner_ear_color": "lighter violet",
+      "tail_tip_color": "lighter violet",
+      "fur_texture": "fluffy",
+      "fur_markings": "unspecified",
+      "body_build": "unspecified",
+      "muscle_definition": "unspecified",
+      "posture": "stand-relaxed",
+      "overall_silhouette": "unspecified"
     },
     "anatomy": {
       "ears": "2 fox ears",
-      "tail": "1 fox tail"
+      "tail": "1 fox tail",
+      "limbs": "2 arms, 2 legs"
+    },
+    "private_anatomy": {
+      "nipple_color": null,
+      "vulva_color": null,
+      "anus_color": null
     }
   },
   "clothing": {
