@@ -178,3 +178,50 @@ def test_canonical_settlement_is_not_independent_quality_or_effect_proof(tmp_pat
     assert not outcomes[0].independently_verified
     assert trace.objective_verified is False
     assert trace.act_delivery_ref is None
+
+
+
+def test_durable_response_cannot_launder_model_claim_into_goal_effect(tmp_path):
+    from sofia.application.decision_trace import project_companion_decision
+    from sofia.application.event_contracts import (
+        CanonicalEventOwner, EventOwnershipProjection,
+    )
+
+    state, matrix = _settled(tmp_path)
+    with closing(sqlite3.connect(state)) as db, db:
+        db.execute(
+            "UPDATE canonical_conversation_turn SET response_json=? "
+            "WHERE event_id=?",
+            (json.dumps({
+                "content": "private assistant reply",
+                "tool_calls": [],
+                "evidence_refs": ["goal:one"],
+            }), "event:1"),
+        )
+    receipt = inspect_turn_persistence(state, matrix_trace=matrix)
+    assert receipt.canonical_turn_settled
+    assert receipt.response_evidence_refs == ("goal:one",)
+    claimed_goal = EventOwnershipProjection(
+        schema_version=1,
+        event_id="goal-event:one",
+        owner=CanonicalEventOwner.GOALS,
+        source_id="goal-event:one",
+        subject_id="goal:one",
+        principal_id=None, audience_id=None,
+        observed_at=NOW, goal_id="goal:one",
+    )
+    with pytest.raises(ValueError, match="same-turn source reference"):
+        project_companion_decision(
+            matrix_trace=matrix, neuro_snapshot=None,
+            canonical_persistence=receipt,
+            selected_goal_event=claimed_goal,
+        )
+    # The claimed reference remains available to diagnostics, not trust.
+    trace = project_companion_decision(
+        matrix_trace=matrix, neuro_snapshot=None,
+        canonical_persistence=receipt,
+    )
+    assert trace is not None
+    assert trace.referenced_evidence == ("goal:one",)
+    assert trace.goal_id is None
+    assert trace.objective_verified is False
