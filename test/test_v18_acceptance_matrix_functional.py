@@ -143,3 +143,72 @@ def test_no_automated_scenario_can_claim_manual_host_completion():
     """These checks cover four policies, not six manual acceptance journeys."""
     assert len(EXAMPLES) == 6
     assert all("host_receipt" not in e and "observed_outcome" not in e for e in EXAMPLES)
+
+
+
+def test_revoked_private_memory_cannot_enter_shared_retrieval_context(tmp_path):
+    """CA-1206: real canonical MEM promotion/revocation and scoped retrieval."""
+    row = _case("Stale private memory not disclosed to a shared room")
+    assert row["selectors"]["failure"] == "source_revoked"
+    from uuid import uuid4
+    from sofia.memory.originals import SourceMessage
+    from sofia.memory.provenance import CandidateStatus, MemoryCandidate
+    from sofia.memory.provenance_store import DurableMemoryCandidateStore
+    from sofia.memory.system import MemorySystem
+    from sofia.social.model import AudienceKind, PrincipalContext
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = DurableMemoryCandidateStore(path)
+    original = SourceMessage(
+        "synthetic-original", "synthetic-session", "user",
+        "I prefer HO scale model trains.", _NOW, 0,
+    )
+    candidate = MemoryCandidate(
+        candidate_id=uuid4(), content="Owner prefers HO scale model trains",
+        sources=(original,), created_at=_NOW, principal_id="person:sparks",
+        audience_id="local:text",
+    )
+    owner = PrincipalContext("person:sparks", "local:text", AudienceKind.PRIVATE)
+    shared = PrincipalContext("person:sparks", "discord:shared", AudienceKind.SHARED)
+    try:
+        store.propose(candidate)
+        store.promote(candidate.candidate_id)
+        system = MemorySystem(store)
+        selected = system.recall_relevant("HO scale model trains", principal=owner)
+        assert [item.id for item in selected] == [str(candidate.candidate_id)]
+        assert system.recall_relevant(
+            "HO scale model trains", principal=shared,
+        ) == ()
+        store.revoke(candidate.candidate_id)
+        assert store.status(candidate.candidate_id) is CandidateStatus.REVOKED
+        assert system.recall_relevant(
+            "HO scale model trains", principal=owner,
+        ) == ()
+        assert system.recall_relevant(
+            "HO scale model trains", principal=shared,
+        ) == ()
+    finally:
+        store.close()
+
+
+def test_untrusted_fleet_host_cannot_mint_approval_from_tool_payload():
+    """CA-1206: production Fleet dispatch requires trusted enrolled host."""
+    row = _case("Untrusted fleet tool call is not an operator grant")
+    assert row["selectors"]["principal"] == "untrusted"
+    from uuid import uuid4
+    from sofia.distributed.capability import RemoteFleetToolService
+
+    class UntrustedHostProbe:
+        def _ops_host_for_node(self, _node_id):
+            return None
+
+        def _control_session(self, **_kwargs):
+            pytest.fail("untrusted host reached transport before enrollment")
+
+    for params in ({"grant": "owner", "level": 5}, {"authorization": True}, {}):
+        with pytest.raises(PermissionError, match="active trusted"):
+            RemoteFleetToolService.invoke(
+                UntrustedHostProbe(), str(uuid4()),
+                "system.inspect", "processes", params,
+            )

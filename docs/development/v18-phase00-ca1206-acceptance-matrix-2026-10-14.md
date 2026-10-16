@@ -40,3 +40,20 @@ desktop, enroll a host, capture pixels or prove physical effects. They
 exercise only a subset of the six manual examples, not the full nine-axis
 cross-product. CA-1206 remains open pending all original acceptance
 requirements and independent review. CI success is not Gate 4 by itself.
+
+## Additional real policy checks, still not host acceptance
+
+`test/test_v18_acceptance_matrix_functional.py` also exercises two
+formerly untested original safety examples. It builds a **synthetic**
+canonical SQLite memory candidate, proves it is visible in the correct
+private scope, denies shared-room retrieval, then revokes it and asserts
+nothing can be recalled into either scope. It also invokes the actual
+RemoteFleetToolService dispatch boundary using a simulated untrusted
+host and hostile grant-shaped payloads; the implementation must deny
+before entering the network transport.
+
+These are positive/negative production-boundary regressions and require
+no private data, real Fleet enrollment, host mutation or device control.
+They do **not** substitute for end-to-end live Windows/Discord workflows,
+a complete nine-dimensional execution matrix, or independent acceptance
+review. CA-1206 remains open.
