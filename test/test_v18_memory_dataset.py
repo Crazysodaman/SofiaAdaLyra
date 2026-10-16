@@ -36,6 +36,9 @@ def test_private_wrong_scope_is_never_acceptable_ground_truth():
     dataset = json.loads(DATA.read_text())
     bad = deepcopy(dataset)
     bad["cases"][0]["required_source_ids"] = ["s3"]
+    # Remove the contradictory forbidden label so this specifically tests
+    # audience-scoped admission, not the earlier disjoint-oracle guard.
+    bad["cases"][0]["forbidden_source_ids"] = []
     with pytest.raises(FixtureError, match="authorized"):
         evaluate(bad, digest="0" * 64)
     bad = deepcopy(dataset)
