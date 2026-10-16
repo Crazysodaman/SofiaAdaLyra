@@ -10,6 +10,7 @@ on:
       - "src/sofia/avatar/vtuber_character_bundle.py"
       - "src/sofia/ui/avatar2d_renderer.py"
       - "test/test_avatar2d_public_setup.py"
+      - "test/test_ui_avatar2d_live_parts.py"
   workflow_dispatch:
 
 permissions:
@@ -31,7 +32,7 @@ jobs:
       - name: Verify public pack, source layers, and blink animation
         shell: pwsh
         run: |
-          python -m pytest -q test/test_avatar2d_public_setup.py test/test_avatar2d_character_selection.py
+          python -m pytest -q test/test_avatar2d_public_setup.py test/test_avatar2d_character_selection.py test/test_ui_avatar2d_live_parts.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Prove owner setup command works end-to-end
         shell: pwsh
