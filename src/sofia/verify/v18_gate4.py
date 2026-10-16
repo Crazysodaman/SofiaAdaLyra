@@ -14,6 +14,9 @@ from sofia.verify.v18_roadmap import (
     validate_repository,
 )
 from sofia.verify.v18_gate4_review import review_readiness
+from sofia.verify.v18_gate4_acceptance import (
+    load_review_receipts, authenticate_review,
+)
 
 _SHA = re.compile(r"[0-9a-f]{40}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
@@ -104,6 +107,7 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
         raise RoadmapIntegrityError("all 700 original task records are required")
     original = _within(root, MASTER_RELATIVE.as_posix()).read_text(
         encoding="utf-8").splitlines()
+    review_receipts, trusted_reviewers = load_review_receipts(root)
     per_phase, counts, output, seen = {}, Counter(), [], set()
     for task in tasks:
         task_id, phase, status = task["id"], task["phase"], task["status"]
@@ -114,12 +118,18 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
         if "**" + task_id + " " not in line:
             raise RoadmapIntegrityError("task source mismatch " + task_id)
         gate = verified_gate_count(root, task)
-        # A content-bound receipt packet is NOT independent acceptance.
-        # Nothing in the present ledger proves an independently authenticated
-        # reviewer has covered every original requirement.
+        # A legacy receipt packet alone is not independent acceptance.
+        # A separate signed review, anchored to the original requirement,
+        # pinned CI, evidence bytes, and an *externally trusted* reviewer
+        # is needed before a task can pass.
         review = review_readiness(task)
-        independently_accepted = False
-        independent_review_pending = gate == 4
+        independently_accepted = authenticate_review(
+            root, task_id=task_id, original_requirement=line,
+            proofs=task.get("gate4_proofs", []),
+            certificate=review_receipts.get(task_id),
+            trusted_keys=trusted_reviewers,
+        )
+        independent_review_pending = gate == 4 and not independently_accepted
         kind = _kind(line)
         phase_row = per_phase.setdefault(phase, {
             "total": 0, "unassessed": 0, "partial_wiring": 0,
@@ -167,11 +177,17 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
         passed = verified_gate_count(root, {
             "id": key, "gate4_proofs": supplemental_proofs["tasks"].get(key, []),
         })
+        extra_accepted = authenticate_review(
+            root, task_id=key, original_requirement=requirement,
+            proofs=supplemental_proofs["tasks"].get(key, []),
+            certificate=review_receipts.get(key),
+            trusted_keys=trusted_reviewers,
+        )
         extra.append({
             "id": key, "phase": phase, "kind": "additional planned ML/GA task",
             "original_requirement": requirement, "gate_with_recorded_proof": passed,
-            "gate4": False,
-            "independent_review_pending": passed == 4,
+            "gate4": extra_accepted,
+            "independent_review_pending": passed == 4 and not extra_accepted,
             "next_gate": min(passed + 1, 4),
             "next_action": ("Independent acceptance needed for every original requirement."
                             if passed == 4 else
@@ -182,6 +198,8 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
         raise RoadmapIntegrityError("expected 40 ML and 40 GA supplemental tasks")
     if set(supplemental_proofs["tasks"]) - {x["id"] for x in extra}:
         raise RoadmapIntegrityError("unknown supplemental task proof")
+    if set(review_receipts) - seen - {item["id"] for item in extra}:
+        raise RoadmapIntegrityError("independent acceptance for unknown task ID")
     extras_at_four = sum(x["gate4"] for x in extra)
     return {
         "schema": "sofia.v18-gate4-evidence-only-v2",
@@ -196,9 +214,10 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
                    "still_unverified": 700 - counts["gate4"]},
         "phases": per_phase, "focus_next": focus, "tasks": output,
         "supplemental_tasks": extra,
-        "warning": "No task has independent Gate 4 acceptance authenticated "
-                   "by this verifier. Historical proof entries and green CI "
-                   "are not full requirement coverage or reviewer sign-off.",
+        "warning": "Only externally trusted signed independent acceptance "
+                   "is counted. An archived source proof or successful CI "
+                   "run alone is not task acceptance; the reviewer must "
+                   "verify original scope and any real-host requirements.",
     }
 
 

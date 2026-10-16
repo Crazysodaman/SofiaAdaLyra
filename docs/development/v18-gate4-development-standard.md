@@ -38,3 +38,28 @@ implement a separately authenticated independent reviewer/evidence process
 that checks every original requirement, actual production behavior, pinned
 CI selectors, and task-specific real host/soak requirements. Until then,
 zero means *not certified by this evidence mechanism*, not *no code exists*.
+
+## Signed independent acceptance, no self-approval
+
+A separate `docs/development/v18-gate4-independent-acceptance.json`
+registry holds independently signed review certificates. It is intentionally
+**empty** until actual reviewed acceptance receipts exist.
+
+Certificates are Ed25519 signatures over an exact canonical JSON statement,
+bound to the task's original requirement SHA-256, fourth gate-proof SHA-256,
+pinned CI run ID and reviewed revision, plus a SHA-256-bound independent
+review document tracked in Git. The signer attests to all original
+requirements, relevant tests, and any originally required live-host tests.
+
+Public verification keys must be separately approved by the owner and supplied
+via `SOFIA_GATE4_TRUSTED_REVIEWER_KEYS` as a JSON map from independent reviewer
+IDs to Base64 Ed25519 public keys in a protected CI/workstation environment.
+Never commit private keys, generate trusted keys automatically or derive them
+from self-reported ledger reviewer names. If no external keys are configured,
+the accepted count correctly remains zero. A valid signature authenticates
+who signed the checklist, **not** by itself the factual correctness of their
+review; reviewer selection and source scrutiny remain necessary.
+
+The verifier fails closed for invalid signatures, changed source requirements,
+mismatched CI revisions or missing/changed review artifacts. It never alters
+canonical task data or executes a production action.
