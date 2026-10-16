@@ -25,3 +25,18 @@ multi-session authorized retrieval, corrected facts, read-time evaluation
 with each real route, cross-host cold restarts, latency/abstention/quality
 trials and independent review require more than this internal unit
 benchmark. No Gate 4 evidence is added by this stage.
+
+## Additional zero-history control
+
+The executable source-selection study now includes the explicitly requested
+**no-retrieval baseline** alongside the previous topical and recency-only
+ablations. Its selector returns no evidence, so it earns credit only on
+correctly abstained unsupported questions. Known-source questions are scored
+as misses, not as silently hallucinated correct answers. The new tests assert
+source-ID errors per case and forbid interpreting this deterministic retrieval
+control as model answer-quality evaluation.
+
+This remains a preparatory **synthetic single-session** experiment. Licensed
+benchmark-adapted samples, authorized multi-session retrieval, answer and
+downstream-task quality measurements, independent source review, and
+reproducible full acceptances remain outstanding. CA-1205 is **not Gate 4**.

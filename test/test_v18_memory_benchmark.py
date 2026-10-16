@@ -52,3 +52,25 @@ def test_benchmark_cli_writes_structured_cases_and_actual_scores(tmp_path):
     assert result == evaluate()
     assert all(result["by_family"][f][a]["samples"] == 12
                for f in FAMILIES for a in ABLATIONS)
+
+
+
+def test_no_retrieval_baseline_counts_abstention_but_not_known_source_success():
+    result = evaluate()
+    cases = result["cases"]
+    abstentions = sum(not case["expected_source_ids"] for case in cases)
+    baseline = result["scores"]["no_retrieval"]
+    assert baseline["correct"] == abstentions
+    assert baseline["correct_abstentions"] == abstentions
+    assert baseline["errors"]["false_positive_on_unanswerable"] == 0
+    assert baseline["errors"]["missing_required_source"] == 36 - abstentions
+    assert baseline["errors"]["outdated_source_also_selected"] == 0
+    assert all(case["outcomes"]["no_retrieval"]["selected_ids"] == [] for case in cases)
+    assert all(case["outcomes"]["no_retrieval"]["selected_chars"] == 0 for case in cases)
+
+
+def test_benchmark_does_not_launder_source_selector_into_answer_quality_or_gate4():
+    report = evaluate()
+    assert report["gate4_proof"] is False
+    assert report["model_evaluations_performed"] == 0
+    assert "not generated answer quality" in report["metric"]

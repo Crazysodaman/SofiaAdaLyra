@@ -18,7 +18,7 @@ from sofia.application.conversation_service import _retrieve_specific_conversati
 from sofia.conversation.model import ConversationMessage, ConversationRole
 
 FAMILIES = ("longmemeval-inspired", "locomo-inspired", "agent-environment-inspired")
-ABLATIONS = ("production_topical", "recent_four_only", "recent_one_only")
+ABLATIONS = ("production_topical", "recent_four_only", "recent_one_only", "no_retrieval")
 ORIGIN = datetime(2026, 10, 14, tzinfo=timezone.utc)
 
 
@@ -120,6 +120,9 @@ def evaluate() -> dict:
         "production_topical": _production,
         "recent_four_only": lambda case: _recent(case, 4),
         "recent_one_only": lambda case: _recent(case, 1),
+        # Baseline without any history source. Only genuine unsupported
+        # questions can earn a correct abstention in this source-ID oracle.
+        "no_retrieval": lambda case: (),
     }
     results = []
     counts: dict[str, Counter] = {key: Counter() for key in selectors}
