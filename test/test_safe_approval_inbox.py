@@ -215,7 +215,7 @@ def test_owner_denial_and_outbox_retry(tmp_path, monkeypatch):
         ))
     assert len(inbox.notifications()) == 1
     assert inbox.deny_attended(req.request_id).status == "denied"
-    with pytest.raises(PermissionError, match="not pending"):
+    with pytest.raises(PermissionError, match="only unapproved requests"):
         inbox.deny_attended(req.request_id)
     sent = []
     assert inbox.deliver_notifications(lambda event: sent.append(event)) == 2
