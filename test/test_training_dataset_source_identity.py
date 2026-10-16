@@ -62,6 +62,14 @@ def test_real_git_worktree_source_is_denied_but_empty_ancestor_marker_is_not(tmp
     with pytest.raises(PermissionError,match="Git checkout"):
         inspect(tracked)
 
+    linked=tmp_path/"linked-worktree"
+    linked.mkdir()
+    (linked/".git").write_text("gitdir: ../metadata/worktrees/linked\n",encoding="utf-8")
+    linked_data=linked/"training.jsonl"
+    write_rows(linked_data)
+    with pytest.raises(PermissionError,match="Git checkout"):
+        inspect(linked_data)
+
 
 def test_symlinked_parent_is_not_allowed_as_dataset_source(tmp_path):
     original = tmp_path / "canonical"

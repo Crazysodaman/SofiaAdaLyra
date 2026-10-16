@@ -22,6 +22,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
+from sofia.state.path_policy import inside_git_worktree
 
 SCHEMA = "sofia-workshop-offline-media-ed25519-v1"
 POLICY = "hephaestus-debian13-console-admin-v1"
@@ -165,9 +166,7 @@ def _private_file(path: Path, content: bytes) -> None:
 
 
 def _reject_repository_storage(path: Path) -> None:
-    if any((parent/".git").exists() for parent in (
-        path.parent,*path.parents,
-    )):
+    if inside_git_worktree(path):
         raise PermissionError("secret-bearing keys and media must not be in Git")
     if not path.parent.exists() or not path.parent.is_dir():
         raise ValueError("existing dedicated private local folder required")

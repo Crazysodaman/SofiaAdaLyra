@@ -604,17 +604,21 @@ class BackupEngine:
         if found_files != allowed_files:
             raise BackupError("encrypted archive manifest files are incomplete")
         payload_dir = backup_dir / "payload"
+        # Validate the complete ciphertext shape before decrypting any entry.
+        # A malformed later payload must not cause partial cryptographic work
+        # before the archive is rejected as a whole.
         for entry in manifest.entries:
             payload = payload_dir / entry.payload_name
             _reject_redirected_backup_input(payload)
             if not payload.is_file():
                 raise BackupError(f"backup payload missing: {entry.payload_name}")
-            # AES-GCM ciphertext is exactly plaintext bytes + 16-byte tag.
-            # Refuse truncation/oversizing before materializing a payload.
             if payload.stat().st_size != entry.size + _AESGCM_TAG_BYTES:
                 raise BackupError(
                     f"backup encrypted payload size mismatch: {entry.logical_path}"
                 )
+        for entry in manifest.entries:
+            payload = payload_dir / entry.payload_name
+            _reject_redirected_backup_input(payload)
             aad = f"{manifest.backup_id}:{entry.logical_path}".encode("utf-8")
             with payload.open("rb") as source:
                 ciphertext = source.read(entry.size + _AESGCM_TAG_BYTES + 1)

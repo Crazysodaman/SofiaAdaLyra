@@ -25,6 +25,8 @@ import shutil
 import subprocess
 import tempfile
 
+from sofia.state.path_policy import inside_git_worktree
+
 _DEBIAN_DVD_NAME = re.compile(
     r"^debian-13\.[0-9]+\.[0-9]+-amd64-DVD-1\.iso$", re.IGNORECASE
 )
@@ -322,7 +324,7 @@ def prepare_offline_debian_installer(
         raise FileExistsError("output must be a fresh ISO, never replace source/media")
     if not output.parent.is_dir() or output.parent.is_symlink():
         raise ValueError("reviewed existing local output directory required")
-    if any((parent / ".git").exists() for parent in (output.parent, *output.parents)):
+    if inside_git_worktree(output):
         raise PermissionError("never save credential-bearing media inside a Git checkout")
     if not shutil.which("xorriso") or not shutil.which("openssl"):
         raise EnvironmentError("xorriso and openssl required; never download tools automatically")
