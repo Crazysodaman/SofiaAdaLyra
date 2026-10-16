@@ -141,6 +141,16 @@ def build_work_queue(
             row["phase"], row["id"],
         ),
     )
+    # Implementation and independent acceptance review are different
+    # workloads. Pending reviews remain actionable without laundering them
+    # into coded-task completion or assigning self-review to a coding worker.
+    review_candidates = sorted(
+        (row for row in results if row["state"] == "review_pending"),
+        key=lambda row: (
+            SIZES[row["complexity"]] if row["complexity"] in SIZES else 3,
+            -row["unblocks_reviewed_tasks"], row["phase"], row["id"],
+        ),
+    )
     counts = Counter(row["state"] for row in results)
     return {
         "schema": "sofia.v18-work-queue-v1",
@@ -155,10 +165,13 @@ def build_work_queue(
         )},
         "target_per_run": limit,
         "selected": ready[:limit],
+        "selected_independent_review": review_candidates[:limit],
         "tasks": results,
         "warning": (
             "Dependency reviews are manually scoped. Unreviewed tasks are "
-            "not assumed independent; queue selection is not gate acceptance."
+            "not assumed independent. Pending independent reviews are separately "
+            "queued and require a different authorized reviewer; neither queue "
+            "selection nor a successful CI run constitutes gate acceptance."
         ),
     }
 

@@ -31,9 +31,13 @@ def test_queue_covers_all_780_without_implicit_independence():
     assert sum(report["states"].values()) == 780
     assert report["reviewed_dependencies"] == len(reviews["tasks"])
     assert all(item["complexity"] == "small" for item in report["selected"])
-    assert len(report["selected"]) == 5
+    # A queue full of unreviewed Gate 4 claims must not invent five
+    # implementation-ready tasks merely to keep the pipeline busy.
+    assert len(report["selected"]) <= 5
+    assert len(report["selected_independent_review"]) <= 5
+    assert len(report["selected"]) + len(report["selected_independent_review"]) > 0
     assert not any(item["id"] in {"CA-003", "CA-004", "CA-005", "CA-006"}
-                   for item in report["selected"])
+                   for item in report["selected"] + report["selected_independent_review"])
     assert next(row for row in report["tasks"] if row["id"] == "CA-4503")[
         "state"
     ] == "blocked_on_prerequisite"
@@ -152,3 +156,14 @@ def test_pending_review_cannot_be_dependency_satisfaction_or_completion():
     assert "CA-4501" in outcome["CA-4503"]["blocked_by"]
     assert outcome["CA-4503"]["state"] == "blocked_on_prerequisite"
     assert report["gate4_recorded"] == progress["overall_gate4_recorded"]
+
+
+def test_pending_review_work_has_its_own_noncompletion_queue():
+    progress, reviews = _inputs()
+    report = build_work_queue(progress, reviews)
+    reviewed = report["selected_independent_review"]
+    assert all(item["state"] == "review_pending" for item in reviewed)
+    assert all(item["state"] != "complete" for item in reviewed)
+    assert report["gate4_recorded"] == progress["overall_gate4_recorded"]
+    if report["states"]["review_pending"]:
+        assert reviewed
