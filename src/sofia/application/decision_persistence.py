@@ -138,6 +138,8 @@ def inspect_turn_persistence(
                     ).fetchone()
                     scope_ok = (
                         binding is not None
+                        and isinstance(binding[1], str)
+                        and bool(binding[1].strip())
                         and binding[0] == envelope.principal_id
                         and (
                             matrix_trace.privacy is None
