@@ -25,6 +25,7 @@ from .presentation import (
     AttireMode, AudienceScope, PresentationAuthority, PresentationProjection,
 )
 from .private_grant import PrivatePresentationGrantResolver
+from .wardrobe import LEAF_SLOTS, Layer
 
 
 _SCHEMA = "sofia.avatar2d.asset_bundle.v1"
@@ -156,6 +157,22 @@ def _verify_png(data: bytes) -> None:
         raise Avatar2DAssetError("incomplete PNG")
 
 
+@dataclass(frozen=True, slots=True)
+class Avatar2DSprite:
+    """Validated artwork-to-existing-wardrobe binding.
+
+    One sprite may cover multiple visible slots (for example a shirt may
+    cover torso and both shoulders). The wardrobe remains authoritative.
+    """
+
+    sprite_id: str
+    role: str  # base_back, base_body, base_face, garment, base_front, overlay
+    order: int
+    garment_id: str | None = None
+    slots: tuple[str, ...] = ()
+    wardrobe_layer: Layer | None = None
+
+
 @dataclass(slots=True)
 class Verified2DArtBundle:
     """Memory-scoped asset bytes; caller MUST close after use/revocation."""
@@ -166,6 +183,7 @@ class Verified2DArtBundle:
     outfit_id: str | None
     digest: str
     images: dict[str, bytearray] = field(repr=False)
+    sprites: tuple[Avatar2DSprite, ...] = ()
     _closed: bool = field(default=False, repr=False)
 
     def close(self) -> None:
@@ -217,6 +235,7 @@ def _read_bundle(
     if not isinstance(layers, list) or not 1 <= len(layers) <= _MAX_LAYERS:
         raise Avatar2DAssetError("invalid avatar art layer count")
     images: dict[str, bytearray] = {}
+    sprites: list[Avatar2DSprite] = []
     seen_paths: set[str] = set()
     total = 0
     try:
@@ -229,6 +248,48 @@ def _read_bundle(
             if layer_id in images or str(pathname) in seen_paths:
                 raise Avatar2DAssetError("duplicate art layer or file")
             seen_paths.add(str(pathname))
+            role = layer.get("role", "base_body")
+            if role not in (
+                "base_back", "base_body", "base_face",
+                "garment", "base_front", "overlay",
+            ):
+                raise Avatar2DAssetError("invalid art layer role")
+            order = layer.get("order", 0)
+            if type(order) is not int or not -1000 <= order <= 1000:
+                raise Avatar2DAssetError("invalid art layer order")
+            garment_id = layer.get("garment_id")
+            slots_value = layer.get("slots", [])
+            wardrobe_name = layer.get("wardrobe_layer")
+            if role == "garment":
+                garment_id = _identifier(garment_id)
+                if (
+                    not isinstance(slots_value, list)
+                    or not slots_value
+                    or len(slots_value) != len(set(slots_value))
+                    or any(type(slot) is not str or slot not in LEAF_SLOTS
+                           for slot in slots_value)
+                ):
+                    raise Avatar2DAssetError("invalid garment sprite slots")
+                if not isinstance(wardrobe_name, str) or wardrobe_name not in Layer.__members__:
+                    raise Avatar2DAssetError("invalid garment sprite layer")
+                wardrobe_layer = Layer[wardrobe_name]
+                slots = tuple(slots_value)
+            else:
+                if garment_id is not None or slots_value or wardrobe_name is not None:
+                    raise Avatar2DAssetError("non-garment sprite cannot claim wardrobe")
+                garment_id = None
+                wardrobe_layer = None
+                slots = ()
+            sprites.append(
+                Avatar2DSprite(
+                    sprite_id=layer_id,
+                    role=role,
+                    order=order,
+                    garment_id=garment_id,
+                    slots=slots,
+                    wardrobe_layer=wardrobe_layer,
+                )
+            )
             payload = _read_file(directory, pathname, limit=_MAX_IMAGE)
             if sha256(payload).hexdigest() != digest:
                 raise Avatar2DAssetError("art layer checksum mismatch")
@@ -248,6 +309,7 @@ def _read_bundle(
         outfit_id=outfit_id,
         digest=sha256(raw).hexdigest(),
         images=images,
+        sprites=tuple(sprites),
     )
 
 
