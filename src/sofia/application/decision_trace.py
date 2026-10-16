@@ -14,7 +14,7 @@ from sofia.application.event_contracts import (
     EventOwnershipProjection,
     project_matrix_event,
 )
-from sofia.cognition.matrix.model import MatrixTrace
+from sofia.cognition.matrix.model import MatrixTrace, EvidenceState
 from sofia.neuro.model import NeuroStateSnapshot
 
 
@@ -197,6 +197,7 @@ def project_companion_decision(
         for record in (() if matrix_trace.evidence is None
                        else matrix_trace.evidence.records)
         if record.source_ref is not None
+        and record.state is EvidenceState.AVAILABLE
     }
     for event in selected_events:
         source_keys = {event.event_id, event.source_id,
@@ -235,12 +236,18 @@ def project_companion_decision(
             for item in neuro_turn_snapshot.secondary
         )
 
+    # Only AVAILABLE Matrix evidence is eligible for downstream context.
+    # Stale/unknown claims remain visible as references for diagnosis, not
+    # as eligible memories or chosen GOALS/LIFE activity.
     memory_refs = tuple(
         ref for ref in refs
-        if ref.startswith(("memory:", "conversation-retrieval:"))
+        if ref in linked_refs
+        and ref.startswith(("memory:", "conversation-retrieval:"))
     )
-    goal_refs = tuple(ref for ref in refs if ref.startswith("goal:"))
-    activity_refs = tuple(ref for ref in refs if ref.startswith("life:"))
+    goal_refs = tuple(ref for ref in refs
+                      if ref in linked_refs and ref.startswith("goal:"))
+    activity_refs = tuple(ref for ref in refs
+                          if ref in linked_refs and ref.startswith("life:"))
     execution = ExecutionDecision(
         authority_result=(
             None if matrix_trace.authority is None

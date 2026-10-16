@@ -312,3 +312,39 @@ def test_unverified_act_projection_cannot_claim_external_effect(tmp_path):
     assert trace.outcomes[-1].source_ref == "ack:unverified"
     assert trace.outcomes[-1].independently_verified is False
     assert trace.objective_verified is False
+
+
+
+@pytest.mark.parametrize("state", [
+    EvidenceState.STALE,
+    EvidenceState.UNKNOWN,
+    EvidenceState.MISSING,
+])
+def test_unavailable_matrix_evidence_cannot_link_goal_or_eligible_memory(tmp_path, state):
+    _state_path, matrix = _fixture(tmp_path)
+    matrix = replace(
+        matrix, evidence=EvidenceMatrix(records=(
+            EvidenceRecord("goal", state, "goal:one"),
+            EvidenceRecord("memory", state, "memory:one"),
+        )),
+    )
+    event = EventOwnershipProjection(
+        schema_version=1, event_id="goal:event",
+        owner=CanonicalEventOwner.GOALS, source_id="goal:event",
+        subject_id="goal:one", principal_id=None, audience_id=None,
+        observed_at=NOW, goal_id="goal:one",
+    )
+    with pytest.raises(ValueError, match="same-turn source reference"):
+        project_companion_decision(
+            matrix_trace=matrix, neuro_snapshot=None,
+            selected_goal_event=event,
+        )
+    diagnostic = project_companion_decision(
+        matrix_trace=matrix, neuro_snapshot=None,
+    )
+    assert diagnostic is not None
+    assert diagnostic.referenced_evidence == ("goal:one", "memory:one")
+    assert diagnostic.eligible_memory_refs == ()
+    assert diagnostic.referenced_goal_refs == ()
+    assert diagnostic.goal_id is None
+    assert not diagnostic.objective_verified
