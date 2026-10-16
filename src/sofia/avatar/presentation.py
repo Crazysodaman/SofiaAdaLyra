@@ -105,11 +105,38 @@ class AppearanceState:
     hair_color: str
     tail_color: str
     style_tags: tuple[str, ...] = ()
+    hair_length: str | None = None
+    hair_design: str | None = None
+    eye_color: str | None = None
+    posture: str | None = None
+    ear_pose: str | None = None
+    tail_pose: str | None = None
+    expression: str | None = None
+    fur_style: str | None = None
+    makeup: str | None = None
+    freckles: str | None = None
+    tattoos: tuple[str, ...] = ()
+    piercings: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _text(self.hairstyle, "hairstyle")
         _color(self.hair_color, "hair color")
         _color(self.tail_color, "tail color")
+        if self.eye_color is not None:
+            _color(self.eye_color, "eye color")
+        for label in ("hair_length", "hair_design", "posture", "ear_pose",
+                      "tail_pose", "expression", "fur_style", "makeup", "freckles"):
+            value = getattr(self, label)
+            if value is not None:
+                _text(value, label, limit=120)
+        for label in ("tattoos", "piercings"):
+            values = getattr(self, label)
+            if not isinstance(values, tuple) or len(values) > 32:
+                raise PresentationError(f"invalid {label}")
+            if len(values) != len(set(values)):
+                raise PresentationError(f"duplicate {label}")
+            for value in values:
+                _text(value, label, limit=120)
         if (
             not isinstance(self.style_tags, tuple)
             or len(set(self.style_tags)) != len(self.style_tags)
@@ -637,6 +664,18 @@ class PresentationAuthority:
                 "hair_color": state.appearance.hair_color,
                 "tail_color": state.appearance.tail_color,
                 "style_tags": list(state.appearance.style_tags),
+                "hair_length": state.appearance.hair_length,
+                "hair_design": state.appearance.hair_design,
+                "eye_color": state.appearance.eye_color,
+                "posture": state.appearance.posture,
+                "ear_pose": state.appearance.ear_pose,
+                "tail_pose": state.appearance.tail_pose,
+                "expression": state.appearance.expression,
+                "fur_style": state.appearance.fur_style,
+                "makeup": state.appearance.makeup,
+                "freckles": state.appearance.freckles,
+                "tattoos": list(state.appearance.tattoos),
+                "piercings": list(state.appearance.piercings),
             },
             "private_only": state.private_only,
             "reason": state.reason,
@@ -649,11 +688,26 @@ class PresentationAuthority:
         tags = data.get("style_tags", [])
         if not isinstance(tags, list):
             raise PresentationError("appearance style_tags must be a list")
+        for label in ("tattoos", "piercings"):
+            if not isinstance(data.get(label, []), list):
+                raise PresentationError(f"snapshot {label} must be a list")
         return AppearanceState(
             hairstyle=data.get("hairstyle"),
             hair_color=data.get("hair_color"),
             tail_color=data.get("tail_color"),
             style_tags=tuple(tags),
+            hair_length=data.get("hair_length"),
+            hair_design=data.get("hair_design"),
+            eye_color=data.get("eye_color"),
+            posture=data.get("posture"),
+            ear_pose=data.get("ear_pose"),
+            tail_pose=data.get("tail_pose"),
+            expression=data.get("expression"),
+            fur_style=data.get("fur_style"),
+            makeup=data.get("makeup"),
+            freckles=data.get("freckles"),
+            tattoos=tuple(data.get("tattoos", [])),
+            piercings=tuple(data.get("piercings", [])),
         )
 
     def _state_from_dict(self, data: dict[str, Any]) -> PresentationState:
