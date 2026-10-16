@@ -159,8 +159,28 @@ def open_owner_inbox_window(state_path, *, parent=None):
         if root.winfo_exists():
             root.after(350, poll)
 
+    def pump_notifications():
+        # Durable events are acknowledged only after delivery to this owner UI.
+        # The outbox may redeliver after a crash; event_id is the dedupe key.
+        received = []
+        try:
+            inbox.deliver_notifications(lambda event: received.append(event))
+            if received:
+                last = received[-1]
+                result.set(
+                    f"{len(received)} owner inbox event(s); latest: "
+                    f"{last.event_type} for {last.capability} "
+                    f"(event #{last.event_id})."
+                )
+                refresh()
+        except (OSError, PermissionError, RuntimeError, ValueError) as exc:
+            result.set(f"Notification delivery deferred: {exc}")
+        if root.winfo_exists():
+            root.after(5000, pump_notifications)
+
     refresh()
     root.after(350, poll)
+    root.after(1500, pump_notifications)
     if parent is None:
         root.mainloop()
     return root
