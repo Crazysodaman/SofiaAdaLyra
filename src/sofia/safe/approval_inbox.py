@@ -95,6 +95,9 @@ class ApprovalInbox:
                     FOREIGN KEY(request_id) REFERENCES safe_async_approval_request(request_id)
                 )
             """)
+        # Startup reconciliation is safe: it changes only inbox metadata,
+        # never replays an approved external operation.
+        self.recover()
 
     def _connect(self) -> sqlite3.Connection:
         db = self.guard.connect(timeout=10)
@@ -275,6 +278,7 @@ class ApprovalInbox:
 
         require_owner_windows_account(self.path)
         claimed, token = self._claim(request_id, now=_time())
+        approval = None
         try:
             approval = authorize_exact_action(
                 self.path, capability=claimed.capability,
@@ -313,6 +317,20 @@ class ApprovalInbox:
                 self._event(db, row, "approved", moment, actor="Sparks")
             return self.get(request_id)
         except BaseException:
+            # If a legitimate signed receipt was created but the review lease
+            # was denied, expired, or lost, invalidate it rather than leaving
+            # an unattached unconsumed approval reachable in SAFE.
+            if approval is not None:
+                try:
+                    self.approvals.consume(
+                        approval_id=approval.approval_id,
+                        capability=claimed.capability,
+                        parameters=claimed.parameters, now=_time(),
+                    )
+                except (OSError, RuntimeError, PermissionError, ValueError):
+                    # It may already be consumed or past expiry. Never turn
+                    # a failed inbox finalization into execution authority.
+                    pass
             self._release_failed_review(request_id, token)
             raise
 
