@@ -24,7 +24,7 @@ import zlib
 from .wardrobe_catalog import build_starter_wardrobe
 from .wardrobe_matrix import build_wardrobe_matrix
 from .vtuber_layer_stack import WAIST_UP_SLOTS
-from .wardrobe import Layer
+from .wardrobe import Layer, normalize_slots
 
 
 WIDTH, HEIGHT = 320, 400
@@ -362,6 +362,55 @@ def generate_public_outfit_art(
     return ArtGenerationReport(outfit_id,len(images),written,sha256(manifest).hexdigest())
 
 
+def generate_public_wardrobe_library(catalog, *, destination: Path) -> ArtGenerationReport:
+    """Generate one real reusable waist-up PNG for each visible PUBLIC item.
+
+    There are many lower-body items in the canonical wardrobe; they remain
+    valid clothing, but do not need invented art outside a waist-up viewport.
+    This library is a candidate asset store for future self-created outfit
+    combinations; each item retains the original catalog ID, slot and layer.
+    """
+    root = _safe_root(Path(destination), create=True)
+    library = _safe_root(root / "library", create=True)
+    if (library/"items.json").exists():
+        raise FileExistsError("reviewed wardrobe sprite library cannot be overwritten")
+    items=[]
+    total=0
+    for bp in sorted(catalog.blueprints, key=lambda b:b.garment.item_id):
+        garment=bp.garment
+        if bp.private_only or garment.private_only:
+            continue
+        slots=frozenset(normalize_slots(garment.slots)) & WAIST_UP_SLOTS
+        if not slots:
+            continue
+        art=_garment(
+            name=garment.name, category=bp.category,
+            layer=garment.layer, slots=slots,
+            color=_hex(bp.primary_hex), accents=bp.accent_hexes,
+        )
+        _write_new(library/(garment.item_id+".png"),art)
+        total+=len(art)
+        items.append({
+            "garment_id":garment.item_id,
+            "asset":garment.item_id+".png",
+            "sha256":sha256(art).hexdigest(),
+            "slots":sorted(slots),
+            "wardrobe_layer":garment.layer.name,
+            "source":"canonical reviewed wardrobe",
+            "private_only":False,
+        })
+    manifest=json.dumps({
+        "schema":"sofia.avatar2d.public_sprite_library.v1",
+        "quality":"procedural_starter",
+        "viewport":"waist_up",
+        "assets":items,
+    },sort_keys=True,separators=(",",":")).encode()
+    _write_new(library/"items.json",manifest)
+    return ArtGenerationReport(
+        "public.wardrobe.library", len(items),total,sha256(manifest).hexdigest(),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser=argparse.ArgumentParser(description="Generate safe public 2D wardrobe PNG assets")
     parser.add_argument("--output",type=Path,required=True)
@@ -369,10 +418,17 @@ def main(argv: list[str] | None = None) -> int:
                         help="optional existing state path for reviewed generated wardrobe metadata; read only")
     parser.add_argument("--outfit",default="all",
                         help="existing public outfit ID, or all")
+    parser.add_argument("--library", action="store_true",
+                        help="generate every visible public garment as a reusable item sprite")
     args=parser.parse_args(argv)
     # Read existing garment/outfit definitions only; do not bootstrap or write
     # the canonical database merely to make artwork.
     catalog = build_starter_wardrobe(state_path=args.state)
+    if args.library:
+        result = generate_public_wardrobe_library(catalog, destination=args.output)
+        print(f"{result.asset_count} public item sprites, "
+              f"{result.bytes_written} bytes, SHA256 {result.manifest_digest}")
+        return 0
     selected=[
         o.outfit_id for o in catalog.presets if not o.private_only
     ] if args.outfit=="all" else [args.outfit]
