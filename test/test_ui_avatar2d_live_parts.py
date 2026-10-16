@@ -60,12 +60,13 @@ class Canvas:
         self.current = []
         self.snapshots = []
         self.deleted = []
+        self.visible = True
 
     def winfo_width(self):
         return 320
 
     def winfo_viewable(self):
-        return True
+        return self.visible
 
     def update_idletasks(self):
         self.snapshots.append(tuple(self.current))
@@ -206,3 +207,61 @@ def test_invalid_character_pack_is_never_blended_with_real_outfit(prepared):
     assert fallback.render_calls == 1
     assert len(receipts) == 1
     assert "symbolic fallback" in receipts[0][2]
+
+
+
+def test_idle_blink_closes_eyes_and_reopens_without_chat_receipt(prepared):
+    art, db, projection = prepared
+    root, canvas = Root(), Canvas()
+    renderer = TkLayered2DRenderer(
+        root=root, canvas=canvas, public_root=art,
+        state_path=db, fallback=Fallback(), idle_blink_ms=2000,
+    )
+    renderer.render_idle(projection)
+    ordinary = tuple(canvas.current)
+    assert ordinary and len(root.pending) == 1
+    assert renderer._active_decision is None
+    root.advance()  # scheduled real eye-closed PNG frame
+    closed = tuple(canvas.current)
+    assert closed != ordinary
+    root.advance()  # reopen and schedule next natural blink
+    assert tuple(canvas.current) == ordinary
+    assert len(root.pending) == 1
+    assert renderer.stop() is None
+    assert root.pending == {}
+
+
+def test_idle_blink_is_paused_for_hidden_canvas_and_resumes_when_visible(prepared):
+    art, db, projection = prepared
+    root, canvas = Root(), Canvas()
+    renderer = TkLayered2DRenderer(
+        root=root, canvas=canvas, public_root=art,
+        state_path=db, fallback=Fallback(), idle_blink_ms=2000,
+    )
+    renderer.render_idle(projection)
+    original = tuple(canvas.current)
+    canvas.visible = False
+    root.advance()
+    assert tuple(canvas.current) == original
+    assert len(root.pending) == 1
+    canvas.visible = True
+    root.advance()
+    assert tuple(canvas.current) != original
+    renderer.stop()
+    assert root.pending == {}
+
+
+def test_idle_blink_can_be_disabled_or_reject_malformed_interval(prepared):
+    art, db, projection = prepared
+    root = Root()
+    renderer = TkLayered2DRenderer(
+        root=root, canvas=Canvas(), public_root=art,
+        state_path=db, fallback=Fallback(), idle_blink_ms=0,
+    )
+    renderer.render_idle(projection)
+    assert root.pending == {}
+    with pytest.raises(ValueError, match="idle blink interval"):
+        TkLayered2DRenderer(
+            root=root, canvas=Canvas(), public_root=art,
+            state_path=db, fallback=Fallback(), idle_blink_ms=-1,
+        )
