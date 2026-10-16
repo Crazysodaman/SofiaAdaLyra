@@ -38,6 +38,9 @@ jobs:
       - name: Run exact Phase 00 baseline contract tests
         run: python -m pytest -q test/test_v18_companion_baseline.py
 
+      - name: Test opt-in host measurement contract (no live host attested)
+        run: python -m pytest -q test/test_v18_live_resource_probe.py
+
       - name: Capture exact commit's deterministic application baseline
         env:
           EXPECTED_SHA: ${{ github.sha }}
