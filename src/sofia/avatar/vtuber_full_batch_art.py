@@ -273,6 +273,10 @@ def build_draft_batch(
         raise ValueError("incomplete canonical wardrobe inventory")
     targets=[(False,Path(public_root))]
     if private_root is not None:
+        pub=Path(public_root).resolve()
+        priv=Path(private_root).resolve()
+        if pub==priv or pub.is_relative_to(priv) or priv.is_relative_to(pub):
+            raise ValueError("private artwork root must be physically separate")
         if not isinstance(resolver, PrivatePresentationGrantResolver):
             raise PermissionError("trusted SAFE private resolver required")
         if not owner_opt_in:
