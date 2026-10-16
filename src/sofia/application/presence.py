@@ -58,6 +58,7 @@ class WorldObservation:
     availability: WorldAvailability
     value: object
     audience_id: str | None = None
+    correlation_event_id: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("observation_id", "subject_id", "predicate", "source_id"):
@@ -69,6 +70,11 @@ class WorldObservation:
             and (not isinstance(self.audience_id, str) or _ID.fullmatch(self.audience_id) is None)
         ):
             raise ValueError("audience_id must be a bounded identifier or None")
+        if self.correlation_event_id is not None and (
+            not isinstance(self.correlation_event_id, str)
+            or _ID.fullmatch(self.correlation_event_id) is None
+        ):
+            raise ValueError("correlation event requires bounded identifier")
         for name in ("observed_at", "expires_at"):
             value = getattr(self, name)
             if value is not None and (
@@ -290,6 +296,23 @@ class PresenceInitiativeEngine:
                 );
                 CREATE INDEX IF NOT EXISTS presence_world_subject
                     ON presence_world_observation(subject_id,predicate,observed_at DESC);
+                CREATE TABLE IF NOT EXISTS presence_observation_correlation (
+                    observation_id TEXT PRIMARY KEY,
+                    event_id TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS presence_correlation_event
+                    ON presence_observation_correlation(event_id);
+                CREATE TABLE IF NOT EXISTS presence_observation_conflict (
+                    conflict_id TEXT PRIMARY KEY,
+                    first_id TEXT NOT NULL,
+                    second_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    review_status TEXT NOT NULL CHECK(review_status='pending'),
+                    event_id TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS presence_conflict_audience
+                    ON presence_observation_conflict(audience_id);
                 CREATE TABLE IF NOT EXISTS presence_cross_modal_receipt (
                     observation_id TEXT PRIMARY KEY,
                     modality TEXT NOT NULL,
@@ -408,6 +431,11 @@ class PresenceInitiativeEngine:
                         "INSERT INTO presence_cross_modal_receipt "
                         "VALUES(?,?,?,?,?,?,?,?,?,?,?)",record,
                     )
+            from sofia.application.presence_conflicts import record_correlation
+            record_correlation(
+                db, observation=observation, receipt=receipt,
+                newly_created=old is None,
+            )
             db.execute(
                 """
                 DELETE FROM presence_world_observation WHERE observation_id IN (
@@ -421,7 +449,19 @@ class PresenceInitiativeEngine:
                 "WHERE observation_id NOT IN "
                 "(SELECT observation_id FROM presence_world_observation)"
             )
+            from sofia.application.presence_conflicts import prune_orphans
+            prune_orphans(db)
         return observation
+
+    def correlated_conflicts(
+        self, *, audience_id: str, limit: int = 20,
+    ) -> tuple[dict, ...]:
+        """Only source IDs for the exact audience, never original bytes."""
+        if not isinstance(audience_id, str) or _ID.fullmatch(audience_id) is None:
+            raise PermissionError("exact authorized audience required")
+        from sofia.application.presence_conflicts import scoped_conflicts
+        with closing(self._connect()) as db:
+            return scoped_conflicts(db, audience_id=audience_id, limit=limit)
 
     def source_receipt(
         self, *, observation_id: str, audience_id: str | None,

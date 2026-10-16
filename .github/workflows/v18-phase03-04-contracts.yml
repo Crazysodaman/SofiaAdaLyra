@@ -11,6 +11,8 @@ on:
       - 'src/sofia/ops/capacity_runtime.py'
       - 'src/sofia/ops/commitment.py'
       - 'src/sofia/knowledge/observation_conflict.py'
+      - 'src/sofia/application/presence_conflicts.py'
+      - 'src/sofia/application/presence.py'
       - 'src/sofia/verify/drift.py'
       - 'test/test_v18_saga_contracts.py'
       - 'test/test_v18_failure_triage.py'
@@ -19,6 +21,7 @@ on:
       - 'test/test_v18_capacity_runtime.py'
       - 'test/test_v18_commitment_projection.py'
       - 'test/test_v18_observation_conflict.py'
+      - 'test/test_v18_presence_conflicts.py'
       - 'test/test_v18_drift_scorecard.py'
       - '.github/workflows/v18-phase03-04-contracts.yml'
   workflow_dispatch:
@@ -58,4 +61,5 @@ jobs:
           test/test_v18_capacity_runtime.py
           test/test_v18_commitment_projection.py
           test/test_v18_observation_conflict.py
+          test/test_v18_presence_conflicts.py
           test/test_v18_drift_scorecard.py

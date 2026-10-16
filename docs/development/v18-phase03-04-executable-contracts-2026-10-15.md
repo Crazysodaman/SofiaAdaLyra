@@ -202,3 +202,26 @@ an independently verified host resource/performance receipt.
 Cross-platform focused tests cover the production projection, disk-pressure
 boundaries, missing/invalid telemetry, no implicit repairs and registration
 under the existing background scheduler.
+
+## CA-6406 integrated diagnostic contradiction retention
+
+`PresenceInitiativeEngine.observe` can now accept an **explicit**
+`correlation_event_id` for the same event from two distinct attested
+source adapters. The original observations still use the canonical PRESENCE
+SQLite writer. Each correlated source requires an exact private audience and
+a verified original source receipt. Only bounded scalar status values enter
+the contradiction comparator, and the *diagnostic* table stores source IDs,
+an audience, correlation ID, and `pending` review status, not raw text.
+The existing source storage/pruning also bounds these diagnostics. Original
+world observations are never overwritten or accepted as long-term memory
+based on comparison alone.
+
+The optional same-event correlation is supplied by the caller; it is NOT
+independent proof that a screenshot and Fleet event describe the same fact.
+No automatic Fleet/voice pairing, permission grant, renderer effect, outreach,
+or durable-memory promotion is attempted. Scope, immutable pairing, restart
+persistence, duplicate retries and unsupported private text are tested.
+
+The original CA-6406 still requires authenticated source correlation from
+authorized live adapters, independent acceptance review, and actual
+cross-device verification before Gate 4 can be awarded.
