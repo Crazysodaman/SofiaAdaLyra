@@ -22,7 +22,8 @@ from .vtuber_starter_art import Sprite, WIDTH, HEIGHT, _shade
 
 
 _PUBLIC_GROUPS = {
-    "face": ("neutral", "freckles"),
+    "face": ("neutral", "soft"),
+    "freckles": ("off", "on"),
     "eyes": ("open", "half", "closed", "looking_left", "looking_right"),
     "brows": ("neutral", "skeptical"),
     "mouth": ("closed", "smile", "talk_small", "talk_wide"),
@@ -38,10 +39,12 @@ _Z = {
     "tail": 10, "hair_back": 20,
     "ear_left": 25, "ear_right": 25,
     "face": 50, "eyes": 55, "brows": 60, "mouth": 65,
+    "freckles": 70,
     "hair_front": 90,
 }
 _ANCHOR = {
     "face": "head", "eyes": "head", "brows": "head", "mouth": "head",
+    "freckles": "head",
     "hair_back": "head", "hair_front": "head",
     "ear_left": "left_fox_ear", "ear_right": "right_fox_ear",
     "tail": "tail_root",
@@ -82,13 +85,16 @@ def _paint(group: str, variant: str, *, appearance: dict) -> bytes:
     s = Sprite()
 
     if group == "face":
-        if variant == "neutral":
-            # Face shape is an illustration choice, not a measured datum.
-            s.ellipse((108, 88, 212, 237), skin)
-            s.ellipse((109, 149, 119, 170), skin)
-            s.ellipse((201, 149, 211, 170), skin)
-            s.ellipse((151, 176, 168, 182), _shade(skin, .93))
-        elif variant == "freckles":
+        # The base face is always present; cosmetic overlays are separate.
+        s.ellipse((108, 88, 212, 237), skin)
+        s.ellipse((109, 149, 119, 170), skin)
+        s.ellipse((201, 149, 211, 170), skin)
+        s.ellipse((151, 176, 168, 182), _shade(skin, .93))
+        if variant == "soft":
+            s.ellipse((117,166,133,171),(225,150,159,255))
+            s.ellipse((187,166,202,171),(225,150,159,255))
+    elif group == "freckles":
+        if variant == "on":
             for x,y in ((125,174),(131,177),(136,175),
                         (184,174),(190,176),(197,172)):
                 s.ellipse((x,y,x+3,y+3),_shade(skin,.78))
