@@ -28,6 +28,8 @@ def select_character_parts(
     *,
     expression: str = "neutral",
     gesture: str | None = None,
+    ear_cue: str | None = None,
+    tail_cue: str | None = None,
     talking: bool = False,
     gaze: str = "center",
     optional_freckles: bool = False,
@@ -76,20 +78,25 @@ def select_character_parts(
     else:
         mouth="closed"
 
-    if gesture in ("ear-perk","ear-flick"):
-        ears="perked"
-    elif gesture == "ear-flatten" or appearance.ear_pose in ("flattened","relaxed"):
-        ears="relaxed"
-        if gesture == "ear-flatten" or appearance.ear_pose == "flattened":
+    # The primary gesture and the established secondary channels are
+    # independent. Ear/tail animation cannot be lost merely because the
+    # settled primary gesture is a smile or a hand pose.
+    resolved_ear = ear_cue if ear_cue is not None else gesture
+    resolved_tail = tail_cue if tail_cue is not None else gesture
+    if resolved_ear in ("ear-perk", "ear-flick"):
+        ears = "perked"
+    elif resolved_ear == "ear-flatten" or appearance.ear_pose in ("flattened", "relaxed"):
+        ears = "relaxed"
+        if resolved_ear == "ear-flatten" or appearance.ear_pose == "flattened":
             warnings.append("fully flattened fox ears need another sprite")
     else:
-        ears="perked"
-    if gesture in ("tail-swish","slow-tail-sway","tail-flick","tail-wag"):
-        tail="flick"
-    elif appearance.tail_pose=="raised":
-        tail="raised"
+        ears = "perked"
+    if resolved_tail in ("tail-swish", "slow-tail-sway", "tail-flick", "tail-wag"):
+        tail = "flick"
+    elif appearance.tail_pose == "raised":
+        tail = "raised"
     else:
-        tail="calm"
+        tail = "calm"
     eyes={
         "center":"open",
         "left":"looking_left",
