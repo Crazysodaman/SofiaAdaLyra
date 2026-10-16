@@ -15,7 +15,8 @@ from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.avatar.vtuber_asset_bundle import Avatar2DAssetGateway
 from sofia.avatar.vtuber_layer_stack import assemble_avatar2d_layers
 from sofia.avatar.vtuber_starter_art import (
-    WIDTH, HEIGHT, PNG_HEADER, generate_public_outfit_art, main,
+    WIDTH, HEIGHT, PNG_HEADER, generate_public_outfit_art,
+    generate_public_wardrobe_library, main,
 )
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.embodiment.store import EmbodimentStore
@@ -134,3 +135,37 @@ def test_cli_never_creates_or_writes_canonical_state(tmp_path):
     assert not state.exists()
     assert (tmp_path / "art" / "outfits" / "night.lounge"
             / "manifest.json").is_file()
+
+
+
+def test_full_visible_public_wardrobe_library_is_reusable_and_excludes_private(tmp_path):
+    import json
+
+    catalog = build_starter_wardrobe()
+    report = generate_public_wardrobe_library(
+        catalog, destination=tmp_path / "art",
+    )
+    manifest_file = tmp_path / "art" / "library" / "items.json"
+    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    assert manifest["schema"] == "sofia.avatar2d.public_sprite_library.v1"
+    assert report.asset_count == len(manifest["assets"])
+    assert report.asset_count >= 40
+    reviewed_public = {
+        bp.garment.item_id for bp in catalog.blueprints
+        if not bp.private_only and not bp.garment.private_only
+    }
+    for row in manifest["assets"]:
+        assert row["garment_id"] in reviewed_public
+        assert row["private_only"] is False
+        png = tmp_path / "art" / "library" / row["asset"]
+        assert png.read_bytes().startswith(PNG_HEADER)
+        assert __import__("hashlib").sha256(png.read_bytes()).hexdigest() == row["sha256"]
+        assert row["slots"]
+    assert (tmp_path / "art" / "library" / "day.engineer_jacket.png").is_file()
+    assert (tmp_path / "art" / "library" / "night.lounge_tee.png").is_file()
+    assert not (tmp_path / "art" / "library"
+                / "under.private.rope_full_harness.png").exists()
+    with pytest.raises(FileExistsError):
+        generate_public_wardrobe_library(
+            catalog, destination=tmp_path / "art",
+        )
