@@ -57,6 +57,7 @@ class Observation:
     value: str
     source: ObservationSource
     observed_at: datetime
+    event_id: str | None = None
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -70,8 +71,15 @@ class Observation:
             raise ConflictError("observation value must be non-empty text")
         if not isinstance(self.source, ObservationSource):
             raise TypeError("source must be ObservationSource")
-        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+        if not isinstance(self.observed_at, datetime) or (
+            self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None
+        ):
             raise ConflictError("observed_at must be timezone-aware")
+        if self.event_id is not None and (
+            not isinstance(self.event_id, str)
+            or _IDENTIFIER.fullmatch(self.event_id) is None
+        ):
+            raise ConflictError("event_id must be a bounded identifier when present")
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,34 +106,39 @@ def compare_observations(first: Observation, second: Observation) -> Contradicti
     """Return a contradiction if two observations disagree, else ``None``.
 
     Different subjects or predicates are simply unrelated observations. A clock
-    disagreement (same value observed from a device clock versus a trusted
-    receipt with a materially different time) is reported as ``clock_skew`` and
-    never resolves which statement supersedes another.
+    disagreement (same event ID and value observed from a device clock versus
+    another source with a materially different time) is reported as
+    ``clock_skew`` and never resolves which statement supersedes another.
     """
     if not isinstance(first, Observation) or not isinstance(second, Observation):
         raise TypeError("compare_observations requires two Observation values")
     if (first.subject, first.predicate) != (second.subject, second.predicate):
         return None
-    if first.value == second.value:
+    # A claimed timestamp difference is only evidence of clock skew when the
+    # same *event* was observed twice. Comparing two different events or two
+    # uncorrelated status snapshots would fabricate an incident.
+    if (first.event_id is not None and second.event_id is not None
+            and first.event_id != second.event_id):
         return None
-    # Clock skew: an identical value with a large observed_at gap from a device
-    # clock is a time-trust problem, not a value disagreement.
-    if first.source is ObservationSource.DEVICE_CLOCK or (
-        second.source is ObservationSource.DEVICE_CLOCK
-    ):
-        other = second if first.source is ObservationSource.DEVICE_CLOCK else first
-        delta = abs((first.observed_at - second.observed_at).total_seconds())
-        if delta >= 60 and other.value == (
-            second.value if first.source is ObservationSource.DEVICE_CLOCK
-            else first.value
-        ):
-            return Contradiction(
-                subject=first.subject, predicate=first.predicate,
-                first=first, second=second, kind="clock_skew",
-                preferred_source=None, requires_verification=True,
-                reason="device clock disagrees with a trusted observation time; "
-                       "do not reorder history from an untrusted wall clock",
-            )
+    same_event = first.event_id is not None and first.event_id == second.event_id
+    uses_device_clock = (
+        first.source is ObservationSource.DEVICE_CLOCK
+        or second.source is ObservationSource.DEVICE_CLOCK
+    )
+    if first.value == second.value:
+        if same_event and uses_device_clock:
+            delta = abs((first.observed_at - second.observed_at).total_seconds())
+            if delta >= 60:
+                return Contradiction(
+                    subject=first.subject, predicate=first.predicate,
+                    first=first, second=second, kind="clock_skew",
+                    preferred_source=None, requires_verification=True,
+                    reason="two observations of one event disagree by >=60 seconds; "
+                           "verify clock sources before ordering history",
+                )
+        return None
+    # Different values are a genuine status/content disagreement. They may
+    # also have different timestamps, but must not be mislabeled clock skew.
     rank_first = _AUTHORITY[first.source]
     rank_second = _AUTHORITY[second.source]
     if rank_first == rank_second:

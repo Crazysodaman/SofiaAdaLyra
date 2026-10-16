@@ -73,3 +73,59 @@ def test_contradiction_rejects_malformed_observations():
                     ObservationSource.HOST_RECEIPT, datetime(2026, 1, 1))
     with pytest.raises(TypeError):
         Observation("o1", "host:venus", "service.llm", "running", "host", NOW)
+
+
+def test_correlated_same_event_disagreeing_timestamps_are_reported_as_clock_skew():
+    observed = Observation("o1", "host:venus", "service.llm", "running",
+                           ObservationSource.DEVICE_CLOCK, NOW, event_id="run:123")
+    trusted = Observation("o2", "host:venus", "service.llm", "running",
+                          ObservationSource.HOST_RECEIPT, NOW + timedelta(hours=2),
+                          event_id="run:123")
+    conflict = compare_observations(observed, trusted)
+    assert conflict is not None
+    assert conflict.kind == "clock_skew"
+    assert conflict.requires_verification is True
+    assert conflict.preferred_source is None
+    assert conflict.first is observed and conflict.second is trusted
+    assert compare_observations(trusted, observed).kind == "clock_skew"
+
+
+def test_clock_skew_boundary_is_inclusive_and_event_scoped():
+    observed = Observation("o1", "host:venus", "service.llm", "running",
+                           ObservationSource.DEVICE_CLOCK, NOW, event_id="run:123")
+    for seconds, expected in ((59, False), (60, True)):
+        other = Observation("o2", "host:venus", "service.llm", "running",
+                            ObservationSource.HOST_RECEIPT,
+                            NOW + timedelta(seconds=seconds), event_id="run:123")
+        assert (compare_observations(observed, other) is not None) is expected
+    unrelated = Observation("o3", "host:venus", "service.llm", "running",
+                            ObservationSource.HOST_RECEIPT,
+                            NOW + timedelta(hours=2), event_id="run:other")
+    assert compare_observations(observed, unrelated) is None
+
+
+def test_same_event_disagreeing_values_remain_value_conflicts_not_clock_skew():
+    device = Observation("o1", "host:venus", "service.llm", "running",
+                         ObservationSource.DEVICE_CLOCK, NOW, event_id="run:123")
+    host = Observation("o2", "host:venus", "service.llm", "stopped",
+                       ObservationSource.HOST_RECEIPT, NOW + timedelta(hours=2),
+                       event_id="run:123")
+    result = compare_observations(device, host)
+    assert result is not None
+    assert result.kind == "value_conflict"
+    assert result.first is device and result.second is host
+
+
+def test_missing_event_identity_does_not_infer_clock_skew_from_elapsed_time():
+    device = Observation("o1", "host:venus", "service.llm", "running",
+                         ObservationSource.DEVICE_CLOCK, NOW)
+    later = Observation("o2", "host:venus", "service.llm", "running",
+                        ObservationSource.HOST_RECEIPT, NOW + timedelta(hours=2))
+    assert compare_observations(device, later) is None
+
+
+@pytest.mark.parametrize("bad_event", ("", "a b", "x" * 129, 123, True))
+def test_untrusted_or_unbounded_event_correlation_id_is_rejected(bad_event):
+    with pytest.raises(ConflictError):
+        Observation("o1", "host:venus", "service.llm", "running",
+                    ObservationSource.DEVICE_CLOCK, NOW, event_id=bad_event)

@@ -139,3 +139,20 @@ GOALS state plane remains the sole durable owner.
 Invariant: a blocked or approval-pending promise is never proactively chased; a
 terminal goal is a history record, not an open commitment; system/maintenance
 goals are not user commitments.
+
+## CA-6406 clock-synchronization correction
+
+The first pure comparator contained a dead clock-skew branch: it returned
+`None` on matching values *before* checking skew, and could label a
+different-value conflict as clock skew solely because time had elapsed.
+The corrected contract now carries an optional bounded `event_id`.
+Only two observations referencing the **same event** with equal values and
+a device-clock timestamp discrepancy of at least 60 seconds produce
+`clock_skew`. Two unrelated events are never merged. When values conflict,
+the result remains a `value_conflict` and preserves both originals.
+Typed tests cover the threshold, source-order symmetry, value disagreement,
+forged/malformed identifiers and absence of correlation.
+
+**Still open:** independent review and production consumer wiring to
+authorized scoped durable contradictory-source evidence, plus a live remote
+device clock comparison. Pure comparator regressions alone do not earn Gate 4.
