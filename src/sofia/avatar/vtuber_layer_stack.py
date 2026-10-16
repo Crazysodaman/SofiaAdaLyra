@@ -91,7 +91,10 @@ def assemble_avatar2d_layers(
         ):
             raise Avatar2DAssetError("private artwork scope mismatch")
     elif selection.status in ("public", "public_fallback"):
-        if bundle.audience is not AudienceScope.PUBLIC:
+        if (
+            bundle.audience is not AudienceScope.PUBLIC
+            or projection.audience is not AudienceScope.PUBLIC
+        ):
             raise Avatar2DAssetError("public artwork scope mismatch")
     else:
         raise Avatar2DAssetError("artwork selection not renderable")
@@ -134,6 +137,8 @@ def assemble_avatar2d_layers(
             raise Avatar2DAssetError("invalid verified sprite descriptor")
         if sprite.sprite_id not in bundle.images:
             raise Avatar2DAssetError("verified sprite has no image data")
+        if sprite.role not in _PHASES:
+            raise Avatar2DAssetError("unknown sprite compositing role")
         if sprite.role == "base_body":
             base_body = True
         if sprite.role == "garment":
