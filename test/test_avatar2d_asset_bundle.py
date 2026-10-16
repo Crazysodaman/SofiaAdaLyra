@@ -49,8 +49,9 @@ def write_bundle(
 ):
     root.mkdir(parents=True, exist_ok=True)
     payload = rgba_png() if png is None else png
-    relative = root / image_path
-    if ".." not in relative.parts:
+    # Test fixtures must never write outside their owned temporary root.
+    if image_path == "base/torso.png":
+        relative = root / image_path
         relative.parent.mkdir(parents=True, exist_ok=True)
         relative.write_bytes(payload)
     manifest = {
