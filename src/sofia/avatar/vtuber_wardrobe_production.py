@@ -14,7 +14,8 @@ import json
 from pathlib import Path
 from typing import Iterable
 
-from .presentation import PrivatePresentationGrant
+from sofia.social.model import PrincipalContext
+from .private_grant import PrivatePresentationGrantResolver
 from .wardrobe_catalog import build_starter_wardrobe
 from .vtuber_art_fidelity import brief_from_blueprint
 
@@ -196,16 +197,27 @@ def export_public_production_queue(path: Path) -> ArtProductionCoverage:
 
 def protected_work_orders(
     *,
-    grant: PrivatePresentationGrant | None,
+    resolver: PrivatePresentationGrantResolver,
+    principal: PrincipalContext | None,
+    explicit_current_opt_in: bool,
     catalog=None,
 ) -> tuple[ArtProductionItem, ...]:
-    """Return private metadata only after host-provided grant is validated.
+    """Resolve SAFE permissions now; never trust caller-minted grant objects.
 
-    Caller MUST separately enforce exact authenticated owner session/STOP,
-    private workspace ACL, no public logs/notifications, and grant expiry.
+    Caller must still protect the private workspace, avoid logging sensitive
+    data and re-resolve before using an emitted art candidate/asset.
     """
-    if not isinstance(grant, PrivatePresentationGrant):
-        raise PermissionError("trusted private owner grant required")
+    if not isinstance(resolver, PrivatePresentationGrantResolver):
+        raise PermissionError("SAFE private resolver required")
+    try:
+        grant = resolver.resolve(
+            principal=principal,
+            explicit_current_opt_in=explicit_current_opt_in,
+        )
+    except Exception as exc:
+        raise PermissionError("private art work orders unavailable") from exc
+    if grant is None:
+        raise PermissionError("authenticated private art access required")
     grant.require()
     return tuple(
         item for item in wardrobe_production_queue(catalog=catalog)
