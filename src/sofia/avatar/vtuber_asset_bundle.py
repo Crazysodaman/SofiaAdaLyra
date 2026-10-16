@@ -347,14 +347,33 @@ class Avatar2DAssetGateway:
 
     def public(self, *, fallback: bool = False) -> Avatar2DArtSelection:
         projection = self._authority.projection(AudienceScope.PUBLIC)
-        try:
-            bundle = _read_bundle(
-                self._public_root,
-                audience=AudienceScope.PUBLIC,
-                attire=AttireMode.CLOTHED,
-                outfit_id=projection.outfit_id,
-            )
-        except (Avatar2DAssetError, OSError):
+        # New generated wardrobe packs live at outfits/<canonical ID>.
+        # Retain the older single-pack root as a verified compatibility path,
+        # but never scan unknown art directories or take a private asset.
+        roots = []
+        if projection.outfit_id:
+            try:
+                roots.append(
+                    self._public_root / "outfits" / _identifier(projection.outfit_id)
+                )
+            except Avatar2DAssetError:
+                return Avatar2DArtSelection(
+                    "unavailable", projection, None, "approved public artwork unavailable"
+                )
+        roots.append(self._public_root)
+        bundle = None
+        for root in roots:
+            try:
+                bundle = _read_bundle(
+                    root,
+                    audience=AudienceScope.PUBLIC,
+                    attire=AttireMode.CLOTHED,
+                    outfit_id=projection.outfit_id,
+                )
+                break
+            except (Avatar2DAssetError, OSError):
+                continue
+        if bundle is None:
             return Avatar2DArtSelection(
                 "unavailable", projection, None, "approved public artwork unavailable"
             )
