@@ -103,7 +103,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_settled_response_trace.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-002",
@@ -161,7 +199,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_companion_baseline.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-003",
@@ -244,7 +320,45 @@
         "gate": 3,
         "accepted": false,
         "remaining": "Exact-revision CI and supervised external/Fleet adapter acceptance"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_safe_permissions.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-004",
@@ -311,7 +425,45 @@
         "gate": 3,
         "accepted": false,
         "remaining": "Exact-revision CI and live Venus/Artemis provider/host acceptance"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_cognition_v2_turn_kernel.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-005",
@@ -381,7 +533,45 @@
         "gate": 3,
         "accepted": false,
         "remaining": "Exact-revision CI, every external adapter, and supervised effect-to-delivery path"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_decision_persistence.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-006",
@@ -445,7 +635,45 @@
         "gate": 3,
         "accepted": false,
         "remaining": "Exact-revision CI and supervised SAFE/RUN/ACT external-effect receipt correlation"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_decision_persistence.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-007",
@@ -511,7 +739,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_companion_baseline.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-1201",
@@ -565,7 +831,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_safe_permissions.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-1202",
@@ -620,7 +924,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_life_state_graph_contract.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-1203",
@@ -674,7 +1016,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_cognitive_context_assembler.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-1204",
@@ -718,7 +1098,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_memory_reviewed_corrections.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-1205",
@@ -756,7 +1174,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_cognition_v2_baseline.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-1206",
@@ -794,7 +1250,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_cognition_matrix.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-1207",
@@ -838,7 +1332,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_default_runtime_provider_boundary.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-1208",
@@ -882,7 +1414,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_memory_deletion_restore.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3101",
@@ -934,7 +1504,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_decision_persistence.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3102",
@@ -1057,7 +1665,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_production_dual_cognition.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3103",
@@ -1122,7 +1768,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_ops_recovery_objectives.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3104",
@@ -1177,7 +1861,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_life_run_outcome_reconciliation.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3105",
@@ -1231,7 +1953,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_safe_permissions.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3106",
@@ -1306,7 +2066,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_ops_workshop_internal_network.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3107",
@@ -1350,7 +2148,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_ops_workshop_hyperv_production.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3108",
@@ -1394,7 +2230,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_distributed_identity_durable.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3109",
@@ -1442,7 +2316,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_memory_provenance.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3110",
@@ -1518,7 +2430,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_run_systemd_runtime.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3111",
@@ -1569,7 +2519,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_production_dual_cognition.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3112",
@@ -1613,7 +2601,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_avatar_presentation_runtime.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3301",
@@ -1657,7 +2683,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_companion_baseline.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3302",
@@ -1707,7 +2771,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_companion_baseline.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3303",
@@ -1750,7 +2852,45 @@
         "source_and_representative_tests_windows": "passed",
         "full_matrix_and_release": "not_yet_accepted",
         "real_host": "not_tested"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "edd03065c2f28ae2c7a858389d2aebcaf63763b4bfb210c54efec1e353f34620",
+          "evidence_path": "docs/development/v18-phase00-batch30-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source and exact-revision CI audit 2026-10-15: declared owners from docs/development/v18-phase00-batch30-audit.json (independent human review pending)",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215641,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_life_state_graph_contract.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-3304",
