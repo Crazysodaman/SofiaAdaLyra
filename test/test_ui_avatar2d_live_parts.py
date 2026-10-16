@@ -156,6 +156,10 @@ def test_blink_visibly_changes_png_frame_and_reports_three_painted_frames(prepar
     root.advance()
     assert len(canvas.snapshots) == 3
     assert canvas.snapshots[0] == canvas.snapshots[2]
+    # Actual frame rendering is distinct from the deferred display
+    # acknowledgement, so a painted frame alone is not a success receipt.
+    assert results == []
+    root.advance()  # scheduled final visible-frame receipt
     assert len(results) == 1
     assert results[0][0:2] == ("blink.1", True)
     assert "3 2D frame(s)" in results[0][2]
