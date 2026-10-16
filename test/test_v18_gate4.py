@@ -83,3 +83,11 @@ def test_reporting_does_not_edit_task_status():
     before = path.read_bytes()
     gate4_snapshot(ROOT)
     assert path.read_bytes() == before
+
+
+def test_gate4_report_distinguishes_pending_independent_review():
+    report = gate4_snapshot(ROOT)
+    assert all("independent_review_pending" in row for row in report["tasks"])
+    declared = [row for row in report["tasks"] if row["independent_review_pending"]]
+    assert all(row["gate_with_recorded_proof"] == 4 for row in declared)
+    assert all(row["gate4"] for row in declared)

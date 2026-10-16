@@ -62,7 +62,9 @@ def test_audited_prerequisites_unlock_dependent_at_gate_three():
         row["gate_with_recorded_proof"] = 3
     report = build_work_queue(changed, reviews)
     dependent = next(row for row in report["tasks"] if row["id"] == "CA-4503")
-    assert dependent["state"] == "ready"
+    # Dependencies are cleared, but the dependent's own recorded
+    # Gate 4 still awaits independently reviewed acceptance.
+    assert dependent["state"] == "review_pending"
     assert dependent["blocked_by"] == []
 
 
@@ -103,17 +105,12 @@ def test_queue_does_not_modify_gate_evidence():
 
 def test_gate_three_tasks_are_deferred_until_final_ci():
     progress, reviews = _inputs()
-    # The real evidence ledger may correctly contain zero Gate 3 tasks.
-    # Exercise the deferral with an explicit synthetic gate, never rewrite
-    # canonical evidence just to satisfy this test.
-    baseline = build_work_queue(progress, reviews)
-    assert baseline["states"]["awaiting_final_ci"] == sum(
-        row["gate_with_recorded_proof"] == 3
-        for row in progress["tasks"] + progress["supplemental_tasks"]
-    )
+    # Synthetic before/after gate advancement independent of mutable
+    # historical ledger proof counts.
     changed = deepcopy(progress)
     target = next(row for row in changed["tasks"] if row["id"] == "CA-4501")
-    assert target["gate_with_recorded_proof"] < 3
+    target["gate_with_recorded_proof"] = 0
+    baseline = build_work_queue(changed, reviews)
     target["gate_with_recorded_proof"] = 3
     report = build_work_queue(changed, reviews)
     assert report["states"]["awaiting_final_ci"] == baseline["states"]["awaiting_final_ci"] + 1
@@ -138,3 +135,20 @@ def test_malformed_input_types_are_rejected_cleanly():
     changed["tasks"]["CA-4501"]["depends_on"] = [{}]
     with pytest.raises(RoadmapIntegrityError, match="invalid dependencies"):
         build_work_queue(progress, changed)
+
+
+def test_pending_review_cannot_be_dependency_satisfaction_or_completion():
+    progress, reviews = _inputs()
+    changed = deepcopy(progress)
+    predecessor = next(row for row in changed["tasks"] if row["id"] == "CA-4501")
+    successor = next(row for row in changed["tasks"] if row["id"] == "CA-4503")
+    predecessor["gate_with_recorded_proof"] = 4
+    predecessor["independent_review_pending"] = True
+    successor["gate_with_recorded_proof"] = 4
+    successor["independent_review_pending"] = True
+    report = build_work_queue(changed, reviews)
+    outcome = {row["id"]: row for row in report["tasks"]}
+    assert outcome["CA-4501"]["state"] != "complete"
+    assert "CA-4501" in outcome["CA-4503"]["blocked_by"]
+    assert outcome["CA-4503"]["state"] == "blocked_on_prerequisite"
+    assert report["gate4_recorded"] == progress["overall_gate4_recorded"]

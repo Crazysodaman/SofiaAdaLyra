@@ -13,6 +13,7 @@ from sofia.verify.v18_roadmap import (
     RoadmapIntegrityError, _within,
     validate_repository,
 )
+from sofia.verify.v18_gate4_review import review_readiness
 
 _SHA = re.compile(r"[0-9a-f]{40}\Z")
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
@@ -112,6 +113,11 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
         if "**" + task_id + " " not in line:
             raise RoadmapIntegrityError("task source mismatch " + task_id)
         gate = verified_gate_count(root, task)
+        # Preserve historical recorded proofs but expose unfinished review.
+        review = review_readiness(task)
+        independent_review_pending = (
+            gate == 4 and review["review_readiness"] == "independent_review_pending"
+        )
         kind = _kind(line)
         phase_row = per_phase.setdefault(phase, {
             "total": 0, "unassessed": 0, "partial_wiring": 0,
@@ -131,6 +137,7 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
             "id": task_id, "phase": phase, "kind": kind, "source_status": status,
             "original_requirement": line,
             "gate_with_recorded_proof": gate, "gate4": gate == 4,
+            "independent_review_pending": independent_review_pending,
             "next_gate": min(gate + 1, 4),
             "next_action": _next(task, gate, kind),
             "known_missing": gap if isinstance(gap, str) else None,
