@@ -401,6 +401,24 @@ def create_background_coordinator(
         return True
 
     coordinator.set_task("presence_refresh", refresh_presence, interval_seconds=60.0)
+
+    # CA-6109: publish bounded read-only storage pressure through the existing
+    # PRESENCE owner. The STOP-gated RUN coordinator schedules this as ordinary
+    # maintenance, not an independent worker or a database authority.
+    from sofia.ops.capacity_runtime import record_local_capacity
+
+    def observe_local_capacity(now):
+        return record_local_capacity(
+            state_path=application._configuration.state_path,
+            presence=application._presence,
+            now=now,
+        )
+
+    coordinator.set_task(
+        "local_capacity_observation",
+        observe_local_capacity,
+        interval_seconds=300.0,
+    )
     goal_production = getattr(application, "_goal_production", None)
     if goal_production is not None:
         coordinator.set_task(

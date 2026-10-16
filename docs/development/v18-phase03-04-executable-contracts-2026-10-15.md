@@ -179,3 +179,26 @@ preparatory production measurement infrastructure, **not** an Artemis/Venus
 measurement. Workload-derived growth, CPU/RAM, backups, encryption p95,
 retention triggers and owner-approved budget thresholds still must be
 collected on actual machines before CA-6109 can earn Gate 4.
+
+## CA-6109 real production callback and advisory local disk pressure
+
+`src/sofia/ops/capacity_runtime.py` now connects the existing bounded
+`measure_storage()` sampler to the existing canonical PRESENCE owner via
+`record_state`, with a time-limited `runtime:local_storage` observation.
+The actual `create_background_coordinator` registers
+`local_capacity_observation` every 300 seconds under the existing
+RUN budget and OPERATOR STOP gate. No new thread, database, standalone
+scheduler, provider call, file deletion, write throttle or notification
+authority is introduced.
+
+The observation reports measured canonical SQLite bytes and local free/total
+filesystem bytes. It distinguishes missing CPU/backup/encryption/asset sensors
+from zero and reports explicit provisional WARN/DEGRADED/STOP thresholds
+without taking an unapproved action. These triggers are not calibrated
+to actual Venus/Artemis workloads and cannot be treated as release
+acceptance. The presence owner persists the diagnostic but it is not
+an independently verified host resource/performance receipt.
+
+Cross-platform focused tests cover the production projection, disk-pressure
+boundaries, missing/invalid telemetry, no implicit repairs and registration
+under the existing background scheduler.
