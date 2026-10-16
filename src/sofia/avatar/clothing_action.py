@@ -15,6 +15,7 @@ from threading import RLock
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.social.model import PrincipalContext
 
+from .appearance_action import AppearanceActionService
 from .clothing_intent import (
     ClothingActionIntent,
     ClothingActionKind,
@@ -92,6 +93,9 @@ class ClothingActionService:
                 "operator_stop_store must be OperatorStopStore or None"
             )
         self.bundle = bundle
+        self._appearance_actions = AppearanceActionService(
+            bundle, operator_stop_store=operator_stop_store,
+        )
         self.autonomy = autonomy or WardrobeAutonomyPolicy()
         self.context_provider = context_provider
         self.parser = ClothingActionParser()
@@ -156,6 +160,14 @@ class ClothingActionService:
             raise ValueError("operation_id must be nonempty")
         if principal is not None and not isinstance(principal, PrincipalContext):
             raise TypeError("principal must be PrincipalContext or None")
+
+        # Preserve the existing serialized AVATAR action and reply receipt
+        # pathway for reversible hair, eyes, pose and cosmetic changes.
+        appearance_reply = self._appearance_actions.handle(
+            content=content, operation_id=operation_id,
+        )
+        if appearance_reply is not None:
+            return appearance_reply
 
         intent = self.parser.parse(content)
         if intent is None and self.parser.is_followup(content):
