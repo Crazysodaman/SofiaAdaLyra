@@ -29,7 +29,7 @@ from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
 class TkLayered2DRenderer:
     """Render real verified PNG sprites on Tk with honest fallback receipts."""
 
-    backend_name = "tk-verified-layered-2d-v1"
+    backend_name = "tk-layered2d-public-or-symbolic-fallback-v1"
 
     def __init__(
         self,
@@ -61,7 +61,6 @@ class TkLayered2DRenderer:
             and projection.audience is AudienceScope.PUBLIC
             and projection.attire is AttireMode.CLOTHED
             and projection.outfit_id is not None
-            and not projection.private_fallback_used
         )
 
     def _paint(self, projection: PresentationProjection, *, shift: int = 0) -> int:
@@ -131,7 +130,8 @@ class TkLayered2DRenderer:
         self.stop()
         try:
             count = self._paint(request.presentation)
-        except (Avatar2DAssetError, ValueError, OSError, RuntimeError, TypeError):
+        except Exception:
+            # Missing/invalid art and GUI decoder errors never crash chat.
             self._fallback_render(request, completed)
             return
         self._active_decision = request.decision.decision_id
@@ -159,7 +159,7 @@ class TkLayered2DRenderer:
         self.stop()
         try:
             self._paint(presentation)
-        except (Avatar2DAssetError, ValueError, OSError, RuntimeError, TypeError):
+        except Exception:
             self.canvas.delete("avatar2d")
             self._images.clear()
             self.fallback.render_idle(presentation)
