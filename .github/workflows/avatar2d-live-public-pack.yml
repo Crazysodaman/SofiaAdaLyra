@@ -64,7 +64,6 @@ jobs:
                       audience=AudienceScope.PUBLIC,
                       source_revision=1,
                       outfit_id=outfit.outfit_id,
-                      outfit_label=outfit.label,
                       item_ids=outfit.item_ids,
                       attire=AttireMode.CLOTHED,
                       appearance=AppearanceState(
@@ -72,6 +71,7 @@ jobs:
                           tail_color="dark violet", eye_color="violet",
                       ),
                       private_fallback_used=False,
+                      reason="verified public artwork CI candidate",
                   )
                   selected = Avatar2DArtSelection(
                       "public", projection, art, "checked public art",
