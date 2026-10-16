@@ -212,3 +212,77 @@ def test_untrusted_fleet_host_cannot_mint_approval_from_tool_payload():
                 UntrustedHostProbe(), str(uuid4()),
                 "system.inspect", "processes", params,
             )
+
+
+
+def test_known_model_outage_is_not_a_factual_reply_or_execution_grant(caplog):
+    """CA-1206: real LLMCognitiveEngine failure boundary and LIFE isolation.
+
+    No agent fallback is generated, and the optional background ideation is
+    declined while existing work reconciliation stays eligible to proceed.
+    """
+    row = _case("Model outage leaves factual evidence unknown")
+    assert row["selectors"]["failure"] == "model_outage"
+    from sofia.application.background_runtime import (
+        _consider_life_idea_without_wedging_worker,
+    )
+    from sofia.cognition.engine import CognitiveEngineError
+    from sofia.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.cognition.model import (
+        CognitiveMessage, CognitiveRequest, CognitiveRole,
+        CognitiveToolDefinition,
+    )
+    from sofia.cognition.provider import LLMProvider, LLMProviderError
+    from sofia.config.model import ProviderConfiguration
+
+    class OfflineProvider(LLMProvider):
+        def __init__(self):
+            self.calls = []
+        def respond(self, request):
+            self.calls.append(request)
+            raise LLMProviderError("synthetic-private-provider-error")
+
+    provider = OfflineProvider()
+    engine = LLMCognitiveEngine(
+        ProviderConfiguration(provider="test", model="unavailable"),
+        provider,
+    )
+    request = CognitiveRequest(
+        messages=(CognitiveMessage(
+            role=CognitiveRole.USER, content="What is the current weather?",
+        ),),
+        tools=(CognitiveToolDefinition(
+            name="remote.dangerous_action",
+            description="Must never run during model outage",
+            parameters={"type": "object"},
+        ),),
+        allow_tools=False,
+    )
+    with pytest.raises(CognitiveEngineError, match="provider failed") as error:
+        engine.respond(request)
+    assert isinstance(error.value.__cause__, LLMProviderError)
+    assert len(provider.calls) == 1
+    assert provider.calls[0] is request
+
+    class OptionalIdea:
+        def __init__(self):
+            self.reconciled = False
+
+        def consider_new_project(self, **kwargs):
+            engine.respond(request)
+
+        def tick(self):
+            self.reconciled = True
+            return "existing RUN work reconciled"
+
+    life = OptionalIdea()
+    assert _consider_life_idea_without_wedging_worker(
+        life, generate=lambda _: None, now=_NOW, busy=False,
+        resource_pressure=0.0,
+    ) is None
+    # The ordinary caller always invokes life.tick() after this isolated
+    # optional ideation. An outage cannot manufacture a success message.
+    assert life.tick() == "existing RUN work reconciled"
+    assert life.reconciled is True
+    assert len(provider.calls) == 2
+    assert "synthetic-private-provider-error" not in caplog.text

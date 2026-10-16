@@ -57,3 +57,18 @@ no private data, real Fleet enrollment, host mutation or device control.
 They do **not** substitute for end-to-end live Windows/Discord workflows,
 a complete nine-dimensional execution matrix, or independent acceptance
 review. CA-1206 remains open.
+
+## Model outage: sixth deterministic policy scenario
+
+`test/test_v18_acceptance_matrix_functional.py` now covers the final
+named *automatable policy* scenario with the real
+`LLMCognitiveEngine -> LLMProvider` failure boundary and the production
+optional LIFE ideation guard. A provider exception yields no cognitive
+response or executable action, its private error text is not logged by the
+LIFE guard, and already-authorized RUN reconciliation is not skipped.
+
+This makes all **six named safety contracts** covered by bounded synthetic
+positive/negative tests. It does **not** mean the full 34,560-case matrix
+has been executed, the actual Ollama process was taken offline, or the
+six original **real-host manual acceptance journeys** passed. No Gate 4
+claim follows from this deterministic policy coverage alone.
