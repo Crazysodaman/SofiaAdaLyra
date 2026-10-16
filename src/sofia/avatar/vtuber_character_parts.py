@@ -192,7 +192,7 @@ def generate_public_character_parts(
         embodiment_seed = Path(__file__).resolve().parents[1] / "embodiment" / "avatar.json"
     embodiment = EmbodimentStore(embodiment_seed).load()
     # Validate fixed fox anatomy in canonical source, not from a model prompt.
-    if "fox ears" not in embodiment.additional_features or "fox tail" not in embodiment.additional_features:
+    if "fox ears" not in embodiment.physical_self.additional_features or "fox tail" not in embodiment.physical_self.additional_features:
         raise ValueError("canonical fox morphology missing")
     # Read the appearance JSON directly only to obtain original palette keys,
     # not to promote generated face measurements or mutate embodiment.
