@@ -35,3 +35,19 @@ performance proof. Review samples and privacy before sharing.
 Tests: `test/test_v18_live_resource_probe.py` on both Linux and Windows,
 including unmeasured sensors, revision mismatch, changed checkout,
 GPU absence, malformed telemetry, scenario spoofing and bounded sampling.
+
+## Optional process-level performance attribution
+
+The operator can now explicitly supply `--process-pid 1234` to record the
+selected process's resident memory and CPU utilization in addition to the
+global measurements. The tool never searches for processes, inspects process
+arguments, stores a process name, or independently claims the PID belongs to
+Sofía. It uses the process's original creation time to reject PID reuse,
+records cumulative CPU-time differences over a monotonic sampling interval,
+and permits more than 100% CPU where the process uses multiple cores. The
+initial process CPU sample is `null`, not a fabricated zero. Missing psutil,
+a terminated process, invalid counters or PID reuse fail closed.
+
+The operator must supervise the actual process identity and collect the
+explicit CPU/RAM, model, and scenario evidence required by CA-002/911. This
+is instrumentation, **not** independently authenticated host acceptance.

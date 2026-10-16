@@ -2,8 +2,8 @@
 
 Invoke on the intended machine; this tool never launches Sofía, starts model
 inference, enumerates process arguments, captures screens, or claims that
-a user-declared activity label was independently verified. In particular,
-system load is NOT represented as Sofía's per-process consumption.
+a user-declared activity label was independently verified. In particular, system load is NOT represented as Sofía's per-process
+consumption; an operator-selected PID is still not authenticated to Sofía.
 """
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ import json
 import math
 from pathlib import Path
 import platform
-import statistics
 import subprocess
 import sys
 import time
@@ -81,6 +80,47 @@ def measure_once() -> dict[str, float | int | None]:
     return metrics
 
 
+def _process_reading(pid: int) -> dict[str, float | int]:
+    """Read one explicitly selected PID; no process enumeration or arguments."""
+    try:
+        import psutil
+    except ImportError as exc:
+        raise HostObservationError(
+            "explicit per-process measurement requires psutil"
+        ) from exc
+    try:
+        process = psutil.Process(pid)
+        times = process.cpu_times()
+        info = process.memory_info()
+        return {
+            "created_epoch": float(process.create_time()),
+            "cpu_time_seconds": float(times.user + times.system),
+            "rss_bytes": int(info.rss),
+        }
+    except (psutil.Error, OSError) as exc:
+        raise HostObservationError(
+            "operator-selected process cannot be measured"
+        ) from exc
+
+
+def _validated_process(value: object) -> dict[str, float | int]:
+    if not isinstance(value, dict) or set(value) != {
+        "created_epoch", "cpu_time_seconds", "rss_bytes",
+    }:
+        raise HostObservationError("incomplete selected-process sample")
+    for field in ("created_epoch", "cpu_time_seconds"):
+        v = value[field]
+        if type(v) not in (int, float) or not math.isfinite(v) or v < 0:
+            raise HostObservationError("invalid selected-process " + field)
+    if type(value["rss_bytes"]) is not int or value["rss_bytes"] < 0:
+        raise HostObservationError("invalid selected-process RSS")
+    return {
+        "created_epoch": float(value["created_epoch"]),
+        "cpu_time_seconds": float(value["cpu_time_seconds"]),
+        "rss_bytes": value["rss_bytes"],
+    }
+
+
 def _validated(raw: object) -> dict[str, float | int | None]:
     if not isinstance(raw, dict) or set(raw) != set(_METRICS):
         raise HostObservationError("incomplete or ambiguous host sensor record")
@@ -117,6 +157,9 @@ def observe_host(
     collector=measure_once,
     pause=time.sleep,
     clock=lambda: datetime.now(timezone.utc),
+    process_pid: int | None = None,
+    process_collector=None,
+    steady_clock=time.monotonic,
 ) -> dict:
     """Bounded, actively requested sampling, with no implied host attestation."""
     if declared_role not in _ROLES or scenario not in _SCENARIOS:
@@ -127,10 +170,22 @@ def observe_host(
         math.isfinite(interval_seconds) and 0 <= interval_seconds <= 60
     ):
         raise HostObservationError("sampling interval must be 0..60 seconds")
+    if process_pid is not None and (
+        type(process_pid) is not int or process_pid <= 0
+    ):
+        raise HostObservationError("operator-selected PID must be a positive integer")
+    if process_pid is None and process_collector is not None:
+        raise HostObservationError("process collector requires an explicit PID")
+    if process_pid is not None and process_collector is None:
+        process_collector = _process_reading
     root = repo.resolve(strict=True)
     if _revision(root) != expected_revision:
         raise HostObservationError("checked-out revision does not match requested SHA")
     entries = []
+    selected_process = []
+    identity = None
+    last_cpu = None
+    last_steady = None
     for index in range(count):
         if index:
             pause(interval_seconds)
@@ -138,9 +193,38 @@ def observe_host(
         if (not isinstance(observed, datetime)
                 or observed.tzinfo is None or observed.utcoffset() is None):
             raise HostObservationError("UTC-aware observation timestamp required")
+        readings = _validated(collector())
+        process_data = None
+        if process_pid is not None:
+            # Monotonic wall time and cumulative CPU time allow actual
+            # multi-core utilization without psutil's zero-on-first-call trap.
+            tick = steady_clock()
+            if type(tick) not in (int, float) or not math.isfinite(tick):
+                raise HostObservationError("invalid monotonic sampling clock")
+            current = _validated_process(process_collector(process_pid))
+            if identity is None:
+                identity = current["created_epoch"]
+            elif identity != current["created_epoch"]:
+                raise HostObservationError("selected PID was reused during sampling")
+            cpu = current["cpu_time_seconds"]
+            if last_cpu is not None and cpu < last_cpu:
+                raise HostObservationError("process CPU time moved backwards")
+            if last_steady is not None and tick <= last_steady:
+                raise HostObservationError("process sampling interval must advance")
+            usage = (
+                None if last_cpu is None else
+                100.0 * (cpu - last_cpu) / (tick - last_steady)
+            )
+            process_data = {
+                "rss_bytes": current["rss_bytes"],
+                "cpu_percent_one_core": usage,
+            }
+            last_cpu, last_steady = cpu, tick
+            selected_process.append(process_data)
         entries.append({
             "observed_at": observed.astimezone(timezone.utc).isoformat(),
-            "sensors": _validated(collector()),
+            "sensors": readings,
+            **({"selected_process": process_data} if process_data is not None else {}),
         })
     if _revision(root) != expected_revision:
         raise HostObservationError("Git HEAD changed during host observation")
@@ -160,6 +244,21 @@ def observe_host(
                 "p95": None, "max": None,
             }
         )
+    process_summary = {}
+    for metric in ("rss_bytes", "cpu_percent_one_core"):
+        values = sorted(record[metric] for record in selected_process
+                        if record[metric] is not None)
+        process_summary[metric] = (
+            {
+                "observed_samples": len(values),
+                "min": values[0], "p50": values[math.ceil(.50 * len(values)) - 1],
+                "p95": values[math.ceil(.95 * len(values)) - 1],
+                "max": values[-1],
+            } if values else {
+                "observed_samples": 0, "min": None,
+                "p50": None, "p95": None, "max": None,
+            }
+        )
     return {
         "schema": "sofia.v18-live-resource-observation-v1",
         "source_commit": expected_revision,
@@ -169,6 +268,8 @@ def observe_host(
         "scenario_independently_verified": False,
         "device_identity_independently_verified": False,
         "sofia_process_resource_attribution": False,
+        "selected_pid_observed": process_pid is not None,
+        "selected_process_summary": process_summary,
         "application_quality_or_voice_avatar_measured": False,
         "gate4_acceptance": False,
         "sample_count": count,
@@ -177,7 +278,8 @@ def observe_host(
         "summary": distributions,
         "warnings": [
             "Scenario and host role are operator-declared, not authenticated.",
-            "Host resource use is not Sofía process resource consumption.",
+            "Global host measurements are not Sofía process resource consumption.",
+            "A selected PID is not independently authenticated to Sofía.",
             "No GPU sensor means unknown, not zero.",
             "Measurements do not establish task, soak, avatar or voice acceptance.",
         ],
@@ -191,6 +293,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host-role", required=True, choices=sorted(_ROLES))
     parser.add_argument("--scenario", required=True, choices=sorted(_SCENARIOS))
     parser.add_argument("--samples", type=int, default=5)
+    parser.add_argument("--process-pid", type=int,
+                        help="Explicit optional process PID, not auto-discovered")
     parser.add_argument("--interval-seconds", type=float, default=2.0)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args(argv)
@@ -199,6 +303,7 @@ def main(argv: list[str] | None = None) -> int:
             repo=args.repo, expected_revision=args.expected_revision,
             declared_role=args.host_role, scenario=args.scenario,
             count=args.samples, interval_seconds=args.interval_seconds,
+            process_pid=args.process_pid,
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(

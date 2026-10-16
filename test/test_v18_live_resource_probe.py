@@ -121,3 +121,95 @@ def test_invalid_sampling_budget_does_not_execute(tmp_path, monkeypatch, count, 
             collector=lambda: attempted.append(1) or sensors(),
         )
     assert not attempted
+
+
+
+def test_explicit_pid_cpu_deltas_and_rss_are_measured_without_process_content(tmp_path, monkeypatch):
+    monkeypatch.setattr(probe, "_revision", lambda _: SHA)
+    readings = iter((
+        {"created_epoch": 1234., "cpu_time_seconds": 1.0, "rss_bytes": 100},
+        {"created_epoch": 1234., "cpu_time_seconds": 1.5, "rss_bytes": 200},
+        {"created_epoch": 1234., "cpu_time_seconds": 2.5, "rss_bytes": 300},
+    ))
+    ticks = iter((10., 11., 12.))
+    queried = []
+    def process(pid):
+        queried.append(pid)
+        return next(readings)
+    report = probe.observe_host(
+        repo=tmp_path, expected_revision=SHA, declared_role="venus",
+        scenario="conversation", count=3, interval_seconds=0,
+        collector=lambda: sensors(cpu=20), clock=lambda: NOW,
+        pause=lambda _: None, process_pid=4567, process_collector=process,
+        steady_clock=lambda: next(ticks),
+    )
+    assert queried == [4567, 4567, 4567]
+    assert report["selected_pid_observed"] is True
+    assert report["sofia_process_resource_attribution"] is False
+    assert report["selected_process_summary"]["rss_bytes"]["p95"] == 300
+    assert report["selected_process_summary"]["cpu_percent_one_core"]["observed_samples"] == 2
+    assert report["selected_process_summary"]["cpu_percent_one_core"]["p95"] == 100
+    assert report["samples"][0]["selected_process"]["cpu_percent_one_core"] is None
+    assert "command_line" not in str(report)
+    assert "4567" not in str(report)  # no original PID stored in emitted report
+
+
+def test_selected_pid_reuse_is_rejected_before_report(tmp_path, monkeypatch):
+    monkeypatch.setattr(probe, "_revision", lambda _: SHA)
+    readings = iter((
+        {"created_epoch": 100.0, "cpu_time_seconds": 1., "rss_bytes": 12},
+        {"created_epoch": 101.0, "cpu_time_seconds": 2., "rss_bytes": 13},
+    ))
+    ticks = iter((10., 11.))
+    with pytest.raises(probe.HostObservationError, match="reused"):
+        probe.observe_host(
+            repo=tmp_path, expected_revision=SHA, declared_role="other",
+            scenario="idle", count=2, interval_seconds=0,
+            collector=lambda: sensors(), pause=lambda _: None,
+            process_pid=42, process_collector=lambda _: next(readings),
+            steady_clock=lambda: next(ticks),
+        )
+
+
+def test_selected_pid_missing_telemetry_and_backward_counter_fail_closed(tmp_path, monkeypatch):
+    monkeypatch.setattr(probe, "_revision", lambda _: SHA)
+    with pytest.raises(probe.HostObservationError, match="incomplete"):
+        probe.observe_host(
+            repo=tmp_path, expected_revision=SHA, declared_role="other",
+            scenario="idle", count=1, interval_seconds=0,
+            collector=lambda: sensors(), process_pid=23,
+            process_collector=lambda _: {"rss_bytes": 100},
+        )
+    values = iter(({"created_epoch": 100.0, "cpu_time_seconds": 2.0, "rss_bytes": 50},
+                   {"created_epoch": 100.0, "cpu_time_seconds": 1.0, "rss_bytes": 50}))
+    ticks = iter((10., 11.))
+    with pytest.raises(probe.HostObservationError, match="backwards"):
+        probe.observe_host(
+            repo=tmp_path, expected_revision=SHA, declared_role="other",
+            scenario="idle", count=2, interval_seconds=0, pause=lambda _: None,
+            collector=lambda: sensors(), process_pid=23,
+            process_collector=lambda _: next(values),
+            steady_clock=lambda: next(ticks),
+        )
+
+
+@pytest.mark.parametrize("bad", [0, -1, True, 4.2])
+def test_invalid_pid_rejected_before_probe(tmp_path, monkeypatch, bad):
+    monkeypatch.setattr(probe, "_revision", lambda _: SHA)
+    with pytest.raises(probe.HostObservationError, match="PID"):
+        probe.observe_host(
+            repo=tmp_path, expected_revision=SHA, declared_role="other",
+            scenario="idle", count=1, interval_seconds=0,
+            collector=lambda: pytest.fail("must not read sensors"),
+            process_pid=bad,
+        )
+
+
+def test_process_collector_without_opt_in_is_refused(tmp_path, monkeypatch):
+    monkeypatch.setattr(probe, "_revision", lambda _: SHA)
+    with pytest.raises(probe.HostObservationError, match="explicit PID"):
+        probe.observe_host(
+            repo=tmp_path, expected_revision=SHA, declared_role="other",
+            scenario="idle", count=1, interval_seconds=0,
+            process_collector=lambda _: pytest.fail("should not run"),
+        )
