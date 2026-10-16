@@ -136,6 +136,8 @@ class ApprovalInbox:
         moment = _time(now)
         if capability_permission_policy(capability).level < PermissionLevel.REVERSIBLE_SCOPED:
             raise ValueError("low-risk actions do not need queued owner FIDO2 authorization")
+        if isinstance(parameters, dict) and "approval_id" in parameters:
+            raise ValueError("approval_id cannot be supplied inside queued parameters")
         fingerprint = execution_fingerprint(capability, parameters)
         # Round-trip the exact immutable JSON value, not mutable caller-owned data.
         encoded = json.dumps(parameters, sort_keys=True, separators=(",", ":"),
@@ -336,6 +338,8 @@ class ApprovalInbox:
             raise PermissionError("request has no live signed approval")
         if moment >= item.approval_expires_at:
             raise PermissionError("signed approval expired")
+        if isinstance(parameters, dict) and "approval_id" in parameters:
+            raise PermissionError("caller cannot substitute an approval_id parameter")
         if item.capability != capability or item.fingerprint != execution_fingerprint(
             capability, parameters
         ):
