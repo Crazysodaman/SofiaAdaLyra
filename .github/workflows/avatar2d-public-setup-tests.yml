@@ -1,0 +1,47 @@
+name: Avatar2D Public Setup Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/avatar2d-public-setup-tests.yml"
+      - "src/sofia/avatar/vtuber_public_setup.py"
+      - "src/sofia/avatar/vtuber_character_selection.py"
+      - "src/sofia/avatar/vtuber_character_bundle.py"
+      - "src/sofia/ui/avatar2d_renderer.py"
+      - "test/test_avatar2d_public_setup.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-2d-setup:
+    name: Build real PNG base, clothes, and expression variants
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Sofía and tests
+        shell: pwsh
+        run: python -m pip install -e . pytest
+      - name: Verify public pack, source layers, and blink animation
+        shell: pwsh
+        run: |
+          python -m pytest -q test/test_avatar2d_public_setup.py test/test_avatar2d_character_selection.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Prove owner setup command works end-to-end
+        shell: pwsh
+        run: |
+          python -m sofia.avatar.vtuber_public_setup --output "$env:RUNNER_TEMP\Avatar2D\Public"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload reviewed-status public starter pack
+        uses: actions/upload-artifact@v7
+        with:
+          name: sofia-public-avatar2d-ready-${{ github.sha }}
+          path: ${{ runner.temp }}/Avatar2D/Public/
+          if-no-files-found: error
+          retention-days: 30
