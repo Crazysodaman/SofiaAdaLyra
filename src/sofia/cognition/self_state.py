@@ -228,10 +228,12 @@ class AuthoritativeSelfState:
 
             if physical.measurements:
                 for name, measurement in physical.measurements:
-                    lines.append(
-                        f"- {name}: "
-                        f"{measurement.value} {measurement.unit}"
+                    value = (
+                        "UNKNOWN (not measured)"
+                        if measurement.value is None
+                        else f"{measurement.value} {measurement.unit}"
                     )
+                    lines.append(f"- {name}: {value}")
             else:
                 lines.append("- UNKNOWN")
 
