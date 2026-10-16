@@ -1,0 +1,40 @@
+name: Avatar 2D 3D Mode Contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/avatar-dual-mode-tests.yml"
+      - "src/sofia/ui/avatar_mode.py"
+      - "src/sofia/ui/avatar_mode_store.py"
+      - "src/sofia/ui/avatar3d_renderer.py"
+      - "src/sofia/ui/desktop.py"
+      - "test/test_ui_avatar_modes.py"
+      - "test/test_ui_avatar3d_adapter.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  avatar-modes:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Sofía and pytest
+        shell: pwsh
+        run: python -m pip install -e . pytest
+      - name: Run exact backend and persistence tests
+        shell: pwsh
+        run: |
+          python -m pytest -q test/test_ui_avatar_modes.py test/test_ui_avatar3d_adapter.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Byte-compile changed modules
+        shell: pwsh
+        run: |
+          python -m py_compile src/sofia/ui/avatar_mode.py src/sofia/ui/avatar_mode_store.py src/sofia/ui/avatar3d_renderer.py src/sofia/ui/desktop.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
