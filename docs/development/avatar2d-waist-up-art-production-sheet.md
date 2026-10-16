@@ -136,6 +136,20 @@ Private proposals may be created in a protected workspace, but Sofía **cannot**
 - [ ] Review expressions in neutral and dark-mode backgrounds at small display scale.
 - [ ] Verify outfit swaps preserve avatar's face/ears/tail and the exact displayed look revision.
 
+## 7A. Clickable-region artwork handoff
+
+Every layer that should be clickable must provide a **real visible alpha mask**, final affine transform and a stable mapping to the canonical INTERACT region registry. This is needed for the owner's requirement that Sofía distinguish clicking the left ear tip from the right ear or hair, the tail tip from tail base, and a jacket from torso skin.
+
+- Split ears into optional base/tip hit sections, tail into base/length/tip, face into forehead/left-cheek/right-cheek/nose/lips/chin when separable, and visible arms/shoulders/hands by side.
+- Mouth/eyes/eyebrows may inherit a mapped face target if no distinct canonical region exists; do not invent new canonical IDs from sprite filenames.
+- Render final transforms for each moving sprite (including mirrored pose). A manifest-only rest-pose hit area is not valid while the tail or ears move.
+- Garments and cosmetics should carry a clickable top layer with garment/overlay ID, while occluding underlying covered skin. A click on the jacket does not become direct body contact.
+- No outside-frame regions, transparent pixels, fully hidden skin, or off-screen legs can be interactive.
+- Private-only body layers and nude/lingerie portrait art must have private-only hit-mask bundles. Do not place their bytes or IDs in the public fallback. The renderer must never decode private sprite or click-mask files before trusted authorization.
+- Actual click interpretation and consent belong to the authenticated INTERACT/SAFE host, not to sprite masks. Taps and strokes require separate phase/timing evidence.
+
+See [Avatar2D pointer contract](avatar2d-pointer-interactions.md) and src/sofia/avatar/vtuber_hit_test.py.
+
 ## 8. Handoff and future evolution
 
 Deliver an approved canonical reference, layered source project, independent transparent exports, packed manifests with checked digests, tint masks, pivots/anchors, compatible outfit mapping, public fallback test image, and a per-asset review sheet. Private art is delivered solely to the protected asset pipeline. Production acceptance requires actual runtime screenshots/renderer receipts **from authorized host testing**, separate from artistic mockups.
