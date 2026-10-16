@@ -24,14 +24,14 @@ The JSON reports exact source coverage and explicitly says that final sprite com
 
 ## Face and fox-character visual modules
 
-New src/sofia/avatar/vtuber_character_parts.py authors **26 independent public RGBA starter sprites**, all on the SAME canonical 320 × 400 waist-up canvas, with declared anchor, group, variant, z-order and checked PNG digest:
+New src/sofia/avatar/vtuber_character_parts.py authors **33 independent public RGBA starter sprites**, all on the SAME canonical 320 × 400 waist-up canvas, with declared anchor, group, variant, z-order and checked PNG digest:
 
 | Logical group | Authored starter options | Future high-quality art required |
 | --- | --- | --- |
 | Face | neutral, soft | Single approved facial identity with expressions driven by layered overlays |
 | Freckles overlay | off, on | Optional overlay, never replace face |
-| Eyes | open, half, closed, looking_left, looking_right | Independently movable iris/pupil/lid layers, blinks and verified eye recolor |
-| Brows | neutral, skeptical | Independently poseable left/right brows |
+| Eyes (L/R independently) | open, half, closed, looking_left, looking_right per side | Independent blinks/winks, moving pupils and verified eye recolor |
+| Brows (L/R independently) | neutral, skeptical per side | Independent eyebrow poses for skeptical expressions |
 | Mouth | closed, smile, talk_small, talk_wide | Lip-sync viseme assets and real audio activity binding |
 | Hair back | long_layered, tied_back | Natural moving back locks and braid/ponytail variants |
 | Hair front | long_layered, tied_back | Bang/side-lock separation and tint masks |
