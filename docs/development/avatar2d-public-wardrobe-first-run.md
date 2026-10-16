@@ -6,7 +6,7 @@
 
 ## Repository inventory recheck (2026-10-15)
 
-Under src/sofia/avatar/wardrobe_data/: 275 defined garments in JSON (47 marked private_only) and 23 selected outfit records (20 public, 3 private). The catalog also supplies a small number of canonical built-in items and a covered fallback preset. The source inventory **already exists**, so **do not duplicate it**.
+Under src/sofia/avatar/wardrobe_data/: 295 defined garments in JSON (51 marked private_only) and 23 selected outfit records (20 public, 3 private). The catalog also supplies a small number of canonical built-in items and a covered fallback preset. The source inventory **already exists**, so **do not duplicate it**.
 
 Existing approved daily public outfit ID: day.default; actual selected pieces include base.bralette, base.briefs, day.technical_top, day.utility_trousers, day.engineer_jacket, day.work_socks, day.work_boots, day.fingerless_gloves and day.utility_belt.
 
