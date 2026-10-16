@@ -230,7 +230,8 @@ def test_companion_trace_accepts_only_typed_selected_sources_and_outcomes(tmp_pa
     )
     assert trace is not None and trace.goal_id == "goal:one"
     assert trace.outcomes[-1].kind == "act_event"
-    assert trace.outcomes[-1].independently_verified
+    assert not trace.outcomes[-1].independently_verified
+    assert trace.outcomes[-1].source_ref == "discord-ack:one"
 
     foreign = replace(
         selected, principal_id="principal:other", audience_id="private:other",
@@ -268,3 +269,27 @@ def test_trace_refuses_unrelated_goal_and_act_receipts(tmp_path):
             matrix_trace=matrix, neuro_snapshot=None,
             outcome_events=(foreign_act,),
         )
+
+
+def test_unverified_act_projection_cannot_claim_external_effect(tmp_path):
+    state, matrix = _fixture(tmp_path)
+    matrix = replace(
+        matrix, evidence=EvidenceMatrix(records=(
+            EvidenceRecord("act", EvidenceState.AVAILABLE, "message:one"),
+        )),
+    )
+    forged = EventOwnershipProjection(
+        schema_version=1, event_id="message:one",
+        owner=CanonicalEventOwner.ACT, source_id="message:one",
+        subject_id="recipient:one", principal_id=None, audience_id=None,
+        observed_at=NOW, action_id="message:one",
+        delivery_receipt_id="ack:unverified",
+        error_state=ContractErrorState.NONE,
+    )
+    trace = project_companion_decision(
+        matrix_trace=matrix, neuro_snapshot=None, outcome_events=(forged,),
+    )
+    assert trace is not None
+    assert trace.outcomes[-1].source_ref == "ack:unverified"
+    assert trace.outcomes[-1].independently_verified is False
+    assert trace.objective_verified is False

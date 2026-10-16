@@ -285,11 +285,9 @@ def project_companion_decision(
             source_ref=(
                 event.delivery_receipt_id or event.action_id or event.event_id
             ),
-            independently_verified=(
-                event.owner.value == "act"
-                and event.delivery_receipt_id is not None
-                and event.error_state.value == "none"
-            ),
+            # Source-projected ACT acknowledgement is not independently
+            # authenticated evidence that the external effect occurred.
+            independently_verified=False,
         ))
 
     return CompanionDecisionTrace(
