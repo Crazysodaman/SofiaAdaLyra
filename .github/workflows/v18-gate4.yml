@@ -30,7 +30,7 @@ jobs:
       - name: Install package and pytest
         run: python -m pip install -e . pytest
       - name: Test gate tracking and source integrity
-        run: python -m pytest -q test/test_v18_gate4.py test/test_v18_ci_receipts.py
+        run: python -m pytest -q test/test_v18_gate4.py test/test_v18_ci_receipts.py test/test_v18_gate4_review.py
       - name: Generate 700-task Gate 4 report
         run: >-
           python -m sofia.verify.v18_gate4
@@ -44,6 +44,11 @@ jobs:
           python -m sofia.verify.v18_ci_receipts
           --repo .
           --output gate4-remote-ci-receipts.json
+      - name: Inventory incomplete independent review without promoting gates
+        run: >-
+          python -m sofia.verify.v18_gate4_review
+          --repo .
+          --output gate4-review-readiness.json
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -53,5 +58,6 @@ jobs:
             gate4-progress.json
             gate4-progress.md
             gate4-remote-ci-receipts.json
+            gate4-review-readiness.json
           if-no-files-found: warn
           retention-days: 30
