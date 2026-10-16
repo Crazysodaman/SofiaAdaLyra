@@ -148,6 +148,13 @@ class ApprovalInbox:
         until = moment + REQUEST_TTL
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            active_count = db.execute(
+                "SELECT count(*) FROM safe_async_approval_request "
+                "WHERE status IN ('pending','reviewing') AND expires_at > ?",
+                (moment.isoformat(),),
+            ).fetchone()[0]
+            if active_count >= 256:
+                raise PermissionError("owner approval inbox is full; review existing requests")
             db.execute(
                 "INSERT INTO safe_async_approval_request "
                 "(request_id,capability,parameters_json,fingerprint,status,created_at,expires_at) "
@@ -310,7 +317,7 @@ class ApprovalInbox:
             raise
 
     def deny_attended(self, request_id: str) -> InboxRequest:
-        """Owner may reject an unapproved pending request without touching a key."""
+        """Owner may reject pending or in-flight review without granting a key."""
         from sofia.safe.owner_enroll_browser import require_owner_windows_account
         require_owner_windows_account(self.path)
         moment = _time()
@@ -318,10 +325,13 @@ class ApprovalInbox:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT * FROM safe_async_approval_request WHERE request_id=?",
                              (request_id,)).fetchone()
-            if row is None or row["status"] != "pending":
-                raise PermissionError("only a pending request may be denied")
-            db.execute("UPDATE safe_async_approval_request SET status='denied' "
-                       "WHERE request_id=?", (request_id,))
+            if row is None or row["status"] not in ("pending", "reviewing"):
+                raise PermissionError("only unapproved requests may be denied")
+            db.execute(
+                "UPDATE safe_async_approval_request SET status='denied',"
+                "review_token=NULL,review_expires_at=NULL WHERE request_id=?",
+                (request_id,),
+            )
             self._event(db, row, "denied", moment, actor="Sparks")
         return self.get(request_id)
 
