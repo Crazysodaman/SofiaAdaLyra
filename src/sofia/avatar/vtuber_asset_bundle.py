@@ -265,9 +265,9 @@ def _read_bundle(
                 if (
                     not isinstance(slots_value, list)
                     or not slots_value
-                    or len(slots_value) != len(set(slots_value))
                     or any(type(slot) is not str or slot not in LEAF_SLOTS
                            for slot in slots_value)
+                    or len(slots_value) != len(set(slots_value))
                 ):
                     raise Avatar2DAssetError("invalid garment sprite slots")
                 if not isinstance(wardrobe_name, str) or wardrobe_name not in Layer.__members__:
