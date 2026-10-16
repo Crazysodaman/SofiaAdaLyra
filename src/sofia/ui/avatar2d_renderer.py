@@ -47,13 +47,34 @@ _CHARACTER_STACK_ORDER = {
 
 
 def _character_expression(decision) -> str:
-    """Conservatively use expression intent already established by cognition."""
+    """Use the settled avatar FACE cue before approximate emotion labels."""
+    avatar = getattr(decision, "avatar_state", None)
+    face = getattr(avatar, "face", None)
+    if face in ("smile", "grin", "teasing-smile"):
+        return "smile"
+    if face == "frown":
+        return "skeptical"  # Brows only; no unverified frown mouth sprite.
     labels = set(getattr(decision, "emotion_labels", ()) or ())
     if "skeptical" in labels or "focused" in labels:
         return "skeptical"
     if labels & {"happy", "joyful", "playful", "affectionate"}:
         return "smile"
     return "neutral"
+
+
+def _avatar_channel_cues(decision) -> tuple[str | None, str | None, str]:
+    """Select existing secondary motor channels without fabricating sensing.
+
+    Intent originates with ExpressionDecision.avatar_state, not a free-form
+    renderer guess. Gaze is a bounded illustration, never camera tracking.
+    """
+    avatar = getattr(decision, "avatar_state", None)
+    ear = getattr(avatar, "ears", None)
+    tail = getattr(avatar, "tail", None)
+    gaze = getattr(avatar, "gaze", None)
+    ear = ear if ear in ("ear-flick", "ear-perk", "ear-flatten", "ear-relax") else None
+    tail = tail if tail in ("tail-flick", "tail-swish", "slow-tail-sway", "tail-wag") else None
+    return ear, tail, "left" if gaze == "avert-gaze" else "center"
 
 
 def _gesture_frames(gesture: str | None) -> int:
@@ -75,7 +96,9 @@ def _frame_character_state(
     if gesture in ("tail-flick", "tail-swish", "slow-tail-sway", "tail-wag"):
         return expression, gesture if index == 1 else None
     if gesture == "ear-flick":
-        return expression, "ear-flatten" if index == 1 else "ear-perk"
+        # Ear-relax is drawn by the actual authored sprite. Ear-flatten
+        # requires a different asset and may not be claimed as rendered.
+        return expression, "ear-relax" if index == 1 else "ear-perk"
     if gesture == "ear-perk":
         return expression, "ear-flatten" if index == 0 else "ear-perk"
     if gesture in ("blink", "wink"):
@@ -133,6 +156,9 @@ class TkLayered2DRenderer:
         *,
         expression: str = "neutral",
         gesture: str | None = None,
+        ear_cue: str | None = None,
+        tail_cue: str | None = None,
+        gaze: str = "center",
         shift: int = 0,
     ) -> tuple[int, bool]:
         """Paint the current checked outfit and optional modular face/fox parts.
@@ -175,6 +201,7 @@ class TkLayered2DRenderer:
                 selected = select_character_parts(
                     projection,
                     expression=expression, gesture=gesture,
+                    ear_cue=ear_cue, tail_cue=tail_cue, gaze=gaze,
                     talking=False,  # real voice receipts required for lip sync
                     optional_freckles=bool(
                         projection.appearance.freckles and
@@ -302,6 +329,17 @@ class TkLayered2DRenderer:
         if not callable(completed):
             raise TypeError("completion callback required")
         self.stop()
+        if (
+            getattr(
+                request.decision, "presentation_revision",
+                request.presentation.source_revision,
+            ) != request.presentation.source_revision
+        ):
+            completed(
+                request.decision.decision_id, False,
+                "stale 2D presentation revision; no avatar frame painted",
+            )
+            return
         if not self._verified_public(request.presentation):
             self.canvas.delete("avatar")
             self.canvas.delete("avatar2d")
@@ -312,7 +350,12 @@ class TkLayered2DRenderer:
             )
             return
         gesture = getattr(request.decision, "gesture", None)
-        frames = _gesture_frames(gesture)
+        ear_cue, tail_cue, gaze = _avatar_channel_cues(request.decision)
+        frames = max(
+            _gesture_frames(gesture),
+            _gesture_frames(ear_cue),
+            _gesture_frames(tail_cue),
+        )
         expression = _character_expression(request.decision)
         self._active_decision = request.decision.decision_id
         generation = self._generation
@@ -327,11 +370,26 @@ class TkLayered2DRenderer:
                 expression=expression, gesture=gesture,
                 index=index, frames=frames,
             )
+            # A secondary ear/tail cue can coexist with a smiling primary
+            # gesture. The return-to-rest frames are *actual* sprite swaps,
+            # not a permanent raised/flicked appendage after the event.
+            current_ear = ear_cue
+            current_tail = tail_cue
+            if frames > 1:
+                if ear_cue == "ear-flick":
+                    current_ear = "ear-relax" if index == 1 else "ear-perk"
+                elif ear_cue == "ear-perk":
+                    current_ear = "ear-relax" if index == 0 else "ear-perk"
+                if tail_cue is not None and index != 1:
+                    current_tail = None
             try:
                 count, modular = self._paint(
                     request.presentation,
                     expression=current_expression,
                     gesture=current_gesture,
+                    ear_cue=current_ear,
+                    tail_cue=current_tail,
+                    gaze=gaze,
                 )
                 if hasattr(self.canvas, "update_idletasks"):
                     self.canvas.update_idletasks()
