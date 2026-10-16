@@ -239,3 +239,52 @@ def test_low_risk_queue_and_non_finite_parameters_refused(tmp_path):
         inbox.create("system.inspect", {})
     with pytest.raises(ValueError):
         inbox.create("fleet.enroll", {"oops": float("nan")})
+
+
+def test_platform_passkey_cannot_approve_protected_inbox_action(tmp_path, monkeypatch):
+    state, inbox, signer, credential_id = _setup(tmp_path, monkeypatch)
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE safe_owner_credential SET credential_kind='platform' "
+            "WHERE credential_id=?", (credential_id,),
+        )
+    req = inbox.create("fleet.enroll", {"host_id": "Artemis"})
+    # The browser's real verifier must reject platform-only proof for L4.
+    with pytest.raises(Exception):
+        inbox.approve_attended(
+            req.request_id, credential_id=credential_id,
+            open_browser=_signed_browser(signer, credential_id),
+        )
+    assert inbox.get(req.request_id).status == "pending"
+    assert inbox.get(req.request_id).approval_id is None
+    assert not ExecutionApprovalVerifier(state).active_capabilities(
+        now=datetime.now(timezone.utc),
+    )
+
+
+def test_owner_can_deny_inflight_review_without_late_authority(tmp_path, monkeypatch):
+    state, inbox, signer, credential_id = _setup(tmp_path, monkeypatch)
+    req = inbox.create("fleet.enroll", {"host_id": "Artemis"})
+
+    def deny_while_browser_closing():
+        inbox.deny_attended(req.request_id)
+
+    with pytest.raises(PermissionError, match="superseded"):
+        inbox.approve_attended(
+            req.request_id, credential_id=credential_id,
+            open_browser=_signed_browser(
+                signer, credential_id, after_sign=deny_while_browser_closing,
+            ),
+        )
+    assert inbox.get(req.request_id).status == "denied"
+    assert inbox.get(req.request_id).approval_id is None
+    assert inbox.audit.verify()[0]
+
+
+def test_request_cannot_smuggle_unbound_approval_id(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    inbox = ApprovalInbox(state)
+    with pytest.raises(ValueError, match="approval_id"):
+        inbox.create("fleet.enroll", {
+            "host_id": "Artemis", "approval_id": "untrusted",
+        })
