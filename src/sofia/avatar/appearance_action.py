@@ -112,7 +112,10 @@ class AppearanceActionService:
             field = _PARTS[part]
             value = style.group("target").strip()
             if field in {"hair_color", "eye_color"}:
-                value = _COLORS.get(value.casefold(), value)
+                named = _COLORS.get(value.casefold())
+                if named is None and re.fullmatch(r"#[0-9A-Fa-f]{6}", value) is None:
+                    return "Please choose a known color or give me a six-digit hex color."
+                value = named or value
             if field == "freckles" and value.casefold() in ("none", "off"):
                 value = "none"
             try:
