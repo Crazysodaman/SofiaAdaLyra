@@ -95,11 +95,19 @@ class EventOwnershipProjection:
             _optional_id(value, label)
         if (self.principal_id is None) != (self.audience_id is None):
             raise ValueError("principal and audience must be present together")
-        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+        if not isinstance(self.observed_at, datetime) or (
+            self.observed_at.tzinfo is None
+            or self.observed_at.utcoffset() is None
+        ):
             raise ValueError("observed_at must be timezone-aware")
         if self.expires_at is not None:
-            if self.expires_at.tzinfo is None or self.expires_at.utcoffset() is None:
+            if not isinstance(self.expires_at, datetime) or (
+                self.expires_at.tzinfo is None
+                or self.expires_at.utcoffset() is None
+            ):
                 raise ValueError("expires_at must be timezone-aware")
+            if self.expires_at < self.observed_at:
+                raise ValueError("expires_at cannot precede observed_at")
         if self.confidence is not None and (
             isinstance(self.confidence, bool)
             or not isinstance(self.confidence, (int, float))
