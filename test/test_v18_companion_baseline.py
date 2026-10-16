@@ -131,3 +131,48 @@ def test_phase00_baseline_runs_real_isolated_application_path(monkeypatch, tmp_p
     assert result["durable_counts"]["matrix_traces"] == 4
     assert result["instrumentation"]["sqlite_queries"] > 0
     assert result["acceptance"]["venus_live"] == "not_attested_by_baseline"
+
+
+
+def test_repeated_control_baseline_percentiles_are_observed_not_inferred(tmp_path, monkeypatch):
+    from sofia.verify import v18_companion_baseline as module
+    repo = tmp_path / "checkout"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    monkeypatch.setattr(module, "_exact_revision", lambda _: "a" * 40)
+    values = iter((2, 4, 5, 12, 29))
+    observed = []
+    def sample():
+        raw = deepcopy(_measured())
+        latency = next(values)
+        observed.append(latency)
+        raw["scenarios"]["casual_conversation"]["wall_ms"] = latency
+        return raw
+    result = capture_v18_baseline(
+        repo=repo, expected_revision="a" * 40,
+        capture=sample, repetitions=5,
+    )
+    assert observed == [2, 4, 5, 12, 29]
+    assert result["repetitions"] == 5
+    assert result["timing_distributions"]["casual_conversation"]["wall_ms"] == {
+        "samples": 5, "p50": 5, "p95": 29,
+    }
+    assert result["timing_distributions"]["startup"]["peak_rss_bytes"] == {
+        "samples": 0, "p50": None, "p95": None,
+    }
+    assert result["distribution_scope"] == (
+        "test-provider isolation, not live-model latency"
+    )
+    assert result["acceptance"]["venus_live"] == "not_attested_by_baseline"
+
+
+@pytest.mark.parametrize("invalid", [0, 21, True, 2.3, -1])
+def test_invalid_repetition_count_is_rejected_before_capture(tmp_path, invalid):
+    path = tmp_path / "checkout"
+    path.mkdir()
+    (path / ".git").mkdir()
+    with pytest.raises(BaselineIntegrityError, match="repetitions"):
+        capture_v18_baseline(
+            repo=path, expected_revision="a" * 40,
+            repetitions=invalid, capture=lambda: pytest.fail("should not run"),
+        )
