@@ -123,11 +123,9 @@ def open_owner_inbox_window(state_path, *, parent=None):
                daemon=False).start()
 
     def deny():
-        if busy["active"]:
-            return
         item = selected()
-        if item is None or item.status != "pending":
-            result.set("Select a pending request.")
+        if item is None or item.status not in ("pending", "reviewing"):
+            result.set("Select an unapproved request.")
             return
         if not messagebox.askyesno("Reject approval",
                                     "Reject this pending request?",
