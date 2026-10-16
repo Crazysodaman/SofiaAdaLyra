@@ -260,6 +260,10 @@ class EmbodimentStore:
             data["anatomy"].items()
         )
 
+        private_data = data.get("private_anatomy", {})
+        if not isinstance(private_data, dict):
+            raise TypeError("physical_self private_anatomy must be a JSON object")
+
         return PhysicalSelf(
             form=data["form"],
             additional_features=tuple(
@@ -268,9 +272,7 @@ class EmbodimentStore:
             measurements=measurements,
             appearance=appearance,
             anatomy=anatomy,
-            private_anatomy=tuple(
-                data.get("private_anatomy", {}).items()
-            ),
+            private_anatomy=tuple(private_data.items()),
         )
 
     @staticmethod
