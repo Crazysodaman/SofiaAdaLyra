@@ -121,22 +121,21 @@ _KNOWN_OPERATIONS: tuple[OperationEffect, ...] = (
     ),
     OperationEffect(
         operation_id="home_assistant.service.call",
-        effect_class=EffectClass.RETRYABLE_IDEMPOTENT,
-        requires_idempotency_key=True,
-        note="Re-issuing the same service call to the same entity is safe when "
-             "keyed by the logical request.",
+        effect_class=EffectClass.UNKNOWN,
+        note="Generic service calls can trigger non-idempotent physical effects. "
+             "A local key does not establish remote deduplication.",
     ),
     OperationEffect(
         operation_id="home_assistant.state.set",
-        effect_class=EffectClass.RETRYABLE_IDEMPOTENT,
-        requires_idempotency_key=True,
-        note="Setting an entity to an absolute state is idempotent.",
+        effect_class=EffectClass.UNKNOWN,
+        note="An apparent state setter may trigger automation or hardware. "
+             "Remote retry guarantees are not established.",
     ),
     OperationEffect(
         operation_id="jmri.turnout.set",
-        effect_class=EffectClass.RETRYABLE_IDEMPOTENT,
-        requires_idempotency_key=True,
-        note="A turnout command sets an absolute target state and is idempotent.",
+        effect_class=EffectClass.UNKNOWN,
+        note="Repeated turnout commands can re-energize physical hardware; "
+             "a local request key is not receiver-side deduplication.",
     ),
     OperationEffect(
         operation_id="jmri.power.set",

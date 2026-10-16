@@ -22,9 +22,9 @@ def test_named_operations_are_classified_for_the_original_examples():
     assert classify_operation("git.push").effect_class is EffectClass.IRREVERSIBLE
     assert classify_operation(
         "home_assistant.service.call"
-    ).effect_class is EffectClass.RETRYABLE_IDEMPOTENT
+    ).effect_class is EffectClass.UNKNOWN
     assert classify_operation("jmri.turnout.set").effect_class is (
-        EffectClass.RETRYABLE_IDEMPOTENT
+        EffectClass.UNKNOWN
     )
     assert classify_operation("hephaestus.package.stage").effect_class is (
         EffectClass.COMPENSABLE
@@ -49,17 +49,39 @@ def test_irreversible_operation_can_never_present_a_compensating_reversal():
         )
 
 
-def test_idempotent_effect_requires_a_stable_key_and_retries_automatically():
+def test_idempotent_effect_requires_a_stable_key_and_retries_automatically(monkeypatch):
     with pytest.raises(SagaError):
         OperationEffect(
             operation_id="example.op",
             effect_class=EffectClass.RETRYABLE_IDEMPOTENT,
             requires_idempotency_key=False,
         )
-    plan = plan_compensation(PartialOutcome(operation_id="home_assistant.state.set"))
+    # Demonstrate the generic planning contract with an explicitly declared
+    # simulated receiver that is known to deduplicate requests.
+    from sofia.ops.saga import OPERATIONS
+    monkeypatch.setitem(OPERATIONS, "test.deduplicated.read", OperationEffect(
+        operation_id="test.deduplicated.read",
+        effect_class=EffectClass.RETRYABLE_IDEMPOTENT,
+        requires_idempotency_key=True,
+    ))
+    plan = plan_compensation(PartialOutcome(operation_id="test.deduplicated.read"))
     assert plan.may_retry_automatically is True
     assert plan.requires_idempotency_key is True
     assert plan.escalation is Escalation.NONE
+
+
+@pytest.mark.parametrize("operation_id", (
+    "home_assistant.service.call",
+    "home_assistant.state.set",
+    "jmri.turnout.set",
+))
+def test_remote_device_calls_do_not_claim_automatic_retry_without_receiver_proof(operation_id):
+    effect = classify_operation(operation_id)
+    assert effect.effect_class is EffectClass.UNKNOWN
+    plan = plan_compensation(PartialOutcome(operation_id=operation_id))
+    assert plan.may_retry_automatically is False
+    assert plan.escalation is Escalation.OPERATOR_ACTION_REQUIRED
+    assert plan.compensating_actions == ()
 
 
 def test_compensable_requires_a_declared_bounded_compensation():

@@ -30,13 +30,15 @@ Concrete examples (the original requirement's list), as declared in the module:
 | `discord.message.send` | externally_irreversible | may already have been read remotely |
 | `git.commit.local` | fully_reversible | unpushed local commit can be reset |
 | `git.push` | externally_irreversible | published history is visible; only a revert commit is possible |
-| `home_assistant.service.call` | retryable_idempotent | same keyed logical call is safe to repeat |
-| `jmri.turnout.set` | retryable_idempotent | absolute target state, idempotent |
+| `home_assistant.service.call` | unknown | generic service calls may actuate hardware; local request keys do not prove external deduplication |
+| `jmri.turnout.set` | unknown | repeating a command can re-energize physical hardware without confirmed receiver-side deduplication |
 | `hephaestus.package.stage` | compensable | a staged artifact that was never activated can be removed |
 
-Invariant: an unregistered operation is classified `unknown` and **fails
-closed**; it is never assumed reversible. A retryable-idempotent operation must
-declare a stable idempotency key. An externally irreversible operation is
+Invariant: an unregistered or insufficiently specified physical operation is
+classified `unknown` and **fails closed**; it is never assumed reversible.
+A retryable-idempotent operation must have a stable key **and an independently
+verified receiver-side deduplication contract**. The generic Home Assistant
+state setter is also `unknown` for the same reason. An externally irreversible operation is
 forbidden from declaring a "compensation".
 
 ## CA-3706 — bounded compensating actions and escalation
