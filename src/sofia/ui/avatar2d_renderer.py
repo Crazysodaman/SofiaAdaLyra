@@ -177,6 +177,12 @@ class TkLayered2DRenderer:
                 )
                 if selected.source_revision != projection.source_revision:
                     raise Avatar2DAssetError("stale character part selection")
+                if selected.warnings:
+                    # A recolor, hair design or ear pose without a matching
+                    # authored PNG cannot be presented as if it happened.
+                    # The symbolic public renderer can portray supported
+                    # appearance colors without fabricating modular art.
+                    raise Avatar2DAssetError("requested character artwork is unavailable")
                 for sprite in load_selected_character_sprites(
                     character_root, selected,
                 ):
