@@ -32,7 +32,7 @@ def fake_storage(path):
     return (Reading("canonical_db_bytes", 6 * GB),)
 
 
-def fake_space(free=40 * GB, total=TB):
+def fake_space(free=200 * GB, total=TB):
     return lambda _: SimpleNamespace(free=free, total=total)
 
 
@@ -105,11 +105,11 @@ def test_clock_is_required_to_be_aware(tmp_path):
 
 
 def test_boundaries_on_small_and_large_real_filesystems():
-    assert _disk_level(free=GB, total=TB) is Level.STOP
-    assert _disk_level(free=2 * GB, total=TB) is Level.DEGRADED
-    assert _disk_level(free=4 * GB, total=TB) is Level.WARN
+    assert _disk_level(free=GB, total=100 * GB) is Level.STOP
+    assert _disk_level(free=3 * GB, total=100 * GB) is Level.DEGRADED
+    assert _disk_level(free=6 * GB, total=100 * GB) is Level.WARN
     assert _disk_level(free=11 * GB, total=100 * GB) is Level.NORMAL
-    assert _disk_level(free=30 * GB, total=TB) is Level.NORMAL
+    assert _disk_level(free=30 * GB, total=TB) is Level.DEGRADED
     assert _disk_level(free=19 * GB, total=TB) is Level.STOP
 
 
