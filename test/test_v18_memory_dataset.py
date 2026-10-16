@@ -40,7 +40,9 @@ def test_private_wrong_scope_is_never_acceptable_ground_truth():
         evaluate(bad, digest="0" * 64)
     bad = deepcopy(dataset)
     bad["cases"][0]["messages"][0]["audience_id"] = "discord:shared"
-    with pytest.raises(FixtureError, match="authorized"):
+    # Removing that permitted source also leaves only one authorized
+    # session, so the multi-session precondition must fail first.
+    with pytest.raises(FixtureError, match="authorized sessions"):
         evaluate(bad, digest="0" * 64)
 
 
