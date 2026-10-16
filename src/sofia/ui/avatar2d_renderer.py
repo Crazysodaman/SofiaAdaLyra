@@ -59,7 +59,7 @@ def _character_expression(decision) -> str:
 def _gesture_frames(gesture: str | None) -> int:
     return 3 if gesture in (
         "tail-flick", "tail-swish", "slow-tail-sway",
-        "ear-flick", "ear-perk", "blink", "wink",
+        "ear-flick", "ear-perk", "blink", "wink", "tail-wag",
     ) else 1
 
 
@@ -72,7 +72,7 @@ def _frame_character_state(
 ) -> tuple[str, str | None]:
     if frames == 1:
         return expression, gesture
-    if gesture in ("tail-flick", "tail-swish", "slow-tail-sway"):
+    if gesture in ("tail-flick", "tail-swish", "slow-tail-sway", "tail-wag"):
         return expression, gesture if index == 1 else None
     if gesture == "ear-flick":
         return expression, "ear-flatten" if index == 1 else "ear-perk"
@@ -286,21 +286,28 @@ class TkLayered2DRenderer:
                     90, lambda: paint(index + 1),
                 )
                 return
-            self._active_decision = None
-            self._pending_after = None
-            visible = bool(
-                self.canvas.winfo_viewable()
-            ) if hasattr(self.canvas, "winfo_viewable") else True
-            completed(
-                request.decision.decision_id,
-                visible,
-                (
-                    f"painted {index + 1} 2D frame(s), {count} verified "
-                    f"{'modular' if modular else 'legacy'} public PNG layers; "
-                    f"presentation revision {request.presentation.source_revision}"
-                    if visible else "avatar window not visible; no frame receipt"
-                ),
-            )
+            def finish() -> None:
+                self._pending_after = None
+                if (
+                    generation != self._generation or
+                    self._active_decision != request.decision.decision_id
+                ):
+                    return
+                self._active_decision = None
+                visible = bool(
+                    self.canvas.winfo_viewable()
+                ) if hasattr(self.canvas, "winfo_viewable") else True
+                completed(
+                    request.decision.decision_id, visible,
+                    (
+                        f"painted {index + 1} 2D frame(s), {count} verified "
+                        f"public PNG sprite layer(s) "
+                        f"({'modular' if modular else 'legacy'}); "
+                        f"presentation revision {request.presentation.source_revision}"
+                        if visible else "avatar window not visible; no frame receipt"
+                    ),
+                )
+            self._pending_after = self.root.after(45, finish)
         paint(0)
 
     def render_idle(self, presentation: PresentationProjection) -> None:
@@ -327,4 +334,5 @@ class TkLayered2DRenderer:
             except (AttributeError, ValueError):
                 pass
             self._pending_after = None
-        return decision or self.fallback.stop()
+        fallback_decision = self.fallback.stop()
+        return decision or fallback_decision
