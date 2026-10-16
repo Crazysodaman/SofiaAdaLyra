@@ -30,7 +30,7 @@ jobs:
       - name: Install package and pytest
         run: python -m pip install -e . pytest
       - name: Test gate tracking and source integrity
-        run: python -m pytest -q test/test_v18_gate4.py test/test_v18_ci_receipts.py test/test_v18_gate4_review.py test/test_v18_gate4_acceptance.py
+        run: python -m pytest -q test/test_v18_gate4.py test/test_v18_ci_receipts.py test/test_v18_gate4_review.py test/test_v18_gate4_acceptance.py test/test_v18_first200_work.py
       - name: Generate evidence-only Gate 4 report
         env:
           # External reviewer trust anchors are an optional owner-provisioned
@@ -53,6 +53,11 @@ jobs:
           python -m sofia.verify.v18_gate4_review
           --repo .
           --output gate4-review-readiness.json
+      - name: Report first 200 exact-priority tasks without self-promotion
+        run: >-
+          python -m sofia.verify.v18_first200_work
+          --repo .
+          --output gate4-first200-ordered.json
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -63,5 +68,6 @@ jobs:
             gate4-progress.md
             gate4-remote-ci-receipts.json
             gate4-review-readiness.json
+            gate4-first200-ordered.json
           if-no-files-found: warn
           retention-days: 30
