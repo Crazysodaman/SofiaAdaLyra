@@ -156,3 +156,26 @@ forged/malformed identifiers and absence of correlation.
 **Still open:** independent review and production consumer wiring to
 authorized scoped durable contradictory-source evidence, plus a live remote
 device clock comparison. Pure comparator regressions alone do not earn Gate 4.
+
+## CA-6109 read-only capacity sampling and missing-reading repair
+
+`assess_capacity` previously could report `normal` when only one healthy
+resource was measured and every other declared resource was absent. It now
+reports every missing budgeted reading as `WARN` with `used=None`.
+A measured zero remains distinct from no observation. This change is
+exercised by `test/test_v18_capacity_budgets.py`.
+
+`python -m sofia.ops.capacity_probe --canonical-db <existing-path>
+--media-dir <existing-path> --output <report.json>` performs an opt-in
+read-only bounded **filesystem metadata** probe. It measures existing
+canonical SQLite data/WAL and optionally archive/backup/media trees. It
+does not read file contents, create SQLite, follow symlinks, touch the
+single-writer role or pretend absent CPU/SSD/latency samples are zero.
+It rejects overlapping roots and out-of-bounds scans.
+
+`test/test_v18_capacity_probe.py` exercises nested usage, DB sidecar
+accounting, omitted sensors, symlinks, bounds, and missing paths. This is
+preparatory production measurement infrastructure, **not** an Artemis/Venus
+measurement. Workload-derived growth, CPU/RAM, backups, encryption p95,
+retention triggers and owner-approved budget thresholds still must be
+collected on actual machines before CA-6109 can earn Gate 4.

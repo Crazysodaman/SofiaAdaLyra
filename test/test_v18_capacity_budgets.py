@@ -84,3 +84,30 @@ def test_declared_default_budgets_are_well_formed_and_usable():
     assessment = assess_capacity(DEFAULT_BUDGETS, readings)
     assert assessment.overall is Level.NORMAL
     assert len(assessment.verdicts) == len(DEFAULT_BUDGETS)
+
+
+
+def test_unmeasured_budget_fails_closed_without_inventing_zero_usage():
+    budgets = [
+        CapacityBudget("canonical_db_bytes", 10, 20, 30),
+        CapacityBudget("archive_bytes", 10, 20, 30),
+    ]
+    assessment = assess_capacity(budgets, [Reading("canonical_db_bytes", 0)])
+    assert assessment.overall is Level.WARN
+    unmeasured = assessment.verdict_for("archive_bytes")
+    assert unmeasured is not None
+    assert unmeasured.used is None
+    assert unmeasured.budgeted is True
+    assert unmeasured.level is Level.WARN
+    assert "unobserved" in unmeasured.trigger
+    assert assessment.verdict_for("canonical_db_bytes").used == 0
+
+
+def test_absent_budget_still_reports_warning_when_another_resource_has_stopped():
+    assessment = assess_capacity(
+        [CapacityBudget("full", 1, 2, 3), CapacityBudget("missing", 10, 20, 30)],
+        [Reading("full", 3)],
+    )
+    assert assessment.overall is Level.STOP
+    assert any("missing" in alert for alert in assessment.alerts)
+    assert assessment.verdict_for("missing").used is None

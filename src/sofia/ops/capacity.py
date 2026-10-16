@@ -93,7 +93,7 @@ class Reading:
 @dataclass(frozen=True, slots=True)
 class ResourceVerdict:
     resource: str
-    used: int
+    used: int | None
     level: Level
     budgeted: bool
     trigger: str | None
@@ -126,9 +126,10 @@ def assess_capacity(
 ) -> CapacityAssessment:
     """Evaluate observed readings against declared budgets, fail closed.
 
-    A reading without a budget is reported at ``WARN`` with a trigger so an
-    unmetered resource cannot hide. The overall level is the worst resource
-    level, and ``STOP`` means the runtime must shed load before writing more.
+    A reading without a budget *or a budget without a reading* is reported
+    at ``WARN`` with an explicit trigger. An unmeasured resource must never
+    silently count as normal; missing values have ``used=None``.
+    ``STOP`` means the runtime must shed load before writing more.
     """
     if not isinstance(budgets, (tuple, list)) or not budgets:
         raise CapacityError("at least one capacity budget is required")
@@ -174,6 +175,19 @@ def assess_capacity(
             resource=reading.resource, used=reading.used, level=level,
             budgeted=budgeted, trigger=trigger,
         ))
+    # Distinguish zero observed usage from *no measurement*. Previously
+    # omitting a high-risk budget from readings could yield a false NORMAL.
+    for resource in by_resource:
+        if resource in seen:
+            continue
+        missing_trigger = f"budgeted resource unobserved: {resource}"
+        alerts.append(missing_trigger)
+        verdicts.append(ResourceVerdict(
+            resource=resource, used=None, level=Level.WARN,
+            budgeted=True, trigger=missing_trigger,
+        ))
+        if _ORDER[Level.WARN] > _ORDER[overall]:
+            overall = Level.WARN
     return CapacityAssessment(
         overall=overall, verdicts=tuple(verdicts), alerts=tuple(alerts),
     )

@@ -7,12 +7,14 @@ on:
       - 'src/sofia/ops/saga.py'
       - 'src/sofia/ops/failure_triage.py'
       - 'src/sofia/ops/capacity.py'
+      - 'src/sofia/ops/capacity_probe.py'
       - 'src/sofia/ops/commitment.py'
       - 'src/sofia/knowledge/observation_conflict.py'
       - 'src/sofia/verify/drift.py'
       - 'test/test_v18_saga_contracts.py'
       - 'test/test_v18_failure_triage.py'
       - 'test/test_v18_capacity_budgets.py'
+      - 'test/test_v18_capacity_probe.py'
       - 'test/test_v18_commitment_projection.py'
       - 'test/test_v18_observation_conflict.py'
       - 'test/test_v18_drift_scorecard.py'
@@ -50,6 +52,7 @@ jobs:
           test/test_v18_saga_contracts.py
           test/test_v18_failure_triage.py
           test/test_v18_capacity_budgets.py
+          test/test_v18_capacity_probe.py
           test/test_v18_commitment_projection.py
           test/test_v18_observation_conflict.py
           test/test_v18_drift_scorecard.py
