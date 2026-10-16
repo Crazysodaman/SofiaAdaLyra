@@ -27,6 +27,10 @@ from sofia.ui.quick_tools import (
 )
 from sofia.ui.theme import ThemePalette, canonical_theme
 from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
+from sofia.ui.avatar_mode import (
+    AvatarModeUnavailable, AvatarVisualMode, ExclusiveAvatarRenderer,
+)
+from sofia.ui.avatar_mode_store import AvatarModePreferenceStore
 from sofia.voice import SpeechInputState
 
 
@@ -233,6 +237,9 @@ class _TkDesktopWorkbench:
         self._palette = canonical_theme()
         runtime_settings = RuntimeUserSettingsStore(configuration.state_path).load()
         self._avatar_renderer_enabled = runtime_settings.avatar_renderer_enabled
+        self._avatar_mode_store = AvatarModePreferenceStore(configuration.state_path)
+        self._preferred_avatar_mode = self._avatar_mode_store.load()
+        self._last_avatar_projection = None
         self._voice_input_enabled = (
             runtime_settings.voice_input_enabled and not runtime_settings.voice_muted
         )
@@ -354,6 +361,22 @@ class _TkDesktopWorkbench:
         )
         self._tools_button.pack(side="right", padx=(10, 0))
 
+        self._avatar_mode_value = self._tk.StringVar(
+            master=self._root, value="2D",
+        )
+        self._avatar_mode_selector = self._ttk.Combobox(
+            header,
+            textvariable=self._avatar_mode_value,
+            values=("2D", "3D"),
+            state=("readonly" if self._avatar_renderer_enabled else "disabled"),
+            width=5,
+            style="Sofia.TCombobox",
+        )
+        self._avatar_mode_selector.pack(side="right", padx=(10, 0))
+        self._avatar_mode_selector.bind(
+            "<<ComboboxSelected>>", self._change_avatar_mode,
+        )
+
         self._stop_gesture_button = self._ttk.Button(
             header,
             text="Stop gesture",
@@ -406,6 +429,20 @@ class _TkDesktopWorkbench:
             )
         else:
             self._avatar_renderer = symbolic_renderer
+        self._avatar_renderer = ExclusiveAvatarRenderer(
+            two_d=self._avatar_renderer,
+            # A real verified 3D host/rig must be registered explicitly.
+            # There is no synthesized 3D avatar or concurrent process here.
+            clear_visual=lambda: (
+                self._avatar_canvas.delete("avatar"),
+                self._avatar_canvas.delete("avatar2d"),
+            ),
+        )
+        if self._preferred_avatar_mode in self._avatar_renderer.available_modes:
+            self._avatar_renderer.select(self._preferred_avatar_mode)
+        self._avatar_mode_value.set(
+            self._avatar_renderer.active_mode.value.upper(),
+        )
 
         self._history_shell = self._tk.Canvas(
             outer,
@@ -808,6 +845,7 @@ class _TkDesktopWorkbench:
                     self._begin_shutdown()
                     return
             elif kind == "avatar_idle":
+                self._last_avatar_projection = payload
                 if self._avatar_renderer_enabled:
                     self._avatar_renderer.render_idle(payload)
             elif kind == "persistence":
@@ -1099,6 +1137,7 @@ class _TkDesktopWorkbench:
         decision, presentation = output
         if decision is None or presentation is None:
             return
+        self._last_avatar_projection = presentation
 
         def completed(decision_id: str, rendered: bool, detail: str) -> None:
             self._worker.acknowledge_avatar(
@@ -1112,6 +1151,35 @@ class _TkDesktopWorkbench:
             AvatarRenderRequest(decision, presentation),
             completed=completed,
         )
+
+    def _change_avatar_mode(self, _event=None) -> None:
+        # Only the owned desktop UI may request a visual backend transition.
+        # No renderer selection grants access to private avatar assets.
+        chosen = self._avatar_mode_value.get()
+        try:
+            mode = AvatarVisualMode(chosen.lower())
+            transition = self._avatar_renderer.select(mode)
+        except (ValueError, AvatarModeUnavailable) as exc:
+            self._avatar_mode_value.set(self._avatar_renderer.active_mode.value.upper())
+            self._status.set(str(exc))
+            return
+        if transition.cancelled_decision_id is not None:
+            self._worker.acknowledge_avatar(
+                transition.cancelled_decision_id,
+                rendered=False,
+                backend=transition.cancelled_backend or "unavailable",
+                detail="avatar mode changed before animation finished",
+            )
+        if transition.changed:
+            try:
+                self._avatar_mode_store.save(mode)
+            except Exception as exc:
+                # A settings failure must not claim the preference was saved.
+                self._status.set(f"Avatar mode changed, preference not saved: {exc}")
+                return
+            if self._last_avatar_projection is not None:
+                self._avatar_renderer.render_idle(self._last_avatar_projection)
+        self._status.set(f"Avatar: {mode.value.upper()} (exclusive mode)")
 
     def _stop_avatar_gesture(self) -> None:
         decision_id = self._avatar_renderer.stop()
@@ -1200,6 +1268,10 @@ class _TkDesktopWorkbench:
         self._send.configure(state=state)
         self._quick_tools.configure(
             state="readonly" if enabled else "disabled"
+        )
+        self._avatar_mode_selector.configure(
+            state=("readonly" if enabled and self._avatar_renderer_enabled
+                   else "disabled"),
         )
         self._tools_button.configure(
             state=("normal" if enabled and self._tool_specs else "disabled")
