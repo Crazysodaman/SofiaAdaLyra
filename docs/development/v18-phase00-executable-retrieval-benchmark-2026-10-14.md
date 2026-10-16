@@ -40,3 +40,24 @@ This remains a preparatory **synthetic single-session** experiment. Licensed
 benchmark-adapted samples, authorized multi-session retrieval, answer and
 downstream-task quality measurements, independent source review, and
 reproducible full acceptances remain outstanding. CA-1205 is **not Gate 4**.
+
+## Authorized multi-session source-selection evaluator
+
+The production retrieval selector can now be checked against an explicit
+multi-session, audience-scoped synthetic fixture:
+
+    python -m sofia.verify.v18_memory_dataset --fixture test/fixtures/v18-memory-multisession-v1.json --output scored.json
+
+Each fixture declares session, principal, audience, source timestamps and
+required/forbidden source IDs. Wrong-scope and future messages are excluded
+before invoking production retrieval. The runner measures strict source
+coverage against recency-only and no-retrieval controls and emits only source
+identifiers, a SHA-256 fixture digest and deterministic counts. It never emits
+raw conversation text in the scored artifact. Synthetic-only admission is
+intentional; this is not a live private-memory ingestion interface.
+
+This is **three self-authored smoke examples**, not an official LongMemEval or
+LoCoMo dataset, nor an LLM answer-quality or downstream success evaluation.
+Licenses are self-declared, not independently authenticated. CA-1205 still
+requires adapted licensed benchmark data, more cases, long-term memory
+integration, quality scoring, review and authorized host trials.

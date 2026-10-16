@@ -30,6 +30,7 @@ jobs:
           python -m pytest -q
           test/test_v18_phase00_full.py
           test/test_v18_memory_benchmark.py
+          test/test_v18_memory_dataset.py
           test/test_v18_acceptance_matrix.py
           test/test_v18_acceptance_matrix_functional.py
           test/test_v18_phase00_model_outage.py

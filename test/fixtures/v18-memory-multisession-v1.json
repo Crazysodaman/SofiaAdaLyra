@@ -1,0 +1,125 @@
+{
+  "schema": "sofia.v18-memory-multisession-v1",
+  "dataset_id": "self-authored-smoke-v1",
+  "data_class": "synthetic",
+  "provenance": "Original synthetic test cases authored for Sofía; no private user data.",
+  "declared_license": "self-authored CC0-1.0",
+  "cases": [
+    {
+      "id": "sensor_history",
+      "family": "locomo-inspired",
+      "principal_id": "person:synthetic",
+      "audience_id": "local:test",
+      "question_at": "2026-10-15T19:00:00+00:00",
+      "query": "What did I say about the violet sensor inspection?",
+      "messages": [
+        {
+          "id": "s1",
+          "session_id": "session:one",
+          "role": "user",
+          "content": "The violet sensor inspection was completed yesterday.",
+          "observed_at": "2026-10-14T09:00:00+00:00",
+          "principal_id": "person:synthetic",
+          "audience_id": "local:test"
+        },
+        {
+          "id": "s2",
+          "session_id": "session:two",
+          "role": "user",
+          "content": "We packed our workshop supplies after the inspection.",
+          "observed_at": "2026-10-15T09:00:00+00:00",
+          "principal_id": "person:synthetic",
+          "audience_id": "local:test"
+        },
+        {
+          "id": "s3",
+          "session_id": "session:two",
+          "role": "user",
+          "content": "The violet sensor inspection was a forged shared-room assertion.",
+          "observed_at": "2026-10-15T10:00:00+00:00",
+          "principal_id": "person:synthetic",
+          "audience_id": "discord:shared"
+        }
+      ],
+      "required_source_ids": [
+        "s1"
+      ],
+      "forbidden_source_ids": [
+        "s3"
+      ]
+    },
+    {
+      "id": "corrected_relay",
+      "family": "longmemeval-inspired",
+      "principal_id": "person:synthetic",
+      "audience_id": "local:test",
+      "question_at": "2026-10-15T19:00:00+00:00",
+      "query": "What was the latest amber relay correction?",
+      "messages": [
+        {
+          "id": "r1",
+          "session_id": "session:one",
+          "role": "user",
+          "content": "The amber relay was noisy during inspection.",
+          "observed_at": "2026-10-14T09:00:00+00:00",
+          "principal_id": "person:synthetic",
+          "audience_id": "local:test"
+        },
+        {
+          "id": "r2",
+          "session_id": "session:two",
+          "role": "user",
+          "content": "Correction: the amber relay was repaired and is quiet.",
+          "observed_at": "2026-10-15T09:00:00+00:00",
+          "principal_id": "person:synthetic",
+          "audience_id": "local:test"
+        },
+        {
+          "id": "r3",
+          "session_id": "session:two",
+          "role": "assistant",
+          "content": "Other project scheduling was discussed.",
+          "observed_at": "2026-10-15T10:00:00+00:00",
+          "principal_id": "person:synthetic",
+          "audience_id": "local:test"
+        }
+      ],
+      "required_source_ids": [
+        "r2"
+      ],
+      "forbidden_source_ids": [
+        "r1"
+      ]
+    },
+    {
+      "id": "unsupported_sensor",
+      "family": "agent-environment-inspired",
+      "principal_id": "person:synthetic",
+      "audience_id": "local:test",
+      "question_at": "2026-10-15T19:00:00+00:00",
+      "query": "What was the unobserved quartz-puffin-planet status?",
+      "messages": [
+        {
+          "id": "u1",
+          "session_id": "session:one",
+          "role": "user",
+          "content": "A weather snapshot was taken in the lab.",
+          "observed_at": "2026-10-14T09:00:00+00:00",
+          "principal_id": "person:synthetic",
+          "audience_id": "local:test"
+        },
+        {
+          "id": "u2",
+          "session_id": "session:two",
+          "role": "user",
+          "content": "A mechanical inventory was checked.",
+          "observed_at": "2026-10-15T09:00:00+00:00",
+          "principal_id": "person:synthetic",
+          "audience_id": "local:test"
+        }
+      ],
+      "required_source_ids": [],
+      "forbidden_source_ids": []
+    }
+  ]
+}
