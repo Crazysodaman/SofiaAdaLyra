@@ -1,5 +1,6 @@
 """CA-001: stable source event -> actual durable assistant response receipt."""
 from contextlib import closing
+from datetime import timedelta
 import json
 import sqlite3
 
@@ -17,7 +18,8 @@ def _settled(tmp_path):
         db.execute(
             "INSERT INTO conversation_messages VALUES (?,?,?,?,?)",
             ("assistant-response-1", "s1", "assistant",
-             "private assistant reply", NOW.isoformat()),
+             "private assistant reply",
+             (NOW + timedelta(milliseconds=50)).isoformat()),
         )
         db.execute(
             "CREATE TABLE canonical_conversation_turn("
@@ -33,7 +35,7 @@ def _settled(tmp_path):
              "assistant-response-1", "principal:one",
              "private:one", "desktop", "s1", "completed",
              json.dumps({"content": "private assistant reply", "tool_calls": []}),
-             NOW.isoformat()),
+             (NOW + timedelta(milliseconds=50)).isoformat()),
         )
     return state, matrix
 
