@@ -1,0 +1,37 @@
+name: Avatar2D Independent Expression Frames
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/avatar2d-secondary-expression.yml"
+      - "src/sofia/ui/avatar2d_renderer.py"
+      - "src/sofia/avatar/vtuber_character_selection.py"
+      - "test/test_ui_avatar2d_secondary_expression.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  expression-frame-proof:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Sofia and test dependencies
+        shell: pwsh
+        run: python -m pip install -e . pytest
+      - name: Test real source-linked 2D expression PNG frames
+        shell: pwsh
+        run: |
+          python -m pytest -q test/test_ui_avatar2d_secondary_expression.py test/test_ui_avatar2d_modular.py test/test_ui_avatar2d_live_parts.py test/test_avatar2d_public_setup.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check source compilation
+        shell: pwsh
+        run: |
+          python -m py_compile src/sofia/ui/avatar2d_renderer.py src/sofia/avatar/vtuber_character_selection.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
