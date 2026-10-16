@@ -56,6 +56,15 @@ def select_character_parts(
         hair="long_layered"
         warnings.append("requested hairstyle has no verified sprite variation")
 
+    if (appearance.hair_color or "").casefold() not in ("deep crimson", "#8b1e3f"):
+        warnings.append("hair recolor needs verified colorized sprite")
+    if (appearance.tail_color or "").casefold() not in ("dark violet", "#3a245c"):
+        warnings.append("tail recolor needs verified colorized sprite")
+    if (appearance.eye_color or "violet").casefold() not in (
+        "violet", "#8f5bdb", "#793ec1",
+    ):
+        warnings.append("eye recolor needs verified iris sprite")
+
     if expression in ("skeptical","focused","annoyed"):
         brows="skeptical"
     else:
@@ -69,8 +78,10 @@ def select_character_parts(
 
     if gesture in ("ear-perk","ear-flick"):
         ears="perked"
-    elif appearance.ear_pose in ("flattened","relaxed"):
+    elif gesture == "ear-flatten" or appearance.ear_pose in ("flattened","relaxed"):
         ears="relaxed"
+        if gesture == "ear-flatten" or appearance.ear_pose == "flattened":
+            warnings.append("fully flattened fox ears need another sprite")
     else:
         ears="perked"
     if gesture in ("tail-swish","slow-tail-sway","tail-flick"):
