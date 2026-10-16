@@ -79,7 +79,7 @@ The targeted workflow '.github/workflows/avatar2d-public-setup-tests.yml' runs t
 ## Open work (do not claim Gate 4)
 
 - Polish each garment and face/fox sprite to final illustrated reference quality, with **full source-description fidelity** and human review. The earlier 295 catalog items and 244 public draft images are not fully artist-approved sprite rigs.
-- Continuous idle blink, gaze tracking, measured voice-driven lipsync, higher frame rate/ear/tail physics, garment deformation and wearable accessories still require source-tested UI behaviors and performance budgets.
+- Basic periodic idle blinking is implemented with real left/right eye sprites, a 12-second default interval, no fabricated chat/expression receipt, hidden-window throttling and STOP/mode-switch cancellation. **Gaze tracking, measured voice-driven lipsync, higher frame rate/ear/tail physics, garment deformation and wearable accessories** still need dedicated production work and resource measurements.
 - Real desktop pointer/click bridge into INTERACT with canonical hit masks and explicit consent is not yet live.
 - An actual private 2D renderer and assets need owner-authenticated per-frame grant checks, protected file paths and STOP; public setup cannot confer private access.
 - A Windows supervised Venus screenshot, startup/restart acceptance and GPU/CPU profile are still needed. Headless/CI tests do not prove production artwork appearance.
