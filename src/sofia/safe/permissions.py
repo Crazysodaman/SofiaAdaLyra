@@ -315,6 +315,10 @@ _PROTECTED = frozenset({
     "evolve.code.candidate.apply",
     "evolve.code.candidate.commit",
     "evolve.code.candidate.rollback",
+    "learning.data_use.grant",
+    "learning.data_use.revoke",
+    "learning.source.revoke",
+    "learning.candidate.revoke",
 })
 
 # Screen inspection, pixels, ongoing watching and external delivery all

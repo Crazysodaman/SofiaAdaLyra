@@ -111,9 +111,12 @@ from sofia.creative import (
     ManagedAssetStore,
 )
 from sofia.life import LifeProject, SelfDirectedLifeCoordinator
+from sofia.learning import LearningService
+from sofia.learning.registry import create_candidate_registry_from_environment
 from sofia.ops.dependencies import DependencyEvidenceStore, default_dependency_registry
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeatStore
+from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.ops.backup_topology import backup_topology_enabled
 from sofia.neuro import NeuralSignal, NeuroRuntime
 from sofia.neuro import BodyReflexObservation, VoiceSensoryObservation
@@ -335,6 +338,16 @@ class SofiaApplication:
         )
         self._dependency_registry = default_dependency_registry()
         self._dependency_evidence = DependencyEvidenceStore(configuration.state_path)
+        # Authority-free ML state shares the canonical writer. It schedules
+        # and executes nothing; RUN/SAFE/capabilities remain authoritative.
+        self._learning = LearningService(
+            configuration.state_path,
+            approval_verifier=ExecutionApprovalVerifier(configuration.state_path),
+        )
+        self._learning_candidates = create_candidate_registry_from_environment(
+            configuration.state_path,
+            artifact_root=(Path(configuration.state_path).parent / "learning" / "candidates").resolve(),
+        )
         self._conversation_service.set_habit_continuity(
             self._habit_continuity
         )
@@ -601,6 +614,15 @@ class SofiaApplication:
     @property
     def dependency_evidence(self) -> DependencyEvidenceStore:
         return self._dependency_evidence
+
+    @property
+    def learning(self) -> LearningService:
+        return self._learning
+
+    @property
+    def learning_candidates(self):
+        """Configured signed candidate registry, or None when fail-closed."""
+        return self._learning_candidates
 
     @property
     def last_neuro_input_error(self) -> str | None:

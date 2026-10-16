@@ -47,6 +47,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
     "integrations": ("pkg_integrate",),
     "interaction": ("pkg_interact",),
     "knowledge": ("pkg_know",),
+    "learning": ("pkg_evolve", "pkg_safe", "pkg_core"),
     "machine": ("pkg_ops",),
     "memory": ("pkg_mem",),
     "mobile": ("pkg_ui", "pkg_net"),

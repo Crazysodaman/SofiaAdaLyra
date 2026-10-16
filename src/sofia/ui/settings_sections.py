@@ -1421,6 +1421,21 @@ class SettingsSections:
         self.sql_panel(frames["EVOLVE"], "Autonomous work history", "autonomous_work_event")
         self.sql_panel(frames["EVOLVE"], "Improvement diagnostics", "autonomous_improvement_diagnostic")
         self.sql_panel(frames["EVOLVE"], "Development candidates", "state_plane_record", where="namespace='dev-candidate'")
+        self.sql_panel(frames["EVOLVE"], "ML operating mode (authority-free)", "ml_operating_state")
+        self.sql_panel(frames["EVOLVE"], "ML prediction reasons and uncertainty", "ml_prediction_trace")
+        self.sql_panel(frames["EVOLVE"], "Grounded ML lineage", "ml_grounded_sample")
+        self.sql_panel(frames["EVOLVE"], "Immutable ML datasets", "ml_dataset_manifest")
+        self.sql_panel(frames["EVOLVE"], "Independent ML evaluations", "ml_evaluation")
+        self.sql_panel(frames["EVOLVE"], "Signed external ML candidates", "ml_model_candidate")
+        ttk.Label(
+            frames["EVOLVE"],
+            text=(
+                "ML defaults to SHADOW. Predictions are estimates—not facts, "
+                "consent, permissions, receipts, or action authority. LIMITED "
+                "still uses the normal SAFE/capability/RUN boundaries."
+            ),
+            wraplength=660,
+        ).pack(anchor="w", pady=8)
         ttk.Label(frames["EVOLVE"], text="Inspect recorded revision evidence and configuration authority above. Changes to governed configuration continue through the reviewed EVOLVE approval workflow.", wraplength=660).pack(anchor="w", pady=8)
         # Actual owner-only data-use review, NOT training permission.
         # File paths and dataset rows never flow into the cognitive tool.

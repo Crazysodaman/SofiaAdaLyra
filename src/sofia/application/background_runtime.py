@@ -551,6 +551,18 @@ def create_background_coordinator(
             interval_seconds=60.0,
         )
 
+    learning = getattr(application, "_learning", None)
+    if learning is not None:
+        def enforce_learning_retention(now):
+            result = learning.enforce_retention(at=now, limit=500)
+            return result if any(result.values()) else None
+
+        coordinator.set_task(
+            "learning_retention",
+            enforce_learning_retention,
+            interval_seconds=86400.0,
+        )
+
     life = getattr(application, "_life", None)
     if life is not None:
         def run_independent_life(now):

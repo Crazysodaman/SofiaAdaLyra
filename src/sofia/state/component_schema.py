@@ -182,6 +182,7 @@ PRODUCTION_COMPONENT_SCHEMAS = tuple(
         "rel-nicknames",
         "creative-inventory",
         "life-project-forge",
+        "machine-learning-foundation",
     )
 )
 
