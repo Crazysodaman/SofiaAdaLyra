@@ -1,0 +1,98 @@
+name: Avatar2D Installable Public Puppet
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/avatar2d-live-public-pack.yml"
+      - "src/sofia/avatar/vtuber_starter_art.py"
+      - "src/sofia/avatar/vtuber_character_bundle.py"
+      - "src/sofia/avatar/vtuber_character_parts.py"
+      - "src/sofia/avatar/vtuber_layer_stack.py"
+      - "src/sofia/avatar/wardrobe_data/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-puppet:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install project
+        shell: pwsh
+        run: python -m pip install -e .
+      - name: Build actual public outfit sprite manifests and character parts
+        shell: pwsh
+        run: |
+          python -m sofia.avatar.vtuber_starter_art --output "$env:RUNNER_TEMP\sofia2d-live" --outfit all
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m sofia.avatar.vtuber_character_parts --output "$env:RUNNER_TEMP\sofia2d-live\character"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check all public outfit image digests and character PNGs
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+          from sofia.avatar.presentation import AttireMode, AudienceScope, AppearanceState, PresentationProjection
+          from sofia.avatar.vtuber_asset_bundle import Avatar2DArtSelection, _read_bundle
+          from sofia.avatar.vtuber_character_bundle import load_selected_character_sprites
+          from sofia.avatar.vtuber_character_selection import select_character_parts
+          from sofia.avatar.vtuber_layer_stack import assemble_avatar2d_layers
+          from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+          from sofia.avatar.wardrobe_matrix import build_wardrobe_matrix
+          root = Path(os.environ["RUNNER_TEMP"]) / "sofia2d-live"
+          catalog = build_starter_wardrobe()
+          checked = 0
+          for outfit in catalog.presets:
+              if outfit.private_only:
+                  continue
+              art = _read_bundle(
+                  root / "outfits" / outfit.outfit_id,
+                  audience=AudienceScope.PUBLIC,
+                  attire=AttireMode.CLOTHED,
+                  outfit_id=outfit.outfit_id,
+              )
+              try:
+                  projection = PresentationProjection(
+                      audience=AudienceScope.PUBLIC,
+                      source_revision=1,
+                      outfit_id=outfit.outfit_id,
+                      outfit_label=outfit.label,
+                      item_ids=outfit.item_ids,
+                      attire=AttireMode.CLOTHED,
+                      appearance=AppearanceState(
+                          hairstyle="layered", hair_color="deep crimson",
+                          tail_color="dark violet", eye_color="violet",
+                      ),
+                      private_fallback_used=False,
+                  )
+                  selected = Avatar2DArtSelection(
+                      "public", projection, art, "checked public art",
+                  )
+                  matrix = build_wardrobe_matrix(catalog, outfit.item_ids)
+                  plan = assemble_avatar2d_layers(selected, matrix=matrix)
+                  assert plan.draw_layers
+                  assert any(layer.role == "base_body" for layer in plan.draw_layers)
+                  assert len(load_selected_character_sprites(
+                      root / "character", select_character_parts(projection),
+                  )) == 12
+                  checked += 1
+              finally:
+                  art.close()
+          print(f"VERIFIED: {checked} current public outfits with complete "
+                "checked PNG layers + 12 selected modular character parts")
+          assert checked > 0
+      - name: Upload public 2D installable sprite pack
+        uses: actions/upload-artifact@v7
+        with:
+          name: sofia-avatar2d-live-public-${{ github.sha }}
+          path: ${{ runner.temp }}/sofia2d-live/
+          if-no-files-found: error
+          retention-days: 30
