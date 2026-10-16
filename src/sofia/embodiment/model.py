@@ -144,9 +144,15 @@ class PhysicalSelf:
             "tail": "1 fox tail",
             "limbs": "2 arms, 2 legs",
         }
-        for key, value in self.anatomy:
-            if key in canonical_topology and value != canonical_topology[key]:
-                raise ValueError("Canonical anatomy topology cannot change")
+        anatomy_map = dict(self.anatomy)
+        is_canonical_fox_avatar = (
+            {"fox ears", "fox tail"}.issubset(self.additional_features)
+            or {"ears", "tail", "limbs"}.issubset(anatomy_map)
+        )
+        if is_canonical_fox_avatar:
+            for key, value in self.anatomy:
+                if key in canonical_topology and value != canonical_topology[key]:
+                    raise ValueError("Canonical anatomy topology cannot change")
         if not isinstance(self.private_anatomy, tuple):
             raise TypeError("PhysicalSelf private_anatomy must be a tuple")
         allowed_private = {"nipple_color", "vulva_color", "anus_color"}
