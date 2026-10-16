@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass
+﻿from dataclasses import dataclass, field
 from math import isfinite
 
 
@@ -81,7 +81,7 @@ class PhysicalSelf:
     measurements: tuple[tuple[str, Measurement], ...] = ()
     appearance: tuple[tuple[str, str], ...] = ()
     anatomy: tuple[tuple[str, str], ...] = ()
-    private_anatomy: tuple[tuple[str, str | None], ...] = ()
+    private_anatomy: tuple[tuple[str, str | None], ...] = field(default=(), repr=False)
 
     def __post_init__(self) -> None:
         if not self.form:
