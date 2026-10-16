@@ -33,7 +33,7 @@ def test_exact_source_details_are_preserved_for_engineer_jacket():
     assert "asymmetric_zip" in f["features"]
     assert "reinforced_panels" in f["features"]
     assert f["waist_up_visible"] is True
-    assert f["source_sha256"] if isinstance(f,dict) and "source_sha256" in f else brief.source_sha256
+    assert len(brief.source_sha256) == 64
     assert "hip-length" in authoring_instructions(brief)
     assert "source_sha256" in brief.as_dict()
 
