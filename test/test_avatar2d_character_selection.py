@@ -26,6 +26,7 @@ def test_current_appearance_has_canonical_long_crimson_hair_and_fox_parts(tmp_pa
     groups=output.as_dict()
     assert groups["face"]=="neutral"
     assert groups["eye_left"]=="open"
+    assert groups["eye_right"]=="open"
     assert groups["mouth"]=="closed"
     assert groups["hair_back"]==groups["hair_front"]=="long_layered"
     assert groups["ear_left"]==groups["ear_right"]=="perked"
@@ -71,3 +72,13 @@ def test_unknown_hair_is_safe_fallback_and_never_pretends_new_art_exists(tmp_pat
     result=select_character_parts(changed)
     assert result.as_dict()["hair_front"]=="long_layered"
     assert result.warnings
+
+
+
+def test_independent_wink_changes_only_one_eye(tmp_path):
+    p=projection(tmp_path)
+    chosen=select_character_parts(p,expression="wink").as_dict()
+    assert chosen["eye_left"]=="closed"
+    assert chosen["eye_right"]=="open"
+    assert chosen["brow_left"]=="neutral"
+    assert chosen["brow_right"]=="neutral"
