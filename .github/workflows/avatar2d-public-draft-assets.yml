@@ -30,12 +30,16 @@ jobs:
         run: |
           python -m sofia.avatar.vtuber_full_batch_art \
             --public-root "$RUNNER_TEMP/avatar2d-public"
+      - name: Generate public face / hair / ear / tail sprite variants
+        run: |
+          python -m sofia.avatar.vtuber_character_parts             --output "$RUNNER_TEMP/avatar2d-character"
       - name: Verify actual PNGs match every current public item
         shell: python
         run: |
           from hashlib import sha256
           import json
           import os
+          import zlib
           from pathlib import Path
           from sofia.avatar.vtuber_wardrobe_production import (
               wardrobe_production_queue, wardrobe_production_coverage,
@@ -53,6 +57,24 @@ jobs:
               image = file.read_bytes()
               assert image.startswith(b"\x89PNG\r\n\x1a\n"), file
               assert sha256(image).hexdigest() == item["sha256"], file
+              # The file must contain real visible RGBA pixels, not a blank
+              # "PNG" placeholder or a transparent no-op sprite.
+              width = int.from_bytes(image[16:20], "big")
+              height = int.from_bytes(image[20:24], "big")
+              assert (width, height) == (320, 400), file
+              blocks = []
+              pos = 8
+              while pos < len(image):
+                  n = int.from_bytes(image[pos:pos + 4], "big")
+                  kind = image[pos + 4:pos + 8]
+                  if kind == b"IDAT":
+                      blocks.append(image[pos + 8:pos + 8 + n])
+                  pos += 12 + n
+              pixels = zlib.decompress(b"".join(blocks))
+              stride = 1 + width * 4
+              assert len(pixels) == stride * height, file
+              assert any(any(pixels[y*stride + 4:(y+1)*stride:4])
+                         for y in range(height)), file
           print(f"VERIFIED: {current.public} public garment IDs, "
                 f"{len(doc['items'])} real PNG drafts")
       - name: Upload public PNG assets with source IDs and hashes
@@ -60,5 +82,13 @@ jobs:
         with:
           name: sofia-avatar2d-public-draft-${{ github.sha }}
           path: ${{ runner.temp }}/avatar2d-public/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload public character part PNGs
+        uses: actions/upload-artifact@v7
+        with:
+          name: sofia-avatar2d-character-parts-${{ github.sha }}
+          path: ${{ runner.temp }}/avatar2d-character/
           if-no-files-found: error
           retention-days: 30
