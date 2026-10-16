@@ -24,6 +24,7 @@ from .vtuber_wardrobe_production import (
 )
 from .vtuber_art_fidelity import brief_from_blueprint
 from .wardrobe_catalog import build_starter_wardrobe
+from .wardrobe_design import resolve_color
 from .wardrobe import Layer, normalize_slots
 from .vtuber_layer_stack import WAIST_UP_SLOTS
 from .private_grant import PrivatePresentationGrantResolver
@@ -44,8 +45,12 @@ class BatchReport:
 
 
 def _art_color(design):
-    primary = _hex(design.primary)
-    accent = _hex(design.accent) if design.accent else (123, 91, 175, 255)
+    # Wardrobe specs use named palette colors. Resolve them before drawing:
+    # _hex("black") would otherwise silently produce the same fallback for
+    # many distinct canonical garments, erasing documented color differences.
+    primary = _hex(resolve_color(design.primary))
+    accent = (_hex(resolve_color(design.accent)) if design.accent
+              else (123, 91, 175, 255))
     return primary, accent
 
 
@@ -211,6 +216,23 @@ def _draw_upper(bp,view,color,accent):
     return s.png()
 
 
+def _draw_harness(design,color,accent):
+    """Isolated technical strap illustration. No wearer or exposed anatomy."""
+    s=Sprite()
+    name=design.name.casefold()
+    if "hip" in name or "pelvic" in name or "waist" in name:
+        s.path(((104,226),(159,243),(215,226)),10,color)
+        s.path(((103,232),(125,292),(162,315),(192,291),(214,232)),8,color)
+        s.ellipse((150,231,171,251),accent)
+        s.ellipse((150,305,171,325),accent)
+    else:
+        s.path(((107,236),(125,178),(161,163),(196,178),(213,236)),9,color)
+        s.path(((113,231),(161,276),(207,231)),11,color)
+        s.path(((118,236),(161,230),(201,236)),8,color)
+        s.ellipse((150,216,172,239),accent)
+    return s.png()
+
+
 def _draft_png(bp,category,view):
     d=bp.design
     color,accent=_art_color(d)
@@ -222,7 +244,9 @@ def _draft_png(bp,category,view):
         return _draw_bottoms(category,d,color,accent)
     if category=="one_pieces":
         return _draw_one_piece(d,color,accent,view)
-    if category in ("tops","outerwear","underlayers_upper","intimate_underlayers"):
+    if category=="intimate_underlayers":
+        return _draw_harness(d,color,accent)
+    if category in ("tops","outerwear","underlayers_upper"):
         return _draw_upper(bp,view,color,accent)
     raise ValueError("source category has no art renderer")
 
