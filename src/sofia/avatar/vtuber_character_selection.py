@@ -97,6 +97,10 @@ def select_character_parts(
     }[gaze]
     if expression in ("sleepy","tired"):
         eyes="half"
+    elif expression == "blink":
+        # The middle animation frame actually closes BOTH independently
+        # authored eyelids. Previously "blink" mapped to two open eyes.
+        eyes="closed"
 
     choices={
         "face":"neutral",
