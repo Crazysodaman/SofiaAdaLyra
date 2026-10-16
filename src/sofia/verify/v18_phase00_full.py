@@ -99,6 +99,7 @@ def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) ->
             "id": task["id"], "requirement": requirement,
             "category": category, "ledger_status": task["status"],
             "gate_with_recorded_proof": gate,
+            "gate4_verified": proof["gate4"],
             "canonical_source_paths": list(source_paths),
             "unassessed_design_review_candidate": candidate_path,
             "candidate_not_independently_reviewed": candidate_path is not None,
@@ -111,7 +112,7 @@ def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) ->
         })
         categories[category] += 1
         counters[task["status"]] += 1
-        counters["gate4"] += (gate == 4)
+        counters["gate4"] += int(proof["gate4"] is True)
     if _git_head(root) != revision:
         raise RoadmapIntegrityError("Git revision changed during Phase 00 audit")
     return {
@@ -127,7 +128,7 @@ def all_phase00_snapshot(root: Path, *, expected_revision: str | None = None) ->
             )
         },
         "candidate_unassessed_documents_verified": candidate_docs,
-        "gate4_recorded": counters["gate4"],
+        "gate4_verified": counters["gate4"],
         "tasks_without_gate4": 65 - counters["gate4"],
         "source_audit_executed": True,
         "focused_tests_attested_by_source_report": False,
@@ -143,12 +144,12 @@ def markdown_summary(report: dict) -> str:
     lines = [
         "# V18 Phase 00: exact source review for 65 original tasks", "",
         f"Revision: `{report['exact_revision']}`", "",
-        f"Original items: {report['task_count']}; Gate 4 receipts: "
-        f"{report['gate4_recorded']}; still without Gate 4: "
+        f"Original items: {report['task_count']}; independently verified Gate 4: "
+        f"{report['gate4_verified']}; still unverified: "
         f"{report['tasks_without_gate4']}.", "",
         "**This report does not award a task, CI result, live-host test, "
         "or production acceptance.**", "",
-        "| Task | Category | Ledger state | Recorded gate | Source paths |",
+        "| Task | Category | Ledger state | Archived receipt count (not acceptance) | Source paths |",
         "| --- | --- | --- | ---: | ---: |",
     ]
     for row in report["tasks"]:
@@ -178,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
             args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
             args.markdown_output.write_text(markdown_summary(report), encoding="utf-8")
         print(f"Phase00 source audit: {report['task_count']} items, "
-              f"Gate4={report['gate4_recorded']}, live=NOT_ATTESTED")
+              f"verified_gate4={report['gate4_verified']}, live=NOT_ATTESTED")
         return 0
     except (OSError, ValueError, RuntimeError) as exc:
         print(f"Phase00 audit rejected: {type(exc).__name__}: {exc}", file=sys.stderr)

@@ -44,7 +44,7 @@ def test_queue_covers_all_780_without_implicit_independence():
     assert next(row for row in report["tasks"] if row["id"] == "ML-001")[
         "state"
     ] == "dependency_review_required"
-    assert report["gate4_recorded"] == progress["overall_gate4_recorded"]
+    assert report["gate4_verified"] == progress["overall_gate4_verified"]
 
 
 def test_dependency_is_not_satisfied_by_gate_two_or_source_status():
@@ -58,7 +58,7 @@ def test_dependency_is_not_satisfied_by_gate_two_or_source_status():
     assert dependent["blocked_by"] == ["CA-4501", "CA-5401"]
 
 
-def test_audited_prerequisites_unlock_dependent_at_gate_three():
+def test_recorded_gate_three_does_not_unlock_without_verified_acceptance():
     progress, reviews = _inputs()
     changed = deepcopy(progress)
     for key in ("CA-4501", "CA-5401"):
@@ -66,10 +66,9 @@ def test_audited_prerequisites_unlock_dependent_at_gate_three():
         row["gate_with_recorded_proof"] = 3
     report = build_work_queue(changed, reviews)
     dependent = next(row for row in report["tasks"] if row["id"] == "CA-4503")
-    # Dependencies are cleared, but the dependent's own recorded
-    # Gate 4 still awaits independently reviewed acceptance.
-    assert dependent["state"] == "review_pending"
-    assert dependent["blocked_by"] == []
+    # Source-bound Gate 3 records are not independent completion receipts.
+    assert dependent["state"] == "blocked_on_prerequisite"
+    assert dependent["blocked_by"] == ["CA-4501", "CA-5401"]
 
 
 def test_cycle_unknown_dependency_and_false_independence_rejected():
@@ -155,7 +154,7 @@ def test_pending_review_cannot_be_dependency_satisfaction_or_completion():
     assert outcome["CA-4501"]["state"] != "complete"
     assert "CA-4501" in outcome["CA-4503"]["blocked_by"]
     assert outcome["CA-4503"]["state"] == "blocked_on_prerequisite"
-    assert report["gate4_recorded"] == progress["overall_gate4_recorded"]
+    assert report["gate4_verified"] == progress["overall_gate4_verified"]
 
 
 def test_pending_review_work_has_its_own_noncompletion_queue():
@@ -164,6 +163,17 @@ def test_pending_review_work_has_its_own_noncompletion_queue():
     reviewed = report["selected_independent_review"]
     assert all(item["state"] == "review_pending" for item in reviewed)
     assert all(item["state"] != "complete" for item in reviewed)
-    assert report["gate4_recorded"] == progress["overall_gate4_recorded"]
+    assert report["gate4_verified"] == progress["overall_gate4_verified"]
     if report["states"]["review_pending"]:
         assert reviewed
+
+
+def test_unverified_four_receipts_are_never_a_completed_dependency():
+    progress, reviews = _inputs()
+    report = build_work_queue(progress, reviews)
+    assert report["gate4_verified"] == 0
+    claimed = [task for task in progress["tasks"] if task["gate_with_recorded_proof"] == 4]
+    assert claimed
+    assert all(task["gate4"] is False for task in claimed)
+    queue = {task["id"]: task for task in report["tasks"]}
+    assert all(queue[task["id"]]["state"] != "complete" for task in claimed)

@@ -31,7 +31,7 @@ def test_all_65_phase00_tasks_have_authoritative_source_and_no_fabricated_gate()
     assert sum(report["ledger_status_counts"][name] for name in (
         "unassessed", "partial_wiring", "code_present_unverified", "accepted",
     )) == 65
-    assert report["tasks_without_gate4"] + report["gate4_recorded"] == 65
+    assert report["tasks_without_gate4"] + report["gate4_verified"] == 65
     assert report["focused_tests_attested_by_source_report"] is False
     assert report["ci_result_attested_by_source_report"] is False
     assert report["venus_or_multi_host_acceptance_attested"] is False

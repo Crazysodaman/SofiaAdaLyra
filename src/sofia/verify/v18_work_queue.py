@@ -104,16 +104,10 @@ def build_work_queue(
         gate = row["gate_with_recorded_proof"]
         item = decisions.get(key)
         deps = [] if item is None else item["depends_on"]
-        # A proof with pending independent review cannot satisfy a
-        # dependent task even if its pinned CI tests passed.
-        blocked = [d for d in deps
-                   if by_id[d]["gate_with_recorded_proof"] < 3
-                   or (by_id[d]["gate_with_recorded_proof"] == 4
-                       and by_id[d].get("independent_review_pending") is True)]
-        review_pending = (
-            gate == 4 and row.get("independent_review_pending") is True
-        )
-        if gate == 4 and not review_pending:
+        # Do not unlock dependents from a historical proof packet.
+        blocked = [d for d in deps if by_id[d].get("gate4") is not True]
+        review_pending = gate == 4 and row.get("gate4") is not True
+        if row.get("gate4") is True:
             state = "complete"
         elif gate == 3:
             state = "awaiting_final_ci"
@@ -155,9 +149,8 @@ def build_work_queue(
     return {
         "schema": "sofia.v18-work-queue-v1",
         "total": 780,
-        # Preserve the source ledger's raw number even though review
-        # pending tasks must not be labeled complete in this queue.
-        "gate4_recorded": sum(row["gate"] == 4 for row in results),
+        # Only independently accepted tasks count as completion.
+        "gate4_verified": counts["complete"],
         "reviewed_dependencies": len(decisions),
         "states": {key: counts[key] for key in (
             "complete", "awaiting_final_ci", "ready", "blocked_on_prerequisite", "reserved",
