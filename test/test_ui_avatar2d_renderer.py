@@ -159,7 +159,14 @@ def test_public_renderer_never_draws_nude_projection(tmp_path,monkeypatch):
                    attire=AttireMode.NUDE,private_fallback_used=False)
     renderer.render_idle(denied)
     assert not canvas.painted
-    assert fallback.calls==["fallback_idle"]
+    assert fallback.calls==[]  # no unsafe private symbolic output
+    receipts=[]
+    renderer.render(
+        AvatarRenderRequest(SimpleNamespace(decision_id="private.1"),denied),
+        completed=lambda *values: receipts.append(values),
+    )
+    assert receipts[0][1] is False
+    assert fallback.calls==[]
 
 
 def test_cancel_pending_layered_frame_reports_no_success(tmp_path,monkeypatch):
