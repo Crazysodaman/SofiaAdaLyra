@@ -221,3 +221,29 @@ def test_neuro_snapshot_cannot_be_claimed_before_it_was_observed(tmp_path):
             matrix_trace=matrix, neuro_snapshot=future,
             neuro_turn_snapshot=future,
         )
+
+
+
+@pytest.mark.parametrize("invalid_audience", [None, "", "  "])
+def test_incomplete_social_audience_never_proves_owner_scope(tmp_path, invalid_audience):
+    path, matrix = _fixture(tmp_path)
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "UPDATE social_session_principal SET audience_id=? WHERE session_id=?",
+            (invalid_audience, matrix.envelope.session_id),
+        )
+    proof = inspect_turn_persistence(path, matrix_trace=matrix)
+    assert proof.user_message_persisted
+    assert proof.matrix_decision_persisted
+    assert not proof.principal_scope_verified
+    assert not proof.same_turn_verified
+    assert proof.verified_audience_id is None
+    projection = project_companion_decision(
+        matrix_trace=matrix, neuro_snapshot=None,
+        canonical_persistence=proof,
+    )
+    assert projection is not None
+    assert projection.source_event is not None
+    assert projection.source_event.principal_id is None
+    assert projection.source_event.audience_id is None
+    assert not projection.source_event.can_authorize
