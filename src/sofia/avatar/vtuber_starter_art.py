@@ -21,8 +21,8 @@ from pathlib import Path
 import struct
 import zlib
 
-from sofia.embodiment.store import EmbodimentStore
-from .presentation_runtime import load_or_bootstrap_presentation
+from .wardrobe_catalog import build_starter_wardrobe
+from .wardrobe_matrix import build_wardrobe_matrix
 from .vtuber_layer_stack import WAIST_UP_SLOTS
 from .wardrobe import Layer
 
@@ -280,7 +280,7 @@ def _write_new(path: Path, content: bytes) -> None:
 
 
 def generate_public_outfit_art(
-    bundle,
+    catalog,
     *,
     outfit_id: str,
     destination: Path,
@@ -294,10 +294,10 @@ def generate_public_outfit_art(
         ch.isalnum() or ch in "._-" for ch in outfit_id
     ):
         raise ValueError("invalid canonical outfit ID")
-    plan = bundle.catalog.preset(outfit_id)
+    plan = catalog.preset(outfit_id)
     if plan.private_only:
         raise PermissionError("protected outfits need a separate authorized art workflow")
-    matrix = bundle.matrix_for(plan.item_ids)
+    matrix = build_wardrobe_matrix(catalog, plan.item_ids)
     if not matrix.covered_default or matrix.private_only:
         raise ValueError("public outfit must retain approved clothing coverage")
     folder = _safe_root(Path(destination),create=True)
@@ -365,23 +365,22 @@ def generate_public_outfit_art(
 def main(argv: list[str] | None = None) -> int:
     parser=argparse.ArgumentParser(description="Generate safe public 2D wardrobe PNG assets")
     parser.add_argument("--output",type=Path,required=True)
-    parser.add_argument("--state",type=Path,required=True,
-                        help="existing configured canonical sofia.db")
+    parser.add_argument("--state",type=Path,
+                        help="optional existing state path for reviewed generated wardrobe metadata; read only")
     parser.add_argument("--outfit",default="all",
                         help="existing public outfit ID, or all")
     args=parser.parse_args(argv)
-    seed=Path(__file__).resolve().parents[1]/"embodiment"/"avatar.json"
-    bundle=load_or_bootstrap_presentation(
-        embodiment=EmbodimentStore(seed).load(),state_path=args.state,
-    )
+    # Read existing garment/outfit definitions only; do not bootstrap or write
+    # the canonical database merely to make artwork.
+    catalog = build_starter_wardrobe(state_path=args.state)
     selected=[
-        o.outfit_id for o in bundle.catalog.presets if not o.private_only
+        o.outfit_id for o in catalog.presets if not o.private_only
     ] if args.outfit=="all" else [args.outfit]
     # Idempotent safety: never overwrite or silently modify a reviewed art pack.
     for outfit_id in selected:
         target=args.output/"outfits"/outfit_id
         result=generate_public_outfit_art(
-            bundle,outfit_id=outfit_id,destination=target,
+            catalog,outfit_id=outfit_id,destination=target,
         )
         print(f"{result.outfit_id}: {result.asset_count} real PNG layers, "
               f"{result.bytes_written} bytes, SHA256 {result.manifest_digest}")
