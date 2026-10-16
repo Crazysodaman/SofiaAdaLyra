@@ -92,16 +92,19 @@ channel/HTTPS RP domain bridging after a witnessed sole-writer cutover.
 
 ## Recovery and failure modes
 
-`ApprovalInbox.recover()` may be called at startup or on periodic owner UI
-refresh. It expires pending requests after 24 hours; expires signed approvals
+`ApprovalInbox.__init__()` performs startup recovery automatically; 
+`ApprovalInbox.recover()` can also be called from the CLI or on periodic
+owner UI refresh. It expires pending requests after 24 hours; expires signed approvals
 after their 600-second window; and returns review leases older than 3 minutes
 to pending (unless original request expired). It **never** opens a browser,
 signs on behalf of the owner, obtains a receipt or replays an external action.
 
 The review lease token prevents a late browser result from attaching to a
-superseding review. An already-signed orphan receipt can remain in SAFE after
-a lost lease; the inbox does not expose it as an approved result. The existing
-SAFE proof is one-use, action-bound and separately expires. Because a remote
+superseding review. If the browser signed but inbox finalization fails, the
+inbox also attempts to consume the orphaned SAFE receipt to invalidate it;
+it never exposes that receipt as an approved result. Database failures can
+prevent cleanup, so the signed SAFE proof remains short-lived, exact-action,
+and one-use even under abnormal termination. Because a remote
 effect is not rollback-atomic with SQLite, command retry still requires
 idempotency/effect receipts at the execution boundary.
 
