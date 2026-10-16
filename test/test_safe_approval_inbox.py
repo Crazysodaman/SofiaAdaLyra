@@ -204,6 +204,13 @@ def test_expired_review_lease_fences_late_approval(tmp_path, monkeypatch):
     recovered = ApprovalInbox(state)
     assert recovered.get(pending.request_id).status == "pending"
     assert recovered.get(pending.request_id).approval_id is None
+    with sqlite3.connect(state) as db:
+        # Signer did approve while the lease was being lost, but the inbox
+        # invalidated the orphaned receipt instead of exposing it.
+        assert db.execute(
+            "SELECT count(*) FROM safe_execution_approval "
+            "WHERE consumed_at IS NOT NULL"
+        ).fetchone()[0] == 1
 
 
 def test_owner_denial_and_outbox_retry(tmp_path, monkeypatch):
@@ -288,3 +295,16 @@ def test_request_cannot_smuggle_unbound_approval_id(tmp_path):
         inbox.create("fleet.enroll", {
             "host_id": "Artemis", "approval_id": "untrusted",
         })
+
+
+def test_constructor_recovers_expired_requests_after_restart(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    first = ApprovalInbox(state)
+    old = first.create(
+        "fleet.enroll", {"host_id": "Artemis"},
+        now=datetime.now(timezone.utc) - timedelta(hours=25),
+    )
+    assert first.get(old.request_id).status == "pending"
+    restarted = ApprovalInbox(state)
+    assert restarted.get(old.request_id).status == "expired"
+    assert restarted.audit.verify() == (True, None)
