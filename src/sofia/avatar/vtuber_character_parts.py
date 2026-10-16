@@ -24,8 +24,10 @@ from .vtuber_starter_art import Sprite, WIDTH, HEIGHT, _shade
 _PUBLIC_GROUPS = {
     "face": ("neutral", "soft"),
     "freckles": ("off", "on"),
-    "eyes": ("open", "half", "closed", "looking_left", "looking_right"),
-    "brows": ("neutral", "skeptical"),
+    "eye_left": ("open", "half", "closed", "looking_left", "looking_right"),
+    "eye_right": ("open", "half", "closed", "looking_left", "looking_right"),
+    "brow_left": ("neutral", "skeptical"),
+    "brow_right": ("neutral", "skeptical"),
     "mouth": ("closed", "smile", "talk_small", "talk_wide"),
     "hair_back": ("long_layered", "tied_back"),
     "hair_front": ("long_layered", "tied_back"),
@@ -38,12 +40,14 @@ _PUBLIC_GROUPS = {
 _Z = {
     "tail": 10, "hair_back": 20,
     "ear_left": 25, "ear_right": 25,
-    "face": 50, "eyes": 55, "brows": 60, "mouth": 65,
+    "face": 50, "eye_left": 55, "eye_right": 55,
+    "brow_left": 60, "brow_right": 60, "mouth": 65,
     "freckles": 70,
     "hair_front": 90,
 }
 _ANCHOR = {
-    "face": "head", "eyes": "head", "brows": "head", "mouth": "head",
+    "face": "head", "eye_left": "head", "eye_right": "head",
+    "brow_left": "head", "brow_right": "head", "mouth": "head",
     "freckles": "head",
     "hair_back": "head", "hair_front": "head",
     "ear_left": "left_fox_ear", "ear_right": "right_fox_ear",
@@ -98,30 +102,32 @@ def _paint(group: str, variant: str, *, appearance: dict) -> bytes:
             for x,y in ((125,174),(131,177),(136,175),
                         (184,174),(190,176),(197,172)):
                 s.ellipse((x,y,x+3,y+3),_shade(skin,.78))
-    elif group == "eyes":
-        for x in (123,175):
-            if variant == "closed":
-                s.path(((x,137),(x+12,140),(x+26,137)),3,ink)
-            else:
-                eyelid = (x,124,x+29,145 if variant != "half" else 136)
-                s.ellipse(eyelid,white)
-                if variant == "half":
-                    s.rectangle((x,123,x+29,131),skin)
-                else:
-                    gaze = -4 if variant == "looking_left" else (
-                        4 if variant == "looking_right" else 0
-                    )
-                    s.ellipse((x+9+gaze,126,x+21+gaze,141),iris)
-                    s.ellipse((x+13+gaze,128,x+18+gaze,138),ink)
-                    s.ellipse((x+11+gaze,128,x+14+gaze,131),white)
-                s.path(((x,128),(x+14,123),(x+28,127)),2,ink)
-    elif group == "brows":
-        if variant == "neutral":
-            s.path(((122,116),(140,113),(151,116)),3,wine)
-            s.path(((175,116),(188,113),(200,116)),3,wine)
+    elif group.startswith("eye_"):
+        x = 123 if group == "eye_left" else 175
+        if variant == "closed":
+            s.path(((x,137),(x+12,140),(x+26,137)),3,ink)
         else:
-            s.path(((121,117),(139,111),(151,113)),3,wine)
-            s.path(((175,116),(192,119),(202,116)),3,wine)
+            eyelid = (x,124,x+29,145 if variant != "half" else 136)
+            s.ellipse(eyelid,white)
+            gaze = -4 if variant == "looking_left" else (
+                4 if variant == "looking_right" else 0
+            )
+            s.ellipse((x+9+gaze,126,x+21+gaze,141),iris)
+            s.ellipse((x+13+gaze,128,x+18+gaze,138),ink)
+            s.ellipse((x+11+gaze,128,x+14+gaze,131),white)
+            if variant == "half":
+                s.rectangle((x,124,x+29,131),skin)
+            s.path(((x,128),(x+14,123),(x+28,127)),2,ink)
+    elif group.startswith("brow_"):
+        if group == "brow_left":
+            coords = ((122,116),(140,113),(151,116)) if variant == "neutral" else (
+                (121,117),(139,111),(151,113)
+            )
+        else:
+            coords = ((175,116),(188,113),(200,116)) if variant == "neutral" else (
+                (175,116),(192,119),(202,116)
+            )
+        s.path(coords,3,wine)
     elif group == "mouth":
         if variant == "closed":
             s.path(((151,199),(161,202),(171,199)),2,(146,74,103,255))
