@@ -96,7 +96,12 @@ class TkLayered2DRenderer:
         public_root: Path,
         state_path: Path | None = None,
         fallback: TkAvatarRenderer | None = None,
+        idle_blink_ms: int = 12000,
     ) -> None:
+        if type(idle_blink_ms) is not int or (
+            idle_blink_ms != 0 and not 2000 <= idle_blink_ms <= 60000
+        ):
+            raise ValueError("idle blink interval must be 0 or 2000..60000 ms")
         if not isinstance(public_root, Path) or not str(public_root).strip():
             raise TypeError("explicit public sprite path required")
         self.root = root
@@ -107,6 +112,8 @@ class TkLayered2DRenderer:
         self._active_decision: str | None = None
         self._pending_after: object | None = None
         self._generation = 0
+        self._idle_blink_ms = idle_blink_ms
+        self._idle_after: object | None = None
         self._images: list = []
         self._last_revision: int | None = None
         self._last_digest: str | None = None
@@ -232,6 +239,63 @@ class TkLayered2DRenderer:
         self._last_digest = None
         self.fallback.render(request, completed=completed)
 
+    def _schedule_idle_blink(self, projection: PresentationProjection) -> None:
+        """Periodically blink actual eyelid sprites with no invented receipt.
+
+        Only an already-verified public modular portrait may run this loop.
+        A hidden canvas never repaints, and stop()/mode selection invalidates
+        its generation token. This is simple deterministic idle behavior, not
+        emotion, eye-tracking, gaze inference or cognition.
+        """
+        if self._idle_blink_ms == 0 or not self._verified_public(projection):
+            return
+        if self._idle_after is not None or self._active_decision is not None:
+            return
+        generation = self._generation
+
+        def tick() -> None:
+            self._idle_after = None
+            if generation != self._generation or self._active_decision is not None:
+                return
+            if (
+                hasattr(self.canvas, "winfo_viewable")
+                and not self.canvas.winfo_viewable()
+            ):
+                self._schedule_idle_blink(projection)
+                return
+            try:
+                _, modular = self._paint(projection, expression="blink")
+                if not modular:
+                    return
+            except Exception:
+                # Do not force a mixed partial render or keep retrying bad
+                # image bytes forever. The next trusted presentation update
+                # may reinitialize a new sprite pack.
+                self.canvas.delete("avatar2d")
+                self._images.clear()
+                self.fallback.render_idle(projection)
+                return
+
+            def reopen() -> None:
+                self._pending_after = None
+                if (
+                    generation != self._generation
+                    or self._active_decision is not None
+                ):
+                    return
+                try:
+                    self._paint(projection)
+                except Exception:
+                    self.canvas.delete("avatar2d")
+                    self._images.clear()
+                    self.fallback.render_idle(projection)
+                    return
+                self._schedule_idle_blink(projection)
+
+            self._pending_after = self.root.after(135, reopen)
+
+        self._idle_after = self.root.after(self._idle_blink_ms, tick)
+
     def render(self, request: AvatarRenderRequest, *, completed) -> None:
         if not isinstance(request, AvatarRenderRequest):
             raise TypeError("avatar renderer requires AvatarRenderRequest")
@@ -313,6 +377,8 @@ class TkLayered2DRenderer:
                         if visible else "avatar window not visible; no frame receipt"
                     ),
                 )
+                if visible and modular:
+                    self._schedule_idle_blink(request.presentation)
             self._pending_after = self.root.after(45, finish)
         paint(0)
 
@@ -324,7 +390,9 @@ class TkLayered2DRenderer:
             self._images.clear()
             return
         try:
-            self._paint(presentation)
+            _, modular = self._paint(presentation)
+            if modular:
+                self._schedule_idle_blink(presentation)
         except Exception:
             self.canvas.delete("avatar2d")
             self._images.clear()
@@ -334,6 +402,12 @@ class TkLayered2DRenderer:
         self._generation += 1
         decision = self._active_decision
         self._active_decision = None
+        if self._idle_after is not None:
+            try:
+                self.root.after_cancel(self._idle_after)
+            except (AttributeError, ValueError):
+                pass
+            self._idle_after = None
         if self._pending_after is not None:
             try:
                 self.root.after_cancel(self._pending_after)
