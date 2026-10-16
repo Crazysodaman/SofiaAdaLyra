@@ -30,7 +30,7 @@ jobs:
       - name: Install package and pytest
         run: python -m pip install -e . pytest
       - name: Test gate tracking and source integrity
-        run: python -m pytest -q test/test_v18_gate4.py test/test_v18_ci_receipts.py test/test_v18_gate4_review.py
+        run: python -m pytest -q test/test_v18_gate4.py test/test_v18_ci_receipts.py test/test_v18_gate4_review.py test/test_v18_gate4_acceptance.py
       - name: Generate 700-task Gate 4 report
         run: >-
           python -m sofia.verify.v18_gate4
