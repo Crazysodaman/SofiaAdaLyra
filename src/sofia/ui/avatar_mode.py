@@ -62,6 +62,7 @@ class ExclusiveAvatarRenderer:
         two_d: AvatarBackend,
         three_d: AvatarBackend | None = None,
         preferred: AvatarVisualMode = AvatarVisualMode.TWO_D,
+        clear_visual: Callable[[], None] | None = None,
     ) -> None:
         if not isinstance(two_d, AvatarBackend):
             raise TypeError("functional 2D backend required")
@@ -78,6 +79,7 @@ class ExclusiveAvatarRenderer:
             self._backends[AvatarVisualMode.THREE_D] = three_d
         self._active = AvatarVisualMode.TWO_D
         self._generation = 0
+        self._clear_visual = clear_visual or (lambda: None)
         if preferred is AvatarVisualMode.THREE_D:
             self.select(preferred)
 
@@ -110,6 +112,10 @@ class ExclusiveAvatarRenderer:
         # re-enter the event loop on some platform drivers.
         self._generation += 1
         cancelled = old.stop()
+        # Clear old backend pixels before any newly selected mode may paint.
+        # The renderer-specific stop() must also release its GPU/animation
+        # resources; the UI clear handles shared Tk preview contents.
+        self._clear_visual()
         self._active = mode
         return AvatarModeTransition(
             previous, mode, True, cancelled, old.backend_name,
