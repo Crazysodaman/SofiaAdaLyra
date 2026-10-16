@@ -74,7 +74,8 @@ def _kind(line: str) -> str:
 
 def _next(task: dict, gate: int, kind: str) -> str:
     if gate == 4:
-        return "Gate 4 proof recorded; defer production gates 5-6."
+        return ("Receipt packet exists, but task acceptance is not independently "
+                "authenticated. Recheck original requirements, reviewer, CI and host tests.")
     if gate == 3:
         return "Run task-specific tests and failure cases at an exact revision."
     if gate == 2:
@@ -113,11 +114,12 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
         if "**" + task_id + " " not in line:
             raise RoadmapIntegrityError("task source mismatch " + task_id)
         gate = verified_gate_count(root, task)
-        # Preserve historical recorded proofs but expose unfinished review.
+        # A content-bound receipt packet is NOT independent acceptance.
+        # Nothing in the present ledger proves an independently authenticated
+        # reviewer has covered every original requirement.
         review = review_readiness(task)
-        independent_review_pending = (
-            gate == 4 and review["review_readiness"] == "independent_review_pending"
-        )
+        independently_accepted = False
+        independent_review_pending = gate == 4
         kind = _kind(line)
         phase_row = per_phase.setdefault(phase, {
             "total": 0, "unassessed": 0, "partial_wiring": 0,
@@ -127,16 +129,17 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
             raise RoadmapIntegrityError("invalid task status " + task_id)
         phase_row["total"] += 1
         phase_row[status] += 1
-        phase_row["gate4"] += int(gate == 4)
+        phase_row["gate4"] += int(independently_accepted)
         counts[status] += 1
-        counts["gate4"] += int(gate == 4)
+        counts["gate4"] += int(independently_accepted)
         gap = ((task.get("phase00_batch30_review") or {}).get("unresolved_requirement")
                or (task.get("audit_observation") or {}).get("missing")
                or (task.get("production_wiring") or {}).get("remaining"))
         output.append({
             "id": task_id, "phase": phase, "kind": kind, "source_status": status,
             "original_requirement": line,
-            "gate_with_recorded_proof": gate, "gate4": gate == 4,
+            "gate_with_recorded_proof": gate, "gate4": independently_accepted,
+            "review_readiness": review["review_readiness"],
             "independent_review_pending": independent_review_pending,
             "next_gate": min(gate + 1, 4),
             "next_action": _next(task, gate, kind),
@@ -167,10 +170,13 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
         extra.append({
             "id": key, "phase": phase, "kind": "additional planned ML/GA task",
             "original_requirement": requirement, "gate_with_recorded_proof": passed,
-            "gate4": passed == 4, "next_gate": min(passed + 1, 4),
-            "next_action": ("Gate 4 proof recorded; host sign-off deferred." if passed == 4
-                            else "Implement and audit planned item; validate original "
-                                 "ML/GA acceptance and focused tests."),
+            "gate4": False,
+            "independent_review_pending": passed == 4,
+            "next_gate": min(passed + 1, 4),
+            "next_action": ("Independent acceptance needed for every original requirement."
+                            if passed == 4 else
+                            "Implement and audit planned item; validate original "
+                            "ML/GA acceptance and focused tests."),
         })
     if len(extra) != 80 or len({x["id"] for x in extra}) != 80:
         raise RoadmapIntegrityError("expected 40 ML and 40 GA supplemental tasks")
@@ -178,20 +184,21 @@ def gate4_snapshot(root: Path, *, ledger: dict | None = None) -> dict:
         raise RoadmapIntegrityError("unknown supplemental task proof")
     extras_at_four = sum(x["gate4"] for x in extra)
     return {
-        "schema": "sofia.v18-gate4-progress-v1",
+        "schema": "sofia.v18-gate4-evidence-only-v2",
         "target": 4, "deferred": [5, 6], "original_total": 700,
         "planned_total": 780, "supplemental_total": 80,
-        "supplemental_gate4_recorded": extras_at_four,
-        "overall_gate4_recorded": counts["gate4"] + extras_at_four,
-        "overall_without_gate4_proof": 780 - counts["gate4"] - extras_at_four,
+        "supplemental_gate4_verified": extras_at_four,
+        "overall_gate4_verified": counts["gate4"] + extras_at_four,
+        "overall_gate4_remaining": 780 - counts["gate4"] - extras_at_four,
         "counts": {**{key: counts[key] for key in
                       ("unassessed", "partial_wiring", "code_present_unverified", "accepted")},
-                   "gate4_recorded": counts["gate4"],
-                   "still_without_gate4_proof": 700 - counts["gate4"]},
+                   "gate4_verified": counts["gate4"],
+                   "still_unverified": 700 - counts["gate4"]},
         "phases": per_phase, "focus_next": focus, "tasks": output,
         "supplemental_tasks": extra,
-        "warning": "Source records alone do not authenticate external CI. "
-                   "Independent reviewer must validate run result and task test coverage.",
+        "warning": "No task has independent Gate 4 acceptance authenticated "
+                   "by this verifier. Historical proof entries and green CI "
+                   "are not full requirement coverage or reviewer sign-off.",
     }
 
 
@@ -199,10 +206,11 @@ def markdown_summary(data: dict) -> str:
     c = data["counts"]
     lines = ["# Sofía V18 Gate 4 Progress", "",
              "Development target is all 780 planned tasks (700 CA + 40 ML + 40 GA) through Gate 4. Gates 5-6 deferred.",
-             f"**Gate 4 evidence recorded: {c['gate4_recorded']}/700.** "
-             f"Still without complete CA proof: {c['still_without_gate4_proof']}.",
-             f"Overall Gate 4 evidence: {data['overall_gate4_recorded']}/780; "
-             f"remaining: {data['overall_without_gate4_proof']}.",
+             f"**Independently verified Gate 4: {c['gate4_verified']}/700.** "
+             f"Still unverified CA tasks: {c['still_unverified']}.",
+             f"Overall independently verified: {data['overall_gate4_verified']}/780; "
+             f"remaining: {data['overall_gate4_remaining']}.",
+             "Historical receipt packets are not counted as completed tasks.",
              f"Source triage: {c['unassessed']} unassessed; "
              f"{c['partial_wiring']} partially wired; "
              f"{c['code_present_unverified']} code present but unverified.", "",
@@ -220,7 +228,7 @@ def markdown_summary(data: dict) -> str:
                      + t["next_action"].replace("|", "/") + " |")
     lines.append("")
     lines.append("ML and GA addenda: 80 supplemental planned items, "
-                 f"{data['supplemental_gate4_recorded']} with Gate 4 proof.")
+                 f"{data['supplemental_gate4_verified']} independently verified.")
     return "\n".join(lines) + "\n"
 
 
@@ -237,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.markdown_output:
             args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
             args.markdown_output.write_text(markdown_summary(report), encoding="utf-8")
-        print(f"gate4={report['counts']['gate4_recorded']}/700")
+        print(f"verified_gate4={report['overall_gate4_verified']}/780")
         return 0
     except (OSError, ValueError, RuntimeError) as error:
         print("Gate4 report rejected: " + str(error), file=sys.stderr)

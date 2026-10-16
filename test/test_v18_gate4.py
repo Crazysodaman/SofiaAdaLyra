@@ -29,11 +29,11 @@ def test_every_task_has_next_action_and_phase_tracking():
     assert report["planned_total"] == 780
     assert len(report["supplemental_tasks"]) == 80
     assert len({x["id"] for x in report["supplemental_tasks"]}) == 80
-    assert report["overall_gate4_recorded"] + report["overall_without_gate4_proof"] == 780
+    assert report["overall_gate4_verified"] + report["overall_gate4_remaining"] == 780
     assert len({row["id"] for row in report["tasks"]}) == 700
     assert sum(p["total"] for p in report["phases"].values()) == 700
     n = report["counts"]
-    assert n["gate4_recorded"] + n["still_without_gate4_proof"] == 700
+    assert n["gate4_verified"] + n["still_unverified"] == 700
     assert sum(n[x] for x in ("unassessed", "partial_wiring",
                               "code_present_unverified", "accepted")) == 700
     assert report["deferred"] == [5, 6]
@@ -90,4 +90,7 @@ def test_gate4_report_distinguishes_pending_independent_review():
     assert all("independent_review_pending" in row for row in report["tasks"])
     declared = [row for row in report["tasks"] if row["independent_review_pending"]]
     assert all(row["gate_with_recorded_proof"] == 4 for row in declared)
-    assert all(row["gate4"] for row in declared)
+    assert all(not row["gate4"] for row in declared)
+    assert all(row["review_readiness"] != "independently_verified" for row in declared)
+    assert report["overall_gate4_verified"] == 0
+    assert "Independently verified Gate 4: 0/700" in markdown_summary(report)
