@@ -3,7 +3,10 @@ import json
 
 import pytest
 
-from sofia.avatar.presentation import PrivatePresentationGrant
+from sofia.avatar.private_grant import PrivatePresentationGrantResolver
+from sofia.safe.permissions import PermissionStore
+from sofia.social.principals import local_sparks_principal
+from test.owner_auth_fixture import private_with_signed_owner
 from sofia.avatar.vtuber_wardrobe_production import (
     canonical_json_wardrobe_records,
     export_public_production_queue,
@@ -60,35 +63,37 @@ def test_public_queue_lists_all_public_items_and_only_aggregates_private(tmp_pat
         export_public_production_queue(output)
 
 
-def test_protected_details_fail_closed_without_valid_live_owner_grant():
+def test_protected_details_fail_closed_without_actual_durable_safe_permissions(tmp_path):
+    store=PermissionStore(tmp_path/"sofia.db")
+    resolver=PrivatePresentationGrantResolver(state_path=tmp_path/"sofia.db")
+    principal=local_sparks_principal()
     with pytest.raises(PermissionError):
-        protected_work_orders(grant=None)
-    invalid = PrivatePresentationGrant(
-        adult_verified=False,
-        owner_verified=True,
-        private_session=True,
-        explicit_current_opt_in=True,
-        external_stop_active=False,
+        protected_work_orders(
+            resolver=resolver, principal=principal,
+            explicit_current_opt_in=True,
+        )
+    private_with_signed_owner(
+        store,private_chat=True,adult_chat=False,
+        adult_avatar=True,adult_external_delivery=False,
     )
     with pytest.raises(PermissionError):
-        protected_work_orders(grant=invalid)
-    stopped = PrivatePresentationGrant(
-        adult_verified=True,
-        owner_verified=True,
-        private_session=True,
+        protected_work_orders(
+            resolver=resolver,principal=principal,
+            explicit_current_opt_in=False,
+        )
+    selected=protected_work_orders(
+        resolver=resolver,principal=principal,
         explicit_current_opt_in=True,
-        external_stop_active=True,
     )
-    with pytest.raises(PermissionError):
-        protected_work_orders(grant=stopped)
-    authorized = PrivatePresentationGrant(
-        adult_verified=True,
-        owner_verified=True,
-        private_session=True,
-        explicit_current_opt_in=True,
-        external_stop_active=False,
-    )
-    selected = protected_work_orders(grant=authorized)
-    assert len(selected) == 51
+    assert len(selected)==51
     assert all(item.private_only for item in selected)
-    assert all(len(item.source_sha256) == 64 for item in selected)
+    assert all(len(item.source_sha256)==64 for item in selected)
+    private_with_signed_owner(
+        store,private_chat=True,adult_chat=False,
+        adult_avatar=False,adult_external_delivery=False,
+    )
+    with pytest.raises(PermissionError):
+        protected_work_orders(
+            resolver=resolver,principal=principal,
+            explicit_current_opt_in=True,
+        )
