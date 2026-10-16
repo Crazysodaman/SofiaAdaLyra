@@ -85,7 +85,7 @@ def select_character_parts(
     resolved_tail = tail_cue if tail_cue is not None else gesture
     if resolved_ear in ("ear-perk", "ear-flick"):
         ears = "perked"
-    elif resolved_ear == "ear-flatten" or appearance.ear_pose in ("flattened", "relaxed"):
+    elif resolved_ear in ("ear-relax", "ear-flatten") or appearance.ear_pose in ("flattened", "relaxed"):
         ears = "relaxed"
         if resolved_ear == "ear-flatten" or appearance.ear_pose == "flattened":
             warnings.append("fully flattened fox ears need another sprite")
