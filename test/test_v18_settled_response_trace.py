@@ -113,3 +113,45 @@ def test_legacy_schema_with_no_settlement_owner_reports_unverified(tmp_path):
     assert not result.assistant_reply_persisted
     assert not result.canonical_turn_settled
     assert result.canonical_event_id is None
+
+
+
+@pytest.mark.parametrize("offset", [-1, 1])
+def test_settlement_cannot_be_backdated_or_premature(tmp_path, offset):
+    from datetime import timedelta
+    state, matrix = _settled(tmp_path)
+    with closing(sqlite3.connect(state)) as db, db:
+        db.execute(
+            "UPDATE canonical_conversation_turn SET settled_at=? WHERE event_id=?",
+            ((NOW + timedelta(seconds=offset)).isoformat(), "event:1"),
+        )
+    result = inspect_turn_persistence(state, matrix_trace=matrix)
+    if offset < 0:
+        assert not result.canonical_turn_settled
+    else:
+        assert result.canonical_turn_settled
+
+
+@pytest.mark.parametrize("timestamp", [
+    "not-an-iso-datetime",
+    "2026-10-15T20:00:00",  # naive
+    "2040-01-01T00:00:00+00:00",  # future of committed settlement
+    "2000-01-01T00:00:00+00:00",  # before original user and Matrix
+])
+def test_assistant_reply_requires_causal_timestamp_evidence(tmp_path, timestamp):
+    state, matrix = _settled(tmp_path)
+    with closing(sqlite3.connect(state)) as db, db:
+        db.execute(
+            "UPDATE conversation_messages SET created_at=? WHERE id=?",
+            (timestamp, "assistant-response-1"),
+        )
+    result = inspect_turn_persistence(state, matrix_trace=matrix)
+    assert result.user_message_persisted
+    assert result.matrix_decision_persisted
+    assert not result.canonical_turn_settled
+    assert not result.assistant_reply_persisted
+
+
+def test_assistant_reply_at_settlement_boundary_remains_valid(tmp_path):
+    state, matrix = _settled(tmp_path)
+    assert inspect_turn_persistence(state, matrix_trace=matrix).canonical_turn_settled

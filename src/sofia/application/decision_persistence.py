@@ -53,6 +53,7 @@ def inspect_turn_persistence(
     message_ok = decision_ok = scope_ok = False
     reply_ok = settled = False
     event_id = assistant_id = bound_audience = None
+    user_created_at = None
     response_refs: tuple[str, ...] = ()
     guard = CanonicalSQLiteGuard(state_path)
     with closing(guard.connect(timeout=5, read_only=True)) as db:
@@ -104,6 +105,8 @@ def inspect_turn_persistence(
                                 and created.utcoffset() is not None
                                 and created <= matrix_trace.created_at
                             )
+                            if message_ok:
+                                user_created_at = created
                         except (TypeError, ValueError):
                             message_ok = False
                     if row is not None:
@@ -205,16 +208,33 @@ def inspect_turn_persistence(
                                     and len(set(raw_refs)) == len(raw_refs)
                                 )
                                 assistant = db.execute(
-                                    "SELECT session_id,role,content "
+                                    "SELECT session_id,role,content,created_at "
                                     "FROM conversation_messages WHERE id=?",
                                     (entry[1],),
                                 ).fetchone()
+                                assistant_time_ok = False
+                                if assistant is not None:
+                                    try:
+                                        assistant_created = datetime.fromisoformat(
+                                            assistant[3],
+                                        )
+                                        assistant_time_ok = (
+                                            user_created_at is not None
+                                            and assistant_created.tzinfo is not None
+                                            and assistant_created.utcoffset() is not None
+                                            and user_created_at <= assistant_created
+                                            and matrix_trace.created_at <= assistant_created
+                                            and assistant_created <= when
+                                        )
+                                    except (ValueError, TypeError):
+                                        pass
                                 reply_ok = (
                                     assistant is not None
                                     and assistant[0] == envelope.session_id
                                     and assistant[1] == "assistant"
                                     and assistant[2] == payload["content"]
                                     and refs_valid
+                                    and assistant_time_ok
                                 )
                                 if reply_ok:
                                     settled = True
