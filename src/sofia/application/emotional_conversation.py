@@ -37,11 +37,12 @@ from sofia.emotion.model import CurrentEmotionalState
 from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.modulation import derive_expression_modulation
+from sofia.personality.preferences import CommunicationStylePreferences
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
 from sofia.runtime.runtime import SofiaRuntime
-from sofia.social.model import PrincipalContext, SocialScope
+from sofia.social.model import AudienceKind, PrincipalContext, SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.social.affect import (
     UserAffectAppraiser,
@@ -170,6 +171,8 @@ class EmotionalConversationService(ConversationService):
         self._expression_runtime: ExpressionRuntime | None = None
         self._presentation_revision_provider = None
         self._last_expression_runtime_error: str | None = None
+        self._communication_preference_provider = None
+        self._active_channel = "conversation"
         self._model_lock = model_lock if model_lock is not None else RLock()
         if (
             activity_group is not None
@@ -195,6 +198,24 @@ class EmotionalConversationService(ConversationService):
         if service is not None and not hasattr(service, "record_evidence"):
             raise TypeError("evolution service must record provenance-backed evidence")
         self._evolution_service = service
+
+    def set_communication_preference_provider(self, provider) -> None:
+        """Install the app-owned, authenticated audience style projection."""
+        if provider is not None and not callable(provider):
+            raise TypeError("communication preference provider must be callable")
+        self._communication_preference_provider = provider
+
+    def _communication_preferences(
+        self, principal: PrincipalContext | None = None,
+    ) -> CommunicationStylePreferences | None:
+        provider = getattr(self, "_communication_preference_provider", None)
+        resolved = principal or self._principal_context()
+        if provider is None or resolved is None:
+            return None
+        preferences = provider(resolved)
+        if not isinstance(preferences, CommunicationStylePreferences):
+            raise TypeError("communication preference provider returned invalid data")
+        return preferences
 
     def open(self) -> None:
         super().open()
@@ -276,7 +297,14 @@ class EmotionalConversationService(ConversationService):
     def relationship_scope(self) -> SocialScope:
         principal = self._principal_context()
         if principal is not None:
-            return principal.relationship_scope
+            # Private authenticated surfaces may share relationship continuity
+            # for the same person. Shared/public surfaces remain exact-audience
+            # scoped so their context cannot expose private emotional history.
+            return (
+                principal.relationship_scope
+                if principal.audience_kind is AudienceKind.PRIVATE
+                else principal.audience_scope
+            )
         core_state = getattr(self._runtime, "core_state", None)
         relationships = (
             getattr(core_state, "relationships", ())
@@ -309,9 +337,13 @@ class EmotionalConversationService(ConversationService):
         if self._runtime.personality is None:
             raise RuntimeError("No personality profile is active.")
         current = now or datetime.now(timezone.utc)
+        principal = self._principal_context()
+        if principal is not None:
+            return self.emotional_journal.current_state_for_principal(
+                now=current, principal=principal,
+            )
         return self.emotional_journal.current_state(
-            now=current,
-            subject=self._relationship_subject(),
+            now=current, subject=self._relationship_subject(),
             scope=self.relationship_scope,
         )
 
@@ -349,6 +381,7 @@ class EmotionalConversationService(ConversationService):
     ):
         """Serialize user inference against application-owned idle inference."""
         started = monotonic()
+        self._active_channel = channel.strip().casefold() or "conversation"
         self._active_user_requests += 1
         activity = getattr(self, "_activity_group", None)
         try:
@@ -574,6 +607,10 @@ class EmotionalConversationService(ConversationService):
                 occurred_at=assistant.created_at,
                 subject=self._relationship_subject(),
                 scope=self.relationship_scope,
+                actor_id="sofia",
+                channel=getattr(self, "_active_channel", "conversation"),
+                consent_context="not_evidence_of_consent",
+                confidence=appraisal.confidence,
             )
         except Exception as exc:
             self._last_emotion_appraisal_error = type(exc).__name__
@@ -748,11 +785,7 @@ class EmotionalConversationService(ConversationService):
             generate=self._runtime.respond,
             reflections=self.reflection_journal,
         )
-        current_state = self.emotional_journal.current_state(
-            now=now,
-            subject=self._relationship_subject(),
-            scope=self.relationship_scope,
-        )
+        current_state = self.current_emotional_state(now=now)
         environment_service = getattr(
             self._runtime,
             "environment_service",
@@ -818,6 +851,9 @@ class EmotionalConversationService(ConversationService):
                     occurred_at=thought.created_at,
                     subject=event.subject,
                     scope=event.scope,
+                    actor_id="sofia", channel="background-reflection",
+                    consent_context="not_evidence_of_consent",
+                    confidence=0.7,
                 )
         return outcome
 
@@ -845,10 +881,20 @@ class EmotionalConversationService(ConversationService):
         subject = self._relationship_subject()
         if messages and messages[-1].role is ConversationRole.USER:
             user = messages[-1]
+            tracker = getattr(self, "_user_affect_tracker", None)
+            if tracker is None:
+                tracker = UserAffectTracker()
+                self._user_affect_tracker = tracker
+            tracker.apply_explicit_correction(
+                subject=subject, evidence_ref=user.id, content=user.content,
+                observed_at=user.created_at,
+            )
             self.emotional_journal.record_user_cue(
                 message_id=user.id, content=user.content,
                 occurred_at=user.created_at, subject=subject,
                 allow_legacy_affection=self._should_record_legacy_affection(user),
+                channel=getattr(self, "_active_channel", "conversation"),
+                scope=self.relationship_scope,
             )
             self.emotional_journal.record_return_expectation_from_user_cue(
                 message_id=user.id, content=user.content,
@@ -865,11 +911,7 @@ class EmotionalConversationService(ConversationService):
 
         now = datetime.now(timezone.utc)
         scope = self.relationship_scope
-        current_state = self.emotional_journal.current_state(
-            now=now,
-            subject=subject,
-            scope=scope,
-        )
+        current_state = self.current_emotional_state(now=now)
         environment_allowed = (
             context_plan is None
             or context_plan.allows(MatrixDomain.ENVIRONMENT)
@@ -915,6 +957,7 @@ class EmotionalConversationService(ConversationService):
             user_text=("" if not messages else messages[-1].content),
             neuro=getattr(self, "_current_neuro_snapshot", None),
             previous=getattr(self, "_previous_expression_modulation", None),
+            communication_preferences=self._communication_preferences(),
         )
         self._previous_expression_modulation = expression_modulation
 
@@ -1061,12 +1104,22 @@ class EmotionalConversationService(ConversationService):
         if self._runtime.personality is None:
             return None
         subject = self._relationship_subject()
+        tracker = getattr(self, "_user_affect_tracker", None)
+        if tracker is None:
+            tracker = UserAffectTracker()
+            self._user_affect_tracker = tracker
+        tracker.apply_explicit_correction(
+            subject=subject, evidence_ref=current_user.id,
+            content=current_user.content, observed_at=current_user.created_at,
+        )
         self.emotional_journal.record_user_cue(
             message_id=current_user.id,
             content=current_user.content,
             occurred_at=current_user.created_at,
             subject=subject,
             allow_legacy_affection=self._should_record_legacy_affection(current_user),
+            channel=getattr(self, "_active_channel", "conversation"),
+            scope=self.relationship_scope,
         )
         self.emotional_journal.record_return_expectation_from_user_cue(
             message_id=current_user.id,
@@ -1080,11 +1133,7 @@ class EmotionalConversationService(ConversationService):
             occurred_at=current_user.created_at,
         )
         now = datetime.now(timezone.utc)
-        state = self.emotional_journal.current_state(
-            now=now,
-            subject=subject,
-            scope=self.relationship_scope,
-        )
+        state = self.current_emotional_state(now=now)
         environment = self._runtime.environment_service.snapshot(
             now=now,
             refresh_providers=False,
@@ -1109,6 +1158,7 @@ class EmotionalConversationService(ConversationService):
             user_text=current_user.content,
             neuro=neuro_snapshot,
             previous=getattr(self, "_previous_expression_modulation", None),
+            communication_preferences=self._communication_preferences(principal),
         )
         self._current_contextual_influence = influence
         self._previous_expression_modulation = modulation

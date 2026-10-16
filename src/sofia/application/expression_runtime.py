@@ -19,6 +19,18 @@ from sofia.voice.prosody_matrix import VoiceProsodyMatrix, VoiceProsodyProfile
 
 
 @dataclass(frozen=True, slots=True)
+class AvatarExpressionState:
+    """Renderer-facing components selected by one bounded turn decision."""
+
+    face: str | None
+    gaze: str | None
+    ears: str | None
+    tail: str | None
+    gesture: str | None
+    pose: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class ExpressionDecision:
     decision_id: str
     message_id: str
@@ -35,6 +47,9 @@ class ExpressionDecision:
     intensity: str
     presentation_revision: int
     created_at: datetime
+    source_evidence_refs: tuple[str, ...] = ()
+    active_signals: tuple[str, ...] = ()
+    avatar_state: AvatarExpressionState | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +83,32 @@ class ExpressionIntent:
     voice_acknowledged: bool
     avatar_acknowledged: bool
     receipt_ids: tuple[str, ...]
+
+    @property
+    def source_evidence_refs(self) -> tuple[str, ...]:
+        """Evidence that shaped style; never evidence that output occurred."""
+        return self.decision.source_evidence_refs
+
+    @property
+    def voice_style(self) -> VoiceProsodyProfile:
+        return self.decision.prosody
+
+    @property
+    def gestures(self) -> tuple[str, ...]:
+        return (() if self.decision.gesture is None else (self.decision.gesture,))
+
+    @property
+    def avatar_state(self) -> AvatarExpressionState:
+        """Bounded renderer input, distinct from renderer acknowledgement."""
+        return self.decision.avatar_state or AvatarExpressionState(
+            face=None, gaze=None, ears=None, tail=None,
+            gesture=self.decision.gesture, pose=self.decision.pose,
+        )
+
+    @property
+    def can_authorize(self) -> bool:
+        """Expression is deliberately incapable of granting authority."""
+        return False
 
 
 class ExpressionRuntime:
@@ -117,6 +158,24 @@ class ExpressionRuntime:
                 CREATE INDEX IF NOT EXISTS expression_receipt_decision
                     ON expression_output_receipt(decision_id,occurred_at);
             """)
+            columns = {
+                row[1] for row in db.execute("PRAGMA table_info(expression_decision)")
+            }
+            if "source_evidence_refs_json" not in columns:
+                db.execute(
+                    "ALTER TABLE expression_decision ADD COLUMN "
+                    "source_evidence_refs_json TEXT NOT NULL DEFAULT '[]'"
+                )
+            if "active_signals_json" not in columns:
+                db.execute(
+                    "ALTER TABLE expression_decision ADD COLUMN "
+                    "active_signals_json TEXT NOT NULL DEFAULT '[]'"
+                )
+            if "avatar_state_json" not in columns:
+                db.execute(
+                    "ALTER TABLE expression_decision ADD COLUMN "
+                    "avatar_state_json TEXT NOT NULL DEFAULT '{}'"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
@@ -136,6 +195,12 @@ class ExpressionRuntime:
         prosody = json.loads(row["prosody_json"])
         prosody["tone_tags"] = tuple(prosody.get("tone_tags", ()))
         prosody["ambient_context"] = tuple(prosody.get("ambient_context", ()))
+        avatar_payload = json.loads(row["avatar_state_json"])
+        avatar_state = (
+            AvatarExpressionState(**avatar_payload)
+            if avatar_payload
+            else None
+        )
         return ExpressionDecision(
             decision_id=row["decision_id"], message_id=row["message_id"],
             session_id=row["session_id"], principal_id=row["principal_id"],
@@ -147,6 +212,28 @@ class ExpressionRuntime:
             gesture=row["gesture"], pose=row["pose"], intensity=row["intensity"],
             presentation_revision=int(row["presentation_revision"]),
             created_at=datetime.fromisoformat(row["created_at"]),
+            source_evidence_refs=tuple(json.loads(row["source_evidence_refs_json"])),
+            active_signals=tuple(json.loads(row["active_signals_json"])),
+            avatar_state=avatar_state,
+        )
+
+    @staticmethod
+    def _avatar_state(
+        plan: EmbodiedExpressionPlan | None,
+    ) -> AvatarExpressionState:
+        candidates = () if plan is None else tuple(dict.fromkeys((
+            *((plan.primary,) if plan.primary is not None else ()),
+            *plan.alternates,
+        )))
+        faces = {"smile", "grin", "frown", "blush", "teasing-smile", "lip-bite"}
+        gazes = {"avert-gaze", "sultry-gaze"}
+        return AvatarExpressionState(
+            face=next((item for item in candidates if item in faces), None),
+            gaze=next((item for item in candidates if item in gazes), None),
+            ears=next((item for item in candidates if item.startswith("ear-")), None),
+            tail=next((item for item in candidates if item.startswith("tail-") or item == "slow-tail-sway"), None),
+            gesture=None if plan is None else plan.primary,
+            pose=None if plan is None else plan.pose,
         )
 
     def decide(
@@ -164,6 +251,12 @@ class ExpressionRuntime:
         evidence = tuple(dict.fromkeys(
             ref for item in state.active for ref in item.evidence_refs
         ))
+        source_evidence = tuple(dict.fromkeys((
+            *evidence,
+            *influence.daypart_evidence_refs,
+            *influence.season_evidence_refs,
+            *influence.weather_evidence_refs,
+        )))
         decision = ExpressionDecision(
             decision_id=f"expression:{message_id}", message_id=message_id,
             session_id=session_id, principal_id=principal.principal_id,
@@ -175,12 +268,20 @@ class ExpressionRuntime:
             intensity="subtle" if plan is None else plan.intensity,
             presentation_revision=presentation_revision,
             created_at=self._aware(created_at),
+            source_evidence_refs=source_evidence,
+            active_signals=(() if plan is None else plan.active_signals),
+            avatar_state=self._avatar_state(plan),
         )
         encoded_profile = asdict(profile)
         with closing(self._connect()) as db, db:
             db.execute(
-                """INSERT OR IGNORE INTO expression_decision VALUES
-                (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                """INSERT OR IGNORE INTO expression_decision
+                (decision_id,message_id,session_id,principal_id,audience_id,
+                 intent,text_sha256,emotion_labels_json,
+                 emotion_evidence_refs_json,prosody_json,gesture,pose,intensity,
+                 presentation_revision,created_at,source_evidence_refs_json,
+                 active_signals_json,avatar_state_json)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     decision.decision_id, decision.message_id, decision.session_id,
                     decision.principal_id, decision.audience_id, decision.intent,
@@ -189,6 +290,9 @@ class ExpressionRuntime:
                     json.dumps(encoded_profile, sort_keys=True), decision.gesture,
                     decision.pose, decision.intensity,
                     decision.presentation_revision, decision.created_at.isoformat(),
+                    json.dumps(decision.source_evidence_refs),
+                    json.dumps(decision.active_signals),
+                    json.dumps(asdict(decision.avatar_state), sort_keys=True),
                 ),
             )
             row = db.execute(

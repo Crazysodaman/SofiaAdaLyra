@@ -8,6 +8,7 @@ from sofia.cognition.matrix.model import MatrixDomain, TurnMatrix
 from sofia.neuro.model import NeuroStateSnapshot
 
 from .influence import ContinuityInfluence
+from .preferences import CommunicationStylePreferences
 
 
 _TECHNICAL_DOMAINS = frozenset({
@@ -88,6 +89,7 @@ class ExpressionModulation:
     cortana_system_presence_weight: float
     blend_context: str
     reasons: tuple[str, ...]
+    owner_style: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for name in (
@@ -130,6 +132,10 @@ class ExpressionModulation:
             f"kurisu_influence_weight={self.kurisu_influence_weight:.3f}",
             f"cortana_system_presence_weight={self.cortana_system_presence_weight:.3f}",
             f"blend_context={self.blend_context}",
+            *(
+                ("Authenticated audience style preferences: " + ", ".join(self.owner_style),)
+                if self.owner_style else ()
+            ),
             "Kurisu-inspired influence has a hard 0.300 minimum on every turn. "
             "That floor means skepticism, precision, intellectual pride, useful "
             "pedantry, evidence-first challenge, and clean concession when wrong; "
@@ -154,6 +160,7 @@ def derive_expression_modulation(
     user_text: str,
     neuro: NeuroStateSnapshot | None = None,
     previous: ExpressionModulation | None = None,
+    communication_preferences: CommunicationStylePreferences | None = None,
 ) -> ExpressionModulation:
     """Derive bounded style tendencies from already-authoritative turn state."""
     if turn is not None and not isinstance(turn, TurnMatrix):
@@ -166,6 +173,12 @@ def derive_expression_modulation(
         raise TypeError("neuro must be NeuroStateSnapshot or None")
     if previous is not None and not isinstance(previous, ExpressionModulation):
         raise TypeError("previous must be ExpressionModulation or None")
+    if communication_preferences is not None and not isinstance(
+        communication_preferences, CommunicationStylePreferences
+    ):
+        raise TypeError(
+            "communication_preferences must be CommunicationStylePreferences or None"
+        )
 
     domains = frozenset() if turn is None else frozenset(
         item.domain for item in turn.domains
@@ -207,6 +220,24 @@ def derive_expression_modulation(
         argumentative -= 0.18
         fluster = 0.03
         embodiment -= 0.16
+
+    owner_style: list[str] = []
+    if communication_preferences is not None:
+        if communication_preferences.humor is not None:
+            humor = communication_preferences.humor
+            banter += (humor - 0.5) * 0.50
+            owner_style.append(f"humor={humor:.3f}")
+        if communication_preferences.disagreement is not None:
+            disagreement_level = communication_preferences.disagreement
+            argumentative += (disagreement_level - 0.5) * 0.45
+            owner_style.append(f"disagreement={disagreement_level:.3f}")
+        if communication_preferences.verbosity is not None:
+            owner_style.append(
+                f"verbosity={communication_preferences.verbosity:.3f}"
+            )
+        owner_style.extend(
+            f"evidence={ref}" for ref in communication_preferences.evidence_refs
+        )
 
     # Matrix establishes the exact baseline. Sofía remains the identity; these
     # values describe which expression influences are visible, never authority.
@@ -367,4 +398,5 @@ def derive_expression_modulation(
         cortana_system_presence_weight=cortana,
         blend_context=blend_context,
         reasons=reasons,
+        owner_style=tuple(owner_style),
     )

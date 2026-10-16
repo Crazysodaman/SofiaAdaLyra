@@ -25,6 +25,55 @@ from sofia.social.principals import SPARKS_PRINCIPAL_ID
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
 
 
+def test_explicit_user_correction_clears_inference_without_inventing_replacement():
+    tracker = UserAffectTracker()
+    tracker.record(UserAffectObservation(
+        subject="person:sparks", evidence_ref="message:1", observed_at=NOW,
+        assessment=UserAffectAssessment(
+            affects=("angry",), source="inferred", valence=-0.6,
+            activation=0.7, intensity=0.7, confidence=0.7,
+            basis="Tentative wording-based inference.", clarify=False,
+        ),
+    ))
+    assert tracker.apply_explicit_correction(
+        subject="person:sparks", evidence_ref="message:2",
+        content="I'm not angry.", observed_at=NOW + timedelta(seconds=5),
+    )
+    assert tracker.current(
+        "person:sparks", now=NOW + timedelta(seconds=6),
+    ) is None
+
+
+def test_general_correction_clears_only_an_inference():
+    tracker = UserAffectTracker()
+    inferred = UserAffectObservation(
+        subject="person:sparks", evidence_ref="message:1", observed_at=NOW,
+        assessment=UserAffectAssessment(
+            affects=("sad",), source="inferred", valence=-.5,
+            activation=.3, intensity=.5, confidence=.7,
+            basis="Tentative wording-based inference.", clarify=False,
+        ),
+    )
+    tracker.record(inferred)
+    assert tracker.apply_explicit_correction(
+        subject=inferred.subject, evidence_ref="message:2",
+        content="You're reading me wrong.", observed_at=NOW,
+    )
+    self_report = UserAffectObservation(
+        subject=inferred.subject, evidence_ref="message:3", observed_at=NOW,
+        assessment=UserAffectAssessment(
+            affects=("sad",), source="self_reported", valence=-.5,
+            activation=.3, intensity=.5, confidence=.9,
+            basis="Explicit first-person report.", clarify=False,
+        ),
+    )
+    tracker.record(self_report)
+    assert not tracker.apply_explicit_correction(
+        subject=inferred.subject, evidence_ref="message:4",
+        content="You're reading me wrong.", observed_at=NOW,
+    )
+
+
 def _envelope(*, affects, source="inferred", confidence=0.8):
     import json
 

@@ -13,7 +13,7 @@ import re
 import sqlite3
 from uuid import uuid4
 
-from sofia.social.model import ScopeKind, SocialScope
+from sofia.social.model import AudienceKind, PrincipalContext, ScopeKind, SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.emotion.catalog import EMOTIONS, SOURCES
 from sofia.emotion.model import (CurrentEmotionalState, EmotionalEvent, ReturnExpectation, ReunionAppraisal)
@@ -65,6 +65,10 @@ _MAX_RETURN_EXPECTATION = timedelta(days=90)
 _LEGACY_AUTO_AFFECTION_DESCRIPTION = (
     "User initiated an affectionate or playful conversational cue."
 )
+_CONSENT_CONTEXTS = frozenset({
+    "not_applicable", "not_evidence_of_consent", "explicit_consent",
+    "explicit_refusal", "revoked",
+})
 
 
 def _aware_utc(value: datetime) -> datetime:
@@ -115,6 +119,28 @@ def _identifier(value: str, label: str) -> str:
     return value.strip()
 
 
+def _optional_identifier(value: str | None, label: str) -> str | None:
+    return None if value is None else _identifier(value, label)
+
+
+def _confidence(value: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError("Emotion confidence must be numeric.")
+    result = float(value)
+    if not 0.0 <= result <= 1.0:
+        raise ValueError("Emotion confidence must be in 0..1.")
+    return result
+
+
+def _project_ids(values: tuple[str, ...]) -> tuple[str, ...]:
+    if not isinstance(values, tuple) or len(values) > 12:
+        raise ValueError("Related project IDs must be a bounded tuple.")
+    result = tuple(_identifier(value, "Related project ID") for value in values)
+    if len(set(result)) != len(result):
+        raise ValueError("Related project IDs must be distinct.")
+    return result
+
+
 class EmotionalJournal:
     """SQLite event history with non-destructive corrections and bounded projection."""
 
@@ -163,6 +189,12 @@ class EmotionalJournal:
                 "principal_id": "TEXT",
                 "audience_id": "TEXT",
                 "audience_kind": "TEXT",
+                "actor_id": "TEXT",
+                "channel": "TEXT NOT NULL DEFAULT 'unknown'",
+                "consent_context": "TEXT NOT NULL DEFAULT 'not_applicable'",
+                "confidence": "REAL NOT NULL DEFAULT 1.0",
+                "correction_of": "TEXT",
+                "related_project_ids": "TEXT NOT NULL DEFAULT '[]'",
             }
             for name, declaration in additions.items():
                 if name not in columns:
@@ -246,6 +278,10 @@ class EmotionalJournal:
         emotions: tuple[str, ...], occurred_at: datetime,
         event_id: str | None = None, subject: str | None = None,
         scope: SocialScope | None = None,
+        actor_id: str | None = None, channel: str = "unknown",
+        consent_context: str = "not_applicable", confidence: float = 1.0,
+        correction_of: str | None = None,
+        related_project_ids: tuple[str, ...] = (),
     ) -> str:
         """Record caller-supplied evidence with explicit ownership scope."""
         if source not in SOURCES:
@@ -260,6 +296,14 @@ class EmotionalJournal:
         identifier = _identifier(event_id or str(uuid4()), "Event ID")
         target = _subject(subject)
         resolved_scope = _social_scope(scope, subject=target)
+        actor = _optional_identifier(actor_id, "Actor ID")
+        channel_name = _identifier(channel, "Channel")
+        consent = _identifier(consent_context, "Consent context")
+        if consent not in _CONSENT_CONTEXTS:
+            raise ValueError("Unknown consent context.")
+        certainty = _confidence(confidence)
+        correction = _optional_identifier(correction_of, "Correction target")
+        projects = _project_ids(related_project_ids)
         payload = (
             identifier,
             when.isoformat(),
@@ -276,6 +320,12 @@ class EmotionalJournal:
                 if resolved_scope.audience_kind is not None
                 else None
             ),
+            actor,
+            channel_name,
+            consent,
+            certainty,
+            correction,
+            json.dumps(projects),
         )
         with self._connect() as db:
             try:
@@ -283,15 +333,19 @@ class EmotionalJournal:
                     "INSERT INTO emotional_events "
                     "(event_id, occurred_at, source, evidence_ref, description, "
                     "original_emotions, subject, scope_kind, principal_id, "
-                    "audience_id, audience_kind) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "audience_id, audience_kind, actor_id, channel, "
+                    "consent_context, confidence, correction_of, "
+                    "related_project_ids) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     payload,
                 )
             except sqlite3.IntegrityError as exc:
                 current = db.execute(
                     "SELECT event_id, occurred_at, source, evidence_ref, description, "
                     "original_emotions, subject, scope_kind, principal_id, "
-                    "audience_id, audience_kind "
+                    "audience_id, audience_kind, actor_id, channel, "
+                    "consent_context, confidence, correction_of, "
+                    "related_project_ids "
                     "FROM emotional_events WHERE event_id = ?",
                     (identifier,),
                 ).fetchone()
@@ -302,6 +356,7 @@ class EmotionalJournal:
     def record_user_cue(
         self, *, message_id: str, content: str, occurred_at: datetime,
         subject: str | None = None, allow_legacy_affection: bool = True,
+        channel: str = "conversation", scope: SocialScope | None = None,
     ) -> bool:
         """Identify only narrow explicit relational cues; never infer general sentiment."""
         if not isinstance(content, str):
@@ -327,6 +382,8 @@ class EmotionalJournal:
             event_id=f"user-cue:{message_id}", occurred_at=occurred_at,
             source="user_reported", evidence_ref=message_id,
             description=description, emotions=labels, subject=subject,
+            scope=scope, actor_id=subject, channel=channel,
+            consent_context="not_evidence_of_consent", confidence=1.0,
         )
         return True
 
@@ -752,7 +809,9 @@ class EmotionalJournal:
                     WHERE r.event_id=e.event_id
                     ORDER BY r.revision_id DESC LIMIT 1),
                    e.subject, e.scope_kind, e.principal_id,
-                   e.audience_id, e.audience_kind
+                   e.audience_id, e.audience_kind, e.actor_id, e.channel,
+                   e.consent_context, e.confidence, e.correction_of,
+                   e.related_project_ids
             FROM emotional_events e
             WHERE """ + " AND ".join(clauses) + """
             ORDER BY """ + effective_time + """ DESC, e.event_id DESC LIMIT ?
@@ -772,6 +831,9 @@ class EmotionalJournal:
             ),
             subject=row[9], scope_kind=row[10],
             principal_id=row[11], audience_id=row[12], audience_kind=row[13],
+            actor_id=row[14], channel=row[15], consent_context=row[16],
+            confidence=float(row[17]), correction_of=row[18],
+            related_project_ids=tuple(json.loads(row[19])),
         ) for row in rows)
 
     def historical_episodes(
@@ -817,7 +879,9 @@ class EmotionalJournal:
                     WHERE r.event_id=e.event_id),
                    (SELECT r.revised_at FROM emotional_revisions r
                     WHERE r.event_id=e.event_id ORDER BY r.revision_id DESC LIMIT 1),
-                   e.subject,e.scope_kind,e.principal_id,e.audience_id,e.audience_kind
+                   e.subject,e.scope_kind,e.principal_id,e.audience_id,e.audience_kind,
+                   e.actor_id,e.channel,e.consent_context,e.confidence,
+                   e.correction_of,e.related_project_ids
             FROM emotional_events e WHERE """ + " AND ".join(clauses) + """
             ORDER BY e.occurred_at DESC,e.event_id DESC LIMIT ?
         """
@@ -836,6 +900,9 @@ class EmotionalJournal:
             ),
             subject=row[9], scope_kind=row[10], principal_id=row[11],
             audience_id=row[12], audience_kind=row[13],
+            actor_id=row[14], channel=row[15], consent_context=row[16],
+            confidence=float(row[17]), correction_of=row[18],
+            related_project_ids=tuple(json.loads(row[19])),
         ) for row in rows)
 
     def current_state(
@@ -854,6 +921,100 @@ class EmotionalJournal:
             if event.description != _LEGACY_AUTO_AFFECTION_DESCRIPTION
         )
         return derive_current_state(current=current, target=target, raw_events=events)
+
+    def current_state_for_principal(
+        self, *, now: datetime, principal: PrincipalContext,
+    ) -> CurrentEmotionalState:
+        """Project relationship continuity plus this exact audience's episodes."""
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated principal required")
+        current = _aware_utc(now)
+        relationship_events = (
+            self.recent(
+                now=current, days=7, limit=50,
+                scope=principal.relationship_scope,
+            )
+            if principal.audience_kind is AudienceKind.PRIVATE
+            else ()
+        )
+        events = (
+            *relationship_events,
+            *self.recent(
+                now=current, days=7, limit=50,
+                scope=principal.audience_scope,
+            ),
+        )
+        unique = tuple(
+            item for item in {item.event_id: item for item in events}.values()
+            if item.description != _LEGACY_AUTO_AFFECTION_DESCRIPTION
+        )
+        return derive_current_state(
+            current=current, target=principal.principal_id,
+            raw_events=tuple(sorted(
+                unique, key=lambda item: (item.appraised_at or item.occurred_at),
+                reverse=True,
+            )),
+        )
+
+    def record_life_experience(
+        self, experience, *, principal: PrincipalContext,
+    ) -> str | None:
+        """Bridge only canonical, source-backed LIFE outcomes into affect.
+
+        LIFE remains the owner of project facts. This records a bounded modeled
+        appraisal linked to the original experience and exact private audience.
+        Project status alone, model prose, inactivity, failure, or abandonment
+        never manufactures an emotional episode.
+        """
+        from sofia.life.model import ExperienceRecord
+
+        if not isinstance(experience, ExperienceRecord):
+            raise TypeError("canonical LIFE ExperienceRecord required")
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated principal required")
+        if getattr(experience, "audience_id", None) != principal.audience_id:
+            raise PermissionError("LIFE experience belongs to another audience")
+        refs = getattr(experience, "evidence_refs", ())
+        if not isinstance(refs, tuple) or not refs:
+            return None
+        kind = getattr(experience, "kind", None)
+        metadata = dict(getattr(experience, "metadata", {}))
+        if kind == "artifact_created":
+            labels = ("relief", "determination", "curiosity")
+            confidence = 0.75
+        elif kind == "artifact_evaluated":
+            judgment = metadata.get("personal_judgment")
+            technical = metadata.get("technical_outcome")
+            if judgment == "liked":
+                labels = ("appreciation", "pride", "curiosity")
+            elif judgment == "disliked":
+                labels = ("disappointment", "curiosity", "determination")
+            elif judgment == "mixed":
+                labels = ("uncertainty", "curiosity", "reflection")
+            else:
+                # Objective verification may establish an outcome, but without
+                # a personal judgment it cannot establish liking or distress.
+                labels = ("reflection", "caution")
+            if technical == "inconclusive" and "uncertainty" not in labels:
+                labels = (*labels[:5], "uncertainty")
+            confidence = 0.8
+        else:
+            return None
+        experience_id = _identifier(experience.experience_id, "Experience ID")
+        project_id = _identifier(experience.project_id, "Project ID")
+        return self.record(
+            event_id=f"life-affect:{experience_id}", source="observed",
+            evidence_ref=refs[0],
+            description=(
+                f"Modeled appraisal of verified LIFE experience {experience_id}; "
+                "project facts remain owned by LIFE."
+            ),
+            emotions=labels, occurred_at=experience.recorded_at,
+            subject=principal.principal_id, scope=principal.audience_scope,
+            actor_id="sofia", channel="life-project",
+            consent_context="not_evidence_of_consent", confidence=confidence,
+            related_project_ids=(project_id,),
+        )
 
     def current_state_prompt(
         self, *, now: datetime, subject: str | None = None,
@@ -905,6 +1066,10 @@ class EmotionalJournal:
                     "event": item.description, "original": item.original_emotions,
                     "current": item.current_emotions,
                     "reappraised": item.revision_count > 0,
-                    "subject": item.subject}
+                    "subject": item.subject, "actor_id": item.actor_id,
+                    "channel": item.channel, "confidence": item.confidence,
+                    "consent_context": item.consent_context,
+                    "correction_of": item.correction_of,
+                    "related_project_ids": item.related_project_ids}
             lines.append(json.dumps(data, ensure_ascii=False))
         return "\n".join(lines)

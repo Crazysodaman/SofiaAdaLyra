@@ -4,7 +4,10 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from sofia.emotion.journal import EmotionalJournal
+from sofia.life.model import ExperienceRecord
 from sofia.personality.expression import personality_expression_guidance
+from sofia.social.model import AudienceKind, PrincipalContext, SocialScope
+from sofia.social.principals import local_sparks_principal
 
 NOW = datetime(2026, 9, 20, 16, 0, tzinfo=timezone.utc)
 
@@ -113,3 +116,99 @@ def test_personality_preserves_affection_through_serious_conversation():
     assert 'no process ran' in guidance
     assert 'corresponding evidence' in guidance
     assert 'permissions' in guidance
+
+
+def test_emotion_metadata_survives_restart_and_confidence_bounds_projection(tmp_path):
+    path = tmp_path / "state.db"
+    journal = EmotionalJournal(path)
+    scope = SocialScope.audience(PrincipalContext(
+        "person:sparks", "desktop:private", AudienceKind.PRIVATE, "Sparks",
+    ))
+    journal.record(
+        event_id="project-appraisal:1", source="observed",
+        evidence_ref="artifact-receipt:1",
+        description="Verified project output produced a cautious positive appraisal.",
+        emotions=("pride", "curiosity"), occurred_at=NOW,
+        subject="person:sparks", scope=scope, actor_id="sofia",
+        channel="life-project", consent_context="not_evidence_of_consent",
+        confidence=0.25, correction_of="project-appraisal:0",
+        related_project_ids=("project:one",),
+    )
+
+    event = EmotionalJournal(path).recent(now=NOW, scope=scope)[0]
+    assert event.actor_id == "sofia"
+    assert event.channel == "life-project"
+    assert event.confidence == 0.25
+    assert event.correction_of == "project-appraisal:0"
+    assert event.related_project_ids == ("project:one",)
+    state = EmotionalJournal(path).current_state(
+        now=NOW, subject="person:sparks", scope=scope,
+    )
+    assert max(item.intensity for item in state.active) <= 0.15
+
+
+def test_emotion_metadata_is_part_of_idempotency_contract(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    fields = dict(
+        event_id="event:one", source="observed", evidence_ref="receipt:one",
+        description="A verified outcome.", emotions=("relief",),
+        occurred_at=NOW, actor_id="sofia", channel="run", confidence=0.8,
+    )
+    journal.record(**fields)
+    journal.record(**fields)
+    with pytest.raises(ValueError, match="different evidence"):
+        journal.record(**{**fields, "channel": "discord"})
+
+
+def test_verified_life_outcome_influences_only_its_exact_audience(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    principal = local_sparks_principal("local:text")
+    experience = ExperienceRecord(
+        "experience:evaluated", "project:one", "artifact_evaluated",
+        "Evaluated artifact: technically valid; personal judgment disliked.",
+        ("evaluation:one",), principal.audience_id, True, NOW, NOW,
+        {"technical_outcome": "valid", "personal_judgment": "disliked"},
+    )
+    event_id = journal.record_life_experience(experience, principal=principal)
+    assert event_id == "life-affect:experience:evaluated"
+    state = journal.current_state_for_principal(now=NOW, principal=principal)
+    assert {item.name for item in state.active} >= {
+        "disappointment", "curiosity", "determination",
+    }
+    other_audience = local_sparks_principal("discord:private")
+    other = journal.current_state_for_principal(now=NOW, principal=other_audience)
+    assert not other.active
+    with pytest.raises(PermissionError, match="another audience"):
+        journal.record_life_experience(experience, principal=other_audience)
+
+
+def test_life_failure_or_inactivity_does_not_manufacture_negative_affect(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    principal = local_sparks_principal()
+    experience = ExperienceRecord(
+        "experience:paused", "project:one", "project_paused",
+        "Optional project was paused.", ("decision:pause",),
+        principal.audience_id, True, NOW, NOW, {},
+    )
+    assert journal.record_life_experience(experience, principal=principal) is None
+    assert not journal.current_state_for_principal(
+        now=NOW, principal=principal,
+    ).active
+
+
+def test_shared_audience_never_receives_private_relationship_affect(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    owner = local_sparks_principal()
+    journal.record(
+        event_id="private:emotion", source="user_reported",
+        evidence_ref="private:message", description="Private relationship cue.",
+        emotions=("affection",), occurred_at=NOW,
+        subject=owner.principal_id, scope=owner.relationship_scope,
+    )
+    shared = PrincipalContext(
+        owner.principal_id, "discord:shared-room",
+        AudienceKind.SHARED, "Sparks",
+    )
+    assert not journal.current_state_for_principal(
+        now=NOW, principal=shared,
+    ).active

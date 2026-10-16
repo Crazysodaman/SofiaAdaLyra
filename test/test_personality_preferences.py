@@ -3,8 +3,11 @@ from datetime import datetime, timezone
 import pytest
 
 from sofia.personality.preferences import (
-    PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
+    CommunicationPreferenceService, PreferenceDisposition,
+    PreferenceRegistry, PreferenceSubject,
 )
+from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.social.principals import local_sparks_principal
 
 
 NOW = datetime(2026, 10, 10, 12, tzinfo=timezone.utc)
@@ -87,5 +90,34 @@ def test_stale_preference_revision_cannot_overwrite(tmp_path):
         registry.revise(
             **scope(), disposition=PreferenceDisposition.DISLIKE, strength=.5,
             confidence=.7, reason="Stale.", evidence_ref="evidence:2",
+            expected_revision=None, now=NOW,
+        )
+
+
+def test_communication_preferences_are_owner_authenticated_revisable_and_scoped(tmp_path):
+    service = CommunicationPreferenceService(PreferenceRegistry(tmp_path / "sofia.db"))
+    owner = local_sparks_principal("desktop:private")
+    first = service.revise_owner_override(
+        principal=owner, target="humor", level=.8,
+        reason="Sparks asked for more dry humor.", evidence_ref="message:style-1",
+        expected_revision=None, now=NOW,
+    )
+    assert service.for_principal(owner).humor == .8
+    assert service.for_principal(
+        local_sparks_principal("discord:private")
+    ).humor is None
+    service.revise_owner_override(
+        principal=owner, target="humor", level=.2,
+        reason="Sparks revised the audience preference.",
+        evidence_ref="message:style-2", expected_revision=first.revision, now=NOW,
+    )
+    assert service.for_principal(owner).humor == pytest.approx(.2)
+    impostor = PrincipalContext(
+        "person:other", owner.audience_id, AudienceKind.PRIVATE, "Other",
+    )
+    with pytest.raises(PermissionError, match="authenticated owner"):
+        service.revise_owner_override(
+            principal=impostor, target="verbosity", level=.5,
+            reason="spoof", evidence_ref="message:spoof",
             expected_revision=None, now=NOW,
         )

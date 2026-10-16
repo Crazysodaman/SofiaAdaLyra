@@ -10,6 +10,9 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
+from sofia.social.model import PrincipalContext
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
+
 
 _KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$")
 
@@ -103,7 +106,6 @@ class PreferenceRegistry:
             row["audience_id"], int(row["revision"]),
             datetime.fromisoformat(row["recorded_at"]),
         )
-
     def revise(
         self, *, subject: PreferenceSubject, category: str, target_id: str,
         context: str, disposition: PreferenceDisposition, strength: float,
@@ -206,3 +208,116 @@ class PreferenceRegistry:
                  subject.value, category, context, audience_id),
             ).fetchall()
         return tuple(self._decode(row) for row in rows)
+
+
+@dataclass(frozen=True, slots=True)
+class CommunicationStylePreferences:
+    """Audience-scoped owner guidance; style only, never authority."""
+
+    humor: float | None = None
+    verbosity: float | None = None
+    disagreement: float | None = None
+    evidence_refs: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        for name in ("humor", "verbosity", "disagreement"):
+            value = getattr(self, name)
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not 0.0 <= float(value) <= 1.0
+            ):
+                raise ValueError(f"{name} must be None or a number in 0..1")
+
+
+class CommunicationPreferenceService:
+    """Typed adapter over the canonical preference revision registry."""
+
+    CATEGORY = "conversation.style"
+    CONTEXT = "general"
+    TARGETS = frozenset({"humor", "verbosity", "disagreement"})
+
+    def __init__(self, registry: PreferenceRegistry) -> None:
+        if not isinstance(registry, PreferenceRegistry):
+            raise TypeError("registry must be PreferenceRegistry")
+        self.registry = registry
+
+    @staticmethod
+    def _level(record: PreferenceRecord | None) -> float | None:
+        if record is None or record.disposition is PreferenceDisposition.UNKNOWN:
+            return None
+        if record.disposition is PreferenceDisposition.INDIFFERENT:
+            return 0.5
+        if record.disposition in {
+            PreferenceDisposition.DISLIKE,
+            PreferenceDisposition.STRONG_AVERSION,
+        }:
+            return round(1.0 - record.strength, 3)
+        return round(record.strength, 3)
+
+    def for_principal(
+        self, principal: PrincipalContext,
+    ) -> CommunicationStylePreferences:
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated principal required")
+        records = {
+            target: self.registry.current(
+                subject=PreferenceSubject.SPARKS,
+                category=self.CATEGORY,
+                target_id=target,
+                context=self.CONTEXT,
+                audience_id=principal.audience_id,
+            )
+            for target in self.TARGETS
+        }
+        return CommunicationStylePreferences(
+            humor=self._level(records["humor"]),
+            verbosity=self._level(records["verbosity"]),
+            disagreement=self._level(records["disagreement"]),
+            evidence_refs=tuple(
+                record.evidence_ref
+                for target in sorted(records)
+                if (record := records[target]) is not None
+            ),
+        )
+
+    def revise_owner_override(
+        self, *, principal: PrincipalContext, target: str, level: float,
+        reason: str, evidence_ref: str, expected_revision: int | None,
+        now: datetime,
+    ) -> PreferenceRecord:
+        """Record an authenticated owner's preference for one exact audience."""
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated principal required")
+        if principal.principal_id != SPARKS_PRINCIPAL_ID:
+            raise PermissionError("only the authenticated owner may set this override")
+        if target not in self.TARGETS:
+            raise ValueError("unsupported communication preference")
+        if isinstance(level, bool) or not isinstance(level, (int, float)):
+            raise TypeError("communication preference level must be numeric")
+        level = float(level)
+        if not 0.0 <= level <= 1.0:
+            raise ValueError("communication preference level must be in 0..1")
+        if level == 0.5:
+            disposition = PreferenceDisposition.INDIFFERENT
+            strength = 0.5
+        elif level > 0.5:
+            disposition = PreferenceDisposition.LIKE
+            strength = level
+        else:
+            disposition = PreferenceDisposition.DISLIKE
+            strength = 1.0 - level
+        return self.registry.revise(
+            subject=PreferenceSubject.SPARKS,
+            category=self.CATEGORY,
+            target_id=target,
+            context=self.CONTEXT,
+            disposition=disposition,
+            strength=strength,
+            confidence=1.0,
+            reason=reason,
+            evidence_ref=evidence_ref,
+            audience_id=principal.audience_id,
+            expected_revision=expected_revision,
+            now=now,
+        )

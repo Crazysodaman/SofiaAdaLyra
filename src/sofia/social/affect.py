@@ -65,6 +65,18 @@ _SENSITIVE_NEGATION = re.compile(
     r"\b(?:arous(?:ed|al)|horny|turned\s+on|attracted|desir(?:e|ing))\b",
     re.IGNORECASE,
 )
+_EXPLICIT_NEGATION = re.compile(
+    r"\b(?:i(?:'m|\s+am)\s+not|i\s+don(?:'|’)t\s+feel|"
+    r"that(?:'s|\s+is)\s+not\s+how\s+i\s+feel)\s+"
+    r"(?P<label>[a-z-]+)\b",
+    re.IGNORECASE,
+)
+_GENERAL_CORRECTION = re.compile(
+    r"\b(?:that(?:'s|\s+is)\s+not\s+how\s+i\s+feel|"
+    r"you(?:'re|\s+are)\s+(?:reading|interpreting)\s+me\s+wrong)\b",
+    re.IGNORECASE,
+)
+_CORRECTION_ALIASES = {"mad": "angry", "upset": "hurt"}
 
 
 def _bounded_number(name: str, value: object, low: float, high: float) -> float:
@@ -150,6 +162,40 @@ class UserAffectTracker:
         if not isinstance(observation, UserAffectObservation):
             raise TypeError("observation must be UserAffectObservation")
         self._observations[observation.subject] = observation
+
+    def apply_explicit_correction(
+        self, *, subject: str, evidence_ref: str, content: str,
+        observed_at: datetime,
+    ) -> bool:
+        """Clear a contradicted tentative inference from explicit user evidence.
+
+        This deliberately does not infer a replacement feeling. A later validated
+        self-report may establish one, while the correction immediately prevents
+        stale model inference from coloring the next response.
+        """
+        if not all(isinstance(value, str) for value in (subject, evidence_ref, content)):
+            raise TypeError("affect correction fields must be strings")
+        if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+            raise ValueError("observed_at must be timezone-aware")
+        match = _EXPLICIT_NEGATION.search(content)
+        current = self._observations.get(subject)
+        if current is None:
+            return False
+        if match is None:
+            if (
+                _GENERAL_CORRECTION.search(content) is None
+                or current.assessment.source != "inferred"
+            ):
+                return False
+        else:
+            label = _CORRECTION_ALIASES.get(
+                match.group("label").casefold(),
+                match.group("label").casefold(),
+            )
+            if label not in current.assessment.affects:
+                return False
+        self._observations.pop(subject, None)
+        return True
 
     def current(
         self,

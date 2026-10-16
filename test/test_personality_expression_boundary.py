@@ -8,6 +8,7 @@ from sofia.personality.expression import personality_expression_guidance
 from sofia.personality.model import PersonalityProfile
 from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.modulation import derive_expression_modulation
+from sofia.personality.preferences import CommunicationStylePreferences
 from test.matrix_v2_support import V2MatrixCoordinator as MatrixCoordinator, v2_registry as default_matrix_registry
 from sofia.cognition.matrix import TurnEnvelope
 from sofia.neuro.model import (
@@ -306,3 +307,24 @@ def test_expression_smoothing_is_ephemeral_and_serious_context_bypasses_it():
         serious.cortana_system_presence_weight,
     ) == (0.60, 0.30, 0.10)
     assert "smoothing=serious-bypass" in serious.reasons
+
+
+def test_authenticated_style_projection_is_bounded_and_never_authoritative():
+    baseline = derive_expression_modulation(
+        turn=_turn("That theory is wrong."), influence=_influence(),
+        user_text="That theory is wrong.",
+    )
+    preferred = derive_expression_modulation(
+        turn=_turn("That theory is wrong."), influence=_influence(),
+        user_text="That theory is wrong.",
+        communication_preferences=CommunicationStylePreferences(
+            humor=.9, verbosity=.2, disagreement=.8,
+            evidence_refs=("message:owner-setting",),
+        ),
+    )
+    assert preferred.banter_intensity > baseline.banter_intensity
+    assert preferred.argumentative_energy > baseline.argumentative_energy
+    prompt = preferred.prompt()
+    assert "verbosity=0.200" in prompt
+    assert "message:owner-setting" in prompt
+    assert "do not establish" in prompt

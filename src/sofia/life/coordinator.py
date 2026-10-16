@@ -2723,6 +2723,8 @@ class SelfDirectedLifeCoordinator:
             ), evidence_refs=evidence_refs, now=now,
             metadata={
                 "preserve_for_research": preserve_for_research,
+                "technical_outcome": technical_outcome.value,
+                "personal_judgment": personal_judgment.value,
                 "interest_learning": {
                     "schema": 1,
                     "evaluation_id": value.evaluation_id,

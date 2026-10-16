@@ -23,6 +23,12 @@ class EmotionalEvent:
     audience_id: str | None = None
     audience_kind: str | None = None
     appraised_at: datetime | None = None
+    actor_id: str | None = None
+    channel: str = "unknown"
+    consent_context: str = "not_applicable"
+    confidence: float = 1.0
+    correction_of: str | None = None
+    related_project_ids: tuple[str, ...] = ()
 
     @property
     def scope(self) -> SocialScope:

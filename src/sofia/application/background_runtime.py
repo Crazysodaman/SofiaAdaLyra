@@ -611,6 +611,16 @@ def create_background_coordinator(
                         request, principal=local_sparks_principal(),
                     ),
                 )
+                principal = local_sparks_principal()
+                journal = application._conversation_service.emotional_journal
+                for experience in life.store.experiences(
+                    audience_id=principal.audience_id,
+                    include_private=True,
+                    limit=16,
+                ):
+                    journal.record_life_experience(
+                        experience, principal=principal,
+                    )
             queued_updates = (
                 bridge_voluntary_life_outreach(
                     life=life, presence=application._presence,

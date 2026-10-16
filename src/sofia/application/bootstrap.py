@@ -103,7 +103,11 @@ from sofia.cognition.v2 import (
 from sofia.knowledge.evidence import KnowledgeEvidenceCoordinator
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.interaction.world_store import VirtualWorldStore
-from sofia.personality.preferences import PreferenceRegistry
+from sofia.personality.preferences import (
+    CommunicationPreferenceService,
+    PreferenceRecord,
+    PreferenceRegistry,
+)
 from sofia.rel.nicknames import NicknameRegistry
 from sofia.creative import (
     CreativeArtifactCapability, CreativeExplorer, CreativeService,
@@ -317,6 +321,9 @@ class SofiaApplication:
             state_plane=self._runtime.state_plane,
         )
         self._preference_registry = PreferenceRegistry(configuration.state_path)
+        self._communication_preferences = CommunicationPreferenceService(
+            self._preference_registry
+        )
         self._nickname_registry = NicknameRegistry(configuration.state_path)
         self._world_store = VirtualWorldStore(configuration.state_path)
         local_principal = local_sparks_principal()
@@ -350,6 +357,9 @@ class SofiaApplication:
         )
         self._conversation_service.set_habit_continuity(
             self._habit_continuity
+        )
+        self._conversation_service.set_communication_preference_provider(
+            self._communication_preferences.for_principal
         )
         self._conversation_service.set_pre_response_hook(
             self._refresh_trusted_live_state_before_response
@@ -603,6 +613,19 @@ class SofiaApplication:
     def preferences(self) -> PreferenceRegistry:
         return self._preference_registry
 
+    def set_communication_preference(
+        self, *, principal: PrincipalContext, target: str, level: float,
+        reason: str, evidence_ref: str, expected_revision: int | None,
+        now: datetime | None = None,
+    ) -> PreferenceRecord:
+        """Persist one authenticated, audience-scoped owner style override."""
+        return self._communication_preferences.revise_owner_override(
+            principal=principal, target=target, level=level,
+            reason=reason, evidence_ref=evidence_ref,
+            expected_revision=expected_revision,
+            now=now or datetime.now(timezone.utc),
+        )
+
     @property
     def nicknames(self) -> NicknameRegistry:
         return self._nickname_registry
@@ -824,6 +847,9 @@ class SofiaApplication:
         )
         service.set_habit_continuity(
             self._habit_continuity
+        )
+        service.set_communication_preference_provider(
+            self._communication_preferences.for_principal
         )
         service.set_pre_response_hook(
             self._refresh_trusted_live_state_before_response

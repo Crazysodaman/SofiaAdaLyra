@@ -67,8 +67,24 @@ class TkAvatarRenderer:
         self._active_decision_id = request.decision.decision_id
         self._generation += 1
         generation = self._generation
+        avatar = request.decision.avatar_state
         gesture = request.decision.gesture or "still"
-        frames = 5 if gesture.startswith(("tail-", "ear-", "slow-tail")) or request.decision.pose == "walk" else 2
+        rendered_components = tuple(dict.fromkeys(
+            item for item in (
+                None if avatar is None else avatar.face,
+                None if avatar is None else avatar.gaze,
+                None if avatar is None else avatar.ears,
+                None if avatar is None else avatar.tail,
+                request.decision.pose,
+                gesture,
+            )
+            if item is not None
+        ))
+        animated = () if avatar is None else (avatar.ears, avatar.tail)
+        frames = 5 if any(
+            item is not None and item.startswith(("tail-", "ear-", "slow-tail"))
+            for item in animated
+        ) or gesture.startswith(("tail-", "ear-", "slow-tail")) or request.decision.pose == "walk" else 2
 
         def paint(index: int) -> None:
             if generation != self._generation:
@@ -89,7 +105,8 @@ class TkAvatarRenderer:
                 self._pending.clear()
                 completed(
                     request.decision.decision_id, True,
-                    f"rendered {frames} visible frame(s): {gesture}",
+                    f"rendered {frames} visible frame(s): "
+                    + ", ".join(rendered_components or ("still",)),
                 )
                 return
             handle = self.root.after(90, lambda: paint(index + 1))
@@ -112,6 +129,7 @@ class TkAvatarRenderer:
 
     def _draw(self, request: AvatarRenderRequest, *, index: int, frames: int) -> None:
         decision, presentation = request.decision, request.presentation
+        avatar = decision.avatar_state
         self.canvas.delete("avatar")
         width = max(240, int(self.canvas.winfo_width()))
         height = max(280, int(self.canvas.winfo_height()))
@@ -133,8 +151,12 @@ class TkAvatarRenderer:
         elif pose == "hip-pop":
             lean = 8
         center = width // 2 + lean
-        ear_shift = 9 * phase if decision.gesture in {"ear-flick", "ear-perk"} else 0
-        ear_flat = 20 if decision.gesture == "ear-flatten" or presentation.appearance.ear_pose == "flattened" else 0
+        ears = decision.gesture if avatar is None else avatar.ears
+        tail_cue = decision.gesture if avatar is None else avatar.tail
+        gaze_cue = decision.gesture if avatar is None else avatar.gaze
+        face_cue = decision.gesture if avatar is None else avatar.face
+        ear_shift = 9 * phase if ears in {"ear-flick", "ear-perk"} else 0
+        ear_flat = 20 if ears == "ear-flatten" or presentation.appearance.ear_pose == "flattened" else 0
         if presentation.appearance.tail_pose == "raised":
             tail_lift = 20
         elif presentation.appearance.tail_pose == "lowered":
@@ -143,7 +165,7 @@ class TkAvatarRenderer:
             tail_lift = 0
         tail_shift = (
             24 * phase
-            if decision.gesture in {"tail-swish", "slow-tail-sway"}
+            if tail_cue in {"tail-swish", "slow-tail-sway"}
             else 0
         )
 
@@ -218,8 +240,8 @@ class TkAvatarRenderer:
             center + 10, 92, center + 34 - ear_shift, 35 + ear_flat,
             center + 48, 98 + ear_flat, fill=hair, outline=accent, tags="avatar",
         )
-        gaze = 4 if decision.gesture in {"sultry-gaze", "avert-gaze", "look-back"} else 0
-        blink = (decision.gesture == "blink" or (frames > 2 and index == frames // 2))
+        gaze = 4 if gaze_cue in {"sultry-gaze", "avert-gaze", "look-back"} else 0
+        blink = (face_cue == "blink" or decision.gesture == "blink" or (frames > 2 and index == frames // 2))
         if blink:
             self.canvas.create_line(center - 29, 134, center - 14, 134, fill="#25202D", width=2, tags="avatar")
             self.canvas.create_line(center + 14, 134, center + 29, 134, fill="#25202D", width=2, tags="avatar")
@@ -246,10 +268,10 @@ class TkAvatarRenderer:
                 center + 26, 228, text="✧", fill="#A58AC6",
                 font=("Segoe UI", 14), tags="avatar",
             )
-        if decision.gesture == "blush":
+        if face_cue == "blush" or decision.gesture == "blush":
             self.canvas.create_oval(center - 43, 148, center - 27, 156, fill="#E8A0A8", outline="", tags="avatar")
             self.canvas.create_oval(center + 27, 148, center + 43, 156, fill="#E8A0A8", outline="", tags="avatar")
-        frown = decision.gesture in {"frown", "ear-flatten"} or presentation.appearance.expression == "frown"
+        frown = face_cue == "frown" or ears == "ear-flatten" or presentation.appearance.expression == "frown"
         mouth = "︶" if frown else "⌣"
         self.canvas.create_text(center, 164, text=mouth, fill="#171A21", font=("Segoe UI", 17), tags="avatar")
         outfit = presentation.outfit_id or "canonical presentation"

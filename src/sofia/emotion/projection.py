@@ -66,7 +66,10 @@ def derive_current_state(
         age_hours = max(
             0.0, (current - effective_at).total_seconds() / 3600,
         )
-        source_weight = _SOURCE_WEIGHT[event.source]
+        # Confidence is provenance metadata, not emotional intensity itself.
+        # It can only reduce a source's contribution; repeated low-confidence
+        # inferences cannot be promoted to certainty by presentation style.
+        source_weight = _SOURCE_WEIGHT[event.source] * event.confidence
         for name in event.current_emotions:
             half_life = _HALF_LIFE_HOURS.get(name, 8.0)
             contribution = source_weight * (2.0 ** (-age_hours / half_life))

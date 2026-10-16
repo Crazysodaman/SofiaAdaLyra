@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from threading import Event
 
-from sofia.application.expression_runtime import ExpressionRuntime
+from sofia.application.expression_runtime import AvatarExpressionState, ExpressionRuntime
 from sofia.avatar.presentation import (
     AppearanceState, AttireMode, AudienceScope, PresentationProjection,
 )
@@ -146,7 +146,10 @@ def test_renderer_acknowledges_only_after_last_visible_frame(tmp_path):
     assert completed == []
     while root.callbacks:
         root.callbacks.pop(0)()
-    assert completed == [(value.decision_id, True, "rendered 5 visible frame(s): ear-perk")]
+    assert completed == [(
+        value.decision_id, True,
+        "rendered 5 visible frame(s): smile, ear-perk, lean-forward",
+    )]
     assert canvas.frames == 5
 
 
@@ -295,6 +298,14 @@ def test_expression_intent_reports_actual_modal_acknowledgements(tmp_path):
     assert observed.avatar_status == "unavailable"
     assert observed.avatar_acknowledged is False
     assert observed.decision.gesture == "ear-perk"
+    assert "runtime.clock" in observed.source_evidence_refs
+    assert observed.voice_style == observed.decision.prosody
+    assert observed.gestures == ("ear-perk",)
+    assert observed.avatar_state == AvatarExpressionState(
+        face="smile", gaze=None, ears="ear-perk", tail=None,
+        gesture="ear-perk", pose="lean-forward",
+    )
+    assert observed.can_authorize is False
     assert runtime.intent_projection(
         "other-private-message", principal=principal, now=NOW,
     ) is None
