@@ -21,3 +21,22 @@ actual authorized hosts with pinned-model/source/permission receipts.
 Their results must cite an exact revision and specific runner or host. No
 host acceptance, canonical ledger mutation or additional background service
 is performed by this patch.
+
+## Executed bounded policy regressions (partial acceptance work)
+
+`test/test_v18_acceptance_matrix_functional.py` now exercises production
+permission and recovery boundaries rather than checking only that a matrix
+row exists. In isolated CI on Windows/Linux it checks:
+
+- Venus input refusal with an observed running game even if the tray says NORMAL;
+- no bypass from a manually overridden tray;
+- screen receipt denial without independent OS-picker assent, for protected
+  surfaces, wrong scope and expired permissions;
+- an uncertain Home Assistant or JMRI device command refusing silent replay.
+
+These are safe deterministic tests against production policy functions and
+synthetic fixture observations. They **do not** operate an actual Venus
+desktop, enroll a host, capture pixels or prove physical effects. They
+exercise only a subset of the six manual examples, not the full nine-axis
+cross-product. CA-1206 remains open pending all original acceptance
+requirements and independent review. CI success is not Gate 4 by itself.
