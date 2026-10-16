@@ -1,0 +1,64 @@
+name: Avatar2D Public Draft Assets
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/avatar2d-public-draft-assets.yml"
+      - "src/sofia/avatar/vtuber_full_batch_art.py"
+      - "src/sofia/avatar/vtuber_wardrobe_production.py"
+      - "src/sofia/avatar/vtuber_starter_art.py"
+      - "src/sofia/avatar/wardrobe_data/**"
+
+permissions:
+  contents: read
+
+jobs:
+  public-draft-assets:
+    name: Produce public wardrobe PNGs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install project
+        run: python -m pip install -e .
+      - name: Generate every public garment draft PNG
+        run: |
+          python -m sofia.avatar.vtuber_full_batch_art \
+            --public-root "$RUNNER_TEMP/avatar2d-public"
+      - name: Verify actual PNGs match every current public item
+        shell: python
+        run: |
+          from hashlib import sha256
+          import json
+          import os
+          from pathlib import Path
+          from sofia.avatar.vtuber_wardrobe_production import (
+              wardrobe_production_queue, wardrobe_production_coverage,
+          )
+          root = Path(os.environ["RUNNER_TEMP"]) / "avatar2d-public"
+          doc = json.loads((root / "manifest.json").read_text("utf8"))
+          current = wardrobe_production_coverage(wardrobe_production_queue())
+          assert doc["audience"] == "public"
+          assert doc["expected_items"] == current.public
+          assert len({row["item_id"] for row in doc["items"]}) == current.public
+          assert not any(row["exact_source_match"] for row in doc["items"])
+          assert doc["quality"] == "procedural_draft_not_image_generated_or_reviewed"
+          for item in doc["items"]:
+              file = root / item["relative_path"]
+              image = file.read_bytes()
+              assert image.startswith(b"\x89PNG\r\n\x1a\n"), file
+              assert sha256(image).hexdigest() == item["sha256"], file
+          print(f"VERIFIED: {current.public} public garment IDs, "
+                f"{len(doc['items'])} real PNG drafts")
+      - name: Upload public PNG assets with source IDs and hashes
+        uses: actions/upload-artifact@v7
+        with:
+          name: sofia-avatar2d-public-draft-${{ github.sha }}
+          path: ${{ runner.temp }}/avatar2d-public/
+          if-no-files-found: error
+          retention-days: 30
