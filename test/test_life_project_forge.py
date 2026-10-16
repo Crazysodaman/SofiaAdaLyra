@@ -692,26 +692,38 @@ def test_completion_archival_and_private_experience_projection(tmp_path):
         life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         job = wait_for_job(life, life.store.jobs(project.project_id)[0])
         artifact_id = str(job.result["artifact_id"])
+        source_ref = str(job.result["evidence_ref"])
+        source_receipt = life.evidence_index.lookup(source_ref)
+        assert source_receipt is not None
+        assert source_receipt.kind == "operation_receipt"
+        # RUN is asynchronous. On a busy Windows executor, the receipt may
+        # be recorded later than this fixture's synthetic now+5 clock.
+        # Preserve real receipt chronology instead of bypassing verification.
+        evaluated_at = max(
+            now + timedelta(seconds=4),
+            source_receipt.observed_at + timedelta(microseconds=1),
+        )
         life.evaluate_artifact(
             project.project_id, artifact_id=artifact_id,
             technical_outcome=TechnicalOutcome.VALID,
             personal_judgment=PersonalJudgment.LIKE,
             objective_results={"text_contains:Foxfire": True},
             reason="The original text criterion independently passed.",
-            evidence_refs=(str(job.result["evidence_ref"]),),
-            preserve_for_research=False, now=now + timedelta(seconds=4),
+            evidence_refs=(source_ref,),
+            preserve_for_research=False, now=evaluated_at,
         )
+        complete_at = evaluated_at + timedelta(seconds=1)
         completed = life.complete(
             project.project_id,
             reason="The chosen completion option is satisfied; more work is optional.",
-            now=now + timedelta(seconds=5),
+            now=complete_at,
         )
         assert completed.status is ProjectStatus.COMPLETED
         goal = next(goal for goal in goals.list_visible(local_sparks_principal()) if goal.id == project.goal_id)
         assert goal.status is GoalStatus.COMPLETED
         archived = life.archive(
             project.project_id, reason="Preserve the history without keeping it active.",
-            evidence_refs=(evidence,), now=now + timedelta(seconds=6),
+            evidence_refs=(evidence,), now=complete_at + timedelta(seconds=1),
         )
         assert archived.status is ProjectStatus.ARCHIVED
         assert life.store.experiences(
