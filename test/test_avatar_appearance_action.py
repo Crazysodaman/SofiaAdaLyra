@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from sofia.avatar.clothing_action import ClothingActionService
 from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.embodiment.store import EmbodimentStore
@@ -56,9 +58,15 @@ def test_tattoos_and_piercings_are_reversible_and_favoritable(tmp_path):
     assert bundle.store.list_style_favorites()["weekend"] == look
 
 
-def test_no_unreviewed_mutation_of_permanent_anatomy(tmp_path):
+@pytest.mark.parametrize("command", (
+    "change your face shape to square",
+    "change your number of tails to nine",
+    "change your number of ears to four",
+    "change your limb count to six",
+    "change your species to human",
+))
+def test_no_unreviewed_mutation_of_permanent_anatomy(tmp_path, command):
     service, bundle = create_service(tmp_path)
     first = bundle.authority.current.revision
-    assert action(service, "change your face shape to square", 2) is None
-    assert action(service, "change your number of tails to nine", 3) is None
+    assert action(service, command, 2) is None
     assert bundle.authority.current.revision == first

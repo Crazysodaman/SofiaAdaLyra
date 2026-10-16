@@ -43,6 +43,26 @@ def test_stable_local_file_is_read_in_full(tmp_path):
     assert reviewed.training_authorized is False
 
 
+def test_real_git_worktree_source_is_denied_but_empty_ancestor_marker_is_not(tmp_path):
+    # Some CI/container roots expose an empty .git sentinel. It must not make
+    # every independent temp file look like repository content.
+    empty_root=tmp_path/"mounted-root"
+    (empty_root/".git").mkdir(parents=True)
+    independent=empty_root/"datasets"/"public.jsonl"
+    independent.parent.mkdir()
+    write_rows(independent)
+    assert inspect(independent).unique_rows==23
+
+    checkout=tmp_path/"checkout"
+    control=checkout/".git"
+    (control/"objects").mkdir(parents=True)
+    (control/"HEAD").write_text("ref: refs/heads/main\n",encoding="utf-8")
+    tracked=checkout/"training.jsonl"
+    write_rows(tracked)
+    with pytest.raises(PermissionError,match="Git checkout"):
+        inspect(tracked)
+
+
 def test_symlinked_parent_is_not_allowed_as_dataset_source(tmp_path):
     original = tmp_path / "canonical"
     original.mkdir()

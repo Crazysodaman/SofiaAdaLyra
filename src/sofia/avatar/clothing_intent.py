@@ -53,6 +53,16 @@ class ClothingActionIntent:
 
 
 class ClothingActionParser:
+    # Wardrobe verbs are intentionally broad ("change your jacket"), so reject
+    # explicit permanent-body targets before they can become garment names.
+    # Reversible presentation fields such as hair style, ear pose and tail pose
+    # are handled by AppearanceActionService before this parser.
+    _PERMANENT_ANATOMY = re.compile(
+        r"\b(?:face\s+shape|body\s+shape|number\s+of\s+tails?|"
+        r"number\s+of\s+ears?|limb\s+count|number\s+of\s+limbs?|"
+        r"anatomy|skeleton|species)\b",
+        re.IGNORECASE,
+    )
     _FOLLOW = re.compile(
         r"^\s*(?:do\s+it|go\s+ahead|yes[, ]+do\s+it|"
         r"please\s+do\s+it|ok(?:ay)?[, ]+do\s+it)\s*[?.!]*\s*$",
@@ -120,6 +130,8 @@ class ClothingActionParser:
             raise TypeError("clothing action content must be a string")
         text = content.strip()
         if not text:
+            return None
+        if self._PERMANENT_ANATOMY.search(text) is not None:
             return None
 
         hypothetical = self._IF_ASKED.fullmatch(text)

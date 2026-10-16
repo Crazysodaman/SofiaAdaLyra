@@ -5,6 +5,7 @@ import pytest
 
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 from sofia.safe.permissions import PermissionStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.social.principals import local_sparks_principal
 from test.owner_auth_fixture import private_with_signed_owner
 from sofia.avatar.vtuber_wardrobe_production import (
@@ -64,8 +65,9 @@ def test_public_queue_lists_all_public_items_and_only_aggregates_private(tmp_pat
 
 
 def test_protected_details_fail_closed_without_actual_durable_safe_permissions(tmp_path):
-    store=PermissionStore(tmp_path/"sofia.db")
-    resolver=PrivatePresentationGrantResolver(state_path=tmp_path/"sofia.db")
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
+    store=PermissionStore(state)
+    resolver=PrivatePresentationGrantResolver(state_path=state)
     principal=local_sparks_principal()
     with pytest.raises(PermissionError):
         protected_work_orders(

@@ -14,6 +14,7 @@ from sofia.avatar.vtuber_full_batch_art import (
 )
 from sofia.avatar.vtuber_wardrobe_production import GARMENT_FILES
 from sofia.safe.permissions import PermissionStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.social.principals import local_sparks_principal
 from test.owner_auth_fixture import private_with_signed_owner
 
@@ -42,8 +43,10 @@ def test_each_of_fourteen_source_categories_produces_real_visible_png():
     from sofia.avatar.vtuber_wardrobe_production import canonical_json_wardrobe_records
     entries=canonical_json_wardrobe_records()
     for filename in GARMENT_FILES:
-        _,item=next((f,g) for f,g in entries
-                    if f==filename and not g["private_only"])
+        # Some canonical source categories are intentionally protected-only.
+        # Rendering a representative in memory verifies category coverage; it
+        # does not publish the record or weaken its private classification.
+        _,item=next((f,g) for f,g in entries if f==filename)
         blueprint=blueprint_by_id[item["item_id"]]
         blob=_draft_png(blueprint,filename.removesuffix(".json"),"front")
         assert _rgba_alpha_present(blob), item["item_id"]
@@ -94,7 +97,7 @@ def test_private_batch_reuses_durable_safe_authority_and_separate_root(
     src=Sprite()
     src.ellipse((143,166,175,211),(40,30,52,255))
     monkeypatch.setattr(vtuber_full_batch_art,"_draft_png",lambda *args:src.png())
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     resolver=PrivatePresentationGrantResolver(state_path=state)
     public=tmp_path/"public"
     private=tmp_path/"protected"/"private"
@@ -133,12 +136,13 @@ def test_private_batch_reuses_durable_safe_authority_and_separate_root(
 
 def test_private_paths_never_nested_in_public(tmp_path):
     root=tmp_path/"art"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     with pytest.raises(ValueError,match="separate"):
         build_draft_batch(
             public_root=root,
             private_root=root/"private",
             resolver=PrivatePresentationGrantResolver(
-                state_path=tmp_path/"sofia.db",
+                state_path=state,
             ),
             owner_opt_in=True,
         )

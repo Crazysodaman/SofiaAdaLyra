@@ -40,6 +40,33 @@ MAX_LINE=8192
 MAX_ROWS=100_000
 
 
+def _inside_git_worktree(source:Path)->bool:
+    """Recognize real Git worktree metadata, not unrelated empty markers.
+
+    Cloud and container runtimes may mount an empty ``.git`` sentinel at a
+    broad filesystem root.  Treating mere existence as repository membership
+    rejects every otherwise independent dataset below that root.  A normal
+    checkout has a metadata directory with HEAD and object/common metadata;
+    linked worktrees use a ``.git`` indirection file.
+    """
+    for parent in (source.parent,*source.parents):
+        marker=parent/".git"
+        try:
+            if marker.is_file():
+                return True
+            if (
+                marker.is_dir()
+                and (marker/"HEAD").is_file()
+                and ((marker/"objects").is_dir() or (marker/"commondir").is_file())
+            ):
+                return True
+        except OSError:
+            # An unreadable candidate control path is not safe to classify as
+            # an unrelated sentinel.
+            return True
+    return False
+
+
 def _rights_class_matches_source(
     source_class:str, license_id:str, source_ref:str,
 )->bool:
@@ -122,7 +149,7 @@ def inspect_public_dataset(*,path:str|Path,source_class:str,license_id:str,
         or str(source.anchor).startswith(("\\\\","//"))
     ):
         raise ValueError("regular local JSONL file required")
-    if any((parent/".git").exists() for parent in (source.parent,*source.parents)):
+    if _inside_git_worktree(source):
         raise PermissionError("datasets must not be sourced from this Git checkout")
     before=source.stat()
     if not 1<=before.st_size<=MAX_BYTES:
