@@ -1012,6 +1012,22 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         wraplength=720,
     ).pack(anchor="w", pady=(0, 8))
 
+    def show_owner_approval_inbox() -> None:
+        try:
+            from sofia.ui.owner_inbox_window import open_owner_inbox_window
+            open_owner_inbox_window(config.state_path, parent=root)
+        except (OSError, RuntimeError, PermissionError, ValueError) as exc:
+            messagebox.showerror(
+                "Owner approval inbox unavailable",
+                f"{type(exc).__name__}: {exc}",
+                parent=root,
+            )
+
+    ttk.Button(
+        permissions, text="Open durable FIDO2 approval inbox",
+        command=show_owner_approval_inbox,
+    ).pack(anchor="w", pady=(0, 12))
+
     stop_frame = ttk.LabelFrame(
         permissions, text="Operator stop for optional autonomy", padding=8,
     )
