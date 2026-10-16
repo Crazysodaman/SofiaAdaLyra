@@ -75,6 +75,25 @@ def test_event_contract_rejects_partial_scope_bad_time_and_duplicate_evidence():
         )
 
 
+def test_canonical_event_rejects_untyped_and_backdated_expiry():
+    base = dict(
+        schema_version=1, event_id="event:one",
+        owner=CanonicalEventOwner.MATRIX, source_id="message:one",
+        subject_id="session:one", principal_id=None, audience_id=None,
+        observed_at=NOW,
+    )
+    with pytest.raises(ValueError, match="timezone-aware"):
+        EventOwnershipProjection(**{**base, "observed_at": "not a datetime"})
+    with pytest.raises(ValueError, match="timezone-aware"):
+        EventOwnershipProjection(**base, expires_at="a string")
+    with pytest.raises(ValueError, match="cannot precede"):
+        EventOwnershipProjection(**base, expires_at=NOW - timedelta(seconds=1))
+    assert EventOwnershipProjection(
+        **base, expires_at=NOW,
+    ).expires_at == NOW
+
+
+
 def test_matrix_adapter_requires_independent_scope_binding(tmp_path):
     state, matrix = _fixture(tmp_path)
     verified = inspect_turn_persistence(state, matrix_trace=matrix)
