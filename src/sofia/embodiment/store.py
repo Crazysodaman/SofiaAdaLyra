@@ -62,6 +62,9 @@ class EmbodimentStore:
                 "anatomy": dict(
                     embodiment.physical_self.anatomy
                 ),
+                "private_anatomy": dict(
+                    embodiment.physical_self.private_anatomy
+                ),
             },
             "clothing": {
                 "canonical_status": (
@@ -265,6 +268,9 @@ class EmbodimentStore:
             measurements=measurements,
             appearance=appearance,
             anatomy=anatomy,
+            private_anatomy=tuple(
+                data.get("private_anatomy", {}).items()
+            ),
         )
 
     @staticmethod
