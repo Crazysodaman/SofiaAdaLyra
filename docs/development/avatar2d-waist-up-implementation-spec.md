@@ -5,6 +5,7 @@
 **Status:** Build-ready design, NOT proof that artwork, an actual layered renderer, rigging, code tests or live acceptance exist.
 
 **Companion:** avatar2d-waist-up-art-production-sheet.md.
+**Public wardrobe sprite implementation and first-run:** [Generate public waist-up garment PNGs and enable the optional desktop renderer](avatar2d-public-wardrobe-first-run.md). The generator and UI renderer use the 275 existing JSON garment records; it does not duplicate the wardrobe or create private nude art.
 **Pointer integration:** [Precise clickable avatar interaction](avatar2d-pointer-interactions.md), with implementation groundwork in src/sofia/avatar/vtuber_hit_test.py. **Important:** geometry and tests do not themselves enable desktop clicks or model awareness of clicks. Related: pkg-avatar-presentation-autonomy-contract.md, avatar-morphology-autonomy-v18.md, avatar-screen-interaction-contract.md.
 
 ## 1. Architecture, preserving existing owners
