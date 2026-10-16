@@ -6,6 +6,8 @@ import sqlite3
 import pytest
 
 from sofia.application.act_service import SofiaActService
+from sofia.social.principals import local_sparks_principal
+from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.application.presence import (
     CrossModalObservationReceipt, ObservationModality,
     OriginalDataAccess, ObservationPrivacy, PresenceInitiativeEngine,
@@ -55,7 +57,7 @@ def test_same_event_disagreement_is_source_linked_and_persists_on_restart(tmp_pa
     second = source("second", "stopped")
     owner.observe(first, receipt=receipt(first, ObservationModality.SCREEN))
     owner.observe(second, receipt=receipt(second))
-    matches = owner.correlated_conflicts(audience_id="local:text")
+    matches = owner.correlated_conflicts(principal=local_sparks_principal())
     assert len(matches) == 1
     assert set((matches[0]["first_source_ref"],
                 matches[0]["second_source_ref"])) == {"first", "second"}
@@ -69,11 +71,11 @@ def test_same_event_disagreement_is_source_linked_and_persists_on_restart(tmp_pa
     restarted = PresenceInitiativeEngine(
         state_path=path, act_service=SofiaActService(path),
     )
-    assert restarted.correlated_conflicts(audience_id="local:text") == matches
-    assert restarted.correlated_conflicts(audience_id="discord:shared") == ()
+    assert restarted.correlated_conflicts(principal=local_sparks_principal()) == matches
+    assert restarted.correlated_conflicts(principal=local_sparks_principal("discord:shared")) == ()
     # An identical retry cannot create a second contradiction.
     restarted.observe(second, receipt=receipt(second))
-    assert len(restarted.correlated_conflicts(audience_id="local:text")) == 1
+    assert len(restarted.correlated_conflicts(principal=local_sparks_principal())) == 1
 
 
 def test_different_events_or_audiences_never_merge(tmp_path):
@@ -84,8 +86,8 @@ def test_different_events_or_audiences_never_merge(tmp_path):
     owner.observe(second, receipt=receipt(second))
     third = source("third", "stopped", audience="discord:shared")
     owner.observe(third, receipt=receipt(third))
-    assert owner.correlated_conflicts(audience_id="local:text") == ()
-    assert owner.correlated_conflicts(audience_id="discord:shared") == ()
+    assert owner.correlated_conflicts(principal=local_sparks_principal()) == ()
+    assert owner.correlated_conflicts(principal=local_sparks_principal("discord:shared")) == ()
 
 
 def test_missing_provenance_and_rebinding_fail_closed_without_write(tmp_path):
@@ -101,7 +103,7 @@ def test_missing_provenance_and_rebinding_fail_closed_without_write(tmp_path):
     edited = source("first", "running", event="event:other")
     with pytest.raises(ValueError):
         owner.observe(edited, receipt=receipt(edited))
-    assert owner.correlated_conflicts(audience_id="local:text") == ()
+    assert owner.correlated_conflicts(principal=local_sparks_principal()) == ()
 
 
 @pytest.mark.parametrize("event", ["", "event spaces", "private\nevent"])
@@ -116,14 +118,20 @@ def test_raw_transcripts_and_unrelated_unscoped_values_not_compared(tmp_path):
     second = source("second", {"private_content": "also private"})
     owner.observe(first, receipt=receipt(first, ObservationModality.VOICE))
     owner.observe(second, receipt=receipt(second, ObservationModality.VOICE))
-    assert owner.correlated_conflicts(audience_id="local:text") == ()
+    assert owner.correlated_conflicts(principal=local_sparks_principal()) == ()
 
 
-def test_conflict_review_rejects_missing_or_malformed_audience(tmp_path):
+def test_conflict_review_rejects_unbound_or_wrong_principal(tmp_path):
     _, owner = engine(tmp_path)
+    with pytest.raises(TypeError):
+        owner.correlated_conflicts(principal="local:text")
     with pytest.raises(PermissionError):
-        owner.correlated_conflicts(audience_id="")
+        owner.correlated_conflicts(principal=PrincipalContext(
+            "person:untrusted", "local:text", AudienceKind.PRIVATE,
+        ))
     with pytest.raises(PermissionError):
-        owner.correlated_conflicts(audience_id="bad audience")
+        owner.correlated_conflicts(principal=PrincipalContext(
+            "person:sparks", "local:text", AudienceKind.SHARED,
+        ))
     with pytest.raises(ValueError):
-        owner.correlated_conflicts(audience_id="local:text", limit=0)
+        owner.correlated_conflicts(principal=local_sparks_principal(), limit=0)

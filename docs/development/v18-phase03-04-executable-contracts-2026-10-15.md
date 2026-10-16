@@ -225,3 +225,12 @@ persistence, duplicate retries and unsupported private text are tested.
 The original CA-6406 still requires authenticated source correlation from
 authorized live adapters, independent acceptance review, and actual
 cross-device verification before Gate 4 can be awarded.
+
+## Private audience review gating (follow-up)
+
+The diagnostic review API accepts the already bound `PrincipalContext`,
+not a raw audience string. It requires the canonical owner principal and a
+private audience, then matches stored source references to that exact
+audience. An unrelated principal or shared channel fails closed. Callers must
+obtain the principal from an authenticated application boundary; constructing
+a principal from untrusted provider text is never authentication.

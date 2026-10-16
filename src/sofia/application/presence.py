@@ -454,14 +454,27 @@ class PresenceInitiativeEngine:
         return observation
 
     def correlated_conflicts(
-        self, *, audience_id: str, limit: int = 20,
+        self, *, principal: PrincipalContext, limit: int = 20,
     ) -> tuple[dict, ...]:
-        """Only source IDs for the exact audience, never original bytes."""
-        if not isinstance(audience_id, str) or _ID.fullmatch(audience_id) is None:
-            raise PermissionError("exact authorized audience required")
+        """Only source refs in a bound owner's private audience.
+
+        Caller must pass the same authenticated principal object used by the
+        application turn; provider-supplied owner IDs or audience strings
+        are not authorization to retrieve any private observations.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("bound PrincipalContext required for review")
+        if (
+            principal.principal_id != SPARKS_PRINCIPAL_ID
+            or principal.audience_kind is not AudienceKind.PRIVATE
+            or _ID.fullmatch(principal.audience_id) is None
+        ):
+            raise PermissionError("private owner scope required for review")
         from sofia.application.presence_conflicts import scoped_conflicts
         with closing(self._connect()) as db:
-            return scoped_conflicts(db, audience_id=audience_id, limit=limit)
+            return scoped_conflicts(
+                db, audience_id=principal.audience_id, limit=limit,
+            )
 
     def source_receipt(
         self, *, observation_id: str, audience_id: str | None,
