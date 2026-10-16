@@ -31,7 +31,11 @@ jobs:
         run: python -m pip install -e . pytest
       - name: Test gate tracking and source integrity
         run: python -m pytest -q test/test_v18_gate4.py test/test_v18_ci_receipts.py test/test_v18_gate4_review.py test/test_v18_gate4_acceptance.py
-      - name: Generate 700-task Gate 4 report
+      - name: Generate evidence-only Gate 4 report
+        env:
+          # External reviewer trust anchors are an optional owner-provisioned
+          # repository secret. No self-declared key from source is trusted.
+          SOFIA_GATE4_TRUSTED_REVIEWER_KEYS: ${{ secrets.SOFIA_GATE4_TRUSTED_REVIEWER_KEYS }}
         run: >-
           python -m sofia.verify.v18_gate4
           --repo .
