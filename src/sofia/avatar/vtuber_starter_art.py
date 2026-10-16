@@ -22,6 +22,7 @@ import struct
 import zlib
 
 from .wardrobe_catalog import build_starter_wardrobe
+from .vtuber_art_fidelity import brief_from_blueprint
 from .wardrobe_matrix import build_wardrobe_matrix
 from .vtuber_layer_stack import WAIST_UP_SLOTS
 from .wardrobe import Layer, normalize_slots
@@ -304,6 +305,7 @@ def generate_public_outfit_art(
     if (folder/"manifest.json").exists():
         raise FileExistsError("existing art bundle cannot be overwritten")
     images: list[tuple[str,str,bytes,dict[str,object]]] = []
+    source_blueprints = {bp.garment.item_id: bp for bp in catalog.blueprints}
     for role,part,order in (
         ("base_back","back",0),("base_body","body",0),
         ("base_face","face",0),("base_front","front",0),
@@ -320,6 +322,7 @@ def generate_public_outfit_art(
     )):
         slots = sorted({c.slot for c in cells})
         first = cells[0]
+        source_brief = brief_from_blueprint(source_blueprints[garment_id])
         payload = _garment(
             name=first.name,category=first.category,layer=layer,
             slots=frozenset(slots),color=_hex(first.primary_hex),
@@ -331,6 +334,8 @@ def generate_public_outfit_art(
             {
                 "role":"garment","order":index,"garment_id":garment_id,
                 "slots":slots,"wardrobe_layer":layer.name,
+                "source_sha256":source_brief.source_sha256,
+                "visual_review_status":"unreviewed_procedural_starter",
             },
         ))
     # At least one shirt/jacket has visible torso coverage.
@@ -349,6 +354,7 @@ def generate_public_outfit_art(
         "bundle_id":"starter."+outfit_id,
         "audience":"public","attire":"clothed",
         "outfit_id":outfit_id,"art_quality":"procedural_starter",
+        "fidelity_status":"unreviewed_not_exact",
         "canvas":{"width":WIDTH,"height":HEIGHT},
         "layers":layers,
     },sort_keys=True,separators=(",",":")).encode()
@@ -383,6 +389,7 @@ def generate_public_wardrobe_library(catalog, *, destination: Path) -> ArtGenera
         slots=frozenset(normalize_slots(garment.slots)) & WAIST_UP_SLOTS
         if not slots:
             continue
+        source_brief = brief_from_blueprint(bp)
         art=_garment(
             name=garment.name, category=bp.category,
             layer=garment.layer, slots=slots,
@@ -397,11 +404,14 @@ def generate_public_wardrobe_library(catalog, *, destination: Path) -> ArtGenera
             "slots":sorted(slots),
             "wardrobe_layer":garment.layer.name,
             "source":"canonical reviewed wardrobe",
+            "source_sha256":source_brief.source_sha256,
+            "visual_review_status":"unreviewed_procedural_starter",
             "private_only":False,
         })
     manifest=json.dumps({
         "schema":"sofia.avatar2d.public_sprite_library.v1",
         "quality":"procedural_starter",
+        "fidelity_status":"unreviewed_not_exact",
         "viewport":"waist_up",
         "assets":items,
     },sort_keys=True,separators=(",",":")).encode()
