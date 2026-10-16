@@ -4983,7 +4983,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-902",
@@ -5002,7 +5040,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-903",
@@ -5021,7 +5097,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-904",
@@ -5040,7 +5154,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-905",
@@ -5059,7 +5211,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-906",
@@ -5078,7 +5268,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-907",
@@ -5097,7 +5325,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-908",
@@ -5116,7 +5382,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-909",
@@ -5135,7 +5439,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-910",
@@ -5176,7 +5518,45 @@
         "reviewed_source": "acc64fcc6ed8abb674067a31c927a5bdf1a3b8a2",
         "scope": "Execution receipts now require canonical SUCCESS and matching tool capability; typed JSON expected-effect equality excludes bool/int confusion, non-finite evidence and malformed Unicode. Windows/Linux targeted CI passed at f1dd645fe08f5dad217bfe8d27b7b6d171d84cd7; broader adversarial memory/privacy/full-host suite open.",
         "gate4_accepted": false
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-911",
@@ -5195,7 +5575,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-912",
@@ -5214,7 +5632,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-913",
@@ -5233,7 +5689,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "shared_ledger_unassessed"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-914",
@@ -5267,7 +5761,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-2201",
@@ -5303,7 +5835,45 @@
         "tests_executed": false,
         "accepted_by_review": false,
         "evidence_level": "existing_shared_ledger_evidence"
-      }
+      },
+      "gate4_proofs": [
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 1
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 2
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 3
+        },
+        {
+          "revision": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+          "sha256": "72c1f0da409454b3fb8d764136b836f5114c4f564512c5a5cdeca922990f1f90",
+          "evidence_path": "docs/development/v18-phase01-next50-owners-gate4-49ba5551.txt",
+          "reviewer": "OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending",
+          "gate": 4,
+          "ci": {
+            "run_id": 38830215720,
+            "head_sha": "49ba555152db0a8de3cc21c45e27e91392dc2c71",
+            "conclusion": "success",
+            "test_ids": [
+              "test/test_v18_next50_audit.py"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "CA-2202",

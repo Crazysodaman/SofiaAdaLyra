@@ -1,0 +1,55 @@
+V18 next-fifty Gate 4 evidence: canonical remaining declared-source reviews
+
+Scope: the 15 remaining tasks of the next-fifty source review recorded in
+docs/development/v18-next50-audit.json (schema
+sofia.v18-next50-source-review-v1), completing all 50 reviewed tasks.
+
+Exact implementation revision: 49ba555152db0a8de3cc21c45e27e91392dc2c71
+Functional GitHub Actions run: 38830215720 (.github/workflows/v18-next50.yml)
+Linux: success. Windows: success. Both matrix jobs passed at the exact
+revision above.
+
+Reviewer: OpenCode source-bound review and exact-revision CI audit 2026-10-15: next-fifty source review manifest (declared source + review document per task); independent human review pending
+
+Basis: the existing next-fifty review binds each task to a declared
+authoritative source and a reviewed design document, and records an explicit
+independent-acceptance barrier of at least 30 characters per task. The CI
+run above executes test/test_v18_next50_audit.py on both operating systems
+at the exact revision. That test (a) validates every task's source file,
+review document and acceptance blocker, (b) exercises failure paths by
+rejecting forged acceptance, forged status, false test/host execution
+claims, missing sources, empty blockers and reordered/duplicated tasks, and
+(c) re-runs python -m sofia.verify.v18_next50_audit with
+--expected-revision pinned to the exact revision.
+
+Independence note: this is an automated source-bound review and CI audit. It
+does not assert live-host behavior, production Gates 5-6, or completed
+independent human review; that remains a genuine external dependency. No
+live host, database, VM, credential or production state was touched.
+
+Gate 1 (decision/deliverable) and Gate 2 (incorporated specification) are the
+declared decision and its review document recorded per task in the batch
+manifest. Gate 3 is the source-bound review (authority, privacy and
+failure-path discussion plus the recorded acceptance barrier) in that
+manifest. Gate 4 is the exact-revision CI receipt below.
+
+Task | phase | declared source | review document | CI test_id
+--- | --- | --- | --- | ---
+CA-901 | 01 | test/test_avatar_behavior_matrix.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-902 | 01 | test/test_avatar_runtime_projection.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-903 | 01 | src/sofia/verify/package_selection.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-904 | 01 | test/test_act_outreach.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-905 | 01 | test/test_cognition_model_promotion_transaction.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-906 | 01 | test/test_interaction_clarify_quality_regression.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-907 | 01 | test/test_life_canonical_state_loss.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-908 | 01 | src/sofia/verify/v18_roadmap.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-909 | 01 | test/test_act_outreach.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-910 | 01 | test/test_ws2_memory_private_admission.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-911 | 01 | test/test_emotional_conversation_integration.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-912 | 01 | test/test_application_fleet_runtime.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-913 | 01 | test/test_autonomous_work.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-914 | 01 | src/sofia/verify/v18_roadmap.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+CA-2201 | 01 | src/sofia/life/validation.py | docs/development/v18-batch50-verification.md | test/test_v18_next50_audit.py
+
+This certificate covers only these 15 tasks. It does not assert live host
+acceptance, production Gates 5-6, or completed independent human review.
