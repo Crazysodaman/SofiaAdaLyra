@@ -25,7 +25,7 @@ def test_current_appearance_has_canonical_long_crimson_hair_and_fox_parts(tmp_pa
     output=select_character_parts(projection(tmp_path))
     groups=output.as_dict()
     assert groups["face"]=="neutral"
-    assert groups["eyes"]=="open"
+    assert groups["eye_left"]=="open"
     assert groups["mouth"]=="closed"
     assert groups["hair_back"]==groups["hair_front"]=="long_layered"
     assert groups["ear_left"]==groups["ear_right"]=="perked"
@@ -45,8 +45,10 @@ def test_expression_ear_tail_and_real_audio_state_select_written_sprite_ids(tmp_
         talking=True,gaze="left",optional_freckles=True,
     ).as_dict()
     assert chosen["hair_front"]=="tied_back"
-    assert chosen["brows"]=="skeptical"
-    assert chosen["eyes"]=="looking_left"
+    assert chosen["brow_left"]=="skeptical"
+    assert chosen["brow_right"]=="neutral"
+    assert chosen["eye_left"]=="looking_left"
+    assert chosen["eye_right"]=="looking_left"
     assert chosen["mouth"]=="talk_small"
     assert chosen["ear_left"]=="perked"
     assert chosen["tail"]=="raised"
