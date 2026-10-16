@@ -48,7 +48,7 @@ _CHARACTER_STACK_ORDER = {
 
 def _character_expression(decision) -> str:
     """Conservatively use expression intent already established by cognition."""
-    labels = set(decision.emotion_labels or ())
+    labels = set(getattr(decision, "emotion_labels", ()) or ())
     if "skeptical" in labels or "focused" in labels:
         return "skeptical"
     if labels & {"happy", "joyful", "playful", "affectionate"}:
@@ -241,7 +241,7 @@ class TkLayered2DRenderer:
                 "no audience-safe covered public projection available",
             )
             return
-        gesture = request.decision.gesture
+        gesture = getattr(request.decision, "gesture", None)
         frames = _gesture_frames(gesture)
         expression = _character_expression(request.decision)
         self._active_decision = request.decision.decision_id
