@@ -212,3 +212,77 @@ After visual acceptance, derive separately painted clean skin/face,
 eye, brow, mouth, hair and ear assets with exact alpha/anchors, and
 verify expression/viseme animation, garment occlusion, fallback, and
 public/private scope before enabling production.
+
+
+## Batch 09 v3: canonical-matched two-layer head foundation (2026-10-17)
+
+**Status:** Art source package and Windows staging scripts prepared; creator's local
+tests passed (4 focused builder/integrity tests). Production import is **not**
+enabled and user-run Windows checks are still required. This v3 source package
+replaces neither the older Batch09 v2 staging folder nor the original
+57 CoreLayers files.
+
+The approved no-human-ears v2 bust was too large relative to the canonical
+body and included its own jaw/neck/shoulder silhouette. Drawing it over the
+existing body would duplicate those regions. Instead, v3 uses **pixel-identical
+canonical face/head/neck source pixels** in `head_base.png` and keeps the
+nose/cheek/chin cues as a distinct, sparse transparent
+`face_shading.png` layer. Both are 2048×2560 RGBA on the **same** origin.
+The background, body and detached features are not redrawn. The base
+deliberately has **no eyes, brows, mouth, hair, or human ears**.
+
+A `Sofia_Batch09_Editable_Layers.ora` master opens in Krita (OpenRaster
+format) with separate canonical-body reference, cropped head base, and
+face-shading layer, allowing future artist correction and refitting.
+
+### On Venus
+
+Extract `Sofia_Batch09_Modular_Foundation_v3.zip` and run:
+
+```text
+Check-Batch09.cmd
+Stage-Batch09.cmd
+Verify-Batch09.cmd
+Preview-Batch09.cmd
+```
+
+The installer always resolves its source relative to `$PSScriptRoot`
+(no quoted trailing-backslash directory argument). It validates all file
+SHA256 hashes and compares the installed canonical body's SHA256 to the
+asset's recorded source-body digest. Staging is transactional and refuses
+overwrite. `Rollback-Batch09.cmd` renames **only the v3 staging folder**
+to a dated backup; it never modifies canonical body, CoreLayers v1,
+Public-V2, runtime settings, `sofia.db`, or watchdog services.
+
+Expected staged directory:
+
+```text
+%LOCALAPPDATA%\SofiaAdaLyra\Avatar2D\Private-Source\Reviewed-Candidates\Batch09-ModularFoundation-v3
+```
+
+After `git pull --ff-only`, run an independent verification:
+
+```powershell
+$Private = Join-Path $env:LOCALAPPDATA 'SofiaAdaLyra\Avatar2D\Private-Source'
+$Candidate = Join-Path $Private 'Reviewed-Candidates\Batch09-ModularFoundation-v3'
+$Body = Join-Path $Private 'CanonicalBody\v1\sofia_body_base_2048x2560.png'
+
+python -m sofia.avatar.vtuber_batch09_foundation --root "$Candidate" --canonical-body "$Body"
+pytest -q test/test_avatar2d_batch09_foundation.py
+```
+
+**Open:** real Windows PowerShell launcher test; owner review of the new
+two-layer face foundation; separately painted left/right eyes and brows,
+lip shapes, hair and ears; registered tail pivots; safe `320×400` public
+manifest compilation; authentic animation receipts; covered public
+outfit/wardrobe occlusion; CI and live Venus acceptance. This PNG pair
+is an important source-art fit correction, **not a finished VTuber**.
+
+### Why no live activation yet?
+
+The current Tk runtime requires an exact 12-group, 33-variant
+`sofia.avatar2d.character_parts.v1` public manifest on a 320×400 canvas.
+Batch09 v3 is a separate 2048×2560 **private source review** format.
+Converting it directly into `Public-V2` would still lack independent
+eyes, hair, ears, mouths and approved safe public clothing. The art's
+manifest cannot grant permissions or activate a private display.
