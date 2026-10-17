@@ -624,3 +624,11 @@ def test_matrix_scoped_execution_history_filters_all_identity_axes(tmp_path):
         session_id="s1", principal_id="principal:one", channel="desktop",
         limit=1,
     ) is not None
+
+
+def test_matrix_prior_turn_rejects_whitespace_only_principal(tmp_path):
+    path, _ = _fixture(tmp_path)
+    with pytest.raises(ValueError, match="principal_id"):
+        MatrixTraceStore(path).latest_scoped(
+            session_id="s1", principal_id="   ", channel="desktop",
+        )
