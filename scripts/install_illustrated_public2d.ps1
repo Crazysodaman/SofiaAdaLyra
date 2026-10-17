@@ -75,12 +75,14 @@ finally {
 Write-Host 'Illustrated public portraits installed and hash-checked:' $Art
 
 if ($PublishToGit) {
-    $Destination = Join-Path $Repository 'assets\avatar2d\illustrated_public_v1'
+    # The reviewed archive is package-owned so installed-wheel production has
+    # the same references as a source checkout. Keep one canonical binary.
+    $Destination = Join-Path $Repository 'src\sofia\avatar\assets'
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     $GitZip = Join-Path $Destination 'sofia2d_public_illustrated_candidates_v1.zip'
     if (Test-Path -LiteralPath $GitZip) { throw 'Existing repository asset will not be overwritten.' }
     Copy-Item -LiteralPath $Archive -Destination $GitZip
-    & git -C $Repository add -- 'assets/avatar2d/illustrated_public_v1/sofia2d_public_illustrated_candidates_v1.zip'
+    & git -C $Repository add -- 'src/sofia/avatar/assets/sofia2d_public_illustrated_candidates_v1.zip'
     if ($LASTEXITCODE -ne 0) { throw 'git add failed.' }
     & git -C $Repository commit -m 'assets(avatar2d): add illustrated public static candidate pack'
     if ($LASTEXITCODE -ne 0) { throw 'git commit failed.' }

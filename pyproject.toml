@@ -31,7 +31,10 @@ where = ["src"]
     "personality/personality.json",
 ]
 "sofia.ui" = ["assets/*.ico"]
-"sofia.avatar" = ["wardrobe_data/*.json"]
+"sofia.avatar" = [
+    "wardrobe_data/*.json",
+    "assets/sofia2d_public_illustrated_candidates_v1.zip",
+]
 
 [tool.pytest.ini_options]
 python_classes = ["*Test"]

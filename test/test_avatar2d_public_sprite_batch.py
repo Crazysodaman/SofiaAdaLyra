@@ -5,6 +5,7 @@ from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 import json
+import tomllib
 
 import pytest
 from PIL import Image
@@ -12,6 +13,17 @@ from PIL import Image
 from sofia.avatar.wardrobe_public_sprite_batch import (
     CATEGORIES, _render_vector_candidate, make_batch, public_garment_data,
 )
+
+
+@pytest.mark.pkg_avatar
+@pytest.mark.pkg_verify
+def test_illustrated_reference_archive_is_declared_as_wheel_package_data():
+    root=Path(__file__).resolve().parents[1]
+    manifest=tomllib.loads((root/"pyproject.toml").read_text(encoding="utf-8"))
+    avatar_data=set(
+        manifest["tool"]["setuptools"]["package-data"]["sofia.avatar"]
+    )
+    assert "assets/sofia2d_public_illustrated_candidates_v1.zip" in avatar_data
 
 
 @pytest.mark.pkg_avatar

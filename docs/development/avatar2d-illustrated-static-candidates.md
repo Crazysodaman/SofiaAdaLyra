@@ -1,9 +1,9 @@
 # Illustrated PUBLIC Sofía: static first, reviewed art later
 
-**Status:** Working code for validated static portrait add-ons is on `main`.
-The *illustrated PNG binary add-on* is delivered separately from the repo,
-not automatically included in the Git checkout. These are unreviewed image
-candidates, not fully source-exact or independent garment rig layers.
+**Status:** Working code and the reviewed public candidate archive are on
+`main`. The archive is package-owned so source and installed-wheel runtimes
+read the same bytes. These remain unreviewed image candidates, not fully
+source-exact or independent garment rig layers.
 
 ## What the pack contains
 
@@ -39,7 +39,7 @@ python -m sofia
 The script checks the complete ZIP SHA-256, validates all five portrait
 SHA-256 values, installs the public art without overwriting an existing
 portrait directory, and (when `-PublishToGit` is set) copies the original
-binary ZIP to `assets/avatar2d/illustrated_public_v1/`, commits and pushes
+binary ZIP to `src/sofia/avatar/assets/`, commits and pushes
 to `main` using the owner's normal authenticated Git client. Remove the
 optional switch to install locally without publishing files. This is **not**
 a remote push performed by CI/ChatGPT, and a real Venus visual acceptance
@@ -76,9 +76,8 @@ changes to the canonical `sofia.db`.
 ## If you want the actual binary assets committed into Git
 
 The GitHub source integration does **not** upload PNG bytes by itself.
-Copy the original ZIP into the repository via your Venus checkout
-(or extract it into `assets/avatar2d/illustrated_public_v1/`), then
-review the images and `git add`, `git commit`, `git push` on `main`.
+Copy the original ZIP into `src/sofia/avatar/assets/` via your Venus checkout,
+then review the images and `git add`, `git commit`, `git push` on `main`.
 Consider Git LFS for future large image revisions. CI cannot prove image
 quality, visual fit, or original-source garment exactness from hashes alone.
 

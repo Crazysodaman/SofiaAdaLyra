@@ -1,6 +1,7 @@
 """Actual committed PNG archive + read-only public startup diagnostics."""
 from __future__ import annotations
 
+from importlib.resources import as_file, files
 from pathlib import Path
 import json
 import sqlite3
@@ -10,10 +11,8 @@ from sofia.avatar.vtuber_public_diagnose import diagnose_public_avatar2d
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
-_ARCHIVE = (
-    Path(__file__).resolve().parents[1]
-    / "assets" / "avatar2d" / "illustrated_public_v1"
-    / "sofia2d_public_illustrated_candidates_v1.zip"
+_ARCHIVE = files("sofia.avatar").joinpath(
+    "assets/sofia2d_public_illustrated_candidates_v1.zip"
 )
 
 
@@ -26,12 +25,13 @@ def _setup(tmp_path, *, outfit="day.default", private=False, corrupted=False):
     (root / "outfits" / "day.default").mkdir(parents=True)
     (root / "character" / "manifest.json").write_text("{}")
     (root / "outfits" / "day.default" / "manifest.json").write_text("{}")
-    with zipfile.ZipFile(_ARCHIVE) as archive:
-        for entry in archive.namelist():
-            if entry.startswith("portraits/day.default/"):
-                target = root / entry
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(archive.read(entry))
+    with as_file(_ARCHIVE) as archive_path:
+        with zipfile.ZipFile(archive_path) as archive:
+            for entry in archive.namelist():
+                if entry.startswith("portraits/day.default/"):
+                    target = root / entry
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.read(entry))
     if corrupted:
         (root / "portraits" / "day.default" / "portrait.png").write_bytes(b"broken")
 
