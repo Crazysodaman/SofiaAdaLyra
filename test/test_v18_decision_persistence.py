@@ -512,3 +512,25 @@ def test_matrix_scoped_latest_uses_canonical_audience_index(tmp_path):
     assert MatrixTraceStore(path).latest_scoped(
         session_id="s1", principal_id="principal:one", channel="desktop"
     ).envelope.message_id == trace.envelope.message_id
+
+
+def test_matrix_execution_diagnostics_use_partial_index(tmp_path):
+    """Growing ordinary chat history must not cause full scans for execution."""
+    path, _ = _fixture(tmp_path)
+    with closing(sqlite3.connect(path)) as db:
+        indexes = {
+            row[1] for row in db.execute(
+                "PRAGMA index_list(cognition_matrix_trace)"
+            )
+        }
+        assert "idx_cognition_matrix_trace_execution" in indexes
+        plan = db.execute(
+            "EXPLAIN QUERY PLAN SELECT * FROM cognition_matrix_trace "
+            "WHERE session_id=? AND extensions_json IS NOT NULL "
+            "ORDER BY created_at DESC, message_id DESC LIMIT ?",
+            ("s1", 100),
+        ).fetchall()
+    assert any(
+        "idx_cognition_matrix_trace_execution" in row[3]
+        for row in plan
+    ), plan
