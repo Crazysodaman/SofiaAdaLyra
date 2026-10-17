@@ -83,6 +83,18 @@ class MatrixTraceStore:
                 ON cognition_matrix_trace(session_id, created_at)
                 """
             )
+            # The production planner scopes every follow-up by authenticated
+            # session, principal and channel. Avoid a growing full-table scan
+            # on every conversational turn while retaining the canonical DB.
+            db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_cognition_matrix_trace_audience
+                ON cognition_matrix_trace(
+                    session_id, principal_id, channel,
+                    created_at DESC, message_id DESC
+                )
+                """
+            )
             columns = {
                 row["name"]
                 for row in db.execute(
