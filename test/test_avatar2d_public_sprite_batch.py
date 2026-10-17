@@ -37,6 +37,7 @@ def test_generate_complete_public_draft_archive_without_private_items(tmp_path):
     assert len(manifest["items"])==244
     assert manifest["illustrated_unfitted_reference_count"]==9
     assert len(list((root/"illustrated_references").glob("*.png")))==9
+    assert len(list((root/"preview").glob("*.png")))==len(CATEGORIES)
     for entry in manifest["items"]:
         assert entry["private_only"] is False
         assert entry["rig_status"]=="NOT_FITTED_FOR_LIVE_REUSE"
