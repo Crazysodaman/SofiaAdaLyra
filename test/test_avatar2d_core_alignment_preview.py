@@ -73,3 +73,24 @@ def test_brow_alpha_fringe_is_excluded_from_registration():
     assert bbox[2] - bbox[0] >= 290
     assert bbox[1] >= 40
     assert bbox[3] <= 100
+
+
+
+def test_review_rejects_full_face_and_avoids_double_head(artwork):
+    """A second opaque oval must not cover the canonical body's face."""
+    source, canonical, root = artwork
+    face_png = source / "layers" / "face" / "face_base.png"
+    with Image.open(face_png) as original:
+        face = original.copy()
+    # An obvious sentinel in the duplicate face base must never appear.
+    face.putpixel((1000, 160), (0, 255, 0, 255))
+    face.save(face_png)
+    target = root / "Private-Source" / "Review" / "head_gate"
+    result = make_candidate(source, canonical, target)
+    assert result["head_quality"] == "REJECTED_needs_cohesive_head_and_nose_art"
+    assert result["head_base"] == "canonical_body_only"
+    assert result["owner_approved"]["brow_variant"] == "brows_soft"
+    assert result["owner_approved"]["full_face"] is False
+    with Image.open(target / "head_alignment_candidate.png") as preview:
+        # Crop begins at (750, 0): source (1000,160) maps to (250,160).
+        assert preview.convert("RGBA").getpixel((250, 160))[:3] != (0, 255, 0)
