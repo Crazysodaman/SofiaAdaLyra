@@ -99,8 +99,12 @@ def make_candidate(
         canvas.alpha_composite(_fit(_load(source_root, group, filename), box))
         transforms[group_name] = {"source": f"{group}/{filename}", "box": list(box)}
     canvas.alpha_composite(body)
+    # The canonical body already includes the head silhouette. The
+    # imported face_base is a second opaque head oval with a second outline;
+    # stacking both exaggerates the jaw seam. Keep it available for
+    # inventory/provenance, but never draw duplicate head silhouettes.
+    # This does NOT resolve the faceless body / blurry nose art mismatch.
     for group, filename in (
-        ("face", "face_base.png"),
         ("face", "face_shading.png"),
         ("eyes", "eyes_open_center.png"),
     ):
@@ -152,7 +156,13 @@ def make_candidate(
         "canvas": list(MASTER_SIZE),
         "head_crop": list(HEAD_CROP),
         "candidate_transforms": transforms,
+        "head_quality": "REJECTED_needs_cohesive_head_and_nose_art",
+        "owner_approved": {"brow_variant": "brows_soft", "full_face": False},
+        "head_base": "canonical_body_only",
         "notes": [
+            "Owner approved C eyebrow shape ONLY; current face/jaw/nose art is rejected.",
+            "Do not draw face_base over canonical body: both include opaque head outlines.",
+            "A new style-consistent facial base and visible nose are required before production.",
             "Ear L/R mapping is provisional, not independent artwork authorization.",
             "Brows are resized and repositioned for visual review only.",
             "Tail root, hair styles, visemes, and garment occlusion require calibration.",
