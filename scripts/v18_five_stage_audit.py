@@ -77,6 +77,7 @@ def build(repo: Path, source_sha: str) -> dict:
         "method": "inventory plus explicitly referenced inspected source/drafts; NOT a complete production/code audit",
         "counts": counts,
         "audited_targeted": sum(t["audit_depth"] != "inventory_only" for t in tasks),
+        "audit_coverage_percent": round(100 * sum(t["audit_depth"] != "inventory_only" for t in tasks) / len(tasks), 2),
         "tasks": tasks,
     }
 
@@ -85,10 +86,28 @@ def main():
     p.add_argument("--repo", type=Path, default=Path("."))
     p.add_argument("--sha", required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--markdown-output", type=Path)
     args = p.parse_args()
     result = build(args.repo.resolve(), args.sha)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    if args.markdown_output:
+        lines = ["# Sofía V18 five-stage development progress", "",
+                 f"Source commit: `{args.sha}`", "",
+                 "Conservative status from currently traced evidence, not 780 completed source audits.", "",
+                 "| Stage | Tasks | Progress |", "| --- | ---: | --- |"]
+        labels = {"NOT_WORKED_ON": "1. Not worked on / unverified",
+                  "CODED_UNFINISHED": "2. Coded but unfinished",
+                  "PRODUCTION_CODED": "3. Fully coded into production",
+                  "TESTED": "4. Tested", "TESTED_CI": "5. Tested + CI"}
+        for key in STAGES:
+            count = result["counts"][key]
+            filled = round(count * 30 / 780)
+            lines.append(f"| {labels[key]} | {count}/780 | `{'█' * filled}{'░' * (30-filled)}` {100 * count / 780:.2f}% |")
+        lines += ["", f"Targeted evidence traced: **{result['audited_targeted']}/780** ({result['audit_coverage_percent']}%).",
+                  "", "Stage 5 counts require task-matched test and exact-revision CI evidence; green workflow alone is not enough.", ""]
+        args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown_output.write_text("\n".join(lines), encoding="utf-8")
     print(json.dumps({"counts": result["counts"], "audited_targeted": result["audited_targeted"]}))
 
 if __name__ == "__main__":
