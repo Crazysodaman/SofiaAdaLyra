@@ -274,6 +274,9 @@ def make_batch(output_dir: Path, *, source_root: Path | None = None,
         records.append({
             "item_id":identifier,"name":row["name"],"category":category,
             "garment_type":row["garment_type"],
+            # A full design snapshot is the pixel-art work order, not just an
+            # opaque ID or approximate palette. Never add private-only rows.
+            "canonical_design":design_fields,
             "source_description_sha256":signature,
             "sprite_file":"items/"+identifier+".png",
             "sprite_sha256":sha256(sprite).hexdigest(),
