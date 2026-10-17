@@ -140,7 +140,8 @@ def test_matrix_upsert_never_promotes_legacy_timestamp_to_proof(tmp_path):
         )
     legacy = MatrixTraceStore(path).get(matrix.envelope.message_id)
     # An ordinary extension/update pass must not silently mint evidence.
-    MatrixTraceStore(path).record(legacy)
+    with pytest.raises(ValueError, match="source timestamp"):
+        MatrixTraceStore(path).record(legacy)
     with closing(sqlite3.connect(path)) as db:
         row = db.execute(
             "SELECT source_created_at FROM cognition_matrix_trace WHERE message_id=?",
@@ -161,7 +162,8 @@ def test_matrix_upsert_cannot_replace_original_event_time(tmp_path):
             created_at=NOW + timedelta(milliseconds=10),
         ),
     )
-    MatrixTraceStore(path).record(forged)
+    with pytest.raises(ValueError, match="source timestamp"):
+        MatrixTraceStore(path).record(forged)
     with closing(sqlite3.connect(path)) as db:
         source, decision = db.execute(
             "SELECT source_created_at, created_at FROM cognition_matrix_trace "
@@ -455,7 +457,7 @@ def test_matrix_scoped_read_never_crosses_audience_binding(
 
 @pytest.mark.parametrize(("name", "value"), [
     ("message_id", ""), ("session_id", "  "),
-    ("principal_id", ""), ("channel", ""),
+    ("principal_id", "  "), ("channel", ""),
 ])
 def test_matrix_scoped_read_rejects_missing_identity(tmp_path, name, value):
     path, trace = _fixture(tmp_path)
