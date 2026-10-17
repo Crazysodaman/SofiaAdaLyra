@@ -733,3 +733,24 @@ def test_matrix_legacy_migration_adds_scoped_execution_index(tmp_path):
             "PRAGMA index_list(cognition_matrix_trace)"
         )}
     assert "idx_cognition_matrix_trace_scoped_execution" in names
+
+
+def test_matrix_legacy_row_without_source_time_cannot_gain_false_provenance(tmp_path):
+    path, trace = _fixture(tmp_path)
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "UPDATE cognition_matrix_trace SET source_created_at=NULL "
+            "WHERE message_id=?", (trace.envelope.message_id,),
+        )
+    recovered = MatrixTraceStore(path).get(trace.envelope.message_id)
+    assert recovered.envelope.created_at != trace.envelope.created_at
+    with pytest.raises(ValueError, match="source timestamp"):
+        MatrixTraceStore(path).record(
+            replace(trace, created_at=trace.created_at + timedelta(seconds=1))
+        )
+    with closing(sqlite3.connect(path)) as db:
+        original_source = db.execute(
+            "SELECT source_created_at FROM cognition_matrix_trace WHERE message_id=?",
+            (trace.envelope.message_id,),
+        ).fetchone()[0]
+    assert original_source is None
