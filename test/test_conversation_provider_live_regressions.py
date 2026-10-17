@@ -69,7 +69,7 @@ def test_trace_store_failure_does_not_disable_live_matrix_scoping(
     tmp_path,
 ):
     class BrokenTraceStore:
-        def latest(self, *, session_id):
+        def latest_scoped(self, *, session_id, principal_id, channel):
             raise RuntimeError("trace read unavailable")
 
         def record(self, trace):
