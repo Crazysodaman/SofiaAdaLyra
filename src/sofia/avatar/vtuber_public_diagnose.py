@@ -19,6 +19,7 @@ from .presentation import (
 )
 from .vtuber_asset_bundle import Avatar2DAssetError
 from .vtuber_static_portraits import load_public_static_portrait
+from .scene_compositor import load_scene_preset, scene_png_bytes
 from .wardrobe_catalog import build_starter_wardrobe
 
 
@@ -171,6 +172,26 @@ def diagnose_public_avatar2d(
     if png is None:
         report["status"] = "ILLUSTRATED_PORTRAIT_NOT_APPLICABLE"
         report["action"] = "The approved public outfit metadata differs from the installed portrait."
+        return report
+    # Evaluate independent owner-saved static scenes as well. The portrait
+    # may be valid while its background is missing, tampered, or stale.
+    try:
+        scene = load_scene_preset(root, projection, catalog=catalog)
+        report["scene_manifest_present"] = scene is not None
+        if scene is None:
+            report["scene_status"] = "NO_SAVED_PUBLIC_SCENE"
+        else:
+            composite, source = scene_png_bytes(
+                root, projection, catalog=catalog, scene=scene,
+            )
+            report["scene_status"] = "SAVED_PUBLIC_SCENE_VALID"
+            report["scene_source"] = source
+            report["scene_png_bytes"] = len(composite)
+    except (Avatar2DAssetError, ValueError, TypeError, OSError, RuntimeError) as exc:
+        report["scene_status"] = "SAVED_PUBLIC_SCENE_REJECTED"
+        report["scene_detail"] = f"{type(exc).__name__}: {exc}"
+        report["status"] = "SAVED_PUBLIC_SCENE_REJECTED"
+        report["action"] = "Review the saved public scene preset and imported background."
         return report
     report["status"] = "ILLUSTRATED_PORTRAIT_VALID"
     report["portrait_bytes"] = len(png)
