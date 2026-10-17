@@ -12,6 +12,7 @@ from datetime import datetime
 from sofia.application.decision_persistence import CompanionTurnPersistence
 from sofia.application.event_contracts import (
     EventOwnershipProjection,
+    ContractErrorState,
     project_matrix_event,
 )
 from sofia.cognition.matrix.model import MatrixTrace, EvidenceState
@@ -179,6 +180,16 @@ def project_companion_decision(
         event for event in (selected_goal_event, selected_activity_event)
         if event is not None
     )
+    # A canonical event can be correctly owned yet unusable for this turn:
+    # revoked, failed, expired or future observations are not eligible inputs
+    # to a claimed decision or outcome. Never silently upgrade such records.
+    for event in (*selected_events, *outcome_events):
+        if event.observed_at > matrix_trace.created_at:
+            raise ValueError("linked event postdates the decision")
+        if event.expires_at is not None and event.expires_at < matrix_trace.created_at:
+            raise ValueError("linked event expired before the decision")
+        if event.error_state is not ContractErrorState.NONE:
+            raise ValueError("linked event is not an eligible source observation")
     for event in (*selected_events, *outcome_events):
         if event.principal_id is not None and (
             matrix_trace.envelope.principal_id != event.principal_id
