@@ -40,6 +40,7 @@ jobs:
         run: |
           pytest -q `
             test/test_cognition_matrix.py `
+            test/test_matrix_audience_batch20.py `
             test/test_contextual_influence_matrix.py `
             test/test_memory_promoted_retrieval.py `
             test/test_memory_runtime_wiring.py `
