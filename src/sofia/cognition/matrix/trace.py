@@ -514,7 +514,10 @@ class MatrixTraceStore:
                     ambiguous=excluded.ambiguous,
                     shadow=excluded.shadow,
                     context_active=excluded.context_active,
-                    source_created_at=excluded.source_created_at,
+                    -- Source-event time is immutable after first insert.
+                    -- Re-reading a legacy row must not turn a substituted
+                    -- decision time into apparently authenticated evidence.
+                    source_created_at=cognition_matrix_trace.source_created_at,
                     created_at=excluded.created_at
                 """,
                 (
