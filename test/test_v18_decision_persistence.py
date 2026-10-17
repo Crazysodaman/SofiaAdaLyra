@@ -466,3 +466,24 @@ def test_matrix_scoped_read_rejects_missing_identity(tmp_path, name, value):
         MatrixTraceStore(path).get_scoped(
             args.pop("message_id"), **args,
         )
+
+
+def test_matrix_prior_turn_read_is_isolated_by_principal_and_channel(tmp_path):
+    path, trace = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    assert store.latest_scoped(
+        session_id="s1", principal_id="principal:one", channel="desktop"
+    ).envelope.message_id == trace.envelope.message_id
+    assert store.latest_scoped(
+        session_id="s1", principal_id="principal:other", channel="desktop"
+    ) is None
+    assert store.latest_scoped(
+        session_id="s1", principal_id="principal:one", channel="discord"
+    ) is None
+    assert store.latest_scoped(
+        session_id="other", principal_id="principal:one", channel="desktop"
+    ) is None
+    # Anonymous traces must not inherit authenticated turns.
+    assert store.latest_scoped(
+        session_id="s1", principal_id="", channel="desktop"
+    ) is None
