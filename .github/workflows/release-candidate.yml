@@ -28,7 +28,10 @@ concurrency:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 30
+    # The installed-wheel full gate currently exercises more than 6,000 tests.
+    # Windows runners have exceeded the former 30-minute ceiling without a
+    # test failure, which discarded the verification evidence mid-run.
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
