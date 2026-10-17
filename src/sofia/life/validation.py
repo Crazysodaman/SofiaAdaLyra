@@ -145,6 +145,14 @@ def inspect_objective_artifact(
         raise TypeError("ArtifactRevision required")
     if not isinstance(path, Path):
         raise TypeError("path must be Path")
+    # A caller must inspect the exact path recorded for this immutable
+    # creative revision. Matching bytes copied to a different file do not
+    # establish provenance for the original artifact or its RUN receipt.
+    if path != Path(revision.content_path):
+        return ArtifactObjectiveReport(
+            revision.artifact_id, revision.revision,
+            revision.content_sha256, ObjectiveDisposition.FAIL, (),
+        )
     if not isinstance(objectives, tuple) or any(not isinstance(x, str) for x in objectives):
         raise TypeError("objectives must be text tuple")
     if type(max_inspect_bytes) is not int or not 1 <= max_inspect_bytes <= 64 * 1024 * 1024:
