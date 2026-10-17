@@ -545,6 +545,9 @@ class MatrixTraceStore:
                 WHERE cognition_matrix_trace.session_id=excluded.session_id
                   AND cognition_matrix_trace.principal_id=excluded.principal_id
                   AND cognition_matrix_trace.channel=excluded.channel
+                  -- Stale writers/replayed snapshots cannot roll a decision
+                  -- backward after a newer completed trace is persisted.
+                  AND cognition_matrix_trace.created_at<=excluded.created_at
                 """,
                 (
                     trace.envelope.message_id,
@@ -567,7 +570,7 @@ class MatrixTraceStore:
                 ),
             )
             if result.rowcount != 1:
-                raise ValueError("matrix trace message_id belongs to a different principal, session, or channel")
+                raise ValueError("matrix trace identity mismatch or stale decision replay")
 
     def get(self, message_id: str) -> MatrixTrace | None:
         if not isinstance(message_id, str) or not message_id.strip():
