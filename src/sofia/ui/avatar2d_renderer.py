@@ -28,6 +28,7 @@ from sofia.avatar.vtuber_character_selection import select_character_parts
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_matrix import build_wardrobe_matrix
 from sofia.avatar.vtuber_static_portraits import load_public_static_portrait
+from sofia.avatar.scene_compositor import load_scene_preset, scene_png_bytes
 from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
 
 
@@ -175,6 +176,33 @@ class TkLayered2DRenderer:
             or "\\" in projection.outfit_id
         ):
             raise Avatar2DAssetError("invalid public outfit ID")
+        # An owner-saved public scene is an explicitly static compositor output:
+        # it may contain a checked full portrait or validated modular sprite
+        # stack; neither path claims illustrated gesture animation.
+        scene = load_scene_preset(self.public_root, projection, catalog=self.catalog)
+        if scene is not None:
+            picture_png, source = scene_png_bytes(
+                self.public_root, projection, catalog=self.catalog, scene=scene,
+            )
+            from tkinter import PhotoImage
+            image = PhotoImage(
+                data=b64encode(picture_png).decode("ascii"), format="png",
+            )
+            # Match the existing 160-200px avatar UI viewport.
+            divisor = max(1, (scene.height + 199) // 200)
+            picture = image.subsample(divisor, divisor)
+            self.canvas.delete("avatar")
+            self.canvas.delete("avatar2d")
+            xpos = max(85, self.canvas.winfo_width() // 2)
+            self.canvas.create_image(
+                xpos, 22, anchor="n", image=picture, tags="avatar2d",
+            )
+            self._images = [picture]
+            self._last_revision = projection.source_revision
+            self._last_digest = sha256(picture_png).hexdigest()
+            self._last_art_source = "public static scene (" + source + ")"
+            return 1, False
+
         # An installed, source-bound public portrait can take priority over
         # procedural starter artwork. It is deliberately a SINGLE static
         # frame: gestures and blinking are not claimed as illustrated here.
