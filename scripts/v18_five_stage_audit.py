@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROWS = re.compile(r"^\\|\\s*((?:CA-\\d+|ML-\\d{3}|GA-\\d{3}))\\s*\\|", re.M)
+ROWS = re.compile(r"^\|\s*((?:CA-\d+|ML-\d{3}|GA-\d{3}))\s*\|", re.M)
 STAGES = ("NOT_WORKED_ON", "CODED_UNFINISHED", "PRODUCTION_CODED", "TESTED", "TESTED_CI")
 # Hand-inspected draft/source references only. These do not certify completed clauses.
 TRACED = {
@@ -69,7 +69,7 @@ def main():
     args = p.parse_args()
     result = build(args.repo.resolve(), args.sha)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2) + "\\n", encoding="utf-8")
+    args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"counts": result["counts"], "audited_targeted": result["audited_targeted"]}))
 
 if __name__ == "__main__":
