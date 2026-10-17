@@ -606,7 +606,7 @@ def test_matrix_scoped_execution_history_filters_all_identity_axes(tmp_path):
     with_execution = replace(
         trace,
         cognition_execution=CognitionExecutionTrace(
-            serial=1, actual_route="local", steps=(),
+            serial=1, actual_route="fast", steps=(),
             fallback_count=0, verification_passes=0,
         ),
     )
