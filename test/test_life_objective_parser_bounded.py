@@ -112,6 +112,28 @@ def test_symlink_or_directory_never_verifies_original_artifact(tmp_path):
     assert report.integrity is ObjectiveDisposition.FAIL
 
 
+
+def test_same_bytes_at_different_path_are_not_original_artifact_proof(tmp_path):
+    """A copied file with matching SHA-256 is not the source named by LIFE."""
+    content = b"independent original revision bytes"
+    original = tmp_path / "original.txt"
+    original.write_bytes(content)
+    copy = tmp_path / "substituted.txt"
+    copy.write_bytes(content)
+    revision = revision_for(original, content)
+
+    verified = inspect_objective_artifact(
+        revision=revision, path=original, objectives=("min_bytes:1",),
+    )
+    assert verified.eligible_for_independent_completion
+    substituted = inspect_objective_artifact(
+        revision=revision, path=copy, objectives=("min_bytes:1",),
+    )
+    assert substituted.integrity is ObjectiveDisposition.FAIL
+    assert not substituted.findings
+    assert not substituted.eligible_for_independent_completion
+
+
 def test_oversized_or_mutated_content_never_promotes_objective(tmp_path):
     content = b"Bounded content"
     path = tmp_path / "item.txt"
