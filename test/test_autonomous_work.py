@@ -77,8 +77,10 @@ def test_cancellation_timeout_overload_and_restart_are_deterministic(tmp_path):
     path = state(tmp_path)
     store = DurableWorkStore(path)
     release = Event()
+    entered = Event()
 
     def waiting(job, cancel):
+        entered.set()
         cancel.wait(timeout=3)
         release.set()
         return WorkResult(WorkStatus.FAILED, {}, "worker_cancelled")
@@ -88,10 +90,13 @@ def test_cancellation_timeout_overload_and_restart_are_deterministic(tmp_path):
     with pytest.raises(WorkOverloadError):
         enqueue(manager, "overload")
     manager.tick(now=NOW)
+    assert entered.wait(timeout=3)  # Running, not a queued future.
     manager.poll(now=NOW + timedelta(seconds=2))
     assert store.get(job.job_id).status is WorkStatus.UNCERTAIN
     assert release.wait(timeout=3)
     manager.close(wait=True)
+    # Late FAILED from cooperative cancellation cannot erase uncertainty.
+    assert store.get(job.job_id).status is WorkStatus.UNCERTAIN
 
     queued_manager = TaskExecutionManager(store, {"read": waiting}, max_workers=1)
     queued = enqueue(queued_manager, "restart-pending")
