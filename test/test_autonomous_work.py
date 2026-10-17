@@ -29,7 +29,13 @@ from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.safe.dev_approval import DevApprovalVerifier
 
 
-NOW = datetime(2026, 10, 10, 15, 0, tzinfo=timezone.utc)
+# These integration tests exercise a real EVOLVE proposal whose production
+# lifetime is seven days.  A fixed wall-clock value silently turned the whole
+# fixture into an expired proposal after that date, so DEV never ran and four
+# independently marked CI shards reported the same misleading RuntimeError.
+# Keep a stable instant for each test process while remaining inside the real
+# proposal lifetime enforced by the worker.
+NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
 
 @pytest.fixture(autouse=True)
