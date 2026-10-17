@@ -103,6 +103,10 @@ def inspect_turn_persistence(
                                 and message[1] == "user"
                                 and created.tzinfo is not None
                                 and created.utcoffset() is not None
+                                # The original event's stored creation time
+                                # must agree with the Matrix envelope. A
+                                # matching message ID alone is insufficient.
+                                and created == envelope.created_at
                                 and created <= matrix_trace.created_at
                             )
                             if message_ok:
