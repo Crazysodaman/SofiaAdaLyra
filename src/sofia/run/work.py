@@ -545,15 +545,19 @@ class TaskExecutionManager:
                 continue
             job = self.store.get(job_id)
             if moment >= job.deadline:
-                cancel.set()
-                future.cancel()
+                # Persist UNCERTAIN before notifying the worker. Otherwise
+                # its fast cancellation return may write FAILED first,
+                # concealing a timed-out, potentially consequential effect.
                 try:
                     self.store.transition(
                         job_id, expected=(WorkStatus.RUNNING,), status=WorkStatus.UNCERTAIN,
                         reason="deadline_exceeded_worker_cancellation_requested", now=moment,
                     )
                 except RuntimeError:
-                    pass
+                    # The worker finished first and owns its recorded result.
+                    continue
+                cancel.set()
+                future.cancel()
 
     def cancel(self, job_id: str, *, now: datetime) -> WorkJob:
         job = self.store.get(job_id)
