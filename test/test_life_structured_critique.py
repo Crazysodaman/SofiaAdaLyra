@@ -78,6 +78,41 @@ def test_real_critique_separates_measurable_success_from_dislike_and_settles_onc
         life.close()
 
 
+def test_background_life_tick_uses_structured_critique_production_path(
+    tmp_path, monkeypatch,
+):
+    """Not merely an unused helper: the canonical LIFE tick prepares it."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:foxfire", "min_words:4"),
+        )
+        artifact, receipt, tick_at = real_artifact(
+            life, project, evidence, now,
+            "A foxfire atlas travels beyond the quiet violet horizon.",
+        )
+        calls = []
+        original = life.prepare_artifact_critique
+
+        def observed(project_id, **kwargs):
+            review = original(project_id, **kwargs)
+            calls.append(review)
+            return review
+
+        monkeypatch.setattr(life, "prepare_artifact_critique", observed)
+        result = life.tick(now=tick_at)
+        assert result["follow_through"] == "independently_completed"
+        assert len(calls) >= 2  # prepare, then recheck before durable commit
+        assert all(item.artifact_id == artifact for item in calls)
+        assert all(item.evidence_refs == (receipt,) for item in calls)
+        assert all(
+            item.personal_judgment is PersonalJudgment.UNKNOWN for item in calls
+        )
+        assert life.store.evaluations(project.project_id)[0].technical_outcome is TechnicalOutcome.VALID
+    finally:
+        life.close()
+
+
 def test_critique_revision_suggestions_are_non_authoritative_and_fail_closed(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
