@@ -55,7 +55,7 @@ def test_all_required_evidence_paths_needed_for_partial_status(tmp_path):
 def test_duplicate_or_missing_original_ids_refused(tmp_path):
     doc = fixture_repo(tmp_path)
     with doc.open("a", encoding="utf-8") as stream:
-        stream.write("\n| CA-1 | duplicate |\n")
+        stream.write("\n| CA-1 | P0 | Build | unassessed | Open | Open | Open | Open | Another objective | remaining |\n")
     with pytest.raises(ValueError, match="780 unique"):
         module.build(tmp_path, SHA)
     fixture_repo(tmp_path)
