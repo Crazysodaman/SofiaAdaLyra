@@ -90,3 +90,23 @@ def test_phase_labels_are_scoped_to_original_addenda(tmp_path):
     assert by_id["CA-1"]["phase"].startswith("Phase 00")
     assert by_id["ML-001"]["phase"].startswith("Machine Learning addendum")
     assert by_id["GA-001"]["phase"].startswith("Generalization / lifelong-learning addendum")
+
+
+def test_markdown_progress_bars_match_machine_counts(tmp_path, monkeypatch):
+    fixture_repo(tmp_path)
+    report_file = tmp_path / "report.json"
+    markdown = tmp_path / "report.md"
+    monkeypatch.setattr("sys.argv", [
+        "v18_five_stage_audit", "--repo", str(tmp_path), "--sha", SHA,
+        "--output", str(report_file), "--markdown-output", str(markdown),
+    ])
+    module.main()
+    import json
+    report = json.loads(report_file.read_text(encoding="utf-8"))
+    summary = markdown.read_text(encoding="utf-8")
+    assert report["counts"]["NOT_WORKED_ON"] == 780
+    assert report["audit_coverage_percent"] == 0
+    assert "780/780" in summary
+    assert "0/780" in summary
+    assert "Targeted evidence traced: **0/780**" in summary
+    assert SHA in summary
