@@ -12,8 +12,8 @@ SHA = "a" * 40
 
 def fixture_repo(tmp_path):
     doc = tmp_path / "docs" / "development" / "v18-full-780-task-design-code-gate-status-2026-10-17.md"
-    doc.parent.mkdir(parents=True)
-    ids = [f"CA-{i}" for i in range(1, 701)]
+    doc.parent.mkdir(parents=True, exist_ok=True)
+    ids = [f"CA-{i}" for i in range(1, 691)] + [f"CA-{i}" for i in range(3101, 3111)]
     ids += [f"ML-{i:03d}" for i in range(1, 41)]
     ids += [f"GA-{i:03d}" for i in range(1, 41)]
     doc.write_text("\n".join(f"| {i} | original scope |" for i in ids), encoding="utf-8")
