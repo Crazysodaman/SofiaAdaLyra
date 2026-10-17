@@ -62,6 +62,74 @@ def _fixture(tmp_path, *, binding=True, session="s1", role="user"):
     return path, MatrixTraceStore(path).get(envelope.message_id)
 
 
+
+def test_matrix_reloads_original_source_timestamp_not_decision_time(tmp_path):
+    path, matrix = _fixture(tmp_path)
+    assert matrix.envelope.created_at == NOW
+    assert matrix.created_at == NOW + timedelta(milliseconds=25)
+    with closing(sqlite3.connect(path)) as db:
+        source, decision = db.execute(
+            "SELECT source_created_at,created_at FROM cognition_matrix_trace "
+            "WHERE message_id=?", (matrix.envelope.message_id,),
+        ).fetchone()
+    assert datetime.fromisoformat(source) == NOW
+    assert datetime.fromisoformat(decision) == matrix.created_at
+    assert inspect_turn_persistence(path, matrix_trace=matrix).same_turn_verified
+
+
+def test_legacy_matrix_timestamp_cannot_be_backfilled_from_decision(tmp_path):
+    path, matrix = _fixture(tmp_path)
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "UPDATE cognition_matrix_trace SET source_created_at=NULL "
+            "WHERE message_id=?", (matrix.envelope.message_id,),
+        )
+    old_record = MatrixTraceStore(path).get(matrix.envelope.message_id)
+    # A legacy record may still be displayed. Its substituted timestamp
+    # must never be accepted as independent source-event evidence.
+    assert old_record.envelope.created_at == old_record.created_at
+    proof = inspect_turn_persistence(path, matrix_trace=old_record)
+    assert not proof.user_message_persisted
+    assert not proof.matrix_decision_persisted
+    assert not proof.same_turn_verified
+
+
+@pytest.mark.parametrize("source_time", [
+    "2000-01-01T00:00:00+00:00",
+    "2026-10-13T18:00:00",
+    "not-an-iso-time",
+    None,
+])
+def test_untrusted_matrix_source_timestamp_cannot_prove_user_event(
+    tmp_path, source_time,
+):
+    path, matrix = _fixture(tmp_path)
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "UPDATE cognition_matrix_trace SET source_created_at=? "
+            "WHERE message_id=?", (source_time, matrix.envelope.message_id),
+        )
+    proof = inspect_turn_persistence(path, matrix_trace=matrix)
+    assert proof.user_message_persisted
+    assert not proof.matrix_decision_persisted
+    assert not proof.same_turn_verified
+
+
+def test_matrix_source_timestamp_substitution_rejects_matching_id(tmp_path):
+    path, matrix = _fixture(tmp_path)
+    forged = (NOW + timedelta(milliseconds=10)).isoformat()
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "UPDATE cognition_matrix_trace SET source_created_at=? "
+            "WHERE message_id=?", (forged, matrix.envelope.message_id),
+        )
+    reread = MatrixTraceStore(path).get(matrix.envelope.message_id)
+    assert reread.envelope.created_at != NOW
+    proof = inspect_turn_persistence(path, matrix_trace=reread)
+    assert not proof.user_message_persisted
+    assert not proof.same_turn_verified
+
+
 def test_verified_source_and_matrix_decision_share_canonical_turn(tmp_path):
     path, matrix = _fixture(tmp_path)
     proof = inspect_turn_persistence(path, matrix_trace=matrix)
