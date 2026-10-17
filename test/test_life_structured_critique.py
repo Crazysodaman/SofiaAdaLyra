@@ -55,6 +55,7 @@ def test_real_critique_separates_measurable_success_from_dislike_and_settles_onc
         assert preview.technical_outcome is TechnicalOutcome.VALID
         assert preview.personal_judgment is PersonalJudgment.DISLIKE
         assert preview.structural_coverage == 1.0
+        assert preview.confidence == 1.0
         assert preview.revision_plan == ()
         assert preview.objective_results == {
             "text_contains:foxfire": True, "min_words:5": True,
@@ -94,6 +95,7 @@ def test_critique_revision_suggestions_are_non_authoritative_and_fail_closed(tmp
         assert preview.technical_outcome is TechnicalOutcome.INVALID
         assert preview.personal_judgment is PersonalJudgment.UNKNOWN
         assert preview.structural_coverage == 0.5
+        assert preview.confidence == 0.5
         assert len(preview.revision_plan) == 2
         assert preview.objective_results == {
             "text_contains:missing-phrase": False,
