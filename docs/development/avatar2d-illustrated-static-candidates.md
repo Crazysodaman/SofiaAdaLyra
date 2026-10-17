@@ -25,6 +25,26 @@ retain the working modular/legacy renderer, and invalid art falls back
 safely. Static art does not blink, talk, move ears or wag its tail;
 never report a successful gesture from a single static picture.
 
+## One-command installer (and optional Git asset publication)
+
+The owner can download the separate ZIP from the ChatGPT artifact link and
+place it in Downloads. In PowerShell from the Sofía checkout on **main**:
+
+```powershell
+git pull --ff-only origin main
+.\scripts\install_illustrated_public2d.ps1 -Archive "$env:USERPROFILE\Downloads\sofia2d_public_illustrated_candidates_v1.zip" -PublishToGit
+python -m sofia
+```
+
+The script checks the complete ZIP SHA-256, validates all five portrait
+SHA-256 values, installs the public art without overwriting an existing
+portrait directory, and (when `-PublishToGit` is set) copies the original
+binary ZIP to `assets/avatar2d/illustrated_public_v1/`, commits and pushes
+to `main` using the owner's normal authenticated Git client. Remove the
+optional switch to install locally without publishing files. This is **not**
+a remote push performed by CI/ChatGPT, and a real Venus visual acceptance
+is still needed.
+
 ## Install on Venus without overwriting an existing reviewed pack
 
 From the existing Sofía checkout with the repo updated to `main`,
