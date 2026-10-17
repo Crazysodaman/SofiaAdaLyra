@@ -212,8 +212,8 @@ def test_python_syntax_compilation_never_runs_artifact_code(tmp_path):
 
     sentinel = tmp_path / "must-not-exist.txt"
     content = (
-        "from pathlib import Path\\n"
-        f"Path({str(sentinel)!r}).write_text('executed')\\n"
+        "from pathlib import Path\n"
+        f"Path({str(sentinel)!r}).write_text('executed')\n"
     ).encode("utf-8")
     path = tmp_path / "valid-but-dangerous.py"
     path.write_bytes(content)
