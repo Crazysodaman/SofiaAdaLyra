@@ -34,3 +34,12 @@ def test_mouth_viseme_inventory_imports_and_covers_all_states():
     assert len(expected) == 12
     assert _ART_FILES == expected
     assert expected <= _EXPECTED
+
+
+def test_preview_player_help_does_not_need_tk_or_staged_art():
+    """Smoke test the command startup without launching a desktop window."""
+    import pytest
+    from sofia.avatar.vtuber_review_player import main
+    with pytest.raises(SystemExit) as exc:
+        main(["--help"])
+    assert exc.value.code == 0
