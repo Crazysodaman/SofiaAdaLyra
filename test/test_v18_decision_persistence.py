@@ -429,3 +429,40 @@ def test_latest_matrix_trace_ties_have_stable_message_id_order(tmp_path):
     # Replaying an existing trace must not randomly change latest().
     store.record(first)
     assert store.latest(session_id="s1").envelope.message_id == "unique-msg-2"
+
+
+@pytest.mark.parametrize(("session", "principal", "channel", "allowed"), [
+    ("s1", "principal:one", "desktop", True),
+    ("s2", "principal:one", "desktop", False),
+    ("s1", "principal:other", "desktop", False),
+    ("s1", "principal:one", "discord", False),
+])
+def test_matrix_scoped_read_never_crosses_audience_binding(
+    tmp_path, session, principal, channel, allowed,
+):
+    path, trace = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    item = store.get_scoped(
+        trace.envelope.message_id, session_id=session,
+        principal_id=principal, channel=channel,
+    )
+    assert (item is not None) is allowed
+    if item is not None:
+        assert item.envelope.principal_id == principal
+        assert item.envelope.session_id == session
+        assert item.envelope.channel == channel
+
+
+@pytest.mark.parametrize(("name", "value"), [
+    ("message_id", ""), ("session_id", "  "),
+    ("principal_id", ""), ("channel", ""),
+])
+def test_matrix_scoped_read_rejects_missing_identity(tmp_path, name, value):
+    path, trace = _fixture(tmp_path)
+    args = dict(message_id=trace.envelope.message_id, session_id="s1",
+                principal_id="principal:one", channel="desktop")
+    args[name] = value
+    with pytest.raises(ValueError, match=name):
+        MatrixTraceStore(path).get_scoped(
+            args.pop("message_id"), **args,
+        )
