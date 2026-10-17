@@ -32,7 +32,7 @@ def build(repo: Path, source_sha: str) -> dict:
     row_details = {}
     phase = None
     for line in original.splitlines():
-        if line.startswith("### Phase ") or line.startswith("### Machine Learning addendum:") or line.startswith("### General autonomy addendum:"):
+        if line.startswith("### Phase ") or line.startswith("### Machine Learning addendum:") or line.startswith("### Generalization / lifelong-learning addendum:"):
             phase = line[4:].split("|", 1)[0].strip()
         if not ROWS.match(line):
             continue
