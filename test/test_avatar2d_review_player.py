@@ -20,3 +20,17 @@ def test_importing_player_does_not_start_tk_or_touch_runtime():
     import sofia.avatar.vtuber_review_player as module
     assert hasattr(module, "run_local_preview")
     assert not hasattr(module, "ACTIVE_RUNTIME")
+
+
+def test_mouth_viseme_inventory_imports_and_covers_all_states():
+    """Regression: a missing inner comprehension loop used to crash import."""
+    from sofia.avatar.vtuber_mouth_viseme_review import (
+        _ART_FILES, _EXPECTED, MOUTH_STATES, VISEME_STATES,
+    )
+    expected = (
+        {f"layers/mouths/{state}.png" for state in MOUTH_STATES}
+        | {f"layers/visemes/{state}.png" for state in VISEME_STATES}
+    )
+    assert len(expected) == 12
+    assert _ART_FILES == expected
+    assert expected <= _EXPECTED
