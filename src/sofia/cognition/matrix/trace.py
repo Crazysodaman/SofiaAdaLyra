@@ -72,6 +72,7 @@ class MatrixTraceStore:
                     ambiguous INTEGER NOT NULL,
                     shadow INTEGER NOT NULL,
                     context_active INTEGER NOT NULL DEFAULT 0,
+                    source_created_at TEXT,
                     created_at TEXT NOT NULL
                 )
                 """
@@ -102,6 +103,13 @@ class MatrixTraceStore:
                 db.execute(
                     "ALTER TABLE cognition_matrix_trace "
                     "ADD COLUMN extensions_json TEXT"
+                )
+            if "source_created_at" not in columns:
+                # Existing rows have no authenticated source-event time. Do
+                # not backfill this using the later Matrix decision time.
+                db.execute(
+                    "ALTER TABLE cognition_matrix_trace "
+                    "ADD COLUMN source_created_at TEXT"
                 )
 
     @staticmethod
@@ -436,11 +444,17 @@ class MatrixTraceStore:
                 )
 
         created_at = datetime.fromisoformat(row["created_at"])
+        # Historical rows predate source timestamp persistence. Preserve
+        # their old display behavior, but the independent persistence probe
+        # rejects a missing source_created_at as unverifiable.
+        source_created_at = row["source_created_at"]
         envelope = TurnEnvelope(
             message_id=row["message_id"],
             session_id=row["session_id"],
             content="[not stored in matrix trace]",
-            created_at=created_at,
+            created_at=datetime.fromisoformat(
+                source_created_at if source_created_at is not None else row["created_at"]
+            ),
             principal_id=row["principal_id"] or None,
             channel=row["channel"],
         )
@@ -481,9 +495,10 @@ class MatrixTraceStore:
                     message_id,session_id,principal_id,channel,
                     schema_version,intent,confidence,history_policy,
                     response_strategy,domains_json,context_json,
-                    extensions_json,ambiguous,shadow,context_active,created_at
+                    extensions_json,ambiguous,shadow,context_active,
+                    source_created_at,created_at
                 )
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(message_id) DO UPDATE SET
                     session_id=excluded.session_id,
                     principal_id=excluded.principal_id,
@@ -499,6 +514,7 @@ class MatrixTraceStore:
                     ambiguous=excluded.ambiguous,
                     shadow=excluded.shadow,
                     context_active=excluded.context_active,
+                    source_created_at=excluded.source_created_at,
                     created_at=excluded.created_at
                 """,
                 (
@@ -517,6 +533,7 @@ class MatrixTraceStore:
                     int(trace.turn.ambiguous),
                     int(trace.shadow),
                     int(trace.context_active),
+                    trace.envelope.created_at.isoformat(),
                     trace.created_at.isoformat(),
                 ),
             )
