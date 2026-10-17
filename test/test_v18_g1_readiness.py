@@ -99,9 +99,9 @@ def test_path_escape_and_symlinked_packets_are_rejected(tmp_path):
         inspect_g1_submissions(tmp_path, packet_paths=("docs/development/link.md",))
 
 
-def test_live_20_submission_packets_match_original_roadmap(repo_root):
+def test_live_20_submission_packets_match_original_roadmap():
     """Real, tracked source review candidates have 20 unique original IDs."""
-    report = inspect_g1_submissions(repo_root)
+    report = inspect_g1_submissions(Path(__file__).resolve().parents[1])
     assert report["total_submissions"] == 20
     assert report["unique_submissions"] == 20
     assert report["independently_accepted_gate1"] == 0
