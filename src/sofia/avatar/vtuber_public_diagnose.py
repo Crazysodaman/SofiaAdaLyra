@@ -107,15 +107,6 @@ def diagnose_public_avatar2d(
     report["portrait_manifest_present"] = (
         directory / "manifest.json"
     ).is_file()
-    if not report["portrait_manifest_present"]:
-        report["status"] = "NO_ILLUSTRATED_PORTRAIT_FOR_ACTIVE_OUTFIT"
-        report["action"] = (
-            "The active public outfit has no illustrated portrait. Select an "
-            "outfit included in the ZIP, such as day.default, or add an exact "
-            "portrait for the current public outfit."
-        )
-        return report
-
     # Inspect current approved public wardrobe without constructing any
     # database-writing Store object. Review overlay rows are read-only.
     catalog = build_starter_wardrobe(state_path=state_path)
@@ -169,10 +160,6 @@ def diagnose_public_avatar2d(
         report["detail"] = f"{type(exc).__name__}: {exc}"
         report["action"] = "Check the portrait manifest, garment IDs, and PNG digest."
         return report
-    if png is None:
-        report["status"] = "ILLUSTRATED_PORTRAIT_NOT_APPLICABLE"
-        report["action"] = "The approved public outfit metadata differs from the installed portrait."
-        return report
     # Evaluate independent owner-saved static scenes as well. The portrait
     # may be valid while its background is missing, tampered, or stale.
     try:
@@ -193,8 +180,19 @@ def diagnose_public_avatar2d(
         report["status"] = "SAVED_PUBLIC_SCENE_REJECTED"
         report["action"] = "Review the saved public scene preset and imported background."
         return report
-    report["status"] = "ILLUSTRATED_PORTRAIT_VALID"
-    report["portrait_bytes"] = len(png)
+    if png is not None:
+        report["status"] = "ILLUSTRATED_PORTRAIT_VALID"
+        report["portrait_bytes"] = len(png)
+    elif report.get("scene_status") == "SAVED_PUBLIC_SCENE_VALID":
+        report["status"] = "SAVED_PUBLIC_SCENE_VALID"
+    else:
+        report["status"] = "NO_ILLUSTRATED_PORTRAIT_FOR_ACTIVE_OUTFIT"
+        report["action"] = (
+            "The active public outfit has no illustrated portrait or verified "
+            "saved background scene. Select an included outfit or install "
+            "an exact portrait for the current public outfit."
+        )
+        return report
     report["action"] = (
         "If the old sprite is still displayed, restart Sofía and check the "
         "renderer instance, 2D mode, and SOFIA_AVATAR2D_PUBLIC_ROOT override."
