@@ -26,12 +26,18 @@ For all currently approved PUBLIC outfit presets, instead run (with a **fresh** 
 
 Do not use Public-All and Public interchangeably unless the environment setting is pointed at the exact intended root. For a new version of the artwork use a distinct versioned directory rather than overwriting existing art.
 
-Enable the 2D viewer in the same PowerShell process:
+Launch Sofía with the installed 2D pack:
+
+    python -m sofia
+
+The desktop automatically discovers an existing public pack under `%LOCALAPPDATA%\\SofiaAdaLyra\\Avatar2D\\Public-V2`, `Public-All`, or `Public` (in that priority order), if it contains the default outfit and character manifests. This is read-only startup discovery, not automatic image generation or artwork approval. The renderer still verifies actual PNGs and hashes and falls back safely if art is missing or corrupted. No private artwork is searched.
+
+To select a custom versioned directory, explicitly override discovery in the same PowerShell session:
 
     $env:SOFIA_AVATAR2D_PUBLIC_ROOT = "$Art"
     python -m sofia
 
-In the desktop select **2D**. **3D** currently reports unavailable and leaves 2D running; it does not pretend a 3D model is installed.
+The environment override is temporary; installed default pack discovery works on later launches without it. In the desktop select **2D**. **3D** currently reports unavailable and leaves 2D running; it does not pretend a 3D model is installed.
 
 Expected root:
 
