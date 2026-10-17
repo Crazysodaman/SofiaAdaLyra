@@ -676,8 +676,6 @@ class ConversationMatrixMixin:
         channel: str,
     ) -> None:
         """Project the sole v2 semantic plan into retained host safeguards."""
-        previous_turn = getattr(self, "_current_turn_matrix", None)
-        previous_exposure = getattr(self, "_current_tool_exposure_plan", None)
         self._reset_matrix_turn()
         execution_reader = getattr(
             self._runtime,
@@ -694,11 +692,11 @@ class ConversationMatrixMixin:
         )
 
         store = getattr(self, "_matrix_trace_store", None)
-        # Once durable storage is available, only a verified audience-bound
-        # predecessor may supply context. Falling back to in-memory state
-        # after a miss/error can leak another principal's previous turn.
-        prior_turn = previous_turn if store is None else None
-        prior_exposure = previous_exposure if store is None else None
+        # Never inherit prior-turn semantics from a process-global cache.
+        # A missing or failed trace store has no authenticated audience
+        # provenance, so follow-up continuity must fail closed.
+        prior_turn = None
+        prior_exposure = None
         trace_error: str | None = None
         if store is not None:
             try:
