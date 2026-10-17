@@ -348,3 +348,47 @@ def test_unavailable_matrix_evidence_cannot_link_goal_or_eligible_memory(tmp_pat
     assert diagnostic.referenced_goal_refs == ()
     assert diagnostic.goal_id is None
     assert not diagnostic.objective_verified
+
+
+@pytest.mark.parametrize(("failure", "expected"), [
+    ("expired", "expired"),
+    ("revoked", "not an eligible"),
+    ("failed", "not an eligible"),
+    ("future", "postdates"),
+])
+def test_ca005_ca006_unusable_goal_event_cannot_become_selected_provenance(
+    tmp_path, failure, expected,
+):
+    _, matrix = _fixture(tmp_path)
+    matrix = replace(matrix, evidence=EvidenceMatrix(records=(
+        EvidenceRecord("goal", EvidenceState.AVAILABLE, "goal:bounded"),
+    )))
+    event = EventOwnershipProjection(
+        schema_version=1,
+        event_id="goal:bounded",
+        owner=CanonicalEventOwner.GOALS,
+        source_id="goal:bounded",
+        subject_id="goal:bounded",
+        principal_id=None,
+        audience_id=None,
+        observed_at=(
+            matrix.created_at + timedelta(seconds=1)
+            if failure == "future" else NOW
+        ),
+        expires_at=(
+            NOW + timedelta(milliseconds=1)
+            if failure == "expired" else None
+        ),
+        error_state={
+            "expired": ContractErrorState.NONE,
+            "future": ContractErrorState.NONE,
+            "revoked": ContractErrorState.REVOKED,
+            "failed": ContractErrorState.FAILED,
+        }[failure],
+    )
+    with pytest.raises(ValueError, match=expected):
+        project_companion_decision(
+            matrix_trace=matrix,
+            neuro_snapshot=None,
+            selected_goal_event=event,
+        )
