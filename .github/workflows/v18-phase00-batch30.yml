@@ -35,6 +35,9 @@ jobs:
       - name: Install the existing production package
         run: python -m pip install -e . pytest
 
+      - name: Verify V18 source-preservation guard regression cases
+        run: python -m pytest -q test/test_v18_change_guard.py
+
       - name: Run 30 task source-gate and representative functional regressions
         run: >-
           python -m pytest -q
