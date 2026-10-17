@@ -54,3 +54,22 @@ def test_candidate_never_writes_into_public_or_source(artwork):
     make_candidate(source, canonical, candidate)
     with pytest.raises(ValueError, match="new absolute"):
         make_candidate(source, canonical, candidate)
+
+
+def test_brow_alpha_fringe_is_excluded_from_registration():
+    """Nearly invisible outlying pixels must not squeeze the brow shape."""
+    from PIL import ImageDraw
+    from sofia.avatar.vtuber_core_alignment_preview import _fit
+
+    source = Image.new("RGBA", (300, 120))
+    source.putpixel((1, 1), (120, 12, 36, 1))
+    ImageDraw.Draw(source).rectangle((50, 60, 250, 80), fill=(120, 12, 36, 255))
+
+    fitted = _fit(source, (700, 40, 1000, 100), alpha_threshold=15)
+    bbox = fitted.getchannel("A").point(
+        lambda alpha: 255 if alpha > 15 else 0
+    ).getbbox()
+    assert bbox is not None
+    assert bbox[2] - bbox[0] >= 290
+    assert bbox[1] >= 40
+    assert bbox[3] <= 100
