@@ -687,6 +687,37 @@ class MatrixTraceStore:
                 return trace
         return None
 
+    def latest_execution_scoped(
+        self, *, session_id: str, principal_id: str, channel: str,
+        limit: int = 100,
+    ) -> MatrixTrace | None:
+        """Read execution diagnostics without crossing audience boundaries.
+
+        Global latest_with_execution() is restricted to canonical/operator
+        diagnostics; channel consumers use this scoped projection.
+        """
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("limit must be an integer between 1 and 1000")
+        for key, value in (
+            ("session_id", session_id), ("principal_id", principal_id),
+            ("channel", channel),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{key} must be nonempty")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                """SELECT * FROM cognition_matrix_trace
+                   WHERE session_id=? AND principal_id=? AND channel=?
+                     AND extensions_json IS NOT NULL
+                   ORDER BY created_at DESC, message_id DESC LIMIT ?""",
+                (session_id, principal_id, channel, limit),
+            ).fetchall()
+        for row in rows:
+            trace = self._trace(row)
+            if trace.cognition_execution is not None:
+                return trace
+        return None
+
     def count(self) -> int:
         with closing(self._connect()) as db:
             row = db.execute(
