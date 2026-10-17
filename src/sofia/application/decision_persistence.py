@@ -81,7 +81,8 @@ def inspect_turn_persistence(
                     columns["conversation_messages"]
                     and {"message_id", "session_id", "principal_id",
                          "channel", "intent", "history_policy",
-                         "response_strategy", "created_at", "shadow"}
+                         "response_strategy", "created_at", "shadow",
+                         "source_created_at"}
                     <= columns["cognition_matrix_trace"]
                 ):
                     message = db.execute(
@@ -91,7 +92,8 @@ def inspect_turn_persistence(
                     ).fetchone()
                     row = db.execute(
                         "SELECT session_id,principal_id,channel,intent,"
-                        "history_policy,response_strategy,created_at,shadow "
+                        "history_policy,response_strategy,created_at,shadow,"
+                        "source_created_at "
                         "FROM cognition_matrix_trace WHERE message_id=?",
                         (envelope.message_id,),
                     ).fetchone()
@@ -114,8 +116,22 @@ def inspect_turn_persistence(
                         except (TypeError, ValueError):
                             message_ok = False
                     if row is not None:
+                        try:
+                            # An independently persisted original source time
+                            # is required. Legacy Matrix rows lack this field
+                            # and must not borrow the decision timestamp.
+                            source_time = datetime.fromisoformat(row[8])
+                            source_time_ok = (
+                                source_time.tzinfo is not None
+                                and source_time.utcoffset() is not None
+                                and source_time == envelope.created_at
+                                and source_time <= matrix_trace.created_at
+                            )
+                        except (TypeError, ValueError):
+                            source_time_ok = False
                         decision_ok = (
-                            row[0] == envelope.session_id
+                            source_time_ok
+                            and row[0] == envelope.session_id
                             and row[1] == (envelope.principal_id or "")
                             and row[2] == envelope.channel
                             and row[3] == matrix_trace.turn.intent.value
