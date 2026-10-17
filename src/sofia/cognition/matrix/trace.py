@@ -642,6 +642,10 @@ class MatrixTraceStore:
                 raise ValueError(f"{name} must be nonempty")
         if not isinstance(principal_id, str):
             raise ValueError("principal_id must be a string")
+        # Preserve anonymous conversations as a distinct, scoped identity.
+        # Whitespace-only principal IDs must never alias an actual identity.
+        if principal_id and not principal_id.strip():
+            raise ValueError("principal_id must not be whitespace")
         with closing(self._connect()) as db:
             row = db.execute(
                 """SELECT * FROM cognition_matrix_trace
