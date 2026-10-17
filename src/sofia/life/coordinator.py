@@ -2618,6 +2618,77 @@ class SelfDirectedLifeCoordinator:
         )
         return True
 
+    def prepare_artifact_critique(
+        self, project_id: str, *, artifact_id: str,
+        personal_judgment: PersonalJudgment = PersonalJudgment.UNKNOWN,
+        evidence_refs: tuple[str, ...], now: datetime,
+    ):
+        """Read-only, typed critique of real work and its original RUN receipt.
+
+        Structural coverage is the fraction of original requirements with a
+        deterministic answer, *not* a model-generated quality probability.
+        Planning notes are not executable actions or new authority.
+        """
+        from .validation import structured_critique_from_report
+
+        aware(now, "critique time")
+        project = self._project(project_id)
+        self._verify_evidence(evidence_refs)
+        if len(set(project.brief.objectives)) != len(project.brief.objectives):
+            raise ValueError("legacy original objectives need a reviewed correction")
+        report = self.inspect_artifact_objectives(
+            project_id, artifact_id=artifact_id,
+        )
+        if not any(
+            self._confirmed_artifact_run_receipt(
+                project, artifact_id=artifact_id,
+                revision=report.revision, evidence_ref=ref, now=now,
+            )
+            for ref in evidence_refs
+        ):
+            raise PermissionError(
+                "critique requires a successful original scoped RUN receipt"
+            )
+        if not self._original_scoped_evidence_current(
+            refs=evidence_refs, audience_id=project.audience_id,
+            valid_at=now, now=now,
+        ):
+            raise PermissionError("critique evidence is expired or outside scope")
+        return structured_critique_from_report(
+            project_id=project_id, report=report,
+            personal_judgment=personal_judgment, evidence_refs=evidence_refs,
+        )
+
+    def commit_artifact_critique(
+        self, critique, *, reason: str, preserve_for_research: bool,
+        now: datetime,
+    ) -> ArtifactEvaluation:
+        """Feed a prepared critique through canonical LIFE, never a second writer.
+
+        Reinspection denies a stale artifact revision, changed original brief,
+        mismatched objective findings or forged evidence. The existing LIFE
+        evaluator remains responsible for atomic experience/critique recording.
+        """
+        from .validation import StructuredArtifactCritique
+
+        if not isinstance(critique, StructuredArtifactCritique):
+            raise TypeError("a typed independently prepared critique is required")
+        current = self.prepare_artifact_critique(
+            critique.project_id, artifact_id=critique.artifact_id,
+            personal_judgment=critique.personal_judgment,
+            evidence_refs=critique.evidence_refs, now=now,
+        )
+        if current != critique:
+            raise ValueError("critique no longer matches original bytes or objectives")
+        return self.evaluate_artifact(
+            critique.project_id, artifact_id=critique.artifact_id,
+            technical_outcome=critique.technical_outcome,
+            personal_judgment=critique.personal_judgment,
+            objective_results=critique.objective_results,
+            reason=reason, evidence_refs=critique.evidence_refs,
+            preserve_for_research=preserve_for_research, now=now,
+        )
+
     def evaluate_artifact(
         self, project_id: str, *, artifact_id: str,
         technical_outcome: TechnicalOutcome,
