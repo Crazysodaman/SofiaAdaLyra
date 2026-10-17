@@ -71,6 +71,11 @@ class StructuredArtifactCritique:
     evidence_refs: tuple[str, ...]
 
     @property
+    def confidence(self) -> float:
+        """Certainty of independently checked objective disposition, not taste."""
+        return self.structural_coverage
+
+    @property
     def objective_results(self) -> dict[str, bool | None]:
         return {
             item.objective: (
