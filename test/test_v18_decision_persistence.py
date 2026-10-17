@@ -756,3 +756,63 @@ def test_matrix_legacy_row_without_source_time_cannot_gain_false_provenance(tmp_
             (trace.envelope.message_id,),
         ).fetchone()[0]
     assert original_source is None
+
+
+def test_scoped_execution_anonymous_cannot_see_authenticated_trace(tmp_path):
+    from sofia.cognition.matrix.model import CognitionExecutionTrace
+    path, initial = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    execution = CognitionExecutionTrace(serial=1, actual_route="fast")
+    store.record(replace(initial, cognition_execution=execution))
+    anonymous = replace(
+        initial,
+        envelope=replace(
+            initial.envelope, message_id="anon-execution",
+            principal_id=None,
+        ),
+        cognition_execution=execution,
+        created_at=initial.created_at + timedelta(seconds=1),
+    )
+    store.record(anonymous)
+    assert store.latest_execution_scoped(
+        session_id="s1", principal_id="", channel="desktop"
+    ).envelope.message_id == "anon-execution"
+    assert store.latest_execution_scoped(
+        session_id="s1", principal_id="principal:one", channel="desktop"
+    ).envelope.message_id == initial.envelope.message_id
+    assert store.latest_execution_scoped(
+        session_id="s1", principal_id="principal:other", channel="desktop"
+    ) is None
+    with pytest.raises(ValueError, match="principal_id"):
+        store.latest_execution_scoped(
+            session_id="s1", principal_id="   ", channel="desktop"
+        )
+
+
+def test_scoped_execution_skips_newer_nonexecution_and_wrong_audience(tmp_path):
+    from sofia.cognition.matrix.model import CognitionExecutionTrace
+    path, initial = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    execution = CognitionExecutionTrace(serial=1, actual_route="fast")
+    store.record(replace(initial, cognition_execution=execution))
+    # Newer metadata-only row must not masquerade as execution.
+    metadata_only = replace(
+        initial,
+        envelope=replace(initial.envelope, message_id="metadata-only"),
+        created_at=initial.created_at + timedelta(seconds=1),
+    )
+    store.record(metadata_only)
+    other = replace(
+        initial,
+        envelope=replace(
+            initial.envelope, message_id="discord-execution", channel="discord",
+        ),
+        created_at=initial.created_at + timedelta(seconds=2),
+        cognition_execution=execution,
+    )
+    store.record(other)
+    result = store.latest_execution_scoped(
+        session_id="s1", principal_id="principal:one",
+        channel="desktop", limit=10,
+    )
+    assert result.envelope.message_id == initial.envelope.message_id
