@@ -726,7 +726,9 @@ class MatrixTraceStore:
             ("session_id", session_id), ("principal_id", principal_id),
             ("channel", channel),
         ):
-            if not isinstance(value, str) or not value.strip():
+            if not isinstance(value, str) or (
+                not value.strip() and not (key == "principal_id" and value == "")
+            ):
                 raise ValueError(f"{key} must be nonempty")
         with closing(self._connect()) as db:
             rows = db.execute(
