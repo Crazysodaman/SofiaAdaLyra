@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -85,9 +86,20 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--repo", type=Path, default=Path("."))
     p.add_argument("--sha", required=True)
+    p.add_argument("--verify-head", action="store_true", help="Require SHA to match checked-out Git HEAD")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--markdown-output", type=Path)
     args = p.parse_args()
+    if args.verify_head:
+        try:
+            actual = subprocess.run(
+                ["git", "-C", str(args.repo.resolve()), "rev-parse", "--verify", "HEAD"],
+                capture_output=True, text=True, check=True, timeout=10,
+            ).stdout.strip()
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            raise ValueError("cannot independently resolve Git HEAD") from exc
+        if actual != args.sha:
+            raise ValueError("inventory source_sha differs from actual checked-out Git HEAD")
     result = build(args.repo.resolve(), args.sha)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
