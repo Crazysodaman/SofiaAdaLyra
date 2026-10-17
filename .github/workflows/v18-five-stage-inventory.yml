@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/v18_five_stage_audit.py'
+      - 'test/test_v18_five_stage_audit.py'
       - 'docs/development/v18-full-780-task-design-code-gate-status-2026-10-17.md'
       - '.github/workflows/v18-five-stage-inventory.yml'
 permissions:
@@ -19,6 +20,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: python -m pip install pytest
+      - name: Validate inventory regression contract
+        run: python -m pytest -q test/test_v18_five_stage_audit.py
       - name: Inventory exactly 700 CA and 80 ML/GA
         run: |
           python scripts/v18_five_stage_audit.py --repo . --sha "$GITHUB_SHA" --output "$RUNNER_TEMP/v18-five-stage-status.json"
