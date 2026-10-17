@@ -165,19 +165,20 @@ def test_unsupported_or_unrelated_evidence_never_advances_milestone(tmp_path):
             assertion="This is not the completed RUN operation receipt.",
             now=now + timedelta(seconds=5),
         )
-        life.evaluate_artifact(
-            project.project_id, artifact_id=str(job.result["artifact_id"]),
-            technical_outcome=TechnicalOutcome.INVALID,
-            personal_judgment=PersonalJudgment.UNKNOWN,
-            objective_results={
-                "text_contains:violet sparks": True,
-                "text_contains:quiet constellations": False,
-            },
-            reason="A recorded evaluation without the actual RUN receipt.",
-            evidence_refs=(observation,), preserve_for_research=False,
-            now=now + timedelta(seconds=6),
-        )
-        life.tick(now=now + timedelta(seconds=8))
+        with pytest.raises(PermissionError, match="RUN receipt"):
+            life.evaluate_artifact(
+                project.project_id, artifact_id=str(job.result["artifact_id"]),
+                technical_outcome=TechnicalOutcome.INVALID,
+                personal_judgment=PersonalJudgment.UNKNOWN,
+                objective_results={
+                    "text_contains:violet sparks": True,
+                    "text_contains:quiet constellations": False,
+                },
+                reason="A recorded evaluation without the actual RUN receipt.",
+                evidence_refs=(observation,), preserve_for_research=False,
+                now=now + timedelta(seconds=6),
+            )
+        assert life.store.evaluations(project.project_id) == ()
         assert all(
             m.status is MilestoneStatus.PLANNED
             for m in life.store.milestones(project.project_id)

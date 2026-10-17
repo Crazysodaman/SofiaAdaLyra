@@ -210,12 +210,29 @@ def _python_syntax(objective: str, *, content: bytes, kind: ArtifactKind) -> Obj
     return ObjectiveFinding(objective, ObjectiveDisposition.PASS, "python_syntax", "Python compiles; execution and behavior not proved")
 
 
-# A closed, externally reviewed registry. The model does not register validators.
-_VALIDATORS = {
-    "text_contains": _ObjectiveRule("text_contains", _text_contains),
-    "min_bytes": _ObjectiveRule("min_bytes", _min_bytes),
-    "min_words": _ObjectiveRule("min_words", _min_words),
-    "python_syntax": _ObjectiveRule("python_syntax", _python_syntax),
+# Closed, host-owned registries.  Objective names alone are deliberately not
+# enough to select a validator: the immutable creative revision's ArtifactKind
+# also has to admit that check.  This keeps, for example, a model from attaching
+# ``text_contains`` to an image or ``python_syntax`` to a story and receiving a
+# misleading technical verdict.  ``min_bytes`` is the only representation-level
+# check shared by every currently supported artifact kind.
+_MIN_BYTES = _ObjectiveRule("min_bytes", _min_bytes)
+_TEXT_CONTAINS = _ObjectiveRule("text_contains", _text_contains)
+_MIN_WORDS = _ObjectiveRule("min_words", _min_words)
+_PYTHON_SYNTAX = _ObjectiveRule("python_syntax", _python_syntax)
+
+_ARTIFACT_KIND_VALIDATORS: dict[ArtifactKind, dict[str, _ObjectiveRule]] = {
+    kind: {"min_bytes": _MIN_BYTES} for kind in ArtifactKind
+}
+for _text_kind in (ArtifactKind.TEXT, ArtifactKind.STORY, ArtifactKind.CODE):
+    _ARTIFACT_KIND_VALIDATORS[_text_kind] = {
+        **_ARTIFACT_KIND_VALIDATORS[_text_kind],
+        "text_contains": _TEXT_CONTAINS,
+        "min_words": _MIN_WORDS,
+    }
+_ARTIFACT_KIND_VALIDATORS[ArtifactKind.CODE] = {
+    **_ARTIFACT_KIND_VALIDATORS[ArtifactKind.CODE],
+    "python_syntax": _PYTHON_SYNTAX,
 }
 
 
@@ -275,11 +292,15 @@ def inspect_objective_artifact(
     if sha256(content).hexdigest() != revision.content_sha256:
         return ArtifactObjectiveReport(revision.artifact_id, revision.revision, revision.content_sha256, ObjectiveDisposition.FAIL, ())
     findings: list[ObjectiveFinding] = []
+    kind_validators = _ARTIFACT_KIND_VALIDATORS.get(revision.kind, {})
     for objective in objectives:
         name, sep, _ = objective.partition(":")
-        validator = _VALIDATORS.get(name.strip().casefold()) if sep else None
+        validator = kind_validators.get(name.strip().casefold()) if sep else None
         if validator is None:
-            findings.append(ObjectiveFinding(objective, ObjectiveDisposition.UNKNOWN, "unsupported", "natural-language objective needs independent evidence or reviewed validator"))
+            findings.append(ObjectiveFinding(
+                objective, ObjectiveDisposition.UNKNOWN, "unsupported",
+                "objective has no reviewed validator for this artifact kind",
+            ))
         else:
             findings.append(validator.verify(objective, content=content, kind=revision.kind))
     return ArtifactObjectiveReport(

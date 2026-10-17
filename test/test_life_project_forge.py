@@ -463,7 +463,11 @@ def test_personal_dislike_does_not_invent_independent_technical_success(tmp_path
         project, evidence = active_project(life, now)
         life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         job_id = life.store.jobs(project.project_id)[0]
-        assert wait_for_job(life, job_id).status is WorkStatus.COMPLETED
+        completed = wait_for_job(life, job_id)
+        assert completed.status is WorkStatus.COMPLETED
+        receipt_ref = str(completed.result["evidence_ref"])
+        receipt = life.evidence_index.lookup(receipt_ref)
+        assert receipt is not None
         artifact_id, _revision = life.store.artifacts(project.project_id)[0]
         evaluation = life.evaluate_artifact(
             project.project_id, artifact_id=artifact_id,
@@ -474,8 +478,8 @@ def test_personal_dislike_does_not_invent_independent_technical_success(tmp_path
                 "Create an inspectable first edition.": None,
             },
             reason="The structure works, but the result feels too tidy and predictable.",
-            evidence_refs=(evidence,), preserve_for_research=True,
-            now=now + timedelta(seconds=5),
+            evidence_refs=(evidence, receipt_ref), preserve_for_research=True,
+            now=max(now + timedelta(seconds=5), receipt.observed_at),
         )
         assert evaluation.technical_outcome is TechnicalOutcome.INCONCLUSIVE
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
@@ -484,6 +488,7 @@ def test_personal_dislike_does_not_invent_independent_technical_success(tmp_path
             target_id=artifact_id, context="project", audience_id="local:text",
         )
         assert preference.disposition is PreferenceDisposition.DISLIKE
+        assert preference.evidence_ref == receipt_ref
         assert evaluation.preserve_for_research is True
     finally:
         life.close()
@@ -616,6 +621,9 @@ def test_unsatisfactory_artifact_can_be_revised_and_opinion_changes(tmp_path):
         life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         first_job = wait_for_job(life, life.store.jobs(project.project_id)[0])
         artifact_id = str(first_job.result["artifact_id"])
+        first_receipt_ref = str(first_job.result["evidence_ref"])
+        first_receipt = life.evidence_index.lookup(first_receipt_ref)
+        assert first_receipt is not None
         life.evaluate_artifact(
             project.project_id, artifact_id=artifact_id,
             technical_outcome=TechnicalOutcome.INCONCLUSIVE,
@@ -624,8 +632,8 @@ def test_unsatisfactory_artifact_can_be_revised_and_opinion_changes(tmp_path):
                 "Design an original color vocabulary.": None,
                 "Create an inspectable first edition.": None,
             }, reason="The first draft is too rigid.",
-            evidence_refs=(evidence,), preserve_for_research=True,
-            now=now + timedelta(seconds=4),
+            evidence_refs=(first_receipt_ref, evidence), preserve_for_research=True,
+            now=max(now + timedelta(seconds=4), first_receipt.observed_at),
         )
         job = life.schedule_artifact(
             project.project_id, artifact_kind=ArtifactKind.TEXT,
@@ -634,7 +642,11 @@ def test_unsatisfactory_artifact_can_be_revised_and_opinion_changes(tmp_path):
             evidence_ref=evidence, now=now + timedelta(seconds=5),
         )
         life.manager.tick(now=now + timedelta(seconds=5))
-        assert wait_for_job(life, job.job_id).status is WorkStatus.COMPLETED
+        second_job = wait_for_job(life, job.job_id)
+        assert second_job.status is WorkStatus.COMPLETED
+        second_receipt_ref = str(second_job.result["evidence_ref"])
+        second_receipt = life.evidence_index.lookup(second_receipt_ref)
+        assert second_receipt is not None
         assert life.creative_store.latest(
             artifact_id, "sofia", "local:text",
         ).revision == 2
@@ -653,8 +665,8 @@ def test_unsatisfactory_artifact_can_be_revised_and_opinion_changes(tmp_path):
                 "Create an inspectable first edition.": None,
             },
             reason="The field-note structure now leaves enough room for surprise.",
-            evidence_refs=(evidence,), preserve_for_research=False,
-            now=now + timedelta(seconds=7),
+            evidence_refs=(second_receipt_ref, evidence), preserve_for_research=False,
+            now=max(now + timedelta(seconds=7), second_receipt.observed_at),
         )
         history = life.preferences.history(
             subject=PreferenceSubject.SOFIA, category="creation",

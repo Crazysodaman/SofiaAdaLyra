@@ -191,3 +191,29 @@ def test_unknown_original_objective_cannot_become_valid_from_generator_success(t
         assert committed.personal_judgment is PersonalJudgment.UNKNOWN
     finally:
         life.close()
+
+
+def test_direct_evaluation_cannot_bypass_original_run_receipt(tmp_path):
+    """Real bytes plus unrelated evidence are not authorized execution proof."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, source_evidence = active_project(
+            life, now, objectives=("text_contains:foxfire",),
+        )
+        artifact, _receipt, reviewed_at = real_artifact(
+            life, project, source_evidence, now,
+            "A foxfire entry backed by actual creative output.",
+        )
+        with pytest.raises(PermissionError, match="RUN receipt"):
+            life.evaluate_artifact(
+                project.project_id, artifact_id=artifact,
+                technical_outcome=TechnicalOutcome.VALID,
+                personal_judgment=PersonalJudgment.LIKE,
+                objective_results={"text_contains:foxfire": True},
+                reason="A model cannot turn source prose into a receipt.",
+                evidence_refs=(source_evidence,),
+                preserve_for_research=False, now=reviewed_at,
+            )
+        assert life.store.evaluations(project.project_id) == ()
+    finally:
+        life.close()

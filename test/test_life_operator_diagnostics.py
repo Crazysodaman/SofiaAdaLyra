@@ -320,3 +320,70 @@ def test_life_review_decision_key_is_stable_until_original_source_changes(
         assert pending["next_action_candidate"] == "wait"
     finally:
         life.close()
+
+
+def test_versioned_expected_effect_projection_settles_only_from_exact_receipt_and_restarts(
+    tmp_path,
+):
+    """RUN completion, objective success and a model claim remain distinct."""
+    from sofia.creative import ArtifactKind
+    from test.test_life_project_forge import wait_for_job
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Expected effect source",
+            specification={"content": "Foxfire is present in real bytes."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        queued = life.goal_dependency_view(
+            now=now + timedelta(seconds=4),
+        )[0]
+        assert queued["decision_schema_version"] == 1
+        assert queued["decision_state"] == "queued"
+        assert queued["expected_effect"] == {
+            "schema_version": 1,
+            "kind": "run_completion_receipt",
+            "job_id": job.job_id,
+            "required_status": "completed",
+            "completion_condition": (
+                "A real managed artifact is created and hash-verified."
+            ),
+            "requires_independent_objective_validation": True,
+        }
+        assert queued["expected_effect_satisfied"] is False
+        assert queued["settlement_receipt_ref"] is None
+        assert queued["verified_objective_complete"] is False
+
+        life.manager.tick(now=now + timedelta(seconds=4))
+        completed = wait_for_job(life, job.job_id)
+        receipt_ref = str(completed.result["evidence_ref"])
+        receipt = life.evidence_index.lookup(receipt_ref)
+        assert receipt is not None
+        viewed_at = max(now + timedelta(seconds=6), receipt.observed_at)
+        settled = life.goal_dependency_view(now=viewed_at)[0]
+        assert settled["decision_state"] == "completed"
+        assert settled["expected_effect_satisfied"] is True
+        assert settled["settlement_receipt_ref"] == receipt_ref
+        # The execution receipt settles only the expected external effect.
+        # No evaluation/milestone has independently completed the project.
+        assert settled["verified_objective_complete"] is False
+        decision_key = settled["review_decision_key"]
+    finally:
+        life.close()
+
+    restarted, _goals, _restart_now = infrastructure(tmp_path)
+    try:
+        replay = restarted.goal_dependency_view(
+            now=viewed_at + timedelta(minutes=1),
+        )[0]
+        assert replay["review_decision_key"] == decision_key
+        assert replay["expected_effect_satisfied"] is True
+        assert replay["settlement_receipt_ref"] == receipt_ref
+        assert replay["verified_objective_complete"] is False
+    finally:
+        restarted.close()

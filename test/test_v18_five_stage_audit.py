@@ -3,6 +3,8 @@ import importlib.util
 from pathlib import Path
 import pytest
 
+pytestmark = pytest.mark.pkg_verify
+
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "v18_five_stage_audit.py"
 spec = importlib.util.spec_from_file_location("v18_five_stage_audit", SCRIPT)
 module = importlib.util.module_from_spec(spec)

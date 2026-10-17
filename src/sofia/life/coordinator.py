@@ -1807,6 +1807,64 @@ class SelfDirectedLifeCoordinator:
                 and latest.status is WorkStatus.COMPLETED
                 and reviewed is None
             )
+            # CA-1202/CA-3104: expose a versioned, read-only expected-effect
+            # predicate derived from the canonical RUN request.  This is not
+            # a second job state and it grants no authority.  For creative
+            # work, only the exact scoped operation receipt can settle the
+            # execution effect; project-objective success remains a separate
+            # independent validation below.
+            expected_effect = None
+            expected_effect_satisfied = False
+            settlement_receipt_ref = None
+            if source_job is not None:
+                expected_effect = {
+                    "schema_version": 1,
+                    "kind": "run_completion_receipt",
+                    "job_id": source_job.job_id,
+                    "required_status": WorkStatus.COMPLETED.value,
+                    "completion_condition": source_job.completion_condition,
+                    "requires_independent_objective_validation": True,
+                }
+                source_result = (
+                    source_job.result
+                    if isinstance(source_job.result, dict) else {}
+                )
+                source_artifact = source_result.get("artifact_id")
+                source_revision = source_result.get("revision")
+                source_receipt = source_result.get("evidence_ref")
+                if (
+                    source_job.status is WorkStatus.COMPLETED
+                    and isinstance(source_artifact, str)
+                    and type(source_revision) is int
+                    and isinstance(source_receipt, str)
+                    and self._confirmed_artifact_run_receipt(
+                        project, artifact_id=source_artifact,
+                        revision=source_revision, evidence_ref=source_receipt,
+                        now=now,
+                    )
+                ):
+                    expected_effect_satisfied = True
+                    settlement_receipt_ref = source_receipt
+            verified_objective_complete = (
+                project.status in {
+                    ProjectStatus.COMPLETED, ProjectStatus.ARCHIVED,
+                }
+                and self._current_verified_objective_completion(
+                    project, now=now,
+                )
+            )
+            if project.status is ProjectStatus.ABANDONED:
+                decision_state = "abandoned"
+            elif project.status is ProjectStatus.PAUSED:
+                decision_state = "paused"
+            elif verified_objective_complete:
+                decision_state = "verified_objective_complete"
+            elif source_job is not None:
+                decision_state = source_job.status.value
+            elif project.status is ProjectStatus.FAILED:
+                decision_state = "failed"
+            else:
+                decision_state = "silence" if next_action == "rest" else "ready"
             due_source = (
                 source_job.updated_at if source_job is not None
                 and next_action in {"verify", "review", "ask"}
@@ -1829,6 +1887,9 @@ class SelfDirectedLifeCoordinator:
                     None if source_job is None else source_job.status.value
                 ),
                 "evaluation_id": None if reviewed is None else reviewed.evaluation_id,
+                "expected_effect_satisfied": expected_effect_satisfied,
+                "settlement_receipt_ref": settlement_receipt_ref,
+                "decision_state": decision_state,
                 "next_milestone_id": (
                     None if next_milestone is None
                     else next_milestone["milestone_id"]
@@ -1844,6 +1905,8 @@ class SelfDirectedLifeCoordinator:
                 ).encode("utf-8")
             ).hexdigest()[:32]
             view.append({
+                "decision_schema_version": 1,
+                "decision_state": decision_state,
                 "project_id": project.project_id,
                 "project_revision": project.revision,
                 "project_status": project.status.value,
@@ -1887,6 +1950,10 @@ class SelfDirectedLifeCoordinator:
                     None if latest_review is None else latest_review.evaluation_id
                 ),
                 "review_decision_key": review_decision_key,
+                "expected_effect": expected_effect,
+                "expected_effect_satisfied": expected_effect_satisfied,
+                "settlement_receipt_ref": settlement_receipt_ref,
+                "verified_objective_complete": verified_objective_complete,
                 "review_due_at": (
                     None if due_source is None else due_source.isoformat()
                 ),
@@ -2573,6 +2640,18 @@ class SelfDirectedLifeCoordinator:
             return False
         if evaluation.project_id != project.project_id:
             raise PermissionError("evaluation is outside the scoped project")
+        receipt_ref = next((
+            ref for ref in evaluation.evidence_refs
+            if self._confirmed_artifact_run_receipt(
+                project, artifact_id=evaluation.artifact_id,
+                revision=evaluation.artifact_revision, evidence_ref=ref,
+                now=evaluation.evaluated_at,
+            )
+        ), None)
+        # Legacy or corrupt evaluation rows do not gain new preference
+        # influence merely because they contain a plausible evidence string.
+        if receipt_ref is None:
+            return False
         disposition = {
             PersonalJudgment.LIKE: PreferenceDisposition.LIKE,
             PersonalJudgment.DISLIKE: PreferenceDisposition.DISLIKE,
@@ -2593,7 +2672,7 @@ class SelfDirectedLifeCoordinator:
             history = self.preferences.history(**scope)
             if any(
                 item.recorded_at == evaluation.evaluated_at
-                and item.evidence_ref == evaluation.evidence_refs[0]
+                and item.evidence_ref == receipt_ref
                 and item.reason == evaluation.reason
                 and item.disposition is disposition
                 for item in history
@@ -2612,7 +2691,7 @@ class SelfDirectedLifeCoordinator:
             ),
             confidence=project.confidence,
             reason=evaluation.reason,
-            evidence_ref=evaluation.evidence_refs[0],
+            evidence_ref=receipt_ref,
             expected_revision=None if current is None else current.revision,
             now=evaluation.evaluated_at,
         )
@@ -2715,6 +2794,16 @@ class SelfDirectedLifeCoordinator:
             or (artifact_id, revision.revision) not in self.store.artifacts(project_id)
         ):
             raise PermissionError("artifact is not linked to this project")
+        if not any(
+            self._confirmed_artifact_run_receipt(
+                project, artifact_id=artifact_id,
+                revision=revision.revision, evidence_ref=ref, now=now,
+            )
+            for ref in evidence_refs
+        ):
+            raise PermissionError(
+                "artifact evaluation requires a successful original scoped RUN receipt"
+            )
         # Every technical assertion must match the independently inspected
         # ORIGINAL objectives, not merely claims of success. In particular
         # a generator or a reviewer cannot invent a FAIL to trigger more RUN

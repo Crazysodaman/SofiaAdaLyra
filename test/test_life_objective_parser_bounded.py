@@ -201,6 +201,30 @@ def test_python_code_syntax_is_checked_without_running_program(tmp_path):
     assert unsupported.findings[0].disposition is ObjectiveDisposition.UNKNOWN
 
 
+def test_objective_registry_is_scoped_by_immutable_artifact_kind(tmp_path):
+    """A known objective name is not automatically valid for every medium."""
+    from dataclasses import replace
+
+    content = b"print('valid python')\n"
+    path = tmp_path / "kind-bound.bin"
+    path.write_bytes(content)
+    story = revision_for(path, content)
+    wrong_kind = inspect_objective_artifact(
+        revision=story, path=path, objectives=("python_syntax:python",),
+    )
+    assert wrong_kind.integrity is ObjectiveDisposition.PASS
+    assert wrong_kind.findings[0].check == "unsupported"
+    assert wrong_kind.findings[0].disposition is ObjectiveDisposition.UNKNOWN
+
+    # Representation-level size checks are explicitly registered for every
+    # artifact kind, including non-text media.
+    art = replace(story, kind=ArtifactKind.ART)
+    size_check = inspect_objective_artifact(
+        revision=art, path=path, objectives=("min_bytes:4",),
+    )
+    assert size_check.findings[0].disposition is ObjectiveDisposition.PASS
+
+
 
 @pytest.mark.parametrize("invalid_source", [
     "return 1",
