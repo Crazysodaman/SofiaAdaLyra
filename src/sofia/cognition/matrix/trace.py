@@ -135,6 +135,18 @@ class MatrixTraceStore:
                 """
             )
 
+            # Scoped diagnostic readers need both privacy predicates and
+            # execution filtering covered by the same partial index.
+            db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_cognition_matrix_trace_scoped_execution
+                ON cognition_matrix_trace(
+                    session_id, principal_id, channel,
+                    created_at DESC, message_id DESC
+                ) WHERE extensions_json IS NOT NULL
+                """
+            )
+
     @staticmethod
     def _domains_json(turn: TurnMatrix) -> str:
         return json.dumps(
