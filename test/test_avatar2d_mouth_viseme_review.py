@@ -21,8 +21,32 @@ def mouth_staging(staged_features):
     # its separate foundation with actual RGBA reference for frame assembly.
     for filename in ("head_base.png", "face_shading.png"):
         Image.new("RGBA", (2048, 2560)).save(foundation / filename)
+    # Make blink and wink genuinely different from open-eye art in tests.
+    # The shared Batch10/11 fixture normally uses the same 1px pixel for
+    # every source pose; overwrite its closed variants with new 1px art.
+    for side in ("left", "right"):
+        closed = features / f"layers/eyes/eye_{side}/closed.png"
+        image = Image.new("RGBA", (2048, 2560))
+        x = 970 if side == "left" else 1060
+        image.putpixel((x, 225), (255, 165, 180, 255))
+        image.save(closed)
     features_manifest = features / "manifest.json"
     fdoc = json.loads(features_manifest.read_text())
+    for entry in fdoc["files"]:
+        if entry["file"] in {
+            "layers/eyes/eye_left/closed.png",
+            "layers/eyes/eye_right/closed.png",
+        }:
+            data = (features / entry["file"]).read_bytes()
+            entry["sha256"] = sha256(data).hexdigest()
+            entry["bytes"] = len(data)
+    for entry in fdoc["sprites"]:
+        if entry["file"] in {
+            "layers/eyes/eye_left/closed.png",
+            "layers/eyes/eye_right/closed.png",
+        }:
+            x = 970 if "eye_left" in entry["file"] else 1060
+            entry["alpha_bbox"] = [x, 225, x+1, 226]
     fdoc["head_base_sha256"] = sha256((foundation / "head_base.png").read_bytes()).hexdigest()
     fdoc["face_shading_sha256"] = sha256((foundation / "face_shading.png").read_bytes()).hexdigest()
     features_manifest.write_text(json.dumps(fdoc))
