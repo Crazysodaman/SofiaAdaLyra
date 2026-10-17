@@ -179,6 +179,53 @@ def test_python_code_syntax_is_checked_without_running_program(tmp_path):
     assert unsupported.findings[0].disposition is ObjectiveDisposition.UNKNOWN
 
 
+
+@pytest.mark.parametrize("invalid_source", [
+    "return 1",
+    "break",
+    "continue",
+    "yield 1",
+    "await run_anything()",
+    "nonlocal value",
+])
+def test_python_syntax_rejects_parseable_but_uncompilable_modules(
+    tmp_path, invalid_source,
+):
+    from dataclasses import replace
+
+    # ast.parse() accepts these statements, but Python rejects them at the
+    # compile phase. None of them may earn an independent objective PASS.
+    content = invalid_source.encode("utf-8")
+    path = tmp_path / "not-valid-module.py"
+    path.write_bytes(content)
+    record = replace(revision_for(path, content), kind=ArtifactKind.CODE)
+    result = inspect_objective_artifact(
+        revision=record, path=path, objectives=("python_syntax:python",),
+    )
+    assert result.integrity is ObjectiveDisposition.PASS
+    assert result.findings[0].disposition is ObjectiveDisposition.FAIL
+    assert not result.eligible_for_independent_completion
+
+
+def test_python_syntax_compilation_never_runs_artifact_code(tmp_path):
+    from dataclasses import replace
+
+    sentinel = tmp_path / "must-not-exist.txt"
+    content = (
+        "from pathlib import Path\\n"
+        f"Path({str(sentinel)!r}).write_text('executed')\\n"
+    ).encode("utf-8")
+    path = tmp_path / "valid-but-dangerous.py"
+    path.write_bytes(content)
+    record = replace(revision_for(path, content), kind=ArtifactKind.CODE)
+    result = inspect_objective_artifact(
+        revision=record, path=path, objectives=("python_syntax:python",),
+    )
+    assert result.integrity is ObjectiveDisposition.PASS
+    assert result.findings[0].disposition is ObjectiveDisposition.PASS
+    assert not sentinel.exists()
+
+
 def test_unicode_whitespace_word_count_stays_exact_for_many_words(tmp_path):
     # 96,000 words formerly allocated an intermediate list of every token.
     content = ("alpha\u00a0beta\tgamma\n\u03b4elta " * 24_000).encode("utf-8")
