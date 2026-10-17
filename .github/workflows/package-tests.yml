@@ -76,6 +76,11 @@ jobs:
             "``````text" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
             Get-Content $Log -Tail 160 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
             "``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            # Signed-out workflow pages hide raw logs and artifacts. Keep a
+            # bounded pytest tail visible as a standard check annotation.
+            $Tail = (Get-Content $Log -Tail 80) -join "`n"
+            $Escaped = $Tail.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=${{ matrix.package }} pytest failure::$Escaped"
           }
           exit $Status
 
