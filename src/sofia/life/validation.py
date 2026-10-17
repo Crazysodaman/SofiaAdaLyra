@@ -7,7 +7,6 @@ This module cannot mutate project/goal/memory/SAFE state.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import ast
 from enum import Enum
 from hashlib import sha256
 from pathlib import Path
@@ -118,12 +117,15 @@ def _python_syntax(objective: str, *, content: bytes, kind: ArtifactKind) -> Obj
         return ObjectiveFinding(objective, ObjectiveDisposition.UNKNOWN, "python_syntax", "code exceeds parser budget")
     try:
         source = content.decode("utf-8", "strict")
-        ast.parse(source, filename="<artifact>", mode="exec")
+        # ast.parse() accepts constructs such as a module-level `return` or
+        # `break` that Python rejects. Compile to a code object without
+        # executing it so PASS reflects an actually compilable module.
+        compile(source, filename="<artifact>", mode="exec", dont_inherit=True)
     except UnicodeError:
         return ObjectiveFinding(objective, ObjectiveDisposition.FAIL, "python_syntax", "invalid UTF-8")
-    except (SyntaxError, ValueError, RecursionError):
+    except (SyntaxError, ValueError, TypeError, RecursionError, OverflowError):
         return ObjectiveFinding(objective, ObjectiveDisposition.FAIL, "python_syntax", "Python syntax invalid")
-    return ObjectiveFinding(objective, ObjectiveDisposition.PASS, "python_syntax", "Python parses; behavior not proved")
+    return ObjectiveFinding(objective, ObjectiveDisposition.PASS, "python_syntax", "Python compiles; execution and behavior not proved")
 
 
 # A closed, externally reviewed registry. The model does not register validators.
