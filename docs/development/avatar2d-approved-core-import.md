@@ -166,3 +166,49 @@ For an optional post-fix DIAGNOSTIC (not a release candidate), after
 `git pull --ff-only` generate a new review folder, e.g.
 `Private-Source\\Review\\head_alignment_candidate_v3`. The
 `head_quality` failure is expected until replacement art passes review.
+
+
+## Coherent face-and-neck replacement v1 (new artwork candidate)
+
+The earlier v1-v3 assembled previews were rejected for double-drawn head
+edges, a blurred/absent nose, and incompatible facial shading. The owner
+approved **only** the C/soft eyebrow shape, not those completed faces.
+
+An entirely new cohesive static portrait was authored for visual review.
+It includes a defined nose, naturally continuous jaw and neck shading,
+violet eyes, crimson/violet hair, and fox ears with lavender inner fur.
+It is **not** independent modular sprite animation.
+
+The downloadable owner package `Sofia_Cohesive_Face_Candidate_v1.zip`
+contains the full-resolution original RGBA art, an explicitly registered
+2048x2560 transparent composite head, a body-head suppression mask to avoid
+duplicate underlying head silhouettes, a cropped preview, per-file SHA256
+manifest and non-destructive Windows check/stage/verify scripts.
+
+The Windows stage action copies files only into:
+
+```text
+%LOCALAPPDATA%\SofiaAdaLyra\Avatar2D\Private-Source\Reviewed-Candidates\CohesiveHead\v1
+```
+
+It refuses overwrites. It does **not** replace the 57 CoreLayers sprites,
+edit the canonical body, write sofia.db, copy art into Public-V2, or
+enable the Tk renderer.
+
+After downloading and extracting the archive, run in order:
+`Check-SofiaFace.cmd`, `Stage-SofiaFace.cmd`, `Verify-SofiaFace.cmd`.
+To run an additional code-level check after pulling `main`:
+
+```powershell
+$Candidate = Join-Path $env:LOCALAPPDATA 'SofiaAdaLyra\Avatar2D\Private-Source\Reviewed-Candidates\CohesiveHead\v1'
+python -m sofia.avatar.vtuber_cohesive_candidate --root "$Candidate"
+pytest -q test/test_avatar2d_cohesive_candidate.py
+```
+
+The candidate is **static** and currently unapproved as a live avatar.
+Do not overlay existing full-frame eyes, brow, mouth, hair or ear layers
+over the baked-in portrait: that would duplicate features again.
+After visual acceptance, derive separately painted clean skin/face,
+eye, brow, mouth, hair and ear assets with exact alpha/anchors, and
+verify expression/viseme animation, garment occlusion, fallback, and
+public/private scope before enabling production.
