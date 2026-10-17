@@ -658,8 +658,8 @@ class MatrixTraceStore:
         limit: int = 100,
     ) -> MatrixTrace | None:
         """Return the newest trace that records an actual cognitive execution."""
-        if type(limit) is not int or limit < 1:
-            raise ValueError("limit must be a positive int")
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("limit must be an integer between 1 and 1000")
         with closing(self._connect()) as db:
             if session_id is None:
                 rows = db.execute(
