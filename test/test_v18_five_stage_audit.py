@@ -110,3 +110,24 @@ def test_markdown_progress_bars_match_machine_counts(tmp_path, monkeypatch):
     assert "0/780" in summary
     assert "Targeted evidence traced: **0/780**" in summary
     assert SHA in summary
+
+
+def test_verify_head_rejects_wrong_commit_before_report(tmp_path, monkeypatch):
+    import subprocess
+    fixture_repo(tmp_path)
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=Test",
+                    "-c", "user.email=test@example.invalid", "commit",
+                    "--allow-empty", "-m", "fixture", "-q"], check=True)
+    actual = subprocess.check_output(
+        ["git", "-C", str(tmp_path), "rev-parse", "HEAD"], text=True
+    ).strip()
+    assert actual != SHA
+    report_path = tmp_path / "must-not-exist.json"
+    monkeypatch.setattr("sys.argv", [
+        "v18_five_stage_audit", "--repo", str(tmp_path), "--sha", SHA,
+        "--verify-head", "--output", str(report_path),
+    ])
+    with pytest.raises(ValueError, match="differs from actual"):
+        module.main()
+    assert not report_path.exists()
