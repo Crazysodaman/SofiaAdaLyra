@@ -694,8 +694,11 @@ class ConversationMatrixMixin:
         )
 
         store = getattr(self, "_matrix_trace_store", None)
-        prior_turn = previous_turn
-        prior_exposure = previous_exposure
+        # Once durable storage is available, only a verified audience-bound
+        # predecessor may supply context. Falling back to in-memory state
+        # after a miss/error can leak another principal's previous turn.
+        prior_turn = previous_turn if store is None else None
+        prior_exposure = previous_exposure if store is None else None
         trace_error: str | None = None
         if store is not None:
             try:
