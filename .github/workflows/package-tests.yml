@@ -66,12 +66,25 @@ jobs:
 
       - name: Run package tests
         shell: pwsh
-        run: pytest -q -m "${{ matrix.package }} and not integration"
+        run: |
+          $Log = "pytest-${{ matrix.package }}.log"
+          pytest -q -m "${{ matrix.package }} and not integration" 2>&1 |
+            Tee-Object -FilePath $Log
+          $Status = $LASTEXITCODE
+          if ($Status -ne 0) {
+            "### ${{ matrix.package }} failure tail" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "``````text" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            Get-Content $Log -Tail 160 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          }
+          exit $Status
 
       - name: Upload exact revision selection proof
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: package-selection-${{ matrix.package }}-${{ github.sha }}
-          path: package-selection-${{ matrix.package }}.json
+          path: |
+            package-selection-${{ matrix.package }}.json
+            pytest-${{ matrix.package }}.log
           if-no-files-found: warn

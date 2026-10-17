@@ -105,10 +105,34 @@ jobs:
             --archive "$SOFIA_RELEASE_SOURCE" \
             --venv "$SOFIA_RELEASE_VENV" \
             --evidence "$RUNNER_TEMP/sofia-debian-source-provenance.json"
+          set +e
           "$PY" -m sofia.verify.gate \
             --phase full --installed-wheel-only \
             --repo "$GITHUB_WORKSPACE" \
-            --evidence-path "$SOFIA_VERIFICATION_EVIDENCE"
+            --evidence-path "$SOFIA_VERIFICATION_EVIDENCE" \
+            2>&1 | tee "$RUNNER_TEMP/sofia-debian-verification.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            {
+              echo "### Debian verification failure tail"
+              echo '```text'
+              tail -n 200 "$RUNNER_TEMP/sofia-debian-verification.log"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
+
+      - name: Upload Debian verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: debian-verification-diagnostics-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/sofia-debian-verification.log
+            ${{ runner.temp }}/sofia-debian-verification.json
+            ${{ runner.temp }}/sofia-debian-source-provenance.json
+          if-no-files-found: warn
 
       - name: Construct and validate immutable Linux release evidence
         shell: bash

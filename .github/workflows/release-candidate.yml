@@ -122,8 +122,28 @@ jobs:
       - name: Run revision-bound verification gate
         shell: pwsh
         run: |
-          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.verify.gate --phase full --installed-wheel-only --repo "$env:GITHUB_WORKSPACE" --evidence-path "$env:SOFIA_VERIFICATION_EVIDENCE"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $Log = "$env:RUNNER_TEMP\sofia-windows-verification.log"
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.verify.gate --phase full --installed-wheel-only --repo "$env:GITHUB_WORKSPACE" --evidence-path "$env:SOFIA_VERIFICATION_EVIDENCE" 2>&1 |
+            Tee-Object -FilePath $Log
+          $Status = $LASTEXITCODE
+          if ($Status -ne 0) {
+            "### Windows verification failure tail" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "``````text" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            Get-Content $Log -Tail 200 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          }
+          exit $Status
+
+      - name: Upload Windows verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-verification-diagnostics-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/sofia-windows-verification.log
+            ${{ runner.temp }}/verification-evidence.json
+            ${{ runner.temp }}/source-provenance.json
+          if-no-files-found: warn
 
       - name: Construct and verify release evidence
         shell: pwsh
