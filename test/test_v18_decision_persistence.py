@@ -553,3 +553,34 @@ def test_matrix_same_revision_replay_is_idempotent(tmp_path):
     store.record(original)
     assert store.count() == 1
     assert store.get(original.envelope.message_id).created_at == original.created_at
+
+
+def test_matrix_legacy_schema_migrates_before_execution_index(tmp_path):
+    """Older canonical databases may lack extensions_json at startup."""
+    path = tmp_path / "legacy.db"
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "CREATE TABLE cognition_matrix_trace ("
+            "message_id TEXT PRIMARY KEY,session_id TEXT NOT NULL,"
+            "principal_id TEXT NOT NULL,channel TEXT NOT NULL,"
+            "schema_version INTEGER NOT NULL,intent TEXT NOT NULL,"
+            "confidence TEXT NOT NULL,history_policy TEXT NOT NULL,"
+            "response_strategy TEXT NOT NULL,domains_json TEXT NOT NULL,"
+            "ambiguous INTEGER NOT NULL,shadow INTEGER NOT NULL,"
+            "created_at TEXT NOT NULL)"
+        )
+    store = MatrixTraceStore(path)
+    assert store.count() == 0
+    with closing(sqlite3.connect(path)) as db:
+        cols = {
+            item[1] for item in db.execute(
+                "PRAGMA table_info(cognition_matrix_trace)"
+            )
+        }
+        names = {
+            item[1] for item in db.execute(
+                "PRAGMA index_list(cognition_matrix_trace)"
+            )
+        }
+    assert {"extensions_json", "context_json", "source_created_at"}.issubset(cols)
+    assert "idx_cognition_matrix_trace_execution" in names
