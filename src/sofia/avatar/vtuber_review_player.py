@@ -8,6 +8,7 @@ reported as a voice receipt.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import argparse
 from pathlib import Path
 
@@ -71,19 +72,21 @@ def run_local_preview(*, foundation: Path, features: Path, mouths: Path) -> None
     photo = None
     closed = False
 
+    @lru_cache(maxsize=12)
+    def scaled_frame(expression: str):
+        # Decode/resize each distinct source frame just once per preview
+        # session; do not reprocess full 2048x2560 layers every 130 ms.
+        image = compose_review_frame(
+            foundation_root=foundation, features_root=features,
+            mouths_root=mouths, expression=expression,
+        )
+        return ImageOps.contain(image.crop((830, 54, 1186, 458)), (486, 492))
+
     def draw(index: int) -> None:
         nonlocal photo, frame_index
         frame_index = index % len(_STEPS)
         step = _STEPS[frame_index]
-        image = compose_review_frame(
-            foundation_root=foundation, features_root=features,
-            mouths_root=mouths, expression=step.expression,
-        )
-        image = image.crop((830, 54, 1186, 458))
-        image = ImageOps.contain(image, (486, 492))
-        backdrop = tk.PhotoImage if False else None  # explicit no hidden Tk fallback
-        del backdrop
-        photo = ImageTk.PhotoImage(image)
+        photo = ImageTk.PhotoImage(scaled_frame(step.expression))
         panel.configure(image=photo)
         panel.image = photo
         status.set(
