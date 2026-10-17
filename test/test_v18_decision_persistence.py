@@ -416,3 +416,16 @@ def test_matrix_upsert_cannot_rebind_message_identity(tmp_path, changed):
     assert restored.envelope.principal_id == original.envelope.principal_id
     assert restored.envelope.channel == original.envelope.channel
     assert restored.created_at == original.created_at
+
+
+def test_latest_matrix_trace_ties_have_stable_message_id_order(tmp_path):
+    """Identically timestamped turns must have deterministic diagnostic ordering."""
+    path, first = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    second = replace(first, envelope=replace(first.envelope, message_id="unique-msg-2"))
+    store.record(second)
+    assert store.latest().envelope.message_id == "unique-msg-2"
+    assert store.latest(session_id="s1").envelope.message_id == "unique-msg-2"
+    # Replaying an existing trace must not randomly change latest().
+    store.record(first)
+    assert store.latest(session_id="s1").envelope.message_id == "unique-msg-2"
