@@ -6,8 +6,11 @@ on:
     paths:
       - ".github/workflows/avatar2d-secondary-expression.yml"
       - "src/sofia/ui/avatar2d_renderer.py"
+      - "src/sofia/ui/avatar2d_installation.py"
+      - "src/sofia/ui/desktop.py"
       - "src/sofia/avatar/vtuber_character_selection.py"
       - "test/test_ui_avatar2d_secondary_expression.py"
+      - "test/test_avatar2d_installation_discovery.py"
   workflow_dispatch:
 
 permissions:
@@ -28,10 +31,10 @@ jobs:
       - name: Test real source-linked 2D expression PNG frames
         shell: pwsh
         run: |
-          python -m pytest -q test/test_ui_avatar2d_secondary_expression.py test/test_ui_avatar2d_modular.py test/test_ui_avatar2d_live_parts.py test/test_avatar2d_public_setup.py
+          python -m pytest -q test/test_ui_avatar2d_secondary_expression.py test/test_ui_avatar2d_modular.py test/test_ui_avatar2d_live_parts.py test/test_avatar2d_public_setup.py test/test_avatar2d_installation_discovery.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Check source compilation
         shell: pwsh
         run: |
-          python -m py_compile src/sofia/ui/avatar2d_renderer.py src/sofia/avatar/vtuber_character_selection.py
+          python -m py_compile src/sofia/ui/avatar2d_renderer.py src/sofia/avatar/vtuber_character_selection.py src/sofia/ui/avatar2d_installation.py src/sofia/ui/desktop.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
