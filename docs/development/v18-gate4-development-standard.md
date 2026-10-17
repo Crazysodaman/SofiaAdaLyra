@@ -1,4 +1,4 @@
-# V18 interim objective: all 780 planned tasks through Gate 4
+> **SUPERSEDED for development reporting on 2026-10-17:** The owner replaced the Gate 1–4 / independent-review progress ladder with five practical engineering statuses. Use [v18-five-stage-development-status-2026-10-17.md](v18-five-stage-development-status-2026-10-17.md) for all NEW status reporting across 780 tasks. The historical gate material below is retained for audit and is NOT an active prerequisite to classify coding or testing progress. No old gate proof is silently converted into a new status. External authorization, security boundaries, and any task-specific real-world requirements remain mandatory for relevant operations.\n\n# V18 interim objective: all 780 planned tasks through Gate 4
 
 Approved owner direction, 2026-10-13. This changes the **development reporting target**, not requirements or final production acceptance.
 
