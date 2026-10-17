@@ -101,3 +101,34 @@ Focused source tests:
 ```powershell
 pytest -q test/test_avatar2d_external_core.py test/test_avatar2d_core_alignment_preview.py
 ```
+
+
+## Registration preview v2: eyebrow fringe and ear proportions
+
+An owner screenshot of v1 revealed severely shrunken brows. The original
+approved eyebrow PNG contains almost-transparent pixels hundreds of pixels
+outside the visible strokes. The v1 `Image.getbbox()` crop included those
+pixels and squashed both brows into a small steep expression.
+
+The v2 **review-only** preview removes alpha <= 15 from the crop *decision*
+without modifying the original artwork. It uses the owner's already-approved
+`brows_soft.png` as a neutral-looking candidate, slightly enlarges ear
+placements and shortens the bangs. Do not silently substitute `brows_soft`
+for the runtime neutral expression before separate owner approval.
+
+To generate v2 after pulling `main`, use a **fresh** target:
+
+```powershell
+$Base = Join-Path $env:LOCALAPPDATA 'SofiaAdaLyra\Avatar2D\Private-Source'
+$Source = Join-Path $Base 'CoreLayers\v1'
+$Body = Join-Path $Base 'CanonicalBody\v1\sofia_body_base_2048x2560.png'
+$Output = Join-Path $Base 'Review\head_alignment_candidate_v2'
+python -m sofia.avatar.vtuber_core_alignment_preview --source-root "$Source" --canonical-body "$Body" --output "$Output"
+Start-Process (Join-Path $Output 'head_alignment_candidate.png')
+pytest -q test/test_avatar2d_external_core.py test/test_avatar2d_core_alignment_preview.py
+```
+
+What remains unverified: the exact high-resolution head-to-body visual
+acceptance, independent left/right pose masks, believable face/detail
+consistency, talking visemes, garment occlusion, and actual animation
+receipts on Venus. `production_activated` remains false.
