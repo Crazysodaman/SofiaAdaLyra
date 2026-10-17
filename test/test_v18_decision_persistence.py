@@ -247,3 +247,36 @@ def test_incomplete_social_audience_never_proves_owner_scope(tmp_path, invalid_a
     assert projection.source_event.principal_id is None
     assert projection.source_event.audience_id is None
     assert not projection.source_event.can_authorize
+
+
+@pytest.mark.parametrize("offset_ms", [-1, 1, 20])
+def test_matrix_source_requires_exact_original_message_time(tmp_path, offset_ms):
+    """Matching ID, role and earlier-than-Matrix time is insufficient."""
+    path, matrix = _fixture(tmp_path)
+    changed = NOW + timedelta(milliseconds=offset_ms)
+    assert changed < matrix.created_at
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "UPDATE conversation_messages SET created_at=? WHERE id=?",
+            (changed.isoformat(), matrix.envelope.message_id),
+        )
+    proof = inspect_turn_persistence(path, matrix_trace=matrix)
+    assert not proof.user_message_persisted
+    assert proof.matrix_decision_persisted
+    assert proof.principal_scope_verified
+    assert not proof.same_turn_verified
+    assert not proof.canonical_turn_settled
+
+
+def test_equivalent_timezone_offset_does_not_invalidate_source_timestamp(tmp_path):
+    """Match instants, not the display form of an ISO 8601 timestamp."""
+    path, matrix = _fixture(tmp_path)
+    equivalent = NOW.astimezone(timezone(timedelta(hours=-5))).isoformat()
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "UPDATE conversation_messages SET created_at=? WHERE id=?",
+            (equivalent, matrix.envelope.message_id),
+        )
+    proof = inspect_turn_persistence(path, matrix_trace=matrix)
+    assert proof.user_message_persisted
+    assert proof.same_turn_verified
