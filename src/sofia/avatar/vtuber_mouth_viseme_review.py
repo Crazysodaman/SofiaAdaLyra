@@ -19,6 +19,7 @@ _SCHEMA = "sofia.avatar2d.mouth_viseme_source_review.v1"
 _ART_FILES = {
     f"layers/{group}/{state}.png"
     for group, states in (("mouths", MOUTH_STATES), ("visemes", VISEME_STATES))
+    for state in states
 }
 _EXTRAS = {
     "README.txt", "Install-Batch12_13.ps1",
