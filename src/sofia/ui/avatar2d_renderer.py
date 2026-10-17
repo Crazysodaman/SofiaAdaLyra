@@ -27,6 +27,7 @@ from sofia.avatar.vtuber_character_bundle import load_selected_character_sprites
 from sofia.avatar.vtuber_character_selection import select_character_parts
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_matrix import build_wardrobe_matrix
+from sofia.avatar.vtuber_static_portraits import load_public_static_portrait
 from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
 
 
@@ -140,6 +141,7 @@ class TkLayered2DRenderer:
         self._images: list = []
         self._last_revision: int | None = None
         self._last_digest: str | None = None
+        self._last_art_source = "procedural"
 
     @staticmethod
     def _verified_public(projection: PresentationProjection) -> bool:
@@ -173,6 +175,31 @@ class TkLayered2DRenderer:
             or "\\" in projection.outfit_id
         ):
             raise Avatar2DAssetError("invalid public outfit ID")
+        # An installed, source-bound public portrait can take priority over
+        # procedural starter artwork. It is deliberately a SINGLE static
+        # frame: gestures and blinking are not claimed as illustrated here.
+        static_png = load_public_static_portrait(
+            self.public_root, projection, catalog=self.catalog,
+        )
+        if static_png is not None:
+            from tkinter import PhotoImage
+            picture = PhotoImage(
+                data=b64encode(static_png).decode("ascii"), format="png",
+            ).subsample(2, 2)
+            self.canvas.delete("avatar")
+            self.canvas.delete("avatar2d")
+            xpos = max(85, self.canvas.winfo_width() // 2)
+            self.canvas.create_image(
+                xpos, 22 + shift, anchor="n",
+                image=picture, tags="avatar2d",
+            )
+            self._images = [picture]
+            self._last_revision = projection.source_revision
+            self._last_digest = sha256(static_png).hexdigest()
+            self._last_art_source = "static illustrated candidate"
+            return 1, False
+        self._last_art_source = "procedural"
+
         directory = self.public_root / "outfits" / projection.outfit_id
         art = _read_bundle(
             directory, audience=AudienceScope.PUBLIC,
@@ -264,6 +291,7 @@ class TkLayered2DRenderer:
         self._images.clear()
         self._last_revision = None
         self._last_digest = None
+        self._last_art_source = "fallback"
         self.fallback.render(request, completed=completed)
 
     def _schedule_idle_blink(self, projection: PresentationProjection) -> None:
@@ -430,7 +458,7 @@ class TkLayered2DRenderer:
                     (
                         f"painted {index + 1} 2D frame(s), {count} verified "
                         f"public PNG sprite layer(s) "
-                        f"({'modular' if modular else 'legacy'}); "
+                        f"({'modular' if modular else self._last_art_source}); "
                         f"presentation revision {request.presentation.source_revision}"
                         if visible else "avatar window not visible; no frame receipt"
                     ),
