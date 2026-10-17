@@ -132,3 +132,37 @@ What remains unverified: the exact high-resolution head-to-body visual
 acceptance, independent left/right pose masks, believable face/detail
 consistency, talking visemes, garment occlusion, and actual animation
 receipts on Venus. `production_activated` remains false.
+
+
+## Owner review: C eyebrows approved; composite face rejected
+
+**Owner review, 2026-10-17:** The eyebrow shape from alignment
+comparison **C** (`brows_soft.png`) is approved as the resting look.
+The head and neck composite shown in that candidate is explicitly NOT
+approved for release. The nose is effectively absent/blurred, facial art
+styles differ, and a visibly double-drawn jaw and neck seam remain.
+
+Root cause of one seam: the earlier preview composited the approved
+`face_base.png` opaque oval **over the canonical body's own head**.
+The corrected preview now uses only the body's head silhouette and overlays
+the shading/eyes/C brows/mouth/hair. This is a staging correction, not
+proof of finished face art.
+
+The machine-readable preview report records:
+`head_quality: REJECTED_needs_cohesive_head_and_nose_art`,
+`owner_approved.brow_variant: brows_soft`,
+`owner_approved.full_face: false`, and
+`head_base: canonical_body_only`.
+
+**Do not advance to production from this preview.** Author a coherent
+matching face-and-neck base with visible nose and compatible shading,
+preserving approved eyebrows and eye design. Validate jaw/neck edge
+transitions, facial expressions, mouth position, covered public
+silhouette, hair/ear attachment, and tail/wardrobe occlusion separately.
+Neither smoothing a PNG nor another transform alone resolves mismatched
+face and body illustration styles.
+
+For an optional post-fix DIAGNOSTIC (not a release candidate), after
+`git pull --ff-only` generate a new review folder, e.g.
+`Private-Source\\Review\\head_alignment_candidate_v3`. The
+`head_quality` failure is expected until replacement art passes review.
