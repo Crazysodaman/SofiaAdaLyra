@@ -76,3 +76,17 @@ def test_blank_original_requirement_refused(tmp_path):
     doc.write_text(contents.replace("Original objective for CA-1", ""), encoding="utf-8")
     with pytest.raises(ValueError, match="missing original requirement"):
         module.build(tmp_path, SHA)
+
+
+def test_phase_labels_are_scoped_to_original_addenda(tmp_path):
+    doc = fixture_repo(tmp_path)
+    original = doc.read_text(encoding="utf-8")
+    original = original.replace("| CA-1 |", "### Phase 00 | Architecture and source ownership\n| CA-1 |", 1)
+    original = original.replace("| ML-001 |", "### Machine Learning addendum: ML-001 through ML-040\n| ML-001 |", 1)
+    original = original.replace("| GA-001 |", "### Generalization / lifelong-learning addendum: GA-001 through GA-040\n| GA-001 |", 1)
+    doc.write_text(original, encoding="utf-8")
+    result = module.build(tmp_path, SHA)
+    by_id = {row["task_id"]: row for row in result["tasks"]}
+    assert by_id["CA-1"]["phase"].startswith("Phase 00")
+    assert by_id["ML-001"]["phase"].startswith("Machine Learning addendum")
+    assert by_id["GA-001"]["phase"].startswith("Generalization / lifelong-learning addendum")
