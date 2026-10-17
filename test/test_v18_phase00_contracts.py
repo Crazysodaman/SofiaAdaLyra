@@ -354,7 +354,7 @@ def test_unavailable_matrix_evidence_cannot_link_goal_or_eligible_memory(tmp_pat
     ("expired", "expired"),
     ("revoked", "not an eligible"),
     ("failed", "not an eligible"),
-    ("future", "postdates"),
+    ("future", "postdate"),
 ])
 def test_ca005_ca006_unusable_goal_event_cannot_become_selected_provenance(
     tmp_path, failure, expected,
