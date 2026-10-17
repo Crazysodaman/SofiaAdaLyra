@@ -11,6 +11,8 @@ from hashlib import sha256
 from pathlib import Path
 import json
 
+from .vtuber_independent_features import _ASSETS as _FEATURE_ASSETS
+
 MOUTH_STATES = ("neutral", "small_smile", "smile", "smirk", "frown", "open_small")
 VISEME_STATES = ("open_medium", "open_wide", "A", "E", "O", "M")
 _SCHEMA = "sofia.avatar2d.mouth_viseme_source_review.v1"
@@ -55,9 +57,11 @@ def _root(path: Path) -> None:
 
 
 def _file(root: Path, relative: str) -> Path:
-    if relative not in _EXPECTED and relative not in (
-        "manifest.json", "head_base.png", "face_shading.png",
-    ) and not relative.startswith("layers/eyes/eye_") and not relative.startswith("layers/brows/brow_"):
+    if (
+        relative not in _EXPECTED
+        and relative not in ("manifest.json", "head_base.png", "face_shading.png")
+        and relative not in _FEATURE_ASSETS
+    ):
         raise ValueError("unrecognized candidate file")
     file = root
     for part in relative.split("/"):
