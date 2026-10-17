@@ -27,7 +27,19 @@ TRACED = {
 def build(repo: Path, source_sha: str) -> dict:
     doc = repo / "docs/development/v18-full-780-task-design-code-gate-status-2026-10-17.md"
     original = doc.read_text(encoding="utf-8")
-    ids = ROWS.findall(original)
+    rows = [line for line in original.splitlines() if ROWS.match(line)]
+    ids = [ROWS.match(line).group(1) for line in rows]
+    row_details = {}
+    phase = None
+    for line in original.splitlines():
+        if line.startswith("### Phase "):
+            phase = line[4:].split("|", 1)[0].strip()
+        if not ROWS.match(line):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != 10 or not cells[8]:
+            raise ValueError(f"malformed or missing original requirement for {cells[0]}")
+        row_details[cells[0]] = {"task_type": cells[2], "original_requirement": cells[8], "phase": phase}
     expected = {f"ML-{i:03d}" for i in range(1, 41)} | {f"GA-{i:03d}" for i in range(1, 41)}
     if set(ids).intersection(expected) != expected:
         raise ValueError("missing ML/GA identifier in full task register")
@@ -45,6 +57,7 @@ def build(repo: Path, source_sha: str) -> dict:
         stage = "CODED_UNFINISHED" if len(found) == len(paths) and bool(paths) else "NOT_WORKED_ON"
         tasks.append({
             "task_id": id_,
+            **row_details[id_],
             "stage": stage,
             "original_requirement_ref": f"{doc.relative_to(repo)}#{id_.lower()}",
             "source_paths": found,
