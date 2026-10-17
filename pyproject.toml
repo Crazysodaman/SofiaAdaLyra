@@ -13,6 +13,7 @@ dependencies = [
     "pypdf",
     "cryptography",
     "tzdata",
+    "Pillow>=11,<13",  # public 2D scene PNG composition and editor
     "pywin32>=311; sys_platform == \"win32\"",
 ]
 
