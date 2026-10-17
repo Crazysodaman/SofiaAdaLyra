@@ -565,7 +565,7 @@ class MatrixTraceStore:
                 row = db.execute(
                     """
                     SELECT * FROM cognition_matrix_trace
-                    ORDER BY created_at DESC LIMIT 1
+                    ORDER BY created_at DESC, message_id DESC LIMIT 1
                     """
                 ).fetchone()
             else:
@@ -575,7 +575,7 @@ class MatrixTraceStore:
                     """
                     SELECT * FROM cognition_matrix_trace
                     WHERE session_id=?
-                    ORDER BY created_at DESC LIMIT 1
+                    ORDER BY created_at DESC, message_id DESC LIMIT 1
                     """,
                     (session_id,),
                 ).fetchone()
@@ -596,7 +596,7 @@ class MatrixTraceStore:
                     """
                     SELECT * FROM cognition_matrix_trace
                     WHERE extensions_json IS NOT NULL
-                    ORDER BY created_at DESC LIMIT ?
+                    ORDER BY created_at DESC, message_id DESC LIMIT ?
                     """,
                     (limit,),
                 ).fetchall()
@@ -607,7 +607,7 @@ class MatrixTraceStore:
                     """
                     SELECT * FROM cognition_matrix_trace
                     WHERE session_id=? AND extensions_json IS NOT NULL
-                    ORDER BY created_at DESC LIMIT ?
+                    ORDER BY created_at DESC, message_id DESC LIMIT ?
                     """,
                     (session_id, limit),
                 ).fetchall()
