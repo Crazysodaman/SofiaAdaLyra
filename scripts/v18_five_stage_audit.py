@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROWS = re.compile(r"^\|\s*((?:CA-\d+|ML-\d{3}|GA-\d{3}))\s*\|", re.M)
 STAGES = ("NOT_WORKED_ON", "CODED_UNFINISHED", "PRODUCTION_CODED", "TESTED", "TESTED_CI")
+EVIDENCE_FILE = Path("docs/development/v18-five-stage-task-evidence.json")
 # Hand-inspected draft/source references only. These do not certify completed clauses.
 TRACED = {
     **{f"CA-{i}": [
@@ -24,6 +25,47 @@ TRACED = {
     "CA-3502": ["docs/development/v18-ca3502-success-oracle-separation-2026-10-17.md",
                 "test/test_life_structured_critique.py"],
 }
+
+
+def _audited_evidence(repo: Path) -> dict[str, dict]:
+    """Load sparse, human-audited promotions without rewriting 780 defaults."""
+    path = repo / EVIDENCE_FILE
+    if not path.is_file():
+        return {}
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if document.get("schema_version") != 1 or not isinstance(document.get("tasks"), list):
+        raise ValueError("invalid five-stage task evidence document")
+    output: dict[str, dict] = {}
+    for item in document["tasks"]:
+        if not isinstance(item, dict) or not isinstance(item.get("task_id"), str):
+            raise ValueError("five-stage evidence task must be an object with task_id")
+        task_id = item["task_id"]
+        if task_id in output:
+            raise ValueError(f"duplicate five-stage evidence for {task_id}")
+        stage = item.get("stage")
+        if stage not in STAGES or stage == "NOT_WORKED_ON":
+            raise ValueError(f"invalid audited stage for {task_id}")
+        source_sha = item.get("source_sha")
+        if not isinstance(source_sha, str) or re.fullmatch(r"[0-9a-f]{40}", source_sha) is None:
+            raise ValueError(f"invalid source_sha for {task_id}")
+        paths = item.get("source_paths")
+        if (
+            not isinstance(paths, list) or not paths
+            or any(not isinstance(value, str) or not (repo / value).is_file() for value in paths)
+        ):
+            raise ValueError(f"missing audited source path for {task_id}")
+        tests = item.get("tests", [])
+        ci_runs = item.get("ci_runs", [])
+        if stage in {"PRODUCTION_CODED", "TESTED", "TESTED_CI"} and not item.get(
+            "production_entrypoint"
+        ):
+            raise ValueError(f"production stage lacks entrypoint for {task_id}")
+        if stage in {"TESTED", "TESTED_CI"} and not tests:
+            raise ValueError(f"tested stage lacks executed tests for {task_id}")
+        if stage == "TESTED_CI" and not ci_runs:
+            raise ValueError(f"TESTED_CI lacks exact CI evidence for {task_id}")
+        output[task_id] = item
+    return output
 
 def build(repo: Path, source_sha: str) -> dict:
     doc = repo / "docs/development/v18-full-780-task-design-code-gate-status-2026-10-17.md"
@@ -51,12 +93,16 @@ def build(repo: Path, source_sha: str) -> dict:
         raise ValueError(f"wrong CA/ML/GA partition: {parts}")
     if not source_sha or not re.fullmatch(r"[0-9a-f]{40}", source_sha):
         raise ValueError("source_sha must be an exact 40-character Git commit SHA")
+    audited = _audited_evidence(repo)
+    unknown_audited = set(audited) - set(ids)
+    if unknown_audited:
+        raise ValueError(f"five-stage evidence has unknown task IDs: {sorted(unknown_audited)}")
     tasks = []
     for id_ in ids:
         paths = TRACED.get(id_, [])
         found = [p for p in paths if (repo / p).is_file()]
         stage = "CODED_UNFINISHED" if len(found) == len(paths) and bool(paths) else "NOT_WORKED_ON"
-        tasks.append({
+        item = {
             "task_id": id_,
             **row_details[id_],
             "stage": stage,
@@ -69,7 +115,21 @@ def build(repo: Path, source_sha: str) -> dict:
             "open_clauses": ["Full original-clause production audit and/or required proof not established"]
             if found else ["Task-specific source/design evidence not yet inspected for this status ladder"],
             "audit_depth": "targeted_source_or_draft_check" if found else "inventory_only",
-        })
+        }
+        promoted = audited.get(id_)
+        if promoted is not None:
+            item.update({
+                "stage": promoted["stage"],
+                "source_sha": promoted["source_sha"],
+                "source_paths": promoted["source_paths"],
+                "production_entrypoint": promoted.get("production_entrypoint"),
+                "tests": promoted.get("tests", []),
+                "ci_runs": promoted.get("ci_runs", []),
+                "open_clauses": promoted.get("open_clauses", []),
+                "last_audited_at": promoted.get("last_audited_at"),
+                "audit_depth": "task_clause_and_production_path_audit",
+            })
+        tasks.append(item)
     counts = {s: sum(t["stage"] == s for t in tasks) for s in STAGES}
     return {
         "schema_version": 1,

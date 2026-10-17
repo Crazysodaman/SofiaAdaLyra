@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "task_id": "CA-103",
+      "stage": "TESTED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["src/sofia/life/coordinator.py", "src/sofia/application/background_runtime.py", "src/sofia/life/store.py"],
+      "production_entrypoint": "SofiaApplication background independent_life task -> SelfDirectedLifeCoordinator.tick",
+      "tests": [{"command": ".venv/bin/python -m pytest -q 'test/test_life'*.py test/test_v18_phase00_model_outage.py test/test_v18_success_oracle_contract.py", "result": "248 passed"}],
+      "ci_runs": [],
+      "open_clauses": ["Exact-revision GitHub Actions result is not observable because the environment GH_TOKEN is invalid."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    },
+    {
+      "task_id": "CA-111",
+      "stage": "TESTED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["src/sofia/life/coordinator.py", "src/sofia/life/validation.py", "src/sofia/creative/service.py"],
+      "production_entrypoint": "SelfDirectedLifeCoordinator.tick -> _settle_personal_project -> prepare_artifact_critique",
+      "tests": [{"command": ".venv/bin/python -m pytest -q test/test_life_structured_critique.py test/test_life_postrun_verification.py test/test_life_verified_milestone_production.py", "result": "focused tests passed as part of 73-test post-reconcile run"}],
+      "ci_runs": [],
+      "open_clauses": ["Exact-revision GitHub Actions result remains unobserved."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    },
+    {
+      "task_id": "CA-1202",
+      "stage": "CODED_UNFINISHED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["src/sofia/life/coordinator.py", "src/sofia/life/model.py", "src/sofia/run/work.py", "docs/development/companion-autonomy-contract.md"],
+      "production_entrypoint": "SelfDirectedLifeCoordinator.goal_dependency_view exposed through operator diagnostics",
+      "tests": [{"command": ".venv/bin/python -m pytest -q test/test_life_operator_diagnostics.py test/test_life_state_graph_contract.py test/test_life_run_outcome_reconciliation.py", "result": "passed in focused and package runs"}],
+      "ci_runs": [],
+      "open_clauses": ["The LIFE creative action now has a versioned expected-effect and receipt settlement projection, but every optional action across the full companion architecture has not yet been audited to the same contract.", "Exact-revision GitHub Actions result remains unobserved."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    },
+    {
+      "task_id": "CA-1204",
+      "stage": "TESTED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["src/sofia/life/coordinator.py", "src/sofia/application/conversation_learning.py", "src/sofia/neuro/connectome/association_store.py"],
+      "production_entrypoint": "Canonical LIFE evaluation settlement plus reviewed conversation-memory and opt-in association controls",
+      "tests": [{"command": ".venv/bin/python -m pytest -q test/test_neuro_association_production.py test/test_memory_reviewed_corrections.py", "result": "14 passed"}, {"command": ".venv/bin/python -m pytest -q test/test_life_structured_critique.py test/test_life_project_forge.py", "result": "99 passed before expanded regressions"}],
+      "ci_runs": [],
+      "open_clauses": ["Exact-revision GitHub Actions result remains unobserved."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    },
+    {
+      "task_id": "CA-1207",
+      "stage": "TESTED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["src/sofia/application/background_runtime.py", "src/sofia/life/idea_agent.py", "src/sofia/life/draft_agent.py", "src/sofia/cognition/strict_json.py"],
+      "production_entrypoint": "ApplicationBackgroundCoordinator independent_life callback",
+      "tests": [{"command": ".venv/bin/python -m pytest -q test/test_life_strict_model_json.py test/test_v18_phase00_model_outage.py", "result": "passed in 73-test post-reconcile run"}],
+      "ci_runs": [],
+      "open_clauses": ["A real configured provider outage on Venus remains outside this local batch; exact-revision CI is unobserved."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    },
+    {
+      "task_id": "CA-2201",
+      "stage": "TESTED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["src/sofia/life/validation.py", "src/sofia/life/coordinator.py"],
+      "production_entrypoint": "SelfDirectedLifeCoordinator.inspect_artifact_objectives and canonical background settlement",
+      "tests": [{"command": ".venv/bin/python -m pytest -q test/test_life_objective_parser_bounded.py test/test_life_structured_critique.py", "result": "passed in 73-test post-reconcile run"}],
+      "ci_runs": [],
+      "open_clauses": ["Exact-revision GitHub Actions result remains unobserved."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    },
+    {
+      "task_id": "CA-2203",
+      "stage": "TESTED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["src/sofia/life/validation.py", "src/sofia/life/coordinator.py"],
+      "production_entrypoint": "SelfDirectedLifeCoordinator.prepare_artifact_critique -> commit_artifact_critique",
+      "tests": [{"command": ".venv/bin/python -m pytest -q test/test_life_structured_critique.py", "result": "passed in focused runs"}],
+      "ci_runs": [],
+      "open_clauses": ["Exact-revision GitHub Actions result remains unobserved."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    },
+    {
+      "task_id": "CA-2204",
+      "stage": "TESTED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["src/sofia/life/coordinator.py", "src/sofia/life/store.py", "src/sofia/run/work.py"],
+      "production_entrypoint": "SelfDirectedLifeCoordinator.schedule_artifact -> TaskExecutionManager.submit atomic after_enqueue provisioning",
+      "tests": [{"command": ".venv/bin/python -m pytest -q test/test_life_atomic_admission.py", "result": "passed in focused runs"}],
+      "ci_runs": [],
+      "open_clauses": ["Exact-revision GitHub Actions result remains unobserved."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    },
+    {
+      "task_id": "CA-3104",
+      "stage": "TESTED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["src/sofia/life/model.py", "src/sofia/life/coordinator.py", "src/sofia/run/work.py", "docs/development/companion-autonomy-contract.md"],
+      "production_entrypoint": "Canonical LIFE/RUN state owners projected by goal_dependency_view and operator_diagnostics",
+      "tests": [{"command": ".venv/bin/python -m pytest -q test/test_life_operator_diagnostics.py test/test_life_state_graph_contract.py test/test_life_run_outcome_reconciliation.py", "result": "passed in focused and package runs"}],
+      "ci_runs": [],
+      "open_clauses": ["Exact-revision GitHub Actions result remains unobserved."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    },
+    {
+      "task_id": "CA-3502",
+      "stage": "TESTED",
+      "source_sha": "9dd9fee66d381f04ac5e23ce78de383f332e8846",
+      "source_paths": ["docs/development/v18-ca3502-success-oracle-separation-2026-10-17.md", "src/sofia/life/validation.py", "src/sofia/life/coordinator.py", "src/sofia/run/work.py"],
+      "production_entrypoint": "Generator -> RUN/capability receipt -> objective oracle -> canonical LIFE settlement",
+      "tests": [{"command": ".venv/bin/python -m pytest -q test/test_v18_success_oracle_contract.py test/test_life_structured_critique.py", "result": "passed in focused runs"}, {"command": ".venv/bin/python -m pytest -q -m 'pkg_safe and not integration'", "result": "1514 passed, 1 skipped"}],
+      "ci_runs": [],
+      "open_clauses": ["Exact-revision GitHub Actions result remains unobserved."],
+      "last_audited_at": "2026-10-17T21:15:00+00:00"
+    }
+  ]
+}

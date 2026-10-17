@@ -54,6 +54,38 @@ def test_all_required_evidence_paths_needed_for_partial_status(tmp_path):
     assert report["counts"]["TESTED"] == 0
 
 
+def test_sparse_audited_evidence_promotes_only_exact_task(tmp_path):
+    import json
+
+    fixture_repo(tmp_path)
+    source = tmp_path / "src" / "sofia" / "life" / "coordinator.py"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text("# reviewed production source\n", encoding="utf-8")
+    evidence = tmp_path / module.EVIDENCE_FILE
+    evidence.parent.mkdir(parents=True, exist_ok=True)
+    evidence.write_text(json.dumps({
+        "schema_version": 1,
+        "tasks": [{
+            "task_id": "CA-103",
+            "stage": "TESTED",
+            "source_sha": SHA,
+            "source_paths": ["src/sofia/life/coordinator.py"],
+            "production_entrypoint": "application background LIFE tick",
+            "tests": [{"command": "pytest focused", "result": "1 passed"}],
+            "ci_runs": [],
+            "open_clauses": ["exact-revision CI not yet observed"],
+            "last_audited_at": "2026-10-17T00:00:00+00:00",
+        }],
+    }), encoding="utf-8")
+    result = module.build(tmp_path, SHA)
+    promoted = next(x for x in result["tasks"] if x["task_id"] == "CA-103")
+    assert promoted["stage"] == "TESTED"
+    assert promoted["source_sha"] == SHA
+    assert promoted["audit_depth"] == "task_clause_and_production_path_audit"
+    assert result["counts"]["TESTED"] == 1
+    assert result["counts"]["NOT_WORKED_ON"] == 779
+
+
 def test_duplicate_or_missing_original_ids_refused(tmp_path):
     doc = fixture_repo(tmp_path)
     with doc.open("a", encoding="utf-8") as stream:

@@ -25,7 +25,7 @@
 
 ## Tracking fields (new status overlay)
 
-Keep `docs/development/v18-task-evidence.json` as historical original-task evidence. Do not destroy its gate proof or confuse it with the new ladder. A new 780-item stage register should preserve stable IDs and at minimum: `task_id`, `stage`, `original_requirement_ref`, `source_sha`, `source_paths`, `production_entrypoint`, `tests`, `ci_runs`, `open_clauses`, `last_audited_at`. Source and tests may be empty for NOT_WORKED_ON. Validate allowed enums, unique IDs, complete 700 CA + 40 ML + 40 GA and ordered promotions.
+Keep `docs/development/v18-task-evidence.json` as historical original-task evidence. Do not destroy its gate proof or confuse it with the new ladder. Sparse audited promotions are recorded in `docs/development/v18-five-stage-task-evidence.json`; `scripts/v18_five_stage_audit.py` validates and overlays them onto the complete 780-item inventory. The generated register preserves stable IDs and at minimum: `task_id`, `stage`, `original_requirement_ref`, `source_sha`, `source_paths`, `production_entrypoint`, `tests`, `ci_runs`, `open_clauses`, `last_audited_at`. Source and tests may be empty for NOT_WORKED_ON. Validate allowed enums, unique IDs, complete 700 CA + 40 ML + 40 GA and ordered promotions.
 
 ## Batch 01 transition
 
