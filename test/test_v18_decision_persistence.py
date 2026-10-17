@@ -409,7 +409,7 @@ def test_matrix_upsert_cannot_rebind_message_identity(tmp_path, changed):
     path, matrix = _fixture(tmp_path)
     original = MatrixTraceStore(path).get(matrix.envelope.message_id)
     forged = replace(matrix, envelope=replace(matrix.envelope, **changed))
-    with pytest.raises(ValueError, match="different principal, session, or channel"):
+    with pytest.raises(ValueError, match="identity mismatch or stale decision replay"):
         MatrixTraceStore(path).record(forged)
     restored = MatrixTraceStore(path).get(matrix.envelope.message_id)
     assert restored.envelope.session_id == original.envelope.session_id
@@ -534,3 +534,22 @@ def test_matrix_execution_diagnostics_use_partial_index(tmp_path):
         "idx_cognition_matrix_trace_execution" in row[3]
         for row in plan
     ), plan
+
+
+def test_matrix_stale_replay_does_not_rollback_completed_decision(tmp_path):
+    path, original = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    newer = replace(original, created_at=original.created_at + timedelta(seconds=5))
+    store.record(newer)
+    with pytest.raises(ValueError, match="stale decision replay"):
+        store.record(original)
+    recovered = MatrixTraceStore(path).get(original.envelope.message_id)
+    assert recovered.created_at == newer.created_at
+
+
+def test_matrix_same_revision_replay_is_idempotent(tmp_path):
+    path, original = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    store.record(original)
+    assert store.count() == 1
+    assert store.get(original.envelope.message_id).created_at == original.created_at
