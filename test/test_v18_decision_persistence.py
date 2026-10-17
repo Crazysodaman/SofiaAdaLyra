@@ -487,3 +487,28 @@ def test_matrix_prior_turn_read_is_isolated_by_principal_and_channel(tmp_path):
     assert store.latest_scoped(
         session_id="s1", principal_id="", channel="desktop"
     ) is None
+
+
+def test_matrix_scoped_latest_uses_canonical_audience_index(tmp_path):
+    """The live planner's common lookup must remain indexed as history grows."""
+    path, trace = _fixture(tmp_path)
+    with closing(sqlite3.connect(path)) as db:
+        names = {
+            row[1] for row in db.execute(
+                "PRAGMA index_list(cognition_matrix_trace)"
+            ).fetchall()
+        }
+        assert "idx_cognition_matrix_trace_audience" in names
+        plan = db.execute(
+            "EXPLAIN QUERY PLAN SELECT * FROM cognition_matrix_trace "
+            "WHERE session_id=? AND principal_id=? AND channel=? "
+            "ORDER BY created_at DESC, message_id DESC LIMIT 1",
+            ("s1", "principal:one", "desktop"),
+        ).fetchall()
+    assert any(
+        "idx_cognition_matrix_trace_audience" in row[3]
+        for row in plan
+    ), plan
+    assert MatrixTraceStore(path).latest_scoped(
+        session_id="s1", principal_id="principal:one", channel="desktop"
+    ).envelope.message_id == trace.envelope.message_id
