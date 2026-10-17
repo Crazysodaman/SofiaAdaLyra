@@ -16,7 +16,7 @@ def fixture_repo(tmp_path):
     ids = [f"CA-{i}" for i in range(1, 691)] + [f"CA-{i}" for i in range(3101, 3111)]
     ids += [f"ML-{i:03d}" for i in range(1, 41)]
     ids += [f"GA-{i:03d}" for i in range(1, 41)]
-    doc.write_text("\n".join(f"| {i} | original scope |" for i in ids), encoding="utf-8")
+    doc.write_text("\n".join(f"| {i} | P0 | Build | unassessed | Open | Open | Open | Open | Original objective for {i} | remaining |" for i in ids), encoding="utf-8")
     return doc
 
 
@@ -27,6 +27,8 @@ def test_all_780_inventory_only_without_evidence(tmp_path):
     assert result["counts"]["NOT_WORKED_ON"] == 780
     assert result["counts"]["TESTED_CI"] == 0
     assert result["audited_targeted"] == 0
+    assert result["tasks"][0]["original_requirement"].startswith("Original objective")
+    assert result["tasks"][0]["task_type"] == "Build"
 
 
 def test_all_required_evidence_paths_needed_for_partial_status(tmp_path):
@@ -66,3 +68,11 @@ def test_refuse_non_exact_revision(tmp_path):
     fixture_repo(tmp_path)
     with pytest.raises(ValueError, match="source_sha"):
         module.build(tmp_path, "main")
+
+
+def test_blank_original_requirement_refused(tmp_path):
+    doc = fixture_repo(tmp_path)
+    contents = doc.read_text(encoding="utf-8")
+    doc.write_text(contents.replace("Original objective for CA-1", ""), encoding="utf-8")
+    with pytest.raises(ValueError, match="missing original requirement"):
+        module.build(tmp_path, SHA)
