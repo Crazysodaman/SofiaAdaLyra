@@ -28,11 +28,16 @@ def build(repo: Path, source_sha: str) -> dict:
     doc = repo / "docs/development/v18-full-780-task-design-code-gate-status-2026-10-17.md"
     original = doc.read_text(encoding="utf-8")
     ids = ROWS.findall(original)
+    expected = {f"ML-{i:03d}" for i in range(1, 41)} | {f"GA-{i:03d}" for i in range(1, 41)}
+    if set(ids).intersection(expected) != expected:
+        raise ValueError("missing ML/GA identifier in full task register")
     if len(ids) != 780 or len(set(ids)) != 780:
         raise ValueError(f"expected 780 unique task rows, got {len(ids)} rows / {len(set(ids))} unique")
     parts = {prefix: sum(x.startswith(prefix) for x in ids) for prefix in ("CA-", "ML-", "GA-")}
     if parts != {"CA-": 700, "ML-": 40, "GA-": 40}:
         raise ValueError(f"wrong CA/ML/GA partition: {parts}")
+    if not source_sha or not re.fullmatch(r"[0-9a-f]{40}", source_sha):
+        raise ValueError("source_sha must be an exact 40-character Git commit SHA")
     tasks = []
     for id_ in ids:
         paths = TRACED.get(id_, [])
@@ -43,6 +48,7 @@ def build(repo: Path, source_sha: str) -> dict:
             "stage": stage,
             "original_requirement_ref": f"{doc.relative_to(repo)}#{id_.lower()}",
             "source_paths": found,
+            "expected_source_paths": paths,
             "production_entrypoint": None,
             "tests": [],
             "ci_runs": [],
