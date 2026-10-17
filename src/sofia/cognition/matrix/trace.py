@@ -489,7 +489,7 @@ class MatrixTraceStore:
         if not isinstance(trace, MatrixTrace):
             raise TypeError("trace must be MatrixTrace")
         with closing(self._connect()) as db, db:
-            db.execute(
+            result = db.execute(
                 """
                 INSERT INTO cognition_matrix_trace (
                     message_id,session_id,principal_id,channel,
@@ -519,6 +519,9 @@ class MatrixTraceStore:
                     -- decision time into apparently authenticated evidence.
                     source_created_at=cognition_matrix_trace.source_created_at,
                     created_at=excluded.created_at
+                WHERE cognition_matrix_trace.session_id=excluded.session_id
+                  AND cognition_matrix_trace.principal_id=excluded.principal_id
+                  AND cognition_matrix_trace.channel=excluded.channel
                 """,
                 (
                     trace.envelope.message_id,
@@ -540,6 +543,8 @@ class MatrixTraceStore:
                     trace.created_at.isoformat(),
                 ),
             )
+            if result.rowcount != 1:
+                raise ValueError("matrix trace message_id belongs to a different principal, session, or channel")
 
     def get(self, message_id: str) -> MatrixTrace | None:
         if not isinstance(message_id, str) or not message_id.strip():
