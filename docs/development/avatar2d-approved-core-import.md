@@ -66,3 +66,38 @@ public renderer. The canonical database and wardrobe records remain unchanged.
 
 Existing procedural public renderer and older tested animated
 sprites remain active until this work passes its production gate.
+
+
+## Repeatable head alignment preview (review-only)
+
+After the `--check` reports **57 expected, zero missing, zero invalid**,
+create a NEW preview directory. This command never writes into the original
+CoreLayers folder or the public renderer assets.
+
+```powershell
+git pull --ff-only
+$Base = Join-Path $env:LOCALAPPDATA 'SofiaAdaLyra\Avatar2D\Private-Source'
+$Source = Join-Path $Base 'CoreLayers\v1'
+$Body = Join-Path $Base 'CanonicalBody\v1\sofia_body_base_2048x2560.png'
+$Candidate = Join-Path $Base 'Review\head_alignment_candidate_v1'
+python -m sofia.avatar.vtuber_core_alignment_preview --source-root "$Source" --canonical-body "$Body" --output "$Candidate"
+Start-Process (Join-Path $Candidate 'head_alignment_candidate.png')
+```
+
+Outputs: `head_alignment_candidate.png`,
+`tail_pose_contact_sheet.png`, and `alignment_candidate.json`.
+If the target directory already exists, the tool refuses overwrite. Use
+a new suffix (e.g. `_v2`) for subsequent review rounds.
+
+**Calibration status:** New face/eyebrow/hair/ear positions are provisional
+visual review only. Eye sprites include both eyes together, so independent
+L/R eye movement is not proven by these source images. Ear pairs use
+distinct numbered source poses but still need owner-reviewed left/right
+registration. Tail root placement and wardrobe coverage have not been
+accepted. Do not enable the static candidate image as production animation.
+
+Focused source tests:
+
+```powershell
+pytest -q test/test_avatar2d_external_core.py test/test_avatar2d_core_alignment_preview.py
+```
