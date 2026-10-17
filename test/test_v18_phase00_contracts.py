@@ -392,3 +392,36 @@ def test_ca005_ca006_unusable_goal_event_cannot_become_selected_provenance(
             neuro_snapshot=None,
             selected_goal_event=event,
         )
+
+
+@pytest.mark.parametrize(("kind", "state", "offset", "expires"), [
+    ("revoked", ContractErrorState.REVOKED, 0, None),
+    ("failed", ContractErrorState.FAILED, 0, None),
+    ("uncertain", ContractErrorState.UNCERTAIN, 0, None),
+    ("future", ContractErrorState.NONE, 60, None),
+    ("expired", ContractErrorState.NONE, 0, 1),
+])
+def test_ca006_outcome_events_cannot_certify_ineligible_sources(
+    tmp_path, kind, state, offset, expires,
+):
+    _, matrix = _fixture(tmp_path)
+    matrix = replace(matrix, evidence=EvidenceMatrix(records=(
+        EvidenceRecord("effect", EvidenceState.AVAILABLE, "act:receipt-one"),
+    )))
+    event = EventOwnershipProjection(
+        schema_version=1,
+        event_id="act:receipt-one",
+        owner=CanonicalEventOwner.ACT,
+        source_id="act:receipt-one",
+        subject_id="session:one",
+        principal_id=None,
+        audience_id=None,
+        observed_at=NOW + timedelta(seconds=offset),
+        expires_at=(NOW + timedelta(seconds=expires) if expires else None),
+        error_state=state,
+    )
+    with pytest.raises(ValueError, match="postdates|expired|not an eligible"):
+        project_companion_decision(
+            matrix_trace=matrix, neuro_snapshot=None,
+            outcome_events=(event,),
+        )
