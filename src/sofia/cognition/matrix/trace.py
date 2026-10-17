@@ -548,6 +548,10 @@ class MatrixTraceStore:
                   -- Stale writers/replayed snapshots cannot roll a decision
                   -- backward after a newer completed trace is persisted.
                   AND cognition_matrix_trace.created_at<=excluded.created_at
+                  -- A decision retry may enrich the trace, but cannot
+                  -- substitute a different originating conversation event.
+                  AND cognition_matrix_trace.source_created_at
+                      IS excluded.source_created_at
                 """,
                 (
                     trace.envelope.message_id,
@@ -570,7 +574,7 @@ class MatrixTraceStore:
                 ),
             )
             if result.rowcount != 1:
-                raise ValueError("matrix trace identity mismatch or stale decision replay")
+                raise ValueError("matrix trace identity, source timestamp, or stale decision replay")
 
     def get(self, message_id: str) -> MatrixTrace | None:
         if not isinstance(message_id, str) or not message_id.strip():
@@ -598,7 +602,11 @@ class MatrixTraceStore:
             ("message_id", message_id), ("session_id", session_id),
             ("principal_id", principal_id), ("channel", channel),
         ):
-            if not isinstance(value, str) or not value.strip():
+            # Empty principal represents an explicit anonymous conversation,
+            # not a wildcard. All other fields must be nonblank.
+            if not isinstance(value, str) or (
+                not value.strip() and not (name == "principal_id" and value == "")
+            ):
                 raise ValueError(f"{name} must be nonempty")
         with closing(self._connect()) as db:
             row = db.execute(
