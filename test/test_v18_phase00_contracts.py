@@ -417,7 +417,7 @@ def test_ca006_outcome_events_cannot_certify_ineligible_sources(
         principal_id=None,
         audience_id=None,
         observed_at=NOW + timedelta(seconds=offset),
-        expires_at=(NOW + timedelta(seconds=expires) if expires else None),
+        expires_at=(NOW + timedelta(milliseconds=expires) if expires else None),
         error_state=state,
     )
     with pytest.raises(ValueError, match="postdates|expired|not an eligible"):
