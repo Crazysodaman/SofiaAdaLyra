@@ -397,3 +397,22 @@ def test_equivalent_timezone_offset_does_not_invalidate_source_timestamp(tmp_pat
     proof = inspect_turn_persistence(path, matrix_trace=matrix)
     assert proof.user_message_persisted
     assert proof.same_turn_verified
+
+
+@pytest.mark.parametrize("changed", [
+    {"session_id": "s2"},
+    {"principal_id": "principal:attacker"},
+    {"channel": "discord"},
+])
+def test_matrix_upsert_cannot_rebind_message_identity(tmp_path, changed):
+    """Same message ID never changes its session, principal or channel."""
+    path, matrix = _fixture(tmp_path)
+    original = MatrixTraceStore(path).get(matrix.envelope.message_id)
+    forged = replace(matrix, envelope=replace(matrix.envelope, **changed))
+    with pytest.raises(ValueError, match="different principal, session, or channel"):
+        MatrixTraceStore(path).record(forged)
+    restored = MatrixTraceStore(path).get(matrix.envelope.message_id)
+    assert restored.envelope.session_id == original.envelope.session_id
+    assert restored.envelope.principal_id == original.envelope.principal_id
+    assert restored.envelope.channel == original.envelope.channel
+    assert restored.created_at == original.created_at
