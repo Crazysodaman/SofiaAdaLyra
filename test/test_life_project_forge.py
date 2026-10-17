@@ -3277,18 +3277,23 @@ def test_review_priority_does_not_starve_interest_learning(tmp_path):
                 evidence_refs=(evidence,), now=now + timedelta(seconds=2),
                 metadata={"index": index},
             )
-        record_interest_signal(
+        reviewed = record_interest_signal(
             life, project, evidence_ref=evidence,
             judgment=PersonalJudgment.LIKE,
             when=now + timedelta(seconds=3),
         )
-        first = life.learn_from_experiences(
-            now=now + timedelta(seconds=4), limit=8,
+        # The artifact's genuine receipt may arrive after a synthetic
+        # timestamp on a busy runner. Keep strict chronology, not a
+        # bypass of LIVE evidence checking.
+        learn_at = max(
+            now + timedelta(seconds=4),
+            reviewed.recorded_at + timedelta(seconds=1),
         )
+        first = life.learn_from_experiences(now=learn_at, limit=8)
         assert first["applied"] == 1
         assert first["ineligible"] == 7
         second = life.learn_from_experiences(
-            now=now + timedelta(seconds=5), limit=8,
+            now=learn_at + timedelta(seconds=1), limit=8,
         )
         assert second["applied"] == 0
         assert second["ineligible"] == 8

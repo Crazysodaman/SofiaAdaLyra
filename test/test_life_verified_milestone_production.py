@@ -75,7 +75,18 @@ def test_background_life_marks_original_objectives_from_real_artifact(tmp_path):
             life, project, evidence, now,
             "Violet sparks ripple across quiet constellations. The map is original and complete.",
         )
-        result = life.tick(now=now + timedelta(seconds=8))
+        # On a loaded Windows CI host, completing actual artifact bytes
+        # can finish after this fixture's nominal now+8 tick. Observe the
+        # canonical RUN receipt timestamp instead of asking LIFE to prove a
+        # future operation happened before it was observed.
+        source_receipt = life.evidence_index.lookup(str(job.result["evidence_ref"]))
+        assert source_receipt is not None
+        assert source_receipt.kind == "operation_receipt"
+        tick_at = max(
+            now + timedelta(seconds=8),
+            source_receipt.observed_at + timedelta(seconds=1),
+        )
+        result = life.tick(now=tick_at)
         assert result["follow_through"] == "independently_completed"
         assert life._project(project.project_id).status is ProjectStatus.COMPLETED
         milestones = life.store.milestones(project.project_id)
@@ -86,7 +97,7 @@ def test_background_life_marks_original_objectives_from_real_artifact(tmp_path):
         assert len(life.store.evaluations(project.project_id)) == 1
         # Restart-safe: a terminal project cannot replay milestones or work.
         old = tuple((m.milestone_id, m.updated_at) for m in milestones)
-        life.tick(now=now + timedelta(seconds=9))
+        life.tick(now=tick_at + timedelta(seconds=1))
         assert old == tuple(
             (m.milestone_id, m.updated_at)
             for m in life.store.milestones(project.project_id)
