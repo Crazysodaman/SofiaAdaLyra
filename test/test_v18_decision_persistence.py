@@ -409,7 +409,7 @@ def test_matrix_upsert_cannot_rebind_message_identity(tmp_path, changed):
     path, matrix = _fixture(tmp_path)
     original = MatrixTraceStore(path).get(matrix.envelope.message_id)
     forged = replace(matrix, envelope=replace(matrix.envelope, **changed))
-    with pytest.raises(ValueError, match="identity mismatch or stale decision replay"):
+    with pytest.raises(ValueError, match="identity, source timestamp, or stale decision replay"):
         MatrixTraceStore(path).record(forged)
     restored = MatrixTraceStore(path).get(matrix.envelope.message_id)
     assert restored.envelope.session_id == original.envelope.session_id
@@ -632,3 +632,58 @@ def test_matrix_prior_turn_rejects_whitespace_only_principal(tmp_path):
         MatrixTraceStore(path).latest_scoped(
             session_id="s1", principal_id="   ", channel="desktop",
         )
+
+
+@pytest.mark.parametrize("offset_ms", [-1, 1, 250])
+def test_matrix_existing_message_cannot_change_original_event_time(
+    tmp_path, offset_ms,
+):
+    path, matrix = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    substituted = replace(
+        matrix,
+        envelope=replace(
+            matrix.envelope,
+            created_at=matrix.envelope.created_at + timedelta(milliseconds=offset_ms),
+        ),
+        created_at=matrix.created_at + timedelta(seconds=3),
+    )
+    with pytest.raises(ValueError, match="source timestamp"):
+        store.record(substituted)
+    persisted = store.get(matrix.envelope.message_id)
+    assert persisted.envelope.created_at == matrix.envelope.created_at
+    assert persisted.created_at == matrix.created_at
+
+
+def test_matrix_same_event_can_advance_decision_without_rebinding(tmp_path):
+    path, matrix = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    advanced = replace(matrix, created_at=matrix.created_at + timedelta(seconds=1))
+    store.record(advanced)
+    assert store.count() == 1
+    persisted = store.get(matrix.envelope.message_id)
+    assert persisted.envelope.created_at == matrix.envelope.created_at
+    assert persisted.created_at == advanced.created_at
+
+
+def test_matrix_anonymous_read_is_exact_not_wildcard(tmp_path):
+    path, matrix = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    assert store.get_scoped(
+        matrix.envelope.message_id, session_id="s1",
+        principal_id="", channel="desktop",
+    ) is None
+    anonymous = replace(
+        matrix, envelope=replace(
+            matrix.envelope, message_id="anonymous-only", principal_id=None,
+        ),
+    )
+    store.record(anonymous)
+    assert store.get_scoped(
+        "anonymous-only", session_id="s1",
+        principal_id="", channel="desktop",
+    ).envelope.message_id == "anonymous-only"
+    assert store.get_scoped(
+        "anonymous-only", session_id="s1",
+        principal_id="principal:one", channel="desktop",
+    ) is None
