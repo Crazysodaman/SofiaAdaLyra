@@ -3147,9 +3147,14 @@ class SelfDirectedLifeCoordinator:
 
         evaluation = evaluated.get((artifact_id, revision))
         if evaluation is None:
+            # Production follows the same bounded, receipt-bound structured
+            # critique contract as explicit LIFE reviews. Do not maintain a
+            # second hand-written objective grader or infer personal taste.
             try:
-                report = self.inspect_artifact_objectives(
+                critique = self.prepare_artifact_critique(
                     project.project_id, artifact_id=artifact_id,
+                    personal_judgment=PersonalJudgment.UNKNOWN,
+                    evidence_refs=(evidence_ref,), now=now,
                 )
             except (LookupError, PermissionError, OSError, ValueError):
                 return 0, "artifact_integrity_review_required"
@@ -3157,48 +3162,20 @@ class SelfDirectedLifeCoordinator:
                 if "failed preview integrity check" not in str(exc):
                     raise
                 return 0, "artifact_integrity_review_required"
-            if report.revision != revision:
+            if critique.artifact_revision != revision:
                 return 0, "artifact_revision_changed_requires_review"
-            from .validation import ObjectiveDisposition
-            if report.integrity is ObjectiveDisposition.FAIL:
-                # Corruption is a possible external side-effect or tampering,
-                # not evidence that a new creative draft should replace it.
-                return 0, "artifact_integrity_review_required"
-            outcomes = {
-                finding.objective: (
-                    True if finding.disposition is ObjectiveDisposition.PASS
-                    else False if finding.disposition is ObjectiveDisposition.FAIL
-                    else None
-                )
-                for finding in report.findings
-            }
-            if report.eligible_for_independent_completion:
-                technical = TechnicalOutcome.VALID
-            elif (
-                report.integrity is ObjectiveDisposition.FAIL
-                or any(f.disposition is ObjectiveDisposition.FAIL for f in report.findings)
-            ):
-                technical = TechnicalOutcome.INVALID
-            else:
-                technical = TechnicalOutcome.INCONCLUSIVE
-            # The host may grade the typed artifact objective, but it has no
-            # basis to invent a personal emotional preference for the model.
-            evaluation = self.evaluate_artifact(
-                project.project_id, artifact_id=artifact_id,
-                technical_outcome=technical,
-                personal_judgment=PersonalJudgment.UNKNOWN,
-                objective_results=outcomes,
-                reason=(
-                    "Independent artifact-byte/objective critique; "
-                    "subjective taste not claimed. "
-                    + "; ".join(
-                        f"{finding.check}: {finding.disposition.value} "
-                        f"({finding.reason})"
-                        for finding in report.findings[:8]
-                    )[:800]
-                ),
-                evidence_refs=(evidence_ref,), preserve_for_research=False,
-                now=now,
+            reason = (
+                "Independent structured artifact critique: "
+                "objective outcomes sourced from original bytes; "
+                "optional subjective taste remains unknown. "
+                + "; ".join(
+                    f"{finding.check}: {finding.disposition.value} "
+                    f"({finding.reason})"
+                    for finding in critique.findings[:8]
+                )[:800]
+            )
+            evaluation = self.commit_artifact_critique(
+                critique, reason=reason, preserve_for_research=False, now=now,
             )
         # Reconcile source-verified milestones before a completion or revision
         # decision. This also heals interruption after an evaluation was
