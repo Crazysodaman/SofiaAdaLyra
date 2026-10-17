@@ -106,7 +106,16 @@ def test_default_runtime_sends_canonical_state_with_context_budget(tmp_path):
         assert "Representation status: representational embodiment" in system
         assert physical.measurements
         for name, measurement in physical.measurements:
-            assert f"- {name}: {measurement.value} {measurement.unit}" in system
+            # Unknown avatar measurements must remain explicitly UNKNOWN.
+            # A provider must never receive a fabricated numeric value.
+            expected = (
+                "UNKNOWN (not measured)"
+                if measurement.value is None
+                else f"{measurement.value} {measurement.unit}"
+            )
+            assert f"- {name}: {expected}" in system
+            if measurement.value is None:
+                assert f"- {name}: None " not in system
 
         assert embodiment.clothing.items
         for item in embodiment.clothing.items:
