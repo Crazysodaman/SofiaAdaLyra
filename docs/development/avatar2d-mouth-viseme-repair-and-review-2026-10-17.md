@@ -138,3 +138,41 @@ outfit manifest, 5) switch with safe rollback and test frame receipts
 on actual Venus desktop, 6) optional authenticated speech playback
 timing, 7) wardrobe refit of the original catalog. Private source
 art **must never** be loaded directly by public rendering code.
+
+
+## Batch 14 groundwork: reproducible approved hair/ear placement
+
+The approved Batch 06 hair and Batch 07 fox-ear assets were originally
+created on differing effective subject sizes, even though source package
+frames are fixed. A new **review-only** head+hair/ears compositor was
+added to `src/sofia/avatar/vtuber_hair_ear_review.py` and a geometry
+regression test to `test/test_avatar2d_hair_ear_review.py`.
+
+It checks the exact SHA256 values of four original user-approved source
+layers (`hair_back_main.png`, `hair_front_bangs.png`,
+`ear_pose_01.png`, `ear_pose_06.png`) rather than trusting a filename.
+It checks Batch 09, Batch 10/11 and Batch 12/13 dependencies before
+constructing a composite. The canonical body is drawn **over** back
+hair, preventing the fading collarbone/neck seam observed when only
+the cropped head artwork was used.
+
+**Review-only anchors (x, y, width, height on 2048×2560):**
+- back hair `(800, 0, 440, 610)`
+- front bangs `(900, 14, 218, 258)`
+- left-ear candidate `(827, 0, 123, 170)`
+- right-ear candidate `(1070, 0, 123, 170)`
+
+Generate the comparison on Venus (choose an unused new output directory):
+
+```powershell
+$P = Join-Path $env:LOCALAPPDATA 'SofiaAdaLyra\Avatar2D\Private-Source'
+$R = Join-Path $P 'Reviewed-Candidates'
+$Dest = Join-Path $P 'Review\HairEarsCandidate-v1'
+python -m sofia.avatar.vtuber_hair_ear_review --source-root (Join-Path $P 'CoreLayers\v1') --foundation-root (Join-Path $R 'Batch09-ModularFoundation-v3') --features-root (Join-Path $R 'Batch10_11_IndependentEyesBrows-v1') --mouths-root (Join-Path $R 'Batch12_13_MouthsVisemes-v1') --canonical-body (Join-Path $P 'CanonicalBody\v1\sofia_body_base_2048x2560.png') --output "$Dest"
+Start-Process (Join-Path $Dest 'hair_ear_alignment_candidate.png')
+pytest -q test/test_avatar2d_hair_ear_review.py
+```
+
+**NOT YET APPROVED:** left/right ear assignment, alternate hair styles,
+hair root/strands, garment and tail occlusion. No body artwork, source
+sprite or public runtime is modified.
