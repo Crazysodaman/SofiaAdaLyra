@@ -16,6 +16,7 @@ import re
 import stat
 
 from sofia.creative.model import ArtifactRevision, ArtifactKind
+from sofia.life.model import PersonalJudgment, TechnicalOutcome
 
 
 class ObjectiveDisposition(str, Enum):
@@ -48,6 +49,82 @@ class ArtifactObjectiveReport:
             and bool(self.findings)
             and all(item.disposition is ObjectiveDisposition.PASS for item in self.findings)
         )
+
+
+@dataclass(frozen=True, slots=True)
+class StructuredArtifactCritique:
+    """Read-only, independently grounded LIFE review before durable settlement.
+
+    A suggestion is not an approval, work order, success receipt or personal
+    preference. The content digest and revision are rechecked on commit.
+    """
+
+    project_id: str
+    artifact_id: str
+    artifact_revision: int
+    content_sha256: str
+    technical_outcome: TechnicalOutcome
+    findings: tuple[ObjectiveFinding, ...]
+    personal_judgment: PersonalJudgment
+    revision_plan: tuple[str, ...]
+    structural_coverage: float
+    evidence_refs: tuple[str, ...]
+
+    @property
+    def objective_results(self) -> dict[str, bool | None]:
+        return {
+            item.objective: (
+                True if item.disposition is ObjectiveDisposition.PASS
+                else False if item.disposition is ObjectiveDisposition.FAIL
+                else None
+            ) for item in self.findings
+        }
+
+
+def structured_critique_from_report(
+    *, project_id: str, report: ArtifactObjectiveReport,
+    personal_judgment: PersonalJudgment,
+    evidence_refs: tuple[str, ...],
+) -> StructuredArtifactCritique:
+    """Prepare an unprivileged review from verified original bytes only."""
+    if not isinstance(personal_judgment, PersonalJudgment):
+        raise TypeError("personal critique must be typed and explicit")
+    if not isinstance(evidence_refs, tuple) or not evidence_refs or any(
+        not isinstance(ref, str) or not ref.strip() for ref in evidence_refs
+    ):
+        raise ValueError("critique requires original canonical evidence references")
+    if report.integrity is not ObjectiveDisposition.PASS or not report.findings:
+        raise ValueError("critique needs an intact artifact and original objectives")
+    if any(len(item.objective) > 500 for item in report.findings):
+        raise ValueError("critique objective exceeds original brief bounds")
+    if len(report.findings) > 16 or len(set(
+        item.objective for item in report.findings
+    )) != len(report.findings):
+        raise ValueError("critique original objectives must be distinct and bounded")
+    if all(x.disposition is ObjectiveDisposition.PASS for x in report.findings):
+        outcome = TechnicalOutcome.VALID
+    elif any(x.disposition is ObjectiveDisposition.FAIL for x in report.findings):
+        outcome = TechnicalOutcome.INVALID
+    else:
+        outcome = TechnicalOutcome.INCONCLUSIVE
+    # Revisions are suggestions only. Missing or unsupported checks never
+    # silently transform themselves into a claim about artistic quality.
+    plan = tuple(
+        f"Review original objective: {item.objective} ({item.reason})"
+        for item in report.findings
+        if item.disposition is not ObjectiveDisposition.PASS
+    )
+    inspected = sum(
+        x.disposition is not ObjectiveDisposition.UNKNOWN for x in report.findings
+    )
+    return StructuredArtifactCritique(
+        project_id=project_id, artifact_id=report.artifact_id,
+        artifact_revision=report.revision, content_sha256=report.content_sha256,
+        technical_outcome=outcome, findings=report.findings,
+        personal_judgment=personal_judgment,
+        revision_plan=plan, structural_coverage=inspected / len(report.findings),
+        evidence_refs=evidence_refs,
+    )
 
 
 class _ObjectiveRule:
