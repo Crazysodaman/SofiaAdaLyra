@@ -81,4 +81,4 @@ def test_guard_rejects_unapproved_deletion(history):
 def test_guard_requires_real_ancestor(history):
     repo, base, manifest = history
     with pytest.raises(ValueError, match="ancestor"):
-        verify(repo, manifest, base=git(repo, "rev-parse", "HEAD") )
+        verify(repo, manifest, base=git(repo, "rev-parse", "HEAD"), head=base)
