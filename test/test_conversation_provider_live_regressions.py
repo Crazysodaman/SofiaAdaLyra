@@ -920,3 +920,31 @@ def test_live_network_inspection_is_not_hijacked_by_filesystem_parser(
         assert "capability:network.inspect" in reply.evidence_refs
     finally:
         application.shutdown()
+
+
+def test_no_trace_store_never_inherits_unscoped_matrix_context(
+    monkeypatch, tmp_path,
+):
+    """Loss of canonical trace storage cannot reuse another audience's cache."""
+    import sofia.application.conversation_matrix as matrix_module
+
+    observed = []
+    original = matrix_module._inherit_last_turn_domains
+
+    def observe_inheritance(turn, prior_turn):
+        observed.append(prior_turn)
+        return original(turn, prior_turn)
+
+    monkeypatch.setattr(
+        matrix_module, "_inherit_last_turn_domains", observe_inheritance,
+    )
+    application, _ = _application(
+        monkeypatch, tmp_path, ("I'm doing well.",),
+    )
+    try:
+        application.conversation._matrix_trace_store = None
+        application.conversation.respond("hru")
+        assert observed, "production safeguard projection did not execute"
+        assert all(prior is None for prior in observed)
+    finally:
+        application.shutdown()
