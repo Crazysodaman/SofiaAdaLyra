@@ -605,6 +605,26 @@ class MatrixTraceStore:
                 ).fetchone()
         return None if row is None else self._trace(row)
 
+    def latest_scoped(
+        self, *, session_id: str, principal_id: str, channel: str,
+    ) -> MatrixTrace | None:
+        """Select prior context only from the exact authenticated audience."""
+        for name, value in (
+            ("session_id", session_id), ("channel", channel),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} must be nonempty")
+        if not isinstance(principal_id, str):
+            raise ValueError("principal_id must be a string")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """SELECT * FROM cognition_matrix_trace
+                   WHERE session_id=? AND principal_id=? AND channel=?
+                   ORDER BY created_at DESC, message_id DESC LIMIT 1""",
+                (session_id, principal_id, channel),
+            ).fetchone()
+        return None if row is None else self._trace(row)
+
     def latest_with_execution(
         self,
         *,
