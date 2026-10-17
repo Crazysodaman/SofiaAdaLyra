@@ -232,10 +232,30 @@ def main(argv: Iterable[str] | None = None) -> int:
         audit_installed_core(args.source_root) if args.check
         else stage_review(args.source_root, args.stage)
     )
+    missing_files = [
+        f"{sprite.group}/{sprite.filename}"
+        for sprite in audit.sprites if "missing" in sprite.problems
+    ]
+    invalid_files = [
+        f"{sprite.group}/{sprite.filename}"
+        for sprite in audit.sprites
+        if any(problem.startswith("invalid PNG") for problem in sprite.problems)
+    ]
     print(json.dumps({
         "expected": len(audit.sprites), "missing": audit.missing,
         "invalid": audit.invalid, "needs_alignment": audit.needs_alignment,
         "production_activated": False,
+        "missing_files": missing_files,
+        "invalid_files": invalid_files,
+        "group_status": {
+            group: {
+                "expected": len(names),
+                "missing": sum(
+                    1 for sprite in audit.sprites
+                    if sprite.group == group and "missing" in sprite.problems
+                ),
+            } for group, names in _FILES.items()
+        },
         "notes": list(audit.notes),
     }, indent=2))
     return 1 if audit.missing or audit.invalid else 0
