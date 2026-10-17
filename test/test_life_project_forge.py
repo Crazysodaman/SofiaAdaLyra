@@ -205,14 +205,23 @@ def record_interest_signal(life, project, *, evidence_ref, judgment, when, ordin
     life.manager.tick(now=when)
     settled = wait_for_job(life, job.job_id)
     assert settled.status is WorkStatus.COMPLETED
+    # RUN completion is observed by the real worker clock. On a slow host
+    # it may postdate the scenario's synthetic 'when'. A review must not
+    # predate the exact completed operation receipt it cites.
+    operation_ref = str(settled.result["evidence_ref"])
+    receipt = life.evidence_index.lookup(operation_ref)
+    assert receipt is not None
+    assert receipt.kind == "operation_receipt"
+    assert receipt.successful is True
+    review_at = max(when, receipt.observed_at)
     evaluation = life.evaluate_artifact(
         project.project_id, artifact_id=str(settled.result["artifact_id"]),
         technical_outcome=TechnicalOutcome.INCONCLUSIVE,
         personal_judgment=judgment,
         objective_results={objective: None for objective in project.brief.objectives},
         reason="A reviewed personal response to real, independently checked work.",
-        evidence_refs=(str(settled.result["evidence_ref"]), evidence_ref),
-        preserve_for_research=False, now=when,
+        evidence_refs=(operation_ref, evidence_ref),
+        preserve_for_research=False, now=review_at,
     )
     experiences = life.store.experiences(
         audience_id=project.audience_id, include_private=True,
@@ -223,15 +232,50 @@ def record_interest_signal(life, project, *, evidence_ref, judgment, when, ordin
     )
 
 
+
+def test_interest_review_follows_real_receipt_when_scenario_clock_lags(tmp_path):
+    """Never backdate a genuine review before its asynchronous RUN receipt."""
+    life, _goals, wall_clock = infrastructure(tmp_path)
+    try:
+        # Simulate a slow CI host without sleeping or fabricating success.
+        # Project operations are scheduled on the deliberately old test clock,
+        # while the actual RUN worker persists its own completion timestamp.
+        now = wall_clock - timedelta(minutes=1)
+        project, evidence = active_project(life, now)
+        reviewed = record_interest_signal(
+            life, project, evidence_ref=evidence,
+            judgment=PersonalJudgment.LIKE, when=now + timedelta(seconds=3),
+        )
+        receipt_ref = next(
+            ref for ref in reviewed.evidence_refs
+            if life.evidence_index.lookup(ref).kind == "operation_receipt"
+        )
+        receipt = life.evidence_index.lookup(receipt_ref)
+        assert receipt is not None
+        assert reviewed.occurred_at >= receipt.observed_at
+        assert reviewed.recorded_at >= receipt.observed_at
+        result = life.learn_from_experiences(
+            now=reviewed.recorded_at + timedelta(seconds=1),
+        )
+        assert result["applied"] == 1
+        assert life.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        ).revision == 2
+    finally:
+        life.close()
+
+
 def test_grounded_experience_updates_interest_once_across_restart_safe_ticks(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
         project, evidence = active_project(life, now)
-        record_interest_signal(
+        reviewed = record_interest_signal(
             life, project, evidence_ref=evidence,
             judgment=PersonalJudgment.LIKE, when=now + timedelta(seconds=3),
         )
-        first = life.learn_from_experiences(now=now + timedelta(seconds=4))
+        learn_at = max(now + timedelta(seconds=4),
+                       reviewed.recorded_at + timedelta(seconds=1))
+        first = life.learn_from_experiences(now=learn_at)
         learned = life.store.interest_by_id(
             project.originating_interest, audience_id=project.audience_id,
         )
@@ -262,6 +306,8 @@ def test_interest_learning_rechecks_original_source_inside_atomic_commit(
             judgment=PersonalJudgment.LIKE,
             when=now + timedelta(seconds=3),
         )
+        learn_at = max(now + timedelta(seconds=4),
+                       experience.recorded_at + timedelta(seconds=1))
         original_record = life.store.record_interest_learning
         mutated = []
 
@@ -284,7 +330,7 @@ def test_interest_learning_rechecks_original_source_inside_atomic_commit(
         with pytest.raises(
             RuntimeError, match="original source experience changed before learning",
         ):
-            life.learn_from_experiences(now=now + timedelta(seconds=4))
+            life.learn_from_experiences(now=learn_at)
         assert mutated == [True]
         assert life.store.interest_by_id(
             project.originating_interest, audience_id=project.audience_id,
@@ -342,18 +388,21 @@ def test_conflicting_grounded_judgments_remain_bounded_and_auditable(tmp_path):
     life, _goals, now = infrastructure(tmp_path)
     try:
         project, evidence = active_project(life, now)
-        record_interest_signal(
+        reviewed = [record_interest_signal(
             life, project, evidence_ref=evidence,
             judgment=PersonalJudgment.LIKE,
             when=now + timedelta(seconds=3), ordinal=1,
-        )
+        )]
         for ordinal in range(2, 8):
-            record_interest_signal(
+            reviewed.append(record_interest_signal(
                 life, project, evidence_ref=evidence,
                 judgment=PersonalJudgment.DISLIKE,
                 when=now + timedelta(seconds=ordinal + 2), ordinal=ordinal,
-            )
-        result = life.learn_from_experiences(now=now + timedelta(seconds=10))
+            ))
+        learn_at = max(now + timedelta(seconds=10),
+                       max(item.recorded_at for item in reviewed)
+                       + timedelta(seconds=1))
+        result = life.learn_from_experiences(now=learn_at)
         learned = life.store.interest_by_id(
             project.originating_interest, audience_id=project.audience_id,
         )
