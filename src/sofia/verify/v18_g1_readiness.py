@@ -24,7 +24,7 @@ _SOURCE_ID = re.compile(r"^- \[ \] \*\*(CA-[0-9]+)\b.*$", re.MULTILINE)
 _SECTION = re.compile(r"^## (CA-[0-9]+): [^\n]+\n(.*?)(?=^## CA-[0-9]+: |\Z)", re.MULTILINE | re.DOTALL)
 _ORIGINAL = re.compile(r"^\*\*Original(?: requirement)?:\*\* (.+)$", re.MULTILINE)
 _REQUIRED = (
-    "Original", "Source", "G1",
+    "Original", "G1",
 )
 
 
@@ -87,7 +87,9 @@ def inspect_g1_submissions(
             for field in _REQUIRED:
                 if "**" + field not in body:
                     raise G1SubmissionError(task_id + ": missing review field " + field)
-            if "OPEN" not in body and "UNDECIDED" not in body:
+            if "**Source" not in body and "**Grounded source" not in body:
+                raise G1SubmissionError(task_id + ": missing source references")
+            if not any(state in body for state in ("OPEN", "UNDECIDED", "NOT YET ACCEPTED")):
                 raise G1SubmissionError(task_id + ": draft falsely omits pending review")
             rows.append({
                 "id": task_id, "source_packet": path,
