@@ -559,6 +559,30 @@ class MatrixTraceStore:
             ).fetchone()
         return None if row is None else self._trace(row)
 
+    def get_scoped(
+        self, message_id: str, *, session_id: str, principal_id: str,
+        channel: str,
+    ) -> MatrixTrace | None:
+        """Require complete source binding before exposing a trace to a channel.
+
+        A global get() remains available to canonical internal diagnostics,
+        but UI/channel readers must not infer access from a message ID alone.
+        """
+        for name, value in (
+            ("message_id", message_id), ("session_id", session_id),
+            ("principal_id", principal_id), ("channel", channel),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} must be nonempty")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """SELECT * FROM cognition_matrix_trace
+                   WHERE message_id=? AND session_id=?
+                   AND principal_id=? AND channel=?""",
+                (message_id, session_id, principal_id, channel),
+            ).fetchone()
+        return None if row is None else self._trace(row)
+
     def latest(self, *, session_id: str | None = None) -> MatrixTrace | None:
         with closing(self._connect()) as db:
             if session_id is None:
