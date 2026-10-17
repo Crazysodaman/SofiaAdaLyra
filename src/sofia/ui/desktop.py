@@ -27,6 +27,7 @@ from sofia.ui.quick_tools import (
 )
 from sofia.ui.theme import ThemePalette, canonical_theme
 from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
+from sofia.ui.avatar2d_installation import discover_public_avatar2d_root
 from sofia.ui.avatar_mode import (
     AvatarModeUnavailable, AvatarVisualMode, ExclusiveAvatarRenderer,
 )
@@ -415,15 +416,18 @@ class _TkDesktopWorkbench:
         symbolic_renderer = TkAvatarRenderer(
             root=self._root, canvas=self._avatar_canvas,
         )
-        art_dir = os.environ.get("SOFIA_AVATAR2D_PUBLIC_ROOT", "").strip()
-        if art_dir and self._avatar_renderer_enabled:
-            # Explicit owner-configured public PNGs only. Private artwork
-            # must NEVER be discovered through this public desktop path.
+        art_dir = discover_public_avatar2d_root(
+            os.environ.get("SOFIA_AVATAR2D_PUBLIC_ROOT"),
+            local_app_data=os.environ.get("LOCALAPPDATA"),
+        )
+        if art_dir is not None and self._avatar_renderer_enabled:
+            # Explicit owner paths or known local PUBLIC installs only.
+            # Never scan user folders or protected/private wardrobe art.
             from sofia.ui.avatar2d_renderer import TkLayered2DRenderer
             self._avatar_renderer = TkLayered2DRenderer(
                 root=self._root,
                 canvas=self._avatar_canvas,
-                public_root=Path(art_dir),
+                public_root=art_dir,
                 state_path=self._configuration.state_path,
                 fallback=symbolic_renderer,
             )
