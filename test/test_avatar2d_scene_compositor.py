@@ -170,3 +170,25 @@ def test_live_idle_displays_saved_scene_not_old_pixel_sprite(tmp_path,monkeypatc
     assert renderer._last_art_source.startswith("public static scene")
     assert canvas.final_frame() and len(canvas.final_frame())==1
     assert symbolic.calls == []
+
+
+def test_editor_imports_independent_background_with_no_db_mutation(tmp_path):
+    from sofia.avatar.scene_editor import _import_local_background, _public_projection
+    root, projection, catalog, scene = setup(tmp_path)
+    before=(tmp_path/"sofia.db").read_bytes()
+    file=tmp_path/"custom-backdrop.jpg"
+    Image.new("RGB",(128,96),(41,54,67)).save(file,"JPEG")
+    ident, digest = _import_local_background(root,file)
+    assert ident.startswith("owner-")
+    stored = load_public_background(root,ident,digest)
+    assert stored.startswith(b"\x89PNG\r\n\x1a\n")
+    assert (tmp_path/"sofia.db").read_bytes()==before
+    assert _public_projection(catalog,projection.outfit_id).item_ids==projection.item_ids
+
+
+def test_scene_background_requires_explicit_unique_identifier(tmp_path):
+    root, projection, catalog, scene=setup(tmp_path)
+    with pytest.raises(FileExistsError):
+        import_public_background(root, "neon-workshop", png_bytes())
+    with pytest.raises(Avatar2DAssetError):
+        import_public_background(root, "../private", png_bytes())
