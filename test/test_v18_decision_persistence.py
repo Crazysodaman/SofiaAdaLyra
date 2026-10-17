@@ -130,6 +130,55 @@ def test_matrix_source_timestamp_substitution_rejects_matching_id(tmp_path):
     assert not proof.same_turn_verified
 
 
+
+def test_matrix_upsert_never_promotes_legacy_timestamp_to_proof(tmp_path):
+    path, matrix = _fixture(tmp_path)
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "UPDATE cognition_matrix_trace SET source_created_at=NULL "
+            "WHERE message_id=?", (matrix.envelope.message_id,),
+        )
+    legacy = MatrixTraceStore(path).get(matrix.envelope.message_id)
+    # An ordinary extension/update pass must not silently mint evidence.
+    MatrixTraceStore(path).record(legacy)
+    with closing(sqlite3.connect(path)) as db:
+        row = db.execute(
+            "SELECT source_created_at FROM cognition_matrix_trace WHERE message_id=?",
+            (matrix.envelope.message_id,),
+        ).fetchone()
+    assert row == (None,)
+    proof = inspect_turn_persistence(path, matrix_trace=legacy)
+    assert not proof.matrix_decision_persisted
+    assert not proof.same_turn_verified
+
+
+def test_matrix_upsert_cannot_replace_original_event_time(tmp_path):
+    path, matrix = _fixture(tmp_path)
+    forged = replace(
+        matrix,
+        envelope=replace(
+            matrix.envelope,
+            created_at=NOW + timedelta(milliseconds=10),
+        ),
+    )
+    MatrixTraceStore(path).record(forged)
+    with closing(sqlite3.connect(path)) as db:
+        source, decision = db.execute(
+            "SELECT source_created_at, created_at FROM cognition_matrix_trace "
+            "WHERE message_id=?", (matrix.envelope.message_id,),
+        ).fetchone()
+    assert datetime.fromisoformat(source) == NOW
+    assert datetime.fromisoformat(decision) == matrix.created_at
+    assert not inspect_turn_persistence(
+        path, matrix_trace=forged,
+    ).matrix_decision_persisted
+    restored = MatrixTraceStore(path).get(matrix.envelope.message_id)
+    assert restored.envelope.created_at == NOW
+    assert inspect_turn_persistence(
+        path, matrix_trace=restored,
+    ).same_turn_verified
+
+
 def test_verified_source_and_matrix_decision_share_canonical_turn(tmp_path):
     path, matrix = _fixture(tmp_path)
     proof = inspect_turn_persistence(path, matrix_trace=matrix)
