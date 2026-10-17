@@ -699,7 +699,11 @@ class ConversationMatrixMixin:
         trace_error: str | None = None
         if store is not None:
             try:
-                prior_trace = store.latest(session_id=message.session_id)
+                prior_trace = store.latest_scoped(
+                    session_id=message.session_id,
+                    principal_id="" if principal is None else principal.principal_id,
+                    channel=channel,
+                )
             except Exception as exc:
                 prior_trace = None
                 trace_error = "trace-read:" + type(exc).__name__
