@@ -252,9 +252,41 @@ def make_batch(output_dir: Path, *, source_root: Path | None = None,
             "art_status":"procedural_first_pass_NOT_REVIEWED",
             "rig_status":"NOT_FITTED_FOR_LIVE_REUSE",
         })
+    # Preserve the previously generated high-resolution illustrated garment
+    # REFERENCES where their exact canonical IDs exist. Their native placement
+    # is not a rig, so keep these separate from wearable 640x800 drafts.
+    reference_archive=Path(__file__).resolve().parents[3] / (
+        "assets/avatar2d/illustrated_public_v1/"
+        "sofia2d_public_illustrated_candidates_v1.zip"
+    )
+    reference_count=0
+    if reference_archive.is_file():
+        approved={record["item_id"]:record for record in records}
+        with zipfile.ZipFile(reference_archive) as archive:
+            for name in sorted(archive.namelist()):
+                if not name.startswith("illustrated_drafts/") or not name.endswith(".png"):
+                    continue
+                item_id=Path(name).stem
+                if item_id not in approved:
+                    continue
+                image=archive.read(name)
+                with Image.open(BytesIO(image)) as artwork:
+                    artwork.load()
+                    if artwork.width*artwork.height>4_000_000:
+                        raise ValueError("unsafe illustrated reference dimensions")
+                refs=output_dir/"illustrated_references"
+                refs.mkdir(exist_ok=True)
+                (refs/(item_id+".png")).write_bytes(image)
+                approved[item_id]["illustrated_reference"]={
+                    "path":"illustrated_references/"+item_id+".png",
+                    "sha256":sha256(image).hexdigest(),
+                    "status":"UNFITTED_ILLUSTRATED_REFERENCE_NOT_LIVE",
+                }
+                reference_count+=1
     manifest={
         "schema":SCHEMA,"public_only":True,"canvas":[WIDTH,HEIGHT],
         "art_status":"DRAFT_VECTOR_NOT_PRODUCTION",
+        "illustrated_unfitted_reference_count":reference_count,
         "count":len(records),"items":records,
     }
     (output_dir/"manifest.json").write_text(
