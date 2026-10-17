@@ -95,6 +95,17 @@ class MatrixTraceStore:
                 )
                 """
             )
+            # Execution diagnostics scan the newest recorded decisions. A
+            # partial index avoids walking unrelated turns with no extension
+            # data and keeps the bounded latest-execution probe efficient.
+            db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_cognition_matrix_trace_execution
+                ON cognition_matrix_trace(
+                    session_id, created_at DESC, message_id DESC
+                ) WHERE extensions_json IS NOT NULL
+                """
+            )
             columns = {
                 row["name"]
                 for row in db.execute(
