@@ -25,7 +25,7 @@ jobs:
         run: python -m pytest -q test/test_v18_five_stage_audit.py
       - name: Inventory exactly 700 CA and 80 ML/GA
         run: |
-          python scripts/v18_five_stage_audit.py --repo . --sha "$GITHUB_SHA" --output "$RUNNER_TEMP/v18-five-stage-status.json" --markdown-output "$RUNNER_TEMP/v18-five-stage-progress.md"
+          python scripts/v18_five_stage_audit.py --repo . --sha "$GITHUB_SHA" --verify-head --output "$RUNNER_TEMP/v18-five-stage-status.json" --markdown-output "$RUNNER_TEMP/v18-five-stage-progress.md"
           python -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/v18-five-stage-status.json")); assert len(d["tasks"]) == 780; assert sum(d["counts"].values()) == 780; assert all(t["stage"] in d["counts"] for t in d["tasks"])'
       - uses: actions/upload-artifact@v4
         with:
