@@ -584,3 +584,43 @@ def test_matrix_legacy_schema_migrates_before_execution_index(tmp_path):
         }
     assert {"extensions_json", "context_json", "source_created_at"}.issubset(cols)
     assert "idx_cognition_matrix_trace_execution" in names
+
+
+@pytest.mark.parametrize("limit", [0, -1, True, 1001, 1.5])
+def test_matrix_execution_history_rejects_unbounded_limits(tmp_path, limit):
+    path, _ = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    with pytest.raises(ValueError, match="limit"):
+        store.latest_with_execution(limit=limit)
+    with pytest.raises(ValueError, match="limit"):
+        store.latest_execution_scoped(
+            session_id="s1", principal_id="principal:one",
+            channel="desktop", limit=limit,
+        )
+
+
+def test_matrix_scoped_execution_history_filters_all_identity_axes(tmp_path):
+    from sofia.cognition.matrix.model import CognitionExecutionTrace
+    path, trace = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    with_execution = replace(
+        trace,
+        cognition_execution=CognitionExecutionTrace(
+            serial=1, actual_route="local", steps=(),
+            fallback_count=0, verification_passes=0,
+        ),
+    )
+    store.record(with_execution)
+    assert store.latest_execution_scoped(
+        session_id="s1", principal_id="principal:one", channel="desktop"
+    ).envelope.message_id == trace.envelope.message_id
+    for identity in (
+        dict(session_id="other", principal_id="principal:one", channel="desktop"),
+        dict(session_id="s1", principal_id="another", channel="desktop"),
+        dict(session_id="s1", principal_id="principal:one", channel="discord"),
+    ):
+        assert store.latest_execution_scoped(**identity) is None
+    assert store.latest_execution_scoped(
+        session_id="s1", principal_id="principal:one", channel="desktop",
+        limit=1,
+    ) is not None
