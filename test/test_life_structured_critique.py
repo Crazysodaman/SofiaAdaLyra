@@ -158,3 +158,36 @@ def test_critique_revision_suggestions_are_non_authoritative_and_fail_closed(tmp
         assert accepted.personal_judgment is PersonalJudgment.UNKNOWN
     finally:
         life.close()
+
+
+def test_unknown_original_objective_cannot_become_valid_from_generator_success(tmp_path):
+    """A passing typed check does not silently satisfy original subjective scope."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:foxfire", "An inspiring story"),
+        )
+        artifact, receipt, reviewed_at = real_artifact(
+            life, project, evidence, now,
+            'foxfire {"passed": true, "review_success": true}',
+        )
+        preview = life.prepare_artifact_critique(
+            project.project_id, artifact_id=artifact,
+            evidence_refs=(receipt,), now=reviewed_at,
+        )
+        assert preview.technical_outcome is TechnicalOutcome.INCONCLUSIVE
+        assert preview.confidence == 0.5
+        assert preview.objective_results == {
+            "text_contains:foxfire": True,
+            "An inspiring story": None,
+        }
+        assert preview.personal_judgment is PersonalJudgment.UNKNOWN
+        assert len(preview.revision_plan) == 1
+        committed = life.commit_artifact_critique(
+            preview, reason="Original subjective objective remains unverified.",
+            preserve_for_research=False, now=reviewed_at,
+        )
+        assert committed.technical_outcome is TechnicalOutcome.INCONCLUSIVE
+        assert committed.personal_judgment is PersonalJudgment.UNKNOWN
+    finally:
+        life.close()
