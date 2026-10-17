@@ -220,6 +220,35 @@ def _render_vector_candidate(category, row):
     return base
 
 
+def _contact_sheets(output_dir: Path, records: list[dict]):
+    """Exactly what CI generated, not a concept illustration or storefront."""
+    previews=output_dir/"preview"
+    previews.mkdir(exist_ok=True)
+    for category in CATEGORIES:
+        group=[row for row in records if row["category"]==category]
+        if not group:
+            continue
+        cols=5
+        cell_w,cell_h=190,226
+        rows=(len(group)+cols-1)//cols
+        sheet=Image.new("RGB",(cols*cell_w,84+rows*cell_h),(15,17,28))
+        d=ImageDraw.Draw(sheet)
+        d.text((20,13),category.upper()+" • PUBLIC PNG CANDIDATES",
+               fill=(218,197,241))
+        d.text((20,43),"DRAFT VECTOR • NOT FINISHED ILLUSTRATION • NOT LIVE",
+               fill=(237,151,151))
+        for index,row in enumerate(group):
+            x=(index%cols)*cell_w
+            y=84+(index//cols)*cell_h
+            tile=Image.new("RGBA",(cell_w-10,cell_h-8),(27,29,46,255))
+            sprite=Image.open(output_dir/row["sprite_file"]).convert("RGBA")
+            sprite.thumbnail((172,183),Image.Resampling.LANCZOS)
+            tile.alpha_composite(sprite,((tile.width-sprite.width)//2,2))
+            sheet.paste(tile.convert("RGB"),(x+4,y+4))
+            d.text((x+8,y+193),row["item_id"][:25],fill=(240,230,250))
+        sheet.save(previews/(category+".png"),"PNG",optimize=True)
+
+
 def make_batch(output_dir: Path, *, source_root: Path | None = None,
                replace=False) -> dict:
     output_dir=Path(output_dir)
@@ -289,6 +318,7 @@ def make_batch(output_dir: Path, *, source_root: Path | None = None,
         "illustrated_unfitted_reference_count":reference_count,
         "count":len(records),"items":records,
     }
+    _contact_sheets(output_dir, records)
     (output_dir/"manifest.json").write_text(
         json.dumps(manifest,indent=2,ensure_ascii=False)+"\n",encoding="utf8"
     )
