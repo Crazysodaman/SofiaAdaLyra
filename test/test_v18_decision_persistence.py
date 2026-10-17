@@ -687,3 +687,49 @@ def test_matrix_anonymous_read_is_exact_not_wildcard(tmp_path):
         "anonymous-only", session_id="s1",
         principal_id="principal:one", channel="desktop",
     ) is None
+
+
+def test_matrix_scoped_execution_uses_partial_audience_index(tmp_path):
+    path, matrix = _fixture(tmp_path)
+    store = MatrixTraceStore(path)
+    with closing(sqlite3.connect(path)) as db:
+        plan = db.execute(
+            "EXPLAIN QUERY PLAN SELECT * FROM cognition_matrix_trace "
+            "WHERE session_id=? AND principal_id=? AND channel=? "
+            "AND extensions_json IS NOT NULL "
+            "ORDER BY created_at DESC, message_id DESC LIMIT ?",
+            ("s1", "principal:one", "desktop", 100),
+        ).fetchall()
+        indexes = {row[1] for row in db.execute(
+            "PRAGMA index_list(cognition_matrix_trace)"
+        )}
+    assert "idx_cognition_matrix_trace_scoped_execution" in indexes
+    assert any(
+        "idx_cognition_matrix_trace_scoped_execution" in row[3]
+        for row in plan
+    ), plan
+    assert store.get_scoped(
+        matrix.envelope.message_id, session_id="s1",
+        principal_id="principal:one", channel="desktop",
+    ) is not None
+
+
+def test_matrix_legacy_migration_adds_scoped_execution_index(tmp_path):
+    path = tmp_path / "legacy-index.db"
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute(
+            "CREATE TABLE cognition_matrix_trace ("
+            "message_id TEXT PRIMARY KEY, session_id TEXT NOT NULL,"
+            "principal_id TEXT NOT NULL, channel TEXT NOT NULL,"
+            "schema_version INTEGER NOT NULL, intent TEXT NOT NULL,"
+            "confidence TEXT NOT NULL, history_policy TEXT NOT NULL,"
+            "response_strategy TEXT NOT NULL, domains_json TEXT NOT NULL,"
+            "ambiguous INTEGER NOT NULL, shadow INTEGER NOT NULL,"
+            "created_at TEXT NOT NULL)"
+        )
+    MatrixTraceStore(path)
+    with closing(sqlite3.connect(path)) as db:
+        names = {row[1] for row in db.execute(
+            "PRAGMA index_list(cognition_matrix_trace)"
+        )}
+    assert "idx_cognition_matrix_trace_scoped_execution" in names
