@@ -35,9 +35,15 @@ def test_generate_complete_public_draft_archive_without_private_items(tmp_path):
     assert manifest["art_status"]=="DRAFT_VECTOR_NOT_PRODUCTION"
     assert len(list((root/"items").glob("*.png")))==244
     assert len(manifest["items"])==244
+    assert manifest["illustrated_unfitted_reference_count"]==9
+    assert len(list((root/"illustrated_references").glob("*.png")))==9
     for entry in manifest["items"]:
         assert entry["private_only"] is False
         assert entry["rig_status"]=="NOT_FITTED_FOR_LIVE_REUSE"
+        if "illustrated_reference" in entry:
+            reference=entry["illustrated_reference"]
+            assert reference["status"]=="UNFITTED_ILLUSTRATED_REFERENCE_NOT_LIVE"
+            assert sha256((root/reference["path"]).read_bytes()).hexdigest()==reference["sha256"]
         p=root/entry["sprite_file"]
         raw=p.read_bytes()
         assert sha256(raw).hexdigest()==entry["sprite_sha256"]
