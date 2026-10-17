@@ -14,14 +14,17 @@ from pathlib import Path
 from .vtuber_external_core import audit_installed_core, _safe_file, _pil
 
 MASTER_SIZE = (2048, 2560)
-HEAD_CROP = (750, 0, 1310, 420)
+HEAD_CROP = (750, 0, 1310, 510)
 # Preliminary 2048x2560 registration boxes, not approved animation anchors.
 REGISTRATION = {
-    "hair_back": ("hair", "hair_back_main.png", (790, 10, 1226, 565)),
-    "ear_left": ("ears", "ear_pose_01.png", (852, 0, 936, 147)),
-    "ear_right": ("ears", "ear_pose_06.png", (1082, 0, 1166, 147)),
-    "brows": ("brows", "brows_neutral.png", (946, 170, 1100, 205)),
-    "hair_front": ("hair", "hair_front_bangs.png", (899, 21, 1118, 270)),
+    "hair_back": ("hair", "hair_back_main.png", (786, 0, 1223, 548)),
+    "ear_left": ("ears", "ear_pose_01.png", (837, 0, 952, 170)),
+    "ear_right": ("ears", "ear_pose_06.png", (1072, 0, 1187, 170)),
+    # Approved soft variant makes a more neutral preview than the
+    # dramatically inward-slanted "brows_neutral" source illustration.
+    # This is not a production expression-state mapping.
+    "brows": ("brows", "brows_soft.png", (943, 183, 1104, 205)),
+    "hair_front": ("hair", "hair_front_bangs.png", (898, 12, 1119, 252)),
 }
 
 
@@ -32,9 +35,16 @@ def _load(source_root: Path, group: str, filename: str):
         return source.convert("RGBA")
 
 
-def _fit(source, box):
+def _fit(source, box, *, alpha_threshold: int = 0):
     Image, _, ImageOps = _pil()
-    content = source.getchannel("A").getbbox()
+    if type(alpha_threshold) is not int or not 0 <= alpha_threshold < 256:
+        raise ValueError("invalid alpha crop threshold")
+    mask = source.getchannel("A")
+    # Generated brow images contain very faint far-field alpha specks.
+    # Their unfiltered bounding box made the previous brows tiny and steep.
+    if alpha_threshold:
+        mask = mask.point(lambda v: 255 if v > alpha_threshold else 0)
+    content = mask.getbbox()
     if content is None:
         raise ValueError("cannot register an empty layer")
     cropped = source.crop(content)
@@ -97,8 +107,15 @@ def make_candidate(
         canvas.alpha_composite(_load(source_root, group, filename))
     for group_name in ("brows",):
         group, filename, box = REGISTRATION[group_name]
-        canvas.alpha_composite(_fit(_load(source_root, group, filename), box))
-        transforms[group_name] = {"source": f"{group}/{filename}", "box": list(box)}
+        canvas.alpha_composite(_fit(
+            _load(source_root, group, filename), box,
+            alpha_threshold=15,
+        ))
+        transforms[group_name] = {
+            "source": f"{group}/{filename}", "box": list(box),
+            "alpha_crop_threshold": 15,
+            "selection": "soft review expression, not runtime neutral",
+        }
     canvas.alpha_composite(_load(source_root, "mouth", "mouth_neutral.png"))
     group, filename, box = REGISTRATION["hair_front"]
     canvas.alpha_composite(_fit(_load(source_root, group, filename), box))
@@ -139,6 +156,8 @@ def make_candidate(
             "Ear L/R mapping is provisional, not independent artwork authorization.",
             "Brows are resized and repositioned for visual review only.",
             "Tail root, hair styles, visemes, and garment occlusion require calibration.",
+            "Preview uses approved brows_soft art, not a runtime neutral-expression mapping.",
+            "Brows crop excludes near-invisible alpha fringe before fitting; original PNG is unchanged.",
             "Do not use review PNGs as verified public sprites or enable private content.",
         ],
     }
