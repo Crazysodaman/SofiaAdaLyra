@@ -32,6 +32,7 @@ from sofia.ui.avatar_mode import (
     AvatarModeUnavailable, AvatarVisualMode, ExclusiveAvatarRenderer,
 )
 from sofia.ui.avatar_mode_store import AvatarModePreferenceStore
+from sofia.avatar.presentation import AudienceScope, AttireMode
 from sofia.voice import SpeechInputState
 
 
@@ -377,6 +378,14 @@ class _TkDesktopWorkbench:
         self._avatar_mode_selector.bind(
             "<<ComboboxSelected>>", self._change_avatar_mode,
         )
+
+        self._scene_editor_button = self._ttk.Button(
+            header,
+            text="Scene…",
+            command=self._open_scene_editor,
+            style="Sofia.TButton",
+        )
+        self._scene_editor_button.pack(side="right", padx=(10, 0))
 
         self._stop_gesture_button = self._ttk.Button(
             header,
@@ -1184,6 +1193,35 @@ class _TkDesktopWorkbench:
             if self._last_avatar_projection is not None:
                 self._avatar_renderer.render_idle(self._last_avatar_projection)
         self._status.set(f"Avatar: {mode.value.upper()} (exclusive mode)")
+
+    def _open_scene_editor(self) -> None:
+        """Owner-triggered public-only scene editor in a separate Tk process."""
+        projection = self._last_avatar_projection
+        if (
+            not self._avatar_renderer_enabled
+            or projection is None
+            or projection.audience is not AudienceScope.PUBLIC
+            or projection.attire is not AttireMode.CLOTHED
+            or not projection.outfit_id
+        ):
+            self._status.set("Scene editor needs a current clothed public outfit")
+            return
+        art_dir = discover_public_avatar2d_root(
+            os.environ.get("SOFIA_AVATAR2D_PUBLIC_ROOT"),
+            local_app_data=os.environ.get("LOCALAPPDATA"),
+        )
+        if art_dir is None:
+            self._status.set("Install the public 2D artwork pack first")
+            return
+        try:
+            subprocess.Popen([
+                sys.executable, "-m", "sofia.avatar.scene_editor",
+                "--root", str(art_dir),
+                "--state-path", str(self._configuration.state_path),
+                "--outfit", projection.outfit_id,
+            ], close_fds=True)
+        except OSError as exc:
+            self._status.set("Cannot open scene editor: " + type(exc).__name__)
 
     def _stop_avatar_gesture(self) -> None:
         decision_id = self._avatar_renderer.stop()
