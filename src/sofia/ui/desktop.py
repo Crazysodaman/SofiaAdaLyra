@@ -266,7 +266,11 @@ class _TkDesktopWorkbench:
         )
         self._start_background()
 
-    def _open_live2d_prep(self) -> None:\n        from sofia.ui.live2d_review import open_review_window\n        open_review_window(self._root)\n\n    def _configure_window(self) -> None:
+    def _open_live2d_prep(self) -> None:
+        from sofia.ui.live2d_review import open_review_window
+        open_review_window(self._root)
+
+    def _configure_window(self) -> None:
         self._root.title("Sofía")
         self._root.geometry("1040x820")
         self._root.minsize(720, 480)
@@ -379,7 +383,15 @@ class _TkDesktopWorkbench:
             "<<ComboboxSelected>>", self._change_avatar_mode,
         )
 
-        self._live2d_prep_button = self._ttk.Button(\n            header,\n            text="Live2D Prep",\n            command=self._open_live2d_prep,\n            style="Sofia.TButton",\n        )\n        self._live2d_prep_button.pack(side="right", padx=(10, 0))\n\n        self._scene_editor_button = self._ttk.Button(
+        self._live2d_prep_button = self._ttk.Button(
+            header,
+            text="Live2D Prep",
+            command=self._open_live2d_prep,
+            style="Sofia.TButton",
+        )
+        self._live2d_prep_button.pack(side="right", padx=(10, 0))
+
+        self._scene_editor_button = self._ttk.Button(
             header,
             text="Scene…",
             command=self._open_scene_editor,
