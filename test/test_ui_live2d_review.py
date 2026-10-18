@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import pytest
 from PIL import Image
-from sofia.ui.live2d_review import FACE_PARTS, create_review_job
+from sofia.ui.live2d_review import FACE_PARTS, create_review_job, review_job_summary
 
 def test_creates_unapproved_review_manifest(tmp_path):
     source = tmp_path / "source.png"
@@ -31,3 +31,12 @@ def test_refuses_invalid_source(tmp_path):
     with pytest.raises(Exception):
         create_review_job(source, tmp_path / "job")
     assert not (tmp_path / "job").exists()
+
+def test_reopen_saved_job_reports_real_state(tmp_path):
+    source = tmp_path / "source.png"
+    Image.new("RGB", (512, 512)).save(source)
+    folder = create_review_job(source, tmp_path / "job")
+    summary = review_job_summary(folder)
+    assert summary["approved_parts"] == 0
+    assert summary["total_parts"] == len(FACE_PARTS)
+    assert summary["generation"] == "not submitted"
