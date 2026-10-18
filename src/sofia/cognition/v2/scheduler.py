@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from math import isfinite
 
 from .contracts import (
     CognitiveBudget,
@@ -50,8 +51,15 @@ class ValidatedCognitiveScheduler:
         pressure = 0.0
         if neuro_snapshot is not None:
             homeostasis = getattr(neuro_snapshot, "homeostasis", None)
-            load = float(getattr(homeostasis, "cognitive_load", 0.0))
-            pressure = float(getattr(homeostasis, "competition_pressure", 0.0))
+            # Learned/observed pressure is advice, not authority. Malformed
+            # host telemetry must not produce NaN budgets or crash routing.
+            def bounded(value: object) -> float:
+                if type(value) not in (int, float) or not isfinite(value):
+                    return 0.0
+                return max(0.0, min(1.0, float(value)))
+
+            load = bounded(getattr(homeostasis, "cognitive_load", 0.0))
+            pressure = bounded(getattr(homeostasis, "competition_pressure", 0.0))
             focus = getattr(neuro_snapshot, "focus", None)
             if (
                 requirement in {
@@ -60,7 +68,7 @@ class ValidatedCognitiveScheduler:
                 }
                 and getattr(focus, "kind", None)
                 in {"ops", "fleet", "run", "goal"}
-                and float(getattr(focus, "score", 0.0)) >= 0.72
+                and bounded(getattr(focus, "score", 0.0)) >= 0.72
             ):
                 effective = ReasoningRequirement.DEEP
                 reason_parts.append("NEURO promoted high operational salience")
@@ -76,10 +84,7 @@ class ValidatedCognitiveScheduler:
             allow_parallelism=(base.allow_parallelism and pressure < 0.75),
             background_priority=min(
                 1.0,
-                max(
-                    float(getattr(getattr(neuro_snapshot, "focus", None), "score", 0.0)),
-                    0.0,
-                ),
+                bounded(getattr(getattr(neuro_snapshot, "focus", None), "score", 0.0)),
             ),
             reason="; ".join(reason_parts),
         )
