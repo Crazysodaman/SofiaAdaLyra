@@ -203,3 +203,109 @@ def test_owner_pairing_allows_time_for_vts_permission_popup():
     ])
     with VTubeStudioBridge(socket) as bridge:
         assert bridge.pair_with_owner_popup() == "owner-approved"
+
+
+def test_reconnect_reuses_saved_owner_approval_without_token_popup(monkeypatch):
+    from sofia.avatar import vtube_studio_bridge as api
+    socket = FakeSocket([
+        response("AuthenticationResponse", {"authenticated": True}),
+        response("CurrentModelResponse", {
+            "modelLoaded": False, "modelName": "", "hasPhysicsFile": False,
+        }),
+    ])
+    monkeypatch.setattr(api, "load_owner_token", lambda: "stored-token")
+    monkeypatch.setattr(
+        api.VTubeStudioBridge, "connect_local",
+        classmethod(lambda cls, *, port=8001: cls(socket, port=port)),
+    )
+    result = api.reconnect_saved_session(port=9996)
+    assert result == {
+        "connected": True, "reused_saved_authorization": True,
+        "model_loaded": False, "model_name": "",
+        "production_activated": False,
+    }
+    assert socket.closed
+    assert [sent["messageType"] for sent in socket.sent] == [
+        "AuthenticationRequest", "CurrentModelRequest",
+    ]
+    assert socket.sent[0]["data"]["authenticationToken"] == "stored-token"
+
+
+def test_saved_authorization_metadata_never_decrypts_or_discloses_token(
+    monkeypatch, tmp_path,
+):
+    from sofia.avatar import vtube_studio_bridge as api
+    target = tmp_path / "vts_token.dpapi"
+    monkeypatch.setattr(api, "_token_path", lambda: target)
+    assert api.saved_authorization_status()["token_saved"] is False
+    target.write_bytes(b"opaque DPAPI bytes (not real token)")
+    report = api.saved_authorization_status()
+    assert report["token_saved"] is True
+    assert "token" not in json.dumps(report).lower().replace("token_saved", "")
+
+
+def test_watch_reconnects_after_transient_local_failure_without_new_pair(
+    monkeypatch,
+):
+    from sofia.avatar import vtube_studio_bridge as api
+    monkeypatch.setattr(api, "load_owner_token", lambda: "previous-owner-consent")
+    statuses = []
+    attempts = []
+    pauses = [0]
+    final_socket = FakeSocket([
+        response("AuthenticationResponse", {"authenticated": True}),
+        response("APIStateResponse", {"active": True}),
+    ])
+
+    def connect(*, port):
+        attempts.append(port)
+        if len(attempts) == 1:
+            raise api.VTSBridgeError("VTS not open yet")
+        return api.VTubeStudioBridge(final_socket, port=port)
+
+    def pause(_seconds):
+        pauses[0] += 1
+
+    api.watch_saved_connection(
+        port=9996, interval_seconds=2, connect=connect, sleep=pause,
+        should_stop=lambda: pauses[0] >= 2, on_status=statuses.append,
+    )
+    assert attempts == [9996, 9996]
+    assert statuses == ["waiting_for_vtube_studio", "connected"]
+    assert final_socket.closed
+    assert [sent["messageType"] for sent in final_socket.sent] == [
+        "AuthenticationRequest", "APIStateRequest",
+    ]
+
+
+def test_auto_reconnect_stops_if_plugin_permission_revoked(monkeypatch):
+    from sofia.avatar import vtube_studio_bridge as api
+    monkeypatch.setattr(api, "load_owner_token", lambda: "revoked-owner-token")
+    socket = FakeSocket([
+        response("AuthenticationResponse", {"authenticated": False}),
+    ])
+    with pytest.raises(PermissionError, match="re-enrollment"):
+        api.watch_saved_connection(
+            port=9996, interval_seconds=2,
+            connect=lambda *, port: api.VTubeStudioBridge(socket, port=port),
+            sleep=lambda _: pytest.fail("must not retry revoked credential"),
+            should_stop=lambda: False,
+        )
+    assert socket.closed
+    assert [item["messageType"] for item in socket.sent] == [
+        "AuthenticationRequest",
+    ]
+
+
+def test_watch_requires_existing_owner_token_and_bounded_interval(monkeypatch):
+    from sofia.avatar import vtube_studio_bridge as api
+    monkeypatch.setattr(api, "load_owner_token", lambda: "test-token")
+    for seconds in (-1, 1, 121, float("nan"), float("inf"), True):
+        with pytest.raises(ValueError, match="interval"):
+            api.watch_saved_connection(interval_seconds=seconds)
+    monkeypatch.setattr(
+        api, "load_owner_token",
+        lambda: (_ for _ in ()).throw(api.VTSBridgeError("missing DPAPI token")),
+    )
+    with pytest.raises(api.VTSBridgeError, match="missing DPAPI"):
+        api.reconnect_saved_session(port=9996)
