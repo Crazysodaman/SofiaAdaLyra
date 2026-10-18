@@ -286,3 +286,30 @@ Require `launched_owned`; if it reports `reused_existing`, it will
 **not** own or close that existing instance. When a verified owned
 instance is open, `--close` sends WM_CLOSE (never force-kills).
 This new patch itself has not yet been accepted on Venus.
+
+
+### 2026-10-18 owner-confirmed real Venus process test
+
+Real Windows evidence from the owner:
+- `python -m sofia.avatar.vtube_studio_host --launch` reported
+  `launched_owned`, `started_by_sofia: true`, `may_close: true`,
+  PID `23864`. This verifies VTS was found on `E:\SteamLibrary`,
+  launched from H: without the previous BAT current-directory error, and
+  positively associated with the recorded Sofía-owned process.
+- `--close` returned `graceful_close_requested`,
+  `close_sent: true`, PID `23864`. This **confirms WM_CLOSE
+  dispatch**, not independently that the process exited.
+- New read-only command `python -m sofia.avatar.vtube_studio_host --status`
+  reports the process table state, running instance count, whether
+  Sofía's recorded process remains alive, and whether it's safe to
+  request a close. Run after the close command to verify actual exit.
+- New tests verify `--status` doesn't confuse requested shutdown
+  with a confirmed exit or treat a separately opened user instance
+  as owned. Windows run of these **new** tests is still pending.
+
+The desktop `ExclusiveAvatarRenderer` on `src/sofia/ui/desktop.py`
+currently owns the legacy Tk 2D backend. The new VTS host-demand policy
+is separate and **NOT YET WIRED to a visual session lifecycle**. Do
+not automatically launch the bare VTS app with no approved Cubism model,
+and never claim that receiving a `graceful_close_requested` receipt
+proves an avatar was rendered or VTS exited.
