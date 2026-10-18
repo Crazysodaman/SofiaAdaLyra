@@ -111,12 +111,18 @@ metrics, stale gaps and out-of-order ingestion produce explicit diagnostic
 events rather than labels. Threshold anomaly candidates and false alarms are
 diagnostic only. Placement advice first calls the existing OPS policy with an
 enrolled node identity, fresh telemetry and activity state; its cost annotation
-cannot enroll a host or move work. The existing read-only
+cannot enroll a host or move work. Normal authenticated Fleet operations now
+append bounded passive round-trip evidence only after the pinned-mTLS gateway
+returns an identity-matched result. The advisor requires at least three fresh
+samples for that exact host and enrolled node, publishes its recency-weighted
+latency estimate beside a last-value baseline and uncertainty, and abstains for
+missing, stale, or mismatched evidence. It never sends a probe. The existing read-only
 `ops.placement.choose` capability now requests that annotation after OPS makes
 its deterministic decision; predictor abstention or failure cannot change or
 block the OPS result. A local error-rate circuit breaker disables
 only learned advice and leaves deterministic OPS scheduling active. This codes
-ML-011 through ML-014; real-host accuracy and utility remain unverified.
+ML-011 through ML-014; local requirements are tested, while real-host accuracy,
+utility, and exact-revision CI remain unverified.
 
 MEM now has one optional explicit-feedback projection. It records the final
 eligible retrieval set, accepts authenticated private `relevant`,
