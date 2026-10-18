@@ -72,6 +72,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
 }
 
 FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("test_comfyui_bridge.py", ("pkg_dev", "pkg_integrate")),
     ("test_v18_change_guard.py", ("pkg_verify", "pkg_dev")),
     ("test_v18_five_stage_audit.py", ("pkg_verify",)),
     ("test_v18_success_oracle_contract.py", ("pkg_verify", "pkg_core")),
