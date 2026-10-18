@@ -398,6 +398,22 @@ def test_signed_candidate_corruption_revocation_and_atomic_rollback(canonical_st
         evaluation_id=baseline_evaluation.evaluation_id,
         at=NOW + timedelta(hours=2, minutes=1),
     )
+    with sqlite3.connect(canonical_state_path) as db:
+        db.execute(
+            "UPDATE ml_model_activation SET evaluation_id=NULL WHERE candidate_id=?",
+            (artifacts[0].candidate_id,),
+        )
+    with pytest.raises(PermissionError, match="no verified evaluation lineage"):
+        registry.active(
+            principal_id="sparks", audience_id="local:text",
+            purpose="host-pressure-forecast",
+            at=NOW + timedelta(hours=2, minutes=1, seconds=1),
+        )
+    with sqlite3.connect(canonical_state_path) as db:
+        db.execute(
+            "UPDATE ml_model_activation SET evaluation_id=? WHERE candidate_id=?",
+            (baseline_evaluation.evaluation_id, artifacts[0].candidate_id),
+        )
     equal_evaluation = learning.evaluate(
         dataset.manifest_id, baseline_digest=artifacts[0].artifact_sha256,
         candidate_digest=artifacts[1].artifact_sha256,
@@ -487,6 +503,29 @@ def test_signed_candidate_corruption_revocation_and_atomic_rollback(canonical_st
         at=NOW + timedelta(hours=2, minutes=3),
     ) == artifacts[1].candidate_id
     assert registry.rollback(grant=grant, at=NOW + timedelta(hours=2, minutes=4)) == artifacts[0].candidate_id
+    learning.revoke_source(
+        "telemetry:local:text:0", at=NOW + timedelta(hours=2, minutes=4, seconds=1),
+        approval_ref="owner-ui:withdraw-active-model-source",
+    )
+    with pytest.raises(PermissionError, match="source lineage"):
+        registry.active(
+            principal_id="sparks", audience_id="local:text",
+            purpose="host-pressure-forecast",
+            at=NOW + timedelta(hours=2, minutes=4, seconds=2),
+        )
+    with pytest.raises(PermissionError, match="source lineage"):
+        registry.rollback(
+            grant=grant, at=NOW + timedelta(hours=2, minutes=4, seconds=2),
+        )
+    assert learning.enforce_retention(
+        at=NOW + timedelta(hours=2, minutes=4, seconds=3),
+    )["manifests_deleted"] == 1
+    with pytest.raises(PermissionError, match="evaluation lineage"):
+        registry.active(
+            principal_id="sparks", audience_id="local:text",
+            purpose="host-pressure-forecast",
+            at=NOW + timedelta(hours=2, minutes=4, seconds=4),
+        )
 
     with pytest.raises(PermissionError, match="stale"):
         registry.load(artifacts[1].candidate_id, at=NOW + timedelta(days=31))

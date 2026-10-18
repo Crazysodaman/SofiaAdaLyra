@@ -36,6 +36,13 @@ misrepresented as transfer. Claimed gates are revalidated at point of use, and
 revoked promotion evidence makes a replacement unavailable without deleting
 rollback history.
 
+Every new model activation also stores the exact independently verified
+evaluation ID. Candidate lookup rechecks the activation grant, evaluation and
+manifest digests, scoped sample set, retention, and source/data-use
+revocations. Legacy activation rows without that lineage fail closed. A
+rollback carries the earlier candidate's evaluation lineage forward instead
+of manufacturing new evidence.
+
 ## Revocation and retention
 
 Advanced records share canonical `sofia.db`. The existing application

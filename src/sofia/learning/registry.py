@@ -113,10 +113,15 @@ class CandidateRegistry:
                     candidate_id TEXT NOT NULL, previous_candidate_id TEXT,
                     principal_id TEXT NOT NULL, audience_id TEXT NOT NULL,
                     purpose TEXT NOT NULL, activated_at TEXT NOT NULL,
-                    grant_id TEXT NOT NULL,
+                    grant_id TEXT NOT NULL, evaluation_id TEXT,
                     rollback INTEGER NOT NULL
                 );
             """)
+            activation_columns = {
+                row[1] for row in db.execute("PRAGMA table_info(ml_model_activation)")
+            }
+            if "evaluation_id" not in activation_columns:
+                db.execute("ALTER TABLE ml_model_activation ADD COLUMN evaluation_id TEXT")
 
     def attach_generalization_gate(
         self, gate: Callable[..., None], *, validator: Callable[..., bool],
@@ -400,12 +405,89 @@ class CandidateRegistry:
                     _transaction_db=db,
                 )
             db.execute(
-                "INSERT INTO ml_model_activation(candidate_id,previous_candidate_id,principal_id,audience_id,purpose,activated_at,grant_id,rollback) "
-                "VALUES(?,?,?,?,?,?,?,0)",
+                "INSERT INTO ml_model_activation(candidate_id,previous_candidate_id,principal_id,audience_id,purpose,activated_at,grant_id,evaluation_id,rollback) "
+                "VALUES(?,?,?,?,?,?,?,?,0)",
                 (candidate_id, None if prior is None else prior[0],
                  grant.principal_id, grant.audience_id, grant.purpose,
-                 at.astimezone(timezone.utc).isoformat(), grant.grant_id),
+                 at.astimezone(timezone.utc).isoformat(), grant.grant_id,
+                 evaluation_id),
             )
+
+    def _validate_active_lineage(
+        self, db, *, candidate_digest: str,
+        evaluation_id: str | None, grant_id: str, principal_id: str,
+        audience_id: str, purpose: str, at: datetime,
+    ) -> None:
+        """Revalidate activation authority and every evaluated source at use."""
+        moment = at.astimezone(timezone.utc).isoformat()
+        if not evaluation_id:
+            raise PermissionError("active candidate has no verified evaluation lineage")
+        grant = db.execute(
+            "SELECT g.principal_id,g.audience_id,g.purpose,g.expires_at,r.grant_id "
+            "FROM ml_data_use_grant g LEFT JOIN ml_data_use_revocation r "
+            "ON r.grant_id=g.grant_id WHERE g.grant_id=?", (grant_id,),
+        ).fetchone()
+        if (
+            grant is None or tuple(grant[:3]) != (principal_id, audience_id, purpose)
+            or grant[3] <= moment or grant[4] is not None
+        ):
+            raise PermissionError("active candidate deployment grant is unavailable")
+        evaluation = db.execute(
+            "SELECT body_json FROM ml_evaluation WHERE evaluation_id=?",
+            (evaluation_id,),
+        ).fetchone()
+        if evaluation is None:
+            raise PermissionError("active candidate evaluation lineage is unavailable")
+        body = json.loads(evaluation[0])
+        expected_evaluation = "ml-evaluation:" + sha256(json.dumps(
+            body, sort_keys=True, separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")).hexdigest()
+        if evaluation_id != expected_evaluation or body.get("candidate_digest") != candidate_digest:
+            raise PermissionError("active candidate evaluation lineage changed")
+        manifest = db.execute(
+            "SELECT body_json,record_digest FROM ml_dataset_manifest WHERE manifest_id=?",
+            (body.get("manifest_id"),),
+        ).fetchone()
+        if manifest is None:
+            raise PermissionError("active candidate dataset lineage is unavailable")
+        manifest_body = json.loads(manifest[0])
+        manifest_digest = sha256(json.dumps(
+            manifest_body, sort_keys=True, separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")).hexdigest()
+        manifest_basis = {
+            key: value for key, value in manifest_body.items() if key != "manifest_id"
+        }
+        expected_manifest = "ml-dataset:" + sha256(json.dumps(
+            manifest_basis, sort_keys=True, separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")).hexdigest()
+        if (
+            manifest[1] != manifest_digest
+            or manifest_body.get("manifest_id") != expected_manifest
+            or tuple((manifest_body.get("principal_id"), manifest_body.get("audience_id"),
+                      manifest_body.get("purpose"))) != (principal_id, audience_id, purpose)
+        ):
+            raise PermissionError("active candidate dataset lineage changed")
+        sample_ids = tuple(manifest_body.get("sample_ids", ()))
+        if not sample_ids:
+            raise PermissionError("active candidate dataset lineage is empty")
+        marks = ",".join("?" for _ in sample_ids)
+        invalid = db.execute(
+            f"SELECT 1 FROM ml_grounded_sample s "
+            f"JOIN ml_data_use_grant g ON g.grant_id=s.grant_id "
+            f"LEFT JOIN ml_data_use_revocation gr ON gr.grant_id=g.grant_id "
+            f"LEFT JOIN ml_source_revocation sr ON sr.source_ref=s.source_ref "
+            f"LEFT JOIN ml_source_revocation orv ON orv.source_ref=s.outcome_ref "
+            f"WHERE s.sample_id IN ({marks}) AND (s.retention_until<=? "
+            f"OR g.expires_at<=? OR gr.grant_id IS NOT NULL "
+            f"OR sr.source_ref IS NOT NULL OR orv.source_ref IS NOT NULL) LIMIT 1",
+            (*sample_ids, moment, moment),
+        ).fetchone()
+        present = db.execute(
+            f"SELECT COUNT(*) FROM ml_grounded_sample WHERE sample_id IN ({marks})",
+            sample_ids,
+        ).fetchone()[0]
+        if invalid is not None or present != len(sample_ids):
+            raise PermissionError("active candidate source lineage is revoked or expired")
 
     def active(
         self, *, principal_id: str, audience_id: str, purpose: str,
@@ -413,7 +495,8 @@ class CandidateRegistry:
     ) -> str | None:
         with closing(self._guard.connect(timeout=10)) as db:
             row = db.execute(
-                "SELECT candidate_id,previous_candidate_id FROM ml_model_activation "
+                "SELECT candidate_id,previous_candidate_id,evaluation_id,grant_id "
+                "FROM ml_model_activation "
                 "WHERE principal_id=? AND audience_id=? AND purpose=? "
                 "ORDER BY revision DESC LIMIT 1",
                 (principal_id, audience_id, purpose),
@@ -434,6 +517,11 @@ class CandidateRegistry:
                 "SELECT 1 FROM ga_candidate_promotion_gate WHERE candidate_id=?",
                 (row[0],),
             ).fetchone() is not None
+            self._validate_active_lineage(
+                db, candidate_digest=digest,
+                evaluation_id=row[2], grant_id=row[3], principal_id=principal_id,
+                audience_id=audience_id, purpose=purpose, at=at,
+            )
         replacement = row[1] is not None
         if (replacement or has_gate) and self._generalization_validator is None:
             raise PermissionError("candidate requires unavailable generalization revalidation")
@@ -471,12 +559,29 @@ class CandidateRegistry:
             ).fetchone()
             if latest != current:
                 raise RuntimeError("active candidate changed during rollback")
+            target = db.execute(
+                "SELECT evaluation_id FROM ml_model_activation "
+                "WHERE candidate_id=? AND principal_id=? AND audience_id=? AND purpose=? "
+                "AND evaluation_id IS NOT NULL ORDER BY revision DESC LIMIT 1",
+                (current[1], grant.principal_id, grant.audience_id, grant.purpose),
+            ).fetchone()
+            if target is None:
+                raise PermissionError("rollback candidate has no verified evaluation lineage")
+            target_digest = db.execute(
+                "SELECT artifact_sha256 FROM ml_model_candidate WHERE candidate_id=?",
+                (current[1],),
+            ).fetchone()[0]
+            self._validate_active_lineage(
+                db, candidate_digest=target_digest, evaluation_id=target[0],
+                grant_id=grant.grant_id, principal_id=grant.principal_id,
+                audience_id=grant.audience_id, purpose=grant.purpose, at=at,
+            )
             db.execute(
-                "INSERT INTO ml_model_activation(candidate_id,previous_candidate_id,principal_id,audience_id,purpose,activated_at,grant_id,rollback) "
-                "VALUES(?,?,?,?,?,?,?,1)",
+                "INSERT INTO ml_model_activation(candidate_id,previous_candidate_id,principal_id,audience_id,purpose,activated_at,grant_id,evaluation_id,rollback) "
+                "VALUES(?,?,?,?,?,?,?,?,1)",
                 (current[1], current[0], grant.principal_id,
                  grant.audience_id, grant.purpose,
-                 at.astimezone(timezone.utc).isoformat(), grant.grant_id),
+                 at.astimezone(timezone.utc).isoformat(), grant.grant_id, target[0]),
             )
         return current[1]
 

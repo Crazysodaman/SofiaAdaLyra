@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "task_id": "GA-031",
+      "original_requirement": "Propagate correction, deletion, and data-use revocation into lessons, skills, features, associations, and learned models.",
+      "existing_behavior": "Learning retention deleted revoked samples, manifests, and evaluations; memory ranking and NEURO associations already failed closed against canonical memory lifecycle changes.",
+      "missing_requirement": "An activated model did not persist its evaluation ID and therefore could outlive deleted or revoked evaluation lineage.",
+      "production_caller": "CandidateRegistry.active and CandidateRegistry.rollback.",
+      "regression_tests": "test/test_learning_foundation.py plus memory ranking, deletion, and association suites"
+    }
+  ],
+  "reviewed_existing_paths": {
+    "src/sofia/learning/registry.py": {
+      "before": "CREATE TABLE IF NOT EXISTS ml_model_activation(",
+      "preserved": "CandidateRegistry remains the sole signed candidate activation and rollback owner.",
+      "reason": "Persist exact evaluation lineage and revalidate all ancestors at point of use."
+    }
+  },
+  "approved_removals": []
+}
