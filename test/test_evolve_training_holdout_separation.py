@@ -81,6 +81,27 @@ def test_different_file_hashes_do_not_prove_independent_heldout(tmp_path):
     assert "share instruction examples" in "; ".join(review.blockers)
 
 
+def test_internal_whitespace_variants_do_not_leak_heldout(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = TrainingDatasetStore(state)
+    first = tmp_path / "training.jsonl"
+    second = tmp_path / "heldout.jsonl"
+    create_dataset(
+        first, prompt="Explain  public  motor test number {i}",
+        answer="Neutral engineering example alpha {i}",
+    )
+    create_dataset(
+        second, prompt="Explain\\tpublic motor test number {i}",
+        answer="Independent-looking response beta {i}",
+    )
+    train = add_review(store, first, "training")
+    heldout = add_review(store, second, "heldout")
+    review = assess_registered_adaptation(plan(train, heldout), dataset_store=store)
+    assert not review.research_eligible
+    assert not review.production_install_authorized
+    assert "share instruction examples" in "; ".join(review.blockers)
+
+
 def test_disjoint_verified_prompts_remain_research_eligible_not_train_authorized(tmp_path):
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = TrainingDatasetStore(state)
