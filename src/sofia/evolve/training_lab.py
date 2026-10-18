@@ -150,7 +150,7 @@ def assess_training_lab(
 )->TrainingLabReview:
     if not isinstance(plan,TrainingLabPlan) or not isinstance(dataset_store,TrainingDatasetStore):
         raise TypeError("typed owner plan and canonical source review required")
-    if at.tzinfo is None or at.utcoffset() is None:
+    if not isinstance(at, datetime) or at.tzinfo is None or at.utcoffset() is None:
         raise ValueError("aware plan review time required")
     source=assess_registered_adaptation(
         AdaptationPlan(
