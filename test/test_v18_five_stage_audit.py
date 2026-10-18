@@ -50,8 +50,28 @@ def test_all_required_evidence_paths_needed_for_partial_status(tmp_path):
         target.write_text("draft", encoding="utf-8")
     report = module.build(tmp_path, SHA)
     item = next(t for t in report["tasks"] if t["task_id"] == "CA-3101")
-    assert item["stage"] == "CODED_UNFINISHED"
+    # Completed architecture drafts are inspected, not production code.
+    # Documentation alone may not inflate the coded Stage 2 count.
+    assert item["stage"] == "NOT_WORKED_ON"
+    assert item["audit_depth"] == "targeted_source_or_draft_check"
     assert report["counts"]["TESTED"] == 0
+
+
+def test_source_and_regression_trace_produces_only_stage_two(tmp_path, monkeypatch):
+    fixture_repo(tmp_path)
+    source = tmp_path / "src" / "sofia" / "life" / "coordinator.py"
+    regression = tmp_path / "test" / "test_life.py"
+    for path in (source, regression):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# existing source reference\\n", encoding="utf-8")
+    monkeypatch.setitem(module.TRACED, "CA-111", [
+        "src/sofia/life/coordinator.py", "test/test_life.py",
+    ])
+    report = module.build(tmp_path, SHA)
+    item = next(t for t in report["tasks"] if t["task_id"] == "CA-111")
+    assert item["stage"] == "CODED_UNFINISHED"
+    assert item["production_entrypoint"] is None
+    assert report["counts"]["PRODUCTION_CODED"] == 0
 
 
 def test_sparse_audited_evidence_promotes_only_exact_task(tmp_path):
