@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,18 +20,20 @@ class CircuitCompetition:
         lateral_inhibition: float = 0.22, decay: float = 0.12,
     ) -> None:
         for value in (recurrent_excitation, lateral_inhibition, decay):
-            if not 0 <= value <= 0.5:
+            if type(value) not in (int, float) or not isfinite(value) or not 0 <= value <= 0.5:
                 raise ValueError("competition parameters must be in 0..0.5")
         self.recurrent_excitation = recurrent_excitation
         self.lateral_inhibition = lateral_inhibition
         self.decay = decay
 
     def run(self, inputs: dict[str, float], *, iterations: int = 6) -> CompetitionResult:
-        if not 1 <= iterations <= 32 or not inputs or len(inputs) > 64:
+        if type(iterations) is not int or not 1 <= iterations <= 32 or not isinstance(inputs, dict) or not inputs or len(inputs) > 64:
             raise ValueError("competition requires 1..64 inputs and 1..32 iterations")
         state = {}
         for key, value in inputs.items():
-            if not isinstance(key, str) or not key or not 0 <= value <= 1:
+            if (not isinstance(key, str) or not key or len(key) > 128
+                    or type(value) not in (int, float) or not isfinite(value)
+                    or not 0 <= value <= 1):
                 raise ValueError("competition inputs require bounded IDs and values")
             state[key] = float(value)
         for _ in range(iterations):
