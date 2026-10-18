@@ -13,6 +13,7 @@ from sofia.application.decision_persistence import CompanionTurnPersistence
 from sofia.application.event_contracts import (
     EventOwnershipProjection,
     ContractErrorState,
+    CanonicalEventOwner,
     project_matrix_event,
 )
 from sofia.cognition.matrix.model import MatrixTrace, EvidenceState
@@ -176,6 +177,11 @@ def project_companion_decision(
         for event in outcome_events
     ):
         raise TypeError("outcome_events must contain typed event projections")
+    # GOALS and LIFE are selections, not effect receipts. Never allow an
+    # arbitrary source-owned envelope to masquerade as a RUN/ACT outcome.
+    for event in outcome_events:
+        if event.owner not in (CanonicalEventOwner.RUN, CanonicalEventOwner.ACT):
+            raise ValueError("decision outcome requires RUN or ACT source owner")
     selected_events = tuple(
         event for event in (selected_goal_event, selected_activity_event)
         if event is not None
