@@ -124,6 +124,32 @@ def test_training_lab_source_rejects_unreviewed_host_privileges_and_costs(tmp_pa
         plan(train,evaluation,**override)
 
 
+@pytest.mark.parametrize("override", [
+    {"guest_ssh_enabled": 1},
+    {"guest_root_execution": "false"},
+    {"canonical_db_mount": None},
+    {"host_secrets_mounted": 0},
+    {"may_train": "no"},
+    {"may_install_model": []},
+])
+def test_training_review_requires_typed_authority_flags(tmp_path, override):
+    _, _, training, heldout = model_and_sources(tmp_path)
+    with pytest.raises(TypeError, match="explicit boolean"):
+        plan(training, heldout, **override)
+
+
+def test_training_guest_identity_must_be_distinct_from_host(tmp_path):
+    _, _, training, heldout = model_and_sources(tmp_path)
+    with pytest.raises(PermissionError, match="cannot reuse enrolled host"):
+        plan(training, heldout, hephaestus_vm_id=ARTEMIS)
+
+
+def test_training_review_rejects_invalid_clock_type(tmp_path):
+    _, dataset_store, training, heldout = model_and_sources(tmp_path)
+    with pytest.raises(ValueError, match="aware plan review time"):
+        assess_training_lab(plan(training, heldout), dataset_store=dataset_store, at=None)
+
+
 def test_venus_gpu_plan_is_not_a_valid_gpu_lease(tmp_path):
     state,ds,training,heldout=model_and_sources(tmp_path)
     pending=plan(
