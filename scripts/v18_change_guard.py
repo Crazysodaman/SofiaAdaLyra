@@ -69,6 +69,18 @@ def verify(repo: Path, manifest: dict, *, base: str, head: str = "HEAD") -> dict
                 for k in ("before", "preserved", "reason")
             ):
                 raise ValueError(f"existing production code changed without review: {path}")
+            # A written assertion of prior behavior is not sufficient.
+            # Verify the claimed source actually existed at the pinned base.
+            previous_path = path
+            if status.startswith("R"):
+                previous_path = next(
+                    (line.split("\\t")[1] for line in statuses.splitlines()
+                     if line.startswith(status + "\\t") and
+                     line.split("\\t")[-1] == path), path,
+                )
+            original = _git(repo, "show", f"{base}:{previous_path}")
+            if evidence["before"] not in original:
+                raise ValueError(f"pre-change source evidence not found at base: {path}")
     unknown = set(reviewed) - {p for _, p in changes}
     if unknown:
         raise ValueError(f"review claims untouched paths: {sorted(unknown)}")
