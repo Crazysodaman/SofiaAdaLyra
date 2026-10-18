@@ -82,3 +82,21 @@ def test_guard_requires_real_ancestor(history):
     repo, base, manifest = history
     with pytest.raises(ValueError, match="ancestor"):
         verify(repo, manifest, base=git(repo, "rev-parse", "HEAD"), head=base)
+
+
+def test_guard_rejects_invented_prechange_evidence(history):
+    repo, base, manifest = history
+    manifest["reviewed_existing_paths"]["src/sofia/feature.py"]["before"] = (
+        "this function never existed"
+    )
+    with pytest.raises(ValueError, match="pre-change source evidence not found"):
+        verify(repo, manifest, base=base)
+
+
+def test_guard_does_not_accept_postchange_source_as_prechange(history):
+    repo, base, manifest = history
+    manifest["reviewed_existing_paths"]["src/sofia/feature.py"]["before"] = (
+        "VALUE = 2"
+    )
+    with pytest.raises(ValueError, match="pre-change source evidence not found"):
+        verify(repo, manifest, base=base)
