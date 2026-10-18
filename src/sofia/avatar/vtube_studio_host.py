@@ -366,6 +366,32 @@ def _post_wm_close(pid: int) -> int:
     return len(windows)
 
 
+def inspect_host_status(*, process_list=None, ownership_file: Path | None = None,
+                        session: int | None = None) -> dict:
+    """Read-only proof of running processes and this user's *actual* ownership.
+
+    A graceful close request is not proof the app exited. This method checks
+    the current process table and matches the recorded PID + start timestamp.
+    """
+    sid = _interactive_windows_session() if session is None else session
+    processes = _processes if process_list is None else process_list
+    owned_file = _record_file() if ownership_file is None else ownership_file
+    record = _read_record(owned_file)
+    running = processes()
+    owned = [
+        p for p in running
+        if record is not None and p.info["pid"] == record.pid
+        and _matches(record, p, sid)
+    ]
+    return {
+        "running": bool(running),
+        "running_instances": len(running),
+        "owned_instance_running": len(owned) == 1,
+        "owned_pid": record.pid if owned else None,
+        "safe_to_close": len(owned) == 1,
+    }
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="Explicit local VTube Studio discovery and owner-safe launch/close"
@@ -374,6 +400,8 @@ def main(argv=None) -> int:
     modes.add_argument("--discover", action="store_true")
     modes.add_argument("--launch", action="store_true")
     modes.add_argument("--close", action="store_true")
+    modes.add_argument("--status", action="store_true",
+                       help="Verify actual process exit and recorded ownership")
     parser.add_argument("--install-dir", type=Path,
                         help="Optional local VTube Studio install directory (any drive)")
     args = parser.parse_args(argv)
@@ -382,6 +410,8 @@ def main(argv=None) -> int:
             report = {"found": str(locate_vtube_studio(explicit=args.install_dir))}
         elif args.launch:
             report = launch_on_demand(install_dir=args.install_dir)
+        elif args.status:
+            report = inspect_host_status()
         else:
             report = request_graceful_close()
         print(json.dumps(report, indent=2))
