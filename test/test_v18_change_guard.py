@@ -8,6 +8,9 @@ import pytest
 from scripts.v18_change_guard import verify
 
 
+pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_verify]
+
+
 def git(repo, *args):
     return subprocess.check_output(["git", "-C", str(repo), *args], text=True).strip()
 

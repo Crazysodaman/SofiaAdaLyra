@@ -534,8 +534,8 @@ def test_ca006_delivery_receipt_identity_is_not_double_counted(
 ):
     _, matrix = _fixture(tmp_path)
     matrix = replace(matrix, evidence=EvidenceMatrix(records=(
-        EvidenceRecord("act", EvidenceState.AVAILABLE, "act:first"),
-        EvidenceRecord("act", EvidenceState.AVAILABLE, "act:second"),
+        EvidenceRecord("act:first", EvidenceState.AVAILABLE, "act:first"),
+        EvidenceRecord("act:second", EvidenceState.AVAILABLE, "act:second"),
     )))
     events = tuple(EventOwnershipProjection(
         schema_version=1, event_id=f"act:{label}",
