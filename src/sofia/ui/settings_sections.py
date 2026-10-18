@@ -1542,6 +1542,13 @@ class SettingsSections:
         self.sql_panel(frames["EVOLVE"], "Grounded ML lineage", "ml_grounded_sample")
         self.sql_panel(frames["EVOLVE"], "Immutable ML datasets", "ml_dataset_manifest")
         self.sql_panel(frames["EVOLVE"], "Independent ML evaluations", "ml_evaluation")
+        self.sql_panel(frames["EVOLVE"], "Sealed generalization suites", "ga_problem_suite")
+        self.sql_panel(frames["EVOLVE"], "Generalization evaluation runs", "ga_evaluation_run")
+        self.sql_panel(frames["EVOLVE"], "Independently computed GA grades", "ga_case_grade")
+        self.sql_panel(frames["EVOLVE"], "Long-horizon GA workflows", "ga_workflow")
+        self.sql_panel(frames["EVOLVE"], "Restart-safe GA checkpoints", "ga_workflow_checkpoint")
+        self.sql_panel(frames["EVOLVE"], "Qualified learned skills", "ga_learned_skill")
+        self.sql_panel(frames["EVOLVE"], "Learned skill lifecycle", "ga_skill_lifecycle")
         self.sql_panel(frames["EVOLVE"], "Fleet pressure shadow forecasts", "ml_fleet_pressure_forecast")
         self.sql_panel(frames["EVOLVE"], "Signed external ML candidates", "ml_model_candidate")
         ttk.Label(

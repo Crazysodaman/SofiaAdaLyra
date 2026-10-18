@@ -116,6 +116,7 @@ from sofia.creative import (
 )
 from sofia.life import LifeProject, SelfDirectedLifeCoordinator
 from sofia.learning import FleetPressurePilot, LearningService
+from sofia.generalization import ExplorationAdmission, GeneralizationService
 from sofia.learning.registry import create_candidate_registry_from_environment
 from sofia.ops.dependencies import DependencyEvidenceStore, default_dependency_registry
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
@@ -356,6 +357,11 @@ class SofiaApplication:
             configuration.state_path,
             artifact_root=(Path(configuration.state_path).parent / "learning" / "candidates").resolve(),
         )
+        self._generalization = GeneralizationService(
+            configuration.state_path, learning=self._learning,
+            admission=self._generalization_admission_state,
+        )
+        self._generalization.attach_workflow_owner(self._goals)
         self._fleet_pressure_pilot = FleetPressurePilot(
             configuration.state_path,
             learning=self._learning,
@@ -434,6 +440,7 @@ class SofiaApplication:
             nicknames=self._nickname_registry,
             share_callback=self._share_life_project,
         )
+        self._generalization.attach_skill_owner(self._life.procedures)
         if "creative.artifact.create" not in self._runtime.capability_system.capability_names():
             creative_capability = CreativeArtifactCapability(
                 self._creative_service,
@@ -655,6 +662,41 @@ class SofiaApplication:
     def learning_candidates(self):
         """Configured signed candidate registry, or None when fail-closed."""
         return self._learning_candidates
+
+    @property
+    def generalization(self) -> GeneralizationService:
+        """Authority-free sealed-suite evaluation and measured diagnostics."""
+        return self._generalization
+
+    def _generalization_admission_state(self) -> ExplorationAdmission:
+        """Project existing foreground and observed host pressure; grant nothing."""
+        import socket
+        from sofia.ops.activity import ActivityMode, HostActivityStore
+
+        activity = HostActivityStore(self._configuration.state_path).state(
+            socket.gethostname()
+        ).effective
+        telemetry = self._neuro_telemetry
+        observed_at = self._neuro_telemetry_at
+        now = datetime.now(timezone.utc)
+        if telemetry is None or observed_at is None or now - observed_at > timedelta(seconds=30):
+            telemetry = collect_local_telemetry()
+            self._neuro_telemetry = telemetry
+            self._neuro_telemetry_at = now
+        snapshot = self._neuro.last_snapshot
+        pressure = 0.0 if snapshot is None else max(
+            snapshot.homeostasis.cognitive_load,
+            snapshot.homeostasis.competition_pressure,
+        )
+        return ExplorationAdmission(
+            busy=activity in {
+                ActivityMode.GAMING, ActivityMode.BUSY,
+                ActivityMode.DO_NOT_DISTURB,
+            },
+            cpu_percent=telemetry.cpu_percent,
+            gpu_percent=telemetry.gpu_percent,
+            resource_pressure=pressure,
+        )
 
     @property
     def fleet_pressure_pilot(self) -> FleetPressurePilot:

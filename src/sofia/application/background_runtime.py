@@ -610,6 +610,27 @@ def create_background_coordinator(
                 ),
             )
 
+    generalization = getattr(application, "_generalization", None)
+    if generalization is not None:
+        def enforce_generalization_retention(now):
+            retired = generalization.expire_retention(now=now, limit=64)
+            invalidated = 0
+            if generalization.skills is not None:
+                invalidated = generalization.skills.reconcile_sources(
+                    now=now, limit=64,
+                )
+            result = {
+                "generalization_suites_retired": retired,
+                "generalization_skills_invalidated": invalidated,
+            }
+            return result if any(result.values()) else None
+
+        coordinator.set_task(
+            "generalization_retention",
+            enforce_generalization_retention,
+            interval_seconds=86400.0,
+        )
+
     life = getattr(application, "_life", None)
     if life is not None:
         def run_independent_life(now):

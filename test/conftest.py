@@ -39,6 +39,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
     "embodiment": ("pkg_avatar",),
     "emotion": ("pkg_core",),
     "environment": ("pkg_environment",),
+    "generalization": ("pkg_verify", "pkg_core", "pkg_safe"),
     "evolve": ("pkg_evolve", "pkg_safe"),
     "filesystem": ("pkg_dev",),
     "habits": ("pkg_habit",),
