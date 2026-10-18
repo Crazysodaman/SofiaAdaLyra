@@ -97,6 +97,7 @@ def test_application_composes_one_generalization_owner_over_goals_run_and_life(t
         assert application.generalization.path == application.chat_state_path
         assert application.generalization.workflows is not None
         assert application.generalization.skills is not None
+        assert application.generalization.advanced is not None
         assert application.generalization.workflows._goals is application.goals
         assert application.generalization.skills._procedures is application.life.procedures
         assert "generalization_retention" in application.background_coordinator._tasks

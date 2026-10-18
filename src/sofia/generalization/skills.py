@@ -346,6 +346,40 @@ class LearnedSkillStore:
             ).fetchall()
         return sum(self.reconcile_source(row[0], now=now) for row in rows)
 
+    def invalidate_revoked_sources(
+        self, evidence_refs: set[str], *, now: datetime, limit: int = 128,
+    ) -> int:
+        """Invalidate derived skills when an exact learning source is revoked."""
+        moment = _utc(now)
+        if type(limit) is not int or not 1 <= limit <= 256:
+            raise ValueError("limit must be in 1..256")
+        if not evidence_refs:
+            return 0
+        changed = 0
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            rows = db.execute(
+                "SELECT skill_id,status,provenance_refs_json FROM ga_learned_skill "
+                "WHERE status IN ('candidate','verified') ORDER BY updated_at LIMIT ?",
+                (limit,),
+            ).fetchall()
+            for row in rows:
+                if not (set(json.loads(row[2])) & evidence_refs):
+                    continue
+                db.execute(
+                    "UPDATE ga_learned_skill SET status='invalidated',updated_at=?,"
+                    "lifecycle_reason='learning source revoked' WHERE skill_id=?",
+                    (moment.isoformat(), row[0]),
+                )
+                db.execute(
+                    "INSERT INTO ga_skill_lifecycle(skill_id,from_status,to_status,reason,evidence_ref,occurred_at) "
+                    "VALUES(?,?,?,?,?,?)",
+                    (row[0], row[1], "invalidated", "learning source revoked",
+                     "revocation:source-lineage", moment.isoformat()),
+                )
+                changed += 1
+        return changed
+
     def transition_lifecycle(
         self, skill_id: str, *, principal: PrincipalContext, to_status: str,
         reason: str, evidence_ref: str, now: datetime,

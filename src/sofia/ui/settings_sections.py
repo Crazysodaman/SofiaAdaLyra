@@ -1549,6 +1549,10 @@ class SettingsSections:
         self.sql_panel(frames["EVOLVE"], "Restart-safe GA checkpoints", "ga_workflow_checkpoint")
         self.sql_panel(frames["EVOLVE"], "Qualified learned skills", "ga_learned_skill")
         self.sql_panel(frames["EVOLVE"], "Learned skill lifecycle", "ga_skill_lifecycle")
+        self.sql_panel(frames["EVOLVE"], "Grounded failure learning", "ga_failure")
+        self.sql_panel(frames["EVOLVE"], "Experience episodes", "ga_experience_episode")
+        self.sql_panel(frames["EVOLVE"], "Tentative environment models", "ga_environment_model")
+        self.sql_panel(frames["EVOLVE"], "Blind transfer studies", "ga_blind_study")
         self.sql_panel(frames["EVOLVE"], "Fleet pressure shadow forecasts", "ml_fleet_pressure_forecast")
         self.sql_panel(frames["EVOLVE"], "Signed external ML candidates", "ml_model_candidate")
         ttk.Label(

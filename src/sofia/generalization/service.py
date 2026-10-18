@@ -52,6 +52,7 @@ class GeneralizationService:
         self._budget = OptionalAutonomyBudget(self.path)
         self.workflows = None
         self.skills = None
+        self.advanced = None
         with closing(self._connect()) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS ga_problem_suite(
@@ -104,7 +105,12 @@ class GeneralizationService:
         if self.workflows is not None:
             raise RuntimeError("generalization workflow owner already attached")
         from .workflow import GeneralizationWorkflowStore
+        from .advanced import AdvancedGeneralizationStore
         self.workflows = GeneralizationWorkflowStore(self.path, goals=goals)
+        self.advanced = AdvancedGeneralizationStore(
+            self.path, goals=goals, admission=self._require_resource_admission,
+            learning=self._learning,
+        )
 
     def attach_skill_owner(self, procedures) -> None:
         """Compose qualification over the existing LIFE procedure catalog."""
@@ -112,6 +118,9 @@ class GeneralizationService:
             raise RuntimeError("generalization skill owner already attached")
         from .skills import LearnedSkillStore
         self.skills = LearnedSkillStore(self.path, procedures=procedures)
+        if self.advanced is None:
+            raise RuntimeError("generalization workflow owner must be attached first")
+        self.advanced.attach_skills(self.skills)
 
     def _connect(self) -> sqlite3.Connection:
         connection = self._guard.connect(timeout=10.0)
@@ -416,7 +425,10 @@ class GeneralizationService:
                 output.append({**dict(row), "graded": grade[0], "objective_successes": grade[1],
                                "mean_partial_score": grade[2]})
         return {"runs": output, "authority": False,
-                "unknown_is_success": False, "model_self_report_is_evidence": False}
+                "unknown_is_success": False, "model_self_report_is_evidence": False,
+                "advanced": None if self.advanced is None else self.advanced.diagnostics(
+                    principal=principal,
+                )}
 
     def expire_run(
         self, run_id: str, *, principal: PrincipalContext, now: datetime,

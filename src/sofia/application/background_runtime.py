@@ -619,9 +619,15 @@ def create_background_coordinator(
                 invalidated = generalization.skills.reconcile_sources(
                     now=now, limit=64,
                 )
+            propagation = (
+                {"episodes_revoked": 0, "principles_invalidated": 0}
+                if generalization.advanced is None
+                else generalization.advanced.propagate_revocations(now=now, limit=128)
+            )
             result = {
                 "generalization_suites_retired": retired,
                 "generalization_skills_invalidated": invalidated,
+                **propagation,
             }
             return result if any(result.values()) else None
 
