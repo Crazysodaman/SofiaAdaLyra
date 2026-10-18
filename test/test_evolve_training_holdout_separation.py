@@ -91,7 +91,7 @@ def test_internal_whitespace_variants_do_not_leak_heldout(tmp_path):
         answer="Neutral engineering example alpha {i}",
     )
     create_dataset(
-        second, prompt="Explain\\tpublic motor test number {i}",
+        second, prompt="Explain\tpublic motor test number {i}",
         answer="Independent-looking response beta {i}",
     )
     train = add_review(store, first, "training")
