@@ -170,12 +170,17 @@ def compose(
     # One canonical memory owner, with opt-in association scoring that can
     # only reorder the already-reviewed, audience-scoped MEM shortlist.
     from sofia.neuro.connectome.association_store import ReviewedAssociationStore
+    from sofia.memory.ranking import MemoryRankingService
+    memory_ranking = MemoryRankingService(
+        configuration.state_path, memory_candidate_store,
+    )
     memory_system = MemorySystem(
         candidate_store=memory_candidate_store,
         historical_store=ChatGPTExportEvidenceStore(
             configuration.state_path
         ),
         association_store=ReviewedAssociationStore(configuration.state_path),
+        ranking_service=memory_ranking,
     )
 
     operational_store = OperationalStore(

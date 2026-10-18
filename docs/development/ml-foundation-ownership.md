@@ -103,6 +103,36 @@ restarted worker coverage, real latency/capacity measurements, error rates and
 rollback must be collected for at least fourteen days before ML-010 can move
 beyond `CODED_UNFINISHED`.
 
+## ML-011 through ML-020 production audit
+
+The Fleet shadow owner now records bounded CPU, RAM, GPU and VRAM targets at
+5, 15 and 30 minutes. Unknown/untrusted hosts, foreground gaming, missing
+metrics, stale gaps and out-of-order ingestion produce explicit diagnostic
+events rather than labels. Threshold anomaly candidates and false alarms are
+diagnostic only. Placement advice first calls the existing OPS policy with an
+enrolled node identity, fresh telemetry and activity state; its cost annotation
+cannot enroll a host or move work. A local error-rate circuit breaker disables
+only learned advice and leaves deterministic OPS scheduling active. This codes
+ML-011 through ML-014; real-host accuracy and utility remain unverified.
+
+MEM now has one optional explicit-feedback projection. It records the final
+eligible retrieval set, accepts authenticated private `relevant`,
+`not_relevant`, `correction`, or `unknown` judgments, and retains exact source
+IDs. Silence creates no row. The bounded scorer needs at least eight known
+labels and three for the query topic; weak, stale, rare-topic, invalid or
+unavailable state falls back to deterministic MEM order. Revocation,
+correction, and point-of-use source/privacy reconciliation invalidate
+influenced models. The scorer receives only MEM's final promoted,
+principal/audience-scoped shortlist and cannot retrieve or authorize anything.
+This codes the core of ML-015 through ML-018. ML-019 remains incomplete until
+independent future conversations provide both baseline and scorer recall@5,
+NDCG@5, timeline/correction truth, and longitudinal source-accuracy evidence.
+
+ML-020 already has explicit, reversible, restart-durable feedback for genuine
+LIFE project invitations and treats silence as unknown. Ordinary non-project
+updates do not yet have the same usefulness/interruptiveness contract, so the
+task remains `CODED_UNFINISHED`.
+
 ## Remaining external acceptance
 
 The foundation can be verified locally and in pinned-revision CI. A real model

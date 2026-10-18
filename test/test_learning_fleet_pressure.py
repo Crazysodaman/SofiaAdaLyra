@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from sofia.learning.contracts import DataUse, DataUseGrant, PredictionMode
 from sofia.learning.fleet_pressure import FleetPressurePilot
+from sofia.learning.fleet_advisory import FleetAdvisoryEngine
 from sofia.learning.service import LearningService
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.ops.history import SQLiteTelemetryHistory
-from sofia.ops.model import HostTelemetry
+from sofia.ops.model import FleetHost, HostLifecycle, HostTelemetry, WorkloadContract
+from sofia.ops.placement import PlacementEngine
 
 
 NOW = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
@@ -72,7 +75,9 @@ def test_fleet_pressure_requires_explicit_data_use_and_respects_gaming(
     assert pilot.tick(at=NOW) is None
     learning.record_grant(_grant())
     ops.activity.set_override("venus", ActivityMode.GAMING, at=NOW)
-    assert pilot.tick(at=NOW, busy=False) is None
+    gaming = pilot.tick(at=NOW, busy=False)
+    assert gaming["resource_targets_skipped"] == 1
+    assert gaming["forecasts_created"] == 0
     assert pilot.diagnostics()["totals"] == {}
     ops.activity.set_override("venus", ActivityMode.AUTO, at=NOW + timedelta(seconds=1))
     learning.set_mode(
@@ -99,6 +104,10 @@ def test_shadow_forecast_settles_from_delayed_telemetry_and_survives_restart(
     assert created == {
         "forecasts_created": 1, "outcomes_settled": 0,
         "outcomes_unknown": 0, "mode": PredictionMode.SHADOW.value,
+        "resource_targets_created": 6,
+        "resource_targets_settled": 0,
+        "resource_targets_skipped": 2,
+        "resource_errors": 0,
     }
     before = pilot.diagnostics()
     assert before["actions_executed"] == 0
@@ -144,3 +153,106 @@ def test_missing_delayed_measurement_is_unknown_not_success(
     unknown = next(row for row in diagnostic["forecasts"] if row["status"] == "unknown")
     assert unknown["actual_percent"] is None
     assert unknown["candidate_error"] is None
+
+
+def test_multi_resource_targets_cover_all_horizons_and_reject_out_of_order(
+    canonical_state_path: Path,
+):
+    learning = LearningService(canonical_state_path, approval_verifier=_ApprovalVerifier())
+    learning.record_grant(_grant())
+    ops = _CanonicalOps(canonical_state_path)
+    for minutes, value in ((-3, 70.0), (-2, 80.0), (-1, 90.0), (0, 98.0)):
+        ops.history.append("venus", HostTelemetry(
+            observed_at=NOW + timedelta(minutes=minutes), cpu_percent=value,
+            ram_used_bytes=int(value), ram_total_bytes=100,
+            gpu_percent=value, vram_used_bytes=int(value), vram_total_bytes=100,
+        ))
+    pilot = FleetPressurePilot(canonical_state_path, learning=learning, ops_service=ops)
+    result = pilot.tick(at=NOW)
+    assert result["resource_targets_created"] == 12
+    diagnostic = pilot.diagnostics()["resource_advisory"]
+    assert diagnostic["horizons_minutes"] == (5, 15, 30)
+    assert diagnostic["resources"] == ("cpu", "ram", "gpu", "vram")
+    assert diagnostic["events"]["anomaly_candidate"] >= 4
+    assert diagnostic["authority"] is False
+    assert diagnostic["actions_executed"] == 0
+
+    # A late source observation is retained by OPS but cannot become a label.
+    ops.history.append("venus", HostTelemetry(
+        observed_at=NOW - timedelta(minutes=10), cpu_percent=5.0,
+        ram_used_bytes=5, ram_total_bytes=100,
+    ))
+    rejected = pilot.tick(at=NOW + timedelta(seconds=1))
+    assert rejected["resource_targets_skipped"] == 1
+    assert pilot.diagnostics()["resource_advisory"]["events"]["skipped"] >= 1
+
+
+def test_anomaly_false_alarm_and_advisory_error_circuit_are_diagnostic_only(
+    canonical_state_path: Path,
+):
+    ops = _CanonicalOps(canonical_state_path)
+    for minutes, value in ((-3, 70.0), (-2, 80.0), (-1, 90.0), (0, 98.0)):
+        ops.history.append("venus", HostTelemetry(
+            observed_at=NOW + timedelta(minutes=minutes), cpu_percent=value,
+            ram_used_bytes=4, ram_total_bytes=16,
+        ))
+    advisor = FleetAdvisoryEngine(canonical_state_path, ops_service=ops)
+    host = {"host_id": "venus", "trusted": True, "lifecycle": "healthy"}
+    assert advisor.observe_host(host, at=NOW)["created"] == 6
+    ops.history.append("venus", HostTelemetry(
+        observed_at=NOW + timedelta(minutes=5), cpu_percent=10.0,
+        ram_used_bytes=4, ram_total_bytes=16,
+    ))
+    assert advisor.observe_host(host, at=NOW + timedelta(minutes=5))["settled"] >= 2
+    assert advisor.diagnostics()["events"]["anomaly_outcome"] >= 1
+
+    class BrokenHistory:
+        def ingestion_window(self, *args, **kwargs):
+            raise RuntimeError("telemetry disconnected")
+
+    ops.history = BrokenHistory()
+    for seconds in range(6, 12):
+        advisor.observe_host(host, at=NOW + timedelta(seconds=seconds))
+    health = advisor.diagnostics()
+    assert health["advisory_enabled"] is False
+    assert "deterministic OPS remains active" in health["disabled_reason"]
+    assert health["deterministic_ops_preserved"] is True
+
+
+def test_placement_advisory_uses_existing_ops_policy_and_requires_mtls_identity(
+    canonical_state_path: Path,
+):
+    ops = _CanonicalOps(canonical_state_path)
+    for minutes, value in ((-3, 20.0), (-2, 22.0), (-1, 24.0), (0, 26.0)):
+        ops.history.append("venus", HostTelemetry(
+            observed_at=NOW + timedelta(minutes=minutes), cpu_percent=value,
+            ram_used_bytes=4, ram_total_bytes=16,
+        ))
+    telemetry = HostTelemetry(
+        observed_at=NOW, cpu_percent=26.0, ram_used_bytes=4, ram_total_bytes=16,
+    )
+
+    class Registry:
+        def __init__(self, node_id):
+            self.node_id = node_id
+
+        def hosts(self):
+            return (FleetHost(
+                "venus", "linux", "x86_64", HostLifecycle.HEALTHY, True,
+                telemetry=telemetry, node_id=self.node_id,
+            ),)
+
+    ops.registry = Registry(uuid4())
+    ops.placement = PlacementEngine()
+    advisor = FleetAdvisoryEngine(canonical_state_path, ops_service=ops)
+    advisor.observe_host({"host_id": "venus", "trusted": True, "lifecycle": "healthy"}, at=NOW)
+    workload = WorkloadContract(
+        "read-only-check", "1", ("linux",), ("x86_64",), min_ram_bytes=1,
+    )
+    suggestion = advisor.placement_advisory(workload, at=NOW)
+    assert suggestion["suggested_host_id"] == "venus"
+    assert suggestion["authority"] is False
+    assert suggestion["can_move_workload"] is False
+
+    ops.registry = Registry(None)
+    assert advisor.placement_advisory(workload, at=NOW) is None

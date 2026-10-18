@@ -303,6 +303,7 @@ class SofiaApplication:
             conversation_store=conversation_store,
             candidate_store=candidate_store,
             state_path=configuration.state_path,
+            ranking_service=self._runtime.memory_system.ranking_service,
         )
         self._conversation_learning = ConversationLearningCoordinator(
             self._memory_review

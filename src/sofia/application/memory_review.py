@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sofia.conversation.store import ConversationStore
@@ -8,6 +8,7 @@ from sofia.memory.originals import ConversationOriginalRetriever, OriginalRetrie
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.reviewed_workflow import ReviewedMemoryWorkflow
+from sofia.memory.ranking import MemoryRankingService, RelevanceJudgment
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.social.store import SocialSessionStore
@@ -22,6 +23,7 @@ class MemoryReviewService:
         conversation_store: ConversationStore,
         candidate_store: DurableMemoryCandidateStore,
         state_path,
+        ranking_service: MemoryRankingService | None = None,
     ) -> None:
         if not isinstance(conversation_store, ConversationStore):
             raise TypeError("conversation_store must be a ConversationStore")
@@ -32,6 +34,9 @@ class MemoryReviewService:
         self._social = SocialSessionStore(state_path)
         self._workflow = ReviewedMemoryWorkflow(
             self._originals, candidate_store, self._social,
+        )
+        self._ranking = ranking_service or MemoryRankingService(
+            state_path, candidate_store,
         )
 
     def propose(
@@ -152,6 +157,7 @@ class MemoryReviewService:
     ) -> None:
         self._require_current_review_scope(candidate_id, approved_by)
         self._candidates.revoke(candidate_id)
+        self._invalidate_ranking(candidate_id, "owner revoked canonical memory")
 
     def link_correction(
         self, replacement_id: UUID, superseded_id: UUID, *,
@@ -161,6 +167,9 @@ class MemoryReviewService:
         self._require_current_review_scope(replacement_id, approved_by)
         self._require_current_review_scope(superseded_id, approved_by)
         self._candidates.link_correction(replacement_id, superseded_id)
+        self._invalidate_ranking(
+            superseded_id, f"owner linked correction {replacement_id}",
+        )
 
     def set_expiration(
         self, candidate_id: UUID, *, expires_at: datetime | None,
@@ -178,3 +187,40 @@ class MemoryReviewService:
 
     def status(self, candidate_id: UUID) -> CandidateStatus | None:
         return self._candidates.status(candidate_id)
+
+    def _invalidate_ranking(self, candidate_id: UUID, reason: str) -> None:
+        """Invalidate derived influence when the optional projection exists.
+
+        Minimal compatibility fixtures predating the projection construct this
+        service without running ``__init__``. Production composition always
+        supplies the canonical service; absence grants no learned influence.
+        """
+        ranking = getattr(self, "_ranking", None)
+        if ranking is not None:
+            ranking.invalidate_candidate(
+                candidate_id, reason=reason, at=datetime.now(timezone.utc),
+            )
+
+    def record_relevance_feedback(
+        self, *, retrieval_id: str, candidate_id: UUID, feedback: str,
+        approved_by: PrincipalContext, at: datetime,
+        preferred_over_id: UUID | None = None,
+    ) -> str:
+        """Store one explicit judgment for a previously eligible retrieval."""
+        self._require_current_review_scope(candidate_id, approved_by)
+        try:
+            judgment = RelevanceJudgment(feedback)
+        except ValueError as exc:
+            raise ValueError("feedback must be relevant, not_relevant, correction, or unknown") from exc
+        return self._ranking.record_judgment(
+            retrieval_id=retrieval_id, candidate_id=candidate_id,
+            judgment=judgment, principal=approved_by, at=at,
+            preferred_over_id=preferred_over_id,
+        )
+
+    def train_relevance_ranker(
+        self, *, approved_by: PrincipalContext, at: datetime,
+    ) -> str | None:
+        """Build a bounded scoped scorer; this grants no recall eligibility."""
+        self._require_sparks_reviewer(approved_by)
+        return self._ranking.train(principal=approved_by, at=at)

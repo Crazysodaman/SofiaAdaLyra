@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.historical import HistoricalConversationEvidence
 from sofia.memory.model import MemoryRecord
@@ -23,6 +25,7 @@ class MemorySystem:
         candidate_store: DurableMemoryCandidateStore,
         historical_store: ChatGPTExportEvidenceStore | None = None,
         association_store=None,
+        ranking_service=None,
     ) -> None:
         if (
             not isinstance(
@@ -55,6 +58,11 @@ class MemorySystem:
             if not isinstance(association_store, ReviewedAssociationStore):
                 raise TypeError("association_store must be canonical ReviewedAssociationStore")
         self._association_store = association_store
+        if ranking_service is not None:
+            from sofia.memory.ranking import MemoryRankingService
+            if not isinstance(ranking_service, MemoryRankingService):
+                raise TypeError("ranking_service must be MemoryRankingService")
+        self._ranking_service = ranking_service
 
     @property
     def candidate_store(
@@ -66,6 +74,10 @@ class MemorySystem:
     @property
     def historical_store(self) -> ChatGPTExportEvidenceStore | None:
         return self._historical_store
+
+    @property
+    def ranking_service(self):
+        return self._ranking_service
 
 
     def recall_relevant(
@@ -169,7 +181,7 @@ class MemorySystem:
         projection = retrieve_promoted(
             candidate_store,
             query,
-            limit=limit,
+            limit=max(limit, 16) if self._ranking_service is not None else limit,
             budget_characters=(
                 self.DEFAULT_RETRIEVAL_BUDGET_CHARACTERS
             ),
@@ -234,7 +246,18 @@ class MemorySystem:
                 )
             )
 
-        return tuple(records)
+        result = tuple(records)
+        if self._ranking_service is not None:
+            try:
+                result = self._ranking_service.rank(
+                    query, result, principal=principal,
+                    at=datetime.now(timezone.utc),
+                )
+            except Exception:
+                # Learned ranking is optional. Canonical MEM eligibility and
+                # deterministic order remain available on scorer failure.
+                pass
+        return result[:limit]
 
 
     def open(self) -> None:

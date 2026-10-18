@@ -121,6 +121,42 @@ class SQLiteTelemetryHistory:
             result.append(HostTelemetry(**raw))
         return tuple(result)
 
+    def ingestion_window(
+        self,
+        host_id: str,
+        *,
+        through: datetime,
+        limit: int = 64,
+    ) -> tuple[HostTelemetry, ...]:
+        """Return a bounded point-in-time window in source ingestion order.
+
+        Forecast labels must not silently reorder late or replayed telemetry.
+        This view lets a consumer reject a non-monotonic source sequence while
+        ``observations`` remains the canonical chronological query for OPS UI.
+        """
+        if not isinstance(host_id, str) or not host_id.strip():
+            raise ValueError("host_id required")
+        if through.tzinfo is None or through.utcoffset() is None:
+            raise ValueError("through must be timezone-aware")
+        if type(limit) is not int or not 1 <= limit <= 512:
+            raise ValueError("limit must be in [1, 512]")
+        cutoff = through.astimezone(timezone.utc).isoformat()
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT payload_json FROM ("
+                "SELECT row_id,payload_json FROM ops_telemetry_history "
+                "WHERE host_id=? AND observed_at<=? ORDER BY row_id DESC LIMIT ?"
+                ") ORDER BY row_id",
+                (host_id, cutoff, limit),
+            ).fetchall()
+        result = []
+        for row in rows:
+            raw = json.loads(row[0])
+            raw.pop("host_id", None)
+            raw["observed_at"] = datetime.fromisoformat(raw["observed_at"])
+            result.append(HostTelemetry(**raw))
+        return tuple(result)
+
     def _migrate_legacy(self, legacy_path: Path) -> None:
         if not legacy_path.is_file():
             return

@@ -19,6 +19,7 @@ from sofia.ops.activity import ActivityMode
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .contracts import DataUse, OutcomeClass, Prediction, PredictionMode, SourceClass
+from .fleet_advisory import FleetAdvisoryEngine
 from .service import GroundedSample, LearningService
 
 
@@ -87,6 +88,7 @@ class FleetPressurePilot:
         self._horizon = horizon
         self._max_source_age = max_source_age
         self._retention = retention
+        self._advisory = FleetAdvisoryEngine(state_path, ops_service=ops_service)
         if horizon <= timedelta(0) or horizon > timedelta(hours=1):
             raise ValueError("forecast horizon must be in (0, 1 hour]")
         if max_source_age <= timedelta(0) or max_source_age > timedelta(hours=1):
@@ -348,20 +350,31 @@ class FleetPressurePilot:
             return None
         settled, unknown = self._settle(at=moment, grant=grant)
         created = 0
+        resource_created = resource_settled = resource_skipped = resource_errors = 0
         # Fleet registry is authoritative, but one optional tick must remain
         # cheap even when many enrolled workers exist.
         for host in self._ops.fleet()[:32]:
+            advisory = self._advisory.observe_host(host, at=moment)
+            resource_created += advisory["created"]
+            resource_settled += advisory["settled"]
+            resource_skipped += advisory["skipped"]
+            resource_errors += advisory["errors"]
             if not host.get("trusted") or host.get("lifecycle") not in {"enrolled", "healthy"}:
                 continue
             activity = self._ops.activity.state(host["host_id"]).effective
             if activity in {ActivityMode.GAMING, ActivityMode.BUSY, ActivityMode.DO_NOT_DISTURB}:
                 continue
             created += int(self._forecast_host(host["host_id"], at=moment, grant=grant) is not None)
-        if not any((created, settled, unknown)):
+        if not any((created, settled, unknown, resource_created, resource_settled,
+                    resource_skipped, resource_errors)):
             return None
         return {
             "forecasts_created": created, "outcomes_settled": settled,
             "outcomes_unknown": unknown, "mode": self._learning.mode().value,
+            "resource_targets_created": resource_created,
+            "resource_targets_settled": resource_settled,
+            "resource_targets_skipped": resource_skipped,
+            "resource_errors": resource_errors,
         }
 
     def enforce_retention(self, *, at: datetime, limit: int = 500) -> int:
@@ -382,6 +395,10 @@ class FleetPressurePilot:
                     "DELETE FROM ml_fleet_pressure_forecast WHERE forecast_id=?", rows,
                 )
         return len(rows)
+
+    def placement_advisory(self, workload, *, at: datetime) -> dict[str, object] | None:
+        """Delegate eligibility to OPS and add a no-authority cost annotation."""
+        return self._advisory.placement_advisory(workload, at=at)
 
     def diagnostics(self, *, limit: int = 50) -> dict[str, object]:
         if type(limit) is not int or not 1 <= limit <= 200:
@@ -426,4 +443,5 @@ class FleetPressurePilot:
                 "last_value_error": row[10], "ewma_error": row[11],
                 "mode": row[12], "outcome_ref": row[13],
             } for row in rows),
+            "resource_advisory": self._advisory.diagnostics(),
         }
