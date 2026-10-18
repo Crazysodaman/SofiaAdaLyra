@@ -65,7 +65,7 @@ def test_existing_instance_is_not_owned_and_is_never_launched(tmp_path):
     existing = FakeProcess(22, 1234.0, tmp_path / "VTube Studio.exe")
     result = host.launch_on_demand(
         session=1, process_list=lambda: [existing],
-        startfile=lambda _: pytest.fail("must not relaunch an already-running VTS"),
+        startfile=lambda *args, **kwargs: pytest.fail("must not relaunch an already-running VTS"),
         ownership_file=tmp_path / "owned.json",
     )
     assert result["result"] == "reused_existing"
@@ -90,11 +90,12 @@ def test_owned_process_may_request_graceful_close_only(tmp_path):
     record = tmp_path / "owner.json"
     result = host.launch_on_demand(
         install_dir=install, session=3, ownership_file=record,
-        process_list=processes, startfile=started.append,
+        process_list=processes,
+        startfile=lambda path, *, cwd: started.append((path, cwd)),
         sleep=lambda _sec: None,
     )
     assert result["result"] == "launched_owned"
-    assert started == [str(install / "start_without_steam.bat")]
+    assert started == [(str(install / "start_without_steam.bat"), str(install))]
     assert json.loads(record.read_text())["pid"] == 450
     requested = []
     closed = host.request_graceful_close(
@@ -148,3 +149,42 @@ def test_invalid_host_platform_fails_safe(monkeypatch):
     monkeypatch.setattr(host.sys, "platform", "linux")
     with pytest.raises(host.AvatarHostError, match="requires Windows"):
         host._interactive_windows_session()
+
+
+def test_steamfree_bat_launch_workdir_is_install_dir_not_checkout(tmp_path, monkeypatch):
+    """Regression for Windows: START ./"VTube Studio.exe" failed on H: when installed on E:."""
+    install = _create_vts(tmp_path / "E-drive" / "SteamLibrary" / "steamapps" / "common" / "VTube Studio")
+    checkout = tmp_path / "H-drive" / "Users" / "SofiaAdaLyra"
+    checkout.mkdir(parents=True)
+    monkeypatch.chdir(checkout)
+    calls = []
+    outcome = host.launch_on_demand(
+        install_dir=install, session=2,
+        ownership_file=tmp_path / "no-launch-record.json",
+        process_list=lambda: [],
+        startfile=lambda file, *, cwd: calls.append((file, cwd)),
+        sleep=lambda _seconds: None, wait_iterations=1,
+    )
+    assert calls == [(str(install / "start_without_steam.bat"), str(install))]
+    assert Path.cwd() == checkout  # Sofía's own cwd must never change
+    assert outcome["result"] == "launch_not_verified"
+    assert outcome["started_by_sofia"] is False
+    assert outcome["may_close"] is False
+    assert not (tmp_path / "no-launch-record.json").exists()
+
+
+def test_launcher_fails_closed_if_batch_start_raises(tmp_path):
+    install = _create_vts(tmp_path / "SteamLibrary" / "steamapps" / "common" / "VTube Studio")
+    record = tmp_path / "record.json"
+
+    def fail_launch(path, *, cwd):
+        assert cwd == str(install)
+        raise OSError("simulated launch error")
+
+    with pytest.raises(OSError, match="simulated launch"):
+        host.launch_on_demand(
+            install_dir=install, session=1,
+            ownership_file=record, process_list=lambda: [],
+            startfile=fail_launch,
+        )
+    assert not record.exists()
