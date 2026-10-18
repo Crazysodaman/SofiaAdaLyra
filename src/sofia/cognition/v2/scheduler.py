@@ -47,17 +47,18 @@ class ValidatedCognitiveScheduler:
             raise TypeError("requirement must be ReasoningRequirement")
         effective = requirement
         reason_parts = [_BASE_BUDGETS[requirement].reason]
+        # Validated, bounded advice is optional. Keep this helper in scope
+        # even when no NEURO snapshot exists: ordinary turns must never
+        # depend on having a learned/observed salience source.
+        def bounded(value: object) -> float:
+            if type(value) not in (int, float) or not isfinite(value):
+                return 0.0
+            return max(0.0, min(1.0, float(value)))
+
         load = 0.0
         pressure = 0.0
         if neuro_snapshot is not None:
             homeostasis = getattr(neuro_snapshot, "homeostasis", None)
-            # Learned/observed pressure is advice, not authority. Malformed
-            # host telemetry must not produce NaN budgets or crash routing.
-            def bounded(value: object) -> float:
-                if type(value) not in (int, float) or not isfinite(value):
-                    return 0.0
-                return max(0.0, min(1.0, float(value)))
-
             load = bounded(getattr(homeostasis, "cognitive_load", 0.0))
             pressure = bounded(getattr(homeostasis, "competition_pressure", 0.0))
             focus = getattr(neuro_snapshot, "focus", None)
