@@ -180,6 +180,11 @@ def project_companion_decision(
         event for event in (selected_goal_event, selected_activity_event)
         if event is not None
     )
+    # Duplicate source-event IDs cannot represent independent decisions or
+    # outcomes. Fail closed rather than rendering the same receipt twice.
+    linked_events = (*selected_events, *outcome_events)
+    if len({event.event_id for event in linked_events}) != len(linked_events):
+        raise ValueError("duplicate canonical decision event identity")
     # A canonical event can be correctly owned yet unusable for this turn:
     # revoked, failed, expired or future observations are not eligible inputs
     # to a claimed decision or outcome. Never silently upgrade such records.
