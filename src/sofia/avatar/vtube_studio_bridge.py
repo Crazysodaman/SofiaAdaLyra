@@ -159,14 +159,16 @@ class VTubeStudioBridge:
     def __exit__(self, _type, _value, _tb):
         self.close()
 
-    def _send(self, message_type: str, data: dict | None = None) -> dict:
+    def _send(self, message_type: str, data: dict | None = None, *, timeout: int = 3) -> dict:
         if self._closed:
             raise VTSBridgeError("VTS connection is closed")
         envelope = request(message_type, data)
         try:
             self._socket.send(json.dumps(envelope, separators=(",", ":")))
-            raw = self._socket.recv(timeout=3)
-        except (OSError, TimeoutError, ConnectionError) as exc:
+            raw = self._socket.recv(timeout=timeout)
+        except Exception as exc:
+            # Optional WebSocket libraries expose their own closed/timeout
+            # exception families. Never include raw responses or credentials.
             self._authenticated = False
             raise VTSBridgeError("VTS request failed; connection or timeout") from exc
         if not isinstance(raw, str) or len(raw) > _MAX_MESSAGE:
@@ -205,7 +207,7 @@ class VTubeStudioBridge:
         """
         data = self._send("AuthenticationTokenRequest", {
             "pluginName": _PLUGIN_NAME, "pluginDeveloper": _PLUGIN_DEVELOPER,
-        })
+        }, timeout=90)
         token = data.get("authenticationToken")
         if not isinstance(token, str) or not 1 <= len(token) <= 64 or not token.isascii():
             raise VTSBridgeError("VTS did not return an owner-approved token")
