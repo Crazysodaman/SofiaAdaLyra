@@ -256,8 +256,19 @@ def test_enrolled_remote_read_only_inspection_needs_no_human_grant(
     )
 
     assert result["outcome"] == "reported_success"
+    assert result["latency_observation"] == "recorded"
     assert any(item[0] == "policy" for item in calls)
     assert any(item[0] == "invoke" for item in calls)
+
+    class BrokenLatency:
+        @staticmethod
+        def append_authenticated(**_kwargs):
+            raise RuntimeError("diagnostic store unavailable")
+
+    service._latency = BrokenLatency()
+    repeated = service.invoke(str(node_id), "system.inspect", "hardware", {})
+    assert repeated["outcome"] == "reported_success"
+    assert repeated["latency_observation"] == "unavailable"
 
 
 def test_remote_mutation_without_human_grant_stays_denied(

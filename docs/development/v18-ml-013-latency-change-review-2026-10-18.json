@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "task_id": "ML-013",
+      "original_requirement": "Produce advisory host-placement cost/latency predictions only after mTLS trust, fresh capacity and current gaming checks pass; send eligible suggestions to existing Fleet/OPS policy owner.",
+      "existing_behavior": "FleetAdvisoryEngine annotates the existing OPS placement result with fresh resource forecasts after enrollment and gaming checks, but no authenticated latency observation or prediction exists.",
+      "missing_requirement": "Capture bounded passive round-trip evidence from successful pinned-mTLS Fleet calls and require a fresh latency estimate before returning the optional OPS annotation.",
+      "production_caller": "RemoteFleetToolService.invoke -> FleetLatencyStore; OpsToolService.choose_placement -> FleetAdvisoryEngine.placement_advisory.",
+      "regression_tests": "Distributed Fleet lifecycle and ML Fleet pressure/placement tests."
+    }
+  ],
+  "reviewed_existing_paths": {
+    "src/sofia/distributed/capability.py": {
+      "before": "class RemoteFleetToolService:",
+      "preserved": "Enrollment, approved endpoint, exact grant, pinned-mTLS identity checks, operator stop and remote result validation remain authoritative.",
+      "reason": "Record elapsed time only after an authenticated, identity-matched remote result is returned."
+    },
+    "src/sofia/learning/fleet_advisory.py": {
+      "before": "class FleetAdvisoryEngine:",
+      "preserved": "OPS PlacementEngine remains the sole placement decision owner and the learned result remains a no-authority annotation.",
+      "reason": "Require and expose a bounded estimate from fresh authenticated round-trip evidence."
+    }
+  },
+  "approved_removals": []
+}

@@ -15,6 +15,7 @@ from time import perf_counter
 import sqlite3
 
 from sofia.ops.activity import ActivityMode
+from sofia.ops.latency import FleetLatencyStore
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
@@ -52,6 +53,7 @@ class FleetAdvisoryEngine:
     def __init__(self, state_path: str | Path, *, ops_service) -> None:
         self._guard = CanonicalSQLiteGuard(Path(state_path))
         self._ops = ops_service
+        self._latency = FleetLatencyStore(state_path)
         with closing(self._connect()) as db, db:
             db.executescript(
                 """
@@ -326,6 +328,13 @@ class FleetAdvisoryEngine:
             self._event(host_id=selected.host_id, kind="placement_skipped", at=moment,
                         reason="fresh predicted capacity is unavailable")
             return None
+        latency = self._latency.estimate(
+            host_id=selected.host_id, node_id=selected.node_id, at=moment,
+        )
+        if latency is None:
+            self._event(host_id=selected.host_id, kind="placement_skipped", at=moment,
+                        reason="fresh authenticated round-trip evidence is unavailable")
+            return None
         return {
             "workload_id": decision.workload_id,
             "suggested_host_id": decision.host_id,
@@ -333,6 +342,12 @@ class FleetAdvisoryEngine:
             "ops_rejected": decision.rejected,
             "predicted_cost": {row[0]: row[1] for row in targets},
             "max_uncertainty": max(row[2] for row in targets),
+            "predicted_latency_ms": latency.predicted_ms,
+            "latency_last_value_baseline_ms": latency.baseline_last_ms,
+            "latency_uncertainty": latency.uncertainty,
+            "latency_sample_count": latency.sample_count,
+            "latency_evidence_kind": latency.evidence_kind,
+            "latency_newest_observed_at": latency.newest_observed_at.isoformat(),
             "reason": "annotation of existing OPS policy decision",
             "authority": False,
             "can_enroll": False,

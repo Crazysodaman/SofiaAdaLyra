@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime,timezone,timedelta
 import os
 from pathlib import Path
+from time import perf_counter
 from typing import Any,Callable
 from uuid import UUID,uuid4
 
@@ -12,6 +13,7 @@ from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 from sofia.ops.model import HostLifecycle
+from sofia.ops.latency import FleetLatencyStore
 from sofia.ops.state_registry import StatePlaneFleetRegistry
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.state.sqlite_plane import SQLiteStatePlane
@@ -46,6 +48,7 @@ class RemoteFleetToolService:
         self._client_private_key=Path(client_private_key)
         self._max_inventory_age=max_inventory_age
         self._operator_stop=OperatorStopStore(self._state_path)
+        self._latency=FleetLatencyStore(self._state_path)
 
     def _ops_host_for_node(self, node_id: UUID):
         """Return the active trusted OPS Fleet host bound to this node."""
@@ -134,7 +137,8 @@ class RemoteFleetToolService:
         } and self._operator_stop.current().active:
             raise PermissionError("operator stop is active")
         node_id=UUID(node_id_text)
-        if self._ops_host_for_node(node_id) is None:
+        ops_host=self._ops_host_for_node(node_id)
+        if ops_host is None:
             raise PermissionError(
                 "node is not an active trusted OPS Fleet member"
             )
@@ -245,17 +249,38 @@ class RemoteFleetToolService:
                 operation,
                 parameters,
             )
+            started=perf_counter()
             result=control.invoke(
                 enrollment,
                 endpoint,
                 request,
                 now=now,
             )
+            elapsed_ms=max((perf_counter()-started)*1000.0,0.001)
+        # A telemetry write must never turn a completed external operation
+        # into an apparent failure that callers might retry.  It is therefore
+        # best-effort and only attempted after the gateway has authenticated
+        # and identity-validated the remote result.
+        latency_observation="recorded"
+        try:
+            self._latency.append_authenticated(
+                request_id=result.request_id,
+                host_id=ops_host.host_id,
+                node_id=result.node_id,
+                capability=capability,
+                operation=operation,
+                outcome=result.outcome.value,
+                elapsed_ms=elapsed_ms,
+                observed_at=datetime.now(timezone.utc),
+            )
+        except Exception:
+            latency_observation="unavailable"
         return {
             "request_id":str(result.request_id),
             "node_id":str(result.node_id),
             "outcome":result.outcome.value,
             "message":result.message,
+            "latency_observation":latency_observation,
         }
 
     def close(self)->None:

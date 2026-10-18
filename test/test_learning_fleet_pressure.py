@@ -11,6 +11,7 @@ from sofia.learning.service import LearningService
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.ops.history import SQLiteTelemetryHistory
 from sofia.ops.model import FleetHost, HostLifecycle, HostTelemetry, WorkloadContract
+from sofia.ops.latency import FleetLatencyStore
 from sofia.ops.placement import PlacementEngine
 
 
@@ -246,6 +247,14 @@ def test_placement_advisory_uses_existing_ops_policy_and_requires_mtls_identity(
     ops.placement = PlacementEngine()
     advisor = FleetAdvisoryEngine(canonical_state_path, ops_service=ops)
     advisor.observe_host({"host_id": "venus", "trusted": True, "lifecycle": "healthy"}, at=NOW)
+    latency = FleetLatencyStore(canonical_state_path)
+    for index, elapsed in enumerate((12.0, 15.0, 18.0)):
+        latency.append_authenticated(
+            request_id=uuid4(), host_id="venus", node_id=ops.registry.node_id,
+            capability="system.inspect", operation="system",
+            outcome="reported_success", elapsed_ms=elapsed,
+            observed_at=NOW - timedelta(seconds=2-index),
+        )
     workload = WorkloadContract(
         "read-only-check", "1", ("linux",), ("x86_64",), min_ram_bytes=1,
     )
@@ -253,6 +262,56 @@ def test_placement_advisory_uses_existing_ops_policy_and_requires_mtls_identity(
     assert suggestion["suggested_host_id"] == "venus"
     assert suggestion["authority"] is False
     assert suggestion["can_move_workload"] is False
+    assert 12.0 <= suggestion["predicted_latency_ms"] <= 18.0
+    assert suggestion["latency_sample_count"] == 3
+    assert suggestion["latency_evidence_kind"] == "pinned_mtls_operation_result"
 
     ops.registry = Registry(None)
     assert advisor.placement_advisory(workload, at=NOW) is None
+
+
+def test_placement_advisory_abstains_for_stale_or_wrong_node_latency(
+    canonical_state_path: Path,
+):
+    ops = _CanonicalOps(canonical_state_path)
+    node_id = uuid4()
+    telemetry = HostTelemetry(
+        observed_at=NOW, cpu_percent=26.0, ram_used_bytes=4, ram_total_bytes=16,
+    )
+
+    class Registry:
+        @staticmethod
+        def hosts():
+            return (FleetHost(
+                "venus", "linux", "x86_64", HostLifecycle.HEALTHY, True,
+                telemetry=telemetry, node_id=node_id,
+            ),)
+
+    ops.registry = Registry()
+    ops.placement = PlacementEngine()
+    for minutes, value in ((-3, 20.0), (-2, 22.0), (-1, 24.0), (0, 26.0)):
+        ops.history.append("venus", HostTelemetry(
+            observed_at=NOW + timedelta(minutes=minutes), cpu_percent=value,
+            ram_used_bytes=4, ram_total_bytes=16,
+        ))
+    advisor = FleetAdvisoryEngine(canonical_state_path, ops_service=ops)
+    advisor.observe_host({"host_id": "venus", "trusted": True, "lifecycle": "healthy"}, at=NOW)
+    latency = FleetLatencyStore(canonical_state_path)
+    for _ in range(3):
+        latency.append_authenticated(
+            request_id=uuid4(), host_id="venus", node_id=uuid4(),
+            capability="system.inspect", operation="system",
+            outcome="reported_success", elapsed_ms=10.0,
+            observed_at=NOW,
+        )
+        latency.append_authenticated(
+            request_id=uuid4(), host_id="venus", node_id=node_id,
+            capability="system.inspect", operation="system",
+            outcome="reported_success", elapsed_ms=10.0,
+            observed_at=NOW - timedelta(minutes=11),
+        )
+    workload = WorkloadContract(
+        "read-only-check", "1", ("linux",), ("x86_64",), min_ram_bytes=1,
+    )
+    assert advisor.placement_advisory(workload, at=NOW) is None
+    assert advisor.diagnostics()["events"]["placement_skipped"] >= 1
