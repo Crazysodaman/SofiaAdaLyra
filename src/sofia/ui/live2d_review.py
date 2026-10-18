@@ -130,5 +130,6 @@ def open_review_window(parent, *, tk=None):
     controls.pack(fill="x")
     ttk.Button(controls, text="Choose image…", command=choose).pack(side="left", padx=(0, 8))
     ttk.Button(controls, text="Create review job…", command=prepare).pack(side="left")
-    ttk.Button(controls, text="Recover job…", command=check_recovery).pack(side="left", padx=(8, 0))\n    ttk.Button(controls, text="Close", command=root.destroy).pack(side="right")
+    ttk.Button(controls, text="Recover job…", command=check_recovery).pack(side="left", padx=(8, 0))
+    ttk.Button(controls, text="Close", command=root.destroy).pack(side="right")
     return root
