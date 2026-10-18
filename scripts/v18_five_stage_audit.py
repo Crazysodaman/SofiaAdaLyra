@@ -101,7 +101,9 @@ def build(repo: Path, source_sha: str) -> dict:
     for id_ in ids:
         paths = TRACED.get(id_, [])
         found = [p for p in paths if (repo / p).is_file()]
-        stage = "CODED_UNFINISHED" if len(found) == len(paths) and bool(paths) else "NOT_WORKED_ON"
+        stage = ("CODED_UNFINISHED" if len(found) == len(paths) and bool(paths)
+                 and any(path.startswith("src/") and path.endswith(".py") for path in found)
+                 else "NOT_WORKED_ON")
         item = {
             "task_id": id_,
             **row_details[id_],
