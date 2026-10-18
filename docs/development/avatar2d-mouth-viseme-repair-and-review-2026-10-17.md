@@ -176,3 +176,54 @@ pytest -q test/test_avatar2d_hair_ear_review.py
 **NOT YET APPROVED:** left/right ear assignment, alternate hair styles,
 hair root/strands, garment and tail occlusion. No body artwork, source
 sprite or public runtime is modified.
+
+
+## 2026-10-17 Venus visual proof and optional full-character preview
+
+The owner supplied three real screenshots of the Tk owner-review player
+showing a changing open mouth and closed/neutral mouth on a head with
+independently authored eyes and brows. This **confirms the player is running
+and facial sprite switching is visible on Venus**, but it is not proof of
+audio-synchronized speaking or Sofía's live desktop renderer. The screenshots
+also expose blurred nose/cheek shading, rough head/neck contours, and
+unfinished mouth/jaw style blending. Do not declare these art issues closed.
+
+The base review player previously showed the **bald** head because it
+intentionally composited only foundation, eyes, brows and mouth sprites.
+Commit `243fdee3` added **optional approved hair + fox ears + canonical body**
+to that SAME local review window without changing the live Tk renderer.
+
+Generate the fuller review after `git pull --ff-only`:
+
+```powershell
+$P = Join-Path $env:LOCALAPPDATA 'SofiaAdaLyra\Avatar2D\Private-Source'
+$R = Join-Path $P 'Reviewed-Candidates'
+$B09 = Join-Path $R 'Batch09-ModularFoundation-v3'
+$B1011 = Join-Path $R 'Batch10_11_IndependentEyesBrows-v1'
+$B1213 = Join-Path $R 'Batch12_13_MouthsVisemes-v1'
+$Source = Join-Path $P 'CoreLayers\v1'
+$Body = Join-Path $P 'CanonicalBody\v1\sofia_body_base_2048x2560.png'
+
+python -m sofia.avatar.vtuber_review_player `
+  --foundation-root "$B09" `
+  --features-root "$B1011" `
+  --mouths-root "$B1213" `
+  --source-root "$Source" `
+  --canonical-body "$Body"
+```
+
+Both new arguments are optional **as a pair**. Omit both to retain the
+previous bald-head troubleshooting view. Pinned SHA256 values for approved
+back hair, front bangs and two selected ear poses are enforced. The Batch09
+verifier also binds the selected full body to its exact previously approved
+hash. Back hair is painted **behind** the canonical body, selected ears
+above it, then facial frames and front bangs. The image is cropped for the
+review window after assembly. Per-expression scaled images are cached to
+avoid repeated full-size decoding on every 130ms blink.
+
+Source art is never copied to `Public-V2` by this player. It is not a
+release of a new rig, a completed nose/neck art pass, approved independent
+ear poses, voice-triggered lip sync, or wardrobe fit. Next steps are
+cleanup of nose/jaw/neck pixels and registered hair/ear/tail pose
+acceptance, then public-safe 320×400 character pack compilation and
+actual production tests.
