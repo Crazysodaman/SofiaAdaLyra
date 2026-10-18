@@ -91,7 +91,9 @@ def _verified_instruction_hashes(*, path, reviewed_digest: str) -> frozenset[byt
             if any(not isinstance(row[k], str) or not row[k].strip()
                    for k in ("instruction", "response")):
                 raise ValueError("empty or invalid reviewed example")
-            key = normalize("NFKC", row["instruction"]).casefold().strip()
+            # Collapse internal whitespace as well as case and Unicode width:
+            # rewrapped evaluation prompts are not independent examples.
+            key = " ".join(normalize("NFKC", row["instruction"]).casefold().split())
             fingerprints.add(sha256(key.encode("utf-8")).digest())
     if whole.hexdigest() != reviewed_digest:
         raise ValueError("source bytes changed while comparing held-out overlap")
