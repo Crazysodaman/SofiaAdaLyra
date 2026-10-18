@@ -35,7 +35,11 @@ def test_refuses_unknown_gpu_jobs(tmp_path, monkeypatch):
 def test_refuses_multi_instance(tmp_path, monkeypatch):
     monkeypatch.setattr(host.sys, "platform", "win32")
     path = tmp_path/"owned.json"
-    path.write_text(json.dumps({"pid": 42, "created": 1234.0, "exe": "C:/Apps/ComfyUI.exe", "user": "owner"}))
+    # The production launch record persists the canonical real executable path,
+    # including on POSIX test runners simulating a Windows executable.
+    import os
+    owned_exe = os.path.normcase(os.path.realpath("C:/Apps/ComfyUI.exe"))
+    path.write_text(json.dumps({"pid": 42, "created": 1234.0, "exe": owned_exe, "user": "owner"}))
     ps = FakePS([FakeProc(), FakeProc(pid=43)])
     monkeypatch.setattr(host, "_instances", lambda _ps, _exe: [42, 43])
     with pytest.raises(host.ComfyHostError):
