@@ -94,6 +94,8 @@ class CandidateRegistry:
         self._root = artifact_root.resolve()
         self._verify = verify_signature
         self._approval = approval_verifier
+        self._generalization_gate = None
+        self._generalization_validator = None
         with closing(self._guard.connect(timeout=10)) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS ml_model_candidate(
@@ -115,6 +117,17 @@ class CandidateRegistry:
                     rollback INTEGER NOT NULL
                 );
             """)
+
+    def attach_generalization_gate(
+        self, gate: Callable[..., None], *, validator: Callable[..., bool],
+    ) -> None:
+        """Require the canonical GA prerequisite for replacement activation."""
+        if not callable(gate) or not callable(validator):
+            raise TypeError("callable generalization promotion gate and validator required")
+        if self._generalization_gate is not None:
+            raise RuntimeError("generalization promotion gate already attached")
+        self._generalization_gate = gate
+        self._generalization_validator = validator
 
     def _safe_path(self, path: Path) -> Path:
         if any(
@@ -277,6 +290,7 @@ class CandidateRegistry:
     def activate(
         self, candidate_id: str, *, grant: DataUseGrant,
         evaluation_id: str, at: datetime,
+        generalization_study_id: str | None = None,
     ) -> None:
         if not grant.permits(DataUse.DEPLOYMENT, at=at):
             raise PermissionError("candidate activation needs an unexpired deployment grant")
@@ -367,6 +381,24 @@ class CandidateRegistry:
                 raise PermissionError(
                     "candidate does not beat the independently evaluated active baseline"
                 )
+            if prior is not None:
+                if self._generalization_gate is None:
+                    raise PermissionError(
+                        "replacement activation requires the canonical generalization gate"
+                    )
+                if not isinstance(generalization_study_id, str):
+                    raise PermissionError(
+                        "replacement activation requires a blind-transfer study"
+                    )
+                self._generalization_gate(
+                    study_id=generalization_study_id,
+                    candidate_id=candidate_id,
+                    candidate_digest=candidate_digest,
+                    principal_id=grant.principal_id,
+                    audience_id=grant.audience_id,
+                    now=at,
+                    _transaction_db=db,
+                )
             db.execute(
                 "INSERT INTO ml_model_activation(candidate_id,previous_candidate_id,principal_id,audience_id,purpose,activated_at,grant_id,rollback) "
                 "VALUES(?,?,?,?,?,?,?,0)",
@@ -381,7 +413,7 @@ class CandidateRegistry:
     ) -> str | None:
         with closing(self._guard.connect(timeout=10)) as db:
             row = db.execute(
-                "SELECT candidate_id FROM ml_model_activation "
+                "SELECT candidate_id,previous_candidate_id FROM ml_model_activation "
                 "WHERE principal_id=? AND audience_id=? AND purpose=? "
                 "ORDER BY revision DESC LIMIT 1",
                 (principal_id, audience_id, purpose),
@@ -389,6 +421,29 @@ class CandidateRegistry:
         if row is None:
             return None
         self.load(row[0], at=at)
+        with closing(self._guard.connect(timeout=10)) as db:
+            digest = db.execute(
+                "SELECT artifact_sha256 FROM ml_model_candidate WHERE candidate_id=?",
+                (row[0],),
+            ).fetchone()[0]
+            has_gate_table = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='ga_candidate_promotion_gate'"
+            ).fetchone() is not None
+            has_gate = has_gate_table and db.execute(
+                "SELECT 1 FROM ga_candidate_promotion_gate WHERE candidate_id=?",
+                (row[0],),
+            ).fetchone() is not None
+        replacement = row[1] is not None
+        if (replacement or has_gate) and self._generalization_validator is None:
+            raise PermissionError("candidate requires unavailable generalization revalidation")
+        if self._generalization_validator is not None:
+            valid = self._generalization_validator(
+                candidate_id=row[0], candidate_digest=digest,
+                principal_id=principal_id, audience_id=audience_id, now=at,
+            )
+            if (replacement or has_gate) and valid is not True:
+                raise PermissionError("candidate generalization prerequisite is invalid")
         return row[0]
 
     def rollback(self, *, grant: DataUseGrant, at: datetime) -> str:

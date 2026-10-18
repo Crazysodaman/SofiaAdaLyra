@@ -21,6 +21,21 @@ gateway, experiment executor, or promotion mechanism.
 | Blind study | VERIFY signed A→B assessment | All control conditions, independent signatures, chronology, holdout digest, and receipts are verified. |
 | Promotion eligibility | VERIFY + SAFE evidence + benchmark registry | Beneficial transfer, resources, privacy, authority, rollback, restart, and benchmark coverage must all pass. Eligibility is not deployment authority. |
 
+The application-owned GOALS runner now consults this projection before its
+existing deterministic planner. Only an exact principal/audience match and
+typed action/outcome receipts can suppress a previously failed capability.
+Missing permission or irrelevant prose falls back to the unchanged planner;
+GOALS and the capability gateway retain action authority.
+
+Replacement model activation now calls the GA promotion gate from inside the
+existing `CandidateRegistry` activation transaction. The signed study's sealed
+model digest must match the exact candidate bytes. The existing deployment
+grant, independent ML evaluation, active-baseline comparison, and rollback
+lineage remain independently required. Initial baseline activation is not
+misrepresented as transfer. Claimed gates are revalidated at point of use, and
+revoked promotion evidence makes a replacement unavailable without deleting
+rollback history.
+
 ## Revocation and retention
 
 Advanced records share canonical `sofia.db`. The existing application

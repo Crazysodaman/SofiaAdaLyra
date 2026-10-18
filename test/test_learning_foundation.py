@@ -434,9 +434,28 @@ def test_signed_candidate_corruption_revocation_and_atomic_rollback(canonical_st
             "UPDATE ml_evaluation SET body_json=? WHERE evaluation_id=?",
             (original_evaluation, candidate_evaluation.evaluation_id),
         )
+    with pytest.raises(PermissionError, match="generalization gate"):
+        registry.activate(
+            artifacts[1].candidate_id, grant=grant,
+            evaluation_id=candidate_evaluation.evaluation_id,
+            at=NOW + timedelta(hours=2, minutes=2),
+        )
+
+    def claim_generalization(**values):
+        assert values["study_id"] == "study:blind-transfer"
+        assert values["candidate_id"] == artifacts[1].candidate_id
+        assert values["candidate_digest"] == artifacts[1].artifact_sha256
+        assert values["principal_id"] == grant.principal_id
+        assert values["audience_id"] == grant.audience_id
+        assert values["_transaction_db"].in_transaction
+
+    registry.attach_generalization_gate(
+        claim_generalization, validator=lambda **_values: True,
+    )
     registry.activate(
         artifacts[1].candidate_id, grant=grant,
         evaluation_id=candidate_evaluation.evaluation_id,
+        generalization_study_id="study:blind-transfer",
         at=NOW + timedelta(hours=2, minutes=2),
     )
     assert registry.active(
@@ -452,6 +471,15 @@ def test_signed_candidate_corruption_revocation_and_atomic_rollback(canonical_st
     restarted = CandidateRegistry(
         canonical_state_path, artifact_root=root, verify_signature=verify,
         approval_verifier=_ExactApprovalVerifier(),
+    )
+    with pytest.raises(PermissionError, match="revalidation"):
+        restarted.active(
+            principal_id="sparks", audience_id="local:text",
+            purpose="host-pressure-forecast",
+            at=NOW + timedelta(hours=2, minutes=3),
+        )
+    restarted.attach_generalization_gate(
+        lambda **_values: None, validator=lambda **_values: True,
     )
     assert restarted.active(
         principal_id="sparks", audience_id="local:text",

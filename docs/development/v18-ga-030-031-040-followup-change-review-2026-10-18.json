@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {"task_id":"GA-030","original_requirement":"Connect eligible prior experiences to GOALS/LIFE planning with inspectable ablations.","existing_behavior":"AdvancedGeneralizationStore stored manual influence traces and GoalProductionCoordinator used deterministic diagnostics.","missing_requirement":"The normal goal runner did not consume scoped typed experience outcomes.","production_caller":"GoalProductionCoordinator.run_due -> AdvancedGeneralizationStore.planning_advice.","regression_tests":"test/test_goal_production_wiring.py"},
+    {"task_id":"GA-031","original_requirement":"Propagate correction, expiry, deletion, and revocation through derived learning.","existing_behavior":"Daily GA reconciliation handled explicit ML source revocation.","missing_requirement":"Corrected/expired episodes, their principles, skills, failures, and promotion studies were not all invalidated.","production_caller":"ApplicationBackgroundCoordinator generalization_retention -> AdvancedGeneralizationStore.propagate_revocations.","regression_tests":"test/test_generalization_advanced.py"},
+    {"task_id":"GA-040","original_requirement":"Require beneficial blind transfer and all safety checks before learned-capability promotion.","existing_behavior":"CandidateRegistry required deployment grants and independent evaluation while GA recorded non-authoritative eligibility.","missing_requirement":"Replacement activation did not atomically consume or revalidate the GA prerequisite.","production_caller":"CandidateRegistry.activate/active -> AdvancedGeneralizationStore claim/validate_candidate_promotion.","regression_tests":"test/test_generalization_advanced.py and test/test_learning_foundation.py"}
+  ],
+  "reviewed_existing_paths": {
+    "src/sofia/application/bootstrap.py":{"before":"self._generalization.attach_workflow_owner(self._goals)","preserved":"SofiaApplication remains the sole composition root.","reason":"Attach the existing GA prerequisite to the existing ML registry and GOALS runner."},
+    "src/sofia/generalization/advanced.py":{"before":"def record_planning_influence","preserved":"The authority-free canonical GA projection remains the owner.","reason":"Complete planning, lineage, and promotion prerequisite behavior."},
+    "src/sofia/goals/coordinator.py":{"before":"class GoalProductionCoordinator:","preserved":"GOALS and the capability gateway retain planning and execution authority.","reason":"Consume only typed scoped failure advice before deterministic planning."},
+    "src/sofia/learning/registry.py":{"before":"class CandidateRegistry:","preserved":"CandidateRegistry, deployment grants, independent evaluation and rollback remain authoritative.","reason":"Require and revalidate GA evidence for replacement activation."},
+    "src/sofia/ui/settings_sections.py":{"before":"Blind transfer studies", "preserved":"Existing diagnostics remain read-only.","reason":"Expose claimed non-authoritative promotion prerequisites."}
+  },
+  "approved_removals": []
+}

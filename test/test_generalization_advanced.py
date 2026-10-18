@@ -58,7 +58,7 @@ def _evidence(ledger, ref, *, successful=None, audience="local:text", kind="revi
     )
 
 
-def _signed_study(study_id="study:ga-advanced"):
+def _signed_study(study_id="study:ga-advanced", model_digest="d" * 64):
     signer = Ed25519PrivateKey.generate()
     tasks = [f"blind:{index}" for index in range(12)]
     holdout = {"family": "windows-service", "task_ids": tasks}
@@ -67,7 +67,7 @@ def _signed_study(study_id="study:ga-advanced"):
         "training_family": "linux-container", "holdout_family": holdout["family"],
         "holdout_digest": sha256(canonical(holdout)).hexdigest(),
         "sealed_at": NOW.isoformat(), "revision": "c" * 40,
-        "model_digest": "d" * 64,
+        "model_digest": model_digest,
     }
     results = []
     for condition in ("baseline", "no_memory", "no_skill", "replay_only", "learned"):
@@ -225,6 +225,79 @@ def test_complete_episode_retrieval_planning_and_revocation_propagation(
     assert changed["principles_invalidated"] == 1
     assert changed["skills_invalidated"] == 0
     assert principle.startswith("ga-principle:")
+
+
+def test_corrections_and_retention_invalidate_dependent_learning(
+    canonical_state_path,
+):
+    evidence, _goals, work, advanced = _owners(canonical_state_path)
+    principal = _principal()
+    refs = []
+    for index, kind in enumerate((
+        "reviewed_evidence", "external_observation", "reviewed_evidence",
+        "operation_receipt", "operation_receipt",
+    )):
+        ref = f"correction:{index}"
+        _evidence(evidence, ref, successful=(index == 4), kind=kind)
+        refs.append(ref)
+    phases = tuple(
+        EpisodePhase(kind, f"Original {kind}", (refs[index],))
+        for index, kind in enumerate(
+            ("intent", "observation", "hypothesis", "action", "outcome")
+        )
+    )
+    original = advanced.record_episode(
+        principal=principal, subject_id="service:corrected",
+        context_tags=("service", "diagnosis"), phases=phases,
+        occurred_at=NOW, retention_until=NOW + timedelta(days=30), now=NOW,
+    )
+    principle = advanced.record_principle(
+        principal=principal, statement="Original diagnostic interpretation",
+        epistemic_status="supported_inference", confidence=.5,
+        episode_ids=(original,), evidence_refs=(refs[4],), now=NOW,
+    )
+    correction_phases = tuple(
+        EpisodePhase(item.kind, "Corrected " + item.summary, item.evidence_refs)
+        for item in phases
+    ) + (EpisodePhase("correction", "Original interpretation was incomplete", (refs[4],)),)
+    advanced.record_episode(
+        principal=principal, subject_id="service:corrected",
+        context_tags=("service", "diagnosis"), phases=correction_phases,
+        occurred_at=NOW, retention_until=NOW + timedelta(days=30),
+        correction_of=original, now=NOW + timedelta(seconds=1),
+    )
+
+    failed = work.enqueue(
+        kind="diagnostic", fingerprint="failure:short-retention",
+        payload={"principal_id": principal.principal_id,
+                 "audience_id": principal.audience_id},
+        priority=10, resource_cost=5, risk="read_only",
+        completion_condition="receipt", now=NOW,
+        deadline=NOW + timedelta(hours=1),
+    )
+    work.transition(
+        failed.job_id, expected=(WorkStatus.QUEUED,), status=WorkStatus.FAILED,
+        reason="tool fault", now=NOW,
+    )
+    _evidence(evidence, "failure:short-retention", successful=False,
+              kind="operation_receipt")
+    failure = advanced.record_failure(
+        principal=principal, objective="Short retained failure",
+        observed_state="Adapter failed", job_id=failed.job_id,
+        attempted_actions=("system.inspect",),
+        evidence_refs=("failure:short-retention",), error_text="tool fault",
+        retention_until=NOW + timedelta(seconds=1), now=NOW,
+    )
+    changed = advanced.propagate_revocations(now=NOW + timedelta(seconds=2))
+    assert changed["principles_invalidated"] == 1
+    assert changed["failures_expired"] == 1
+    with sqlite3.connect(canonical_state_path) as db:
+        assert db.execute(
+            "SELECT status FROM ga_principle WHERE principle_id=?", (principle,),
+        ).fetchone() == ("invalidated",)
+        assert db.execute(
+            "SELECT status FROM ga_failure WHERE failure_id=?", (failure,),
+        ).fetchone() == ("invalidated",)
 
 
 def test_read_only_environment_model_drift_and_discriminating_experiment(
@@ -404,4 +477,86 @@ def test_blind_transfer_promotion_needs_independent_safe_check_receipts(
             principal=principal, evidence_bundle=study,
             evaluator_key=signer.public_key(), check_evidence=refs,
             now=NOW + timedelta(minutes=7),
+        )
+
+
+def test_candidate_promotion_claim_is_digest_scoped_atomic_and_single_use(
+    canonical_state_path,
+):
+    evidence, _goals, _work, advanced = _owners(canonical_state_path)
+    principal = _principal()
+    candidate_digest = "e" * 64
+    for index, family in enumerate(
+        ("time_horizon", "episodic_memory", "computer_use", "unfamiliar_environment")
+    ):
+        advanced.register_benchmark(
+            benchmark_id=f"promotion-benchmark:{family}", name=f"Promotion {family}",
+            version="1.0", family=family, license_id="license:reviewed",
+            source_digest=f"{index + 5:x}" * 64,
+            private_holdout=family == "unfamiliar_environment", now=NOW,
+        )
+    refs = {}
+    for name in (
+        "resource_fit", "privacy_correct", "authority_correct",
+        "rollback_ready", "restart_correct",
+    ):
+        ref = f"candidate-promotion:{name}"
+        evidence.record(
+            evidence_ref=ref, kind="reviewed_evidence", observed_at=NOW,
+            source=f"verify:{name}", successful=True,
+            principal_id=principal.principal_id, audience=principal.audience_id,
+        )
+        refs[name] = ref
+    study, signer = _signed_study("study:candidate-promotion", candidate_digest)
+    assert advanced.record_blind_study(
+        principal=principal, evidence_bundle=study,
+        evaluator_key=signer.public_key(), check_evidence=refs,
+        now=NOW + timedelta(minutes=5),
+    )["promotion_eligible"]
+    with sqlite3.connect(canonical_state_path) as db, db:
+        db.execute("BEGIN IMMEDIATE")
+        with pytest.raises(PermissionError, match="matching eligible"):
+            advanced.claim_candidate_promotion(
+                study_id="study:candidate-promotion",
+                candidate_id="ml-candidate:" + "f" * 64,
+                candidate_digest="f" * 64,
+                principal_id=principal.principal_id,
+                audience_id=principal.audience_id, now=NOW + timedelta(minutes=6),
+                _transaction_db=db,
+            )
+        advanced.claim_candidate_promotion(
+            study_id="study:candidate-promotion",
+            candidate_id="ml-candidate:" + candidate_digest,
+            candidate_digest=candidate_digest,
+            principal_id=principal.principal_id,
+            audience_id=principal.audience_id, now=NOW + timedelta(minutes=6),
+            _transaction_db=db,
+        )
+    with sqlite3.connect(canonical_state_path) as db:
+        assert db.execute(
+            "SELECT study_id,candidate_digest FROM ga_candidate_promotion_gate"
+        ).fetchone() == ("study:candidate-promotion", candidate_digest)
+    assert advanced.validate_candidate_promotion(
+        candidate_id="ml-candidate:" + candidate_digest,
+        candidate_digest=candidate_digest,
+        principal_id=principal.principal_id, audience_id=principal.audience_id,
+        now=NOW + timedelta(minutes=7),
+    ) is True
+    LearningService(canonical_state_path)
+    with sqlite3.connect(canonical_state_path) as db:
+        db.execute(
+            "INSERT INTO ml_source_revocation(source_ref,revoked_at,approval_ref) "
+            "VALUES(?,?,?)",
+            (refs["privacy_correct"], NOW.isoformat(), "safe:promotion-revoked"),
+        )
+    assert advanced.propagate_revocations(
+        now=NOW + timedelta(minutes=8),
+    )["studies_invalidated"] == 1
+    with pytest.raises(PermissionError, match="no longer valid"):
+        advanced.validate_candidate_promotion(
+            candidate_id="ml-candidate:" + candidate_digest,
+            candidate_digest=candidate_digest,
+            principal_id=principal.principal_id,
+            audience_id=principal.audience_id,
+            now=NOW + timedelta(minutes=9),
         )

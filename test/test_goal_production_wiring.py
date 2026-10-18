@@ -12,6 +12,9 @@ from sofia.goals import (
     GoalEvidenceLedger, GoalService, GoalStatus, GoalStore,
 )
 from sofia.goals.coordinator import GoalProductionCoordinator
+from sofia.generalization.advanced import AdvancedGeneralizationStore, EpisodePhase
+from sofia.generalization.contracts import ExplorationAdmission
+from sofia.learning.contracts import DataUseGrant
 from sofia.goals.model import GoalRunState
 from sofia.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 from sofia.social.principals import local_sparks_principal
@@ -63,6 +66,11 @@ def coordinator(path, *, neural, notify=None, executions=None, mutations=None):
         lambda _request: {"ok": True},
     )
     capabilities.register(
+        Capability("portainer.summary", "Read container state."),
+        lambda _request: (executions.append("portainer") if executions is not None else None)
+        or {"containers": []},
+    )
+    capabilities.register(
         Capability("local.service.restart", "Restart exact local service."),
         lambda request: (
             mutations.append(request.parameters["name"])
@@ -78,6 +86,73 @@ def coordinator(path, *, neural, notify=None, executions=None, mutations=None):
         notify_review=notify,
     )
     return goals, result
+
+
+class _GeneralizationLearningGrant:
+    def active_grant(self, *, principal_id, audience_id, purpose, required, at):
+        return DataUseGrant(
+            "grant:goal-generalization", principal_id, audience_id, purpose,
+            frozenset(required), NOW - timedelta(hours=1), NOW + timedelta(days=30),
+            "owner-ui:goal-generalization",
+        )
+
+
+def test_scoped_failed_experience_changes_diagnostic_choice_and_records_ablation(tmp_path):
+    path = tmp_path / "sofia.db"
+    SQLiteStatePlane(path)
+    executions = []
+    goals, production = coordinator(
+        path, neural=[snapshot("ops")], executions=executions,
+    )
+    advanced = AdvancedGeneralizationStore(
+        path, goals=goals, admission=lambda: ExplorationAdmission(),
+        learning=_GeneralizationLearningGrant(),
+    )
+    production.generalization = advanced
+    principal = local_sparks_principal()
+    ledger = GoalEvidenceLedger(path)
+    refs = []
+    for index, kind in enumerate((
+        "reviewed_evidence", "external_observation", "reviewed_evidence",
+        "operation_receipt", "operation_receipt",
+    )):
+        ref = f"planning-experience:{index}"
+        ledger.record(
+            evidence_ref=ref, kind=kind, observed_at=NOW,
+            source="ops:planning-experience",
+            assertion="portainer.summary" if index == 3 else None,
+            successful=False if index == 4 else None,
+            principal_id=principal.principal_id, audience=principal.audience_id,
+        )
+        refs.append(ref)
+    advanced.record_episode(
+        principal=principal, subject_id="service:docker",
+        context_tags=("docker", "container"),
+        phases=tuple(
+            EpisodePhase(kind, f"Prior {kind}", (refs[index],))
+            for index, kind in enumerate(
+                ("intent", "observation", "hypothesis", "action", "outcome")
+            )
+        ),
+        occurred_at=NOW, retention_until=NOW + timedelta(days=10), now=NOW,
+    )
+    goal = create_user_goal(
+        goals, ledger, principal=principal, ref="message:docker-experience",
+        title="Investigate Docker failures",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner confirms diagnosis.",
+        ),
+    )
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 1
+    assert executions == []
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT capability FROM goal_action_attempt WHERE goal_id=?", (goal.id,),
+        ).fetchone() == ("system.inspect",)
+        assert db.execute(
+            "SELECT ablation FROM ga_planning_influence WHERE goal_id=? "
+            "ORDER BY ablation", (goal.id,),
+        ).fetchall() == [("with_experience",), ("without_experience",)]
 
 
 def failed_workload(path):

@@ -1553,6 +1553,7 @@ class SettingsSections:
         self.sql_panel(frames["EVOLVE"], "Experience episodes", "ga_experience_episode")
         self.sql_panel(frames["EVOLVE"], "Tentative environment models", "ga_environment_model")
         self.sql_panel(frames["EVOLVE"], "Blind transfer studies", "ga_blind_study")
+        self.sql_panel(frames["EVOLVE"], "Generalization promotion gates", "ga_candidate_promotion_gate")
         self.sql_panel(frames["EVOLVE"], "Fleet pressure shadow forecasts", "ml_fleet_pressure_forecast")
         self.sql_panel(frames["EVOLVE"], "Signed external ML candidates", "ml_model_candidate")
         ttk.Label(

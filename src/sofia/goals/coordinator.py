@@ -100,13 +100,16 @@ class GoalActionPlanner:
         re.IGNORECASE,
     )
 
-    def plan(self, goal: Goal, *, diagnostic_done: bool = False):
+    def plan(
+        self, goal: Goal, *, diagnostic_done: bool = False,
+        avoid_capabilities: tuple[str, ...] = (),
+    ):
         names = set(self.gateway.capability_system.capability_names())
         text = f"{goal.title} {goal.reason}".casefold()
         restart = self._SERVICE_RESTART.fullmatch(goal.title.strip())
         if restart is not None and diagnostic_done:
             capability_name = "local.service.restart"
-            if capability_name not in names:
+            if capability_name not in names or capability_name in set(avoid_capabilities):
                 return None
             capability = self.gateway.capability_system.resolve(capability_name)
             return capability, {"name": restart.group(1)}
@@ -119,7 +122,10 @@ class GoalActionPlanner:
             choices.extend(("network.inspect", "system.inspect"))
         elif any(word in text for word in ("service", "restart")):
             choices.extend(("service.inspect", "system.inspect"))
-        capability = next((item for item in choices if item in names), None)
+        avoided = set(avoid_capabilities)
+        capability = next(
+            (item for item in choices if item in names and item not in avoided), None,
+        )
         if capability is None:
             return None
         policy = capability_permission_policy(capability)
@@ -140,6 +146,7 @@ class GoalProductionCoordinator:
         neuro_provider: Callable[[], NeuroStateSnapshot | None],
         notify_review: Callable[[Goal, datetime], None] | None = None,
         wake_recorder: Callable[..., None] | None = None,
+        generalization=None,
     ) -> None:
         self.goals = goals
         self.path = Path(state_path)
@@ -151,6 +158,7 @@ class GoalProductionCoordinator:
         self.neuro_provider = neuro_provider
         self.notify_review = notify_review
         self.wake_recorder = wake_recorder
+        self.generalization = generalization
         with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS goal_candidate_decision (
@@ -652,8 +660,40 @@ class GoalProductionCoordinator:
                     self.goals.decompose(
                         parent=goal, child_titles=steps, now=now,
                     )
+            avoid_capabilities: tuple[str, ...] = ()
+            principal = self.principal_provider()
+            if (
+                self.generalization is not None and principal is not None
+                and goal.scope_principal_id == principal.principal_id
+                and goal.scope_audience == f"{principal.audience_kind.value}:{principal.audience_id}"
+            ):
+                try:
+                    tags = tuple(sorted(self._tags(f"{goal.title} {goal.reason}")))
+                    advice = self.generalization.planning_advice(
+                        principal=principal, goal_id=goal.id,
+                        context_tags=tags, now=now,
+                    )
+                    episode_ids = tuple(advice["episode_ids"])
+                    if episode_ids:
+                        self.generalization.record_planning_influence(
+                            principal=principal, goal_id=goal.id,
+                            episode_ids=episode_ids,
+                            reason="Scoped typed prior outcomes informed diagnostic selection",
+                            ablation="with_experience", now=now,
+                        )
+                        self.generalization.record_planning_influence(
+                            principal=principal, goal_id=goal.id, episode_ids=(),
+                            reason="Deterministic no-experience comparison",
+                            ablation="without_experience", now=now,
+                        )
+                        avoid_capabilities = tuple(advice["avoid_capabilities"])
+                except (LookupError, PermissionError, ValueError):
+                    # Missing/revoked learning permission cannot block canonical
+                    # GOALS work; the deterministic no-learning planner remains.
+                    avoid_capabilities = ()
             plan = self.planner.plan(
                 goal, diagnostic_done=self._diagnostic_done(goal.id),
+                avoid_capabilities=avoid_capabilities,
             )
             if plan is None:
                 self.goals.set_run_state(

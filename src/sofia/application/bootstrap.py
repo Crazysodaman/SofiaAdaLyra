@@ -362,6 +362,11 @@ class SofiaApplication:
             admission=self._generalization_admission_state,
         )
         self._generalization.attach_workflow_owner(self._goals)
+        if self._learning_candidates is not None:
+            self._learning_candidates.attach_generalization_gate(
+                self._generalization.advanced.claim_candidate_promotion,
+                validator=self._generalization.advanced.validate_candidate_promotion,
+            )
         self._fleet_pressure_pilot = FleetPressurePilot(
             configuration.state_path,
             learning=self._learning,
@@ -427,6 +432,7 @@ class SofiaApplication:
             neuro_provider=lambda: self._neuro.last_snapshot,
             notify_review=self._notify_goal_review,
             wake_recorder=self._neuro.record_wake_outcome,
+            generalization=self._generalization.advanced,
         )
         self._life = SelfDirectedLifeCoordinator(
             state_path=configuration.state_path,

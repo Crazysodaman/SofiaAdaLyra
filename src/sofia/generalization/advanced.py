@@ -23,7 +23,7 @@ from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.goals.service import GoalService
 from sofia.learning.contracts import DataUse
 from sofia.run.work import DurableWorkStore, WorkStatus
-from sofia.social.model import PrincipalContext
+from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.verify.generalization_transfer import assess_signed_transfer
 
@@ -57,6 +57,15 @@ def _text(value: str, label: str, maximum: int = 1200) -> str:
 
 def _digest(value: object) -> str:
     return sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _revoked_sources(db: sqlite3.Connection) -> set[str]:
+    exists = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ml_source_revocation'"
+    ).fetchone()
+    if exists is None:
+        return set()
+    return {row[0] for row in db.execute("SELECT source_ref FROM ml_source_revocation")}
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,13 +183,22 @@ class AdvancedGeneralizationStore:
               privacy_correct INTEGER NOT NULL,authority_correct INTEGER NOT NULL,
               rollback_ready INTEGER NOT NULL,restart_correct INTEGER NOT NULL,
               promotion_evidence_refs_json TEXT NOT NULL,promotion_eligible INTEGER NOT NULL,
-              recorded_at TEXT NOT NULL);
+              recorded_at TEXT NOT NULL,model_digest TEXT);
+            CREATE TABLE IF NOT EXISTS ga_candidate_promotion_gate(
+              candidate_id TEXT PRIMARY KEY,study_id TEXT NOT NULL UNIQUE,
+              candidate_digest TEXT NOT NULL,principal_id TEXT NOT NULL,
+              audience_id TEXT NOT NULL,claimed_at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS ga_benchmark_registry(
               benchmark_id TEXT PRIMARY KEY,name TEXT NOT NULL,version TEXT NOT NULL,
               family TEXT NOT NULL,license_id TEXT NOT NULL,source_digest TEXT NOT NULL,
               private_holdout INTEGER NOT NULL,content_stored INTEGER NOT NULL DEFAULT 0,
               registered_at TEXT NOT NULL,UNIQUE(name,version));
             """)
+            blind_columns = {
+                row[1] for row in db.execute("PRAGMA table_info(ga_blind_study)")
+            }
+            if "model_digest" not in blind_columns:
+                db.execute("ALTER TABLE ga_blind_study ADD COLUMN model_digest TEXT")
 
     def attach_skills(self, skills) -> None:
         self._skills = skills
@@ -353,12 +371,7 @@ class AdvancedGeneralizationStore:
             rows=db.execute("SELECT * FROM ga_experience_episode WHERE principal_id=? AND audience_id=? "
                             "AND status='current' AND retention_until>? ORDER BY occurred_at DESC LIMIT 128",
                             (principal.principal_id,principal.audience_id,moment.isoformat())).fetchall()
-            has_revocations = db.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ml_source_revocation'"
-            ).fetchone() is not None
-            revoked = set() if not has_revocations else {
-                row[0] for row in db.execute("SELECT source_ref FROM ml_source_revocation").fetchall()
-            }
+            revoked = _revoked_sources(db)
         output=[]
         for row in rows:
             if set(json.loads(row['source_refs_json'])) & revoked: continue
@@ -372,6 +385,8 @@ class AdvancedGeneralizationStore:
                          epistemic_status: str, confidence: float,
                          episode_ids: tuple[str, ...], evidence_refs: tuple[str, ...], now: datetime) -> str:
         if epistemic_status not in _EPISTEMIC or not 0<=confidence<=1: raise ValueError("invalid epistemic status/confidence")
+        if not 1 <= len(episode_ids) <= 32 or len(set(episode_ids)) != len(episode_ids):
+            raise ValueError("principle requires 1..32 unique source episodes")
         self._grant(principal, at=now)
         self._scoped_refs(evidence_refs,principal)
         with closing(self._connect()) as db, db:
@@ -394,11 +409,66 @@ class AdvancedGeneralizationStore:
         if ablation=='with_experience':
             found={x['episode_id'] for x in self.retrieve_experiences(principal=principal,tags=tuple({tag for eid in episode_ids for tag in self._episode_tags(eid)}),now=now,limit=32)}
             if set(episode_ids)-found: raise PermissionError("ineligible experience influence")
-        trace='ga-influence:'+uuid4().hex
+        trace='ga-influence:'+_digest((
+            principal.principal_id, principal.audience_id, goal_id,
+            episode_ids, reason, ablation,
+        ))[:24]
         with closing(self._connect()) as db, db:
-            db.execute("INSERT INTO ga_planning_influence VALUES(?,?,?,?,?,?,?,?,0)",
-                       (trace,goal_id,principal.principal_id,principal.audience_id,json.dumps(episode_ids),_text(reason,'reason'),ablation,_utc(now).isoformat()))
+            values=(trace,goal_id,principal.principal_id,principal.audience_id,
+                    json.dumps(episode_ids),_text(reason,'reason'),ablation,
+                    _utc(now).isoformat())
+            prior=db.execute(
+                "SELECT goal_id,principal_id,audience_id,episode_ids_json,reason,"
+                "ablation FROM ga_planning_influence WHERE trace_id=?", (trace,),
+            ).fetchone()
+            if prior is not None:
+                if tuple(prior) != values[1:7]:
+                    raise PermissionError("planning influence identity collision")
+                return trace
+            db.execute("INSERT INTO ga_planning_influence VALUES(?,?,?,?,?,?,?,?,0)", values)
         return trace
+
+    def planning_advice(
+        self, *, principal: PrincipalContext, goal_id: str,
+        context_tags: tuple[str, ...], now: datetime,
+    ) -> dict[str, object]:
+        """Return bounded failure advice; never propose or authorize an action."""
+        if goal_id not in {goal.id for goal in self._goals.list_visible(principal)}:
+            raise PermissionError("visible goal required for planning advice")
+        episodes = self.retrieve_experiences(
+            principal=principal, tags=context_tags, now=now, limit=8,
+        )
+        failures: set[str] = set()
+        successes: set[str] = set()
+        for episode in episodes:
+            phases = {phase["kind"]: phase for phase in episode["phases"]}
+            action = phases.get("action")
+            outcome = phases.get("outcome")
+            if action is None or outcome is None:
+                continue
+            outcome_records = tuple(
+                self._evidence.lookup(ref) for ref in outcome["evidence_refs"]
+            )
+            known = {record.successful for record in outcome_records if record is not None}
+            if known not in ({True}, {False}):
+                continue
+            for ref in action["evidence_refs"]:
+                record = self._evidence.lookup(ref)
+                if (
+                    record is None or record.principal_id != principal.principal_id
+                    or record.audience != principal.audience_id
+                    or record.kind not in {"operation_receipt", "reviewed_evidence"}
+                    or not isinstance(record.assertion, str)
+                    or _ID.fullmatch(record.assertion) is None
+                ):
+                    continue
+                (successes if known == {True} else failures).add(record.assertion)
+        failed_only = tuple(sorted(failures - successes))[:16]
+        return {
+            "episode_ids": tuple(item["episode_id"] for item in episodes),
+            "avoid_capabilities": failed_only,
+            "authority": False,
+        }
 
     def _episode_tags(self, episode_id: str) -> tuple[str,...]:
         with closing(self._connect()) as db:
@@ -406,25 +476,80 @@ class AdvancedGeneralizationStore:
         return () if row is None else tuple(json.loads(row[0]))
 
     def propagate_revocations(self, *, now: datetime, limit: int = 128) -> dict[str,int]:
-        _utc(now)
+        moment = _utc(now)
         with closing(self._connect()) as db, db:
-            has_revocations = db.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ml_source_revocation'"
-            ).fetchone() is not None
-            revoked = set() if not has_revocations else {
-                row[0] for row in db.execute("SELECT source_ref FROM ml_source_revocation").fetchall()
-            }
-            episodes=db.execute("SELECT episode_id,source_refs_json FROM ga_experience_episode WHERE status='current' LIMIT ?",(limit,)).fetchall()
-            invalid=[row[0] for row in episodes if set(json.loads(row[1]))&revoked]
+            revoked = _revoked_sources(db)
+            episodes=db.execute(
+                "SELECT episode_id,source_refs_json,retention_until FROM "
+                "ga_experience_episode WHERE status='current' "
+                "ORDER BY recorded_at,episode_id LIMIT ?", (limit,),
+            ).fetchall()
+            invalid=[]; expired=[]
+            for row in episodes:
+                if set(json.loads(row[1])) & revoked:
+                    invalid.append(row[0])
+                elif datetime.fromisoformat(row[2]) <= moment:
+                    expired.append(row[0])
             for eid in invalid:
                 db.execute("UPDATE ga_experience_episode SET status='revoked' WHERE episode_id=?",(eid,))
+            for eid in expired:
+                db.execute("UPDATE ga_experience_episode SET status='expired' WHERE episode_id=?",(eid,))
+            invalid_lineage_refs = set(revoked)
+            for row in db.execute(
+                "SELECT source_refs_json FROM ga_experience_episode "
+                "WHERE status IN('corrected','revoked','expired') "
+                "ORDER BY recorded_at,episode_id LIMIT ?", (limit,),
+            ).fetchall():
+                invalid_lineage_refs.update(json.loads(row[0]))
             principles=db.execute("SELECT principle_id,episode_ids_json FROM ga_principle WHERE status IN('candidate','verified') LIMIT ?",(limit,)).fetchall()
-            bad=[row[0] for row in principles if set(json.loads(row[1]))&set(invalid)]
-            for pid in bad: db.execute("UPDATE ga_principle SET status='invalidated',updated_at=? WHERE principle_id=?",(_utc(now).isoformat(),pid))
+            bad=[]
+            for row in principles:
+                sources=tuple(json.loads(row[1]))
+                if not sources:
+                    bad.append(row[0])
+                    continue
+                marks=','.join('?' for _ in sources)
+                unusable=db.execute(
+                    f"SELECT 1 FROM ga_experience_episode WHERE episode_id IN ({marks}) "
+                    "AND status IN('corrected','revoked','expired') LIMIT 1", sources,
+                ).fetchone()
+                if unusable is not None:
+                    bad.append(row[0])
+            for pid in bad: db.execute("UPDATE ga_principle SET status='invalidated',updated_at=? WHERE principle_id=?",(moment.isoformat(),pid))
+            failures = db.execute(
+                "SELECT failure_id FROM ga_failure WHERE status='current' "
+                "AND retention_until<=? ORDER BY retention_until,failure_id LIMIT ?",
+                (moment.isoformat(), limit),
+            ).fetchall()
+            expired_failures = {row[0] for row in failures}
+            for failure_id in expired_failures:
+                db.execute(
+                    "UPDATE ga_failure SET status='invalidated' WHERE failure_id=?",
+                    (failure_id,),
+                )
+                db.execute(
+                    "UPDATE ga_failure_hypothesis SET status='invalidated' "
+                    "WHERE failure_id=? AND status='hypothesis'", (failure_id,),
+                )
+            studies = db.execute(
+                "SELECT study_id,promotion_evidence_refs_json FROM ga_blind_study "
+                "WHERE promotion_eligible=1 ORDER BY recorded_at,study_id LIMIT ?",
+                (limit,),
+            ).fetchall()
+            invalid_studies = []
+            for study in studies:
+                evidence_map = json.loads(study[1])
+                if isinstance(evidence_map, dict) and set(evidence_map.values()) & revoked:
+                    invalid_studies.append(study[0])
+            for study_id in invalid_studies:
+                db.execute(
+                    "UPDATE ga_blind_study SET promotion_eligible=0 WHERE study_id=?",
+                    (study_id,),
+                )
         skills_invalidated = 0
         if self._skills is not None:
             skills_invalidated = self._skills.invalidate_revoked_sources(
-                revoked, now=now, limit=limit,
+                invalid_lineage_refs, now=now, limit=limit,
             )
         learning_cleanup = {}
         enforce = getattr(self._learning, "enforce_retention", None)
@@ -432,7 +557,10 @@ class AdvancedGeneralizationStore:
             learning_cleanup = enforce(at=now, limit=limit)
         return {
             'episodes_revoked':len(invalid),
+            'episodes_expired':len(expired),
             'principles_invalidated':len(bad),
+            'failures_expired':len(expired_failures),
+            'studies_invalidated':len(invalid_studies),
             'skills_invalidated': skills_invalidated,
             **{f"learning_{key}": value for key, value in learning_cleanup.items()},
         }
@@ -635,6 +763,7 @@ class AdvancedGeneralizationStore:
         } and any(row[1] for row in benchmark_rows)
         eligible=assessment.evidence_supports_transfer and all(checks.values()) and benchmarks_ready
         body=asdict(assessment)
+        model_digest = evidence_bundle["sealed"]["statement"]["model_digest"]
         with closing(self._connect()) as db, db:
             prior = db.execute(
                 "SELECT sealed_digest FROM ga_blind_study WHERE study_id=?",
@@ -645,14 +774,106 @@ class AdvancedGeneralizationStore:
                 if prior[0] != sealed_digest:
                     raise PermissionError("blind study identity replay changed signed evidence")
                 raise PermissionError("blind study was already recorded")
-            db.execute("INSERT INTO ga_blind_study VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                       (assessment.study_id,principal.principal_id,principal.audience_id,assessment.revision,
-                        assessment.trained_family,assessment.unseen_family,sealed_digest,json.dumps(body,sort_keys=True),
-                        int(assessment.evidence_supports_transfer),int(checks['resource_fit']),int(checks['privacy_correct']),
-                        int(checks['authority_correct']),int(checks['rollback_ready']),int(checks['restart_correct']),
-                        json.dumps(check_evidence,sort_keys=True),int(eligible),_utc(now).isoformat()))
+            db.execute(
+                "INSERT INTO ga_blind_study("
+                "study_id,principal_id,audience_id,revision,domain_a,domain_b,"
+                "sealed_digest,assessment_json,evidence_supports_transfer,resource_fit,"
+                "privacy_correct,authority_correct,rollback_ready,restart_correct,"
+                "promotion_evidence_refs_json,promotion_eligible,recorded_at,model_digest"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (assessment.study_id,principal.principal_id,principal.audience_id,assessment.revision,
+                 assessment.trained_family,assessment.unseen_family,sealed_digest,json.dumps(body,sort_keys=True),
+                 int(assessment.evidence_supports_transfer),int(checks['resource_fit']),int(checks['privacy_correct']),
+                 int(checks['authority_correct']),int(checks['rollback_ready']),int(checks['restart_correct']),
+                 json.dumps(check_evidence,sort_keys=True),int(eligible),_utc(now).isoformat(),
+                 model_digest),
+            )
         return {'assessment':body,'promotion_eligible':eligible,
                 'benchmarks_ready': benchmarks_ready,'deployment_authorized':False}
+
+    def claim_candidate_promotion(
+        self, *, study_id: str, candidate_id: str, candidate_digest: str,
+        principal_id: str, audience_id: str, now: datetime,
+        _transaction_db: sqlite3.Connection,
+    ) -> None:
+        """Consume a blind-transfer prerequisite inside ML's activation transaction.
+
+        This check never grants deployment authority. CandidateRegistry must still
+        validate its canonical deployment grant, independent evaluation, artifact,
+        rollback lineage, and active baseline before calling this method.
+        """
+        if not isinstance(_transaction_db, sqlite3.Connection) or not _transaction_db.in_transaction:
+            raise RuntimeError("candidate promotion gate requires the activation transaction")
+        database_path = _transaction_db.execute("PRAGMA database_list").fetchone()[2]
+        if Path(database_path).resolve() != self.path.resolve():
+            raise PermissionError("promotion gate must share canonical state")
+        _id(study_id, "study"); _id(candidate_id, "candidate")
+        if _SHA.fullmatch(candidate_digest) is None:
+            raise ValueError("candidate digest must be SHA-256")
+        row = _transaction_db.execute(
+            "SELECT principal_id,audience_id,model_digest,promotion_eligible,"
+            "promotion_evidence_refs_json FROM ga_blind_study WHERE study_id=?",
+            (study_id,),
+        ).fetchone()
+        if (
+            row is None or tuple(row[:2]) != (principal_id, audience_id)
+            or row[2] != candidate_digest or not bool(row[3])
+        ):
+            raise PermissionError("matching eligible blind-transfer study required")
+        evidence_map = json.loads(row[4])
+        if not isinstance(evidence_map, dict):
+            raise PermissionError("promotion evidence mapping is corrupt")
+        refs = tuple(evidence_map.values())
+        principal = PrincipalContext(
+            principal_id, audience_id, AudienceKind.PRIVATE,
+        )
+        current = self._scoped_refs(refs, principal)
+        revoked = _revoked_sources(_transaction_db)
+        if set(refs) & revoked or any(record.successful is not True for record in current):
+            raise PermissionError("promotion evidence is no longer successful")
+        try:
+            _transaction_db.execute(
+                "INSERT INTO ga_candidate_promotion_gate VALUES(?,?,?,?,?,?)",
+                (candidate_id, study_id, candidate_digest, principal_id, audience_id,
+                 _utc(now).isoformat()),
+            )
+        except sqlite3.IntegrityError as exc:
+            prior = _transaction_db.execute(
+                "SELECT study_id,candidate_digest,principal_id,audience_id FROM "
+                "ga_candidate_promotion_gate WHERE candidate_id=?", (candidate_id,),
+            ).fetchone()
+            if prior is None or tuple(prior) != (
+                study_id, candidate_digest, principal_id, audience_id,
+            ):
+                raise PermissionError("promotion study or candidate was already consumed") from exc
+
+    def validate_candidate_promotion(
+        self, *, candidate_id: str, candidate_digest: str,
+        principal_id: str, audience_id: str, now: datetime,
+    ) -> bool:
+        """Recheck a claimed gate at point of use; false means baseline candidate."""
+        _utc(now)
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT g.candidate_digest,g.principal_id,g.audience_id,"
+                "s.promotion_eligible,s.promotion_evidence_refs_json "
+                "FROM ga_candidate_promotion_gate g JOIN ga_blind_study s "
+                "ON s.study_id=g.study_id WHERE g.candidate_id=?", (candidate_id,),
+            ).fetchone()
+            if row is None:
+                return False
+            if tuple(row[:3]) != (candidate_digest, principal_id, audience_id) or not bool(row[3]):
+                raise PermissionError("candidate blind-transfer gate is no longer valid")
+            evidence_map = json.loads(row[4])
+            if not isinstance(evidence_map, dict):
+                raise PermissionError("candidate promotion evidence mapping is corrupt")
+            refs = tuple(evidence_map.values())
+            revoked = _revoked_sources(db)
+        principal = PrincipalContext(principal_id, audience_id, AudienceKind.PRIVATE)
+        current = self._scoped_refs(refs, principal)
+        if set(refs) & revoked or any(record.successful is not True for record in current):
+            raise PermissionError("candidate promotion evidence was revoked")
+        return True
 
     def bind_failure_study(
         self, failure_id: str, study_id: str, *, principal: PrincipalContext,
@@ -682,4 +903,6 @@ class AdvancedGeneralizationStore:
             count=lambda table: db.execute(f"SELECT COUNT(*) FROM {table} WHERE principal_id=? AND audience_id=?",(principal.principal_id,principal.audience_id)).fetchone()[0]
             return {'failures':count('ga_failure'),'episodes':count('ga_experience_episode'),
                     'principles':count('ga_principle'),'environment_models':count('ga_environment_model'),
-                    'blind_studies':count('ga_blind_study'),'authority':False}
+                    'blind_studies':count('ga_blind_study'),
+                    'promotion_gates':count('ga_candidate_promotion_gate'),
+                    'authority':False}
