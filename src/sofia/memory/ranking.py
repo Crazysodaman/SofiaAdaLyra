@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from hashlib import sha256
 import json
+import math
 from pathlib import Path
 import re
 import sqlite3
@@ -34,10 +35,14 @@ class RelevanceJudgment(str, Enum):
 @dataclass(frozen=True, slots=True)
 class RankingEvaluation:
     sample_count: int
+    scored_sample_count: int
     baseline_recall_at_5: float | None
     scorer_recall_at_5: float | None
     baseline_ndcg_at_5: float | None
     scorer_ndcg_at_5: float | None
+    timeline_accuracy: float | None
+    correction_accuracy: float | None
+    source_accuracy: float | None
     cross_audience_violations: int
     independently_held_out: bool
 
@@ -106,8 +111,43 @@ class MemoryRankingService:
                     status TEXT NOT NULL,
                     invalid_reason TEXT
                 );
+                CREATE TABLE IF NOT EXISTS memory_ranking_truth_review(
+                    review_id TEXT PRIMARY KEY,
+                    retrieval_id TEXT NOT NULL,
+                    candidate_id TEXT NOT NULL,
+                    principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    timeline_truth TEXT NOT NULL CHECK(timeline_truth IN ('correct','incorrect','unknown')),
+                    correction_truth TEXT NOT NULL CHECK(correction_truth IN ('correct','incorrect','unknown')),
+                    source_accuracy TEXT NOT NULL CHECK(source_accuracy IN ('correct','incorrect','unknown')),
+                    source_ids_json TEXT NOT NULL,
+                    reviewed_at TEXT NOT NULL,
+                    FOREIGN KEY(retrieval_id) REFERENCES memory_ranking_retrieval(retrieval_id)
+                );
+                CREATE TABLE IF NOT EXISTS memory_ranking_evaluation(
+                    evaluation_id TEXT PRIMARY KEY,
+                    principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    trained_before TEXT NOT NULL,
+                    evaluated_at TEXT NOT NULL,
+                    metrics_json TEXT NOT NULL
+                );
                 """
             )
+            retrieval_columns = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(memory_ranking_retrieval)"
+                ).fetchall()
+            }
+            if "scored_candidate_ids_json" not in retrieval_columns:
+                db.execute(
+                    "ALTER TABLE memory_ranking_retrieval "
+                    "ADD COLUMN scored_candidate_ids_json TEXT"
+                )
+            if "model_id" not in retrieval_columns:
+                db.execute(
+                    "ALTER TABLE memory_ranking_retrieval ADD COLUMN model_id TEXT"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         return self._guard.connect(timeout=10)
@@ -127,23 +167,25 @@ class MemoryRankingService:
         retrieval_id = "memory-retrieval:" + _digest(body)
         with closing(self._connect()) as db, db:
             db.execute(
-                "INSERT OR IGNORE INTO memory_ranking_retrieval VALUES(?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO memory_ranking_retrieval("
+                "retrieval_id,principal_id,audience_id,query_digest,topic_digest,"
+                "candidate_ids_json,retrieved_at) VALUES(?,?,?,?,?,?,?)",
                 (retrieval_id, principal.principal_id, principal.audience_id,
                  body["query"], topic, json.dumps(ids), moment.isoformat()),
             )
             model = db.execute(
-                "SELECT trained_at,candidate_scores_json,topic_counts_json FROM memory_ranking_model "
+                "SELECT model_id,trained_at,candidate_scores_json,topic_counts_json FROM memory_ranking_model "
                 "WHERE principal_id=? AND audience_id=? AND status='active' "
                 "ORDER BY trained_at DESC,model_id DESC LIMIT 1",
                 (principal.principal_id, principal.audience_id),
             ).fetchone()
         self._last_receipt[(principal.principal_id, principal.audience_id)] = retrieval_id
-        if model is None or moment - datetime.fromisoformat(model[0]) > self.MAX_MODEL_AGE:
+        if model is None or moment - datetime.fromisoformat(model[1]) > self.MAX_MODEL_AGE:
             return records
-        topic_counts = json.loads(model[2])
+        topic_counts = json.loads(model[3])
         if int(topic_counts.get(topic, 0)) < self.MIN_TOPIC_LABELS:
             return records
-        scores = json.loads(model[1])
+        scores = json.loads(model[2])
         # Reconcile lifecycle/source/privacy changes at the point of use. A
         # deleted original may make a promoted row ineligible without passing
         # through MemoryReviewService, so published influence must fail closed.
@@ -174,7 +216,14 @@ class MemoryRankingService:
             return records
         indexed = list(enumerate(records))
         indexed.sort(key=lambda item: (-float(scores.get(item[1].id, 0.0)), item[0]))
-        return tuple(item[1] for item in indexed)
+        ranked = tuple(item[1] for item in indexed)
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "UPDATE memory_ranking_retrieval SET scored_candidate_ids_json=?,model_id=? "
+                "WHERE retrieval_id=?",
+                (json.dumps(tuple(item.id for item in ranked)), model[0], retrieval_id),
+            )
+        return ranked
 
     def last_retrieval_id(self, principal: PrincipalContext) -> str | None:
         return self._last_receipt.get((principal.principal_id, principal.audience_id))
@@ -301,26 +350,165 @@ class MemoryRankingService:
                                (reason[:240], model_id))
         return changed
 
+    def record_truth_review(
+        self, *, retrieval_id: str, candidate_id: UUID,
+        principal: PrincipalContext, at: datetime,
+        timeline_truth: str, correction_truth: str, source_accuracy: str,
+    ) -> str:
+        """Record an explicit evaluation label; never establish canonical fact."""
+        moment = _utc(at)
+        if not isinstance(principal, PrincipalContext) or principal.audience_kind is not AudienceKind.PRIVATE:
+            raise PermissionError("authenticated private truth review required")
+        if not isinstance(candidate_id, UUID):
+            raise TypeError("candidate_id must be UUID")
+        allowed = {"correct", "incorrect", "unknown"}
+        values = (timeline_truth, correction_truth, source_accuracy)
+        if any(value not in allowed for value in values):
+            raise ValueError("truth review values must be correct, incorrect, or unknown")
+        with closing(self._connect()) as db:
+            retrieval = db.execute(
+                "SELECT principal_id,audience_id,candidate_ids_json,retrieved_at "
+                "FROM memory_ranking_retrieval WHERE retrieval_id=?",
+                (retrieval_id,),
+            ).fetchone()
+        if (
+            retrieval is None
+            or retrieval[0] != principal.principal_id
+            or retrieval[1] != principal.audience_id
+            or str(candidate_id) not in json.loads(retrieval[2])
+            or moment < datetime.fromisoformat(retrieval[3])
+        ):
+            raise PermissionError("truth review is outside this eligible retrieval")
+        candidate = self._candidates.get(candidate_id)
+        if (
+            candidate is None
+            or candidate.principal_id != principal.principal_id
+            or candidate.audience_id not in (None, principal.audience_id)
+        ):
+            raise PermissionError("candidate source scope no longer matches reviewer")
+        source_ids = tuple(
+            f"{source.session_id}:{source.message_id}" for source in candidate.sources
+        )
+        body = {
+            "retrieval": retrieval_id, "candidate": str(candidate_id),
+            "timeline": timeline_truth, "correction": correction_truth,
+            "source": source_accuracy, "at": moment.isoformat(),
+        }
+        review_id = "memory-truth-review:" + _digest(body)
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "INSERT OR IGNORE INTO memory_ranking_truth_review VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (review_id, retrieval_id, str(candidate_id), principal.principal_id,
+                 principal.audience_id, timeline_truth, correction_truth,
+                 source_accuracy, json.dumps(source_ids), moment.isoformat()),
+            )
+        return review_id
+
     def evaluate_future(self, *, principal: PrincipalContext, trained_before: datetime) -> RankingEvaluation:
-        cutoff = _utc(trained_before).isoformat()
+        cutoff_value = _utc(trained_before)
+        cutoff = cutoff_value.isoformat()
         with closing(self._connect()) as db:
             rows = db.execute(
-                "SELECT r.candidate_ids_json,j.candidate_id,j.judgment,r.principal_id,r.audience_id "
+                "SELECT r.retrieval_id,r.candidate_ids_json,r.scored_candidate_ids_json,"
+                "r.model_id,j.candidate_id,j.judgment,r.principal_id,r.audience_id "
                 "FROM memory_ranking_retrieval r JOIN memory_ranking_judgment j ON j.retrieval_id=r.retrieval_id "
                 "WHERE r.principal_id=? AND r.audience_id=? AND r.retrieved_at>? AND j.valid=1",
                 (principal.principal_id, principal.audience_id, cutoff),
             ).fetchall()
-        relevant = [row for row in rows if row[2] == RelevanceJudgment.RELEVANT.value]
-        violations = sum(row[3] != principal.principal_id or row[4] != principal.audience_id for row in rows)
-        if not relevant:
-            return RankingEvaluation(0, None, None, None, None, violations, True)
-        # Stored retrieval order is the deterministic baseline. A prospective
-        # campaign must later compare scorer order; no unobserved gain is claimed.
-        hits = sum(row[1] in json.loads(row[0])[:5] for row in relevant)
-        baseline_recall = hits / len(relevant)
-        dcg = sum(1.0 / (1.0 + json.loads(row[0])[:5].index(row[1]))
-                  for row in relevant if row[1] in json.loads(row[0])[:5]) / len(relevant)
-        return RankingEvaluation(len(relevant), baseline_recall, None, dcg, None, violations, True)
+            truths = db.execute(
+                "SELECT t.timeline_truth,t.correction_truth,t.source_accuracy,"
+                "t.principal_id,t.audience_id FROM memory_ranking_truth_review t "
+                "JOIN memory_ranking_retrieval r ON r.retrieval_id=t.retrieval_id "
+                "WHERE r.principal_id=? AND r.audience_id=? AND r.retrieved_at>?",
+                (principal.principal_id, principal.audience_id, cutoff),
+            ).fetchall()
+            model_times = dict(db.execute(
+                "SELECT model_id,trained_at FROM memory_ranking_model"
+            ).fetchall())
+
+        grouped: dict[str, dict[str, object]] = {}
+        violations = 0
+        for retrieval_id, baseline_raw, scored_raw, model_id, candidate_id, judgment, row_principal, row_audience in rows:
+            violations += int(
+                row_principal != principal.principal_id
+                or row_audience != principal.audience_id
+            )
+            item = grouped.setdefault(retrieval_id, {
+                "baseline": tuple(json.loads(baseline_raw)),
+                "scored": None if scored_raw is None else tuple(json.loads(scored_raw)),
+                "model_id": model_id, "relevant": set(),
+            })
+            if judgment == RelevanceJudgment.RELEVANT.value:
+                item["relevant"].add(candidate_id)
+
+        def metrics(order: tuple[str, ...], relevant: set[str]) -> tuple[float, float]:
+            if not relevant:
+                return 0.0, 0.0
+            top = order[:5]
+            recall = len(relevant.intersection(top)) / len(relevant)
+            dcg = sum(
+                1.0 / math.log2(index + 2)
+                for index, candidate_id in enumerate(top)
+                if candidate_id in relevant
+            )
+            ideal = sum(
+                1.0 / math.log2(index + 2)
+                for index in range(min(5, len(relevant)))
+            )
+            return recall, (dcg / ideal if ideal else 0.0)
+
+        baseline_metrics = []
+        scorer_metrics = []
+        for item in grouped.values():
+            relevant = item["relevant"]
+            if not relevant:
+                continue
+            baseline_metrics.append(metrics(item["baseline"], relevant))
+            model_time = model_times.get(item["model_id"])
+            if (
+                item["scored"] is not None and model_time is not None
+                and datetime.fromisoformat(model_time) <= cutoff_value
+            ):
+                scorer_metrics.append(metrics(item["scored"], relevant))
+
+        def mean_at(values, index):
+            return None if not values else sum(value[index] for value in values) / len(values)
+
+        def accuracy(index):
+            known = [row[index] for row in truths if row[index] != "unknown"]
+            return None if not known else sum(value == "correct" for value in known) / len(known)
+
+        violations += sum(
+            row[3] != principal.principal_id or row[4] != principal.audience_id
+            for row in truths
+        )
+        result = RankingEvaluation(
+            sample_count=len(baseline_metrics),
+            scored_sample_count=len(scorer_metrics),
+            baseline_recall_at_5=mean_at(baseline_metrics, 0),
+            scorer_recall_at_5=mean_at(scorer_metrics, 0),
+            baseline_ndcg_at_5=mean_at(baseline_metrics, 1),
+            scorer_ndcg_at_5=mean_at(scorer_metrics, 1),
+            timeline_accuracy=accuracy(0), correction_accuracy=accuracy(1),
+            source_accuracy=accuracy(2), cross_audience_violations=violations,
+            independently_held_out=True,
+        )
+        evaluated_at = datetime.now(timezone.utc)
+        payload = {
+            field: getattr(result, field)
+            for field in result.__dataclass_fields__
+        }
+        evaluation_id = "memory-ranking-evaluation:" + _digest({
+            "scope": (principal.principal_id, principal.audience_id),
+            "cutoff": cutoff, "at": evaluated_at.isoformat(), "metrics": payload,
+        })
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "INSERT INTO memory_ranking_evaluation VALUES(?,?,?,?,?,?)",
+                (evaluation_id, principal.principal_id, principal.audience_id,
+                 cutoff, evaluated_at.isoformat(), json.dumps(payload, sort_keys=True)),
+            )
+        return result
 
     def diagnostics(self, *, principal: PrincipalContext) -> dict[str, object]:
         with closing(self._connect()) as db:

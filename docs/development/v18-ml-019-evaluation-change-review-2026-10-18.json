@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {"task_id":"ML-019","original_requirement":"Verify recall@5, NDCG@5, timeline/correction truth and longitudinal source accuracy against existing retrieval on independent future conversations.","existing_behavior":"MemoryRankingService records final eligible retrieval IDs and can report baseline relevance, but does not persist scorer order or typed truth reviews.","missing_requirement":"Persist baseline/scorer order and model lineage, collect explicit timeline/correction/source reviews, and calculate paired held-out metrics without inventing gain.","production_caller":"MemorySystem final eligible retrieval and authenticated MemoryReviewService.","regression_tests":"test/test_memory_explicit_ranking.py"}
+  ],
+  "reviewed_existing_paths": {
+    "src/sofia/memory/ranking.py":{"before":"class MemoryRankingService:","preserved":"Post-eligibility, audience-scoped, no-authority ranking and deterministic fallback.","reason":"Persist paired future retrieval order/model lineage and independently reviewed truth metrics."},
+    "src/sofia/application/memory_review.py":{"before":"class MemoryReviewService:","preserved":"Authenticated private review boundary and canonical MEM lifecycle authority.","reason":"Expose typed truth review without allowing the scorer to establish facts or eligibility."},
+    "docs/development/ml-foundation-ownership.md":{"before":"ML-019 remains incomplete","preserved":"Honest future-campaign acceptance boundary.","reason":"Document executable evaluation instrumentation while leaving real measurements open."}
+  },
+  "approved_removals": []
+}

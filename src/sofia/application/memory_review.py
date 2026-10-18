@@ -224,3 +224,27 @@ class MemoryReviewService:
         """Build a bounded scoped scorer; this grants no recall eligibility."""
         self._require_sparks_reviewer(approved_by)
         return self._ranking.train(principal=approved_by, at=at)
+
+    def record_ranking_truth_review(
+        self, *, retrieval_id: str, candidate_id: UUID,
+        approved_by: PrincipalContext, at: datetime,
+        timeline_truth: str, correction_truth: str, source_accuracy: str,
+    ) -> str:
+        """Record explicit held-out evaluation labels, not canonical facts."""
+        self._require_sparks_reviewer(approved_by)
+        return self._ranking.record_truth_review(
+            retrieval_id=retrieval_id, candidate_id=candidate_id,
+            principal=approved_by, at=at,
+            timeline_truth=timeline_truth,
+            correction_truth=correction_truth,
+            source_accuracy=source_accuracy,
+        )
+
+    def evaluate_relevance_ranker(
+        self, *, approved_by: PrincipalContext, trained_before: datetime,
+    ):
+        """Evaluate only prospectively recorded, audience-scoped reviews."""
+        self._require_sparks_reviewer(approved_by)
+        return self._ranking.evaluate_future(
+            principal=approved_by, trained_before=trained_before,
+        )

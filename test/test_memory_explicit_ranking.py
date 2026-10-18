@@ -124,11 +124,78 @@ def test_future_evaluation_reports_baseline_without_inventing_scorer_gain(tmp_pa
     )
     result = ranking.evaluate_future(principal=SPARKS, trained_before=NOW)
     assert result.sample_count == 1
+    assert result.scored_sample_count == 0
     assert result.baseline_recall_at_5 == 1.0
     assert result.scorer_recall_at_5 is None
     assert result.scorer_ndcg_at_5 is None
     assert result.cross_audience_violations == 0
     assert result.independently_held_out is True
+
+
+def test_future_evaluation_pairs_frozen_baseline_scorer_and_truth_reviews(tmp_path):
+    store = DurableMemoryCandidateStore(tmp_path / "sofia.db")
+    preferred = _promoted(store, "Artemis Docker current correction timeline")
+    older = _promoted(store, "Artemis Docker older correction timeline")
+    ranking = MemoryRankingService(tmp_path / "sofia.db", store)
+    baseline = (
+        MemoryRecord(str(older.candidate_id), older.content, NOW),
+        MemoryRecord(str(preferred.candidate_id), preferred.content, NOW),
+    )
+    for index in range(4):
+        when = NOW + timedelta(seconds=index)
+        ranking.rank("Artemis Docker timeline", baseline, principal=SPARKS, at=when)
+        receipt = ranking.last_retrieval_id(SPARKS)
+        ranking.record_judgment(
+            retrieval_id=receipt, candidate_id=preferred.candidate_id,
+            judgment=RelevanceJudgment.RELEVANT, principal=SPARKS, at=when,
+        )
+        ranking.record_judgment(
+            retrieval_id=receipt, candidate_id=older.candidate_id,
+            judgment=RelevanceJudgment.NOT_RELEVANT, principal=SPARKS,
+            at=when + timedelta(microseconds=1),
+        )
+    assert ranking.train(
+        principal=SPARKS, at=NOW + timedelta(minutes=1),
+    ) is not None
+    cutoff = NOW + timedelta(minutes=2)
+    future = NOW + timedelta(days=1)
+    ranked = ranking.rank(
+        "Artemis Docker timeline", baseline, principal=SPARKS, at=future,
+    )
+    assert ranked[0].id == str(preferred.candidate_id)
+    receipt = ranking.last_retrieval_id(SPARKS)
+    ranking.record_judgment(
+        retrieval_id=receipt, candidate_id=preferred.candidate_id,
+        judgment=RelevanceJudgment.RELEVANT, principal=SPARKS,
+        at=future + timedelta(seconds=1),
+    )
+    review_id = ranking.record_truth_review(
+        retrieval_id=receipt, candidate_id=preferred.candidate_id,
+        principal=SPARKS, at=future + timedelta(seconds=2),
+        timeline_truth="correct", correction_truth="incorrect",
+        source_accuracy="unknown",
+    )
+    assert review_id.startswith("memory-truth-review:")
+    restarted = MemoryRankingService(tmp_path / "sofia.db", store)
+    result = restarted.evaluate_future(principal=SPARKS, trained_before=cutoff)
+    assert result.sample_count == 1
+    assert result.scored_sample_count == 1
+    assert result.baseline_recall_at_5 == 1.0
+    assert result.scorer_recall_at_5 == 1.0
+    assert result.scorer_ndcg_at_5 > result.baseline_ndcg_at_5
+    assert result.timeline_accuracy == 1.0
+    assert result.correction_accuracy == 0.0
+    assert result.source_accuracy is None
+    assert result.cross_audience_violations == 0
+
+    foreign = PrincipalContext("sparks", "discord:dm", AudienceKind.PRIVATE)
+    with pytest.raises(PermissionError):
+        ranking.record_truth_review(
+            retrieval_id=receipt, candidate_id=preferred.candidate_id,
+            principal=foreign, at=future + timedelta(seconds=3),
+            timeline_truth="correct", correction_truth="correct",
+            source_accuracy="correct",
+        )
 
 
 def test_canonical_revocation_reconciles_derived_model_without_review_hook(tmp_path):

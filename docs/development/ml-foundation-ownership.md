@@ -127,9 +127,12 @@ unavailable state falls back to deterministic MEM order. Revocation,
 correction, and point-of-use source/privacy reconciliation invalidate
 influenced models. The scorer receives only MEM's final promoted,
 principal/audience-scoped shortlist and cannot retrieve or authorize anything.
-This codes the core of ML-015 through ML-018. ML-019 remains incomplete until
-independent future conversations provide both baseline and scorer recall@5,
-NDCG@5, timeline/correction truth, and longitudinal source-accuracy evidence.
+This codes the core of ML-015 through ML-018. ML-019 now freezes the original
+deterministic order, scorer order, model lineage, exact eligible IDs and typed
+owner reviews for timeline, correction and source truth. Its paired evaluator
+calculates held-out recall@5, NDCG@5 and known-label accuracies while preserving
+unknowns. ML-019 remains incomplete until independent future conversations
+actually populate and validate those metrics.
 
 ML-020 has explicit, reversible, restart-durable feedback for genuine LIFE
 project invitations and ordinary reflections, conversation follow-ups, goal
