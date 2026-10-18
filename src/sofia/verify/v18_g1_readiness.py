@@ -63,7 +63,9 @@ def inspect_g1_submissions(
         task_id = match.group(1)
         if task_id in original:
             raise G1SubmissionError("duplicate original requirement " + task_id)
-        original[task_id] = match.group(0).replace("- [ ] ", "", 1)
+        # Match the original requirement bytes apart from the host newline:
+        # Windows checkouts may contain CRLF, while review packets use LF.
+        original[task_id] = match.group(0).replace("- [ ] ", "", 1).rstrip("\r")
     if len(original) != 700:
         raise G1SubmissionError("expected 700 canonical original tasks")
     if not packet_paths:
