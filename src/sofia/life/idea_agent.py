@@ -4,7 +4,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from math import isfinite
 from hashlib import sha256
+from math import isfinite
 import json
 
 from sofia.cognition.strict_json import loads_strict_model_json
@@ -50,7 +52,7 @@ class ProjectIdeaSuggestion:
         if not isinstance(self.artifact_kind, ArtifactKind) or not isinstance(self.pursue, bool):
             raise TypeError("suggestion kind/pursue fields are invalid")
         for label, value in (("confidence", self.confidence), ("curiosity", self.curiosity)):
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1:
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value) or not 0 <= value <= 1:
                 raise ValueError(f"{label} must be in 0..1")
 
 
@@ -70,6 +72,8 @@ class ProjectIdeaAgent:
         self, *, interests: tuple[InterestRecord, ...],
         experience_summaries: tuple[str, ...], now: datetime,
     ) -> ProjectIdeaSuggestion:
+        if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("idea context timestamp must be timezone-aware")
         if not interests or len(interests) > 8:
             raise ValueError("1..8 grounded interests required")
         if len(experience_summaries) > 8:
