@@ -173,6 +173,24 @@ def test_matrix_v2_interleaved_properties_do_not_cross_attribute_hosts():
     }
 
 
+def test_ml028_all_cognitive_routes_work_without_optional_neuro():
+    scheduler = ValidatedCognitiveScheduler()
+    expected = {
+        ReasoningRequirement.DETERMINISTIC: (256, 500, 2),
+        ReasoningRequirement.FAST: (1024, 4000, 3),
+        ReasoningRequirement.STANDARD: (3072, 12000, 6),
+        ReasoningRequirement.DEEP: (6144, 30000, 8),
+        ReasoningRequirement.VERIFY: (8192, 60000, 10),
+    }
+    for requirement, (tokens, time_ms, retrieval) in expected.items():
+        effective, budget = scheduler.budget(requirement)
+        assert effective is requirement
+        assert budget.token_budget == tokens
+        assert budget.time_budget_ms == time_ms
+        assert budget.retrieval_limit == retrieval
+        assert budget.background_priority == 0.0
+
+
 def test_neuro_can_promote_budget_but_cannot_add_evidence_or_downgrade_verify():
     planner = MatrixV2Planner()
     focus = _focus(artemis=True)
