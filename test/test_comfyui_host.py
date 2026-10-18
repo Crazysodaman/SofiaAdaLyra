@@ -37,6 +37,7 @@ def test_refuses_multi_instance(tmp_path, monkeypatch):
     path = tmp_path/"owned.json"
     path.write_text(json.dumps({"pid": 42, "created": 1234.0, "exe": "C:/Apps/ComfyUI.exe", "user": "owner"}))
     ps = FakePS([FakeProc(), FakeProc(pid=43)])
+    monkeypatch.setattr(host, "_instances", lambda _ps, _exe: [42, 43])
     with pytest.raises(host.ComfyHostError):
         host.close(exe=Path("C:/Apps/ComfyUI.exe"), record_path=path, psutil=ps, jobs_running=0,
                    send_close=lambda _: pytest.fail("should never send close"))
