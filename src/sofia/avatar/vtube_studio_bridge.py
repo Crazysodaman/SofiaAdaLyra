@@ -15,6 +15,7 @@ import math
 import os
 import inspect
 import socket
+import time
 from pathlib import Path
 import sys
 from uuid import uuid4
@@ -345,6 +346,93 @@ def diagnose_local(*, port: int = 8001) -> dict:
     return result
 
 
+def saved_authorization_status() -> dict:
+    """Read-only metadata. Never decrypt or expose a plugin token."""
+    path = _token_path()
+    return {
+        "token_saved": path.is_file() and not path.is_symlink(),
+        "storage": "Windows DPAPI (current Windows user)",
+        "automatic_reauthentication_available": path.is_file() and not path.is_symlink(),
+    }
+
+
+def reconnect_saved_session(*, port: int = 8001) -> dict:
+    """One owner-authorized reuse of a saved token, without any popup.
+
+    Does not start VTS, activate a model, inject parameters, or modify
+    presentation/wardrobe state. Can run at owner-session startup.
+    """
+    _port(port)
+    token = load_owner_token()
+    with VTubeStudioBridge.connect_local(port=port) as bridge:
+        bridge.authenticate(token)
+        model = bridge.current_model()
+        return {
+            "connected": True, "reused_saved_authorization": True,
+            "model_loaded": model["loaded"],
+            "model_name": model["name"],
+            "production_activated": False,
+        }
+
+
+def watch_saved_connection(
+    *, port: int = 8001, interval_seconds: float = 10,
+    should_stop=None, sleep=None, connect=None, on_status=None,
+) -> None:
+    """Opt-in owner-session reconnection loop, without permission popups.
+
+    This is transport keepalive only. No model loading, camera access, speech
+    events, private art, game activity, or parameters are requested. A future
+    user-session controller may call this while Sofía is running; a Windows
+    service in a different DPAPI identity cannot access this user's token.
+    """
+    _port(port)
+    if (
+        isinstance(interval_seconds, bool)
+        or not isinstance(interval_seconds, (int, float))
+        or not math.isfinite(interval_seconds)
+        or not 2 <= interval_seconds <= 120
+    ):
+        raise ValueError("reconnection interval must be 2 to 120 seconds")
+    token = load_owner_token()  # fail closed if approval was never stored
+    stop = should_stop if should_stop is not None else (lambda: False)
+    pause = sleep if sleep is not None else time.sleep
+    connector = connect if connect is not None else VTubeStudioBridge.connect_local
+    emit = on_status if on_status is not None else (lambda _status: None)
+    previous = None
+
+    def transition(status: str) -> None:
+        nonlocal previous
+        if status != previous:
+            previous = status
+            emit(status)
+
+    while not stop():
+        try:
+            with connector(port=port) as bridge:
+                # Distinguish a revoked token from a transient socket failure.
+                # Never ask VTS for another token automatically.
+                try:
+                    bridge.authenticate(token)
+                except VTSBridgeError as exc:
+                    raise PermissionError(
+                        "VTube Studio refused saved owner authorization; "
+                        "explicit re-enrollment is required"
+                    ) from exc
+                transition("connected")
+                while not stop():
+                    status = bridge.api_status()
+                    if not status["active"]:
+                        raise VTSBridgeError("VTube Studio API is no longer active")
+                    if not stop():
+                        pause(interval_seconds)
+        except VTSBridgeError:
+            if stop():
+                break
+            transition("waiting_for_vtube_studio")
+            pause(interval_seconds)
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="Explicit local VTube Studio API status and owner pairing; no avatar activation"
@@ -354,6 +442,10 @@ def main(argv=None) -> int:
     modes.add_argument("--diagnose", action="store_true", help="Read-only TCP/WebSocket/API diagnostic without pairing")
     modes.add_argument("--pair", action="store_true", help="Ask VTS to show owner permission popup; DPAPI-store token")
     modes.add_argument("--model", action="store_true", help="Read model info using approved saved token")
+    modes.add_argument("--credential-status", action="store_true", help="Check for the saved DPAPI token without opening VTS")
+    modes.add_argument("--reconnect", action="store_true", help="Reuse saved permission for one local connection, without a popup")
+    modes.add_argument("--watch", action="store_true", help="Keep reconnecting with saved permission until Ctrl+C; no avatar control")
+    parser.add_argument("--interval", type=float, default=10, help="Seconds between --watch checks (2 to 120)")
     parser.add_argument("--port", type=int, default=8001, help="VTube Studio local API port")
     args = parser.parse_args(argv)
     try:
@@ -362,6 +454,24 @@ def main(argv=None) -> int:
             report = diagnose_local(port=args.port)
             print(json.dumps(report, indent=2))
             return 0 if report["api_active"] else 2
+        if args.credential_status:
+            report = saved_authorization_status()
+            print(json.dumps(report, indent=2))
+            return 0 if report["token_saved"] else 2
+        if args.reconnect:
+            print(json.dumps(reconnect_saved_session(port=args.port), indent=2))
+            return 0
+        if args.watch:
+            def report_status(value):
+                print(json.dumps({"vtube_studio": value, "port": args.port}), flush=True)
+            try:
+                watch_saved_connection(
+                    port=args.port, interval_seconds=args.interval,
+                    on_status=report_status,
+                )
+            except KeyboardInterrupt:
+                print(json.dumps({"vtube_studio": "stopped_by_owner"}))
+            return 0
         if args.pair and _token_path().exists():
             raise VTSBridgeError("VTS token already saved: refuse silent credential replacement")
         with VTubeStudioBridge.connect_local(port=args.port) as bridge:
