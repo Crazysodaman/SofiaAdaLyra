@@ -52,10 +52,22 @@ class TrainingLabPlan:
     may_install_model:bool=False
 
     def __post_init__(self):
+        # Typed manifests must not smuggle truthy values or reuse a host
+        # identity as an allegedly independent isolated training guest.
+        for field in (
+            "guest_ssh_enabled", "guest_root_execution", "canonical_db_mount",
+            "host_secrets_mounted", "may_train", "may_install_model",
+        ):
+            if type(getattr(self, field)) is not bool:
+                raise TypeError(f"{field} must be an explicit boolean")
+        if not isinstance(self.plan_id, str):
+            raise ValueError("bounded unique training plan ID required")
         if not re.fullmatch(r"train:[0-9a-f]{32}",self.plan_id):
             raise ValueError("bounded unique training plan ID required")
         if not isinstance(self.artemis_node_id,UUID) or not isinstance(self.hephaestus_vm_id,UUID):
             raise ValueError("exact enrolled host and existing VM GUID required")
+        if self.artemis_node_id == self.hephaestus_vm_id:
+            raise PermissionError("training guest cannot reuse enrolled host identity")
         if any(not isinstance(v,str) or not _SHA.fullmatch(v) for v in (
             self.base_model_sha256,self.training_data_sha256,
             self.heldout_data_sha256,
@@ -95,7 +107,9 @@ class TrainingLabPlan:
         if self.gpu_worker=="none" and (self.max_gpu_seconds or self.max_gpu_vram_mb):
             raise PermissionError("GPU resources cannot be reserved without separately approved worker")
         if (
-            self.created_at.tzinfo is None or self.created_at.utcoffset() is None
+            not isinstance(self.created_at, datetime)
+            or not isinstance(self.expires_at, datetime)
+            or self.created_at.tzinfo is None or self.created_at.utcoffset() is None
             or self.expires_at.tzinfo is None or self.expires_at.utcoffset() is None
             or not timedelta(0)<self.expires_at-self.created_at<=timedelta(minutes=30)
         ):
