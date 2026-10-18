@@ -425,3 +425,51 @@ def test_ca006_outcome_events_cannot_certify_ineligible_sources(
             matrix_trace=matrix, neuro_snapshot=None,
             outcome_events=(event,),
         )
+
+
+def test_ca006_rejects_duplicate_canonical_outcome_receipt(tmp_path):
+    _, matrix = _fixture(tmp_path)
+    matrix = replace(matrix, evidence=EvidenceMatrix(records=(
+        EvidenceRecord("effect", EvidenceState.AVAILABLE, "act:duplicate"),
+    )))
+    event = EventOwnershipProjection(
+        schema_version=1,
+        event_id="act:duplicate",
+        owner=CanonicalEventOwner.ACT,
+        source_id="act:duplicate",
+        subject_id="session:one",
+        principal_id=None,
+        audience_id=None,
+        observed_at=NOW,
+    )
+    with pytest.raises(ValueError, match="duplicate canonical decision event identity"):
+        project_companion_decision(
+            matrix_trace=matrix,
+            neuro_snapshot=None,
+            outcome_events=(event, event),
+        )
+
+
+def test_ca006_keeps_single_legitimate_outcome_receipt(tmp_path):
+    _, matrix = _fixture(tmp_path)
+    matrix = replace(matrix, evidence=EvidenceMatrix(records=(
+        EvidenceRecord("effect", EvidenceState.AVAILABLE, "act:unique"),
+    )))
+    event = EventOwnershipProjection(
+        schema_version=1,
+        event_id="act:unique",
+        owner=CanonicalEventOwner.ACT,
+        source_id="act:unique",
+        subject_id="session:one",
+        principal_id=None,
+        audience_id=None,
+        observed_at=NOW,
+    )
+    result = project_companion_decision(
+        matrix_trace=matrix,
+        neuro_snapshot=None,
+        outcome_events=(event,),
+    )
+    assert len(result.outcomes) == 1
+    assert result.outcomes[0].source_ref == "act:unique"
+    assert result.outcomes[0].independently_verified is False
