@@ -88,6 +88,38 @@ def test_neuro_turn_prefers_required_domain_without_creating_authority():
     assert "Matrix evidence and authority rules" in prompt
 
 
+def test_ml025_prediction_is_read_only_and_never_overrides_deterministic_salience():
+    from hashlib import sha256
+    from sofia.learning.contracts import Prediction, PredictionMode
+
+    network = SalienceNetwork()
+    signal = NeuralSignal(
+        source="ops:test", kind="fault", value=1.0, confidence=1.0,
+        novelty=0.5, urgency=0.7, observed_at=NOW,
+    )
+    hint = Prediction(
+        prediction_id="prediction:salience",
+        candidate_digest=sha256(b"advisory").hexdigest(),
+        subject_id="ops:test",
+        principal_id="owner",
+        audience_id="private:owner",
+        generated_at=NOW - timedelta(seconds=1),
+        expires_at=NOW + timedelta(seconds=10),
+        mode=PredictionMode.SHADOW,
+        value={"salience": 0.98},
+        uncertainty=0.2,
+        reason_refs=("telemetry:observation",),
+    )
+    original = network.signal_score(signal)
+    assert network.advisory_score(signal, prediction=hint) == pytest.approx(0.98)
+    network.ingest(signal)
+    assert network.activations(now=NOW)[0].score == pytest.approx(original)
+    from dataclasses import replace
+    assert network.advisory_score(signal, prediction=replace(hint, subject_id="other")) is None
+    assert network.advisory_score(signal, prediction=replace(hint, uncertainty=0.9)) is None
+    assert network.advisory_score(signal, prediction=replace(hint, mode=PredictionMode.LIMITED)) is None
+
+
 def test_neuro_is_event_driven_and_expired_signal_disappears():
     network = SalienceNetwork(half_life_seconds=30.0)
     runtime = NeuroRuntime(network=network)
