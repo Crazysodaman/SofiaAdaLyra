@@ -19,7 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # External Live2D renderer is opt-in; Tk remains the safe installed fallback.
-vtube-studio = ["websockets>=14,<17"]
+vtube-studio = ["websockets>=14,<17", "psutil>=6,<8"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
