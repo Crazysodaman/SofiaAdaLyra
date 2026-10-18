@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from math import isfinite
 import json
 from typing import Callable
 
@@ -63,6 +64,7 @@ class ProjectOutreachChoiceAgent:
             or verified_at.tzinfo is None or verified_at.utcoffset() is None
             or isinstance(salience, bool)
             or not isinstance(salience, (int, float))
+            or not isfinite(salience)
             or not 0 <= salience <= 1
         ):
             raise ValueError("bounded original project context required")
