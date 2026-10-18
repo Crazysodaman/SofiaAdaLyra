@@ -73,7 +73,15 @@ def review_directory_status(*, foundation: Path, features: Path, mouths: Path) -
     return tuple(result)
 
 
-def run_local_preview(*, foundation: Path, features: Path, mouths: Path) -> None:
+def run_local_preview(
+    *, foundation: Path, features: Path, mouths: Path,
+    source_root: Path | None = None, canonical_body: Path | None = None,
+) -> None:
+    if (source_root is None) != (canonical_body is None):
+        raise ValueError(
+            "For a complete character preview, supply BOTH "
+            "--source-root and --canonical-body"
+        )
     for item in review_directory_status(
         foundation=foundation, features=features, mouths=mouths,
     ):
@@ -88,13 +96,48 @@ def run_local_preview(*, foundation: Path, features: Path, mouths: Path) -> None
     verify_independent_features(features, foundation_root=foundation)
     try:
         import tkinter as tk
-        from PIL import ImageTk, ImageOps
+        from PIL import Image, ImageTk, ImageOps
     except (ImportError, RuntimeError) as exc:
         raise RuntimeError("Tkinter and Pillow ImageTk required for local sprite review") from exc
 
+    # Prepared once, not per animation frame. In review mode, body and
+    # hairstyles are separate, inspected source art. The approved source
+    # digests are pinned by the existing hair/ear registration module.
+    frame_back = frame_front = None
+    if source_root is not None:
+        from .vtuber_batch09_foundation import verify_head_foundation
+        from .vtuber_hair_ear_review import (
+            _private_path, _load, _registered, _CANDIDATE_BOXES,
+        )
+        for path in (source_root, canonical_body):
+            _private_path(path)
+        verify_head_foundation(foundation, canonical_body=canonical_body)
+        if not source_root.is_dir():
+            raise ValueError(f"approved hair/ear source missing: {source_root}")
+        artwork = {
+            "hair_back_main.png": source_root / "layers/hair/hair_back_main.png",
+            "hair_front_bangs.png": source_root / "layers/hair/hair_front_bangs.png",
+            "ear_pose_01.png": source_root / "layers/ears/ear_pose_01.png",
+            "ear_pose_06.png": source_root / "layers/ears/ear_pose_06.png",
+        }
+        fitted = {
+            name: _registered(_load(path, name=name), _CANDIDATE_BOXES[name])
+            for name, path in artwork.items()
+        }
+        with Image.open(canonical_body) as source:
+            if source.format != "PNG" or source.mode != "RGBA" or source.size != (2048, 2560):
+                raise ValueError("canonical body must be 2048x2560 RGBA PNG")
+            body = source.copy()
+        frame_back = Image.new("RGBA", (2048, 2560))
+        frame_back.alpha_composite(fitted["hair_back_main.png"])
+        frame_back.alpha_composite(body)
+        frame_back.alpha_composite(fitted["ear_pose_01.png"])
+        frame_back.alpha_composite(fitted["ear_pose_06.png"])
+        frame_front = fitted["hair_front_bangs.png"]
+
     window = tk.Tk()
     window.title("Sofía | PRIVATE ART REVIEW ONLY (not live renderer)")
-    window.geometry("560x610")
+    window.geometry("720x790" if frame_back is not None else "560x610")
     window.configure(bg="#231e30")
     panel = tk.Label(window, bg="#231e30")
     panel.pack(pady=8)
@@ -116,7 +159,18 @@ def run_local_preview(*, foundation: Path, features: Path, mouths: Path) -> None
             foundation_root=foundation, features_root=features,
             mouths_root=mouths, expression=expression,
         )
-        return ImageOps.contain(image.crop((830, 54, 1186, 458)), (486, 492))
+        if frame_back is not None:
+            assembled = frame_back.copy()
+            assembled.alpha_composite(image)
+            assembled.alpha_composite(frame_front)
+            return ImageOps.contain(
+                assembled.crop((710, 0, 1334, 620)), (660, 630),
+                Image.Resampling.LANCZOS,
+            )
+        return ImageOps.contain(
+            image.crop((830, 54, 1186, 458)), (486, 492),
+            Image.Resampling.LANCZOS,
+        )
 
     def draw(index: int) -> None:
         nonlocal photo, frame_index
@@ -198,6 +252,14 @@ def main(argv=None) -> int:
     parser.add_argument("--features-root", type=Path, required=True)
     parser.add_argument("--mouths-root", type=Path, required=True)
     parser.add_argument(
+        "--source-root", type=Path,
+        help="Optional PRIVATE approved CoreLayers/v1 source for full character review",
+    )
+    parser.add_argument(
+        "--canonical-body", type=Path,
+        help="Required with --source-root: canonical body PNG",
+    )
+    parser.add_argument(
         "--check-paths", action="store_true",
         help="Show exact staged-directory problems without opening the Tk window",
     )
@@ -214,6 +276,8 @@ def main(argv=None) -> int:
         foundation=args.foundation_root,
         features=args.features_root,
         mouths=args.mouths_root,
+        source_root=args.source_root,
+        canonical_body=args.canonical_body,
     )
     return 0
 
