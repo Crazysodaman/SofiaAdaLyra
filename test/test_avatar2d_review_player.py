@@ -87,3 +87,27 @@ def test_preview_check_paths_only_diagnoses_without_starting_tk(tmp_path, capsys
     (paths[2] / "manifest.json").unlink()
     assert main(argv) == 2
     assert json.loads(capsys.readouterr().out)[2]["status"].startswith("manifest.json missing")
+
+
+def test_full_character_review_requires_both_explicit_private_sources(tmp_path):
+    """A half-configured preview must fail before Tk or public code is loaded."""
+    import pytest
+    from sofia.avatar.vtuber_review_player import run_local_preview
+
+    with pytest.raises(ValueError, match="supply BOTH"):
+        run_local_preview(
+            foundation=tmp_path / "Batch09",
+            features=tmp_path / "Batch1011",
+            mouths=tmp_path / "Batch1213",
+            source_root=tmp_path / "Private-Source" / "CoreLayers",
+        )
+
+
+def test_full_character_review_cli_accepts_optional_sources_without_startup(tmp_path):
+    """Verify the user can discover the new optional flags headlessly."""
+    from sofia.avatar.vtuber_review_player import main
+    import pytest
+
+    with pytest.raises(SystemExit) as done:
+        main(["--help"])
+    assert done.value.code == 0
