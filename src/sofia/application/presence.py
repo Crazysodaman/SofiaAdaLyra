@@ -262,6 +262,9 @@ class PresenceInitiativeEngine:
         "fleet_anomaly", "goal_change", "operational_alert",
         "reflection", "task_completed",
     })
+    _ORDINARY_FEEDBACK_TRIGGERS = frozenset({
+        "conversation_followup", "dev_finding", "goal_change", "reflection",
+    })
 
     def __init__(
         self,
@@ -355,6 +358,32 @@ class PresenceInitiativeEngine:
                     feedback TEXT NOT NULL CHECK(
                         feedback IN ('declined','welcomed')
                     ),
+                    original_event_id TEXT NOT NULL,
+                    recorded_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS presence_update_feedback (
+                    principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    trigger_kind TEXT NOT NULL,
+                    usefulness TEXT CHECK(
+                        usefulness IS NULL OR usefulness IN ('useful','not_useful')
+                    ),
+                    interruptiveness TEXT CHECK(
+                        interruptiveness IS NULL OR interruptiveness IN ('acceptable','too_interruptive')
+                    ),
+                    original_event_id TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(principal_id,audience_id,trigger_kind)
+                );
+                CREATE TABLE IF NOT EXISTS presence_update_feedback_event (
+                    feedback_event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    trigger_kind TEXT NOT NULL,
+                    dimension TEXT NOT NULL CHECK(
+                        dimension IN ('usefulness','interruptiveness')
+                    ),
+                    value TEXT NOT NULL,
                     original_event_id TEXT NOT NULL,
                     recorded_at TEXT NOT NULL
                 );
@@ -637,6 +666,127 @@ class PresenceInitiativeEngine:
                 ),
             )
 
+    @staticmethod
+    def _require_private_sparks(principal: PrincipalContext) -> None:
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated owner principal required")
+        if (
+            principal.principal_id != SPARKS_PRINCIPAL_ID
+            or principal.audience_kind is not AudienceKind.PRIVATE
+        ):
+            raise PermissionError("owner-only private update feedback")
+
+    def owner_update_feedback(
+        self, *, trigger_kind: str, principal: PrincipalContext,
+    ) -> dict[str, str | None]:
+        """Return explicit ordinary-update feedback; silence stays unknown."""
+        self._require_private_sparks(principal)
+        if trigger_kind not in self._ORDINARY_FEEDBACK_TRIGGERS:
+            raise ValueError("feedback is limited to ordinary update classes")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT usefulness,interruptiveness FROM presence_update_feedback "
+                "WHERE principal_id=? AND audience_id=? AND trigger_kind=?",
+                (principal.principal_id, principal.audience_id, trigger_kind),
+            ).fetchone()
+        return {
+            "usefulness": None if row is None else row["usefulness"],
+            "interruptiveness": None if row is None else row["interruptiveness"],
+        }
+
+    def record_owner_update_feedback(
+        self, *, principal: PrincipalContext, original_event_id: str,
+        dimension: str, value: str, at: datetime,
+    ) -> None:
+        """Record one reversible owner judgment about an authentic update.
+
+        Critical operational, Fleet and approval notifications are deliberately
+        outside this preference surface. A value of ``unknown`` clears that
+        dimension without rewriting its audit history.
+        """
+        self._require_private_sparks(principal)
+        allowed = {
+            "usefulness": {"useful", "not_useful", "unknown"},
+            "interruptiveness": {"acceptable", "too_interruptive", "unknown"},
+        }
+        if dimension not in allowed or value not in allowed[dimension]:
+            raise ValueError("typed usefulness or interruptiveness feedback required")
+        if not isinstance(original_event_id, str) or _ID.fullmatch(original_event_id) is None:
+            raise ValueError("exact bounded Presence event ID required")
+        if not isinstance(at, datetime) or at.tzinfo is None or at.utcoffset() is None:
+            raise ValueError("source-aware owner feedback time required")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            original = db.execute(
+                """SELECT o.trigger_kind,o.recipient_id,o.status,w.audience_id
+                   FROM presence_initiative_opportunity AS o
+                   JOIN presence_world_observation AS w
+                     ON w.observation_id=o.observation_id
+                   WHERE o.event_id=?""",
+                (original_event_id,),
+            ).fetchone()
+            if (
+                original is None
+                or original["trigger_kind"] not in self._ORDINARY_FEEDBACK_TRIGGERS
+                or original["recipient_id"] != principal.principal_id
+                or original["status"] != "queued"
+                or original["audience_id"] != principal.audience_id
+            ):
+                raise PermissionError("no matching authentic ordinary update")
+            trigger = original["trigger_kind"]
+            current = db.execute(
+                "SELECT usefulness,interruptiveness FROM presence_update_feedback "
+                "WHERE principal_id=? AND audience_id=? AND trigger_kind=?",
+                (principal.principal_id, principal.audience_id, trigger),
+            ).fetchone()
+            previous = None if current is None else current[dimension]
+            projected = None if value == "unknown" else value
+            if previous == projected:
+                return
+            stamped = self._utc(at).isoformat()
+            db.execute(
+                "INSERT INTO presence_update_feedback_event"
+                "(principal_id,audience_id,trigger_kind,dimension,value,original_event_id,recorded_at) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (principal.principal_id, principal.audience_id, trigger,
+                 dimension, value, original_event_id, stamped),
+            )
+            usefulness = projected if dimension == "usefulness" else (
+                None if current is None else current["usefulness"]
+            )
+            interruptiveness = projected if dimension == "interruptiveness" else (
+                None if current is None else current["interruptiveness"]
+            )
+            if usefulness is None and interruptiveness is None:
+                db.execute(
+                    "DELETE FROM presence_update_feedback WHERE principal_id=? AND audience_id=? AND trigger_kind=?",
+                    (principal.principal_id, principal.audience_id, trigger),
+                )
+            else:
+                db.execute(
+                    """INSERT INTO presence_update_feedback VALUES(?,?,?,?,?,?,?)
+                       ON CONFLICT(principal_id,audience_id,trigger_kind)
+                       DO UPDATE SET usefulness=excluded.usefulness,
+                         interruptiveness=excluded.interruptiveness,
+                         original_event_id=excluded.original_event_id,
+                         updated_at=excluded.updated_at""",
+                    (principal.principal_id, principal.audience_id, trigger,
+                     usefulness, interruptiveness, original_event_id, stamped),
+                )
+
+    def _ordinary_update_is_too_interruptive(
+        self, *, trigger_kind: str, recipient_id: str, audience_id: str | None,
+    ) -> bool:
+        if trigger_kind not in self._ORDINARY_FEEDBACK_TRIGGERS or audience_id is None:
+            return False
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT interruptiveness FROM presence_update_feedback "
+                "WHERE principal_id=? AND audience_id=? AND trigger_kind=?",
+                (recipient_id, audience_id, trigger_kind),
+            ).fetchone()
+        return row is not None and row["interruptiveness"] == "too_interruptive"
+
     def recent_life_project_outreach(
         self, *, now: datetime, recipient_id: str = SPARKS_PRINCIPAL_ID,
         hours: int = 24,
@@ -728,6 +878,12 @@ class PresenceInitiativeEngine:
             reason = "stale_or_future_observation"
         elif event.trigger_kind in self._ELIGIBLE_TRIGGERS and not grounded:
             reason = "insufficient_grounding"
+        elif self._ordinary_update_is_too_interruptive(
+            trigger_kind=event.trigger_kind,
+            recipient_id=event.recipient_id,
+            audience_id=event.observation.audience_id,
+        ):
+            reason = "owner_marked_too_interruptive"
         elif event.trigger_kind in self._ELIGIBLE_TRIGGERS:
             route = self.act_service.delivery_route
             if route is None:

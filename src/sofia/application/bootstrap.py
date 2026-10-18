@@ -361,6 +361,9 @@ class SofiaApplication:
             learning=self._learning,
             ops_service=self._runtime.ops_service,
         )
+        self._runtime.ops_service.set_placement_advisor(
+            self._fleet_pressure_pilot.placement_advisory
+        )
         self._conversation_service.set_habit_continuity(
             self._habit_continuity
         )
@@ -948,6 +951,17 @@ class SofiaApplication:
             principal=principal, project_id=project_id,
             original_event_id=original_event_id,
             feedback=feedback, at=at or datetime.now(timezone.utc),
+        )
+
+    def record_owner_update_feedback(
+        self, *, principal: PrincipalContext, original_event_id: str,
+        dimension: str, value: str, at: datetime | None = None,
+    ) -> None:
+        """Record explicit ordinary-update feedback at the Presence owner."""
+        self._presence.record_owner_update_feedback(
+            principal=principal, original_event_id=original_event_id,
+            dimension=dimension, value=value,
+            at=at or datetime.now(timezone.utc),
         )
 
     @property

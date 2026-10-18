@@ -640,6 +640,122 @@ class SettingsSections:
             ),
         ).pack(side="left")
         refresh_life_update_preferences()
+
+        ordinary_feedback_frame = ttk.LabelFrame(
+            frames["ACT"], text="Ordinary update feedback", padding=10,
+        )
+        ordinary_feedback_frame.pack(fill="x", pady=7)
+        ttk.Label(
+            ordinary_feedback_frame,
+            text=(
+                "Optional feedback for a real recent reflection, follow-up, "
+                "goal update, or DEV finding. Silence remains unknown. "
+                "Critical operational, Fleet, and approval alerts are not muted here."
+            ),
+            wraplength=650,
+        ).pack(anchor="w")
+        selected_update = tk.StringVar(root, value="")
+        ordinary_update_options = {}
+        ordinary_selector = ttk.Combobox(
+            ordinary_feedback_frame, textvariable=selected_update,
+            state="readonly",
+        )
+        ordinary_selector.pack(fill="x", pady=(6, 5))
+
+        def latest_ordinary_updates():
+            with closing(self._canonical_state.connect(timeout=10)) as db:
+                db.row_factory = sqlite3.Row
+                present = db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' "
+                    "AND name='presence_initiative_opportunity'"
+                ).fetchone()
+                if present is None:
+                    return ()
+                return db.execute(
+                    """SELECT o.event_id,o.trigger_kind,o.created_at
+                       FROM presence_initiative_opportunity AS o
+                       JOIN presence_world_observation AS w
+                         ON w.observation_id=o.observation_id
+                       WHERE o.status='queued' AND o.recipient_id=?
+                         AND w.audience_id=?
+                         AND o.trigger_kind IN (
+                           'conversation_followup','dev_finding','goal_change','reflection'
+                         )
+                       ORDER BY o.created_at DESC,o.event_id DESC LIMIT 64""",
+                    (
+                        local_sparks_principal().principal_id,
+                        local_sparks_principal().audience_id,
+                    ),
+                ).fetchall()
+
+        def refresh_ordinary_updates():
+            ordinary_update_options.clear()
+            for row in latest_ordinary_updates():
+                label = f"{row['created_at']}: {row['trigger_kind']} — {row['event_id'][:64]}"
+                ordinary_update_options[label] = row["event_id"]
+            labels = tuple(ordinary_update_options)
+            ordinary_selector.configure(values=labels)
+            if selected_update.get() not in ordinary_update_options:
+                selected_update.set(labels[0] if labels else "")
+
+        def save_ordinary_feedback(dimension, value, *, notify=True):
+            event_id = ordinary_update_options.get(selected_update.get())
+            if event_id is None:
+                raise ValueError("select a recorded ordinary update")
+            owner = PresenceInitiativeEngine(
+                state_path=config.state_path,
+                act_service=SofiaActService(config.state_path),
+            )
+            owner.record_owner_update_feedback(
+                principal=local_sparks_principal(),
+                original_event_id=event_id,
+                dimension=dimension, value=value,
+                at=datetime.now(timezone.utc),
+            )
+            if notify:
+                self.messagebox.showinfo(
+                    "Update feedback recorded",
+                    "The explicit preference was stored with its original event. "
+                    "No response is still treated as unknown.",
+                    parent=root,
+                )
+
+        def clear_ordinary_feedback():
+            save_ordinary_feedback("usefulness", "unknown", notify=False)
+            save_ordinary_feedback("interruptiveness", "unknown", notify=False)
+            self.messagebox.showinfo(
+                "Update feedback cleared",
+                "Current ratings were cleared; the audited change history remains.",
+                parent=root,
+            )
+
+        ordinary_actions = ttk.Frame(ordinary_feedback_frame)
+        ordinary_actions.pack(fill="x")
+        for label, dimension, value in (
+            ("Useful", "usefulness", "useful"),
+            ("Not useful", "usefulness", "not_useful"),
+            ("Too interruptive", "interruptiveness", "too_interruptive"),
+            ("Timing is okay", "interruptiveness", "acceptable"),
+        ):
+            ttk.Button(
+                ordinary_actions, text=label,
+                command=self.guarded(
+                    lambda d=dimension, v=value: save_ordinary_feedback(d, v)
+                ),
+            ).pack(side="left", padx=(0, 6))
+        ttk.Button(
+            ordinary_feedback_frame, text="Refresh ordinary updates",
+            command=self.guarded(refresh_ordinary_updates),
+        ).pack(anchor="w", pady=(6, 0))
+        ttk.Button(
+            ordinary_feedback_frame, text="Clear current ratings",
+            command=self.guarded(clear_ordinary_feedback),
+        ).pack(anchor="w", pady=(6, 0))
+        refresh_ordinary_updates()
+        self.sql_panel(
+            frames["ACT"], "Ordinary update feedback history",
+            "presence_update_feedback_event",
+        )
         self.group(frames["Fleet"], "fleet_cognition", "Cognitive placement", runtime.fleet_cognition or config.fleet_cognition)
         self.group(frames["Fleet"], "fleet_bootstrap", "Agent provisioning", runtime.fleet_bootstrap or config.fleet_bootstrap)
         ttk.Label(frames["Fleet"], text="Host IDs, targets and scopes are comma-separated. Discovery does not enroll hosts; provisioning requires the existing reviewed authority, package digest and signer.", wraplength=660).pack(anchor="w", pady=8)

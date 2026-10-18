@@ -122,6 +122,7 @@ def test_canonical_application_owns_learning_and_reuses_background_scheduler(
         assert "learning_retention" in application.background_coordinator._tasks
         assert "fleet_pressure_shadow" in application.background_coordinator._tasks
         assert application.learning.mode() is PredictionMode.SHADOW
+        assert application._runtime.ops_service.placement_advisor_configured is True
     finally:
         application.shutdown()
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
 
 from sofia.capability.model import Capability,CapabilityRequest
@@ -79,6 +79,7 @@ class OpsToolService:
         )
         self.activity=HostActivityStore(state_path)
         self.placement=PlacementEngine()
+        self._placement_advisor:Callable[...,dict[str,Any]|None]|None=None
         self.maintenance_receipts=MaintenanceReceiptStore(state_path)
         self.repair_planner=FleetRepairPlanner()
         self.desired_state=DesiredFleetStateStore(state_path)
@@ -415,15 +416,43 @@ class OpsToolService:
             allow_interactive_host=bool(raw.get("allow_interactive_host",False)),
         )
 
+    def set_placement_advisor(
+        self, advisor:Callable[...,dict[str,Any]|None]|None,
+    )->None:
+        """Install one application-owned no-authority placement annotator."""
+        if advisor is not None and not callable(advisor):
+            raise TypeError("placement advisor must be callable or None")
+        self._placement_advisor=advisor
+
+    @property
+    def placement_advisor_configured(self)->bool:
+        return self._placement_advisor is not None
+
     def choose_placement(self,raw:dict[str,Any])->dict[str,Any]:
         hosts=self.registry.hosts()
         activities={host.host_id:self.activity.state(host.host_id) for host in hosts}
+        workload=self._workload(raw)
         decision=self.placement.choose(
-            self._workload(raw),
+            workload,
             hosts,
             activities=activities,
         )
-        return asdict(decision)
+        result=asdict(decision)
+        advisor=self._placement_advisor
+        if advisor is not None:
+            try:
+                annotation=advisor(workload,at=datetime.now(timezone.utc))
+            except Exception as exc:
+                # An optional predictor never blocks or changes deterministic
+                # OPS policy. Expose only the bounded failure class.
+                result["ml_advisory_status"]="unavailable"
+                result["ml_advisory_error"]=type(exc).__name__
+            else:
+                result["ml_advisory_status"]=(
+                    "available" if annotation is not None else "abstained"
+                )
+                result["ml_advisory"]=annotation
+        return result
 
     def drift(self,p:dict[str,Any])->tuple[dict[str,Any],...]:
         desired_hosts=tuple(

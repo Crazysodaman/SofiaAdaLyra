@@ -111,7 +111,10 @@ metrics, stale gaps and out-of-order ingestion produce explicit diagnostic
 events rather than labels. Threshold anomaly candidates and false alarms are
 diagnostic only. Placement advice first calls the existing OPS policy with an
 enrolled node identity, fresh telemetry and activity state; its cost annotation
-cannot enroll a host or move work. A local error-rate circuit breaker disables
+cannot enroll a host or move work. The existing read-only
+`ops.placement.choose` capability now requests that annotation after OPS makes
+its deterministic decision; predictor abstention or failure cannot change or
+block the OPS result. A local error-rate circuit breaker disables
 only learned advice and leaves deterministic OPS scheduling active. This codes
 ML-011 through ML-014; real-host accuracy and utility remain unverified.
 
@@ -128,10 +131,13 @@ This codes the core of ML-015 through ML-018. ML-019 remains incomplete until
 independent future conversations provide both baseline and scorer recall@5,
 NDCG@5, timeline/correction truth, and longitudinal source-accuracy evidence.
 
-ML-020 already has explicit, reversible, restart-durable feedback for genuine
-LIFE project invitations and treats silence as unknown. Ordinary non-project
-updates do not yet have the same usefulness/interruptiveness contract, so the
-task remains `CODED_UNFINISHED`.
+ML-020 has explicit, reversible, restart-durable feedback for genuine LIFE
+project invitations and ordinary reflections, conversation follow-ups, goal
+updates, and DEV findings. Usefulness and interruptiveness remain separate;
+silence and cleared ratings are unknown. Every accepted change retains its
+exact original event and audience. A `too_interruptive` preference suppresses
+only that ordinary update class. Operational alerts, Fleet anomalies, and
+approval requests are deliberately outside this preference surface.
 
 ## Remaining external acceptance
 

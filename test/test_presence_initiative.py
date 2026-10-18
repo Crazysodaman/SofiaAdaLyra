@@ -70,6 +70,120 @@ def event(event_id="event-1", *, recipient="sparks"):
     )
 
 
+def ordinary_event(event_id: str, *, trigger_kind: str = "reflection"):
+    from sofia.social.principals import SPARKS_PRINCIPAL_ID
+    observation = WorldObservation(
+        observation_id=f"observation:{event_id}",
+        subject_id="sofia:ordinary-update",
+        predicate="presence.ordinary_update",
+        source_id="presence:reflection",
+        observed_at=NOW,
+        expires_at=NOW + timedelta(hours=1),
+        confidence=1.0,
+        epistemic_state=WorldEpistemicState.KNOWN,
+        availability=WorldAvailability.NOT_APPLICABLE,
+        value={"event_id": event_id},
+        audience_id="local:text",
+    )
+    return InitiativeEvent(
+        event_id=event_id, trigger_kind=trigger_kind,
+        observation=observation,
+        content="I found a small idea you might enjoy.",
+        created_at=NOW, expires_at=NOW + timedelta(hours=1),
+        category=OutreachCategory.SOCIAL,
+        importance=Importance.ROUTINE, salience=0.6,
+        recipient_id=SPARKS_PRINCIPAL_ID,
+    )
+
+
+def test_owner_ordinary_update_feedback_is_explicit_reversible_and_restart_safe(state):
+    from sofia.social.principals import local_sparks_principal
+    import sqlite3
+
+    sent = []
+    service = configured(state, sent)
+    presence = PresenceInitiativeEngine(state_path=state, act_service=service)
+    owner = local_sparks_principal()
+    first = ordinary_event("ordinary-feedback:first")
+    assert presence.consider(first).status == "queued"
+    assert presence.owner_update_feedback(
+        trigger_kind="reflection", principal=owner,
+    ) == {"usefulness": None, "interruptiveness": None}
+
+    presence.record_owner_update_feedback(
+        principal=owner, original_event_id=first.event_id,
+        dimension="usefulness", value="useful", at=NOW,
+    )
+    presence.record_owner_update_feedback(
+        principal=owner, original_event_id=first.event_id,
+        dimension="interruptiveness", value="too_interruptive", at=NOW,
+    )
+    restarted = PresenceInitiativeEngine(state_path=state, act_service=service)
+    assert restarted.owner_update_feedback(
+        trigger_kind="reflection", principal=owner,
+    ) == {"usefulness": "useful", "interruptiveness": "too_interruptive"}
+    blocked = restarted.consider(ordinary_event("ordinary-feedback:blocked"))
+    assert (blocked.status, blocked.reason) == (
+        "suppressed", "owner_marked_too_interruptive",
+    )
+
+    # A critical operational alert is outside the ordinary-feedback surface.
+    critical = ordinary_event(
+        "critical-feedback", trigger_kind="operational_alert",
+    )
+    assert restarted.consider(critical).status == "queued"
+    with pytest.raises(PermissionError, match="ordinary update"):
+        restarted.record_owner_update_feedback(
+            principal=owner, original_event_id=critical.event_id,
+            dimension="interruptiveness", value="too_interruptive", at=NOW,
+        )
+
+    restarted.record_owner_update_feedback(
+        principal=owner, original_event_id=first.event_id,
+        dimension="interruptiveness", value="acceptable", at=NOW + timedelta(seconds=1),
+    )
+    assert restarted.consider(
+        ordinary_event("ordinary-feedback:restored")
+    ).status == "queued"
+    restarted.record_owner_update_feedback(
+        principal=owner, original_event_id=first.event_id,
+        dimension="usefulness", value="unknown", at=NOW + timedelta(seconds=2),
+    )
+    restarted.record_owner_update_feedback(
+        principal=owner, original_event_id=first.event_id,
+        dimension="interruptiveness", value="unknown", at=NOW + timedelta(seconds=3),
+    )
+    assert restarted.owner_update_feedback(
+        trigger_kind="reflection", principal=owner,
+    ) == {"usefulness": None, "interruptiveness": None}
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM presence_update_feedback_event"
+        ).fetchone()[0] == 5
+
+
+def test_ordinary_update_feedback_rejects_fabricated_and_cross_audience_events(state):
+    from sofia.social.model import AudienceKind, PrincipalContext
+    from sofia.social.principals import local_sparks_principal
+
+    service = configured(state, [])
+    presence = PresenceInitiativeEngine(state_path=state, act_service=service)
+    owner = local_sparks_principal()
+    with pytest.raises(PermissionError, match="authentic ordinary"):
+        presence.record_owner_update_feedback(
+            principal=owner, original_event_id="fabricated:update",
+            dimension="usefulness", value="useful", at=NOW,
+        )
+    first = ordinary_event("ordinary-feedback:scope")
+    assert presence.consider(first).status == "queued"
+    foreign = PrincipalContext(
+        owner.principal_id, "discord:dm:1", AudienceKind.PRIVATE, "Sparks",
+    )
+    with pytest.raises(PermissionError, match="authentic ordinary"):
+        presence.record_owner_update_feedback(
+            principal=foreign, original_event_id=first.event_id,
+            dimension="usefulness", value="useful", at=NOW,
+        )
 def configured(state, sent, *, outreach_policy=None):
     service = SofiaActService(state)
     service.configure_delivery(

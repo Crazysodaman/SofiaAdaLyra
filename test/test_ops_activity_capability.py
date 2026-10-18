@@ -83,6 +83,59 @@ def test_ops_tool_can_explicitly_allow_interactive_host(tmp_path):
     assert decision["host_id"] == "venus"
 
 
+def test_ops_placement_projects_optional_ml_advice_without_transferring_policy(tmp_path):
+    state = tmp_path / "sofia.db"
+    with sqlite3.connect(state):
+        pass
+    service = OpsToolService(state)
+    service.registry.register_candidate(_host("venus", 5))
+    service.registry.transition("venus", HostLifecycle.ENROLLED)
+    calls = []
+
+    def advisor(workload, *, at):
+        calls.append((workload, at))
+        return {
+            "suggested_host_id": "artemis",
+            "authority": False,
+            "can_move_workload": False,
+        }
+
+    service.set_placement_advisor(advisor)
+    decision = service.choose_placement({
+        "workload_id": "background", "version": "1",
+        "supported_platforms": ["windows"],
+        "supported_architectures": ["x86_64"],
+    })
+    # The learned suggestion disagrees, but canonical OPS still selects venus.
+    assert decision["host_id"] == "venus"
+    assert decision["ml_advisory_status"] == "available"
+    assert decision["ml_advisory"]["suggested_host_id"] == "artemis"
+    assert decision["ml_advisory"]["authority"] is False
+    assert len(calls) == 1
+
+
+def test_ops_placement_survives_advisor_failure_without_silent_authority(tmp_path):
+    state = tmp_path / "sofia.db"
+    with sqlite3.connect(state):
+        pass
+    service = OpsToolService(state)
+    service.registry.register_candidate(_host("venus", 5))
+    service.registry.transition("venus", HostLifecycle.ENROLLED)
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("predictor unavailable")
+
+    service.set_placement_advisor(broken)
+    decision = service.choose_placement({
+        "workload_id": "background", "version": "1",
+        "supported_platforms": ["windows"],
+        "supported_architectures": ["x86_64"],
+    })
+    assert decision["host_id"] == "venus"
+    assert decision["ml_advisory_status"] == "unavailable"
+    assert decision["ml_advisory_error"] == "RuntimeError"
+
+
 def test_ops_tool_reads_verified_maintenance_receipt(tmp_path):
     state = tmp_path / "sofia.db"
     with sqlite3.connect(state):
