@@ -43,3 +43,47 @@ def test_preview_player_help_does_not_need_tk_or_staged_art():
     with pytest.raises(SystemExit) as exc:
         main(["--help"])
     assert exc.value.code == 0
+
+
+def test_review_player_identifies_specific_missing_batch_path(tmp_path):
+    from sofia.avatar.vtuber_review_player import review_directory_status
+
+    base = tmp_path / "Private-Source" / "Reviewed-Candidates"
+    foundation = base / "Batch09-ModularFoundation-v3"
+    features = base / "Batch10_11_IndependentEyesBrows-v1"
+    mouths = base / "Batch12_13_MouthsVisemes-v1"
+    foundation.mkdir(parents=True)
+    features.mkdir(parents=True)
+    (foundation / "manifest.json").write_text("{}")
+    (features / "manifest.json").write_text("{}")
+
+    rows = review_directory_status(
+        foundation=foundation, features=features, mouths=mouths,
+    )
+    assert [item["status"] for item in rows] == [
+        "ok", "ok", "directory does not exist (package not staged or wrong path)",
+    ]
+    assert "Batch 12/13" in rows[2]["batch"]
+    assert rows[2]["path"] == str(mouths)
+
+
+def test_preview_check_paths_only_diagnoses_without_starting_tk(tmp_path, capsys):
+    from sofia.avatar.vtuber_review_player import main
+    import json
+
+    paths = [tmp_path / label for label in ("Batch09", "Batch1011", "Batch1213")]
+    for path in paths:
+        path.mkdir()
+        (path / "manifest.json").write_text("{}")
+    argv = [
+        "--foundation-root", str(paths[0]),
+        "--features-root", str(paths[1]),
+        "--mouths-root", str(paths[2]), "--check-paths",
+    ]
+    assert main(argv) == 0
+    assert [row["status"] for row in json.loads(capsys.readouterr().out)] == [
+        "ok", "ok", "ok",
+    ]
+    (paths[2] / "manifest.json").unlink()
+    assert main(argv) == 2
+    assert json.loads(capsys.readouterr().out)[2]["status"].startswith("manifest.json missing")
