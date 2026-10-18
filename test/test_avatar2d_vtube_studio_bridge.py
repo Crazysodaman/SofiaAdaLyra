@@ -26,7 +26,7 @@ class FakeSocket:
         self.sent.append(json.loads(raw))
 
     def recv(self, timeout=3):
-        assert timeout in (3, 90)
+        assert timeout in (3, 10, 90)
         if not self.replies:
             raise AssertionError("unexpected socket read")
         reply = self.replies.pop(0)
