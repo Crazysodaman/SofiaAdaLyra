@@ -49,6 +49,25 @@ def create_review_job(source: Path, folder: Path, *, name: str = "Sofia_Face") -
         shutil.rmtree(folder)
         raise
 
+def review_job_summary(folder: Path) -> dict:
+    """Read-only validation and summary of an existing face review job."""
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict) or manifest.get("mode") != "face":
+        raise ValueError("not a supported face review job")
+    parts = manifest.get("parts")
+    if not isinstance(parts, list):
+        raise ValueError("invalid face parts checklist")
+    done = sum(1 for part in parts if isinstance(part, dict) and part.get("approved") is True)
+    submission_file = folder / "comfyui_job.json"
+    generation = "not submitted"
+    if submission_file.is_file():
+        record = json.loads(submission_file.read_text(encoding="utf-8"))
+        if not isinstance(record, dict) or not isinstance(record.get("status"), str):
+            raise ValueError("invalid ComfyUI submission record")
+        generation = record["status"]
+    return {"name": str(manifest.get("name", "Untitled")), "state": str(manifest.get("status")),
+            "approved_parts": done, "total_parts": len(parts), "generation": generation}
+
 def open_review_window(parent, *, tk=None):
     """Present an actual image picker and persistent draft manifest inside Desktop."""
     if tk is None:
@@ -106,6 +125,25 @@ def open_review_window(parent, *, tk=None):
                             f"Saved image and parts checklist to:\n{folder}\n\n"
                             "Masks and artwork layers are NOT generated yet.", parent=root)
 
+    def open_saved_job():
+        folder = filedialog.askdirectory(parent=root, title="Open existing Live2D job")
+        if not folder:
+            return
+        try:
+            summary = review_job_summary(Path(folder))
+            from PIL import Image, ImageTk
+            with Image.open(Path(folder) / "source.png") as im:
+                image = im.convert("RGBA")
+                image.thumbnail((350, 280))
+                photo = ImageTk.PhotoImage(image, master=root)
+            state.update(source=Path(folder) / "source.png", preview=photo)
+            selected.set(f"{summary['name']} | {summary['state']} | "
+                         f"approved {summary['approved_parts']}/{summary['total_parts']} | "
+                         f"ComfyUI: {summary['generation']}")
+            preview.configure(image=photo, text="")
+        except (OSError, ValueError, KeyError) as exc:
+            messagebox.showerror("Cannot open saved job", str(exc), parent=root)
+
     def check_recovery():
         folder = filedialog.askdirectory(parent=root, title="Choose existing Live2D job folder")
         if not folder:
@@ -130,6 +168,6 @@ def open_review_window(parent, *, tk=None):
     controls.pack(fill="x")
     ttk.Button(controls, text="Choose image…", command=choose).pack(side="left", padx=(0, 8))
     ttk.Button(controls, text="Create review job…", command=prepare).pack(side="left")
-    ttk.Button(controls, text="Recover job…", command=check_recovery).pack(side="left", padx=(8, 0))
+    ttk.Button(controls, text="Open job…", command=open_saved_job).pack(side="left", padx=(8, 0))\n    ttk.Button(controls, text="Recover job…", command=check_recovery).pack(side="left", padx=(8, 0))
     ttk.Button(controls, text="Close", command=root.destroy).pack(side="right")
     return root
