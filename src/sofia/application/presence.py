@@ -774,9 +774,9 @@ class PresenceInitiativeEngine:
                      usefulness, interruptiveness, original_event_id, stamped),
                 )
 
-    def _ordinary_update_is_too_interruptive(
+    def _ordinary_update_feedback_suppression_reason(
         self, *, trigger_kind: str, recipient_id: str, audience_id: str | None,
-    ) -> bool:
+    ) -> str | None:
         """Conservative feedback gate, never permission to send.
 
         Only explicit, audience-bound owner feedback can suppress an ordinary
@@ -784,17 +784,20 @@ class PresenceInitiativeEngine:
         cannot make any otherwise-ineligible ACT candidate eligible.
         """
         if trigger_kind not in self._ORDINARY_FEEDBACK_TRIGGERS or audience_id is None:
-            return False
+            return None
         with closing(self._connect()) as db:
             row = db.execute(
                 "SELECT interruptiveness,usefulness FROM presence_update_feedback "
                 "WHERE principal_id=? AND audience_id=? AND trigger_kind=?",
                 (recipient_id, audience_id, trigger_kind),
             ).fetchone()
-        return row is not None and (
-            row["interruptiveness"] == "too_interruptive"
-            or row["usefulness"] == "not_useful"
-        )
+        if row is None:
+            return None
+        if row["interruptiveness"] == "too_interruptive":
+            return "owner_marked_too_interruptive"
+        if row["usefulness"] == "not_useful":
+            return "owner_marked_not_useful"
+        return None
 
     def recent_life_project_outreach(
         self, *, now: datetime, recipient_id: str = SPARKS_PRINCIPAL_ID,
@@ -887,12 +890,12 @@ class PresenceInitiativeEngine:
             reason = "stale_or_future_observation"
         elif event.trigger_kind in self._ELIGIBLE_TRIGGERS and not grounded:
             reason = "insufficient_grounding"
-        elif self._ordinary_update_is_too_interruptive(
+        elif (feedback_restraint := self._ordinary_update_feedback_suppression_reason(
             trigger_kind=event.trigger_kind,
             recipient_id=event.recipient_id,
             audience_id=event.observation.audience_id,
-        ):
-            reason = "owner_marked_too_interruptive"
+        )) is not None:
+            reason = feedback_restraint
         elif event.trigger_kind in self._ELIGIBLE_TRIGGERS:
             route = self.act_service.delivery_route
             if route is None:
