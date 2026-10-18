@@ -13,6 +13,8 @@ import argparse
 import json
 import math
 import os
+import inspect
+import socket
 from pathlib import Path
 import sys
 from uuid import uuid4
@@ -21,6 +23,7 @@ _PLUGIN_NAME = "Sofia Ada Lyra"
 _PLUGIN_DEVELOPER = "SofiaAdaLyra"
 _API = "VTubeStudioPublicAPI"
 _MAX_MESSAGE = 128_000
+_STATUS_TIMEOUT = 10
 
 
 class VTSBridgeError(RuntimeError):
@@ -134,18 +137,27 @@ class VTubeStudioBridge:
             raise VTSBridgeError(
                 "Install optional VTube Studio support: pip install 'websockets>=14,<17'"
             ) from exc
+        options = {
+            "open_timeout": 5,
+            "close_timeout": 2,
+            "max_size": _MAX_MESSAGE,
+        }
+        # websockets 15+ honors OS proxy variables by default. Even a local
+        # connection may be sent through a system proxy if its bypass list is
+        # incomplete. Explicitly bypass proxies when the API is 127.0.0.1.
+        # websockets 14 has no proxy option and connects directly already.
+        if "proxy" in inspect.signature(connect).parameters:
+            options["proxy"] = None
         try:
-            socket = connect(
-                f"ws://127.0.0.1:{port}",
-                open_timeout=3,
-                close_timeout=2,
-                max_size=_MAX_MESSAGE,
-            )
-        except OSError as exc:
+            connection = connect(f"ws://127.0.0.1:{port}", **options)
+        except Exception as exc:
+            # Never print a potentially sensitive proxy or connection URL.
             raise VTSBridgeError(
-                "VTube Studio local API unavailable; start VTS and enable Plugin API access"
+                f"WebSocket handshake to 127.0.0.1:{port} failed "
+                f"({type(exc).__name__}). Confirm VTS API is running "
+                "and the same port is selected."
             ) from exc
-        return cls(socket, port=port)
+        return cls(connection, port=port)
 
     def close(self) -> None:
         if not self._closed:
@@ -159,18 +171,32 @@ class VTubeStudioBridge:
     def __exit__(self, _type, _value, _tb):
         self.close()
 
-    def _send(self, message_type: str, data: dict | None = None, *, timeout: int = 3) -> dict:
+    def _send(self, message_type: str, data: dict | None = None, *, timeout: int = _STATUS_TIMEOUT) -> dict:
         if self._closed:
             raise VTSBridgeError("VTS connection is closed")
         envelope = request(message_type, data)
         try:
             self._socket.send(json.dumps(envelope, separators=(",", ":")))
-            raw = self._socket.recv(timeout=timeout)
         except Exception as exc:
-            # Optional WebSocket libraries expose their own closed/timeout
-            # exception families. Never include raw responses or credentials.
             self._authenticated = False
-            raise VTSBridgeError("VTS request failed; connection or timeout") from exc
+            raise VTSBridgeError(
+                f"VTS WebSocket send failed ({type(exc).__name__}); "
+                "check that VTube Studio is still running"
+            ) from exc
+        try:
+            raw = self._socket.recv(timeout=timeout)
+        except TimeoutError as exc:
+            self._authenticated = False
+            raise VTSBridgeError(
+                f"VTS did not reply to {message_type} within {timeout}s. "
+                "Check VTube Studio's Requests received counter and port."
+            ) from exc
+        except Exception as exc:
+            self._authenticated = False
+            raise VTSBridgeError(
+                f"VTS WebSocket receive failed ({type(exc).__name__}); "
+                "check VTube Studio and the local connection"
+            ) from exc
         if not isinstance(raw, str) or len(raw) > _MAX_MESSAGE:
             raise VTSBridgeError("invalid VTS response size or encoding")
         try:
@@ -289,18 +315,53 @@ class VTubeStudioBridge:
         self._send("HotkeyTriggerRequest", {"hotkeyID": hotkey_id})
 
 
+def diagnose_local(*, port: int = 8001) -> dict:
+    """Read-only local TCP/WebSocket/API status diagnostic, no pairing."""
+    _port(port)
+    result = {
+        "target": f"127.0.0.1:{port}",
+        "tcp_open": False,
+        "websocket_open": False,
+        "api_active": False,
+    }
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=3):
+            result["tcp_open"] = True
+    except OSError as exc:
+        result["error_stage"] = "tcp"
+        result["error_class"] = type(exc).__name__
+        return result
+    try:
+        with VTubeStudioBridge.connect_local(port=port) as bridge:
+            result["websocket_open"] = True
+            status = bridge.api_status()
+            result["api_active"] = status["active"]
+            result["version"] = status["version"]
+    except VTSBridgeError as exc:
+        # This diagnostic is safe: errors are internally sanitized and do
+        # not contain credentials or the raw WebSocket response.
+        result["error_stage"] = "websocket_or_api"
+        result["error"] = str(exc)
+    return result
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="Explicit local VTube Studio API status and owner pairing; no avatar activation"
     )
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--status", action="store_true", help="Read unauthenticated API availability")
+    modes.add_argument("--diagnose", action="store_true", help="Read-only TCP/WebSocket/API diagnostic without pairing")
     modes.add_argument("--pair", action="store_true", help="Ask VTS to show owner permission popup; DPAPI-store token")
     modes.add_argument("--model", action="store_true", help="Read model info using approved saved token")
     parser.add_argument("--port", type=int, default=8001, help="VTube Studio local API port")
     args = parser.parse_args(argv)
     try:
         _port(args.port)
+        if args.diagnose:
+            report = diagnose_local(port=args.port)
+            print(json.dumps(report, indent=2))
+            return 0 if report["api_active"] else 2
         if args.pair and _token_path().exists():
             raise VTSBridgeError("VTS token already saved: refuse silent credential replacement")
         with VTubeStudioBridge.connect_local(port=args.port) as bridge:
