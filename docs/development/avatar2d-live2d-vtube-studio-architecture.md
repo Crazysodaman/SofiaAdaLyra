@@ -102,3 +102,87 @@ If VTS shows a different local API port, pass `--port <port>` to each command. D
 - Cubism PSD caveats (8-bit RGB, sRGB, blend/masks): https://docs.live2d.com/en/cubism-editor-manual/precautions-for-psd-data/
 - Cubism export / physics: https://docs.live2d.com/en/cubism-editor-manual/export-moc3-motion3-files/
 - VTube Studio terms: https://store.steampowered.com/eula/1325860_eula_0
+
+
+## Automatic reconnection after explicit owner approval (2026-10-18)
+
+VTube Studio's **official** API stores a reusable plugin permission token.
+When VTS or the Sofía client reconnects, the plugin can use the **same**
+token with `AuthenticationRequest`. No new
+`AuthenticationTokenRequest` popup is necessary unless the owner
+revokes or resets that approval.
+
+**The VTS Plugins panel showing "connected" does not prove that our
+Python client saved the token.** When the first request timed out, the
+owner may have approved the popup after the Python caller exited.
+Verify the DPAPI credential **without displaying the secret**:
+
+```powershell
+git pull --ff-only
+python -m pytest -q test/test_avatar2d_vtube_studio_bridge.py
+python -m sofia.avatar.vtube_studio_bridge --credential-status --port 9996
+```
+
+- `token_saved: true`: run the one-shot, no-popup auth test:
+  `python -m sofia.avatar.vtube_studio_bridge --reconnect --port 9996`.
+  This may report `model_loaded: false`, which is fine until Sofía's
+  Cubism model exists.
+- `token_saved: false`: with VTS running, rerun
+  `python -m sofia.avatar.vtube_studio_bridge --pair --port 9996`
+  once, approve the normal popup, and wait for the Python command to
+  report `paired: true`. Never assume authorization was persisted
+  just because the external VTS UI shows the plugin name.
+
+The adapter also supports an **opt-in continuously reconnecting,
+read-only owner-session watcher**:
+
+```powershell
+python -m sofia.avatar.vtube_studio_bridge --watch --port 9996 --interval 10
+```
+
+This process waits for VTS if it is not open, authenticates using the
+stored DPAPI token as soon as it becomes available, and periodically
+reads API status. On disconnect it retries with a 10-second delay.
+It **never** requests a new token, opens an approval popup, starts VTube
+Studio, activates a model, writes to sofia.db, injects a head angle,
+enables tracking, or switches garments. Press Ctrl+C to stop it.
+If authorization is revoked, it stops rather than pestering the owner
+with repeated dialogs.
+
+### Optional automatic launch after Windows sign-in
+
+After the one-shot reconnect and focused tests pass on Venus, the owner
+can use **Task Scheduler**, running in the *same interactive Windows
+user session* that approved VTube Studio:
+
+1. Task Scheduler → Create Task → General: e.g. `Sofía VTS Reconnect`;
+   **Run only when user is logged on**, not SYSTEM/LocalService.
+2. Trigger: **At log on** of the owner Windows account.
+3. Action: `Start a program`; executable is the Python virtual
+   environment's `pythonw.exe` in the local Sofía checkout (copy the
+   confirmed path with `(Get-Command pythonw.exe).Source` while venv
+   is active).
+4. Arguments:
+   `-m sofia.avatar.vtube_studio_bridge --watch --port 9996 --interval 10`.
+   Set **Start in** to the Sofía checkout without quotes.
+5. Settings: If already running, **do not start a new instance**.
+   Do not enable highest privileges. Save and manually start the task
+   once to confirm it connects after VTube Studio is launched.
+6. Disable/delete the task to opt out; it is not necessary for the
+   current Tk fallback or Sofía's cognition.
+
+This logs into the VTube Studio API whenever the **already-open**
+application is ready. It does **not** auto-launch VTube Studio. On this
+Venus setup, the owner launches VTube Studio via the official
+`start_without_steam.bat` to avoid Steam disconnecting a different PC
+running a game. Any future VTube Studio autostart must deliberately use
+that standalone launcher and remain an independent opt-in.
+
+A future Sofía desktop startup controller can call
+`watch_saved_connection` instead of the separate scheduled-task
+watcher, with existing game/presentation and shutdown policies.
+**Do not run both**: only one process should own the VTS connection.
+Because Windows DPAPI is user-bound, the LocalService canonical
+runtime cannot decrypt or impersonate an interactive user's saved token.
+
+Official source: https://github.com/DenchiSoft/VTubeStudio/blob/master/README.md#authentication
