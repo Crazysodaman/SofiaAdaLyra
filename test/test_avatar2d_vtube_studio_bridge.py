@@ -26,7 +26,7 @@ class FakeSocket:
         self.sent.append(json.loads(raw))
 
     def recv(self, timeout=3):
-        assert timeout <= 3
+        assert timeout in (3, 90)
         if not self.replies:
             raise AssertionError("unexpected socket read")
         reply = self.replies.pop(0)
@@ -192,3 +192,14 @@ def test_help_has_no_socket_or_dpapi_side_effect(capsys):
         main(["--help"])
     assert done.value.code == 0
     assert "--pair" in capsys.readouterr().out
+
+
+def test_owner_pairing_allows_time_for_vts_permission_popup():
+    socket = FakeSocket([
+        response("AuthenticationTokenResponse", {
+            "authenticationToken": "owner-approved",
+        }),
+        response("AuthenticationResponse", {"authenticated": True}),
+    ])
+    with VTubeStudioBridge(socket) as bridge:
+        assert bridge.pair_with_owner_popup() == "owner-approved"
