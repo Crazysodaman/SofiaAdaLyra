@@ -526,3 +526,34 @@ def test_ca006_canonical_run_owner_is_allowed_without_claiming_verification(tmp_
     )
     assert projection.outcomes[-1].kind == "run_event"
     assert projection.outcomes[-1].independently_verified is False
+
+
+@pytest.mark.parametrize("shared_receipt", [True, False])
+def test_ca006_delivery_receipt_identity_is_not_double_counted(
+    tmp_path, shared_receipt,
+):
+    _, matrix = _fixture(tmp_path)
+    matrix = replace(matrix, evidence=EvidenceMatrix(records=(
+        EvidenceRecord("act", EvidenceState.AVAILABLE, "act:first"),
+        EvidenceRecord("act", EvidenceState.AVAILABLE, "act:second"),
+    )))
+    events = tuple(EventOwnershipProjection(
+        schema_version=1, event_id=f"act:{label}",
+        owner=CanonicalEventOwner.ACT, source_id=f"act:{label}",
+        subject_id="session:one", principal_id=None, audience_id=None,
+        observed_at=NOW,
+        delivery_receipt_id=(
+            "receipt:shared" if shared_receipt else f"receipt:{label}"
+        ),
+    ) for label in ("first", "second"))
+    if shared_receipt:
+        with pytest.raises(ValueError, match="duplicate canonical delivery receipt"):
+            project_companion_decision(
+                matrix_trace=matrix, neuro_snapshot=None, outcome_events=events,
+            )
+    else:
+        projected = project_companion_decision(
+            matrix_trace=matrix, neuro_snapshot=None, outcome_events=events,
+        )
+        assert len(projected.outcomes) == 2
+        assert all(not event.independently_verified for event in projected.outcomes)
