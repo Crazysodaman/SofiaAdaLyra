@@ -195,6 +195,39 @@ def test_neuro_can_promote_budget_but_cannot_add_evidence_or_downgrade_verify():
     assert verified.budget.retrieval_limit < 10
 
 
+def test_ml028_malformed_advisory_never_downgrades_required_verification():
+    from types import SimpleNamespace
+
+    scheduler = ValidatedCognitiveScheduler()
+    adversarial = SimpleNamespace(
+        homeostasis=SimpleNamespace(
+            cognitive_load=float("nan"),
+            competition_pressure=float("inf"),
+        ),
+        focus=SimpleNamespace(kind="ops", score=float("nan")),
+    )
+    requirement, budget = scheduler.budget(
+        ReasoningRequirement.VERIFY, neuro_snapshot=adversarial,
+    )
+    assert requirement is ReasoningRequirement.VERIFY
+    assert budget.token_budget == 8192
+    assert budget.time_budget_ms == 60000
+    assert budget.background_priority == 0.0
+
+    malformed = SimpleNamespace(
+        homeostasis=SimpleNamespace(
+            cognitive_load="not-a-measurement",
+            competition_pressure=-1000,
+        ),
+        focus=SimpleNamespace(kind="ops", score=float("inf")),
+    )
+    requirement, budget = scheduler.budget(
+        ReasoningRequirement.STANDARD, neuro_snapshot=malformed,
+    )
+    assert requirement is ReasoningRequirement.STANDARD
+    assert budget.background_priority == 0.0
+
+
 def test_scheduler_parallelizes_only_independent_evidence_tasks():
     scheduler = ValidatedCognitiveScheduler()
     reasoning, budget = scheduler.budget(ReasoningRequirement.DEEP)
