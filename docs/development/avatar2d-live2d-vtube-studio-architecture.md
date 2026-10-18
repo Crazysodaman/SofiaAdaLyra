@@ -254,3 +254,35 @@ Each machine's VTube Studio installation and configured API port are independent
 Source and fake-process tests have been committed, but **the exact checkout/Windows host runtime tests still require Venus execution**. Validate the actual BAT launch behavior, process name/executable, user-session window control, and Windows Store/Steam Library installation layout. **No new images were generated, no model was fabricated, no service/startup policy was changed, and no production avatar was activated** by these commits.
 
 Official VTS standalone launch: https://github.com/DenchiSoft/VTubeStudio/wiki/Starting-without-Steam
+
+
+### 2026-10-18 Windows BAT working-directory fix
+
+The first owner-hosted --launch on Venus exposed an uncaught real Windows
+launcher defect despite 19 green simulated tests. Sofía ran in
+`H:\Users\Crazysodaman\Programing\SofiaAdaLyra` and correctly located
+VTube Studio at `E:\SteamLibrary\steamapps\common\VTube Studio`.
+However, `os.startfile(full_batch_path)` passed only the BAT filename,
+so ShellExecute used Sofía's **H: current working directory**, while the
+official BAT internally runs `START ./"VTube Studio.exe" -nosteam`.
+Windows therefore showed *cannot find ./"VTube Studio.exe"*.
+
+**Fix on main:** invoke the BAT with an explicit current directory:
+`os.startfile(str(root / "start_without_steam.bat"), cwd=str(root))`.
+This requires no global `os.chdir`, which would disrupt other concurrent
+Sofía operations. Also do not report `started_by_sofia: true` unless a
+new exact matching VTS process was verified; otherwise return
+`launch_not_verified` or `ambiguous_instance_ownership` with
+`may_close: false`. Unit tests now assert a Steam install on another
+drive, H: working directory preservation, and refusal to record an
+unsuccessful launch.
+
+On Venus: dismiss the Windows error, `git pull --ff-only`, run
+`python -m pytest -q test/test_avatar2d_vtube_studio_host.py
+test/test_avatar2d_vtube_studio_demand.py` (as one PowerShell command),
+then, **only if no VTS instance is open**,
+`python -m sofia.avatar.vtube_studio_host --launch`.
+Require `launched_owned`; if it reports `reused_existing`, it will
+**not** own or close that existing instance. When a verified owned
+instance is open, `--close` sends WM_CLOSE (never force-kills).
+This new patch itself has not yet been accepted on Venus.
