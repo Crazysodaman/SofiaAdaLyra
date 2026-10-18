@@ -191,6 +191,15 @@ def project_companion_decision(
     linked_events = (*selected_events, *outcome_events)
     if len({event.event_id for event in linked_events}) != len(linked_events):
         raise ValueError("duplicate canonical decision event identity")
+    # A shared delivery acknowledgement is one transport observation, not
+    # independent proof of several external effects. Even separate event IDs
+    # must not double-count the same receipt.
+    delivery_refs = [
+        event.delivery_receipt_id for event in outcome_events
+        if event.delivery_receipt_id is not None
+    ]
+    if len(delivery_refs) != len(set(delivery_refs)):
+        raise ValueError("duplicate canonical delivery receipt identity")
     # A canonical event can be correctly owned yet unusable for this turn:
     # revoked, failed, expired or future observations are not eligible inputs
     # to a claimed decision or outcome. Never silently upgrade such records.
