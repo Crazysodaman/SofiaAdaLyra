@@ -473,3 +473,56 @@ def test_ca006_keeps_single_legitimate_outcome_receipt(tmp_path):
     assert len(result.outcomes) == 1
     assert result.outcomes[0].source_ref == "act:unique"
     assert result.outcomes[0].independently_verified is False
+
+
+@pytest.mark.parametrize("owner", [
+    CanonicalEventOwner.MATRIX,
+    CanonicalEventOwner.MEMORY,
+    CanonicalEventOwner.GOALS,
+    CanonicalEventOwner.LIFE,
+    CanonicalEventOwner.NEURO,
+    CanonicalEventOwner.SAFE,
+])
+def test_ca006_non_effect_owner_cannot_masquerade_as_outcome(tmp_path, owner):
+    _, matrix = _fixture(tmp_path)
+    matrix = replace(matrix, evidence=EvidenceMatrix(records=(
+        EvidenceRecord("record", EvidenceState.AVAILABLE, "source:one"),
+    )))
+    event = EventOwnershipProjection(
+        schema_version=1,
+        event_id="source:one",
+        owner=owner,
+        source_id="source:one",
+        subject_id=None,
+        principal_id=None,
+        audience_id=None,
+        observed_at=NOW,
+    )
+    with pytest.raises(ValueError, match="RUN or ACT"):
+        project_companion_decision(
+            matrix_trace=matrix, neuro_snapshot=None,
+            outcome_events=(event,),
+        )
+
+
+def test_ca006_canonical_run_owner_is_allowed_without_claiming_verification(tmp_path):
+    _, matrix = _fixture(tmp_path)
+    matrix = replace(matrix, evidence=EvidenceMatrix(records=(
+        EvidenceRecord("run", EvidenceState.AVAILABLE, "run:one"),
+    )))
+    event = EventOwnershipProjection(
+        schema_version=1,
+        event_id="run:one",
+        owner=CanonicalEventOwner.RUN,
+        source_id="run:one",
+        subject_id=None,
+        principal_id=None,
+        audience_id=None,
+        observed_at=NOW,
+    )
+    projection = project_companion_decision(
+        matrix_trace=matrix, neuro_snapshot=None,
+        outcome_events=(event,),
+    )
+    assert projection.outcomes[-1].kind == "run_event"
+    assert projection.outcomes[-1].independently_verified is False
