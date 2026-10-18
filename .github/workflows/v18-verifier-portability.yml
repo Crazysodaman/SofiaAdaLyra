@@ -1,0 +1,56 @@
+name: V18 Cross-platform Verification Contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v18-verifier-portability.yml'
+      - 'src/sofia/verify/v18_g1_readiness.py'
+      - 'test/test_v18_g1_readiness.py'
+      - 'test/conftest.py'
+      - 'test/test_comfyui_bridge.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v18-verifier-portability-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verification-contract:
+    name: G1 exact-source and package ownership on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install production package and pytest
+        run: python -m pip install -e . pytest
+      - name: Verify no requirement drift and explicit package ownership
+        run: >-
+          python -m pytest -q
+          test/test_v18_g1_readiness.py
+          test/test_package_grouping.py
+          test/test_comfyui_bridge.py
+          --junitxml=verify-portability-junit.xml
+      - name: Retain exact revision result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verify-portability-${{ matrix.os }}-${{ github.sha }}
+          path: verify-portability-junit.xml
+          if-no-files-found: warn
+          retention-days: 30
