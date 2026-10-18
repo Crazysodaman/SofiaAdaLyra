@@ -106,9 +106,29 @@ def open_review_window(parent, *, tk=None):
                             f"Saved image and parts checklist to:\n{folder}\n\n"
                             "Masks and artwork layers are NOT generated yet.", parent=root)
 
+    def check_recovery():
+        folder = filedialog.askdirectory(parent=root, title="Choose existing Live2D job folder")
+        if not folder:
+            return
+        job = Path(folder)
+        if not (job / "manifest.json").is_file():
+            messagebox.showerror("Not a Live2D job", "This folder has no manifest.json", parent=root)
+            return
+        if not (job / "comfyui_job.json").is_file():
+            messagebox.showinfo("No generation pending", "This review job has no saved ComfyUI submission. Your source and checklist remain available.", parent=root)
+            return
+        try:
+            from sofia.creative.comfyui_bridge import ComfyUIBridge
+            from sofia.creative.live2d_recovery import reconcile
+            recovered = reconcile(job, ComfyUIBridge())
+        except (OSError, ValueError, KeyError) as exc:
+            messagebox.showerror("Cannot inspect job", str(exc), parent=root)
+            return
+        messagebox.showinfo("ComfyUI recovery", f"State: {recovered['status']}\\n\\n{recovered['last_check']}\\n\\nNo job was resubmitted.", parent=root)
+
     controls = ttk.Frame(frame)
     controls.pack(fill="x")
     ttk.Button(controls, text="Choose image…", command=choose).pack(side="left", padx=(0, 8))
     ttk.Button(controls, text="Create review job…", command=prepare).pack(side="left")
-    ttk.Button(controls, text="Close", command=root.destroy).pack(side="right")
+    ttk.Button(controls, text="Recover job…", command=check_recovery).pack(side="left", padx=(8, 0))\n    ttk.Button(controls, text="Close", command=root.destroy).pack(side="right")
     return root
