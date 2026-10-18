@@ -188,3 +188,41 @@ def test_launcher_fails_closed_if_batch_start_raises(tmp_path):
             startfile=fail_launch,
         )
     assert not record.exists()
+
+
+def test_status_reports_real_exit_not_just_graceful_close_request(tmp_path):
+    app = tmp_path / "VTube Studio.exe"
+    proc = FakeProcess(23864, 123456.5, app)
+    record = host.OwnedVTS(
+        proc.info["pid"], proc.info["create_time"],
+        proc.info["exe"], 3, host.socket.gethostname(),
+    )
+    tracked = tmp_path / "owned.json"
+    tracked.write_text(json.dumps(host.asdict(record)))
+    active = host.inspect_host_status(
+        session=3, process_list=lambda: [proc], ownership_file=tracked,
+    )
+    assert active == {
+        "running": True, "running_instances": 1,
+        "owned_instance_running": True,
+        "owned_pid": 23864, "safe_to_close": True,
+    }
+    after_exit = host.inspect_host_status(
+        session=3, process_list=lambda: [], ownership_file=tracked,
+    )
+    assert after_exit == {
+        "running": False, "running_instances": 0,
+        "owned_instance_running": False,
+        "owned_pid": None, "safe_to_close": False,
+    }
+
+
+def test_status_refuses_ownership_for_preexisting_untracked_vts(tmp_path):
+    proc = FakeProcess(301, 1234.0, tmp_path / "VTube Studio.exe")
+    result = host.inspect_host_status(
+        session=3, process_list=lambda: [proc],
+        ownership_file=tmp_path / "no-record.json",
+    )
+    assert result["running"] is True
+    assert result["owned_instance_running"] is False
+    assert result["safe_to_close"] is False
