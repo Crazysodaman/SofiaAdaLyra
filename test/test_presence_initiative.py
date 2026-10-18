@@ -179,7 +179,7 @@ def test_negative_usefulness_suppresses_only_scoped_optional_updates(state):
     restarted = PresenceInitiativeEngine(state_path=state, act_service=service)
     suppressed = restarted.consider(ordinary_event("usefulness:suppressed"))
     assert suppressed.status == "suppressed"
-    assert suppressed.reason == "owner_marked_too_interruptive"
+    assert suppressed.reason == "owner_marked_not_useful"
 
     # Feedback about a reflection does not suppress unrelated operational alerts.
     assert restarted.consider(event("usefulness:operational")).status == "queued"
