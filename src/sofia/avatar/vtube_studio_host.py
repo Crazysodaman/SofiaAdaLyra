@@ -296,8 +296,11 @@ def launch_on_demand(*, install_dir: Path | None = None,
     launcher = os.startfile if startfile is None else startfile
     pause = time.sleep if sleep is None else sleep
     before = {p.info["pid"] for p in existing}
-    # ShellExecute invokes the official BAT without entering Steam.
-    launcher(str(root / _LAUNCHER))
+    # The official standalone BAT uses a relative executable path:
+    # START ./"VTube Studio.exe" -nosteam
+    # ShellExecute otherwise inherits Sofía's repo working directory (H:)
+    # even if VTS is installed on E:. Never chdir the whole Sofía process.
+    launcher(str(root / _LAUNCHER), cwd=str(root))
     for _ in range(wait_iterations):
         pause(0.5)
         matches = [
@@ -314,12 +317,13 @@ def launch_on_demand(*, install_dir: Path | None = None,
             }
         if len(matches) > 1:
             return {
-                "result": "ambiguous_instance_ownership", "started_by_sofia": True,
-                "may_close": False,
+                "result": "ambiguous_instance_ownership", "started_by_sofia": False,
+                "launch_attempted": True, "may_close": False,
             }
     return {
-        "result": "launch_not_verified", "started_by_sofia": True,
-        "may_close": False,
+        "result": "launch_not_verified", "started_by_sofia": False,
+        "launch_attempted": True, "may_close": False,
+        "reason": "No verified VTube Studio executable process appeared",
     }
 
 
