@@ -27,6 +27,7 @@ class SalienceNetwork:
     """
 
     FEATURE_VERSION = "salience-feature-dictionary-v1"
+    ADVISORY_VERSION = "salience-advisory-v1"
     FEATURE_WEIGHTS = (
         ("urgency", 0.30),
         ("novelty", 0.25),
@@ -62,6 +63,32 @@ class SalienceNetwork:
                 for name, weight in SalienceNetwork.FEATURE_WEIGHTS
             ),
         )
+
+    @staticmethod
+    def advisory_score(signal: NeuralSignal, *, prediction: object | None) -> float | None:
+        """Read a scoped optional estimate without replacing observed salience.
+
+        Advisory-only: this return value does not alter the deterministic
+        network, elect the competition winner, or grant evidence/authority.
+        Invalid, stale, unscoped and low-confidence hints are ignored.
+        """
+        if prediction is None:
+            return None
+        from sofia.learning.contracts import Prediction, PredictionMode
+        if not isinstance(signal, NeuralSignal) or not isinstance(prediction, Prediction):
+            return None
+        if prediction.mode not in (PredictionMode.SHADOW, PredictionMode.ADVISORY):
+            return None
+        if prediction.subject_id != signal.source:
+            return None
+        if not prediction.generated_at <= signal.observed_at < prediction.expires_at:
+            return None
+        proposed = prediction.value.get("salience")
+        if type(proposed) not in (int, float) or not math.isfinite(proposed):
+            return None
+        if not 0.0 <= proposed <= 1.0 or prediction.uncertainty > 0.5:
+            return None
+        return float(proposed)
 
     def _decay(self, *, now: datetime) -> None:
         remove: list[str] = []
