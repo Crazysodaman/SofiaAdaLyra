@@ -777,15 +777,24 @@ class PresenceInitiativeEngine:
     def _ordinary_update_is_too_interruptive(
         self, *, trigger_kind: str, recipient_id: str, audience_id: str | None,
     ) -> bool:
+        """Conservative feedback gate, never permission to send.
+
+        Only explicit, audience-bound owner feedback can suppress an ordinary
+        update. Unobserved responses remain unknown. A positive response
+        cannot make any otherwise-ineligible ACT candidate eligible.
+        """
         if trigger_kind not in self._ORDINARY_FEEDBACK_TRIGGERS or audience_id is None:
             return False
         with closing(self._connect()) as db:
             row = db.execute(
-                "SELECT interruptiveness FROM presence_update_feedback "
+                "SELECT interruptiveness,usefulness FROM presence_update_feedback "
                 "WHERE principal_id=? AND audience_id=? AND trigger_kind=?",
                 (recipient_id, audience_id, trigger_kind),
             ).fetchone()
-        return row is not None and row["interruptiveness"] == "too_interruptive"
+        return row is not None and (
+            row["interruptiveness"] == "too_interruptive"
+            or row["usefulness"] == "not_useful"
+        )
 
     def recent_life_project_outreach(
         self, *, now: datetime, recipient_id: str = SPARKS_PRINCIPAL_ID,
