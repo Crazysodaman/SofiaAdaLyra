@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 import argparse
+import json
 from pathlib import Path
 
 from .vtuber_mouth_viseme_review import (
@@ -45,7 +46,42 @@ def preview_steps() -> tuple[PreviewStep, ...]:
     return _STEPS
 
 
+def review_directory_status(*, foundation: Path, features: Path, mouths: Path) -> tuple[dict, ...]:
+    """Report exactly which staged package path is missing or invalid.
+
+    Inspection is read-only; merely checking directory existence never
+    activates the avatar, reads protected artwork or writes user state.
+    """
+    folders = (
+        ("Batch 09 head foundation", foundation),
+        ("Batch 10/11 eyes and brows", features),
+        ("Batch 12/13 mouths and visemes", mouths),
+    )
+    result = []
+    for label, folder in folders:
+        if not isinstance(folder, Path) or not folder.is_absolute():
+            reason = "not an absolute path (PowerShell variable may be empty)"
+        elif not folder.is_dir():
+            reason = "directory does not exist (package not staged or wrong path)"
+        elif any(part.is_symlink() for part in (folder, *folder.parents)):
+            reason = "symlinked directory is not allowed"
+        elif not (folder / "manifest.json").is_file():
+            reason = "manifest.json missing (wrong folder or incomplete staging)"
+        else:
+            reason = "ok"
+        result.append({"batch": label, "path": str(folder), "status": reason})
+    return tuple(result)
+
+
 def run_local_preview(*, foundation: Path, features: Path, mouths: Path) -> None:
+    for item in review_directory_status(
+        foundation=foundation, features=features, mouths=mouths,
+    ):
+        if item["status"] != "ok":
+            raise ValueError(
+                f"{item['batch']}: {item['status']}. Path: {item['path']}. "
+                "Stage/verify that batch, or redefine your PowerShell path variables."
+            )
     verify_review_mouths(
         mouths, foundation_root=foundation, features_root=features,
     )
@@ -161,7 +197,19 @@ def main(argv=None) -> int:
     parser.add_argument("--foundation-root", type=Path, required=True)
     parser.add_argument("--features-root", type=Path, required=True)
     parser.add_argument("--mouths-root", type=Path, required=True)
+    parser.add_argument(
+        "--check-paths", action="store_true",
+        help="Show exact staged-directory problems without opening the Tk window",
+    )
     args = parser.parse_args(argv)
+    if args.check_paths:
+        statuses = review_directory_status(
+            foundation=args.foundation_root,
+            features=args.features_root,
+            mouths=args.mouths_root,
+        )
+        print(json.dumps(statuses, indent=2))
+        return 0 if all(item["status"] == "ok" for item in statuses) else 2
     run_local_preview(
         foundation=args.foundation_root,
         features=args.features_root,
