@@ -150,6 +150,34 @@ def test_training_review_rejects_invalid_clock_type(tmp_path):
         assess_training_lab(plan(training, heldout), dataset_store=dataset_store, at=None)
 
 
+@pytest.mark.parametrize("bad", [
+    {"base_model_digest": None},
+    {"training_data_digest": 42},
+    {"data_use_approval_ref": "unverified:fake"},
+    {"max_gpu_hours": float("nan")},
+    {"max_gpu_hours": float("inf")},
+    {"preserve_source_privacy": 1},
+])
+def test_adaptation_review_rejects_malformed_rights_and_quotas(bad):
+    from sofia.evolve.training_policy import AdaptationPlan, assess_adaptation
+
+    values = dict(
+        base_model_digest="a" * 64,
+        training_data_digest="b" * 64,
+        heldout_data_digest="c" * 64,
+        data_use_approval_ref="owner-ui:reviewed",
+        adaptation_kind="qlora",
+        max_gpu_hours=1.0,
+        max_vram_mb=8192,
+        preserve_source_privacy=True,
+    )
+    values.update(bad)
+    review = assess_adaptation(AdaptationPlan(**values))
+    assert review.research_eligible is False
+    assert review.production_install_authorized is False
+    assert review.blockers
+
+
 def test_venus_gpu_plan_is_not_a_valid_gpu_lease(tmp_path):
     state,ds,training,heldout=model_and_sources(tmp_path)
     pending=plan(
