@@ -55,6 +55,20 @@ def test_one_candidate_matches_exact_original_without_self_awarding_gate(tmp_pat
     assert report["tasks"][0]["original_requirement_sha256"]
 
 
+
+def test_original_requirement_crlf_checkout_does_not_invent_drift(tmp_path):
+    paths = prepare(tmp_path)
+    master = tmp_path / "docs/roadmaps" / (
+        "Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md"
+    )
+    raw = master.read_bytes().replace(b"\r\n", b"\n")
+    master.write_bytes(raw.replace(b"\n", b"\r\n"))
+    report = inspect_g1_submissions(tmp_path, packet_paths=paths)
+    assert report["unique_submissions"] == 1
+    assert report["independently_accepted_gate1"] == 0
+
+
+
 def test_drift_from_original_requirement_is_rejected(tmp_path):
     paths = prepare(tmp_path)
     packet = tmp_path / "docs/development/review.md"
