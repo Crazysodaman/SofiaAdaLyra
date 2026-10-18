@@ -137,10 +137,19 @@ def main(argv=None):
     actions = parser.add_mutually_exclusive_group(required=True)
     actions.add_argument("--status", action="store_true")
     actions.add_argument("--launch", action="store_true")
-    # Deliberately no --close until live ComfyUI job tracking and pending jobs are wired.
+    actions.add_argument("--close", action="store_true")
     args = parser.parse_args(argv)
     try:
-        result = status(exe=args.exe) if args.status else launch(exe=args.exe)
+        if args.status:
+            result = status(exe=args.exe)
+        elif args.launch:
+            result = launch(exe=args.exe)
+        else:
+            from .comfyui_bridge import ComfyUIBridge
+            queue = ComfyUIBridge().queue()
+            if queue["running"] or queue["pending"]:
+                raise ComfyHostError("ComfyUI queue is not idle; refusing close")
+            result = close(exe=args.exe, jobs_running=queue["running"])
         print(json.dumps(result, indent=2))
         return 0
     except ComfyHostError as exc:
