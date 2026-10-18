@@ -186,3 +186,71 @@ Because Windows DPAPI is user-bound, the LocalService canonical
 runtime cannot decrypt or impersonate an interactive user's saved token.
 
 Official source: https://github.com/DenchiSoft/VTubeStudio/blob/master/README.md#authentication
+
+
+## On-demand VTube Studio hosting (owner decision: 2026-10-18)
+
+**Owner choice:** VTube Studio should **not** start at Windows login and should **not** remain open when Sofía doesn't need her avatar. Sofía may open and gracefully close only her **own** VTube Studio process. She may discover the app on any local drive, with a per-host override. Never rely on the Steam default C: location.
+
+Code added on `main`:
+- `src/sofia/avatar/vtube_studio_host.py`: portable Steam-library finder and explicit, owner-safe process lifecycle.
+- `src/sofia/avatar/vtube_studio_demand.py`: verified covered-public-rig + owner enablement + activity/stop policy deciding when a host may launch or close the app.
+- `test/test_avatar2d_vtube_studio_host.py`, `test/test_avatar2d_vtube_studio_demand.py`: unit tests with simulated Steam locations, PID ownership and policy.
+- `pip install -e '.[vtube-studio]'` now includes `psutil` for process identity checking.
+
+### Host selection and discovery
+
+VTS can live on **C:, D:, E:, H:, or any other installed Steam library drive**. The finder reads:
+- Steam's per-user registry installation directory;
+- Steam `steamapps/libraryfolders.vdf` (modern `path` and legacy numeric layouts);
+- common Steam/SteamLibrary directory layouts on mounted drives;
+- optional explicit `--install-dir` and `SOFIA_VTS_INSTALL_DIR` environment override.
+
+The finder requires the real `VTube Studio.exe` and `start_without_steam.bat` together in the directory. It does **not** recursively crawl every file on an entire disk, install software, read private files, or fetch executable content. An unusual portable location can be supplied explicitly:
+
+```powershell
+python -m sofia.avatar.vtube_studio_host --discover
+python -m sofia.avatar.vtube_studio_host --discover --install-dir 'E:\SteamLibrary\steamapps\common\VTube Studio'
+```
+
+### Reversible, manual launch/close testing
+
+Only from the Windows desktop user session, not LocalService:
+
+```powershell
+git pull --ff-only
+python -m pip install -e '.[vtube-studio]'
+python -m pytest -q test/test_avatar2d_vtube_studio_host.py test/test_avatar2d_vtube_studio_demand.py
+python -m sofia.avatar.vtube_studio_host --discover
+python -m sofia.avatar.vtube_studio_host --launch
+```
+
+- If VTS is **already running** in the user's desktop session, the command reports `reused_existing` and **never** marks it owned.
+- Otherwise the tool calls the **official** `start_without_steam.bat` (avoiding the other computer's Steam game conflict) and watches for a verified, exact new VTube Studio process. Only one unambiguous new process in the validated directory is recorded. If recognition fails, it refuses the authority to close that process.
+- To request app closure, run `python -m sofia.avatar.vtube_studio_host --close`. It sends Windows `WM_CLOSE` **only** when recorded process PID, creation timestamp, executable path, Windows session and hostname match the current process. It does not kill a manually opened instance and never force-kills a VTS process. It may report `no_app_window_found` or `graceful_close_requested`; if VTS displays a confirmation dialog, the user remains in control.
+- Only non-secret process-identification metadata is stored in the current Windows profile under `%LOCALAPPDATA%\SofiaAdaLyra\Avatar2D\VTubeStudio\launched_instance.json`. This is separate from the DPAPI-protected authorization token.
+- **DO NOT enable a Task Scheduler autostart of VTS or of the old always-on `--watch` command for this on-demand policy.** VTS runs only while requested. The read-only `--watch` remains a manual debugging aid.
+
+### When Sofía is actually allowed to summon her avatar
+
+A future interactive-host UI integration can call `handle_avatar_demand` after verifying **all** these facts from canonical runtime authority:
+1. Owner has enabled VTS avatar mode for this Windows user and target host.
+2. There is an active visible avatar surface/request.
+3. A reviewed, covered PUBLIC Live2D rig is installed for that host.
+4. The current public wardrobe/presentation is verified covered.
+5. Host isn't in protected gaming/busy resource mode.
+6. The owner hasn't stopped or hidden the avatar.
+
+When conditions cease to hold, only an owned instance may be closed. A user-owned pre-existing instance remains untouched. The demand policy is **coded but not yet called by the production UI** because Sofía does not have an approved installed Live2D model; do not falsely mark automatic show/hide as active. Owner may test `--launch` and `--close` manually now.
+
+### Multiple computers
+
+This finder is **local to the machine running the code**. Sofía can find VTS on Venus, the alternate Windows GPU machine, or another PC **only if** its Sofía owner-session host agent/code runs there. It does not browse another PC's drives from Artemis, share files or create a remote desktop agent by itself. Remote lifecycle needs an already authenticated host broker with explicit user-session dispatch and separate audit/consent.
+
+Each machine's VTube Studio installation and configured API port are independent (Venus currently reports **9996**). **DPAPI-protected plugin tokens cannot be copied or automatically transferred between Windows hosts/accounts.** Pair once with VTube Studio on each new host, with the user approving the popup locally. No silent enrollment.
+
+### Remaining verification
+
+Source and fake-process tests have been committed, but **the exact checkout/Windows host runtime tests still require Venus execution**. Validate the actual BAT launch behavior, process name/executable, user-session window control, and Windows Store/Steam Library installation layout. **No new images were generated, no model was fabricated, no service/startup policy was changed, and no production avatar was activated** by these commits.
+
+Official VTS standalone launch: https://github.com/DenchiSoft/VTubeStudio/wiki/Starting-without-Steam
