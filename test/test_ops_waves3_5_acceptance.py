@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 import pytest
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode
@@ -22,7 +23,7 @@ def _fleet(host_id="venus",trusted=True):
 
 def test_telemetry_history_round_trip(tmp_path:Path):
     from sofia.ops import HostTelemetry
-    history=SQLiteTelemetryHistory(tmp_path/"sofia.db")
+    history=SQLiteTelemetryHistory(bootstrap_canonical_sqlite(tmp_path/"sofia.db"))
     telemetry=HostTelemetry(NOW,cpu_percent=12.0,ram_used_bytes=1,ram_total_bytes=2)
     history.append("venus",telemetry)
     assert history.latest("venus")==telemetry

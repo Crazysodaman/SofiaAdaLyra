@@ -2,9 +2,10 @@
 from __future__ import annotations
 from contextlib import closing
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from sofia.state.atomic_file import retire_legacy_file
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from pathlib import Path
 import sqlite3
 from .model import HostTelemetry
@@ -19,8 +20,8 @@ class SQLiteTelemetryHistory:
         legacy_path: Path | None = None,
     ) -> None:
         self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
+        self._guard = CanonicalSQLiteGuard(self.path)
+        with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS ops_telemetry_history (
@@ -39,6 +40,9 @@ class SQLiteTelemetryHistory:
         if legacy_path is not None:
             self._migrate_legacy(Path(legacy_path))
 
+    def _connect(self) -> sqlite3.Connection:
+        return self._guard.connect(timeout=10.0)
+
     @staticmethod
     def _payload(host_id: str, telemetry: HostTelemetry) -> dict:
         payload = asdict(telemetry)
@@ -55,7 +59,7 @@ class SQLiteTelemetryHistory:
             sort_keys=True,
             separators=(",", ":"),
         )
-        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
+        with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 INSERT OR IGNORE INTO ops_telemetry_history(
@@ -70,7 +74,7 @@ class SQLiteTelemetryHistory:
             db.commit()
 
     def latest(self, host_id: str) -> HostTelemetry | None:
-        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
+        with closing(self._connect()) as db, db:
             row = db.execute("""
                 SELECT payload_json
                 FROM ops_telemetry_history
@@ -86,6 +90,36 @@ class SQLiteTelemetryHistory:
             raw["observed_at"]
         )
         return HostTelemetry(**raw)
+
+    def observations(
+        self,
+        host_id: str,
+        *,
+        through: datetime,
+        limit: int = 64,
+    ) -> tuple[HostTelemetry, ...]:
+        """Return a bounded chronological point-in-time telemetry window."""
+        if not isinstance(host_id, str) or not host_id.strip():
+            raise ValueError("host_id required")
+        if through.tzinfo is None or through.utcoffset() is None:
+            raise ValueError("through must be timezone-aware")
+        if type(limit) is not int or not 1 <= limit <= 512:
+            raise ValueError("limit must be in [1, 512]")
+        cutoff = through.astimezone(timezone.utc).isoformat()
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT payload_json FROM ops_telemetry_history "
+                "WHERE host_id=? AND observed_at<=? "
+                "ORDER BY observed_at DESC,row_id DESC LIMIT ?",
+                (host_id, cutoff, limit),
+            ).fetchall()
+        result = []
+        for row in reversed(rows):
+            raw = json.loads(row[0])
+            raw.pop("host_id", None)
+            raw["observed_at"] = datetime.fromisoformat(raw["observed_at"])
+            result.append(HostTelemetry(**raw))
+        return tuple(result)
 
     def _migrate_legacy(self, legacy_path: Path) -> None:
         if not legacy_path.is_file():
@@ -103,7 +137,7 @@ class SQLiteTelemetryHistory:
             rows.append((host_id, telemetry))
             self.append(host_id, telemetry)
 
-        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
+        with closing(self._connect()) as db, db:
             for host_id, telemetry in rows:
                 payload = self._payload(host_id, telemetry)
                 encoded = json.dumps(

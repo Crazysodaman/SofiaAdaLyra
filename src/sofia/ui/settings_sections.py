@@ -1426,6 +1426,7 @@ class SettingsSections:
         self.sql_panel(frames["EVOLVE"], "Grounded ML lineage", "ml_grounded_sample")
         self.sql_panel(frames["EVOLVE"], "Immutable ML datasets", "ml_dataset_manifest")
         self.sql_panel(frames["EVOLVE"], "Independent ML evaluations", "ml_evaluation")
+        self.sql_panel(frames["EVOLVE"], "Fleet pressure shadow forecasts", "ml_fleet_pressure_forecast")
         self.sql_panel(frames["EVOLVE"], "Signed external ML candidates", "ml_model_candidate")
         ttk.Label(
             frames["EVOLVE"],

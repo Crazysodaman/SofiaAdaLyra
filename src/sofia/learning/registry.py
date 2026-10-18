@@ -295,6 +295,11 @@ class CandidateRegistry:
             if evaluation is None:
                 raise PermissionError("candidate activation lacks independent evaluation")
             evaluation_body = json.loads(evaluation[0])
+            if evaluation_id != "ml-evaluation:" + sha256(json.dumps(
+                evaluation_body, sort_keys=True, separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")).hexdigest():
+                raise PermissionError("candidate evaluation integrity failure")
             if (
                 evaluation_body.get("candidate_digest") != candidate_digest
                 or not isinstance(evaluation_body.get("scored"), int)
@@ -303,24 +308,65 @@ class CandidateRegistry:
             ):
                 raise PermissionError("evaluation is unknown or belongs to another candidate")
             dataset = db.execute(
-                "SELECT body_json FROM ml_dataset_manifest WHERE manifest_id=?",
+                "SELECT body_json,record_digest FROM ml_dataset_manifest WHERE manifest_id=?",
                 (evaluation_body.get("manifest_id"),),
             ).fetchone()
             if dataset is None:
                 raise PermissionError("candidate evaluation dataset is unavailable")
             dataset_body = json.loads(dataset[0])
+            dataset_digest = sha256(json.dumps(
+                dataset_body, sort_keys=True, separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")).hexdigest()
+            manifest_basis = {key: value for key, value in dataset_body.items() if key != "manifest_id"}
+            manifest_digest = sha256(json.dumps(
+                manifest_basis, sort_keys=True, separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")).hexdigest()
+            if (
+                dataset[1] != dataset_digest
+                or dataset_body.get("manifest_id") != "ml-dataset:" + manifest_digest
+            ):
+                raise PermissionError("candidate dataset manifest integrity failure")
             if (
                 dataset_body.get("principal_id") != grant.principal_id
                 or dataset_body.get("audience_id") != grant.audience_id
                 or dataset_body.get("purpose") != grant.purpose
             ):
                 raise PermissionError("deployment grant scope differs from evaluated dataset")
+            sample_ids = tuple(dataset_body.get("sample_ids", ()))
+            if not sample_ids:
+                raise PermissionError("candidate evaluation dataset has no lineage")
+            marks = ",".join("?" for _ in sample_ids)
+            invalid = db.execute(
+                f"SELECT 1 FROM ml_grounded_sample s "
+                f"JOIN ml_data_use_grant g ON g.grant_id=s.grant_id "
+                f"LEFT JOIN ml_data_use_revocation gr ON gr.grant_id=g.grant_id "
+                f"LEFT JOIN ml_source_revocation sr ON sr.source_ref=s.source_ref "
+                f"LEFT JOIN ml_source_revocation orv ON orv.source_ref=s.outcome_ref "
+                f"WHERE s.sample_id IN ({marks}) AND (s.retention_until<=? "
+                f"OR g.expires_at<=? OR gr.grant_id IS NOT NULL "
+                f"OR sr.source_ref IS NOT NULL OR orv.source_ref IS NOT NULL) LIMIT 1",
+                (*sample_ids, at.astimezone(timezone.utc).isoformat(),
+                 at.astimezone(timezone.utc).isoformat()),
+            ).fetchone()
+            present = db.execute(
+                f"SELECT COUNT(*) FROM ml_grounded_sample WHERE sample_id IN ({marks})",
+                sample_ids,
+            ).fetchone()[0]
+            if invalid is not None or present != len(sample_ids):
+                raise PermissionError("candidate evaluation lineage is revoked or expired")
             prior = db.execute(
                 "SELECT candidate_id FROM ml_model_activation "
                 "WHERE principal_id=? AND audience_id=? AND purpose=? "
                 "ORDER BY revision DESC LIMIT 1",
                 (grant.principal_id, grant.audience_id, grant.purpose),
             ).fetchone()
+            delta = float(evaluation_body["paired_delta"])
+            if delta < 0 or (prior is not None and delta <= 0):
+                raise PermissionError(
+                    "candidate does not beat the independently evaluated active baseline"
+                )
             db.execute(
                 "INSERT INTO ml_model_activation(candidate_id,previous_candidate_id,principal_id,audience_id,purpose,activated_at,grant_id,rollback) "
                 "VALUES(?,?,?,?,?,?,?,0)",

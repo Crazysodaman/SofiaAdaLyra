@@ -278,6 +278,41 @@ class LearningService:
         ):
             raise PermissionError("data use exceeds exact principal/audience/purpose/operation grant")
 
+    def active_grant(
+        self, *, principal_id: str, audience_id: str, purpose: str,
+        required: tuple[DataUse, ...], at: datetime,
+    ) -> DataUseGrant | None:
+        """Return one exact durable grant, or ``None`` when use is not authorized.
+
+        This is an eligibility lookup for existing application-owned workers. It
+        cannot create or widen a grant, and deliberately requires the caller to
+        name every operation it intends to perform.
+        """
+        moment = _utc(at, "at")
+        if not required or any(not isinstance(item, DataUse) for item in required):
+            raise TypeError("required must contain typed DataUse operations")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT g.grant_id,g.uses_json,g.issued_at,g.expires_at,g.approval_ref "
+                "FROM ml_data_use_grant g "
+                "LEFT JOIN ml_data_use_revocation r ON r.grant_id=g.grant_id "
+                "WHERE g.principal_id=? AND g.audience_id=? AND g.purpose=? "
+                "AND g.issued_at<=? AND g.expires_at>? AND r.grant_id IS NULL "
+                "ORDER BY g.issued_at DESC,g.grant_id",
+                (principal_id, audience_id, purpose, moment.isoformat(), moment.isoformat()),
+            ).fetchall()
+        for row in rows:
+            grant = DataUseGrant(
+                grant_id=row[0], principal_id=principal_id, audience_id=audience_id,
+                purpose=purpose,
+                uses=frozenset(DataUse(item) for item in json.loads(row[1])),
+                issued_at=datetime.fromisoformat(row[2]),
+                expires_at=datetime.fromisoformat(row[3]), approval_ref=row[4],
+            )
+            if grant.permits(*required, at=moment):
+                return grant
+        return None
+
     @staticmethod
     def _require_scoped_evidence(
         evidence: GoalEvidence | None, *, principal_id: str, audience_id: str,
@@ -628,6 +663,15 @@ class LearningService:
             raise PermissionError("advisory/limited mode needs independent owner/SAFE approval")
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            if mode in (PredictionMode.ADVISORY, PredictionMode.LIMITED):
+                if self._approval is None:
+                    raise PermissionError("SAFE prediction-mode approval verifier is unavailable")
+                self._approval.consume(
+                    approval_id=approval_ref,
+                    capability="learning.mode.set",
+                    parameters={"mode": mode.value}, now=_utc(at, "at"),
+                    _transaction_db=db,
+                )
             db.execute(
                 "UPDATE ml_operating_state SET mode=?,revision=revision+1,changed_at=?,approval_ref=?,revoked=0 WHERE singleton=1",
                 (mode.value, _utc(at, "at").isoformat(), approval_ref),
@@ -637,6 +681,16 @@ class LearningService:
         if not approval_ref.startswith(("owner-ui:", "safe:", "operator-stop:")):
             raise PermissionError("authenticated mode revocation required")
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            if not approval_ref.startswith("operator-stop:"):
+                if self._approval is None:
+                    raise PermissionError("SAFE prediction-mode revocation verifier is unavailable")
+                self._approval.consume(
+                    approval_id=approval_ref,
+                    capability="learning.mode.revoke",
+                    parameters={"mode": PredictionMode.SHADOW.value},
+                    now=_utc(at, "at"), _transaction_db=db,
+                )
             db.execute(
                 "UPDATE ml_operating_state SET mode=?,revision=revision+1,changed_at=?,approval_ref=?,revoked=1 WHERE singleton=1",
                 (PredictionMode.SHADOW.value, _utc(at, "at").isoformat(), approval_ref),

@@ -319,6 +319,8 @@ _PROTECTED = frozenset({
     "learning.data_use.revoke",
     "learning.source.revoke",
     "learning.candidate.revoke",
+    "learning.mode.set",
+    "learning.mode.revoke",
 })
 
 # Screen inspection, pixels, ongoing watching and external delivery all

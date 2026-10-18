@@ -571,15 +571,44 @@ def create_background_coordinator(
 
     learning = getattr(application, "_learning", None)
     if learning is not None:
+        fleet_pressure = getattr(application, "_fleet_pressure_pilot", None)
+
         def enforce_learning_retention(now):
             result = learning.enforce_retention(at=now, limit=500)
-            return result if any(result.values()) else None
+            pilot_deleted = 0 if fleet_pressure is None else fleet_pressure.enforce_retention(
+                at=now, limit=500,
+            )
+            combined = {**result, "fleet_forecasts_deleted": pilot_deleted}
+            return combined if any(combined.values()) else None
 
         coordinator.set_task(
             "learning_retention",
             enforce_learning_retention,
             interval_seconds=86400.0,
         )
+        if fleet_pressure is not None:
+            def run_fleet_pressure_pilot(now):
+                activity = activity_store.state(host_id).effective
+                busy = activity in {
+                    ActivityMode.GAMING,
+                    ActivityMode.BUSY,
+                    ActivityMode.DO_NOT_DISTURB,
+                }
+                return fleet_pressure.tick(at=now, busy=busy)
+
+            coordinator.set_task(
+                "fleet_pressure_shadow",
+                run_fleet_pressure_pilot,
+                interval_seconds=300.0,
+                ready=lambda: fleet_pressure.ready(
+                    at=datetime.now(timezone.utc),
+                    busy=activity_store.state(host_id).effective in {
+                        ActivityMode.GAMING,
+                        ActivityMode.BUSY,
+                        ActivityMode.DO_NOT_DISTURB,
+                    },
+                ),
+            )
 
     life = getattr(application, "_life", None)
     if life is not None:

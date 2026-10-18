@@ -14,11 +14,13 @@ from .contracts import (
     SourceClass,
 )
 from .service import LearningService
+from .fleet_pressure import FleetPressurePilot
 
 __all__ = (
     "DataUse",
     "DataUseGrant",
     "LearningService",
+    "FleetPressurePilot",
     "OutcomeClass",
     "Prediction",
     "PredictionMode",

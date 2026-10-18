@@ -1,4 +1,4 @@
-# Machine-learning foundation ownership (ML-001–ML-007)
+# Machine-learning foundation ownership (ML-001–ML-010)
 
 Status: implemented source foundation; local and CI acceptance must be reported
 separately. This map describes ownership and does not grant data use, training,
@@ -11,7 +11,7 @@ deployment, or execution authority.
 | Conversation and reviewed memories | CONVERSATION/MEM: `conversation/store.py`, `memory/provenance_store.py` | Excluded by default; exact raw conversation is prohibited | `application/conversation_learning.py`, COGNITION v2 | REUSE owner; never ambient-train |
 | Habit observations | HABIT: `habits/continuity.py`, `habits/pattern_store.py` | Future source reference only after explicit scoped grant and independent outcome | existing background coordinator | REUSE; do not create ML habits |
 | Projects, artifacts, preferences | LIFE/CREATIVE/PERSONALITY stores | Source/outcome references; no invented aesthetic label | `life/coordinator.py` | REUSE LIFE evidence and scheduler |
-| Fleet telemetry and host identity | FLEET/OPS registry and telemetry adapters | Eligible scalar features when fresh, scoped, retained, and granted | OPS/FLEET policy (future ML-008 pilot) | REUSE; no second Fleet model |
+| Fleet telemetry and host identity | FLEET/OPS registry and `ops_telemetry_history` | Eligible CPU-only point-in-time features when fresh, scoped, retained, and granted | `learning/fleet_pressure.py` shadow pilot; OPS policy remains authoritative | REUSE; no second Fleet model |
 | Attention and priority | `neuro/runtime.py`, `neuro/store.py` | Possible bounded feature or consumer; never evidence | `neuro/coordinator.py` | REUSE; no second feedback loop |
 | Semantic plans and facts | `cognition/v2/`, typed Evidence Graph | Predictions may advise routing later; cannot establish facts | production turn kernel | REUSE sole semantic owner |
 | Training/source review | `evolve/training_sources.py`, `training_policy.py`, `training_lab.py` | Existing public-source/LoRA admission remains authoritative | EVOLVE reviewed lab | EXTEND through exact lineage; do not replace |
@@ -34,6 +34,20 @@ The production chain added by this work is:
 and, for cleanup only:
 
 `ApplicationBackgroundCoordinator -> LearningService.enforce_retention()`.
+
+The ML-008 production shadow chain is:
+
+`ApplicationBackgroundCoordinator -> FleetPressurePilot -> OPS telemetry history`
+`-> GoalEvidenceLedger source/outcome references -> LearningService lineage`
+`-> ml_fleet_pressure_forecast diagnostics`.
+
+It fits a bounded deterministic CPU trend candidate from at most 64 prior
+observations per host, compares it with last-value and EWMA baselines after a
+real delayed telemetry observation, and records missing coverage as UNKNOWN.
+At most 32 trusted enrolled/healthy hosts are considered per tick. Gaming,
+busy, do-not-disturb, STOP, missing grants, stale telemetry and absent CPU data
+all suppress work. The pilot never calls placement, capability or RUN
+execution APIs.
 
 No prediction consumer is attached to a capability. The current consumer is
 the existing owner settings/tray projection (`ui/settings_sections.py`). A
@@ -77,6 +91,17 @@ SAFE, STOP, gaming policy, RUN budgets, privacy, or consent.
 - No cross-principal or cross-audience feature joins.
 - No automatic model promotion or live Fleet placement.
 - No model bytes in SQLite and no unverified path or unsigned candidate load.
+
+## ML-010 trial boundary
+
+The code now supplies a restart-safe SHADOW measurement path and diagnostics,
+but it is **not** evidence that the required two-week Fleet canary ran. Starting
+that trial still requires an exact-revision owner-approved data-use window and
+real enrolled-host operation. Advancement beyond SHADOW additionally requires
+an independently accepted evaluation and one-use SAFE mode approval. Cold and
+restarted worker coverage, real latency/capacity measurements, error rates and
+rollback must be collected for at least fourteen days before ML-010 can move
+beyond `CODED_UNFINISHED`.
 
 ## Remaining external acceptance
 

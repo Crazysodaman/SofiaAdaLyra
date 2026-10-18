@@ -115,7 +115,7 @@ from sofia.creative import (
     ManagedAssetStore,
 )
 from sofia.life import LifeProject, SelfDirectedLifeCoordinator
-from sofia.learning import LearningService
+from sofia.learning import FleetPressurePilot, LearningService
 from sofia.learning.registry import create_candidate_registry_from_environment
 from sofia.ops.dependencies import DependencyEvidenceStore, default_dependency_registry
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
@@ -354,6 +354,11 @@ class SofiaApplication:
         self._learning_candidates = create_candidate_registry_from_environment(
             configuration.state_path,
             artifact_root=(Path(configuration.state_path).parent / "learning" / "candidates").resolve(),
+        )
+        self._fleet_pressure_pilot = FleetPressurePilot(
+            configuration.state_path,
+            learning=self._learning,
+            ops_service=self._runtime.ops_service,
         )
         self._conversation_service.set_habit_continuity(
             self._habit_continuity
@@ -646,6 +651,10 @@ class SofiaApplication:
     def learning_candidates(self):
         """Configured signed candidate registry, or None when fail-closed."""
         return self._learning_candidates
+
+    @property
+    def fleet_pressure_pilot(self) -> FleetPressurePilot:
+        return self._fleet_pressure_pilot
 
     @property
     def last_neuro_input_error(self) -> str | None:

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
 import json
+import sqlite3
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -119,6 +120,7 @@ def test_canonical_application_owns_learning_and_reuses_background_scheduler(
         assert application.learning_candidates is None
         application.start()
         assert "learning_retention" in application.background_coordinator._tasks
+        assert "fleet_pressure_shadow" in application.background_coordinator._tasks
         assert application.learning.mode() is PredictionMode.SHADOW
     finally:
         application.shutdown()
@@ -301,6 +303,18 @@ def test_prediction_modes_are_scoped_non_authoritative_and_replay_safe(canonical
     assert service.diagnostics(principal_id="sparks", audience_id="discord:dm")["traces"] == ()
 
 
+def test_prediction_mode_advancement_does_not_trust_shaped_string(
+    canonical_state_path: Path,
+):
+    service = LearningService(canonical_state_path)
+    with pytest.raises(PermissionError, match="verifier"):
+        service.set_mode(
+            PredictionMode.ADVISORY,
+            at=NOW,
+            approval_ref="owner-ui:not-an-authenticated-approval",
+        )
+
+
 def test_signed_candidate_corruption_revocation_and_atomic_rollback(canonical_state_path: Path, tmp_path: Path):
     root = tmp_path / "candidates"
     root.mkdir()
@@ -374,7 +388,7 @@ def test_signed_candidate_corruption_revocation_and_atomic_rollback(canonical_st
     candidate_evaluation = learning.evaluate(
         dataset.manifest_id, baseline_digest=artifacts[0].artifact_sha256,
         candidate_digest=artifacts[1].artifact_sha256,
-        baseline=lambda _: OutcomeClass.POSITIVE,
+        baseline=lambda _: OutcomeClass.NEGATIVE,
         candidate=lambda _: OutcomeClass.POSITIVE,
         at=NOW + timedelta(hours=2, seconds=1),
     )
@@ -383,6 +397,42 @@ def test_signed_candidate_corruption_revocation_and_atomic_rollback(canonical_st
         evaluation_id=baseline_evaluation.evaluation_id,
         at=NOW + timedelta(hours=2, minutes=1),
     )
+    equal_evaluation = learning.evaluate(
+        dataset.manifest_id, baseline_digest=artifacts[0].artifact_sha256,
+        candidate_digest=artifacts[1].artifact_sha256,
+        baseline=lambda _: OutcomeClass.POSITIVE,
+        candidate=lambda _: OutcomeClass.POSITIVE,
+        at=NOW + timedelta(hours=2, seconds=2),
+    )
+    with pytest.raises(PermissionError, match="does not beat"):
+        registry.activate(
+            artifacts[1].candidate_id, grant=grant,
+            evaluation_id=equal_evaluation.evaluation_id,
+            at=NOW + timedelta(hours=2, minutes=1, seconds=1),
+        )
+    with sqlite3.connect(canonical_state_path) as db:
+        original_evaluation = db.execute(
+            "SELECT body_json FROM ml_evaluation WHERE evaluation_id=?",
+            (candidate_evaluation.evaluation_id,),
+        ).fetchone()[0]
+        changed_evaluation = json.loads(original_evaluation)
+        changed_evaluation["paired_delta"] = 999.0
+        db.execute(
+            "UPDATE ml_evaluation SET body_json=? WHERE evaluation_id=?",
+            (json.dumps(changed_evaluation, sort_keys=True, separators=(",", ":")),
+             candidate_evaluation.evaluation_id),
+        )
+    with pytest.raises(PermissionError, match="evaluation integrity"):
+        registry.activate(
+            artifacts[1].candidate_id, grant=grant,
+            evaluation_id=candidate_evaluation.evaluation_id,
+            at=NOW + timedelta(hours=2, minutes=1, seconds=2),
+        )
+    with sqlite3.connect(canonical_state_path) as db:
+        db.execute(
+            "UPDATE ml_evaluation SET body_json=? WHERE evaluation_id=?",
+            (original_evaluation, candidate_evaluation.evaluation_id),
+        )
     registry.activate(
         artifacts[1].candidate_id, grant=grant,
         evaluation_id=candidate_evaluation.evaluation_id,

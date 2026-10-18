@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 import json
+import pytest
 
 from sofia.ops.history import SQLiteTelemetryHistory
 from sofia.ops.model import HostTelemetry
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
@@ -19,13 +21,20 @@ def telemetry(cpu: float = 12.5) -> HostTelemetry:
 
 
 def test_sqlite_telemetry_round_trip_uses_canonical_database(tmp_path):
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     history = SQLiteTelemetryHistory(state)
     history.append("venus", telemetry())
 
     restored = SQLiteTelemetryHistory(state)
 
     assert restored.latest("venus") == telemetry()
+
+
+def test_telemetry_history_never_recreates_missing_canonical_database(tmp_path):
+    state = tmp_path / "sofia.db"
+    with pytest.raises(FileNotFoundError):
+        SQLiteTelemetryHistory(state)
+    assert not state.exists()
 
 
 def test_legacy_jsonl_telemetry_migrates_and_retires(tmp_path):
@@ -39,7 +48,7 @@ def test_legacy_jsonl_telemetry_migrates_and_retires(tmp_path):
         rows.append(json.dumps(row))
     legacy.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
-    state = tmp_path / "sofia.db"
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     history = SQLiteTelemetryHistory(
         state,
         legacy_path=legacy,
