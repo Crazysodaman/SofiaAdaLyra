@@ -24,7 +24,8 @@ def package(tmp_path: Path):
     ImageDraw.Draw(alpha).ellipse((900, 75, 1120, 435), fill=(210, 157, 136, 255))
     alpha.save(root / "head_base.png")
     shade = Image.new("RGBA", (2048, 2560))
-    ImageDraw.Draw(shade).ellipse((995, 200, 1018, 270), fill=(155, 87, 75, 36))
+    # Keep the sample shading within the approved head registration bounds.
+    ImageDraw.Draw(shade).ellipse((995, 150, 1018, 270), fill=(155, 87, 75, 36))
     shade.save(root / "face_shading.png")
     Image.new("RGB", (470, 395), (36, 36, 42)).save(root / "Preview_Batch09_HeadFit.png")
     with ZipFile(root / "Sofia_Batch09_Editable_Layers.ora", "w") as archive:
