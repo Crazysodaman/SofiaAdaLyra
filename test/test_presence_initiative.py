@@ -162,6 +162,38 @@ def test_owner_ordinary_update_feedback_is_explicit_reversible_and_restart_safe(
         ).fetchone()[0] == 5
 
 
+def test_negative_usefulness_suppresses_only_scoped_optional_updates(state):
+    """Explicit negative usefulness is a restraint, never authority to send."""
+    from sofia.social.principals import local_sparks_principal
+
+    service = configured(state, [])
+    presence = PresenceInitiativeEngine(state_path=state, act_service=service)
+    owner = local_sparks_principal()
+    original = ordinary_event("usefulness:first")
+    assert presence.consider(original).status == "queued"
+
+    presence.record_owner_update_feedback(
+        principal=owner, original_event_id=original.event_id,
+        dimension="usefulness", value="not_useful", at=NOW,
+    )
+    restarted = PresenceInitiativeEngine(state_path=state, act_service=service)
+    suppressed = restarted.consider(ordinary_event("usefulness:suppressed"))
+    assert suppressed.status == "suppressed"
+    assert suppressed.reason == "owner_marked_too_interruptive"
+
+    # Feedback about a reflection does not suppress unrelated operational alerts.
+    assert restarted.consider(event("usefulness:operational")).status == "queued"
+
+    restarted.record_owner_update_feedback(
+        principal=owner, original_event_id=original.event_id,
+        dimension="usefulness", value="unknown", at=NOW + timedelta(seconds=1),
+    )
+    assert restarted.owner_update_feedback(
+        trigger_kind="reflection", principal=owner,
+    )["usefulness"] is None
+    assert restarted.consider(ordinary_event("usefulness:restored")).status == "queued"
+
+
 def test_ordinary_update_feedback_rejects_fabricated_and_cross_audience_events(state):
     from sofia.social.model import AudienceKind, PrincipalContext
     from sofia.social.principals import local_sparks_principal
