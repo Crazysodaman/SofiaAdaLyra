@@ -178,7 +178,24 @@ def _interactive_windows_session() -> int:
         raise AvatarHostError("cannot verify interactive Windows session") from exc
 
 
+def _windows_process_session(pid: int) -> int | None:
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        session = ctypes.c_ulong()
+        if not ctypes.windll.kernel32.ProcessIdToSessionId(
+            pid, ctypes.byref(session),
+        ):
+            return None
+        return int(session.value)
+    except (OSError, AttributeError):
+        return None
+
+
 def _processes():
+    """List only VTube Studio processes in this interactive Windows session."""
+    session = _interactive_windows_session()
     try:
         import psutil
     except ImportError as exc:
@@ -192,6 +209,7 @@ def _processes():
             if (
                 str(info.get("name", "")).casefold() == _APP_EXE.casefold()
                 and info.get("exe") and info.get("create_time")
+                and _windows_process_session(int(info["pid"])) == session
             ):
                 output.append(proc)
         except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
@@ -213,7 +231,7 @@ def _record_file() -> Path:
 
 
 def _read_record(path: Path) -> OwnedVTS | None:
-    if not path.is_file() or path.is_symlink() or path.stat().st_size > 4096:
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 4096:
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
