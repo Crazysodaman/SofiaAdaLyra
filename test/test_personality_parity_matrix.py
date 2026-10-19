@@ -119,3 +119,20 @@ def test_voice_and_avatar_need_real_backend_receipts():
     )
     assert any("renderer-receipt" in item for item in report.missing)
     assert not report.ready_for_review
+
+
+def test_model_or_device_only_answering_easier_cases_is_incomplete():
+    base = tuple(observation(case_id) for case_id in FIXED_PERSONALITY_PROBES)
+    extra = (
+        observation(
+            "identity", model_id="model-b", device_id="Artemis",
+            message_id="model-b:identity",
+        ),
+    )
+    report = evaluate_personality_matrix(
+        (*base, *extra),
+        required_channels=frozenset({"desktop_text"}),
+    )
+    assert not report.ready_for_review
+    assert "desktop_text:checkin:model:model-b" in report.missing
+    assert "desktop_text:checkin:device:Artemis" in report.missing
