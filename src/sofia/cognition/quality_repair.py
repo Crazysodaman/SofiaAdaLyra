@@ -32,6 +32,8 @@ def grounded_quality_fallback(
         "short_contact_dependency_escalation",
         "short_contact_monologue",
         "short_contact_nonanswer",
+        "short_contact_third_person_narration",
+        "short_contact_question_stack",
     ):
         # The retry is also checked. If both drafts fail, give a modest
         # context-appropriate answer instead of shipping the rejected draft.
@@ -388,6 +390,8 @@ def build_rephrase_request(
         "short_contact_dependency_escalation",
         "short_contact_monologue",
         "short_contact_nonanswer",
+        "short_contact_third_person_narration",
+        "short_contact_question_stack",
     ):
         detail = (
             "The user gave a short social check-in or called Sofía by name. "
