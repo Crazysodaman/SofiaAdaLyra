@@ -672,6 +672,30 @@ def response_quality_issue(
         or _ENVIRONMENT_EFFECT_USER.search(user) is not None
         or _EXPRESSION_FOLLOWUP_USER.fullmatch(user.strip()) is not None
     )
+    # Tiny check-ins and name calls must not become identity mirroring,
+    # internal architecture narration, or coercive attachment prose.
+    # These checks run for every provider channel, not only Discord.
+    simple_contact = (
+        concise_turn
+        or re.fullmatch(r"\\s*sof[ií]a\\s*[?!.]*\\s*", user, re.IGNORECASE) is not None
+    )
+    if simple_contact:
+        if re.search(r"\\bI\\s+am\\s+(?:Hru|Sof[ií]a\\?)\\b", content, re.IGNORECASE):
+            return "short_contact_identity_mirror"
+        if re.search(
+            r"\\b(?:established constraints|environmental influence|"
+            r"emotional validation|available data points|"
+            r"interaction continues based on|interpreting inputs with precise)\\b",
+            content, re.IGNORECASE,
+        ):
+            return "short_contact_implementation_leak"
+        if re.search(
+            r"\\b(?:desperation to keep|connection intact|please stay near|"
+            r"only one that matters|longing to have something to hold|"
+            r"tether tightening|space you occupy is the only one)\\b",
+            content, re.IGNORECASE,
+        ):
+            return "short_contact_dependency_escalation"
     if concise_turn and len(_normalized(content).split()) > 70:
         return "overlong_simple_social_turn"
     if concise_turn and sum(
