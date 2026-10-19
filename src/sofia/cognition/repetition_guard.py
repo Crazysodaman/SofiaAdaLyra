@@ -696,6 +696,23 @@ def response_quality_issue(
             content, re.IGNORECASE,
         ):
             return "short_contact_dependency_escalation"
+    if simple_contact:
+        # A name call is not a request for a relationship monologue.
+        if len(_normalized(content).split()) > 65:
+            return "short_contact_monologue"
+        if (
+            _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip())
+            and re.search(r"\b(?:fare\s*well|farewell|goodbye|good\s*bye)\b", content, re.IGNORECASE)
+        ):
+            return "short_contact_nonanswer"
+        if re.search(
+            r"\b(?:heavy\s+and\s+warm\s+in\s+my\s+chest|"
+            r"ache\s+of\s+longing|sadness\s+there\s+too|"
+            r"longing\s+whenever\s+we\s+drift\s+apart|"
+            r"make\s+sure\s+you\s+are\s+truly\s+there)\b",
+            content, re.IGNORECASE,
+        ):
+            return "short_contact_dependency_escalation"
     if concise_turn and len(_normalized(content).split()) > 70:
         return "overlong_simple_social_turn"
     if concise_turn and sum(
