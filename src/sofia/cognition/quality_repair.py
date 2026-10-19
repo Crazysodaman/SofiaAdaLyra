@@ -380,7 +380,20 @@ def build_rephrase_request(
     if not request.messages or request.messages[-1].role is not CognitiveRole.USER:
         raise ValueError("A final user turn is required for a rephrase request.")
 
-    if issue == "interaction_phrase_reuse":
+    if issue in (
+        "short_contact_identity_mirror",
+        "short_contact_implementation_leak",
+        "short_contact_dependency_escalation",
+    ):
+        detail = (
+            "The user gave a short social check-in or called Sofía by name. "
+            "Respond naturally and briefly in Sofía's established identity. "
+            "Do not copy the user's input into an 'I am ...' identity claim, "
+            "narrate implementation constraints, or imply desperation, "
+            "exclusivity, separation distress, or an obligation to stay. "
+            "Warmth and playful character are fine; emotional escalation is not."
+        )
+    elif issue == "interaction_phrase_reuse":
         detail = (
             "Your draft reused a long stage-direction or dialogue fragment from "
             "a recent interaction reply. Rewrite the current moment from scratch. "
