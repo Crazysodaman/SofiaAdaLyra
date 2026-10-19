@@ -449,6 +449,33 @@ def create_background_coordinator(
     )
     host_id = socket.gethostname()
 
+    # MENTOR: optional, read-only public Git review. Share the existing
+    # application coordinator, STOP gates, budgets and foreground priority.
+    # No local DB, raw conversation, LLM request, tools or second scheduler.
+    from sofia.mentor.remote_inbox import MentorReviewConsumer, mentor_git_enabled
+    if mentor_git_enabled():
+        reviewer = MentorReviewConsumer()
+        application._mentor_review_consumer = reviewer
+
+        def mentor_review_ready() -> bool:
+            return activity_store.state(host_id).effective not in {
+                ActivityMode.GAMING,
+                ActivityMode.BUSY,
+                ActivityMode.DO_NOT_DISTURB,
+            }
+
+        def fetch_mentor_advisory(now):
+            # Only a public, bounded advisory is accepted. No instructions
+            # are passed to conversation, memory, SAFE, tools or GOALS.
+            return reviewer.poll(now=now)
+
+        coordinator.set_task(
+            "mentor_git_review",
+            fetch_mentor_advisory,
+            interval_seconds=3600.0,
+            ready=mentor_review_ready,
+        )
+
     # Model discovery is a scheduled READ ONLY inventory, not an installation
     # or inference worker. It reuses the owner's /tags /version /show service,
     # canonical cognition_model_inventory, and RUN's existing single-flight
