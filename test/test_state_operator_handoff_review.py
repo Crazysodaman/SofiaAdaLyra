@@ -140,4 +140,3 @@ def test_handoff_rejects_stale_or_tampered_local_artifacts(tmp_path):
         "independent_privileged_witness_denied",
     }.issubset(review.blockers)
     assert review.ready_for_privileged_broker is False
-
