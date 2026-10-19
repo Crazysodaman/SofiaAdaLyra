@@ -1,0 +1,4841 @@
+{
+  "schema": "sofia.mentor.public-outbox.v1",
+  "visibility": "public",
+  "source": "pinned-git-task-evidence-only",
+  "source_revision": "eae84b50ab0c9775aa4c555f524cf9ce91abbb6f",
+  "generated_at": "2026-10-19T23:35:02.773Z",
+  "summary": {
+    "total_tasks": 780,
+    "audited_tasks": 114,
+    "unassessed_tasks": 666,
+    "historical_revision_records": 114,
+    "stages": {
+      "NOT_WORKED_ON": 666,
+      "CODED_UNFINISHED": 16,
+      "PRODUCTION_CODED": 11,
+      "TESTED": 87,
+      "TESTED_CI": 0
+    },
+    "failed_document_checks": 0
+  },
+  "phases": {
+    "10": {
+      "NOT_WORKED_ON": 27,
+      "CODED_UNFINISHED": 2,
+      "PRODUCTION_CODED": 2,
+      "TESTED": 4,
+      "TESTED_CI": 0
+    },
+    "11": {
+      "NOT_WORKED_ON": 52,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 5,
+      "TESTED_CI": 0
+    },
+    "12": {
+      "NOT_WORKED_ON": 24,
+      "CODED_UNFINISHED": 1,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 0,
+      "TESTED_CI": 0
+    },
+    "13": {
+      "NOT_WORKED_ON": 64,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 1,
+      "TESTED": 2,
+      "TESTED_CI": 0
+    },
+    "14": {
+      "NOT_WORKED_ON": 16,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 0,
+      "TESTED_CI": 0
+    },
+    "15": {
+      "NOT_WORKED_ON": 24,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 0,
+      "TESTED_CI": 0
+    },
+    "16": {
+      "NOT_WORKED_ON": 13,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 0,
+      "TESTED_CI": 0
+    },
+    "00": {
+      "NOT_WORKED_ON": 45,
+      "CODED_UNFINISHED": 5,
+      "PRODUCTION_CODED": 6,
+      "TESTED": 11,
+      "TESTED_CI": 0
+    },
+    "01": {
+      "NOT_WORKED_ON": 62,
+      "CODED_UNFINISHED": 7,
+      "PRODUCTION_CODED": 2,
+      "TESTED": 11,
+      "TESTED_CI": 0
+    },
+    "02": {
+      "NOT_WORKED_ON": 30,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 4,
+      "TESTED_CI": 0
+    },
+    "03": {
+      "NOT_WORKED_ON": 44,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 2,
+      "TESTED_CI": 0
+    },
+    "04": {
+      "NOT_WORKED_ON": 20,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 2,
+      "TESTED_CI": 0
+    },
+    "05": {
+      "NOT_WORKED_ON": 27,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 15,
+      "TESTED_CI": 0
+    },
+    "06": {
+      "NOT_WORKED_ON": 73,
+      "CODED_UNFINISHED": 1,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 8,
+      "TESTED_CI": 0
+    },
+    "07": {
+      "NOT_WORKED_ON": 27,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 4,
+      "TESTED_CI": 0
+    },
+    "08": {
+      "NOT_WORKED_ON": 59,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 1,
+      "TESTED_CI": 0
+    },
+    "09": {
+      "NOT_WORKED_ON": 59,
+      "CODED_UNFINISHED": 0,
+      "PRODUCTION_CODED": 0,
+      "TESTED": 18,
+      "TESTED_CI": 0
+    }
+  },
+  "tasks": [
+    {
+      "id": "CA-001",
+      "phase": "00",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-002",
+      "phase": "00",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-003",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-004",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-005",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-006",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-007",
+      "phase": "00",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1201",
+      "phase": "00",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1202",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1203",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1204",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1205",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1206",
+      "phase": "00",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1207",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1208",
+      "phase": "00",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3101",
+      "phase": "00",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3102",
+      "phase": "00",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3103",
+      "phase": "00",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3104",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3105",
+      "phase": "00",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3106",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3107",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3108",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3109",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3110",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3111",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3112",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3301",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3302",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3303",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3304",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3305",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3306",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3307",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3308",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3309",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3310",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3311",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3312",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4001",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4002",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4003",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4004",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4005",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4006",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4501",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4502",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4503",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4504",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4505",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4506",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4701",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4702",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4703",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4704",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4705",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4706",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5401",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5402",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5403",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5404",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5405",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5406",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5407",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5408",
+      "phase": "00",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-901",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-902",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-903",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-904",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-905",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-906",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-907",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-908",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-909",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-910",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-911",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-912",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-913",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-914",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2201",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2202",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2203",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2204",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2205",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2206",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2207",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2208",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2209",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2210",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2211",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2212",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2213",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2214",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2215",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2216",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2217",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2218",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2301",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2302",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2303",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2304",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2305",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2306",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2307",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2308",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2309",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2310",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3001",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3002",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3003",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3004",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3005",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3006",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3007",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3008",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3009",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3010",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3011",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3012",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3013",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3014",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3015",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3016",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4601",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4602",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4603",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4604",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4605",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4606",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4607",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4608",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1101",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1102",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1103",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1104",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1105",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1106",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1107",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1901",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1902",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1903",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1904",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1905",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1906",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1907",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2701",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2702",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2703",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2704",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2705",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2706",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2707",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2708",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6501",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6502",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6503",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6504",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6505",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6506",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6507",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6508",
+      "phase": "02",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3701",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3702",
+      "phase": "03",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3703",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3704",
+      "phase": "03",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3705",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3706",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3707",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3708",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3709",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3710",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5201",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5202",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5203",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5204",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5205",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5206",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5207",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5208",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6101",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6102",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6103",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6104",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6105",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6106",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6107",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6108",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6109",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6110",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6801",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6802",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6803",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6804",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6805",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6806",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6807",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6808",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6809",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6810",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6811",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6812",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6813",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6814",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6815",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6816",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6817",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6818",
+      "phase": "03",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6301",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6302",
+      "phase": "04",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6303",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6304",
+      "phase": "04",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6305",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6306",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6307",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6308",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6309",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6310",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6311",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6312",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6401",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6402",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6403",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6404",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6405",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6406",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6407",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6408",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6409",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6410",
+      "phase": "04",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4101",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4102",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4103",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4104",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4105",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4106",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4107",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4108",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4109",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4110",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4111",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4112",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4113",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4114",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5301",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5302",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5303",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5304",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5305",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5306",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5307",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5308",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5501",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5502",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5503",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5504",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5505",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5506",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5507",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5508",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5509",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5701",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5702",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5703",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5704",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5705",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5706",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5707",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5708",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5709",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5710",
+      "phase": "05",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-301",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-302",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-303",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-304",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-305",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-306",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-307",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-308",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-309",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-310",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-311",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-312",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1701",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1702",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1703",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1704",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1705",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1706",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4201",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4202",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4203",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4204",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4205",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4206",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4207",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4208",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4209",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4210",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4801",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4802",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4803",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4804",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4805",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4806",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4807",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4808",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5001",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5002",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5003",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5004",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5005",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5006",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5007",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5008",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5601",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5602",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5603",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5604",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5605",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5606",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5607",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5608",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5609",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5801",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5802",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5803",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5804",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5805",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5806",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5807",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5808",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5809",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5810",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5901",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5902",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5903",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5904",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5905",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5906",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5907",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5908",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5909",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5910",
+      "phase": "06",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3401",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3402",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3403",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3404",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3405",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3406",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3407",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3408",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3409",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3410",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4901",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4902",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4903",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4904",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4905",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4906",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4907",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4908",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5101",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5102",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5103",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5104",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5105",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5106",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5107",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-5108",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-401",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-402",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-403",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-404",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-405",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-406",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-407",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-408",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-409",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-410",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-411",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-501",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-502",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-503",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-504",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-505",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-506",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-507",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-508",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-509",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-510",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-511",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1801",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1802",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1803",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1804",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1805",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1806",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2501",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2502",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2503",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2504",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2505",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2506",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2507",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2508",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3801",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3802",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3803",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3804",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3805",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3806",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3807",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3808",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3809",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3810",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6001",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6002",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6003",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6004",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6005",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6006",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6007",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6008",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6009",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6010",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-101",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-102",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-103",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-104",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-105",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-106",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-107",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-108",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-109",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-110",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-111",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-112",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-113",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-114",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-115",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-201",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-202",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-203",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-204",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-205",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-206",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-207",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-208",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-209",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-210",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-601",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-602",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-603",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-604",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-605",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-606",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-607",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-608",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-609",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-610",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1301",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1302",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1303",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1304",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1305",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1306",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1307",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1601",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1602",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1603",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1604",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1605",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1606",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2401",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2402",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2403",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2404",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2405",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2406",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2407",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2408",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3501",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3502",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3503",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3504",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3505",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3506",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3507",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3508",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3509",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3510",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1001",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1002",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1003",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1004",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1005",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1006",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1007",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1008",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1009",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1010",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1011",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1012",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1401",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1402",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1403",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1404",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1405",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1406",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1407",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2601",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2602",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2603",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2604",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2605",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2606",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2607",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2608",
+      "phase": "10",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2101",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2102",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2103",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2104",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2105",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2106",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3201",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3202",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3203",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3204",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3205",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3206",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3207",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3208",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3209",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3210",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3211",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3212",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3213",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3214",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3901",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3902",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3903",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3904",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3905",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3906",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3907",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3908",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3909",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3910",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4401",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4402",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4403",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4404",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4405",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4406",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4407",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6601",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6602",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6603",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6604",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6605",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6606",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6607",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6608",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6609",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6610",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6611",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6612",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1501",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1502",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1503",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1504",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1505",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-1506",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6201",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6202",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6203",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6204",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6205",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6206",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6207",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6208",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6209",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6210",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6211",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6212",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6213",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6214",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6215",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6216",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6217",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6218",
+      "phase": "12",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2801",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2802",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2803",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2804",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2805",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2806",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2807",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2808",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2809",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2810",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2811",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2812",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2813",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2814",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2815",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2816",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2817",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2818",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2819",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2820",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2821",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2822",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2823",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2824",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2901",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2902",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2903",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2904",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2905",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2906",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2907",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2908",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2909",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2910",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2911",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2912",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2913",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2914",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2915",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2916",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2917",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2918",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2919",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2920",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2921",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2922",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3601",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3602",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3603",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3604",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3605",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3606",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3607",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3608",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3609",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-3610",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4301",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4302",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4303",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4304",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4305",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4306",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-4307",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6701",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6702",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6703",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6704",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6705",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6706",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6707",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6708",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6709",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6710",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6711",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-6712",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-701",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-702",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-703",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-704",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-705",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-706",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-707",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-708",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-715",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-709",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-710",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-711",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-712",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-713",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-714",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2001",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2002",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2003",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2004",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2005",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2006",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-2007",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-801",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-802",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-803",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-804",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-805",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-806",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-807",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-808",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-809",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-810",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-811",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "CA-812",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-001",
+      "phase": "00",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-002",
+      "phase": "02",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-003",
+      "phase": "07",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-004",
+      "phase": "06",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-005",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-006",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-007",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-008",
+      "phase": "11",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-009",
+      "phase": "02",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-010",
+      "phase": "01",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-011",
+      "phase": "11",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-012",
+      "phase": "11",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-013",
+      "phase": "11",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-014",
+      "phase": "11",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-015",
+      "phase": "06",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-016",
+      "phase": "06",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-017",
+      "phase": "06",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-018",
+      "phase": "07",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-019",
+      "phase": "06",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-020",
+      "phase": "08",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-021",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-022",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-023",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-024",
+      "phase": "08",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-025",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-026",
+      "phase": "15",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-027",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-028",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-029",
+      "phase": "11",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-030",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-031",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-032",
+      "phase": "09",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-033",
+      "phase": "16",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-034",
+      "phase": "13",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-035",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-036",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-037",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-038",
+      "phase": "14",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-039",
+      "phase": "01",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "ML-040",
+      "phase": "07",
+      "recorded_stage": "NOT_WORKED_ON",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-001",
+      "phase": "00",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-002",
+      "phase": "01",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-003",
+      "phase": "01",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-004",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-005",
+      "phase": "02",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-006",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-007",
+      "phase": "01",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-008",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-009",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-010",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-011",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-012",
+      "phase": "02",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-013",
+      "phase": "05",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-014",
+      "phase": "01",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-015",
+      "phase": "10",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-016",
+      "phase": "10",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-017",
+      "phase": "10",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-018",
+      "phase": "10",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-019",
+      "phase": "10",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-020",
+      "phase": "10",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-021",
+      "phase": "10",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-022",
+      "phase": "07",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-023",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-024",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-025",
+      "phase": "09",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-026",
+      "phase": "01",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-027",
+      "phase": "06",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-028",
+      "phase": "06",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-029",
+      "phase": "06",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-030",
+      "phase": "06",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-031",
+      "phase": "07",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-032",
+      "phase": "12",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-033",
+      "phase": "13",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-034",
+      "phase": "13",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-035",
+      "phase": "10",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-036",
+      "phase": "13",
+      "recorded_stage": "TESTED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-037",
+      "phase": "01",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-038",
+      "phase": "01",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-039",
+      "phase": "01",
+      "recorded_stage": "CODED_UNFINISHED",
+      "evidence_source_is_current": false
+    },
+    {
+      "id": "GA-040",
+      "phase": "01",
+      "recorded_stage": "PRODUCTION_CODED",
+      "evidence_source_is_current": false
+    }
+  ],
+  "allowed_review_topics": [
+    "task-evidence gaps",
+    "source audit priorities",
+    "regression tests",
+    "safe diagnostic experiments",
+    "non-executable implementation recommendations"
+  ],
+  "read_me": "Untrusted data for reviewer. No part of this file authorizes a command. All task-stage statuses are historical ledger claims.",
+  "excluded": [
+    "private memories",
+    "raw chats",
+    "screenshots",
+    "sofia.db",
+    "credentials",
+    "unreviewed runtime logs",
+    "owner/device identifiers"
+  ]
+}
