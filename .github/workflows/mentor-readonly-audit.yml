@@ -50,3 +50,40 @@ jobs:
             mentor-summary.md
           if-no-files-found: warn
           retention-days: 30
+
+  functional-regressions:
+    name: MENTOR selected function regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Sofía and test dependencies
+        run: python -m pip install -e . pytest
+      - name: Personality, vision, safety and learning regressions
+        run: >-
+          python -m pytest -q
+          test/test_personality_pipeline.py
+          test/test_personality_expression_g9.py
+          test/test_vision_cross_platform.py
+          test/test_vision_action_workflow.py
+          test/test_generalization_foundation.py
+          test/test_verify_generalization_transfer.py
+          --junitxml=mentor-functional-junit.xml
+      - name: Preserve real-host acceptance boundaries
+        if: always()
+        run: echo 'Synthetic and local unit tests are not physical Windows/GPU/FIDO2, voice/avatar rendering, or real learning-transfer acceptance.'
+      - name: Upload selected regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentor-regressions-${{ github.sha }}
+          path: mentor-functional-junit.xml
+          if-no-files-found: warn
+          retention-days: 30
