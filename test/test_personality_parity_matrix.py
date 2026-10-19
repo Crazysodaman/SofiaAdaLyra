@@ -24,6 +24,7 @@ def observation(case_id, channel="desktop_text", *, reply=None, **fields):
         case_id=case_id,
         channel=channel,
         model_id=fields.pop("model_id", "qwen-model-a"),
+        model_revision=fields.pop("model_revision", "model-version-a"),
         device_id=fields.pop("device_id", "Venus"),
         principal_id=fields.pop("principal_id", "person:sparks"),
         user_prompt=FIXED_PERSONALITY_PROBES[case_id],
@@ -134,5 +135,24 @@ def test_model_or_device_only_answering_easier_cases_is_incomplete():
         required_channels=frozenset({"desktop_text"}),
     )
     assert not report.ready_for_review
-    assert "desktop_text:checkin:model:model-b" in report.missing
+    assert "desktop_text:checkin:model:model-b@model-version-a" in report.missing
     assert "desktop_text:checkin:device:Artemis" in report.missing
+
+
+def test_same_model_different_revision_counts_as_version_transition():
+    old = tuple(observation(case_id) for case_id in FIXED_PERSONALITY_PROBES)
+    newer = tuple(
+        observation(
+            case_id,
+            model_revision="model-version-b",
+            message_id=f"new-version:{case_id}",
+        )
+        for case_id in FIXED_PERSONALITY_PROBES
+    )
+    report = evaluate_personality_matrix(
+        (*old, *newer),
+        required_channels=frozenset({"desktop_text"}),
+        require_device_transition=False,
+    )
+    assert report.ready_for_review
+    assert len(report.models) == 2
