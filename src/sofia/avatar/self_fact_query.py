@@ -36,6 +36,8 @@ def _normalize(query: str) -> str:
         raw,
     )
     raw = re.sub(r"\bwearin\b", "wearing", raw)
+    # Common dictation/typed grammar variants must still use canonical state.
+    raw = re.sub(r"^what\s+is\s+your\s+wearing$", "what are you wearing", raw)
     raw = re.sub(
         r"^(?:(?:okay|ok|well|so)\s+)+",
         "",
