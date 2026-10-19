@@ -145,6 +145,23 @@ class TestMentorDialogue(unittest.TestCase):
                 run_synthetic_dialogue(config=self.cfg, scenario_id="service-failure",
                                        allow_external=True, api_key="test-key", sender=bad)
 
+    def test_cli_preview_cannot_call_either_provider(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from sofia.mentor.__main__ import main
+        stream = StringIO()
+        with patch("sofia.mentor.__main__.run_synthetic_dialogue",
+                   side_effect=AssertionError("must never transmit")):
+            with redirect_stdout(stream):
+                result = main([
+                    "converse", "--scenario", "service-failure",
+                    "--local-model", "qwen3.5:9b",
+                    "--external-model", "gpt-6-luna", "--preview",
+                ])
+        self.assertEqual(result, 0)
+        self.assertIn("synthetic-preview-no-network", stream.getvalue())
+        self.assertIn("ECONNREFUSED", stream.getvalue())
+
     def test_fixed_only_endpoint_rejects_other_urls(self):
         with self.assertRaisesRegex(MentorBridgeError, "allowlist"):
             _send_json("https://evil.example.com/data", {}, {}, 10)
