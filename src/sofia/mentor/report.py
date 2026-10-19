@@ -21,7 +21,7 @@ def markdown_report(report: dict) -> str:
     lines = [
         "# Sofía MENTOR: Read-only Quality Snapshot",
         "",
-        f"**Source revision:** \\u0060{report['source_revision']}\\u0060",
+        f"**Source revision:** {report['source_revision']}",
         f"**Generated UTC:** {report['generated_at']}",
         "",
         "This is an evidence-inventory snapshot, **not production certification**.",
