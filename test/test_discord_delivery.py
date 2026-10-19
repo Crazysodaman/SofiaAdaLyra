@@ -3,6 +3,8 @@
 import asyncio
 from dataclasses import dataclass
 
+import pytest
+
 from sofia.discord.access import DiscordInboundFacts, SingleUserDiscordConfig
 from sofia.discord.binding import DiscordBindingStore
 from sofia.discord.bridge import DiscordConversationBridge
@@ -16,11 +18,17 @@ from sofia.discord.delivery import (
 from sofia.discord.inbound import DiscordTextEvent, screen_text_dm
 from sofia.discord.outbound import DiscordOutboundGate, OutboundDenial
 from sofia.discord.store import DiscordInboxStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 OWNER = 123456789012345678
 BOT = 987654321098765432
 CHANNEL = 2002
 MESSAGE = 1001
+
+
+@pytest.fixture(autouse=True)
+def _canonical_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "state.sqlite3")
 
 
 @dataclass

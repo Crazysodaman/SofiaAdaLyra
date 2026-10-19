@@ -669,6 +669,7 @@ class MobileCompanionGateway:
                     source_event_id=(
                         f"mobile:{device}:{generation}:{request_id}"
                     ),
+                    source_device_id=device,
                 )
                 canonical = getattr(conversation, "last_turn_receipt", None)
                 canonical = canonical if isinstance(canonical, dict) else {}
@@ -875,10 +876,19 @@ class MobileCompanionGateway:
         return self._canonical_history_page(
             device=device, principal=principal, private_mode=private_mode,
             before=before, limit=limit,
-            page_reader=lambda cursor, page_limit:
-                self.application.main_thread_page(
+            page_reader=lambda cursor, page_limit: (
+                self.application.main_thread_projection_page(
+                    principal=principal,
+                    before=(None if cursor is None else (cursor[0], cursor[1])),
+                    limit=page_limit,
+                )
+                if callable(getattr(
+                    self.application, "main_thread_projection_page", None,
+                ))
+                else self.application.main_thread_page(
                     principal=principal, before=cursor, limit=page_limit,
-                ),
+                )
+            ),
         )
 
     def _canonical_history_page(
@@ -934,18 +944,31 @@ class MobileCompanionGateway:
                         raise
                     page_limit = max(1, page_limit // 2)
                     continue
-                messages = [
-                    {
-                        "id": item.message.id,
-                        "role": item.message.role.value,
-                        "content": item.message.content,
-                        "created_at": item.message.created_at.isoformat(),
-                        "linked_at": item.linked_at.isoformat(),
-                        "canonical_sequence": item.canonical_sequence,
-                        "turn_position": item.turn_position,
-                    }
-                    for item in page
-                ]
+                messages = []
+                for item in page:
+                    if item.message is None:
+                        messages.append({
+                            "id": None,
+                            "role": "redacted",
+                            "content": None,
+                            "created_at": None,
+                            "linked_at": item.linked_at.isoformat(),
+                            "canonical_sequence": item.canonical_sequence,
+                            "turn_position": item.turn_position,
+                            "redacted": True,
+                            "unavailable_reason": item.redacted_reason,
+                        })
+                    else:
+                        messages.append({
+                            "id": item.message.id,
+                            "role": item.message.role.value,
+                            "content": item.message.content,
+                            "created_at": item.message.created_at.isoformat(),
+                            "linked_at": item.linked_at.isoformat(),
+                            "canonical_sequence": item.canonical_sequence,
+                            "turn_position": item.turn_position,
+                            "redacted": False,
+                        })
                 # HttpsURLConnection has a 256-KB bounded reply reader.
                 # Include serialized JSON escapes and leave framing room.
                 if len(json.dumps(messages).encode("utf-8")) <= 192_000:
@@ -967,7 +990,11 @@ class MobileCompanionGateway:
                     {
                         "canonical_sequence": first.canonical_sequence,
                         "turn_position": first.turn_position,
-                        "message_id": first.message.id,
+                        "message_id": (
+                            first.message.id if first.message is not None else
+                            "redacted:"
+                            f"{first.canonical_sequence}:{first.turn_position}"
+                        ),
                     }
                     if first.canonical_sequence is not None
                     else {

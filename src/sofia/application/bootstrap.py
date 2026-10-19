@@ -542,6 +542,15 @@ class SofiaApplication:
             principal=principal, before=before, limit=limit,
         )
 
+    def main_thread_projection_page(
+        self, *, principal: PrincipalContext,
+        before: tuple[int, int] | None = None, limit: int = 50,
+    ):
+        """Return safe Main positions for an authenticated device view."""
+        return self._conversation_service.main_thread_projection_page(
+            principal=principal, before=before, limit=limit,
+        )
+
     def lifelong_threads_for(self, principal, *, limit: int = 30):
         """Read source-owned conversation thread headers for authenticated UI.
 

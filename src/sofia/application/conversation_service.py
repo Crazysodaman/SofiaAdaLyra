@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import sqlite3
+from threading import RLock
 from uuid import uuid4
 
 from sofia.authorization.evaluator import (
@@ -320,6 +321,14 @@ class ConversationService(ConversationMatrixMixin):
         self._conversation_runtime_id = (
             conversation_runtime_id or f"conversation-runtime:{uuid4().hex}"
         )
+        # Conversation state (session, current coordination plan, tool
+        # boundary and model transcript) is deliberately single-turn.  The
+        # durable admission store orders requests from different transports,
+        # while this lock serializes their actual generation boundary so a
+        # later turn cannot observe a half-persisted predecessor.  It is
+        # scoped to this ConversationService and never blocks unrelated RUN
+        # work or another principal's service.
+        self._turn_lock = RLock()
         self._lifelong_thread_store.recover_interrupted_turns(
             runtime_id=self._conversation_runtime_id,
             now=datetime.now(timezone.utc),
@@ -1040,6 +1049,35 @@ class ConversationService(ConversationMatrixMixin):
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
         source_event_id: str | None = None,
+        source_device_id: str | None = None,
+        client_created_at: datetime | None = None,
+        reply_to_event_id: str | None = None,
+        correction_of_event_id: str | None = None,
+    ) -> CognitiveResponse:
+        """Serialize one logical turn at the generation boundary."""
+        with self._turn_lock:
+            return self._respond_serialized(
+                content,
+                principal=principal,
+                channel=channel,
+                source_event_id=source_event_id,
+                source_device_id=source_device_id,
+                client_created_at=client_created_at,
+                reply_to_event_id=reply_to_event_id,
+                correction_of_event_id=correction_of_event_id,
+            )
+
+    def _respond_serialized(
+        self,
+        content: str,
+        *,
+        principal: PrincipalContext | None = None,
+        channel: str = "conversation",
+        source_event_id: str | None = None,
+        source_device_id: str | None = None,
+        client_created_at: datetime | None = None,
+        reply_to_event_id: str | None = None,
+        correction_of_event_id: str | None = None,
     ) -> CognitiveResponse:
         """Execute one authenticated source event at most once.
 
@@ -1076,6 +1114,10 @@ class ConversationService(ConversationMatrixMixin):
                 session_id=self._session.id, channel=normalized_channel,
                 content=normalized, runtime_id=self._conversation_runtime_id,
                 now=datetime.now(timezone.utc),
+                source_device_id=source_device_id,
+                client_created_at=client_created_at,
+                reply_to_event_id=reply_to_event_id,
+                correction_of_event_id=correction_of_event_id,
             )
             if admission.status == "completed":
                 if admission.response is None:
@@ -1086,6 +1128,9 @@ class ConversationService(ConversationMatrixMixin):
                     "canonical_sequence": admission.canonical_sequence,
                     "status": admission.status,
                     "replayed": True,
+                    "source_channel": admission.source_channel,
+                    "source_device_id": admission.source_device_id,
+                    "server_received_at": admission.received_at.isoformat(),
                 }
                 return admission.response
             self._current_turn_admission = admission
@@ -1103,6 +1148,9 @@ class ConversationService(ConversationMatrixMixin):
                     "canonical_sequence": admission.canonical_sequence,
                     "status": "completed",
                     "replayed": False,
+                    "source_channel": admission.source_channel,
+                    "source_device_id": admission.source_device_id,
+                    "server_received_at": admission.received_at.isoformat(),
                 }
             return response
         except BaseException as exc:
@@ -1756,6 +1804,20 @@ class ConversationService(ConversationMatrixMixin):
         return store.visible_message_page(
             thread_id=main.thread_id, principal=principal,
             before=before, limit=limit,
+        )
+
+    def main_thread_projection_page(
+        self, *, principal: PrincipalContext,
+        before: tuple[int, int] | None = None, limit: int = 50,
+    ):
+        """Return Main order plus content-free cross-audience placeholders."""
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if self._session is None:
+            raise RuntimeError("ConversationService must be started")
+        store = self._lifelong_thread_store
+        return store.main_projection_page(
+            principal=principal, before=before, limit=limit,
         )
 
     def messages(

@@ -42,8 +42,15 @@ class FakeConversation:
     def __init__(self):
         self.calls = []
 
-    def respond(self, content, *, principal, channel, source_event_id=None):
+    def respond(
+        self, content, *, principal, channel, source_event_id=None,
+        source_device_id=None,
+    ):
         assert source_event_id is None or source_event_id.startswith("mobile:")
+        assert source_device_id is None or (
+            source_event_id is not None
+            and f":{source_device_id}:" in source_event_id
+        )
         self.calls.append((content, principal, channel))
         return SimpleNamespace(content="Private mobile reply.")
 

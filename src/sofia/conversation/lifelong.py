@@ -80,6 +80,17 @@ class LifelongMessage:
 
 
 @dataclass(frozen=True, slots=True)
+class MainProjectionItem:
+    """One Main position; content exists only for the source audience."""
+
+    canonical_sequence: int
+    turn_position: int
+    linked_at: datetime
+    message: ConversationMessage | None
+    redacted_reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class CanonicalTurnAdmission:
     event_id: str
     canonical_sequence: int
@@ -87,6 +98,12 @@ class CanonicalTurnAdmission:
     user_message_id: str
     assistant_message_id: str
     response: CognitiveResponse | None = None
+    source_channel: str = "unknown"
+    source_device_id: str | None = None
+    received_at: datetime = datetime.min.replace(tzinfo=timezone.utc)
+    client_created_at: datetime | None = None
+    reply_to_event_id: str | None = None
+    correction_of_event_id: str | None = None
 
 
 class CanonicalTurnConflict(RuntimeError):
@@ -214,6 +231,22 @@ class LifelongThreadStore:
                     "ALTER TABLE lifelong_thread_event "
                     "ADD COLUMN turn_position INTEGER"
                 )
+            turn_columns = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(canonical_conversation_turn)"
+                )
+            }
+            for name, definition in (
+                ("source_device_id", "TEXT"),
+                ("client_created_at", "TEXT"),
+                ("reply_to_event_id", "TEXT"),
+                ("correction_of_event_id", "TEXT"),
+            ):
+                if name not in turn_columns:
+                    db.execute(
+                        "ALTER TABLE canonical_conversation_turn ADD COLUMN "
+                        + name + " " + definition
+                    )
             db.execute(
                 """CREATE INDEX IF NOT EXISTS lifelong_thread_canonical_order
                 ON lifelong_thread_event(
@@ -249,6 +282,13 @@ class LifelongThreadStore:
             row["event_id"], int(row["canonical_sequence"]), row["status"],
             row["user_message_id"], row["assistant_message_id"],
             cls._turn_response(row["response_json"]),
+            row["source_channel"], row["source_device_id"],
+            datetime.fromisoformat(row["received_at"]),
+            (
+                None if row["client_created_at"] is None
+                else datetime.fromisoformat(row["client_created_at"])
+            ),
+            row["reply_to_event_id"], row["correction_of_event_id"],
         )
 
     def recover_interrupted_turns(self, *, runtime_id: str, now: datetime) -> int:
@@ -270,6 +310,10 @@ class LifelongThreadStore:
         self, *, event_id: str, principal: PrincipalContext,
         session_id: str, channel: str, content: str,
         runtime_id: str, now: datetime,
+        source_device_id: str | None = None,
+        client_created_at: datetime | None = None,
+        reply_to_event_id: str | None = None,
+        correction_of_event_id: str | None = None,
     ) -> CanonicalTurnAdmission:
         """Durably order and deduplicate one authenticated source submission."""
         if not isinstance(principal, PrincipalContext):
@@ -283,9 +327,29 @@ class LifelongThreadStore:
             raise ValueError("turn content must be bounded nonempty text")
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("turn receipt time must be timezone-aware")
+        for label, value in (
+            ("source_device_id", source_device_id),
+            ("reply_to_event_id", reply_to_event_id),
+            ("correction_of_event_id", correction_of_event_id),
+        ):
+            if value is not None and (
+                not isinstance(value, str) or not value.strip() or len(value) > 256
+            ):
+                raise ValueError(f"{label} must be a bounded nonempty string")
+        if client_created_at is not None and (
+            not isinstance(client_created_at, datetime)
+            or client_created_at.tzinfo is None
+            or client_created_at.utcoffset() is None
+        ):
+            raise ValueError("client_created_at must be timezone-aware")
+        if reply_to_event_id == event_id or correction_of_event_id == event_id:
+            raise ValueError("an event cannot reference or correct itself")
         digest = sha256(json.dumps((
             principal.principal_id, principal.audience_id,
             principal.audience_kind.value, session_id, channel, content,
+            source_device_id,
+            None if client_created_at is None else client_created_at.isoformat(),
+            reply_to_event_id, correction_of_event_id,
         ), ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
@@ -365,6 +429,29 @@ class LifelongThreadStore:
                             "conversation and Main audience evidence"
                         )
                 return admission
+            for reference, purpose in (
+                (reply_to_event_id, "reply"),
+                (correction_of_event_id, "correction"),
+            ):
+                if reference is None:
+                    continue
+                target = db.execute(
+                    "SELECT owner_principal_id,source_audience_id,status "
+                    "FROM canonical_conversation_turn WHERE event_id=?",
+                    (reference,),
+                ).fetchone()
+                if target is None:
+                    raise LookupError(f"{purpose} target does not exist")
+                if tuple(target[:2]) != (
+                    principal.principal_id, principal.audience_id,
+                ):
+                    raise PermissionError(
+                        f"{purpose} target belongs to another audience"
+                    )
+                if target["status"] != "completed":
+                    raise CanonicalTurnUncertain(
+                        f"{purpose} target is not durably completed"
+                    )
             sequence = int(db.execute(
                 """SELECT COALESCE(MAX(canonical_sequence),0)+1
                 FROM canonical_conversation_turn WHERE owner_principal_id=?""",
@@ -379,13 +466,18 @@ class LifelongThreadStore:
                 source_audience_kind,source_channel,source_session_id,
                 request_digest,canonical_sequence,status,runtime_id,
                 user_message_id,assistant_message_id,response_json,
-                received_at,settled_at
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)""",
+                received_at,settled_at,source_device_id,client_created_at,
+                reply_to_event_id,correction_of_event_id
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,?,?,?,?)""",
                 (
                     event_id, principal.principal_id, principal.audience_id,
                     principal.audience_kind.value, channel, session_id,
                     digest, sequence, "processing", runtime_id,
                     user_id, assistant_id, None, stamp,
+                    source_device_id,
+                    (None if client_created_at is None else
+                     client_created_at.astimezone(timezone.utc).isoformat()),
+                    reply_to_event_id, correction_of_event_id,
                 ),
             )
             row = db.execute(
@@ -1538,3 +1630,80 @@ class LifelongThreadStore:
             )
             for row in reversed(rows)
         )
+
+    def main_projection_page(
+        self, *, principal: PrincipalContext,
+        before: tuple[int, int] | None = None, limit: int = 50,
+    ) -> tuple[MainProjectionItem, ...]:
+        """Return canonical Main order with safe unavailable placeholders.
+
+        Content is admitted only when the original message still exists and
+        its current session binding exactly matches the requesting audience.
+        A different owner audience receives only canonical position and a
+        generic reason--never content, source IDs, channel, tool output, or
+        credential-bearing metadata. This projection cannot execute/replay.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if before is not None and (
+            not isinstance(before, tuple) or len(before) != 2
+            or type(before[0]) is not int or before[0] < 1
+            or type(before[1]) is not int or before[1] not in {0, 1}
+        ):
+            raise ValueError("projection cursor requires sequence and position")
+        if type(limit) is not int or not 1 <= limit <= 200:
+            raise ValueError("projection page limit must be 1..200")
+        filters = (
+            "t.owner_principal_id=? AND t.kind='main' "
+            "AND e.canonical_sequence IS NOT NULL"
+        )
+        arguments: list[object] = [principal.principal_id]
+        if before is not None:
+            filters += (
+                " AND (e.canonical_sequence<? OR "
+                "(e.canonical_sequence=? AND e.turn_position<?))"
+            )
+            arguments.extend((before[0], before[0], before[1]))
+        arguments.append(limit)
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT e.canonical_sequence,e.turn_position,e.linked_at,"
+                "m.id,m.session_id,m.role,m.content,m.created_at,"
+                "s.principal_id,s.audience_id,s.audience_kind,"
+                "e.source_audience_id,e.visibility "
+                "FROM lifelong_thread_event AS e "
+                "JOIN lifelong_thread AS t ON t.thread_id=e.thread_id "
+                "LEFT JOIN conversation_messages AS m "
+                "ON m.id=e.source_message_id AND m.session_id=e.source_session_id "
+                "LEFT JOIN social_session_principal AS s "
+                "ON s.session_id=e.source_session_id "
+                "WHERE " + filters + " "
+                "ORDER BY e.canonical_sequence DESC,e.turn_position DESC LIMIT ?",
+                tuple(arguments),
+            ).fetchall()
+        page: list[MainProjectionItem] = []
+        for row in reversed(rows):
+            allowed = (
+                row["id"] is not None
+                and row["visibility"] == "source_audience"
+                and row["source_audience_id"] == principal.audience_id
+                and row["principal_id"] == principal.principal_id
+                and row["audience_id"] == principal.audience_id
+                and row["audience_kind"] == principal.audience_kind.value
+            )
+            message = None
+            reason = "unavailable_on_this_device"
+            if allowed:
+                message = ConversationMessage(
+                    id=row["id"], session_id=row["session_id"],
+                    role=ConversationRole(row["role"]), content=row["content"],
+                    created_at=datetime.fromisoformat(row["created_at"]),
+                )
+                reason = None
+            page.append(MainProjectionItem(
+                canonical_sequence=int(row["canonical_sequence"]),
+                turn_position=int(row["turn_position"]),
+                linked_at=datetime.fromisoformat(row["linked_at"]),
+                message=message, redacted_reason=reason,
+            ))
+        return tuple(page)

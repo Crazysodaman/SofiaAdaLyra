@@ -16,6 +16,7 @@ import sqlite3
 from uuid import uuid4
 
 from sofia.discord.inbound import InboundScreen
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class InboxAcceptResult(str, Enum):
@@ -67,13 +68,11 @@ class DiscordInboxStore:
 
     def __init__(self, database_path: Path | str) -> None:
         self._database_path = Path(database_path)
+        self._guard = CanonicalSQLiteGuard(self._database_path)
         self._initialize_database()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(
-            str(self._database_path),
-            timeout=5.0,
-        )
+        connection = self._guard.connect(timeout=5.0)
         connection.row_factory = sqlite3.Row
         return connection
 

@@ -1,4 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+from time import sleep
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -149,6 +151,31 @@ def test_conversation_service_is_application_boundary(
     assert application.conversation.session_id is not None
 
     application.shutdown()
+
+
+def test_conversation_generation_boundary_serializes_concurrent_devices(tmp_path):
+    """Admission order may race, but one service cannot generate overlapping turns."""
+    application = create_application(tmp_path)
+    service = application.conversation
+    guard = Lock()
+    active = 0
+    maximum = 0
+
+    def observed(_content, **_kwargs):
+        nonlocal active, maximum
+        with guard:
+            active += 1
+            maximum = max(maximum, active)
+        sleep(0.02)
+        with guard:
+            active -= 1
+        return CognitiveResponse("serialized")
+
+    service._respond_serialized = observed
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = tuple(pool.map(lambda value: service.respond(value), ("a", "b")))
+    assert [item.content for item in results] == ["serialized", "serialized"]
+    assert maximum == 1
 
 
 def test_conversation_service_creates_session_on_start(

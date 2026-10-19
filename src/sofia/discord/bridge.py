@@ -34,6 +34,7 @@ class ConversationResponder(Protocol):
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
         source_event_id: str | None = None,
+        source_device_id: str | None = None,
     ): ...
 
 
@@ -164,6 +165,9 @@ class DiscordConversationBridge:
             supports_source_event = (
                 "source_event_id" in parameters or accepts_kwargs
             )
+            supports_source_device = (
+                "source_device_id" in parameters or accepts_kwargs
+            )
             kwargs = {}
             if supports_principal:
                 kwargs["principal"] = discord_sparks_principal(channel_id)
@@ -173,6 +177,11 @@ class DiscordConversationBridge:
                 kwargs["source_event_id"] = (
                     f"discord:{bot_user_id}:{channel_id}:{message_id}"
                 )
+            if supports_source_device:
+                # Discord channel identity is the authenticated remote
+                # presentation surface. It is metadata only and never a
+                # capability or a substitute for the bound owner principal.
+                kwargs["source_device_id"] = f"discord-channel:{channel_id}"
             response = responder(inbound.content, **kwargs)
             content = getattr(response, "content", None)
             if not isinstance(content, str) or not content.strip():

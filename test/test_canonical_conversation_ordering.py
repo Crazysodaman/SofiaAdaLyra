@@ -210,3 +210,109 @@ def test_original_source_message_identity_cannot_be_overwritten(tmp_path):
         assert messages.list_messages(session.id) == (original,)
     finally:
         messages.close()
+
+
+def test_admission_preserves_trusted_origin_metadata_and_scoped_references(tmp_path):
+    messages, social, turns, principal, session = infrastructure(tmp_path)
+    received = datetime.now(timezone.utc)
+    client_time = received - timedelta(seconds=7)
+    try:
+        first, _ = persist_settled_turn(
+            messages, turns, principal, session,
+            event_id="desktop:origin:first", content="first",
+            response="first response", now=received,
+        )
+        followup = turns.admit_turn(
+            event_id="mobile:phone:followup", principal=principal,
+            session_id=session.id, channel="mobile-standard",
+            content="corrected follow-up", runtime_id="runtime:test",
+            now=received + timedelta(seconds=1), source_device_id="phone-1",
+            client_created_at=client_time,
+            reply_to_event_id=first.event_id,
+            correction_of_event_id=first.event_id,
+        )
+        assert followup.source_channel == "mobile-standard"
+        assert followup.source_device_id == "phone-1"
+        assert followup.client_created_at == client_time
+        assert followup.received_at == received + timedelta(seconds=1)
+        assert followup.reply_to_event_id == first.event_id
+        assert followup.correction_of_event_id == first.event_id
+
+        other = PrincipalContext(
+            principal_id=principal.principal_id,
+            audience_id="discord:dm:42",
+            audience_kind=AudienceKind.PRIVATE,
+            display_name="Sparks",
+        )
+        other_session = messages.create_session()
+        social.bind(session_id=other_session.id, principal=other)
+        with pytest.raises(PermissionError, match="another audience"):
+            turns.admit_turn(
+                event_id="discord:foreign-correction", principal=other,
+                session_id=other_session.id, channel="discord",
+                content="must not retarget local history",
+                runtime_id="runtime:test", now=received + timedelta(seconds=2),
+                correction_of_event_id=first.event_id,
+            )
+    finally:
+        messages.close()
+
+
+def test_replay_conflicts_when_origin_metadata_changes(tmp_path):
+    messages, _social, turns, principal, session = infrastructure(tmp_path)
+    now = datetime.now(timezone.utc)
+    try:
+        turns.admit_turn(
+            event_id="mobile:stable:one", principal=principal,
+            session_id=session.id, channel="mobile-standard", content="same",
+            runtime_id="runtime:test", now=now, source_device_id="phone-a",
+        )
+        with pytest.raises(CanonicalTurnConflict):
+            turns.admit_turn(
+                event_id="mobile:stable:one", principal=principal,
+                session_id=session.id, channel="mobile-standard", content="same",
+                runtime_id="runtime:test", now=now,
+                source_device_id="phone-b",
+            )
+    finally:
+        messages.close()
+
+
+def test_main_projection_redacts_other_audience_without_hiding_order(tmp_path):
+    messages, social, turns, local, local_session = infrastructure(tmp_path)
+    discord = PrincipalContext(
+        principal_id=local.principal_id,
+        audience_id="discord:dm:42", audience_kind=AudienceKind.PRIVATE,
+        display_name="Sparks",
+    )
+    discord_session = messages.create_session()
+    social.bind(session_id=discord_session.id, principal=discord)
+    now = datetime.now(timezone.utc)
+    try:
+        local_turn, _ = persist_settled_turn(
+            messages, turns, local, local_session,
+            event_id="desktop:visible", content="local secret",
+            response="local answer", now=now,
+        )
+        discord_turn, _ = persist_settled_turn(
+            messages, turns, discord, discord_session,
+            event_id="discord:hidden", content="discord secret",
+            response="discord answer", now=now + timedelta(seconds=1),
+        )
+        page = turns.main_projection_page(principal=local, limit=10)
+        assert [(x.canonical_sequence, x.turn_position) for x in page] == [
+            (local_turn.canonical_sequence, 0),
+            (local_turn.canonical_sequence, 1),
+            (discord_turn.canonical_sequence, 0),
+            (discord_turn.canonical_sequence, 1),
+        ]
+        assert [item.message.content for item in page[:2]] == [
+            "local secret", "local answer",
+        ]
+        assert all(item.message is None for item in page[2:])
+        assert all(
+            item.redacted_reason == "unavailable_on_this_device"
+            for item in page[2:]
+        )
+    finally:
+        messages.close()

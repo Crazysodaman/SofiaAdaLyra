@@ -3,13 +3,22 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 
+import pytest
+
 from sofia.discord.access import Denial, DiscordInboundFacts, SingleUserDiscordConfig
 from sofia.discord.inbound import DiscordTextEvent, screen_text_dm
 from sofia.discord.ingress import DiscordIngress, IngressDisposition
 from sofia.discord.store import DiscordInboxStore, InboxAcceptResult
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.state.canonical_sqlite import CanonicalStateUnavailable
 
 OWNER = 123456789012345678
 BOT = 987654321098765432
+
+
+@pytest.fixture(autouse=True)
+def _canonical_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "state.sqlite3")
 
 
 def config(enabled: bool = True) -> SingleUserDiscordConfig:
@@ -41,6 +50,15 @@ def test_record_survives_store_recreation(tmp_path) -> None:
     assert record.author_user_id == OWNER
     assert record.content == "Hello from Discord"
     assert record.state == "received"
+
+
+def test_inbox_fails_closed_if_canonical_database_disappears(tmp_path) -> None:
+    path = tmp_path / "state.sqlite3"
+    store = DiscordInboxStore(path)
+    path.replace(tmp_path / "state.removed.sqlite3")
+    with pytest.raises(CanonicalStateUnavailable):
+        store.count()
+    assert not path.exists()
 
 
 def test_duplicate_after_restart_is_not_reinserted(tmp_path) -> None:

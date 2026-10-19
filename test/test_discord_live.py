@@ -16,6 +16,7 @@ from sofia.discord.live import (
     run_live_discord,
 )
 from sofia.discord.provisioning import DiscordProvisioning
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 OWNER = 123456789012345678
@@ -23,6 +24,11 @@ BOT = 987654321098765432
 CHANNEL = 223456789012345678
 AUTO_CHANNEL = 323456789012345678
 STALE_CHANNEL = 423456789012345678
+
+
+@pytest.fixture(autouse=True)
+def _canonical_state(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "state.sqlite3")
 
 
 class FakeConversation:
