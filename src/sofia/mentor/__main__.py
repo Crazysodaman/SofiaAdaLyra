@@ -20,6 +20,7 @@ from .openai_diagnostics import check_openai_model
 from .local_bridge import LocalBridgeConfig, run_local_dialogue
 from .oracles import get_oracle
 from .exchange import write_public_outbox, read_review
+from .remote_inbox import MentorReviewConsumer
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -39,6 +40,13 @@ def main(argv: list[str] | None = None) -> int:
         "exchange-export", help="Write safe public Git outbox without committing or pushing"
     )
     publish.add_argument("--repo", type=Path, default=Path("."))
+    remote_poll = sub.add_parser(
+        "exchange-poll", help="Read public GitHub MENTOR advice, without pulling Git or executing it"
+    )
+    remote_poll.add_argument(
+        "--allow-public-network", action="store_true",
+        help="Consent to fetch ONLY the fixed public GitHub inbox"
+    )
     incoming = sub.add_parser(
         "exchange-read", help="Inspect text-only Git MENTOR feedback, never execute"
     )
@@ -82,6 +90,16 @@ def main(argv: list[str] | None = None) -> int:
             if args.command == "exchange-export":
                 print(json.dumps(write_public_outbox(args.repo), indent=2))
                 return 0
+            if args.command == "exchange-poll":
+                if not args.allow_public_network:
+                    raise MentorBridgeError("remote inbox requires --allow-public-network")
+                consumer = MentorReviewConsumer()
+                status = consumer.poll()
+                print(json.dumps({
+                    "status": status,
+                    "snapshot": consumer.snapshot(),
+                }, indent=2, ensure_ascii=False))
+                return 0 if status["status"] in ("updated", "unchanged") else 2
             if args.command == "exchange-read":
                 review = read_review(args.repo)
                 print(json.dumps({
