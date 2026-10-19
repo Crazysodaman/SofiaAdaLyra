@@ -110,6 +110,97 @@ class TestLocalMentor(TestCase):
                         sender=lambda url, payload, headers, timeout: bad,
                     )
 
+    def test_student_response_over_old_1200_character_cap_is_accepted(self):
+        # A 350-token answer can exceed 1,200 characters in practice.
+        # The local pilot has a separate 2,800-character bounded allowance.
+        long_answer = "Evidence matters. " * 90
+        self.assertGreater(len(long_answer), 1200)
+        stub = LocalOllamaStub()
+        def sender(url, payload, headers, timeout):
+            if payload["model"] == "qwen3.5:9b":
+                return {"model": payload["model"], "done": True,
+                        "done_reason": "stop",
+                        "message": {"content": long_answer},
+                        "eval_count": 300}
+            return stub(url, payload, headers, timeout)
+        result = run_local_dialogue(
+            config=LocalBridgeConfig("qwen3.5:9b", "qwen3:14b", max_rounds=1),
+            scenario_id="service-failure", sender=sender,
+        )
+        self.assertEqual(result["events"][0]["text"], long_answer.strip())
+        self.assertEqual(result["events"][1]["speaker"], "local-mentor")
+
+    def test_empty_content_diagnostic_identifies_model_and_thinking_without_leaking(self):
+        def sender(url, payload, headers, timeout):
+            return {
+                "model": payload["model"], "done": True, "done_reason": "length",
+                "eval_count": 350,
+                "message": {"content": "", "thinking": "private-chain-of-thought"},
+            }
+        with self.assertRaises(MentorBridgeError) as caught:
+            run_local_dialogue(
+                config=self.cfg, scenario_id="service-failure", sender=sender,
+            )
+        self.assertIn("qwen3.5:9b", str(caught.exception))
+        self.assertIn("thinking_present=yes", str(caught.exception))
+        self.assertIn("done_reason=length", str(caught.exception))
+        self.assertIn("eval_count=350", str(caught.exception))
+        self.assertNotIn("private-chain-of-thought", str(caught.exception))
+
+    def test_empty_mentor_diagnostic_identifies_second_model(self):
+        def sender(url, payload, headers, timeout):
+            if payload["model"] == "qwen3.5:9b":
+                return {"model": payload["model"], "done": True,
+                        "message": {"content": "Student answer."}}
+            return {"model": payload["model"], "done": True,
+                    "done_reason": "stop", "eval_count": 5,
+                    "message": {"content": ""}}
+        with self.assertRaises(MentorBridgeError) as caught:
+            run_local_dialogue(
+                config=self.cfg, scenario_id="service-failure", sender=sender,
+            )
+        self.assertIn("qwen3:14b", str(caught.exception))
+        self.assertIn("thinking_present=no", str(caught.exception))
+
+    def test_overlong_content_rejected_with_length_not_raw_text(self):
+        large = "SENSITIVE-CONTENT-" * 220
+        def sender(url, payload, headers, timeout):
+            return {"model": payload["model"], "done": True,
+                    "message": {"content": large}}
+        with self.assertRaises(MentorBridgeError) as caught:
+            run_local_dialogue(
+                config=self.cfg, scenario_id="service-failure", sender=sender,
+            )
+        self.assertIn("exceeds 2800 characters", str(caught.exception))
+        self.assertNotIn("SENSITIVE-CONTENT", str(caught.exception))
+
+    def test_partial_length_termination_is_not_marked_success(self):
+        def sender(url, payload, headers, timeout):
+            return {"model": payload["model"], "done": True,
+                    "done_reason": "length", "eval_count": 350,
+                    "message": {"content": "Plausible but incomplete reply"}}
+        with self.assertRaisesRegex(MentorBridgeError, "exhausted generation budget"):
+            run_local_dialogue(
+                config=self.cfg, scenario_id="service-failure", sender=sender,
+            )
+
+    def test_model_feedback_cannot_enable_tools_or_cloud_after_diagnostic_change(self):
+        from sofia.mentor.local_bridge import _reply, MAX_STUDENT_CHARS
+        seen = []
+        def sender(url, payload, headers, timeout):
+            seen.append((url, payload))
+            return {"model": payload["model"], "done": True,
+                    "message": {"content": "Answer."}}
+        _reply(
+            self.cfg, model="qwen3.5:9b", instructions="Synthetic test",
+            prompt="Hello", limit=MAX_STUDENT_CHARS, sender=sender,
+        )
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0][0], OLLAMA_ENDPOINT)
+        self.assertFalse(seen[0][1]["think"])
+        self.assertEqual(seen[0][1]["tools"], [])
+        self.assertIn("at most 100 words", seen[0][1]["messages"][0]["content"])
+
     def test_cli_preview_runs_without_models_or_idle_confirmation(self):
         with patch("sofia.mentor.__main__.run_local_dialogue",
                    side_effect=AssertionError("must not invoke model")):
