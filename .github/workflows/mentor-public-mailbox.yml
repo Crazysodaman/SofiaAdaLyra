@@ -1,0 +1,86 @@
+name: MENTOR Public Status Publisher
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mentor-public-mailbox-main
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish sanitized source task status
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out full main history
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Use Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Refuse to publish if source has not changed
+        id: new-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          previous="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("docs/mentor_exchange/outbox/latest.json")
+          try:
+              data=json.loads(p.read_text(encoding="utf-8"))
+              assert data["schema"]=="sofia.mentor.public-outbox.v1"
+              print(data["source_revision"])
+          except (OSError, ValueError, KeyError, AssertionError, TypeError):
+              print("")
+          PY
+          )"
+          if [ -n "$previous" ]; then
+            if ! git cat-file -e "${previous}^{commit}" 2>/dev/null; then
+              echo "Previous outbox revision is unavailable; refuse an ambiguous diff" >&2
+              exit 1
+            fi
+            changed="$(git diff --name-only "$previous" HEAD -- . \
+              ':(exclude)docs/mentor_exchange/outbox/latest.json' \
+              ':(exclude)docs/mentor_exchange/inbox/latest.json')"
+            if [ -z "$changed" ]; then
+              echo "Source unchanged; skip public outbox publication"
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+      - name: Export allowlisted data only
+        if: steps.new-source.outputs.publish == 'true'
+        env:
+          PYTHONPATH: src
+        run: python -m sofia.mentor exchange-export --repo .
+      - name: Verify only the outbox is staged and push if changed
+        if: steps.new-source.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- docs/mentor_exchange/outbox/latest.json
+          if git diff --cached --quiet; then
+            echo "No outbox changes"
+            exit 0
+          fi
+          staged="$(git diff --cached --name-only)"
+          if [ "$staged" != "docs/mentor_exchange/outbox/latest.json" ]; then
+            echo "Refusing unexpected staged paths" >&2
+            exit 1
+          fi
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m 'chore(mentor): refresh sanitized public evidence outbox'
+          git push origin HEAD:main
