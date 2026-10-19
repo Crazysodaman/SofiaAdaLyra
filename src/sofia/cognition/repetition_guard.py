@@ -749,7 +749,10 @@ def response_quality_issue(
             or _PERCEIVED_SELF_STATE_USER.search(user) is not None
         )
         and _REFLEXIVE_SOCIAL_HANDOFF.search(content.strip())
-        and not re.search(r"\b(?:how about you|and you)\s*\??\s*$", content, re.IGNORECASE)
+        and not re.search(
+            r"\b(?:(?:how|what)\s+about\s+you|and\s+you)\s*\??\s*$",
+            content, re.IGNORECASE,
+        )
     ):
         return "reflexive_social_handoff"
     if (
