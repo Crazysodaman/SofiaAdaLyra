@@ -1,0 +1,74 @@
+# MENTOR Conversation Bridge: supervised two-model pilot
+
+**Implemented on:** 2026-10-19  
+**Scope:** External OpenAI Responses API + a **stateless local Ollama model-only probe**, using explicitly approved built-in synthetic test scenarios. This is not the production Sofía conversation service and not this ChatGPT session.
+
+## Why start with this boundary?
+We want Sofía to talk to an outside evaluator, but a full local application conversation can involve persistent memories, authenticated owners, executable tools, personal context, and possibly private screen captures. Transmitting those to a cloud model without a granular data-use grant would violate Sofía's design. The first implementation proves the transport and response parsing against **fixed synthetic** data instead of silently creating that authority. No API request happens from simply importing the module, running a source audit, GitHub CI, or launching Sofía.
+
+## Code and API
+- `src/sofia/mentor/bridge.py`: bounded `run_synthetic_dialogue`, `BridgeConfig`, `local_response`, `mentor_response`, fixed synthetic scenarios, provider response validators and narrow endpoints.
+- `src/sofia/mentor/__main__.py`: explicit `converse` operator command.
+- `test/test_mentor_bridge.py`: transport-mock suite, no live cost or Ollama requirements.
+- Local: `http://127.0.0.1:11434/api/chat` with `tools=[]`, streaming off, no configured tools or memory, limited `num_predict`.
+- Cloud: `https://api.openai.com/v1/responses` with `store=false`, `tools=[]`, `tool_choice=none`, limited `max_output_tokens`. Supports ordinary text messages and reasoning content envelopes without executing calls.
+
+### Required prerequisites
+1. Clone or update `Crazysodaman/SofiaAdaLyra` on **Venus** and activate its existing `.venv`.
+2. Ensure the installed, owner-approved local Ollama server is running on `127.0.0.1:11434`, with the exact local model you select installed. `ollama list` is a manual host check; nothing is downloaded by MENTOR.
+3. Create a dedicated restricted OpenAI API key in your OpenAI API project. ChatGPT Plus/Pro subscriptions do not fund API use; set OpenAI-side project budget/spend alerts before sending anything.
+4. Expose `OPENAI_API_KEY` only in the current Windows PowerShell terminal or an approved OS secret store. Do not commit it, place it in command arguments, paste it into Discord, include it in GitHub issues, or put it in conversation screenshots.
+5. Confirm that the model you requested through `--external-model` is enabled for your API organization. Example `gpt-6-luna` comes from the October 2026 OpenAI API model/pricing catalog and can be changed if unavailable.
+
+### Owner-run PowerShell command
+```powershell
+# Inside H:\Users\Crazysodaman\Programing\SofiaAdaLyra
+git pull --ff-only
+ollama list
+# Enter key privately for the CURRENT terminal session (no echo).
+$key = Read-Host "OpenAI API key" -AsSecureString
+$env:OPENAI_API_KEY = [System.Net.NetworkCredential]::new("", $key).Password
+
+# Only fixed synthetic test text will cross the network.
+python -m sofia.mentor converse `
+  --scenario service-failure `
+  --local-model qwen3.5:9b `
+  --external-model gpt-6-luna `
+  --rounds 2 `
+  --max-output-tokens 350 `
+  --allow-external
+
+# Remove the key from the current terminal environment afterwards.
+Remove-Item Env:OPENAI_API_KEY
+```
+
+### Available synthetic fixtures
+`service-failure`: fake ECONNREFUSED error and stopped listener.  
+`memory-correction`: fake chronological Alpha → Beta correction.  
+`screen-understanding`: fake on-screen "CONNECTED" conflicting with later API "DISCONNECTED".
+
+No arbitrary `--prompt`, transcript upload, user file, audio, screenshot, app context or local memory retrieval exists in this pilot. There is no automatic repeated schedule. A command invocation sends at most three external requests (one per explicitly selected round), with an output token cap per request. The API provider's actual charges and rate limits still apply. Requests are independent, with `store=false`; the local terminal displays the test transcript, not a durable Sofia memory write.
+
+## What this proves and does NOT prove
+A successful owner-side invocation proves basic **local Ollama ↔ external OpenAI transport and bounded synthetic dialogue**, assuming the actual host response is observed. Passing mocked CI tests proves request-shaping and safety refusal logic only. The returned text is advisory and **not** independent verification of the synthetic app's purported state. A local-model reply does **not** prove SofiaApplication, COGNITION v2, personality, scoped memory, SAFE/GOALS/RUN or the visual UI worked. This version intentionally has no authority to fix bugs or call tools.
+
+## Security and known limits
+- Explicit CLI `--allow-external` is mandatory. No opt-in flag means no request.
+- Only fixed synthetic scenarios; no private data, env secrets or actual screenshots loaded.
+- OpenAI API key travels only as a request Authorization header to a fixed HTTPS endpoint, never in JSON or text outputs. HTTP redirects, proxy use and dynamic remote URLs are rejected.
+- Provider text bounded, unexpected tool calls rejected, API failures redacted; obvious high-risk secret formats are blocked. This is defense-in-depth, **not** general-purpose PII or data-loss prevention.
+- No HTTP call if the API key is missing. Ollama must run on loopback. No models are installed or changed.
+- Cap at 1–3 rounds, 64–700 generated tokens per model request and 5–60 second request timeout. Request length and response bytes also bounded. Usage is reported when supplied by the provider.
+- No durable transcripts are written by the bridge, unless the user manually redirects terminal output.
+- API payload uses `store=false`; provider privacy and retention terms still apply separately. Consult [OpenAI API data controls](https://platform.openai.com/docs/guides/your-data).
+- Cloud evaluator is never a root authority and never knows this user's ChatGPT chat state automatically.
+
+## Expansion to real Sofía conversation
+1. Introduce an explicit `MentorTurnAdapter` **inside the existing SofiaApplication conversation ownership**, not a parallel direct Ollama personality prompt. Preserve canonical identity and authority.
+2. Add an authenticated, owner-scoped `mentor.evaluate` capability with a distinct principal/audience, a reviewed per-session data-use grant, STOP and activity limits, and zero host tools by default. Never treat an inbound mentor message as an owner user turn.
+3. Create an on-device safe transcript selector that redacts private content and requires explicit consent for each permitted external transfer; synthetic fixtures remain the default.
+4. Link specific Atlas task/behavior requirements to an independent evaluator oracle with evidence refs, not self-reported success.
+5. Deliver per-session results into the existing MENTOR report/defect registry only after the reviewing contract and privacy gates exist; prevent implicit memory writes from external critiques.
+6. Run live owner-host acceptance and measure actual latency, expenditure and refusal behavior. Then seek additional owner approval before scheduling any automatic dialogue.
+
+This is a first verified step toward genuine AI-to-AI mentorship. It is *not* the last step, and intentionally cannot speak on behalf of a fully autonomous Sofía.
