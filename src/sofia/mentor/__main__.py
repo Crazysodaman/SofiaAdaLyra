@@ -14,6 +14,7 @@ import sys
 
 from .audit import MentorAuditError, audit_checkout, compare_reports
 from .report import markdown_report
+from .bridge import BridgeConfig, MentorBridgeError, SCENARIOS, run_synthetic_dialogue
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,8 +30,31 @@ def main(argv: list[str] | None = None) -> int:
     diff = sub.add_parser("diff", help="Compare two saved audits")
     diff.add_argument("--previous", type=Path, required=True)
     diff.add_argument("--current", type=Path, required=True)
+    talk = sub.add_parser(
+        "converse", help="Opt-in tool-free synthetic dialogue between Ollama and OpenAI"
+    )
+    talk.add_argument("--scenario", required=True, choices=sorted(SCENARIOS))
+    talk.add_argument("--local-model", required=True)
+    talk.add_argument("--external-model", required=True)
+    talk.add_argument("--rounds", type=int, default=2)
+    talk.add_argument("--max-output-tokens", type=int, default=350)
+    talk.add_argument("--allow-external", action="store_true",
+                      help="I authorize sharing this public synthetic fixture and stateless model output")
     try:
         if args := parser.parse_args(argv):
+            if args.command == "converse":
+                cfg = BridgeConfig(
+                    local_model=args.local_model,
+                    external_model=args.external_model,
+                    max_rounds=args.rounds,
+                    max_output_tokens=args.max_output_tokens,
+                )
+                result = run_synthetic_dialogue(
+                    config=cfg, scenario_id=args.scenario,
+                    allow_external=args.allow_external,
+                )
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+                return 0
             if args.command == "audit":
                 report = audit_checkout(args.repo)
                 if args.task:
@@ -65,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
             current = json.loads(args.current.read_text(encoding="utf-8"))
             print(json.dumps(compare_reports(previous, current), indent=2, sort_keys=True))
             return 0
-    except (MentorAuditError, FileNotFoundError, json.JSONDecodeError, OSError, ValueError) as exc:
+    except (MentorAuditError, MentorBridgeError, FileNotFoundError, json.JSONDecodeError, OSError, ValueError) as exc:
         print("MENTOR audit refused: " + str(exc), file=sys.stderr)
         return 2
     return 2
