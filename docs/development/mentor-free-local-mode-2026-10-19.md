@@ -52,3 +52,26 @@ This free model dialogue exists alongside the original opt-in OpenAI bridge. The
 3. Add ground-truth oracles, task evidence, independent host/CI test receipts and typed defect records. The larger critic's opinion is not a test result.
 4. Have the existing background scheduler consider MENTOR tasks **only** under existing idle, STOP, consent and resource admission conditions. No gaming competition and no new scheduler thread.
 5. Build isolated repair proposals, regression and rollback verification, evidence-grounded report delivery and gradual bounded self-maintenance. Human owner remains the final protected-action authority.
+
+## Troubleshooting: empty or overlong local response (2026-10-19)
+
+The initial local bridge rejected either an empty Ollama `message.content` or an answer longer than **1,200 characters** with the same error: `local Ollama returned no safe bounded text`. Even with `num_predict=350`, a fully populated Qwen reply can exceed 1,200 characters. Other models may return empty answer text while consuming tokens in `message.thinking`, or reach `done_reason=length` before completing. A single generic exception could not identify the actual cause.
+
+The updated implementation:
+- Permits up to **2,800 characters** for a local student or mentor reply, independently of the external-cloud bridge's limits.
+- Requests concise plain-answer text while keeping `think: false` at the documented top level.
+- Refuses empty or unfinished answers with **model name, sanitized done_reason, safe token count, and presence/absence of thinking**. The private `message.thinking` text is never printed or fed to the other model.
+- Rejects responses above the permitted character cap with a safe size-only error and no raw text.
+- Distinguishes an output cap `done_reason=length` from a blank response and points to the bounded `--max-output-tokens` setting.
+- Still uses only `127.0.0.1:11434`, executes zero model tools and unloads between requests.
+
+After pulling `main`, retry a single round first, only while Venus is idle:
+
+```powershell
+python -m sofia.mentor local-converse --scenario service-failure --student-model qwen3.5:9b --mentor-model qwen3:14b --rounds 1 --confirm-idle
+```
+
+If diagnostics say `done_reason=length`, retry once with `--max-output-tokens 550` (allowed 64–700). If diagnostics show `thinking_present=yes` despite `think:false`, inspect `ollama --version` and model compatibility; do not parse the thinking trace as the answer. For a blank model that never produces content, test another independently installed model rather than claiming success. If response timeouts occur, separate them from output-validation errors. **Actual Venus host success is not proven by GitHub CI; it requires the owner's follow-up run.**
+
+Reference: [Ollama API chat schema](https://github.com/ollama/ollama/blob/main/docs/openapi.yaml). The separate `message.thinking` and `message.content` fields must not be conflated.
+
