@@ -272,3 +272,31 @@ def test_matrix_fallback_discards_appraisals_from_rejected_draft(monkeypatch):
     assert settled is fallback
     assert service._pending_emotion_appraisal is None
     assert service._pending_user_affect is None
+
+
+def test_affect_correction_never_becomes_a_new_inferred_mood():
+    with pytest.raises(ValueError, match="replacement inference"):
+        UserAffectAppraiser.extract_response(
+            _envelope(affects=["sad"], source="inferred"),
+            user_content="I'm not angry.",
+        )
+    with pytest.raises(ValueError, match="replacement inference"):
+        UserAffectAppraiser.extract_response(
+            _envelope(affects=["frustrated"], source="inferred"),
+            user_content="You're reading me wrong.",
+        )
+
+
+def test_ordinary_user_affect_inference_remains_available_when_not_corrected():
+    visible, assessment = UserAffectAppraiser.extract_response(
+        _envelope(affects=["frustrated"], source="inferred"),
+        user_content="This deployment keeps failing and it is frustrating.",
+    )
+    assert visible == "A visible, affect-aware response."
+    assert assessment is not None and assessment.affects == ("frustrated",)
+
+
+def test_affect_correction_policy_is_sent_to_real_provider_prompt():
+    prompt = UserAffectAppraiser.response_instruction()
+    assert "do not infer a replacement mood on that same turn" in prompt
+    assert "unless the user explicitly reports a new state" in prompt
