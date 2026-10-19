@@ -163,8 +163,6 @@ def register_application_review_task(
     """
     if not mentor_git_enabled():
         return False
-    from sofia.ops.activity import ActivityMode
-
     if not isinstance(host_id, str) or not host_id.strip():
         raise MentorRemoteError("authenticated application host required")
     if not callable(getattr(coordinator, "set_task", None)):
@@ -175,9 +173,11 @@ def register_application_review_task(
     application._mentor_review_consumer = reader
 
     def ready() -> bool:
-        return activity_store.state(host_id).effective in {
-            ActivityMode.NORMAL, ActivityMode.IDLE,
-        }
+        # ActivityMode is a str Enum. Compare only the safe string value
+        # so importing this module doesn't load OPS' optional host crypto stack.
+        raw_mode = activity_store.state(host_id).effective
+        value = getattr(raw_mode, "value", raw_mode)
+        return isinstance(value, str) and value in ("normal", "idle")
 
     def poll(now: datetime):
         return reader.poll(now=now)
