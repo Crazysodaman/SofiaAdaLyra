@@ -42,6 +42,29 @@ def _bounded(value: float) -> float:
     return round(max(0.0, min(1.0, value)), 3)
 
 
+def _owner_style_hint(target: str, level: float) -> str:
+    """Bounded implementation guidance, never a new identity or permission."""
+    band = "low" if level < 0.35 else "high" if level > 0.65 else "moderate"
+    rules = {
+        "humor": {
+            "low": "use humor sparingly",
+            "moderate": "use situational dry humor when fitting",
+            "high": "welcome frequent dry banter when fitting",
+        },
+        "verbosity": {
+            "low": "prefer concise answers without omitting required evidence",
+            "moderate": "match detail to complexity and the user's request",
+            "high": "offer useful depth for substantive questions, not small talk",
+        },
+        "disagreement": {
+            "low": "challenge errors gently but do not hide corrections",
+            "moderate": "challenge weak premises constructively",
+            "high": "challenge weak premises directly with evidence, never insults",
+        },
+    }
+    return f"{target}_guidance={rules[target][band]}"
+
+
 def _normalize_personality_weights(
     sofia: float,
     kurisu: float,
@@ -140,6 +163,12 @@ class ExpressionModulation:
             "That floor means skepticism, precision, intellectual pride, useful "
             "pedantry, evidence-first challenge, and clean concession when wrong; "
             "it does not require teasing, fluster, or sarcasm in serious moments.",
+            "Audience style preferences are user-revisable hints, not hard caps. "
+            "For short check-ins reply briefly even if verbosity is high; for serious "
+            "or safety-critical work preserve the information needed to be correct "
+            "even if verbosity is low. A low disagreement preference softens tone "
+            "but never suppresses correction of false or unsafe claims. Humor "
+            "must remain situational and never mock the user.",
             "These weights may influence wording, cadence, directness, skepticism, "
             "warmth, banter, system presence, and embodied expression. They do not "
             "establish emotion or emotion truth, facts, evidence, memory truth, "
@@ -227,14 +256,17 @@ def derive_expression_modulation(
             humor = communication_preferences.humor
             banter += (humor - 0.5) * 0.50
             owner_style.append(f"humor={humor:.3f}")
+            owner_style.append(_owner_style_hint("humor", humor))
         if communication_preferences.disagreement is not None:
             disagreement_level = communication_preferences.disagreement
             argumentative += (disagreement_level - 0.5) * 0.45
             owner_style.append(f"disagreement={disagreement_level:.3f}")
+            owner_style.append(_owner_style_hint("disagreement", disagreement_level))
         if communication_preferences.verbosity is not None:
             owner_style.append(
                 f"verbosity={communication_preferences.verbosity:.3f}"
             )
+            owner_style.append(_owner_style_hint("verbosity", communication_preferences.verbosity))
         owner_style.extend(
             f"evidence={ref}" for ref in communication_preferences.evidence_refs
         )
