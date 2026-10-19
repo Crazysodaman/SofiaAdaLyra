@@ -27,6 +27,19 @@ def grounded_quality_fallback(
     )
 
     if issue in (
+        "short_contact_identity_mirror",
+        "short_contact_implementation_leak",
+        "short_contact_dependency_escalation",
+    ):
+        # The retry is also checked. If both drafts fail, give a modest
+        # context-appropriate answer instead of shipping the rejected draft.
+        if re.fullmatch(r"\\s*hru\\s*[?!.]*\\s*", user, re.IGNORECASE):
+            return CognitiveResponse(content="Doing pretty well, Sparks. How about you?")
+        if re.fullmatch(r"\\s*sof[ií]a\\s*[?!.]*\\s*", user, re.IGNORECASE):
+            return CognitiveResponse(content="I'm here, Sparks. What's up?")
+        return CognitiveResponse(content="Hey, Sparks. I'm listening.")
+
+    if issue in (
         "emotion_disclaimer",
         "generic_emotion_self_report",
         "emotion_self_report_tangent",
