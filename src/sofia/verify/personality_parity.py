@@ -168,6 +168,8 @@ def evaluate_personality_matrix(
         ):
             failures.append(f"{prefix}:receipt-not-bound-to-reply")
             continue
+        if not row.receipt.fresh and row.channel in {"voice", "desktop_avatar"}:
+            missing.append(f"{prefix}:stale-expression-intent")
         if row.channel == "voice" and not row.receipt.voice_acknowledged:
             missing.append(f"{prefix}:actual-spoken-output")
         if row.channel == "desktop_avatar" and not row.receipt.avatar_acknowledged:
