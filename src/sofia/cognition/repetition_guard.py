@@ -713,6 +713,23 @@ def response_quality_issue(
             content, re.IGNORECASE,
         ):
             return "short_contact_dependency_escalation"
+    if simple_contact:
+        # Restrict quality judgments to minimal greetings; requested fiction
+        # and ordinary discussions must remain free to use narrative prose.
+        if re.search(
+            r"\b(?:comes\s+the\s+(?:soft|warm|quiet)\s+reply|"
+            r"(?:a|the)\s+(?:soft|warm|quiet)\s+reply\s+comes|"
+            r"(?:a|the)\s+(?:flash|hint)\s+of\s+a\s+crooked\s+grin"
+            r"\s+meets\s+the\s+call)\b",
+            content, re.IGNORECASE,
+        ):
+            return "short_contact_third_person_narration"
+        if (
+            _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip())
+            and len(re.findall(r"\?", content)) >= 2
+            and not _EXPLICIT_REPEAT.search(user)
+        ):
+            return "short_contact_question_stack"
     if concise_turn and len(_normalized(content).split()) > 70:
         return "overlong_simple_social_turn"
     if concise_turn and sum(
