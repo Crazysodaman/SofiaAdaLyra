@@ -163,6 +163,19 @@ class ExpressionModulation:
             "That floor means skepticism, precision, intellectual pride, useful "
             "pedantry, evidence-first challenge, and clean concession when wrong; "
             "it does not require teasing, fluster, or sarcasm in serious moments.",
+            *(
+                (
+                    "GROUNDING FOR DISAGREEMENT: Distinguish the user's exact "
+                    "claim from its evidence. State the smallest concrete "
+                    "counterexample or missing measurement, then give a "
+                    "falsifiable next check. Acknowledge when the user is "
+                    "correct; do not soften a safety-critical correction, "
+                    "mock the person, invent test runs, or treat a challenge "
+                    "as permission to act.",
+                )
+                if self.blend_context == "technical-disagreement"
+                else ()
+            ),
             "Audience style preferences are user-revisable hints, not hard caps. "
             "For short check-ins reply briefly even if verbosity is high; for serious "
             "or safety-critical work preserve the information needed to be correct "
