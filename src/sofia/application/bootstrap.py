@@ -461,6 +461,7 @@ class SofiaApplication:
             act_service=self._act_service,
         )
         self._background: ApplicationBackgroundCoordinator | None = None
+        self._mentor_review_consumer = None  # Optional public-advice reader; no canonical writes.
         self._startup_awareness_error: CognitiveEngineError | None = None
         self._heartbeat_store = ApplicationHeartbeatStore(
             configuration.state_path
@@ -869,6 +870,21 @@ class SofiaApplication:
         self,
     ) -> ApplicationBackgroundCoordinator | None:
         return self._background
+
+    @property
+    def mentor_review_snapshot(self) -> dict:
+        """Read-only PUBLIC MENTOR feedback. Never instructions or authority."""
+        consumer = getattr(self, "_mentor_review_consumer", None)
+        if consumer is None:
+            return {
+                "schema": "sofia.mentor.inbox-snapshot.v1",
+                "state": "disabled",
+                "source": "public-github-untrusted",
+                "advisory_only": True,
+                "actions_executed": 0,
+                "review": None,
+            }
+        return consumer.snapshot()
 
     @property
     def conversation(self) -> ConversationService:
