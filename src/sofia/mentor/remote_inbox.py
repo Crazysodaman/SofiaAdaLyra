@@ -22,6 +22,17 @@ PUBLIC_INBOX_URL = (
 )
 MAX_AGE = timedelta(days=14)
 
+def mentor_git_enabled() -> bool:
+    """Explicit owner opt-in; never enable an external poll by default."""
+    import os
+    value = os.environ.get("SOFIA_MENTOR_GIT_ENABLED", "false").strip().lower()
+    if value in ("1", "true", "yes", "on"):
+        return True
+    if value in ("0", "false", "no", "off"):
+        return False
+    raise MentorRemoteError("SOFIA_MENTOR_GIT_ENABLED must be true or false")
+
+
 
 class MentorRemoteError(MentorExchangeError):
     """Remote public inbox is unavailable or cannot be trusted as input."""
