@@ -73,6 +73,7 @@ class EventOwnershipProjection:
     delivery_receipt_id: str | None = None
     resource_refs: tuple[str, ...] = ()
     error_state: ContractErrorState = ContractErrorState.NONE
+    expected_effect: "ExpectedEffectProjection | None" = None
 
     def __post_init__(self) -> None:
         if self.schema_version != 1:
@@ -127,11 +128,134 @@ class EventOwnershipProjection:
                 raise ValueError(f"{label} must not contain duplicates")
         if not isinstance(self.error_state, ContractErrorState):
             raise TypeError("error_state must be ContractErrorState")
+        if self.expected_effect is not None:
+            if not isinstance(self.expected_effect, ExpectedEffectProjection):
+                raise TypeError("expected_effect must be a typed projection")
+            if (
+                self.expected_effect.owner is not self.owner
+                or self.expected_effect.action_id != self.action_id
+            ):
+                raise ValueError("expected_effect belongs to another action")
 
     @property
     def can_authorize(self) -> bool:
         """A projection is deliberately incapable of authorization."""
         return False
+
+
+@dataclass(frozen=True, slots=True)
+class ExpectedEffectProjection:
+    """Read-only settlement contract for one already-authorized optional action.
+
+    This projection cannot execute, retry, or authorize the action.  Settling a
+    narrowly defined transport/job effect also never proves a larger GOAL or
+    LIFE objective.
+    """
+
+    schema_version: int
+    owner: CanonicalEventOwner
+    action_id: str
+    expected_effect: str
+    lifecycle_state: str
+    expected_effect_satisfied: bool
+    settlement_receipt_ref: str | None
+    objective_verified: bool = False
+    retry_permitted: bool = False
+
+    def __post_init__(self) -> None:
+        if self.schema_version != 1:
+            raise ValueError("unsupported expected-effect projection version")
+        if self.owner not in (CanonicalEventOwner.RUN, CanonicalEventOwner.ACT):
+            raise ValueError("expected-effect owner must be RUN or ACT")
+        _id(self.action_id, "action_id")
+        if (
+            not isinstance(self.expected_effect, str)
+            or not self.expected_effect.strip()
+            or len(self.expected_effect) > 2_000
+        ):
+            raise ValueError("expected_effect must be nonempty and bounded")
+        _id(self.lifecycle_state, "lifecycle_state")
+        _optional_id(self.settlement_receipt_ref, "settlement_receipt_ref")
+        for value, label in (
+            (self.expected_effect_satisfied, "expected_effect_satisfied"),
+            (self.objective_verified, "objective_verified"),
+            (self.retry_permitted, "retry_permitted"),
+        ):
+            if type(value) is not bool:
+                raise TypeError(f"{label} must be bool")
+        if self.expected_effect_satisfied and self.settlement_receipt_ref is None:
+            raise ValueError("a settled expected effect requires a receipt")
+        if self.objective_verified:
+            raise ValueError("RUN/ACT settlement cannot verify a larger objective")
+
+    @property
+    def can_authorize(self) -> bool:
+        return False
+
+
+def project_run_expected_effect(job) -> ExpectedEffectProjection:
+    """Expose RUN's declared condition without upgrading executor success.
+
+    A generic completed job has no uniformly typed independent receipt oracle.
+    LIFE and other domain owners must perform their own exact receipt lookup;
+    therefore this generic projection remains unsatisfied even when RUN reports
+    COMPLETED.  UNCERTAIN is explicitly non-retryable.
+    """
+    from sofia.run.work import WorkJob, WorkStatus
+
+    if not isinstance(job, WorkJob):
+        raise TypeError("canonical WorkJob required")
+    lifecycle = (
+        "reported_completed_unverified"
+        if job.status is WorkStatus.COMPLETED else job.status.value
+    )
+    return ExpectedEffectProjection(
+        schema_version=1,
+        owner=CanonicalEventOwner.RUN,
+        action_id=job.job_id,
+        expected_effect=job.completion_condition,
+        lifecycle_state=lifecycle,
+        expected_effect_satisfied=False,
+        settlement_receipt_ref=None,
+        retry_permitted=False,
+    )
+
+
+def project_act_expected_effect(message, *, send_result=None) -> ExpectedEffectProjection:
+    """Settle only ACT transport acceptance, never human observation."""
+    from sofia.act.delivery import BoundMessage, DeliveryOutcome, SendResult
+
+    if not isinstance(message, BoundMessage):
+        raise TypeError("canonical BoundMessage required")
+    if send_result is not None and not isinstance(send_result, SendResult):
+        raise TypeError("send_result must be SendResult or None")
+    delivered = (
+        send_result is not None
+        and send_result.outcome is DeliveryOutcome.DELIVERED
+    )
+    state = "pending"
+    if send_result is not None:
+        state = send_result.outcome.value
+    return ExpectedEffectProjection(
+        schema_version=1,
+        owner=CanonicalEventOwner.ACT,
+        action_id=message.message_id,
+        expected_effect=(
+            "configured transport accepts the exact bound message for "
+            + message.recipient_id
+        ),
+        lifecycle_state=state,
+        expected_effect_satisfied=delivered,
+        settlement_receipt_ref=(
+            None if send_result is None else send_result.receipt_id
+        ),
+        # FAILED may follow normal bounded ACT retry policy. An unknown outcome
+        # may already have delivered and is never automatically replayed.
+        retry_permitted=(
+            send_result is not None
+            and send_result.outcome is DeliveryOutcome.FAILED
+        ),
+    )
 
 
 def project_matrix_event(
@@ -263,6 +387,7 @@ def project_run_job(job) -> EventOwnershipProjection:
         observed_at=job.updated_at, expires_at=job.deadline,
         action_id=job.job_id, project_id=project_id,
         error_state=errors.get(job.status, ContractErrorState.NONE),
+        expected_effect=project_run_expected_effect(job),
     )
 
 
@@ -291,6 +416,9 @@ def project_act_delivery(message, *, send_result=None) -> EventOwnershipProjecti
             None if send_result is None else send_result.receipt_id
         ),
         error_state=state,
+        expected_effect=project_act_expected_effect(
+            message, send_result=send_result,
+        ),
     )
 # This is documentation executable by tests/UI rather than a competing store.
 EVENT_FIELD_OWNERS: dict[str, tuple[CanonicalEventOwner, ...]] = {
@@ -333,4 +461,5 @@ EVENT_FIELD_OWNERS: dict[str, tuple[CanonicalEventOwner, ...]] = {
     "delivery_receipt_id": (CanonicalEventOwner.ACT,),
     "resource_refs": (CanonicalEventOwner.RUN, CanonicalEventOwner.LIFE),
     "error_state": tuple(CanonicalEventOwner),
+    "expected_effect": (CanonicalEventOwner.RUN, CanonicalEventOwner.ACT),
 }

@@ -30,7 +30,9 @@
 | Outreach | ACT presence/service & delivery receipts | Desktop, Discord, Mobile | Transport accepted != user saw/acknowledged |
 | NEURO attention | `NeuroRuntime` + its observability | Cognition, background admission | Salience isn't permission, memory or proof |
 | Stored assets and world | WORLD and Creative stores | LIFE, avatar/renderer | Persist source links, never claim render from text only |
+| Code candidates and releases | DEV isolated workspace, candidate and release evidence | VERIFY, SAFE, release operator | A candidate is not installed code; protected apply/commit/push remains separately authorized |
 | Host discovery and Fleet identities | Fleet Ops + authenticated agent stores | Capability gateway, machine inventory | Unknown endpoint/failed mTLS blocks tools; no implicit enrollment |
+| Disposable VM execution | Hypervisor/Fleet lease plus RUN job/receipt | DEV, LIFE, VERIFY, operator diagnostics | Guest output is noncanonical until receipt/evidence admission; VM never writes canonical state directly |
 | Release and backups | RUN release/backup owners | VERIFY, recovery operator | No activation from an unverified build/manifest |
 
 ## Source-to-sink diagram 1: a user turn
@@ -83,13 +85,13 @@ Event IDs are stable and source-owned. Originating producers attach UTC observat
 | Provision a guest, release code, move canonical database | Read plan | Not self-admitted | Human-controlled verified execution | Change identity/Constitution/security owner |
 | Delete/restore protected history | Read evidence | n/a | Human-specific authorization | Rewrite historical evidence as though it never happened |
 
-## Context projection budget (future calibration, not live numbers)
+## Context projection budget (production character admission; token calibration open)
 
-Priority order: active user intent and protected instructions; fresh authoritative evidence and relevant current topic; action/permission receipts; narrowly retrieved, promoted memory; recent dialog; modeled affect/presentation; optional project hints and debug noise last. Every domain has a configurable bounded token/character quota. Keep raw originals searchable outside the provider window. Suppress stale, low-confidence, wrong-audience and unrelated project material. Benchmark actual CPU/token/latency before setting default quotas.
+`application/context_budget.py:CompanionContextBudget` is the request-scoped admission boundary used by the canonical conversation service. Current dialogue and mandatory policy are outside this optional budget. Already scoped projections are admitted in this order: factual/permission-bearing evidence, explicit episodic retrieval, current cognition/NEURO workspace, GOALS/project context, then affect/style. Per-class and 24,000-character aggregate limits reject whole optional projections rather than truncating them into apparently complete claims. Content-free diagnostics record source reference, class, character count and omission reason; canonical originals remain unchanged and searchable. Source owners still reject stale, low-confidence, irrelevant and wrong-audience material before this size boundary. Provider-specific token calibration and live quality/latency measurement remain CA-002 host acceptance, not facts inferred from character counts.
 
 ## Decision tracing: limited, truthful first implementation
 
-`SofiaApplication.latest_companion_decision_trace()` provides a content-minimal read-only projection over existing Matrix, conversation, SOCIAL and authenticated stable-turn settlement records. It can attribute an **in-process NEURO observation** only when the conversation service's current NEURO message ID and Matrix message ID equal the exact user event; the latest global NEURO timestamp alone is not proof. Verified canonical response persistence is distinct from transport delivery, actual action execution and independently validated objective completion. LIFE/GOALS/ACT outcomes remain **unset**, not invented. No new authority or state ledger is created. On restart a missing ephemeral NEURO correlation remains unknown, not retrospectively inferred.
+`SofiaApplication.latest_companion_decision_trace()` provides a content-minimal read-only projection over existing Matrix, conversation, SOCIAL and authenticated stable-turn settlement records. It can attribute an **in-process NEURO observation** only when the conversation service's current NEURO message ID and Matrix message ID equal the exact user event; the latest global NEURO timestamp alone is not proof. The revision-2 constructor can join explicit same-turn GOALS/LIFE selections and RUN/ACT outcomes only when their typed source projections are referenced by AVAILABLE Matrix evidence and match principal/audience scope. The default application view leaves those fields unset when no such source link exists. Verified canonical response persistence is distinct from transport delivery, actual action execution and independently validated objective completion. No new authority or state ledger is created. On restart a missing ephemeral NEURO correlation remains unknown, not retrospectively inferred.
 
 ## Failure policy and model outage
 
@@ -126,6 +128,18 @@ The preceding contract predated the owner-approved hybrid auth coding. The follo
 **Host state:** Venus is the sole authorized canonical writer; the owner reported Debian installation in progress on the dedicated Artemis `Sofia` VM. No writer cutover, live key enrollment, remote host action, tests, CI or build took place in this audit.
 
 **Acceptance gate remains open:** Review exact-SHA diffs, execute focused SAFE tests, run the full original V18 package test gates, then supervise physical Windows Hello/FIDO2 and multi-host acceptance before reclassifying any status as accepted.
+
+### Provisioning decision rights (CA-3105 adopted design)
+
+| Provisioning step | Right | Lease permitted? | Required evidence |
+| --- | --- | --- | --- |
+| Inspect an already enrolled host/guest | Existing Level-1 read scope | Yes, bounded to named resources | Authenticated principal/audience plus current Fleet identity |
+| Run a pre-approved reversible diagnostic | Level-2 or exact scoped standing grant | Yes, expiring action/resource scope | SAFE decision followed by independent RUN receipt |
+| Stage an inert signed installer or VM plan | Exact digest-bound staging approval | Only staging transfer, never activation | Artifact digest, target identity, expiry and one-use approval |
+| Create/attach a VM, virtual switch, storage or credentials | Fresh protected owner consent | No implicit lease; a separately approved narrow lease may name an exact repeated operation | FIDO2-bound exact plan, host, parameters and expiry |
+| Enroll/trust a Fleet identity | Fresh protected owner consent | No | Independently verified host/guest identity and certificate lifecycle record |
+| Move/promote canonical `sofia.db` writer | Supervised recovery/cutover ceremony | No | Old-writer fence, lineage/integrity proof, monotonic epoch and explicit owner approval |
+| Change permission roots, identity, Constitution or approval authority | Never self-authorized | No | Existing external protected authority; no goal/model/event can mint it |
 
 
 ## CA-005: event/evidence envelope source-to-sink ownership map (2026-10-11)
@@ -170,6 +184,13 @@ cross-source links. In particular:
 - ACT `OUTCOME_UNKNOWN` has no delivery receipt, while a typed delivered result
   may expose its transport receipt without claiming human observation.
 - Missing, stale, revoked, failed and uncertain source states stay distinct.
+
+RUN and ACT adapters also attach a version-1 `ExpectedEffectProjection`.
+Generic RUN `COMPLETED` remains `reported_completed_unverified` until its domain
+owner verifies the exact typed receipt. ACT `DELIVERED` settles only the narrow
+transport-acceptance predicate and never proves that a person saw the message.
+`OUTCOME_UNKNOWN` is explicitly non-retryable. These projections cannot
+authorize work or mark a larger GOAL/LIFE objective complete.
 
 `EVENT_FIELD_OWNERS` is the machine-checkable field-to-owner map used by
 regressions. The static table remains the human-readable source/sink and
@@ -241,16 +262,87 @@ LifeProject.status + original RUN status + original GoalStatus
 
 **Idempotency/replay and correction requirement:** Reusing a previously consumed SAFE approval, executing the same external mutation after `UNCERTAIN`, or remapping stale material host observations to a new plan is forbidden. Explicit `ProjectEvent` evidence refs, RUN job IDs and event IDs must be preserved for reconciliation; corrections update the owning source/review record, not the prior event's claimed success.
 
-**Partial source audit status:** This source review confirms multiple existing decision branches and a versioned *design contract*, not all required restart/dedupe/correction/failure-injection tests or every external effect predicate. CA-3104 and CA-1202 remain **partial** until source-by-source acceptance proves all branches. The technical outcome `VALID` is not proof that the *original personal objective* was fulfilled without independent evidence.
+**Production contract status:** LIFE+RUN carries the versioned state graph,
+restart-safe decision keys and exact artifact receipt settlement. Generic RUN
+and ACT source adapters now expose their expected-effect predicates without
+upgrading completion into objective proof. Future optional-action owners must
+use the same projection or a stricter domain receipt verifier; host execution
+acceptance and exact-revision CI remain separate stages. The technical outcome
+`VALID` is not proof that the *original personal objective* was fulfilled
+without independent evidence.
 
 
 ## CA-3101: ownership/consumer/error-state audit, 2026-10-11
 
 The project already has a **static, non-executing ownership inventory** in `src/sofia/verify/architecture_inventory.py:OWNERS`. Its listed owners include application, turn kernel, conversation, social, memory review, emotion, relationship, GOALS, LIFE, RUN, SAFE, ACT, NEURO, WORLD, Fleet, state, backup, release and VERIFY. The authoritative writer/consumer/failure table near the beginning of this document maps the same concern families to their storage and readers; its three source-to-sink paths show the user turn, independent LIFE work and fenced recovery.
 
-**Missing proof:** the AST inventory is a *source-existence tool*, not evidence that actual `SofiaApplication` production bootstrap reaches every component, all relevant data writers use one canonical `sofia.db`, failed/superseded snapshots are retained correctly or every Fleet effect enforces permission. Source-only findings cannot be promoted to a complete caller-by-caller ABI audit. The design requirement for component ownership is **partially source-wired**, pending review of actual inventory output, error-state traces, retention policy and tests.
+The adopted table covers all required component owners: COGNITION v2 (turn
+plan), LIFE (projects), GOALS (commitments), RUN (job lifecycle), SAFE
+(authority), ACT (outbound effects), MEM (reviewed recall), NEURO (attention),
+WORLD/CREATIVE (virtual state/assets), DEV (isolated candidate/release
+evidence), Fleet (machine identity/transport), and VM (disposable execution
+result only). DEV cannot install protected mutations without SAFE/VERIFY; a VM
+is never a canonical writer and its retained outputs enter through RUN/artifact
+receipts. The AST inventory remains source-existence evidence, not live
+reachability or permission proof.
 
-## CA-1203: existing context-window controls and unimplemented budgets
+### Source-to-sink diagram 4: protected Fleet/VM effect
+
+```text
+authenticated owner request + exact target/plan digest
+  -> SAFE one-use approval (authority only)
+  -> enrolled Fleet identity + mTLS capability route
+  -> RUN claim with expected effect and idempotency fingerprint
+  -> disposable VM/worker executes only the leased operation
+  -> typed RUN/Fleet receipt or explicit UNCERTAIN
+  -> VERIFY/domain owner evaluates the exact result
+  -> canonical owner commits outcome; ACT may report under audience policy
+```
+
+## CA-3102: canonical runtime and host-failure ownership (adopted design)
+
+The logical canonical identity and `sofia.db` lineage are distinct from the
+active `SofiaApplication` process, desktop/Discord/mobile clients and disposable
+workers. Current recorded policy names Venus as the sole writer; any future
+Artemis cutover is a separately supervised operation. Hephaestus is never an
+alternate canonical writer. Unknown fence or lease state stops mutations.
+
+```text
+clients (no canonical write authority)
+             |
+             v
+selected active SofiaApplication -> one canonical sofia.db lineage/epoch
+             |
+             +-> read/compute leases -> enrolled Fleet/VM workers
+
+active host unavailable or fencing unknown
+             -> fail closed for writes; label cached reads stale
+             -> operator verifies old-writer fence + backup integrity
+             -> promote exactly one new epoch/writer
+             -> reauthenticate clients; reconcile uncertain work; controlled failback
+```
+
+## CA-3103: dual-location recovery decision (adopted design)
+
+The owner-approved `v18-ca-3103-recovery-objectives-decision-2026-10-12.md`
+selects a **5-minute RPO target** and **1-hour RTO target**, not achieved SLAs.
+Four alternatives were compared: encrypted verified snapshots; ordered
+backup/WAL or incremental shipping; single-writer replicated storage; and an
+owner-promoted standby. The adopted combination is verified encrypted bases
+plus approved ordered incrementals in a separate failure domain, two offline
+owner-held key copies, no automatic failover and no dual-writable SQLite.
+Replicated block storage is not the initial choice because its fencing and
+dependency complexity could turn storage failure into split brain; standby
+promotion is a recovery procedure, not a continuously writable replica.
+
+Reconciliation verifies source sequence, schema, assets, revocations,
+corrections/deletions, integrity digest and uncertain RUN effects before
+service resumes. Failback is another fenced promotion with a new monotonic
+epoch; copying bytes back never grants writer authority. Exact destination,
+transport/key-custody implementation and live Windows/Linux recovery drills
+remain deployment acceptance blockers rather than architecture decisions.
+
+## CA-1203: context-window controls and production admission budget
 
 A real prompt-context budget spans different owners; no one component has authority to truncate canonical originals.
 
@@ -258,10 +350,16 @@ A real prompt-context budget spans different owners; no one component has author
 | --- | --- | --- | --- |
 | Provider route budget | `src/sofia/cognition/budgets.py:model_token_budget` | Validated route hints target 2,048 fast, 4,096 standard, 8,192 deep/open or 16,384 verify context tokens; configured limits clamp allocations; output tokens also bounded | Actual provider token accounting and cross-model budget acceptance not measured in this work |
 | History message count | `src/sofia/cognition/matrix/context_plan.py:MatrixContextPlanner` | History limit for NONE/LAST_TURN/TOPIC_WINDOW/BOUNDED_RECENT/RETRIEVE_SPECIFIC = 1/3/8/12/1 | Counts are not token or character limits; long single source message can still dominate |
-| Per-turn domain eligibility | `TurnMatrix.domains` / `ContextPlan.included_domains` via `conversation_matrix.py` | Domains excluded at `MatrixRelevance.NONE`; user turn retained; history filtered to current policy | Provenance/freshness for every optional payload, audience transfer and cumulative size not yet individually proved |
+| Per-turn domain eligibility | `TurnMatrix.domains` / `ContextPlan.included_domains` via `conversation_matrix.py` | Domains excluded at `MatrixRelevance.NONE`; user turn retained; history filtered to current policy | Source-specific freshness/confidence remains with each producer; size is enforced by the shared boundary |
 | Independent optional work | `application/optional_budget.py:OptionalAutonomyBudget` | Canonical daily quota reservations protect background work; separate from interactive prompt window | Reservations are conservative estimates, **not actual CPU/GPU/tokens measurements** |
-| Memory/evidence | Matrix `EvidenceRecord.source_ref`, MEMORY candidate/retrieval stores | Source-ref provenance can be exposed without importing all raw text into one prompt | Dedicated per-class caps for episodic retrieval, broadcasts, affect/style, current project and factual evidence still require code and tests |
+| Optional cross-owner context | `application/context_budget.py` through canonical conversation construction | Dedicated class caps plus 24,000-character total; factual → episodic → workspace → project → affect admission; whole-projection rejection and content-free diagnostics | Provider tokenizer-specific occupancy and live answer-quality calibration remain unmeasured |
+| Memory/evidence | Matrix `EvidenceRecord.source_ref`, MEMORY candidate/retrieval stores | Source-ref provenance can be exposed without importing all raw text into one prompt | Retrieval relevance/authorization remains source-owned; admission never promotes or authorizes a memory |
 
 **Non-negotiable selection order:** active user intent, identity and protected policy, relevant current source/evidence and permission receipts first; bounded relevant dialogue and independently promoted memory second; optional LIFE/project/affect/wardrobe and other presentation/context last. Low-confidence, stale, unrelated or wrong-audience materials must be rejected at their source/admission boundary rather than silently truncated into apparently true statements. Retrieved references do **not** authorize tools.
 
-**Source acceptance:** existing controls support a **partial** context window solution, not the requested complete explicit per-class measured prompt budget. Any new source-specific budget must preserve canonical transcripts outside the window and report what was excluded for size, relevance, freshness or audience. Focused and full acceptance remain unrun.
+**Source acceptance:** the explicit cross-class character budget and omission
+diagnostics are production-wired. Canonical transcripts remain outside the
+window. Relevance, confidence, freshness and audience are rejected by their
+source-specific admission paths rather than inferred by the size budget.
+Tokenizer-specific measurements, full CI and Venus model-quality acceptance
+remain separate stages.

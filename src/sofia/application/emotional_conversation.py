@@ -12,6 +12,10 @@ from time import monotonic
 from weakref import WeakSet
 
 from sofia.application.conversation_service import ConversationService
+from sofia.application.context_budget import (
+    CompanionContextBudget,
+    ContextClass,
+)
 from sofia.application.expression_runtime import ExpressionRuntime
 from sofia.cognition.model import (
     CognitiveMessage,
@@ -1084,9 +1088,33 @@ class EmotionalConversationService(ConversationService):
                     projections.append(reflection_context)
         if not projections:
             return request
+        budget = getattr(self, "_current_context_budget", None)
+        if budget is None:
+            # Some narrowly embedded callers provide a prebuilt base request;
+            # retain the same production admission contract in that path.
+            budget = CompanionContextBudget()
+            self._current_context_budget = budget
+        admitted_projections: list[str] = []
+        for index, projection in enumerate(projections):
+            if not isinstance(projection, str) or not projection.strip():
+                continue
+            admitted = budget.admit(
+                ContextClass.AFFECT_STYLE,
+                f"emotion:projection:{index}",
+                (CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=projection,
+                ),),
+            )
+            if admitted:
+                admitted_projections.append(projection)
+        if not admitted_projections:
+            return request
         return CognitiveRequest(
-            messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
-                                      content="\n\n".join(projections)), *request.messages),
+            messages=(CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content="\n\n".join(admitted_projections),
+            ), *request.messages),
             tools=request.tools,
             allow_tools=request.allow_tools,
             capability_allowlist=request.capability_allowlist,

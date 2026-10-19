@@ -12,7 +12,9 @@ from sofia.application.event_contracts import (
     EVENT_FIELD_OWNERS,
     EventOwnershipProjection,
     project_matrix_event,
+    project_act_expected_effect,
     project_act_delivery,
+    project_run_expected_effect,
     project_run_job,
 )
 from sofia.act.delivery import BoundMessage, DeliveryOutcome, SendResult
@@ -42,6 +44,7 @@ def test_event_contract_covers_required_canonical_fields_and_has_no_authority():
         "observed_at", "expires_at", "confidence", "evidence_refs", "action_id",
         "goal_id", "project_id", "consent_classification",
         "delivery_receipt_id", "resource_refs", "error_state",
+        "expected_effect",
     }
     assert required == set(EVENT_FIELD_OWNERS)
     assert all(EVENT_FIELD_OWNERS[field] for field in required)
@@ -73,6 +76,46 @@ def test_event_contract_rejects_partial_scope_bad_time_and_duplicate_evidence():
         EventOwnershipProjection(
             **base, evidence_refs=("evidence:one", "evidence:one"),
         )
+
+
+def test_optional_run_effect_never_upgrades_completed_status_to_verified_effect():
+    job = WorkJob(
+        job_id="work:one", kind="diagnostic", fingerprint="fingerprint:one",
+        payload={}, priority=10, resource_cost=1, risk="read_only",
+        completion_condition="A typed inspection receipt exists.",
+        status=WorkStatus.COMPLETED, created_at=NOW, updated_at=NOW,
+        deadline=NOW + timedelta(hours=1), attempt_count=1,
+        result={"success": True, "evidence_ref": "model:claimed"},
+    )
+    effect = project_run_expected_effect(job)
+    assert effect.lifecycle_state == "reported_completed_unverified"
+    assert not effect.expected_effect_satisfied
+    assert effect.settlement_receipt_ref is None
+    assert not effect.objective_verified
+    assert not effect.retry_permitted
+    assert not effect.can_authorize
+
+
+def test_optional_act_effect_settles_only_transport_receipt_and_unknown_never_retries():
+    message = BoundMessage(
+        message_id="message:one", goal_id="goal:one",
+        evidence_id="evidence:one", content="hello", created_at=NOW,
+        recipient_id="person:sparks", channel="desktop",
+        destination="desktop:local", expires_at=NOW + timedelta(hours=1),
+    )
+    delivered = project_act_expected_effect(
+        message,
+        send_result=SendResult(DeliveryOutcome.DELIVERED, "receipt:one"),
+    )
+    assert delivered.expected_effect_satisfied
+    assert delivered.settlement_receipt_ref == "receipt:one"
+    assert not delivered.objective_verified
+    unknown = project_act_expected_effect(
+        message,
+        send_result=SendResult(DeliveryOutcome.OUTCOME_UNKNOWN),
+    )
+    assert not unknown.expected_effect_satisfied
+    assert not unknown.retry_permitted
 
 
 def test_canonical_event_rejects_untyped_and_backdated_expiry():

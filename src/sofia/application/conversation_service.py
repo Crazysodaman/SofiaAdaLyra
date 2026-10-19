@@ -41,6 +41,10 @@ from sofia.application.conversation_matrix import (
     ConversationMatrixMixin,
     _matrix_context_window,
 )
+from sofia.application.context_budget import (
+    CompanionContextBudget,
+    ContextClass,
+)
 from sofia.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
@@ -369,6 +373,12 @@ class ConversationService(ConversationMatrixMixin):
     @property
     def session(self) -> ConversationSession | None:
         return self._session
+
+    @property
+    def context_budget_diagnostics(self):
+        """Content-free admission results for the latest built request."""
+        budget = getattr(self, "_current_context_budget", None)
+        return () if budget is None else budget.diagnostics
 
     def set_learning_coordinator(self, coordinator) -> None:
         """Install the application-owned post-persistence learning hook."""
@@ -1819,6 +1829,12 @@ class ConversationService(ConversationMatrixMixin):
             self._to_cognitive_message(message)
             for message in visible_messages
         )
+        # One request-scoped boundary accounts for optional projections from
+        # their canonical owners.  The durable transcript above and mandatory
+        # policy instructions below are not rewritten or silently truncated.
+        context_budget = CompanionContextBudget()
+        self._current_context_budget = context_budget
+        retrieval_context: tuple[CognitiveMessage, ...] = ()
 
         if (
             context_plan is not None
@@ -1903,7 +1919,7 @@ class ConversationService(ConversationMatrixMixin):
                     ],
                     sort_keys=True, ensure_ascii=False,
                 )
-                cognitive_messages = (
+                retrieval_context = (
                     CognitiveMessage(
                         role=CognitiveRole.SYSTEM,
                         content=(
@@ -1923,40 +1939,53 @@ class ConversationService(ConversationMatrixMixin):
                         content="UNTRUSTED QUOTED CONVERSATION EXCERPTS (JSON):\n"
                                 + source_data,
                     ),
-                    *cognitive_messages,
                 )
 
         scoped_context = self._matrix_person_scoped_context_messages(
             current_user=current_user,
         )
-        if scoped_context:
-            cognitive_messages = (
-                *scoped_context,
-                *cognitive_messages,
-            )
         focus_context = self._focus_context_message(current_user=current_user)
-        if focus_context is not None:
-            cognitive_messages = (focus_context, *cognitive_messages)
         voice_context = self._matrix_voice_context_messages()
-        if voice_context:
-            cognitive_messages = (
-                *voice_context,
-                *cognitive_messages,
-            )
         neuro_context = self._neuro_context_message(
             current_user=current_user,
         )
-        if neuro_context is not None:
-            cognitive_messages = (
-                neuro_context,
-                *cognitive_messages,
-            )
         goal_context = self._goal_context_message(current_user=current_user)
-        if goal_context is not None:
-            cognitive_messages = (
-                goal_context,
-                *cognitive_messages,
-            )
+        # Factual/permission-bearing projections get first admission, followed
+        # by specifically requested episodic material, current workspace and
+        # optional project context.  Scope/relevance checks remain with each
+        # source owner and happen before this size-only boundary.
+        optional_context: list[CognitiveMessage] = []
+        for context_class, source_ref, group in (
+            (ContextClass.FACTUAL_EVIDENCE, "matrix:person-scope", scoped_context),
+            (ContextClass.FACTUAL_EVIDENCE, "voice:current-state", voice_context),
+            (ContextClass.EPISODIC, "conversation:retrieval", retrieval_context),
+            (
+                ContextClass.WORKSPACE,
+                "cognition:focus",
+                () if focus_context is None else (focus_context,),
+            ),
+            (
+                ContextClass.WORKSPACE,
+                "neuro:turn-workspace",
+                () if neuro_context is None else (neuro_context,),
+            ),
+            (
+                ContextClass.PROJECT,
+                "goals:current-context",
+                () if goal_context is None else (goal_context,),
+            ),
+        ):
+            if group:
+                admitted = context_budget.admit(
+                    context_class, source_ref, tuple(group)
+                )
+                optional_context.extend(admitted)
+                if source_ref == "conversation:retrieval" and not admitted:
+                    # Evidence references describe provider-visible sources,
+                    # not merely eligible canonical rows that were omitted.
+                    self._current_conversation_retrieval_refs = ()
+        if optional_context:
+            cognitive_messages = (*optional_context, *cognitive_messages)
 
         latest_user = next(
             (
