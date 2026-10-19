@@ -116,8 +116,19 @@ def evaluate_personality_matrix(
     # input must not be quietly replaced by easier per-channel prompts.
     for channel in sorted(required_channels):
         for case_id in FIXED_PERSONALITY_PROBES:
-            if not any(row.channel == channel and row.case_id == case_id for row in rows):
+            matched = tuple(
+                row for row in rows
+                if row.channel == channel and row.case_id == case_id
+            )
+            if not matched:
                 missing.append(f"{channel}:{case_id}")
+                continue
+            if require_model_transition and len(models) >= 2:
+                for model_id in sorted(models - {row.model_id for row in matched}):
+                    missing.append(f"{channel}:{case_id}:model:{model_id}")
+            if require_device_transition and len(devices) >= 2:
+                for device_id in sorted(devices - {row.device_id for row in matched}):
+                    missing.append(f"{channel}:{case_id}:device:{device_id}")
 
     seen: set[tuple[str, str, str, str]] = set()
     for row in rows:
