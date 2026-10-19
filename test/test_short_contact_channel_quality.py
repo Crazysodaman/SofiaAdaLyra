@@ -41,6 +41,22 @@ def test_natural_short_contact_is_accepted():
     ) is None
 
 
+def test_one_reciprocal_what_about_you_is_not_a_reflexive_handoff():
+    assert response_quality_issue(
+        request("hru"),
+        CognitiveResponse(content="Doing well, Sparks. What about you?"),
+    ) is None
+
+
+def test_reciprocal_checkin_does_not_permit_stacked_questions():
+    assert response_quality_issue(
+        request("hru"),
+        CognitiveResponse(
+            content="Doing well, Sparks. How about you? Anything interesting?"
+        ),
+    ) == "short_contact_question_stack"
+
+
 class _Client:
     def __init__(self, *outputs):
         self.outputs = list(outputs)
