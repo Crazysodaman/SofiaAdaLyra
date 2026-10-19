@@ -20,7 +20,7 @@ OLLAMA_ENDPOINT = "http://127.0.0.1:11434/api/chat"
 MAX_TURNS = 3
 MAX_LOCAL_TEXT = 1200
 MAX_REMOTE_TEXT = 2500
-MODEL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:\-/]{1,100}\Z")
+MODEL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:\-/]{1,99}\Z")
 SCENARIOS = {
     "service-failure": (
         "A synthetic app says ECONNREFUSED when opening localhost:9000. "
