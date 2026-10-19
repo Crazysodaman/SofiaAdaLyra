@@ -33,6 +33,12 @@ jobs:
         env:
           PYTHONPATH: src
         run: python -m sofia.mentor audit --repo . --output mentor-report.json --markdown mentor-summary.md
+      - name: Verify public Git mailbox is readable and safe
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m sofia.mentor exchange-read --repo . > /dev/null
+          python -m sofia.mentor exchange-export --repo . > /dev/null
       - name: Add owner-readable summary
         if: always()
         shell: bash
