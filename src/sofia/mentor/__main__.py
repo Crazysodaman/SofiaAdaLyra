@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
 
 from .audit import MentorAuditError, audit_checkout, compare_reports
 from .report import markdown_report
 from .bridge import BridgeConfig, MentorBridgeError, SCENARIOS, run_synthetic_dialogue
+from .openai_diagnostics import check_openai_model
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -30,6 +32,12 @@ def main(argv: list[str] | None = None) -> int:
     diff = sub.add_parser("diff", help="Compare two saved audits")
     diff.add_argument("--previous", type=Path, required=True)
     diff.add_argument("--current", type=Path, required=True)
+    api_check = sub.add_parser(
+        "check-api", help="Verify API key/model metadata, without inference or Sofía data"
+    )
+    api_check.add_argument("--external-model", required=True)
+    api_check.add_argument("--allow-external", action="store_true",
+                           help="Authorize a metadata-only GET to OpenAI")
     talk = sub.add_parser(
         "converse", help="Opt-in tool-free synthetic dialogue between Ollama and OpenAI"
     )
@@ -44,6 +52,13 @@ def main(argv: list[str] | None = None) -> int:
                       help="I authorize sharing this public synthetic fixture and stateless model output")
     try:
         if args := parser.parse_args(argv):
+            if args.command == "check-api":
+                if not args.allow_external:
+                    raise MentorBridgeError("API preflight requires --allow-external")
+                print(json.dumps(check_openai_model(
+                    args.external_model, os.environ.get("OPENAI_API_KEY", ""),
+                ), indent=2))
+                return 0
             if args.command == "converse":
                 cfg = BridgeConfig(
                     local_model=args.local_model,
@@ -105,8 +120,8 @@ def main(argv: list[str] | None = None) -> int:
             current = json.loads(args.current.read_text(encoding="utf-8"))
             print(json.dumps(compare_reports(previous, current), indent=2, sort_keys=True))
             return 0
-    except (MentorAuditError, MentorBridgeError, FileNotFoundError, json.JSONDecodeError, OSError, ValueError) as exc:
-        print("MENTOR audit refused: " + str(exc), file=sys.stderr)
+    except (MentorAuditError, RuntimeError, FileNotFoundError, json.JSONDecodeError, OSError, ValueError) as exc:
+        print("MENTOR request refused: " + str(exc), file=sys.stderr)
         return 2
     return 2
 
