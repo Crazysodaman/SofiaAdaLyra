@@ -150,3 +150,39 @@ class MentorReviewConsumer:
                 "trusted_owner_instruction": False,
                 "review": review,
             }
+
+
+def register_application_review_task(
+    *, application, coordinator, activity_store, host_id: str,
+    consumer: MentorReviewConsumer | None = None,
+) -> bool:
+    """Register with the EXISTING app scheduler; no new worker threads.
+
+    Opt-in only. Unknown, gaming or busy activity never admits background
+    Git polling; this task never starts local inference or mutates sofia.db.
+    """
+    if not mentor_git_enabled():
+        return False
+    from sofia.ops.activity import ActivityMode
+
+    if not isinstance(host_id, str) or not host_id.strip():
+        raise MentorRemoteError("authenticated application host required")
+    if not callable(getattr(coordinator, "set_task", None)):
+        raise MentorRemoteError("existing background coordinator required")
+    reader = MentorReviewConsumer() if consumer is None else consumer
+    if not isinstance(reader, MentorReviewConsumer):
+        raise MentorRemoteError("read-only MENTOR consumer required")
+    application._mentor_review_consumer = reader
+
+    def ready() -> bool:
+        return activity_store.state(host_id).effective in {
+            ActivityMode.NORMAL, ActivityMode.IDLE,
+        }
+
+    def poll(now: datetime):
+        return reader.poll(now=now)
+
+    coordinator.set_task(
+        "mentor_git_review", poll, interval_seconds=3600.0, ready=ready
+    )
+    return True
