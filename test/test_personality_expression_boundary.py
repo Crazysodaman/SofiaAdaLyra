@@ -328,3 +328,39 @@ def test_authenticated_style_projection_is_bounded_and_never_authoritative():
     assert "verbosity=0.200" in prompt
     assert "message:owner-setting" in prompt
     assert "do not establish" in prompt
+
+
+def test_owner_style_levels_produce_concrete_audience_scoped_behavior_guidance():
+    prompt = derive_expression_modulation(
+        turn=_turn("How should we debug this evidence?"),
+        influence=_influence(),
+        user_text="How should we debug this evidence?",
+        communication_preferences=CommunicationStylePreferences(
+            humor=0.8, verbosity=0.15, disagreement=0.85,
+            evidence_refs=("message:owner-preference",),
+        ),
+    ).prompt()
+    assert "humor=0.800" in prompt
+    assert "humor_guidance=welcome frequent dry banter when fitting" in prompt
+    assert "verbosity=0.150" in prompt
+    assert "verbosity_guidance=prefer concise answers" in prompt
+    assert "disagreement=0.850" in prompt
+    assert "disagreement_guidance=challenge weak premises directly with evidence" in prompt
+    assert "message:owner-preference" in prompt
+    assert "low disagreement preference softens tone" in prompt
+    assert "never suppresses correction of false or unsafe claims" in prompt
+
+
+def test_style_preferences_cannot_require_unfounded_humor_or_mute_necessary_information():
+    prompt = derive_expression_modulation(
+        turn=_turn("I'm overwhelmed and this is serious."),
+        influence=_influence("concern"),
+        user_text="I'm overwhelmed and this is serious.",
+        communication_preferences=CommunicationStylePreferences(
+            humor=1.0, verbosity=0.0, disagreement=0.0,
+        ),
+    ).prompt().casefold()
+    assert "for serious or safety-critical work preserve the information" in prompt
+    assert "humor must remain situational" in prompt
+    assert "humor_guidance=welcome frequent dry banter when fitting" in prompt
+    assert "disagreement_guidance=challenge errors gently" in prompt
