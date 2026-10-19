@@ -500,3 +500,11 @@ def test_colloquial_why_you_choose_that_is_grounded_presentation_reason():
     result = answer("why you choose that?")
     assert result.recognized
     assert "canonical daily default" in result.content
+
+
+def test_discord_typo_what_is_your_wearing_uses_canonical_presentation():
+    result = answer("what is your wearing")
+    assert result.recognized
+    assert result.content.startswith("I'm in my day engineer outfit right now.")
+    assert "Fitted technical long-sleeve top" in result.content
+    assert "wool coat" not in result.content.casefold()
