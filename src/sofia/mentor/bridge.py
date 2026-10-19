@@ -15,6 +15,8 @@ import re
 from typing import Callable
 from urllib import error, request
 
+from .openai_diagnostics import openai_http_error
+
 OPENAI_ENDPOINT = "https://api.openai.com/v1/responses"
 OLLAMA_ENDPOINT = "http://127.0.0.1:11434/api/chat"
 MAX_TURNS = 3
@@ -98,8 +100,14 @@ def _send_json(url: str, payload: dict, headers: dict[str, str], timeout: int) -
     try:
         with opener.open(req, timeout=timeout) as response:
             data = response.read(45_000)
-    except (error.HTTPError, error.URLError, TimeoutError, OSError) as exc:
-        # Never echo API error response bodies (may contain secrets or user data).
+    except error.HTTPError as exc:
+        if url == OPENAI_ENDPOINT:
+            # Report only status, sanitized API error code and param.
+            # The response message and headers may contain secrets.
+            raise MentorBridgeError(openai_http_error(exc)) from None
+        status = exc.code if type(exc.code) is int and 400 <= exc.code <= 599 else 0
+        raise MentorBridgeError(f"Ollama HTTP {status or 'unknown'}") from None
+    except (error.URLError, TimeoutError, OSError) as exc:
         raise MentorBridgeError(
             f"{'OpenAI' if url == OPENAI_ENDPOINT else 'Ollama'} request failed: "
             f"{type(exc).__name__}"
