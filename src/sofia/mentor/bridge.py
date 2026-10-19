@@ -139,7 +139,7 @@ def local_response(
     response = sender(
         OLLAMA_ENDPOINT,
         {"model": cfg.local_model, "messages": messages, "stream": False,
-         "tools": [], "options": {"num_predict": cfg.max_output_tokens}},
+         "think": False, "tools": [], "options": {"num_predict": cfg.max_output_tokens}},
         {"Content-Type": "application/json"}, cfg.timeout_seconds,
     )
     message = response.get("message")
