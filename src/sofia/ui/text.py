@@ -35,11 +35,15 @@ class ConversationPort(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class UITextMessage:
-    message_id: str
-    session_id: str
+    message_id: str | None
+    session_id: str | None
     actor: str
-    content: str
+    content: str | None
     created_at: datetime
+    canonical_sequence: int | None = None
+    turn_position: int | None = None
+    redacted: bool = False
+    unavailable_reason: str | None = None
 
 
 class UITextClient:
@@ -88,29 +92,65 @@ class UITextClient:
         return value
 
     def history(self) -> tuple[UITextMessage, ...]:
+        """Return one bounded page; use ``history_page`` for older Main rows."""
+        return self.history_page(limit=100)
+
+    def history_page(
+        self, *, before: tuple[int, int] | None = None, limit: int = 100,
+    ) -> tuple[UITextMessage, ...]:
+        if type(limit) is not int or not 1 <= limit <= 200:
+            raise ValueError("desktop history limit must be 1..200")
+        projector = getattr(self._conversation, "main_thread_projection_page", None)
+        if self._principal is not None and callable(projector):
+            page = projector(
+                principal=self._principal, before=before, limit=limit,
+            )
+            result: list[UITextMessage] = []
+            for item in page:
+                if item.message is None:
+                    result.append(UITextMessage(
+                        message_id=None, session_id=None, actor="redacted",
+                        content=None, created_at=item.linked_at,
+                        canonical_sequence=item.canonical_sequence,
+                        turn_position=item.turn_position, redacted=True,
+                        unavailable_reason=item.redacted_reason,
+                    ))
+                else:
+                    result.append(self._project_message(
+                        item.message,
+                        canonical_sequence=item.canonical_sequence,
+                        turn_position=item.turn_position,
+                    ))
+            return tuple(result)
+        if before is not None:
+            raise ValueError("legacy session history has no canonical cursor")
         result: list[UITextMessage] = []
-        for message in self._conversation.messages():
+        source = self._conversation.messages()
+        for message in source[-limit:]:
             if not isinstance(message, ConversationMessage):
                 raise TypeError("conversation returned a non-ConversationMessage")
-            actor = (
-                "user"
-                if message.role is ConversationRole.USER
-                else "sofia"
-                if message.role is ConversationRole.ASSISTANT
-                else None
-            )
-            if actor is None:
-                raise ValueError("unsupported conversation role")
-            result.append(
-                UITextMessage(
-                    message_id=message.id,
-                    session_id=message.session_id,
-                    actor=actor,
-                    content=message.content,
-                    created_at=message.created_at,
-                )
-            )
+            result.append(self._project_message(message))
         return tuple(result)
+
+    @staticmethod
+    def _project_message(
+        message: ConversationMessage, *,
+        canonical_sequence: int | None = None,
+        turn_position: int | None = None,
+    ) -> UITextMessage:
+        actor = (
+            "user" if message.role is ConversationRole.USER else
+            "sofia" if message.role is ConversationRole.ASSISTANT else None
+        )
+        if actor is None:
+            raise ValueError("unsupported conversation role")
+        return UITextMessage(
+            message_id=message.id, session_id=message.session_id,
+            actor=actor, content=message.content,
+            created_at=message.created_at,
+            canonical_sequence=canonical_sequence,
+            turn_position=turn_position,
+        )
 
     def draft(self) -> UIDraft | None:
         return self._drafts.load(
@@ -172,6 +212,10 @@ class UITextClient:
         ):
             stable = request_id.strip() if request_id is not None else uuid4().hex
             kwargs["source_event_id"] = f"desktop:{self._client_id}:{stable}"
+        if self._principal is not None and (
+            "source_device_id" in parameters or accepts_kwargs
+        ):
+            kwargs["source_device_id"] = self._client_id
         response = responder(content, **kwargs)
         self.clear_draft()
         return response

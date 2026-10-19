@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -231,4 +232,72 @@ def test_desktop_client_propagates_stable_authenticated_source_event(tmp_path):
     )
     ui.send("stable retry", request_id="client-request-42")
     assert conversation.source_event_id == "desktop:desktop:client-request-42"
+    drafts.close()
+
+
+def test_authenticated_desktop_history_uses_bounded_main_projection(tmp_path):
+    class MainConversation(FakeConversation):
+        def __init__(self):
+            super().__init__()
+            self.request = None
+
+        def main_thread_projection_page(self, *, principal, before, limit):
+            self.request = (principal, before, limit)
+            now = datetime.now(timezone.utc)
+            visible = ConversationMessage(
+                "canonical-visible", "source-session",
+                ConversationRole.USER, "visible here", now,
+            )
+            return (
+                SimpleNamespace(
+                    message=visible, linked_at=now,
+                    canonical_sequence=8, turn_position=0,
+                    redacted_reason=None,
+                ),
+                SimpleNamespace(
+                    message=None, linked_at=now,
+                    canonical_sequence=9, turn_position=0,
+                    redacted_reason="unavailable_on_this_device",
+                ),
+            )
+
+    conversation = MainConversation()
+    drafts = UIDraftStore(tmp_path / "sofia.db")
+    principal = local_sparks_principal()
+    ui = UITextClient(
+        conversation=conversation, drafts=drafts, client_id="desktop-one",
+        principal=principal,
+    )
+    page = ui.history_page(before=(10, 0), limit=20)
+    assert conversation.request == (principal, (10, 0), 20)
+    assert page[0].content == "visible here"
+    assert page[0].canonical_sequence == 8
+    assert page[1].redacted is True
+    assert page[1].message_id is None
+    assert page[1].content is None
+    assert page[1].unavailable_reason == "unavailable_on_this_device"
+    drafts.close()
+
+
+def test_desktop_send_binds_client_as_origin_device(tmp_path):
+    class DeviceAwareConversation(FakeConversation):
+        def __init__(self):
+            super().__init__()
+            self.source_device_id = None
+
+        def respond(
+            self, content, *, principal=None, channel="conversation",
+            source_event_id=None, source_device_id=None,
+        ):
+            self.source_device_id = source_device_id
+            return super().respond(content)
+
+    conversation = DeviceAwareConversation()
+    drafts = UIDraftStore(tmp_path / "sofia.db")
+    ui = UITextClient(
+        conversation=conversation, drafts=drafts, client_id="desktop-one",
+        principal=local_sparks_principal(),
+    )
+    ui.send("origin metadata", request_id="desktop-origin-1")
+    assert conversation.source_device_id == "desktop-one"
     drafts.close()

@@ -24,7 +24,8 @@
     "src/sofia/conversation/lifelong.py":{"before":"class LifelongThreadStore:","preserved":"Immutable sources, source-audience checks, historical import and uncertainty fencing remain authoritative.","reason":"Persist missing event metadata and add a non-authoritative redacted view."},
     "src/sofia/discord/bridge.py":{"before":"class DiscordConversationBridge:","preserved":"Existing inbox claim, binding and origin-only outbox behavior remains intact.","reason":"Forward explicit Discord presentation identity when the canonical responder supports it."},
     "src/sofia/discord/store.py":{"before":"class DiscordInboxStore:","preserved":"Inbox/outbox schemas and state transitions remain unchanged.","reason":"Prevent implicit database recreation after canonical state loss."},
-    "src/sofia/mobile/gateway.py":{"before":"class MobileCompanionGateway:","preserved":"Pairing epochs, delivery fencing, pagination budgets and private grants remain authoritative.","reason":"Forward device identity and render safe unavailable Main positions."}
+    "src/sofia/mobile/gateway.py":{"before":"class MobileCompanionGateway:","preserved":"Pairing epochs, delivery fencing, pagination budgets and private grants remain authoritative.","reason":"Forward device identity and render safe unavailable Main positions."},
+    "src/sofia/ui/text.py":{"before":"class UITextClient:","preserved":"Draft ownership and canonical respond routing remain unchanged.","reason":"Use the bounded Main projection for authenticated desktop history and forward desktop device identity."}
   },
   "approved_removals": []
 }
