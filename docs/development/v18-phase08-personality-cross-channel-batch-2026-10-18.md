@@ -55,3 +55,7 @@ python -m pytest test/test_short_contact_channel_quality.py test/test_response_q
 ```
 
 **Result: 74 passed in 18.19s, 0 failed.** This is a user-provided live Windows test transcript, not a GitHub Actions CI run. It confirms the newest focused short-contact regression batch passed locally. It does **not** independently establish full task-level integration, Desktop/Discord/voice parity, cross-model/device behavior or CI, nor does it alone promote CA-501, CA-508, CA-506, CA-2508 or CA-3805 to Level 4. Continue with task-specific end-to-end acceptance and evidence collection.
+
+## Superseding 15-task source audit
+
+The Level 2 table above records the earlier five-task focused-regression checkpoint and is preserved as historical evidence. A broader, task-specific production entrypoint audit subsequently assessed eleven of fifteen selected Phase 08 tasks as **Level 3 (production coded)** and four as **Level 2 (partial)**. The current scoped status evidence and outstanding gaps are in docs/development/v18-phase08-15-task-level3-source-audit-2026-10-18.md and docs/development/v18-phase08-personality-status-evidence.json. No new Windows pytest or CI run has been executed for that later coding batch; neither report claims Level 4 or Level 5.
