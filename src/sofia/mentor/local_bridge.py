@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import Callable
 
+from .oracles import get_oracle
+
 from .bridge import (
     BridgeConfig, LOCAL_INSTRUCTIONS, MENTOR_INSTRUCTIONS,
     MentorBridgeError, OLLAMA_ENDPOINT, SCENARIOS,
@@ -169,6 +171,9 @@ def run_local_dialogue(
         "mentor_model": config.mentor_model,
         "rounds": config.max_rounds,
         "events": events,
+        "evaluation_reference": get_oracle(scenario_id),
+        "evaluation_status": "UNREVIEWED",
+        "mentor_feedback_is_independent_ground_truth": False,
         "safety": {
             "openai_api_calls": 0,
             "cloud_data_transfer": False,
