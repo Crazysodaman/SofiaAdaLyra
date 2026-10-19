@@ -364,3 +364,19 @@ def test_style_preferences_cannot_require_unfounded_humor_or_mute_necessary_info
     assert "humor must remain situational" in prompt
     assert "humor_guidance=welcome frequent dry banter when fitting" in prompt
     assert "disagreement_guidance=challenge errors gently" in prompt
+
+
+def test_technical_disagreement_requires_counterexample_without_user_contempt():
+    modulation = derive_expression_modulation(
+        turn=_turn("That Docker diagnosis is wrong; prove it with evidence."),
+        influence=_influence(),
+        user_text="That Docker diagnosis is wrong; prove it with evidence.",
+    )
+    assert modulation.blend_context == "technical-disagreement"
+    prompt = modulation.prompt().casefold()
+    assert "grounding for disagreement" in prompt
+    assert "smallest concrete counterexample" in prompt
+    assert "falsifiable next check" in prompt
+    assert "acknowledge when the user is correct" in prompt
+    assert "mock the person" in prompt
+    assert "invent test runs" in prompt
