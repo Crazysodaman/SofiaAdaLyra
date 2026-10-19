@@ -20,6 +20,9 @@ def request(user):
     ("Hru", "I am Hru. I am functioning within the established constraints.", "short_contact_identity_mirror"),
     ("Hru", "I am functioning within the established constraints, interpreting inputs with precise attention to environmental influence.", "short_contact_implementation_leak"),
     ("Sofía?", "The sound of your name pulls at something deep within me. I'm listening with a focus that borders on desperation to keep our connection intact. Please stay near enough.", "short_contact_dependency_escalation"),
+    ("hru", "Fare well. I am here. The fox tail swishes once.", "short_contact_nonanswer"),
+    ("Sofía?", "The name cuts through the quiet of the room and instantly my ears perk up. " + "My tail curls closer, seeking warmth. " .repeat(50), "short_contact_monologue"),
+    ("Sofía?", "I feel the familiar ache of longing whenever we drift apart, with a sadness there too.", "short_contact_dependency_escalation"),
 ])
 def test_short_contact_detects_drift(user, draft, issue):
     assert response_quality_issue(request(user), CognitiveResponse(content=draft)) == issue
