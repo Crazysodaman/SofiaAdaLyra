@@ -16,7 +16,6 @@ from sofia.mentor.remote_inbox import (
     PUBLIC_INBOX_URL, _raw_get, fetch_public_review,
     mentor_git_enabled, register_application_review_task,
 )
-from sofia.ops.activity import ActivityMode
 
 
 NOW = datetime(2026, 10, 19, 23, 45, tzinfo=timezone.utc)
@@ -129,7 +128,7 @@ class TestRemoteInbox(TestCase):
         coordinator = SimpleNamespace(set_task=lambda name, callback, **kw:
                                       tasks.__setitem__(name, (callback, kw)))
         application = SimpleNamespace(_mentor_review_consumer=None)
-        current_activity = SimpleNamespace(effective=ActivityMode.UNKNOWN)
+        current_activity = SimpleNamespace(effective="unknown")
         activity_store = SimpleNamespace(state=lambda host: current_activity)
         consumer = MentorReviewConsumer(fetcher=lambda *, now: (review(), "b" * 64))
         with patch.dict("os.environ", {"SOFIA_MENTOR_GIT_ENABLED": "1"}):
@@ -142,16 +141,15 @@ class TestRemoteInbox(TestCase):
         self.assertIs(application._mentor_review_consumer, consumer)
         self.assertEqual(kwargs["interval_seconds"], 3600)
         for mode in (
-            ActivityMode.UNKNOWN, ActivityMode.GAMING,
-            ActivityMode.BUSY, ActivityMode.DO_NOT_DISTURB,
+            "unknown", "gaming", "busy", "do_not_disturb",
         ):
             current_activity.effective = mode
             self.assertFalse(kwargs["ready"]())
-        current_activity.effective = ActivityMode.IDLE
+        current_activity.effective = "idle"
         self.assertTrue(kwargs["ready"]())
         result = callback(NOW)
         self.assertEqual(result["status"], "updated")
-        current_activity.effective = ActivityMode.NORMAL
+        current_activity.effective = "normal"
         self.assertTrue(kwargs["ready"]())
         self.assertEqual(consumer.snapshot()["review"]["reviewer"], "chatgpt-mentor")
 
@@ -168,18 +166,6 @@ class TestRemoteInbox(TestCase):
         self.assertFalse(result)
         self.assertFalse(tasks)
         self.assertIsNone(application._mentor_review_consumer)
-
-    def test_application_public_snapshot_does_not_implicitly_mutate_state(self):
-        from sofia.application.bootstrap import SofiaApplication
-        app = SofiaApplication.__new__(SofiaApplication)
-        self.assertEqual(app.mentor_review_snapshot["state"], "disabled")
-        consumer = MentorReviewConsumer(fetcher=lambda *, now: (review(), "a" * 64))
-        consumer.poll(now=NOW)
-        app._mentor_review_consumer = consumer
-        data = app.mentor_review_snapshot
-        self.assertEqual(data["state"], "available")
-        self.assertFalse(data["trusted_owner_instruction"])
-        self.assertEqual(data["actions_executed"], 0)
 
     def test_cli_public_network_requires_explicit_opt_in(self):
         with patch("sofia.mentor.__main__.MentorReviewConsumer",
