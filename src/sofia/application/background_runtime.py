@@ -458,10 +458,10 @@ def create_background_coordinator(
         application._mentor_review_consumer = reviewer
 
         def mentor_review_ready() -> bool:
-            return activity_store.state(host_id).effective not in {
-                ActivityMode.GAMING,
-                ActivityMode.BUSY,
-                ActivityMode.DO_NOT_DISTURB,
+            # Unknown activity is NOT permission to run periodic work.
+            return activity_store.state(host_id).effective in {
+                ActivityMode.NORMAL,
+                ActivityMode.IDLE,
             }
 
         def fetch_mentor_advisory(now):
