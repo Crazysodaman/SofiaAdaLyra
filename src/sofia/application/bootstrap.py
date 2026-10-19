@@ -1906,8 +1906,10 @@ class SofiaApplication:
                     EmotionalConversationService,
                 )
             )
+            from sofia.mentor.remote_inbox import mentor_git_enabled
             background_needed = (
-                neuro_runtime_enabled
+                mentor_git_enabled()
+                or neuro_runtime_enabled
                 or reflection_enabled
                 or habit_runtime_enabled
                 or act_delivery_enabled
