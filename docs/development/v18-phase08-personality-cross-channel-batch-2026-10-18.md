@@ -45,3 +45,13 @@ python -m pytest test/test_short_contact_channel_quality.py test/test_response_q
 Then run relevant full personality/conversation integration tests, check effects on ordinary long-form technical answers and deliberate storytelling, and execute paired supervised owner-host Desktop/Discord dialogue. CI credit requires a passing, revision-pinned workflow.
 
 **Do not promote these tasks to Level 4 solely because test files were authored or a prior 89-test run passed.** This environment has no reachable Git checkout with dependencies for execution; the real Venus tests and CI remain pending.
+
+## Owner-host focused verification update (2026-10-18)
+
+Sparks reported executing on Venus (Windows, Python 3.12.10, pytest 9.1.1):
+
+```powershell
+python -m pytest test/test_short_contact_channel_quality.py test/test_response_quality_hardening.py test/test_personality_pipeline.py test/test_personality_expression_g9.py -q
+```
+
+**Result: 74 passed in 18.19s, 0 failed.** This is a user-provided live Windows test transcript, not a GitHub Actions CI run. It confirms the newest focused short-contact regression batch passed locally. It does **not** independently establish full task-level integration, Desktop/Discord/voice parity, cross-model/device behavior or CI, nor does it alone promote CA-501, CA-508, CA-506, CA-2508 or CA-3805 to Level 4. Continue with task-specific end-to-end acceptance and evidence collection.
