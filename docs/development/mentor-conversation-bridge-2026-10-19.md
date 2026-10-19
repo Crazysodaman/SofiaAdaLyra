@@ -80,3 +80,35 @@ A successful owner-side invocation proves basic **local Ollama ↔ external Open
 6. Run live owner-host acceptance and measure actual latency, expenditure and refusal behavior. Then seek additional owner approval before scheduling any automatic dialogue.
 
 This is a first verified step toward genuine AI-to-AI mentorship. It is *not* the last step, and intentionally cannot speak on behalf of a fully autonomous Sofía.
+
+## Diagnose a failed OpenAI request safely (added 2026-10-19)
+
+The original release hid HTTP status as `OpenAI request failed: HTTPError`. The updated bridge prints only a numerical HTTP status and sanitized API error code/parameter, **never** an arbitrary provider message, API key, or the raw response body.
+
+Before generating and billing another response, verify model metadata with your already configured terminal-session API key:
+
+```powershell
+git pull --ff-only
+python -m sofia.mentor check-api --external-model gpt-6-luna --allow-external
+```
+
+This makes a metadata-only GET to OpenAI `/v1/models/gpt-6-luna`. It makes no generation request, submits no screenshot or private Sofía data, and does not prove that the Responses API will succeed.
+
+If metadata succeeds, retry only **one** synthetic conversation round to constrain cost and diagnose the next request:
+
+```powershell
+python -m sofia.mentor converse --scenario service-failure --local-model qwen3.5:9b --external-model gpt-6-luna --rounds 1 --max-output-tokens 350 --allow-external
+```
+
+Sample *diagnostic formats* (not a claim about your account):
+- `OpenAI HTTP 401`: invalid/mis-scoped key or project, or IP restrictions. Check credentials locally.
+- `OpenAI HTTP 400 code=invalid_request_error param=tool_choice`: API rejected a request setting. Report only the sanitized status/code/param for source correction.
+- `OpenAI HTTP 404 code=model_not_found`: model unavailable to the key/project; list accessible models.
+- `OpenAI HTTP 429 code=credit_balance_exhausted`: replenish API credits before retrying.
+- `OpenAI HTTP 429 code=project_spend_limit_exceeded`: review project spending ceiling.
+- `OpenAI HTTP 429 code=rate_limit_exceeded`: reduce request frequency and heed backoff.
+
+Some provider errors have no parseable JSON error code; the numeric HTTP status still shows. OpenAI documents those errors in [the official error guide](https://developers.openai.com/api/docs/guides/error-codes). **Never paste an API key, Authorization header, unsanitized HTTP error body or private application screenshot when requesting support.** After the test, clear `OPENAI_API_KEY` from your terminal environment if no longer needed.
+
+Current model catalog confirms `gpt-6-luna` is a valid published model identifier, but your particular API project must still have valid access and billing. A ChatGPT subscription is not API credit.
+
