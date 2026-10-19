@@ -1,0 +1,23 @@
+{
+  "schema": "sofia.mentor.advisory-review.v1",
+  "visibility": "public",
+  "reviewed_source_revision": "eae84b50ab0c9775aa4c555f524cf9ce91abbb6f",
+  "review_created_at": "2026-10-19T23:41:00+00:00",
+  "reviewer": "chatgpt-mentor",
+  "summary": "Initial review: historical task evidence requires independent verification. The local two-model synthetic conversation completed, but neither model proved a real service outcome or durable learning.",
+  "recommendations": [
+    {
+      "id": "REV-001",
+      "task_ids": [],
+      "severity": "needs-verification",
+      "action": "run-safe-test",
+      "observation": "The student updated its diagnostic reasoning after local mentor feedback in a synthetic two-round conversation.",
+      "suggested_check": "Compare a different held-out synthetic diagnostic problem against an independent evidence reference.",
+      "acceptance": "Record a separately reviewed result. Do not count critique alone as learning or a host repair.",
+      "requires_owner_approval": true
+    }
+  ],
+  "limitations": [
+    "Public advisory metadata only; no authorized actions or private Sofía data."
+  ]
+}
