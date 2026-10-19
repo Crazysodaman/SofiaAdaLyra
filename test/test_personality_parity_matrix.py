@@ -156,3 +156,52 @@ def test_same_model_different_revision_counts_as_version_transition():
     )
     assert report.ready_for_review
     assert len(report.models) == 2
+
+
+def test_delayed_or_stale_voice_receipt_is_not_a_spoken_output():
+    from datetime import datetime, timedelta, timezone
+    from hashlib import sha256
+
+    from sofia.application.expression_runtime import (
+        ExpressionDecision, ExpressionIntent,
+    )
+    from sofia.voice.prosody_matrix import VoiceProsodyProfile
+
+    row = observation("renderer_truth", "voice")
+    now = datetime(2026, 10, 18, tzinfo=timezone.utc)
+    decision = ExpressionDecision(
+        decision_id="expression:test-voice", message_id=row.message_id,
+        session_id="session:voice", principal_id=row.principal_id,
+        audience_id="private:voice", intent="conversation",
+        text_sha256=sha256(row.reply.encode("utf-8")).hexdigest(),
+        emotion_labels=(), emotion_evidence_refs=(),
+        prosody=VoiceProsodyProfile(), gesture=None, pose=None,
+        intensity="subtle", presentation_revision=1, created_at=now,
+    )
+    waiting = ExpressionIntent(
+        decision=decision, expires_at=now + timedelta(minutes=5),
+        fresh=True, text_status="persisted", voice_status="queued",
+        avatar_status="unavailable", text_acknowledged=True,
+        voice_acknowledged=False, avatar_acknowledged=False, receipt_ids=(),
+    )
+    before = evaluate_personality_matrix(
+        (replace(row, receipt=waiting),),
+        required_channels=frozenset({"voice"}),
+        require_model_transition=False, require_device_transition=False,
+    )
+    assert any("actual-spoken-output" in item for item in before.missing)
+    after = evaluate_personality_matrix(
+        (replace(row, receipt=replace(
+            waiting, voice_status="spoken", voice_acknowledged=True,
+            receipt_ids=("real-backend-ack",),
+        )),),
+        required_channels=frozenset({"voice"}),
+        require_model_transition=False, require_device_transition=False,
+    )
+    assert not any("actual-spoken-output" in item for item in after.missing)
+    stale = evaluate_personality_matrix(
+        (replace(row, receipt=replace(waiting, fresh=False)),),
+        required_channels=frozenset({"voice"}),
+        require_model_transition=False, require_device_transition=False,
+    )
+    assert any("stale-expression-intent" in item for item in stale.missing)
