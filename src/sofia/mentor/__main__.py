@@ -18,6 +18,7 @@ from .report import markdown_report
 from .bridge import BridgeConfig, MentorBridgeError, SCENARIOS, run_synthetic_dialogue
 from .openai_diagnostics import check_openai_model
 from .local_bridge import LocalBridgeConfig, run_local_dialogue
+from .oracles import get_oracle
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -89,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
                         "mode": "local-preview-no-network",
                         "scenario_id": args.scenario,
                         "scenario": SCENARIOS[args.scenario],
+                        "evaluation_reference": get_oracle(args.scenario),
                         "student_model": cfg.student_model,
                         "mentor_model": cfg.mentor_model,
                         "rounds": cfg.max_rounds,
