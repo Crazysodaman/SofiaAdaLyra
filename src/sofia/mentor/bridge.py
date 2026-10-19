@@ -171,12 +171,17 @@ def mentor_response(
     )
     if response.get("status") != "completed" or response.get("error"):
         raise MentorBridgeError("OpenAI returned incomplete or failed response")
-    if response.get("model") not in (None, cfg.external_model):
+    observed_model = response.get("model")
+    if (observed_model is not None and observed_model != cfg.external_model
+            and not (isinstance(observed_model, str)
+                     and observed_model.startswith(cfg.external_model + "-"))):
         raise MentorBridgeError("OpenAI model identity does not match requested model")
     chunks = []
     for item in response.get("output", []):
         if not isinstance(item, dict):
             raise MentorBridgeError("invalid OpenAI output")
+        if item.get("type") == "reasoning":
+            continue  # Normal for some reasoning models; not user-visible output.
         if item.get("type") != "message":
             raise MentorBridgeError("OpenAI returned non-message output; no tools allowed")
         for part in item.get("content", []):
