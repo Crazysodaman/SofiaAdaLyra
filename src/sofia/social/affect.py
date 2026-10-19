@@ -237,7 +237,10 @@ class UserAffectAppraiser:
             "interpretations would materially change the response and confidence is "
             "limited, ask one natural clarifying question and set clarify=true. Do not "
             "diagnose mental health, infer consent or willingness, or use affect to "
-            "manipulate the user. Sexual attraction, desire, or arousal may be recorded "
+            "manipulate the user. When the user corrects an emotional inference, "
+            "do not infer a replacement mood on that same turn: record=false "
+            "unless the user explicitly reports a new state. Sexual attraction, "
+            "desire, or arousal may be recorded "
             "only when the user explicitly self-reports or corrects that state; never "
             "infer it from flirting, sexual vocabulary, private mode, or requests.\n"
             "After the complete visible answer, append exactly one hidden "
@@ -325,6 +328,19 @@ class UserAffectAppraiser:
             basis=raw["basis"].strip(),
             clarify=raw["clarify"],
         )
+        # A user's explicit correction is authoritative over the model's
+        # speculative interpretation. Do not silently replace "not angry"
+        # with a different unrequested inferred mood on the same turn.
+        if (
+            assessment.source == "inferred"
+            and (
+                _EXPLICIT_NEGATION.search(user_content) is not None
+                or _GENERAL_CORRECTION.search(user_content) is not None
+            )
+        ):
+            raise ValueError(
+                "explicit user affect correction prohibits a replacement inference"
+            )
         if SENSITIVE_USER_AFFECTS.intersection(assessment.affects):
             if assessment.source not in {"self_reported", "corrected"}:
                 raise ValueError("sensitive user affect cannot be inferred")
