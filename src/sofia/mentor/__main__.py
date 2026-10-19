@@ -38,6 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     talk.add_argument("--external-model", required=True)
     talk.add_argument("--rounds", type=int, default=2)
     talk.add_argument("--max-output-tokens", type=int, default=350)
+    talk.add_argument("--preview", action="store_true",
+                      help="Print exact synthetic scenario; make no local or external calls")
     talk.add_argument("--allow-external", action="store_true",
                       help="I authorize sharing this public synthetic fixture and stateless model output")
     try:
@@ -49,6 +51,20 @@ def main(argv: list[str] | None = None) -> int:
                     max_rounds=args.rounds,
                     max_output_tokens=args.max_output_tokens,
                 )
+                if args.preview:
+                    print(json.dumps({
+                        "mode": "synthetic-preview-no-network",
+                        "scenario_id": args.scenario,
+                        "scenario": SCENARIOS[args.scenario],
+                        "local_model": cfg.local_model,
+                        "external_model": cfg.external_model,
+                        "rounds": cfg.max_rounds,
+                        "max_output_tokens_per_call": cfg.max_output_tokens,
+                        "external_payload_note": (
+                            "Real mode additionally shares the generated bounded local model answer."
+                        ),
+                    }, indent=2, ensure_ascii=False))
+                    return 0
                 result = run_synthetic_dialogue(
                     config=cfg, scenario_id=args.scenario,
                     allow_external=args.allow_external,
