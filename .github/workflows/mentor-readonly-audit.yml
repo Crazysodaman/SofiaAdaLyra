@@ -1,0 +1,43 @@
+name: MENTOR Read-only Quality Audit
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mentor-readonly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mentor-audit:
+    name: MENTOR inventory and evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Focused MENTOR tests (stdlib only)
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s test -p 'test_mentor_*.py' -v
+      - name: Source-pinned 780-task QA snapshot
+        env:
+          PYTHONPATH: src
+        run: python -m sofia.mentor audit --repo . --output mentor-report.json
+      - name: Upload read-only report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mentor-audit-${{ github.sha }}
+          path: mentor-report.json
+          if-no-files-found: warn
+          retention-days: 30
