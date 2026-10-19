@@ -19,6 +19,7 @@ from .bridge import BridgeConfig, MentorBridgeError, SCENARIOS, run_synthetic_di
 from .openai_diagnostics import check_openai_model
 from .local_bridge import LocalBridgeConfig, run_local_dialogue
 from .oracles import get_oracle
+from .exchange import write_public_outbox, read_review
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -34,6 +35,14 @@ def main(argv: list[str] | None = None) -> int:
     diff = sub.add_parser("diff", help="Compare two saved audits")
     diff.add_argument("--previous", type=Path, required=True)
     diff.add_argument("--current", type=Path, required=True)
+    publish = sub.add_parser(
+        "exchange-export", help="Write safe public Git outbox without committing or pushing"
+    )
+    publish.add_argument("--repo", type=Path, default=Path("."))
+    incoming = sub.add_parser(
+        "exchange-read", help="Inspect text-only Git MENTOR feedback, never execute"
+    )
+    incoming.add_argument("--repo", type=Path, default=Path("."))
     api_check = sub.add_parser(
         "check-api", help="Verify API key/model metadata, without inference or Sofía data"
     )
@@ -70,6 +79,20 @@ def main(argv: list[str] | None = None) -> int:
                       help="I authorize sharing this public synthetic fixture and stateless model output")
     try:
         if args := parser.parse_args(argv):
+            if args.command == "exchange-export":
+                print(json.dumps(write_public_outbox(args.repo), indent=2))
+                return 0
+            if args.command == "exchange-read":
+                review = read_review(args.repo)
+                print(json.dumps({
+                    "source_revision": review["reviewed_source_revision"],
+                    "summary": review["summary"],
+                    "recommendations": review["recommendations"],
+                    "limitations": review["limitations"],
+                    "advisory_only": True,
+                    "automatic_actions_authorized": False,
+                }, indent=2, ensure_ascii=False))
+                return 0
             if args.command == "check-api":
                 if not args.allow_external:
                     raise MentorBridgeError("API preflight requires --allow-external")
