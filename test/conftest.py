@@ -51,6 +51,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
     "learning": ("pkg_evolve", "pkg_safe", "pkg_core"),
     "machine": ("pkg_ops",),
     "memory": ("pkg_mem",),
+    "mentor": ("pkg_verify", "pkg_safe"),
     "mobile": ("pkg_ui", "pkg_net"),
     "net": ("pkg_net",),
     "neuro": ("pkg_core",),
@@ -74,6 +75,10 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
 FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     # Creative/ComfyUI tests are DEV tooling with INTEGRATE lifecycle boundaries.
     ("test_comfyui_", ("pkg_dev", "pkg_integrate")),
+    # Live2D recovery spans avatar state, creative tooling, and integration.
+    ("test_live2d_recovery.py", ("pkg_avatar", "pkg_dev", "pkg_integrate")),
+    # MENTOR QA and public/local bridge security are VERIFY/SAFE-owned.
+    ("test_mentor_", ("pkg_verify", "pkg_safe")),
     ("test_v18_change_guard.py", ("pkg_verify", "pkg_dev")),
     ("test_v18_five_stage_audit.py", ("pkg_verify",)),
     ("test_v18_success_oracle_contract.py", ("pkg_verify", "pkg_core")),

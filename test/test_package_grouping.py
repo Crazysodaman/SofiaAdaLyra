@@ -48,3 +48,24 @@ def test_representative_cross_package_ownership(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert "pkg_core" in _explicit_package_markers(neuro)
+
+def test_mentor_and_live2d_have_explicit_package_owners() -> None:
+    root = Path(__file__).parent
+    assert {"pkg_avatar", "pkg_dev", "pkg_integrate"}.issubset(
+        _explicit_package_markers(root / "test_live2d_recovery.py")
+    )
+    mentor_tests = sorted(root.glob("test_mentor_*.py"))
+    assert mentor_tests, "MENTOR package tests must stay discoverable"
+    for path in mentor_tests:
+        assert {"pkg_verify", "pkg_safe"}.issubset(
+            _explicit_package_markers(path)
+        ), path.name
+
+
+def test_an_unmapped_test_does_not_gain_explicit_ownership(tmp_path: Path) -> None:
+    probe = tmp_path / "test_unowned_feature.py"
+    probe.write_text("def test_example(): pass\n", encoding="utf-8")
+    assert _explicit_package_markers(probe) == frozenset()
+    # The compatibility fallback must not masquerade as an explicit owner.
+    assert _package_markers(probe) == frozenset({"pkg_core"})
+
