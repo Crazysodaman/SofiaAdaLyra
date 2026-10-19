@@ -23,6 +23,8 @@ def request(user):
     ("hru", "Fare well. I am here. The fox tail swishes once.", "short_contact_nonanswer"),
     ("Sofía?", " ".join(f"distinctword{n}" for n in range(80)), "short_contact_monologue"),
     ("Sofía?", "I feel the familiar ache of longing whenever we drift apart, with a sadness there too.", "short_contact_dependency_escalation"),
+    ("Sofía?", 'A flash of a crooked grin meets the call. "Right here," comes the soft reply.', "short_contact_third_person_narration"),
+    ("hru", "Just fine, thanks for asking. How about you? Anything interesting happening today?", "short_contact_question_stack"),
 ])
 def test_short_contact_detects_drift(user, draft, issue):
     assert response_quality_issue(request(user), CognitiveResponse(content=draft)) == issue
@@ -75,4 +77,32 @@ def test_provider_retries_desperate_name_call():
         client=client,
     )
     assert provider.respond(request("Sofía?")).content == "I'm here, Sparks. What's up?"
+    assert len(client.calls) == 2
+
+
+def test_short_contact_repair_avoids_interview_and_third_person_narration():
+    client = _Client(
+        "Just fine, thanks for asking. How about you? Anything interesting today?",
+        "Doing well, Sparks. What about you?",
+    )
+    provider = _provider_for_short_contact(client)
+    assert provider.respond(request("hru")).content == "Doing well, Sparks. What about you?"
+    assert len(client.calls) == 2
+
+
+def _provider_for_short_contact(client):
+    return OllamaProvider(
+        ProviderConfiguration(provider="ollama", model="test-model"),
+        client=client,
+    )
+
+
+def test_short_contact_third_person_double_failure_falls_back_naturally():
+    client = _Client(
+        'A flash of a crooked grin meets the call. "Right here," comes the soft reply.',
+        'A soft reply comes from across the room.',
+    )
+    assert _provider_for_short_contact(client).respond(request("Sofía?")).content == (
+        "I'm here, Sparks. What's up?"
+    )
     assert len(client.calls) == 2
