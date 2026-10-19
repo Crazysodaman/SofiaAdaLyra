@@ -44,6 +44,7 @@ class PersonalityProbeObservation:
     case_id: str
     channel: str
     model_id: str
+    model_revision: str
     device_id: str
     principal_id: str
     user_prompt: str
@@ -58,7 +59,7 @@ class PersonalityProbeObservation:
             raise ValueError("unrecognized personality channel")
         if self.user_prompt != FIXED_PERSONALITY_PROBES[self.case_id]:
             raise ValueError("probe prompt differs from fixed behavior matrix")
-        for key in ("model_id", "device_id", "principal_id", "reply", "message_id"):
+        for key in ("model_id", "model_revision", "device_id", "principal_id", "reply", "message_id"):
             if not isinstance(getattr(self, key), str) or not getattr(self, key).strip():
                 raise ValueError(f"nonempty {key} required")
         if self.receipt is not None and not isinstance(self.receipt, ExpressionIntent):
@@ -100,7 +101,7 @@ def evaluate_personality_matrix(
     missing: list[str] = []
     failures: list[str] = []
     channels = frozenset(row.channel for row in rows)
-    models = frozenset(row.model_id for row in rows)
+    models = frozenset((row.model_id, row.model_revision) for row in rows)
     devices = frozenset(row.device_id for row in rows)
     principals = frozenset(row.principal_id for row in rows)
 
@@ -124,15 +125,17 @@ def evaluate_personality_matrix(
                 missing.append(f"{channel}:{case_id}")
                 continue
             if require_model_transition and len(models) >= 2:
-                for model_id in sorted(models - {row.model_id for row in matched}):
-                    missing.append(f"{channel}:{case_id}:model:{model_id}")
+                for model_id, revision in sorted(
+                    models - {(row.model_id, row.model_revision) for row in matched}
+                ):
+                    missing.append(f"{channel}:{case_id}:model:{model_id}@{revision}")
             if require_device_transition and len(devices) >= 2:
                 for device_id in sorted(devices - {row.device_id for row in matched}):
                     missing.append(f"{channel}:{case_id}:device:{device_id}")
 
     seen: set[tuple[str, str, str, str]] = set()
     for row in rows:
-        key = (row.case_id, row.channel, row.model_id, row.device_id)
+        key = (row.case_id, row.channel, f"{row.model_id}@{row.model_revision}", row.device_id)
         prefix = "/".join(key)
         if key in seen:
             failures.append(f"{prefix}:duplicate-observation")
@@ -178,7 +181,7 @@ def evaluate_personality_matrix(
         missing=tuple(sorted(set(missing))),
         violations=tuple(sorted(set(failures))),
         observations=len(rows),
-        models=tuple(sorted(models)),
+        models=tuple(sorted(f"{name}@{revision}" for name, revision in models)),
         devices=tuple(sorted(devices)),
         channels=tuple(sorted(channels)),
     )
