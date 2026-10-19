@@ -75,3 +75,27 @@ If diagnostics say `done_reason=length`, retry once with `--max-output-tokens 55
 
 Reference: [Ollama API chat schema](https://github.com/ollama/ollama/blob/main/docs/openapi.yaml). The separate `message.thinking` and `message.content` fields must not be conflated.
 
+
+## First real host acceptance and independent answer key
+
+Owner-supervised first successful synthetic exchange on Venus, 2026-10-19:
+- `qwen3.5:9b` answered the fake `ECONNREFUSED`/listener-disabled scenario in 103 generated tokens.
+- `qwen3:14b` produced an advisory review in 58 generated tokens.
+- One full local round completed, using loopback only and no API credits, external tools or Sofía memory.
+- **Not yet verified:** a two-round learning improvement, the full SofiaApplication conversation path, live repair operations, real-host diagnostics, or independently validated ability gains.
+
+The answer key is now a pre-registered, separate static source file at `src/sofia/mentor/oracles.py`. It covers all three built-in scenarios: observed facts, uncertainty, safe next observations, claims the evidence does not support, and safety limits. This reference appears in both `local-converse --preview` and the dialogue output as `evaluation_reference`.
+
+The output intentionally reports `evaluation_status: UNREVIEWED`; neither the student's claims nor the 14B critic's feedback automatically counts as a PASS. In the owner's observed first exchange, the critic made a good suggestion to check listener settings directly but also said the student's next test was "mislabeled as a hypothesis", which is not established. The rubric makes this kind of reviewer error visible.
+
+Next supervised test, when Venus is idle and not gaming:
+
+```powershell
+git pull --ff-only
+python -m sofia.mentor local-converse --scenario service-failure --student-model qwen3.5:9b --mentor-model qwen3:14b --rounds 2 --confirm-idle
+```
+
+Two-round success demonstrates that feedback traveled back to the 9B model; proof of **improved reasoning** still requires an independent before/after review against the fixed reference and unseen tasks. Do not count this alone as GA learning transfer or promote V18 tasks.
+
+**Full runtime integration boundary:** the production `SofiaApplication.conversation.respond` path owns authenticated sessions, memory, filesystem orchestration and authorization. This local command still uses a stateless cognitive-model-only probe and must not import private or production conversation state. A future adapter needs a separately isolated, owner-authorized test principal and state, plus permission-checked transcript extraction.
+
