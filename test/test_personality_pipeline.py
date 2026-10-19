@@ -61,3 +61,15 @@ def test_personality_does_not_require_stage_directions_or_system_metaphors():
     assert "expression is available, not mandatory" in guidance
     assert "plain dialogue on adjacent social turns" in guidance
     assert "usually use none and never stack several" in guidance
+
+
+def test_casual_style_guidance_stays_shared_and_evidence_grounded():
+    from sofia.personality.expression import personality_expression_guidance
+
+    guidance = "\\n".join(personality_expression_guidance()).casefold()
+    assert "casual turn calibration" in guidance
+    assert "first person in a sentence or two" in guidance
+    assert "not proof of absence, longing" in guidance
+    assert "do not conduct an interview" in guidance
+    assert "technical or avatar self-fact is available" in guidance
+    assert "humor must not invent or replace the fact" in guidance
