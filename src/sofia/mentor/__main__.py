@@ -13,6 +13,7 @@ from pathlib import Path
 import sys
 
 from .audit import MentorAuditError, audit_checkout, compare_reports
+from .report import markdown_report
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -23,6 +24,8 @@ def main(argv: list[str] | None = None) -> int:
     audit.add_argument("--output", type=Path, default=None,
                        help="Write a sanitized JSON report; stdout remains a short summary")
     audit.add_argument("--task", default=None, help="Select one known CA/ML/GA task")
+    audit.add_argument("--markdown", type=Path, default=None,
+                       help="Write an owner-readable quality snapshot")
     diff = sub.add_parser("diff", help="Compare two saved audits")
     diff.add_argument("--previous", type=Path, required=True)
     diff.add_argument("--current", type=Path, required=True)
@@ -44,11 +47,18 @@ def main(argv: list[str] | None = None) -> int:
                         json.dumps(report, indent=2, sort_keys=True) + "\n",
                         encoding="utf-8",
                     )
+                if args.markdown:
+                    if args.markdown.is_symlink() or (
+                        args.markdown.exists() and not args.markdown.is_file()
+                    ):
+                        raise MentorAuditError("Markdown destination is unsafe")
+                    args.markdown.write_text(markdown_report(report), encoding="utf-8")
                 print(json.dumps({
                     "source_revision": report["source_revision"],
                     "summary": report["summary"],
                     "findings": report["findings"],
                     "report_written": str(args.output) if args.output else None,
+                    "markdown_written": str(args.markdown) if args.markdown else None,
                 }, indent=2, sort_keys=True))
                 return 1 if report["findings"] else 0
             previous = json.loads(args.previous.read_text(encoding="utf-8"))
