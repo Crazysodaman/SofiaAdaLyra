@@ -1,0 +1,194 @@
+{
+  "schema": "sofia.v18.phase08-status-audit-v1",
+  "scope": "15 selected original CA Phase 08 tasks only",
+  "status_standard": "docs/development/V18_TASK_STATUS_STANDARD.md",
+  "report": "docs/development/v18-phase08-15-task-level3-source-audit-2026-10-18.md",
+  "reviewed_branch": "main",
+  "source_audit_commit": "0b18896baadbbb46ca129b82c073559711507d76",
+  "execution_note": "New tests not executed by coding agent. Prior owner Windows 74/74 passing predates batch; no CI or live devices claimed.",
+  "counts": {
+    "1": 0,
+    "2": 4,
+    "3": 11,
+    "4": 0,
+    "5": 0
+  },
+  "tasks": [
+    {
+      "id": "CA-501",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/personality/personality.json",
+        "src/sofia/personality/expression.py",
+        "src/sofia/cognition/assembler.py",
+        "src/sofia/personality/modulation.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-502",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/emotion/journal.py",
+        "src/sofia/application/emotional_conversation.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-503",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/application/emotional_conversation.py",
+        "src/sofia/conversation/store.py",
+        "src/sofia/emotion/journal.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-504",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/cognition/matrix/expression_plan.py",
+        "src/sofia/application/expression_runtime.py",
+        "src/sofia/application/emotional_conversation.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-505",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/ui/desktop.py",
+        "src/sofia/ui/avatar2d_renderer.py",
+        "src/sofia/ui/avatar3d_renderer.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-506",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/cognition/repetition_guard.py",
+        "src/sofia/cognition/quality_repair.py",
+        "src/sofia/cognition/providers/ollama_provider.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-507",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/application/expression_runtime.py",
+        "src/sofia/application/emotional_conversation.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-508",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/personality/preferences.py",
+        "src/sofia/personality/modulation.py",
+        "src/sofia/application/bootstrap.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-3802",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/personality/expression.py",
+        "src/sofia/personality/modulation.py",
+        "src/sofia/cognition/repetition_guard.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-3806",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/cognition/matrix/expression_plan.py",
+        "src/sofia/personality/expression.py",
+        "src/sofia/emotion/journal.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-6006",
+      "level": 3,
+      "source_paths": [
+        "src/sofia/social/affect.py",
+        "src/sofia/application/emotional_conversation.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-511",
+      "level": 2,
+      "source_paths": [
+        "src/sofia/application/expression_runtime.py",
+        "src/sofia/verify/personality_parity.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "End-to-end voice-only, renderer absence, delayed acknowledgement and authenticated channel handoff integration",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-2508",
+      "level": 2,
+      "source_paths": [
+        "src/sofia/verify/personality_parity.py",
+        "src/sofia/application/emotional_conversation.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Canonical live four-mode capture, fixed factual oracles and backend receipt linking",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-3805",
+      "level": 2,
+      "source_paths": [
+        "src/sofia/verify/personality_parity.py",
+        "src/sofia/personality/modulation.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Actual model/version/device transition provenance and a wired evaluation run",
+      "tests_executed_for_this_revision": false
+    },
+    {
+      "id": "CA-6007",
+      "level": 2,
+      "source_paths": [
+        "src/sofia/rel/store.py",
+        "src/sofia/emotion/journal.py"
+      ],
+      "evidence_kind": "source-to-entrypoint audit",
+      "remaining": "Consented trust, disagreements, promises and boundary history beyond contact/affect",
+      "tests_executed_for_this_revision": false
+    }
+  ]
+}
