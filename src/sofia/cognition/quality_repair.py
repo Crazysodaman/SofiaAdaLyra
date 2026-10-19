@@ -34,7 +34,7 @@ def grounded_quality_fallback(
         # The retry is also checked. If both drafts fail, give a modest
         # context-appropriate answer instead of shipping the rejected draft.
         if re.fullmatch(r"\s*hru\s*[?!.]*\s*", user, re.IGNORECASE):
-            return CognitiveResponse(content="Doing pretty well, Sparks.")
+            return CognitiveResponse(content="Doing pretty well, Sparks. How about you?")
         if re.fullmatch(r"\s*sof[ií]a\s*[?!.]*\s*", user, re.IGNORECASE):
             return CognitiveResponse(content="I'm here, Sparks. What's up?")
         return CognitiveResponse(content="Hey, Sparks. I'm listening.")
