@@ -7,6 +7,8 @@ to an externally privileged, single-writer fencing/cutover broker.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
 from hashlib import sha256
 import hmac
 import json
@@ -37,6 +39,191 @@ class PendingHomePointer:
     new_epoch: int
     operator_approval_ref: str
     activated: bool = False
+
+
+class OperatorHandoffKind(str, Enum):
+    """A failover and a failback use the same fenced promotion protocol."""
+
+    FAILOVER = "failover"
+    FAILBACK = "failback"
+
+
+@dataclass(frozen=True, slots=True)
+class OperatorHandoffEvidence:
+    """Externally witnessed facts required before a privileged cutover.
+
+    These fields are inputs from the owner-controlled broker; constructing
+    this value grants no authority.  The local process cannot establish a
+    cross-host fence, reserve a global lease, or approve its own recovery.
+    """
+
+    kind: OperatorHandoffKind
+    staged: StagedStateHome
+    pending: PendingHomePointer
+    authorization: RelocationAuthorization
+    backup_integrity_ref: str
+    promoted_writer_lease_ref: str
+    old_runtime_fence_ref: str
+    device_identity_ref: str
+    audience_privacy_audit_ref: str
+    uncertain_effects_review_ref: str
+    old_writer_fenced: bool
+    old_runtime_stopped: bool
+    target_writer_lease_reserved: bool
+    split_brain_absent: bool
+    device_identity_continuity_verified: bool
+    audience_privacy_verified: bool
+    uncertain_effects_reconciled: bool
+    observed_at: datetime
+    expires_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class OperatorHandoffReview:
+    """Read-only precondition result; never a writer-activation receipt."""
+
+    kind: OperatorHandoffKind
+    writer_host_id: str
+    proposed_epoch: int
+    blockers: tuple[str, ...]
+    evidence_refs: tuple[str, ...]
+    reviewed_at: datetime
+    may_activate_writer: bool = False
+
+    @property
+    def ready_for_privileged_broker(self) -> bool:
+        return not self.blockers
+
+
+def review_operator_handoff(
+    evidence: OperatorHandoffEvidence, *, now: datetime,
+    independently_verify_evidence: Callable[[OperatorHandoffEvidence], bool],
+) -> OperatorHandoffReview:
+    """Fail closed before an external broker considers failover or failback.
+
+    This verifies the local, signed recovery artifacts and requires a fresh
+    independent witness for cross-host facts.  It deliberately has no code
+    path that edits the active pointer, starts Sofía, stops another runtime,
+    mints a lease, or marks uncertain work successful.
+    """
+    if not isinstance(evidence, OperatorHandoffEvidence):
+        raise TypeError("typed operator handoff evidence required")
+    if (
+        not isinstance(evidence.kind, OperatorHandoffKind)
+        or not isinstance(evidence.staged, StagedStateHome)
+        or not isinstance(evidence.pending, PendingHomePointer)
+        or not isinstance(evidence.authorization, RelocationAuthorization)
+    ):
+        raise TypeError("handoff requires typed kind, staging, pointer and authorization")
+    if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("review time must be timezone-aware")
+    if not callable(independently_verify_evidence):
+        raise TypeError("independent handoff evidence verifier required")
+    if (
+        evidence.observed_at.tzinfo is None
+        or evidence.observed_at.utcoffset() is None
+        or evidence.expires_at.tzinfo is None
+        or evidence.expires_at.utcoffset() is None
+        or evidence.expires_at <= evidence.observed_at
+    ):
+        raise ValueError("handoff evidence requires a bounded aware validity window")
+
+    refs = (
+        evidence.authorization.operator_approval_ref,
+        evidence.authorization.writer_fence_ref,
+        evidence.backup_integrity_ref,
+        evidence.promoted_writer_lease_ref,
+        evidence.old_runtime_fence_ref,
+        evidence.device_identity_ref,
+        evidence.audience_privacy_audit_ref,
+        evidence.uncertain_effects_review_ref,
+    )
+    if any(not isinstance(ref, str) or not ref.strip() for ref in refs):
+        raise ValueError("complete external handoff evidence references required")
+
+    blockers: list[str] = []
+    staged, pending, authorization = (
+        evidence.staged, evidence.pending, evidence.authorization,
+    )
+    if staged.activated or pending.activated:
+        blockers.append("candidate_already_claims_activation")
+    if not staged.verified_restore:
+        blockers.append("backup_restore_not_verified")
+    if (
+        staged.writer_host_id != authorization.writer_host_id
+        or pending.writer_host_id != authorization.writer_host_id
+        or staged.proposed_writer_epoch != authorization.next_writer_epoch
+        or pending.new_epoch != authorization.next_writer_epoch
+        or pending.operator_approval_ref != authorization.operator_approval_ref
+        or staged.destination_state_path != authorization.destination_root / "sofia.db"
+    ):
+        blockers.append("staged_handoff_identity_or_epoch_mismatch")
+    if authorization.next_writer_epoch <= authorization.source_writer_epoch:
+        blockers.append("writer_epoch_not_monotonic")
+    if now < evidence.observed_at or now >= evidence.expires_at:
+        blockers.append("handoff_evidence_not_current")
+    try:
+        _require_unredirected_path(
+            pending.pending_path, label="pending handoff pointer",
+        )
+        _require_unredirected_path(
+            staged.destination_state_path, label="staged handoff database",
+        )
+        _require_unredirected_path(
+            staged.destination_state_path.parent / "protected" / "identity.json",
+            label="staged handoff identity",
+        )
+        staged_files_current = (
+            staged.destination_state_path.is_file()
+            and (
+                staged.destination_state_path.parent
+                / "protected" / "identity.json"
+            ).is_file()
+        )
+    except (OSError, PermissionError, RuntimeError, ValueError):
+        staged_files_current = False
+    if not staged_files_current:
+        blockers.append("staged_database_or_identity_unavailable")
+    if not pending.pending_path.is_file() or pending.pending_path.is_symlink():
+        blockers.append("signed_pending_pointer_unavailable")
+    else:
+        try:
+            pointer_digest = sha256(pending.pending_path.read_bytes()).hexdigest()
+        except OSError:
+            blockers.append("signed_pending_pointer_unreadable")
+        else:
+            if not hmac.compare_digest(pointer_digest, pending.pointer_sha256):
+                blockers.append("signed_pending_pointer_digest_mismatch")
+    if not evidence.old_writer_fenced:
+        blockers.append("old_writer_not_fenced")
+    if not evidence.old_runtime_stopped:
+        blockers.append("old_runtime_not_stopped")
+    if not evidence.target_writer_lease_reserved:
+        blockers.append("new_writer_lease_not_reserved")
+    if not evidence.split_brain_absent:
+        blockers.append("split_brain_not_excluded")
+    if not evidence.device_identity_continuity_verified:
+        blockers.append("device_identity_continuity_unverified")
+    if not evidence.audience_privacy_verified:
+        blockers.append("post_restore_audience_privacy_unverified")
+    if not evidence.uncertain_effects_reconciled:
+        blockers.append("uncertain_external_effects_unreconciled")
+    try:
+        independently_verified = independently_verify_evidence(evidence) is True
+    except Exception:
+        independently_verified = False
+    if not independently_verified:
+        blockers.append("independent_privileged_witness_denied")
+
+    return OperatorHandoffReview(
+        kind=evidence.kind,
+        writer_host_id=authorization.writer_host_id,
+        proposed_epoch=authorization.next_writer_epoch,
+        blockers=tuple(dict.fromkeys(blockers)),
+        evidence_refs=refs,
+        reviewed_at=now.astimezone(timezone.utc),
+        may_activate_writer=False,
+    )
 
 
 def prepare_pending_state_pointer(

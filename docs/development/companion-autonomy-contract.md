@@ -342,6 +342,63 @@ epoch; copying bytes back never grants writer authority. Exact destination,
 transport/key-custody implementation and live Windows/Linux recovery drills
 remain deployment acceptance blockers rather than architecture decisions.
 
+## CA-3702: crash-only LIFE → RUN → VM/Fleet recovery
+
+Recovery follows the last durable canonical source; it never infers success
+from intent, a claimed worker response, or elapsed time. The same request ID
+may be inspected after restart, but an effect that could have started is not
+submitted again until an operator/domain-specific verifier settles it.
+
+| Crash edge | Durable state on recovery | Required behavior |
+| --- | --- | --- |
+| Before LIFE/RUN atomic admission | No linked RUN job | Nothing executed; a later policy tick may make a fresh bounded decision |
+| After admission, before RUN claim | `QUEUED`, attempt count 0 | Deadline may settle to failed/expired; LIFE pauses without claiming objective failure |
+| After RUN claim, before worker dispatch is provably cancelled | `RUNNING` | Startup recovery changes it to `UNCERTAIN`; never replay automatically |
+| During local/VM/Fleet execution | `RUNNING` or missing terminal receipt | Treat external effect as `UNCERTAIN`, fence repeated mutation and request source reconciliation |
+| Worker says success, receipt missing/malformed | No authenticated completed receipt | Artifact/result remains unverified and cannot advance a milestone or goal |
+| Receipt committed, LIFE evaluation absent | Authenticated `COMPLETED` RUN source | Reinspect immutable artifact bytes and original objectives; idempotently create one evaluation |
+| Evaluation committed, milestone/project update absent | Canonical evaluation exists | Replay only source verification and milestone CAS; do not rerun the tool |
+| FAILED/BLOCKED/CANCELLED | Original RUN event and current status agree | Record once; failed executed work blocks, other outcomes pause for review |
+| Deadline expired before claim | FAILED with `deadline_expired_before_start`, attempt 0 | Pause optional LIFE work; do not label the project technically failed |
+| Operator cancels after handler starts | Cancellation requested, execution may have begun | Persist `UNCERTAIN`; late callback cannot overwrite it |
+
+`DurableWorkStore.recover()`, `LifeStore.reconcile_run_outcomes()` and the LIFE
+terminal/evaluation reconcilers implement this order in canonical `sofia.db`.
+VM and Fleet workers remain noncanonical: only their authenticated RUN/Fleet
+receipts may settle an effect. A project, goal, model critique or artifact file
+alone is never an execution receipt.
+
+## CA-3704: operator-controlled failover and failback contract
+
+Failover and failback are the same protected promotion in opposite host
+directions. `stage_verified_state_home()` may create a fully checked inactive
+candidate; `prepare_pending_state_pointer()` may create a signed, non-active
+operator artifact. `review_operator_handoff()` then checks their binding and
+requires fresh independently witnessed facts. All three deliberately stop
+before activation.
+
+The privileged broker must prove every item below at the cutover instant:
+
+1. The encrypted backup manifest and restored bytes pass integrity checks in
+   a separate failure domain, including identity and deletion/revocation data.
+2. The prior writer and its runtime are fenced, and split brain is excluded by
+   an independent witness—not by the candidate database itself.
+3. Exactly one target lease is reserved at a monotonically greater epoch.
+4. The canonical Sofía identity continues; a host/device credential may change
+   only through its existing enrollment authority and never replaces identity.
+5. Restored principal/audience bindings, private rows, grants, revocations and
+   delivery scopes pass a post-restore privacy audit.
+6. Every RUN/Fleet effect without a conclusive receipt is reconciled or remains
+   explicitly `UNCERTAIN`; promotion does not convert it into success or retry.
+7. Owner approval, fence and witness evidence are fresh and bound to the exact
+   source host, target host, state home, operation ID and epoch.
+
+Only the external owner-controlled broker may atomically publish the active
+pointer and start the new runtime. The in-process review always reports
+`may_activate_writer = false`. Failback requires a new backup/restore review,
+new approval, a new fence and another strictly greater epoch; copying the old
+home back or observing that a host returned is never authority to resume it.
+
 ## CA-1203: context-window controls and production admission budget
 
 A real prompt-context budget spans different owners; no one component has authority to truncate canonical originals.

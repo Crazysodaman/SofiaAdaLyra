@@ -112,6 +112,9 @@ def test_life_goal_dependency_view_shows_original_prerequisites(tmp_path):
         assert row["awaiting_verification"] is False
         assert row["next_milestone_id"] is not None
         assert row["next_milestone_actionable_since"] is not None
+        assert row["next_milestone_due_at"] == row[
+            "next_milestone_actionable_since"
+        ]
         assert row["unsettled_job_ids"] == ()
         assert row["blockers"] == ()
         assert row["eligible_for_new_work"] is True

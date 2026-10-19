@@ -1973,6 +1973,19 @@ class SelfDirectedLifeCoordinator:
                         if m.milestone_id == next_milestone["milestone_id"]
                     )
                 ),
+                # CA-110's "next milestone due" is an idempotent projection,
+                # not a second scheduler deadline.  The canonical milestone
+                # updated_at is the earliest time the current source revision
+                # became due for consideration.  Consumers use the stable
+                # review_decision_key above to deduplicate it across restarts.
+                "next_milestone_due_at": (
+                    None if next_milestone is None
+                    else next(
+                        m.updated_at.isoformat()
+                        for m in milestone_rows
+                        if m.milestone_id == next_milestone["milestone_id"]
+                    )
+                ),
                 # New-work eligibility is narrower than a lack of SAFE
                 # blockers: COMPLETED but unverified work still needs
                 # verification, not another RUN creative submission.
@@ -3691,10 +3704,18 @@ class SelfDirectedLifeCoordinator:
                     "run_status": status.value,
                 },
             )
-            # Technical FAILED blocks the goal; authorization BLOCKED,
-            # cancellation and uncertain effects pause LIFE instead of
-            # claiming an objective failed or retrying the original effect.
-            if status is WorkStatus.FAILED:
+            # A RUN deadline that expired while still QUEUED proves that this
+            # admitted attempt did not start; it does not prove the project's
+            # objective failed. Other technical FAILED results block the
+            # goal. Authorization BLOCKED, cancellation, expiry and uncertain
+            # effects pause LIFE rather than retrying or manufacturing an
+            # objective result.
+            expired_unstarted = (
+                status is WorkStatus.FAILED
+                and source.reason == "deadline_expired_before_start"
+                and job.attempt_count == 0
+            )
+            if status is WorkStatus.FAILED and not expired_unstarted:
                 self.fail(
                     project.project_id, reason=explanation,
                     evidence_refs=(evidence_ref,), now=now,

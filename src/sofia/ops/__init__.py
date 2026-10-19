@@ -42,6 +42,10 @@ from .platform_install import (
     PlatformInstallCoordinator, PlatformInstallPlan, PlatformInstallReceipt,
     PlatformInstallStore, PlatformKind, RecoveryBundle,
 )
+from .state_promotion import (
+    OperatorHandoffEvidence, OperatorHandoffKind, OperatorHandoffReview,
+    PendingHomePointer, review_operator_handoff,
+)
 
 __all__ = [
     'HostLifecycle',
@@ -119,4 +123,9 @@ __all__ = [
     'PlatformInstallStore',
     'PlatformKind',
     'RecoveryBundle',
+    'OperatorHandoffEvidence',
+    'OperatorHandoffKind',
+    'OperatorHandoffReview',
+    'PendingHomePointer',
+    'review_operator_handoff',
 ]

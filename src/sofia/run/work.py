@@ -567,7 +567,31 @@ class TaskExecutionManager:
             active = self._active.get(job_id)
         if active is not None:
             active[1].set()
-            active[0].cancel()
+            # Future.cancel() is proof only when the executor had not begun
+            # the handler.  Once RUNNING work has started, a cooperative
+            # cancellation request cannot prove that an external effect did
+            # not already occur.  Persist UNCERTAIN before the callback can
+            # report a late result; _finish() is deliberately unable to
+            # overwrite that outcome.
+            cancelled_before_start = active[0].cancel()
+            status = (
+                WorkStatus.CANCELLED
+                if cancelled_before_start else WorkStatus.UNCERTAIN
+            )
+            reason = (
+                "operator_cancelled_before_worker_start"
+                if cancelled_before_start
+                else "operator_cancelled_running_effect_uncertain"
+            )
+            try:
+                return self.store.transition(
+                    job_id, expected=(job.status,), status=status,
+                    reason=reason, now=now,
+                )
+            except RuntimeError:
+                # The completion callback won the race. Its canonical RUN
+                # result is more precise than the earlier cancellation view.
+                return self.store.get(job_id)
         return self.store.transition(
             job_id, expected=(job.status,), status=WorkStatus.CANCELLED,
             reason="operator_cancelled", now=now,

@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from sofia.life.model import ProjectStatus
 from sofia.run.work import WorkStatus
+from sofia.social.principals import local_sparks_principal
 from test.test_life_project_forge import infrastructure, active_project
 
 
@@ -71,6 +72,32 @@ def test_observation_replays_neither_failed_job_nor_its_execution(tmp_path):
         assert life.store.jobs(project.project_id) == (job.job_id,)
         assert len(life.store.run_outcome_observations(project.project_id)) == 1
         assert life.store.reconcile_run_outcomes(now=now + timedelta(seconds=6)) == ()
+    finally:
+        life.close()
+
+
+def test_expired_unstarted_run_pauses_without_claiming_project_failure(tmp_path):
+    """A missed admission window is distinct from failed executed work."""
+    from sofia.goals.model import GoalStatus
+
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, job = _queued_job(life, now)
+        expired_at = job.deadline + timedelta(seconds=1)
+        assert life.work_store.expire_unstarted(now=expired_at) == 1
+        result = life.tick(now=expired_at + timedelta(seconds=1), busy=True)
+        assert result["run_outcomes_observed"] == 1
+        assert result["terminal_run_projects_settled"] == 1
+        assert life.work_store.get(job.job_id).status is WorkStatus.FAILED
+        settled = life._project(project.project_id)
+        assert settled.status is ProjectStatus.PAUSED
+        goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        )
+        assert goal.status is GoalStatus.PAUSED
+        assert life.store.jobs(project.project_id) == (job.job_id,)
+        assert life.store.artifacts(project.project_id) == ()
     finally:
         life.close()
 

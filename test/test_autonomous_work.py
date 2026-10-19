@@ -116,6 +116,33 @@ def test_cancellation_timeout_overload_and_restart_are_deterministic(tmp_path):
     assert DurableWorkStore(path).get(queued.job_id).status is WorkStatus.QUEUED
 
 
+def test_operator_cancel_of_running_effect_is_uncertain_not_cancelled(tmp_path):
+    """A cancellation signal cannot prove an already-started effect did not run."""
+    store = DurableWorkStore(state(tmp_path))
+    entered = Event()
+
+    def consequential(job, cancel):
+        entered.set()
+        cancel.wait(timeout=10)
+        return WorkResult(
+            WorkStatus.COMPLETED, {"effect": "may_have_happened"},
+            "handler observed cancellation only after starting",
+        )
+
+    manager = TaskExecutionManager(
+        store, {"write": consequential}, max_workers=1,
+    )
+    job = enqueue(manager, "running-cancel-is-uncertain", kind="write")
+    assert manager.tick(now=NOW) == 1
+    assert entered.wait(timeout=10)
+    cancelled = manager.cancel(job.job_id, now=NOW + timedelta(seconds=1))
+    assert cancelled.status is WorkStatus.UNCERTAIN
+    assert cancelled.reason == "operator_cancelled_running_effect_uncertain"
+    manager.close(wait=True)
+    # A late worker completion cannot erase the conservative result.
+    assert store.get(job.job_id).status is WorkStatus.UNCERTAIN
+
+
 def test_plan_dependencies_keep_later_steps_from_running_early(tmp_path):
     store = DurableWorkStore(state(tmp_path))
     order = []
