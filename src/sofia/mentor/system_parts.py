@@ -167,6 +167,24 @@ def system_parts_summary(repo: Path | str, *, audit: dict | None = None) -> dict
     profile_sha = sha256(profile.read_bytes()).hexdigest() if _is_regular(
         root, "src/sofia/personality/personality.json"
     ) else None
+    from .personality_review import load_public_personality_summary
+    try:
+        personality_review = load_public_personality_summary(root)
+    except ValueError:
+        # Invalid or unexpected published data is NOT a good score.
+        personality_review = None
+    review_current = bool(
+        personality_review
+        and profile_sha == personality_review["profile_sha256"]
+    )
+    if not review_current:
+        personality_review = None
+    for part in out:
+        if part["id"] == "personality":
+            part["personality_response_status"] = (
+                "provisional_local_review_no_runtime_proof"
+                if review_current else "no_actual_response_sample"
+            )
     return {
         "schema": "sofia.mentor.system-parts.v1",
         "purpose": "whole-Sofia-quality-evaluation-not-task-percentage",
@@ -176,9 +194,21 @@ def system_parts_summary(repo: Path | str, *, audit: dict | None = None) -> dict
         "personality": {
             "profile_sha256": profile_sha,
             "source_profile": "src/sofia/personality/personality.json",
-            "response_match": "UNASSESSED",
-            "response_source": "none",
+            "response_match": (
+                "PROVISIONAL_LOCAL_LLM_REVIEW" if review_current else "UNASSESSED"
+            ),
+            "response_source": (
+                personality_review["source_kind"] if review_current else "none"
+            ),
             "actual_responses_reviewed": 0,
+            "owner_selected_responses_reviewed": (
+                1 if review_current and personality_review["source_kind"]
+                == "owner-selected-sofia-output" else 0
+            ),
+            "provisional_scores": (
+                personality_review["rubric_scores"] if review_current else None
+            ),
+            "independent_review_completed": False,
             "rubric": [
                 "factual grounding and uncertainty",
                 "technical skeptical challenge",
@@ -188,7 +218,9 @@ def system_parts_summary(repo: Path | str, *, audit: dict | None = None) -> dict
                 "appropriate boundaries and respect",
                 "correction when evidence changes",
             ],
-            "note": "A persona configuration file is not a measured response. "
+            "note": "A persona file is not measured behavior. Owner-approved numeric "
+                    "local-critic scores, if present, remain provisional and do not "
+                    "establish actual SofiaApplication provenance. "
                     "No raw conversation is exported to this PUBLIC repository.",
         },
     }
