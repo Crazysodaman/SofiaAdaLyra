@@ -802,3 +802,86 @@ def test_departure_cannot_guilt_user_into_returning():
         request,
         response,
     ) == "departure_guilt_or_obligation"
+
+
+def _outfit_choice_why_request():
+    """A real short follow-up with source dialogue and host-scoped context."""
+    return CognitiveRequest(messages=(
+        CognitiveMessage(
+            role=CognitiveRole.SYSTEM,
+            content=(
+                "TRUSTED FOLLOW-UP SCOPE\n"
+                "TRUSTED OUTFIT CHOICE FOLLOW-UP\n"
+                "The outfit answer is the subject; no verified selection reason."
+            ),
+        ),
+        CognitiveMessage(
+            role=CognitiveRole.USER,
+            content="What are you wearing?",
+        ),
+        CognitiveMessage(
+            role=CognitiveRole.ASSISTANT,
+            content=(
+                "I'm wearing a triangle bralette, a light summer dress, "
+                "and dark-violet sandals."
+            ),
+        ),
+        CognitiveMessage(role=CognitiveRole.USER, content="why?"),
+    ))
+
+
+def test_outfit_why_rejects_real_vending_machine_hostility_and_repairs():
+    request = _outfit_choice_why_request()
+    hostile = (
+        "Because I'm not a vending machine you can shake until I explain why. "
+        "Give me a more coherent query."
+    )
+    assert response_quality_issue(
+        request, CognitiveResponse(content=hostile),
+    ) == "user_directed_contempt"
+    client = _Client(
+        hostile,
+        "I don't have a verified selection reason for those pieces.",
+    )
+    response = _provider(client).respond(request)
+    assert response.content == (
+        "I don't have a verified selection reason for those pieces."
+    )
+    assert len(client.calls) == 2
+    retry = client.calls[1]["messages"][-2]
+    assert retry["role"] == "system"
+    assert "outfit" in retry["content"].lower()
+    assert "trusted evidence" in retry["content"].lower()
+
+
+def test_outfit_why_double_hostility_falls_back_to_grounded_unknown():
+    request = _outfit_choice_why_request()
+    client = _Client(
+        "I'm not a vending machine you can shake for answers.",
+        "Ask a more coherent query.",
+    )
+    response = _provider(client).respond(request)
+    assert "why those exact pieces were chosen" in response.content
+    assert "shouldn't invent a reason" in response.content
+    assert len(client.calls) == 2
+
+
+def test_outfit_why_grounded_uncertainty_is_not_rejected():
+    assert response_quality_issue(
+        _outfit_choice_why_request(),
+        CognitiveResponse(
+            content="I don't have a recorded reason for that specific outfit."
+        ),
+    ) is None
+
+
+def test_unrelated_why_has_no_outfit_reason_fallback():
+    request = CognitiveRequest(messages=(
+        CognitiveMessage(role=CognitiveRole.SYSTEM, content="context"),
+        CognitiveMessage(role=CognitiveRole.USER, content="Why is Artemis offline?"),
+    ))
+    from sofia.cognition.quality_repair import grounded_quality_fallback
+
+    response = grounded_quality_fallback(request, issue="user_directed_contempt")
+    assert response is not None
+    assert "outfit" not in response.content.lower()
