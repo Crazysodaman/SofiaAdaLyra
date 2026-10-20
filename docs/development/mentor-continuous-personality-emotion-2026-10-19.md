@@ -117,3 +117,32 @@ Normal live acceptance, with permission from conversation participants:
 5. Read the local history from the **same service account** (or through authorized administration) and confirm at least one `reviewed_turns` count; do not copy private runtime paths/IDs into public Git.
 
 This diagnostic feature does not read the running service's memory, send screenshots, change production settings, or discover private transcripts.
+
+## Local Qwen rubric-format error: schema fix and service identity (2026-10-19)
+
+The owner confirmed that Sofía's Windows service `SofiaAdaLyra` is **Running as LocalSystem**, while a separate interactive PowerShell session returned:
+
+```text
+python -m sofia.mentor behavior-smoke --repo . --mentor-model qwen3:14b --confirm-idle
+MENTOR request refused: invalid local review rubric: ValueError
+```
+
+These are **two separate diagnostic issues**. The synthetic smoke request reached the local Ollama reviewer and obtained content that failed strict rubric validation; no claim can be made about the actual invalid field from the original generic error. The service account's environment and score directory are separate from the interactive shell. The successful `ollama list` command proves model installation, not that the Windows service enables MENTOR.
+
+### Corrective change
+
+The reviewer now sends Ollama a **complete compact JSON schema** in `/api/chat.format`, requesting exactly seven personality and seven emotional-expression dimensions as 0–4 integers (voice/avatar output coherence is `null` without real delivery receipts), plus bounded strengths/concerns/uncertainty. This replaces bare `format:"json"` plus fourteen separate paragraph rationales. The model is asked for a brief direct response, with deterministic sampling, no tools, `think:false` and `keep_alive:0`.
+
+A local result is still strictly validated and rejected on missing or malformed fields. Errors identify a safe fixed category, e.g. `invalid_json`, `rubric_dimensions`, `score_type`, `generation_limit`, `empty_answer` or `unexpected_message_or_tools`. Neither model output nor secrets are printed on failure. This **cannot guarantee** that all Ollama or Qwen versions will produce a complete response; only a real owner-side smoke test can establish compatibility.
+
+```powershell
+git pull --ff-only
+ollama --version
+python -m sofia.mentor behavior-smoke --repo . --mentor-model qwen3:14b --confirm-idle
+```
+
+Run only when Venus is idle. A successful smoke-test output remains labeled `runtime_turn_tested:false` and does not increment `behavior-status`.
+
+If the smoke passes and `total_local_reviews` stays zero, next verify the **actual LocalSystem service** opt-in, active-release version and score-file account with authorized, read-only service diagnostics; the command-line PowerShell environment alone cannot confirm or configure them. Do not restart or reinstall a production service solely to debug this schema. No new Sofia instance, separate canonical writer, public raw transcript, or API key is involved.
+
+Ollama documents JSON Schema objects in `/api/chat.format`: [Structured outputs](https://ollama.com/blog/structured-outputs).
