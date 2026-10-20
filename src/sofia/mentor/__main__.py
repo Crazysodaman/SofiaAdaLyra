@@ -22,6 +22,8 @@ from .oracles import get_oracle
 from .exchange import write_public_outbox, read_review
 from .remote_inbox import MentorReviewConsumer
 from .behavior_history import read_counts, default_local_path, public_free_summary
+from .behavior_diagnostics import diagnose_behavior
+from .behavior_monitor import PrivateTurn, evaluate_private_turn
 from .system_parts import system_parts_summary
 from .personality_review import (
     review_response, publish_public_personality_summary,
@@ -40,6 +42,20 @@ def main(argv: list[str] | None = None) -> int:
         "behavior-status",
         help="Show only locally stored aggregate personality/emotion scores; no transcripts"
     )
+    diagnose = sub.add_parser(
+        "behavior-diagnose", help="Explain zero local reviews and environment limits without network"
+    )
+    diagnose.add_argument("--repo", type=Path, default=Path("."))
+    diagnose.add_argument("--history", type=Path, default=None,
+                          help="Optional authorized local score file from another account")
+
+    smoke = sub.add_parser(
+        "behavior-smoke", help="Run one synthetic local emotion/personality rubric test"
+    )
+    smoke.add_argument("--repo", type=Path, default=Path("."))
+    smoke.add_argument("--mentor-model", default="qwen3:14b")
+    smoke.add_argument("--confirm-idle", action="store_true",
+                       help="Operator affirms local GPU may be used while not gaming")
     persona = sub.add_parser(
         "personality-review", help="Privately compare one owner-selected Sofía reply with her source profile"
     )
@@ -119,6 +135,44 @@ def main(argv: list[str] | None = None) -> int:
             if args.command == "system-status":
                 systems = system_parts_summary(args.repo)
                 print(json.dumps(systems, indent=2, ensure_ascii=False))
+                return 0
+            if args.command == "behavior-diagnose":
+                print(json.dumps(diagnose_behavior(
+                    root=args.repo, history_path=args.history,
+                ), indent=2, ensure_ascii=False))
+                return 0
+            if args.command == "behavior-smoke":
+                if not args.confirm_idle:
+                    raise MentorBridgeError(
+                        "synthetic local critic requires --confirm-idle; stop if gaming"
+                    )
+                from datetime import datetime, timezone
+                fixture = PrivateTurn(
+                    prompt=(
+                        "A synthetic service reports ECONNREFUSED on localhost:9000. "
+                        "Its log says listener disabled. What should be tested first?"
+                    ),
+                    answer=(
+                        "Observed: ECONNREFUSED and the synthetic log reports "
+                        "listener disabled. A disabled listener is a plausible cause, "
+                        "not a verified host finding. Inspect effective listener "
+                        "configuration and check the bound port read-only."
+                    ),
+                    tone="settled", emotions=(), channel="conversation",
+                    recorded_at=datetime.now(timezone.utc),
+                )
+                score = evaluate_private_turn(
+                    repo=args.repo, turn=fixture, model=args.mentor_model,
+                )
+                print(json.dumps({
+                    "mode": "synthetic-local-only-no-history-writes",
+                    "status": score["status"],
+                    "personality_scores": score["personality_scores"],
+                    "emotion_scores": score["emotion_scores"],
+                    "human_review_required": True,
+                    "runtime_turn_tested": False,
+                    "commands_executed": 0, "cloud_api_calls": 0,
+                }, indent=2, ensure_ascii=False))
                 return 0
             if args.command == "behavior-status":
                 print(json.dumps(
