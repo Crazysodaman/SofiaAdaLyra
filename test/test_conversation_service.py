@@ -1433,6 +1433,15 @@ def test_outfit_why_scope_uses_only_the_eligible_immediate_exchange():
     assert _is_outfit_choice_followup(
         (*outfit[:-1], msg(ConversationRole.USER, "So why though?"))
     )
+    assert _is_outfit_choice_followup((
+        msg(ConversationRole.USER, "I mean why you choose your outfit?"),
+    ))
+    assert _is_outfit_choice_followup((
+        msg(ConversationRole.USER, "Why did you choose the summer dress?"),
+    ))
+    assert not _is_outfit_choice_followup((
+        msg(ConversationRole.USER, "Why did you choose the Artemis VM?"),
+    ))
 
     # Domain filtering may exclude the prior assistant. The helper must not
     # reach back into an unfiltered/private lifetime transcript to compensate.
@@ -1503,5 +1512,21 @@ def test_outfit_why_scope_reaches_real_provider_request_without_cross_domain_lea
     assert not any(
         message.role.value == "assistant" and message.content == "Wearing a dress and sandals."
         for message in excluded.messages
+    )
+    # An explicit later clarification still has its own referent even if
+    # the prior assistant was unhelpful and the last-turn scope has expired.
+    service._conversation_store.save(ConversationMessage(
+        id="outfit-u3",
+        session_id=service.session_id,
+        role=ConversationRole.USER,
+        content="I mean why you choose your outfit?",
+        created_at=when + timedelta(seconds=3),
+    ))
+    service._current_context_plan = None
+    explicit_request = service._build_request()
+    assert any(
+        message.role.value == "system"
+        and "TRUSTED OUTFIT CHOICE FOLLOW-UP" in message.content
+        for message in explicit_request.messages
     )
     application.shutdown()
