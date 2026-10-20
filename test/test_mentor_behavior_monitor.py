@@ -139,6 +139,26 @@ class BehaviorMonitorTests(TestCase):
         self.assertIsNone(headers.get("Authorization"))
         self.assertIn("curiosity", payload["messages"][1]["content"])
 
+    def test_critic_cannot_certify_unobserved_voice_avatar_delivery(self):
+        def sender(url, payload, headers, timeout):
+            # Even a confident 4/4 from Qwen is not physical output proof.
+            sample = fake_assessment()
+            sample["emotion"]["expression_coherence"]["score"] = 4
+            sample["emotion"]["expression_coherence"]["reason"] = (
+                "I assume the avatar rendered perfectly."
+            )
+            return {"model": payload["model"], "done": True,
+                    "message": {"content": json.dumps(sample)}}
+        turn = PrivateTurn(
+            prompt="Are you there?", answer="Yes, what needs investigating?",
+            tone="settled", emotions=(), channel="conversation", recorded_at=NOW,
+        )
+        result = evaluate_private_turn(
+            repo=self.root, turn=turn, model="qwen3:14b", sender=sender,
+        )
+        self.assertIsNone(result["emotion_scores"]["expression_coherence"])
+        self.assertFalse(result["voice_or_avatar_output_verified"])
+
     def test_invalid_or_incomplete_critique_never_passes(self):
         x = fake_assessment()
         x["emotion"]["natural_not_performative"]["score"] = 9
