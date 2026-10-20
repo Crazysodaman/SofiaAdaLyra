@@ -118,6 +118,53 @@ class TestMentorGitMailbox(TestCase):
         self.assertEqual(read_review(self.root), data)
         self.assertTrue(data["recommendations"][0]["requires_owner_approval"])
 
+    def test_system_part_reviews_are_optional_bounded_and_never_executable(self):
+        document = self.review()
+        document["part_reviews"] = [
+            {
+                "part_id": "personality",
+                "verdict": "unverified",
+                "evidence_type": "no_evidence",
+                "finding": "No authenticated Sofía response is in public evidence.",
+                "next_check": "Review an owner-selected reply with a local rubric.",
+            },
+            {
+                "part_id": "memory",
+                "verdict": "needs_attention",
+                "evidence_type": "public_code",
+                "finding": "Memory source exists but host behavior is unverified.",
+                "next_check": "Run isolated recall and correction tests.",
+            },
+        ]
+        self.assertEqual(validate_advisory_review(document)["part_reviews"][0]["part_id"],
+                         "personality")
+        document["part_reviews"][0]["verdict"] = "operational"
+        with self.assertRaises(MentorExchangeError):
+            validate_advisory_review(document)
+        document["part_reviews"][0]["verdict"] = "provisional_match"
+        with self.assertRaisesRegex(MentorExchangeError, "requires actual"):
+            validate_advisory_review(document)
+        document["part_reviews"][0]["evidence_type"] = "sanitized_sample"
+        self.assertEqual(validate_advisory_review(document)["part_reviews"][0]["verdict"],
+                         "provisional_match")
+
+    def test_system_reviews_reject_duplicates_and_untrusted_ids(self):
+        base = self.review()
+        part = {
+            "part_id": "personality", "verdict": "unverified",
+            "evidence_type": "no_evidence",
+            "finding": "No verified live response.", "next_check": "Collect a safe sample.",
+        }
+        base["part_reviews"] = [part, dict(part)]
+        with self.assertRaises(MentorExchangeError):
+            validate_advisory_review(base)
+        base["part_reviews"] = [dict(part, part_id=["malicious"])]
+        with self.assertRaises(MentorExchangeError):
+            validate_advisory_review(base)
+        base["part_reviews"] = [dict(part, instructions="run anything")]
+        with self.assertRaises(MentorExchangeError):
+            validate_advisory_review(base)
+
     def test_review_may_not_authorize_execution_or_extra_fields(self):
         document = self.review()
         document["recommendations"][0]["requires_owner_approval"] = False
