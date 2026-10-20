@@ -42,16 +42,84 @@ class MentorServiceSettings:
         }
 
 
+def _reject_service_network_path(path: Path) -> None:
+    """LocalSystem cannot safely rely on a user's UNC/mapped network drive.
+
+    Network shares are not an appropriate trust boundary for the canonical
+    Windows service. Never auto-copy, remap drives or store credentials.
+    """
+    raw = str(path)
+    if raw.startswith("\\\\") or raw.startswith("//"):
+        raise MentorServiceSettingsError(
+            "service source root must be a locally installed checkout, not a UNC "
+            "network share (LocalSystem cannot rely on interactive share access)"
+        )
+    # Windows drive mappings can look like ordinary drive letters. Reject
+    # remote drives using the read-only Windows volume classification.
+    if sys.platform == "win32":
+        drive = path.drive
+        if drive and len(drive) == 2 and drive[1] == ":":
+            import ctypes
+            drive_kind = ctypes.windll.kernel32.GetDriveTypeW(drive + "\\\\")
+            if drive_kind == 4:
+                raise MentorServiceSettingsError(
+                    "service source root is a mapped network drive; "
+                    "use a locally deployed, version-verified checkout"
+                )
+            if drive_kind in (0, 1):
+                raise MentorServiceSettingsError(
+                    "service source root is on an unrecognized volume"
+                )
+
+
+def _read_registry_option(
+    service: str, option: str, default: str,
+    *, registry=None,
+) -> str:
+    """Only KEY_QUERY_VALUE. Unlike pywin32's helper, never RegCreateKey."""
+    if registry is None:
+        if sys.platform != "win32":
+            raise MentorServiceSettingsError("Windows service registry unavailable")
+        import winreg
+        registry = winreg
+    if service != SERVICE or option not in (FLAG_OPTION, ROOT_OPTION):
+        raise MentorServiceSettingsError("unrecognized MENTOR registry option")
+    key_path = (
+        "SYSTEM\\\\CurrentControlSet\\\\Services\\\\" + SERVICE + "\\\\Parameters"
+    )
+    try:
+        with registry.OpenKey(
+            registry.HKEY_LOCAL_MACHINE, key_path, 0, registry.KEY_QUERY_VALUE,
+        ) as handle:
+            value, value_type = registry.QueryValueEx(handle, option)
+    except FileNotFoundError:
+        return default
+    except PermissionError:
+        raise MentorServiceSettingsError(
+            "reading the MENTOR service registry settings was denied; "
+            "status has not changed any service configuration"
+        ) from None
+    except OSError:
+        raise MentorServiceSettingsError(
+            "could not read the service's MENTOR registry settings"
+        ) from None
+    if not isinstance(value, str):
+        raise MentorServiceSettingsError("invalid MENTOR registry value type")
+    return value
+
+
 def validate_root(value: str | Path) -> Path:
-    """Check the requested checkout is real; never create directories."""
+    """Check the requested checkout is truly local; never create directories."""
     if not isinstance(value, (str, Path)) or not str(value).strip():
         raise MentorServiceSettingsError("a local checkout path is required")
     if isinstance(value, str) and ("\n" in value or "\r" in value or "\0" in value):
         raise MentorServiceSettingsError("unsafe checkout path")
     target = Path(value).expanduser()
+    _reject_service_network_path(target)
     if target.is_symlink() or not target.is_dir():
         raise MentorServiceSettingsError("source root missing or redirected")
     target = target.resolve(strict=True)
+    _reject_service_network_path(target)
     profile = target / PROFILE
     if profile.is_symlink() or not profile.is_file():
         raise MentorServiceSettingsError("source root lacks Sofía personality profile")
@@ -82,8 +150,7 @@ def load_custom_service_settings(
     if getter is None:
         if sys.platform != "win32":
             raise MentorServiceSettingsError("Windows SCM configuration unavailable")
-        import win32serviceutil
-        getter = win32serviceutil.GetServiceCustomOption
+        getter = _read_registry_option
     enabled = getter(SERVICE, FLAG_OPTION, "")
     root = getter(SERVICE, ROOT_OPTION, "")
     return decode_options(enabled, root)
