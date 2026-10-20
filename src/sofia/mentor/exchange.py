@@ -99,7 +99,7 @@ def write_public_outbox(repo: Path | str, output: Path | str = OUTBOX) -> dict:
     target = root / relative
     # Avoid redirects/symlinks and overwriting directories, including parents.
     for component in (root / relative.parent, target):
-        if component.is_symlink():
+        if component.is_symlink() or root not in component.parent.resolve().parents and component.parent.resolve() != root:
             raise MentorExchangeError("public outbox must not be a symlink")
     if target.exists() and not target.is_file():
         raise MentorExchangeError("outbox destination is not a regular file")
