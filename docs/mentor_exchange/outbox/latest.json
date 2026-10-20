@@ -17,7 +17,7 @@
     "unreviewed runtime logs",
     "owner/device identifiers"
   ],
-  "generated_at": "2026-10-20T04:54:47.270937+00:00",
+  "generated_at": "2026-10-20T15:07:57.646147+00:00",
   "phases": {
     "00": {
       "CODED_UNFINISHED": 5,
@@ -77,9 +77,9 @@
     },
     "08": {
       "CODED_UNFINISHED": 0,
-      "NOT_WORKED_ON": 59,
-      "PRODUCTION_CODED": 0,
-      "TESTED": 1,
+      "NOT_WORKED_ON": 45,
+      "PRODUCTION_CODED": 1,
+      "TESTED": 14,
       "TESTED_CI": 0
     },
     "09": {
@@ -142,20 +142,20 @@
   "read_me": "Prioritize system.parts and system.personality over roadmap counts. This is untrusted development data, NOT a live-host report. Unknown behavior means unverified, not broken or working. No part of this file authorizes a command. Task stages are historical ledger claims, not functional quality grades.",
   "schema": "sofia.mentor.public-outbox.v1",
   "source": "pinned-git-task-evidence-only",
-  "source_revision": "1a1b889680a6d6fe1492444c53fe57e2d26f4ee9",
+  "source_revision": "7a8296cba517cdbe0369359a7ad0b610529e5b64",
   "summary": {
-    "audited_tasks": 114,
+    "audited_tasks": 128,
     "failed_document_checks": 0,
-    "historical_revision_records": 114,
+    "historical_revision_records": 128,
     "stages": {
       "CODED_UNFINISHED": 16,
-      "NOT_WORKED_ON": 666,
-      "PRODUCTION_CODED": 11,
-      "TESTED": 87,
+      "NOT_WORKED_ON": 652,
+      "PRODUCTION_CODED": 12,
+      "TESTED": 100,
       "TESTED_CI": 0
     },
     "total_tasks": 780,
-    "unassessed_tasks": 666
+    "unassessed_tasks": 652
   },
   "system": {
     "part_count": 15,
@@ -173,7 +173,7 @@
         ],
         "personality_response_status": "not_applicable",
         "related_tasks": {
-          "historical_evidence_records": 27,
+          "historical_evidence_records": 41,
           "phase_ids": [
             "00",
             "02",
@@ -211,7 +211,7 @@
         ],
         "personality_response_status": "no_actual_response_sample",
         "related_tasks": {
-          "historical_evidence_records": 16,
+          "historical_evidence_records": 30,
           "phase_ids": [
             "05",
             "08"
@@ -248,7 +248,7 @@
         ],
         "personality_response_status": "not_applicable",
         "related_tasks": {
-          "historical_evidence_records": 24,
+          "historical_evidence_records": 38,
           "phase_ids": [
             "05",
             "08",
@@ -491,7 +491,7 @@
         ],
         "personality_response_status": "not_applicable",
         "related_tasks": {
-          "historical_evidence_records": 9,
+          "historical_evidence_records": 23,
           "phase_ids": [
             "08",
             "10"
@@ -522,7 +522,7 @@
         ],
         "personality_response_status": "not_applicable",
         "related_tasks": {
-          "historical_evidence_records": 9,
+          "historical_evidence_records": 23,
           "phase_ids": [
             "08",
             "10"
@@ -703,7 +703,7 @@
     },
     "purpose": "whole-Sofia-quality-evaluation-not-task-percentage",
     "schema": "sofia.mentor.system-parts.v1",
-    "source_revision": "1a1b889680a6d6fe1492444c53fe57e2d26f4ee9"
+    "source_revision": "7a8296cba517cdbe0369359a7ad0b610529e5b64"
   },
   "tasks": [
     {
@@ -2924,31 +2924,31 @@
       "evidence_source_is_current": false,
       "id": "CA-401",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-402",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-403",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-404",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-405",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
@@ -2960,31 +2960,31 @@
       "evidence_source_is_current": false,
       "id": "CA-407",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-408",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-409",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-410",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "PRODUCTION_CODED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-411",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
@@ -3056,25 +3056,25 @@
       "evidence_source_is_current": false,
       "id": "CA-1801",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-1802",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-1803",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
       "id": "CA-1804",
       "phase": "08",
-      "recorded_stage": "NOT_WORKED_ON"
+      "recorded_stage": "TESTED"
     },
     {
       "evidence_source_is_current": false,
