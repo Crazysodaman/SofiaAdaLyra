@@ -26,12 +26,37 @@ No new memory owner, identity, permissions or wardrobe-selection state is introd
 - `test/test_conversation_service.py`: source-scoped one-word follow-up detection; negative unrelated-topic cases; production `_build_request` carries relevant context while excluded domains stay excluded; explicit post-deflection clarification.
 - `.github/workflows/v18-conversation-quality-regression.yml`: Python 3.12 cross-platform compilation and focused personality/conversation/provider regression on Windows and Ubuntu, pinned to the push commit.
 
+## Owner Windows focused regression (2026-10-20)
+
+The owner reported the following run from a `.venv` PowerShell session on
+Venus (Windows) after the source changes:
+
+```powershell
+python -m pytest -q `
+  test/test_conversation_service.py `
+  test/test_response_quality_hardening.py `
+  test/test_short_contact_channel_quality.py `
+  test/test_cognition_v2_turn_kernel.py
+```
+
+**Owner-reported result: 129 passed, 0 failed, in 1469.16 seconds
+(approximately 24 minutes 29 seconds).** This is useful local focused
+regression evidence. The owner's local `git rev-parse HEAD`, Python version,
+and pytest version were not supplied with this output; do not silently attach
+the run to a guessed SHA. This is not CI and not a live Ollama dialogue trial.
+
+The first cross-platform quality workflow had `timeout-minutes: 20`, shorter
+than the observed Windows subset runtime. Its successor increases the cap
+to 45 minutes and adds pytest `--durations=15` diagnostics; this only avoids
+a predictable premature timeout and does not diagnose the slowness. Treat the
+performance question as open.
+
 ## Evidence limits and remaining acceptance
 
-These are source code and authored test evidence. **No local pytest or GitHub Actions result has been observed in this session.** The CI workflow exists but its success is NOT asserted. No independent live Venus/Ollama answer-quality trial has been executed.
+These are source code, authored tests, and the owner-reported local Windows pass above. **No matching-commit GitHub Actions result or live Ollama conversation trial has been observed.** The CI workflow exists but its success is NOT asserted. No independent live Venus/Ollama answer-quality trial has been executed.
 
 Needed before Level 4:
-1. Pass focused regressions against the exact updated commit, including the negative privacy/domain cases.
+1. Pin the owner-passed focused regression to its actual local Git SHA and record environment details. Re-run any changed production paths if later code edits affect behavior.
 2. Run a live Venus conversation with the configured primary and secondary Ollama routes: "what are you wearing?" → "why?" → "I mean why you choose your outfit?". Check relevance, natural language, truthful selection reason/unknown, and absence of user-directed contempt.
 3. Check ordinary "why?" after a technical answer and unrelated metaphors for false positives.
 4. Record actual outputs/commit/time and audit privacy, authority, memory and wardrobe state.
