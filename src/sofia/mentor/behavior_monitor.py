@@ -288,3 +288,40 @@ class BehaviorMonitor:
                 "human_validation_completed": False,
                 "actions_executed": 0,
             }
+
+
+def register_behavior_monitor(*, application, coordinator,
+                              activity_store, host_id: str,
+                              repo: Path | str = ".",
+                              monitor: BehaviorMonitor | None = None) -> bool:
+    """Wire passive observation and idle-only local review to ONE app scheduler."""
+    if not behavior_monitor_enabled():
+        return False
+    if not isinstance(host_id, str) or not host_id.strip():
+        raise ValueError("app host ID is required")
+    if not callable(getattr(coordinator, "set_task", None)):
+        raise ValueError("the existing canonical background coordinator is required")
+    service = getattr(application, "_conversation_service", None)
+    if service is None or not callable(getattr(service, "ready_for_idle_reflection", None)):
+        raise ValueError("canonical emotional conversation service required")
+    reviewer = BehaviorMonitor(repo=repo) if monitor is None else monitor
+    if not isinstance(reviewer, BehaviorMonitor):
+        raise TypeError("MENTOR must use a bounded BehaviorMonitor")
+    application._mentor_behavior_monitor = reviewer
+    service._mentor_behavior_monitor = reviewer
+
+    def ready() -> bool:
+        # Busy/unknown/gaming hosts never run background local inference.
+        mode = activity_store.state(host_id).effective
+        value = getattr(mode, "value", mode)
+        if value not in ("idle", "normal"):
+            return False
+        return bool(service.ready_for_idle_reflection(idle_seconds=300.0))
+
+    def review(now):
+        return reviewer.review_next(now=now)
+
+    coordinator.set_task(
+        "mentor_behavior_review", review, interval_seconds=300.0, ready=ready
+    )
+    return True
