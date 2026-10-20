@@ -899,12 +899,9 @@ def test_explicit_outfit_why_after_deflection_uses_grounded_fallback():
         ),
     ))
     client = _Client(
-        "You can shake the vending machine all you like, not answering.",
+        "I'm not a vending machine you can shake for answers.",
         "Ask a more coherent query.",
     )
-    # The first candidate is not a known contempt pattern, so use the exact
-    # production failure phrase to ensure the retry is actually exercised.
-    client.outputs[0] = "I'm not a vending machine you can shake for answers."
     response = _provider(client).respond(request)
     assert "why those exact pieces were chosen" in response.content
     assert len(client.calls) == 2
