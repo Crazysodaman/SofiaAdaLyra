@@ -5,9 +5,11 @@ on:
     paths:
       - 'src/sofia/application/conversation_service.py'
       - 'src/sofia/cognition/repetition_guard.py'
+      - 'src/sofia/avatar/self_fact_query.py'
       - 'src/sofia/cognition/quality_repair.py'
       - 'src/sofia/cognition/providers/ollama_provider.py'
       - 'test/test_conversation_service.py'
+      - 'test/test_avatar_self_fact_query.py'
       - 'test/test_response_quality_hardening.py'
       - 'test/test_short_contact_channel_quality.py'
       - 'test/test_cognition_v2_turn_kernel.py'
@@ -43,11 +45,13 @@ jobs:
           python -m compileall -q
           src/sofia/application/conversation_service.py
           src/sofia/cognition/repetition_guard.py
+          src/sofia/avatar/self_fact_query.py
           src/sofia/cognition/quality_repair.py
       - name: Run focused conversation and provider regression
         run: >-
           python -m pytest -q --durations=15
           test/test_conversation_service.py
+          test/test_avatar_self_fact_query.py
           test/test_response_quality_hardening.py
           test/test_short_contact_channel_quality.py
           test/test_cognition_v2_turn_kernel.py
