@@ -10,10 +10,10 @@ PERSONA="docs/development/v18-phase08-personality-status-evidence.json"
 IDS=re.compile(r"^(?:CA-\d+|ML-\d{3}|GA-\d{3})$")
 LABELS=re.compile(r"\b(?:CA-\d+|ML-\d{3}|GA-\d{3})\b")
 WORD=re.compile(r"[a-z][a-z0-9]{3,}")
-STOP=set("""against already architecture audit based before build change code complete
+STOP=set("""actual against already another appropriate architecture audit based before build change code complete
 current data design each ensure evidence existing failed failure from given have
 into model models must never only original owner phase production project
-projects record records required requirement requirements review reviewed
+projects record records required requirement requirements review reviewed relevant instead
 source sources state support system task tasks test tests their these through
 unknown using verified verify where while with without would""".split())
 REVIEWED=set("""CA-1101 CA-1102 CA-1701 CA-1702 CA-1703 CA-1704 CA-1705
@@ -90,10 +90,12 @@ def evaluate(task,entries,inverted,callers,test_calls):
     ranked=[]
     for i,n in pool.items():
         e=entries[i]
-        if e["test"]:continue
+        if e["test"] or e["name"] in ("__init__", "__post_init__", "_connect", "open", "close", "get", "set", "status", "report", "run", "main"):continue
         hit=query&e["body"];specific=query&e["namewords"];docs=query&e["doc"]
         exact=task["id"] in e["mentions"]
-        if len(hit)<2 and not exact:continue
+        # A long function body sharing incidental words is not a meaningful code trace.
+        # Require a task annotation OR semantically related symbol/docstring words.
+        if not exact and (len(hit)<3 or (len(specific)<1 and len(docs)<2)):continue
         score=sum(1+math.log1p(500/(len(inverted.get(w,()))+1)) for w in hit&set(known))+3*len(specific)+2*len(docs)+15*exact
         if score>7:ranked.append((score,i))
     ranked.sort(reverse=True)
@@ -103,8 +105,8 @@ def evaluate(task,entries,inverted,callers,test_calls):
         if e["path"] in seen and len(symbols)>0:continue
         seen.add(e["path"])
         refs=callers.get(e["name"],[])
-        refs=[{"path":p,"line":ln} for p,ln in refs if p!=e["path"]][:3] if len(refs)<150 else []
-        ass=[{"path":p,"line":ln,"test":name} for p,ln,name in test_calls.get(e["name"],[])][:3]
+        refs=[{"path":p,"line":ln} for p,ln in refs if p!=e["path"]][:3] if len(refs)<15 else []
+        ass=[{"path":p,"line":ln,"test":name} for p,ln,name in test_calls.get(e["name"],[])][:3] if len(test_calls.get(e["name"],[]))<25 else []
         symbols.append({"path":e["path"],"line":e["line"],"symbol":e["name"],
                         "matching_body_terms":sorted(query&e["body"])[:15],
                         "exact_task_annotation":task["id"] in e["mentions"],
@@ -117,9 +119,9 @@ def evaluate(task,entries,inverted,callers,test_calls):
         if not e["test"] or not e["assertive"]:continue
         hit=query&e["body"]
         exact=task["id"] in e["mentions"]
-        if len(hit)<2 and not exact:continue
+        if not exact and len(query&e["namewords"])<2:continue
         score=4*len(query&e["namewords"])+len(hit)+12*exact
-        if score>=5:tranked.append((score,i))
+        if score>=8:tranked.append((score,i))
     tranked.sort(reverse=True)
     tests=[]
     for score,i in tranked[:3]:
