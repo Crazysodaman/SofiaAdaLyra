@@ -169,6 +169,15 @@ class AvatarSelfFactResolver:
         "what is your tail color",
         "what's your tail color",
     })
+    _TAIL_PRESENCE_FORMS = frozenset({
+        "do you have a tail",
+        "do you have a fox tail",
+        "have you got a tail",
+        "have you got a fox tail",
+        "have you a tail",
+        "have you a fox tail",
+        "is there a tail on your avatar",
+    })
     _CURRENT_LOOK_FORMS = frozenset({
         "describe how you currently look",
         "describe how you look",
@@ -213,6 +222,13 @@ class AvatarSelfFactResolver:
         "what would your lounge outfit be tonight",
         "what lounge outfit would you wear tonight",
     })
+
+    @classmethod
+    def is_tail_presence_query(cls, query: str) -> bool:
+        """Recognize a direct avatar fact without claiming any rendered motion."""
+        if not isinstance(query, str):
+            raise TypeError("query must be a string")
+        return _normalize(query) in cls._TAIL_PRESENCE_FORMS
 
     @classmethod
     def _is_presentation_reason_query(cls, normalized: str) -> bool:
@@ -333,6 +349,28 @@ class AvatarSelfFactResolver:
         normalized = _normalize(query)
         appearance = dict(embodiment.physical_self.appearance)
         outfit = _friendly_outfit(presentation.outfit_id)
+
+        if normalized in self._TAIL_PRESENCE_FORMS:
+            anatomy = dict(embodiment.physical_self.anatomy)
+            if "fox tail" not in anatomy.get("tail", "").casefold():
+                return AvatarSelfFactAnswer(
+                    True,
+                    "I don't have a fox tail recorded in my canonical avatar.",
+                )
+            tail_color = presentation.appearance.tail_color
+            tip = appearance.get("tail_tip_color")
+            fur = appearance.get("fur_texture")
+            details = [f"My tail is {tail_color}"]
+            if isinstance(tip, str) and tip.strip() and tip != "unspecified":
+                details.append(f"with a {tip} tip")
+            if isinstance(fur, str) and fur.strip() and fur != "unspecified":
+                details.append(f"and {fur} fur")
+            return AvatarSelfFactAnswer(
+                True,
+                "Yes, my avatar has one fox tail. "
+                + " ".join(details)
+                + ". Its movement depends on the actual avatar animation.",
+            )
 
         if self._is_presentation_reason_query(normalized):
             reason = presentation.reason.casefold()
