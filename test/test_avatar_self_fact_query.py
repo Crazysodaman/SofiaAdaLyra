@@ -530,6 +530,10 @@ def test_tail_presence_does_not_claim_tail_when_canonical_anatomy_lacks_it():
     physical = embodiment.physical_self
     no_tail = replace_fields(
         physical,
+        additional_features=tuple(
+            feature for feature in physical.additional_features
+            if feature != "fox tail"
+        ),
         anatomy=tuple(
             (name, value) for name, value in physical.anatomy if name != "tail"
         ),
