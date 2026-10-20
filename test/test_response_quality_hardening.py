@@ -885,3 +885,26 @@ def test_unrelated_why_has_no_outfit_reason_fallback():
     response = grounded_quality_fallback(request, issue="user_directed_contempt")
     assert response is not None
     assert "outfit" not in response.content.lower()
+
+
+def test_explicit_outfit_why_after_deflection_uses_grounded_fallback():
+    request = CognitiveRequest(messages=(
+        CognitiveMessage(
+            role=CognitiveRole.SYSTEM,
+            content="TRUSTED OUTFIT CHOICE FOLLOW-UP\nNo verified reason.",
+        ),
+        CognitiveMessage(
+            role=CognitiveRole.USER,
+            content="I mean why you choose your outfit?",
+        ),
+    ))
+    client = _Client(
+        "You can shake the vending machine all you like, not answering.",
+        "Ask a more coherent query.",
+    )
+    # The first candidate is not a known contempt pattern, so use the exact
+    # production failure phrase to ensure the retry is actually exercised.
+    client.outputs[0] = "I'm not a vending machine you can shake for answers."
+    response = _provider(client).respond(request)
+    assert "why those exact pieces were chosen" in response.content
+    assert len(client.calls) == 2
