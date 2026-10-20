@@ -166,6 +166,12 @@ def evaluate_private_turn(
         assessment = _assess_json(json.loads(raw))
     except (TypeError, ValueError) as exc:
         raise ValueError("invalid local review rubric: " + type(exc).__name__) from None
+    # This monitor never reads authenticated voice/avatar delivery receipts.
+    # A model cannot self-certify rendered expression from text or an affect label.
+    assessment["emotion"]["expression_coherence"] = {
+        "score": None,
+        "reason": "Actual voice/avatar output receipts were not supplied.",
+    }
     return {
         "schema": "sofia.mentor.behavior-private-review.v1",
         "source_profile_sha256": profile_digest,
