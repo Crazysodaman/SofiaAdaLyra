@@ -352,7 +352,11 @@ class AvatarSelfFactResolver:
 
         if normalized in self._TAIL_PRESENCE_FORMS:
             anatomy = dict(embodiment.physical_self.anatomy)
-            if "fox tail" not in anatomy.get("tail", "").casefold():
+            has_tail = (
+                "fox tail" in anatomy.get("tail", "").casefold()
+                or "fox tail" in embodiment.physical_self.additional_features
+            )
+            if not has_tail:
                 return AvatarSelfFactAnswer(
                     True,
                     "I don't have a fox tail recorded in my canonical avatar.",
