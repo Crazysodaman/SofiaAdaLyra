@@ -546,7 +546,8 @@ def test_tail_presence_does_not_claim_tail_when_canonical_anatomy_lacks_it():
         available_outfit_ids=outfits,
     )
     assert result.recognized
-    assert "no fox tail recorded" in result.content
+    assert "don't have a fox tail recorded" in result.content
+    assert "Yes, my avatar has one fox tail" not in result.content
 
 
 def test_tail_query_is_not_confused_with_other_anatomy_questions():
