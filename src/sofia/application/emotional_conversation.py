@@ -416,6 +416,23 @@ class EmotionalConversationService(ConversationService):
                         response=response,
                         principal=principal,
                     )
+                    # An explicitly opted-in MENTOR monitor may observe the
+                    # final settled answer and source-backed modeled affect.
+                    # Never invoke the critic here: foreground response stays
+                    # independent of MENTOR failures and GPU usage.
+                    monitor = getattr(self, "_mentor_behavior_monitor", None)
+                    if monitor is not None:
+                        try:
+                            state = self.current_emotional_state()
+                            monitor.observe(
+                                user_text=content, response_text=response.content,
+                                emotional_state=state, channel=channel,
+                            )
+                        except Exception as exc:
+                            _LOG.warning(
+                                "MENTOR passive observer skipped turn: %s",
+                                type(exc).__name__,
+                            )
                     return response
                 finally:
                     # Includes request construction/persistence as well as the
