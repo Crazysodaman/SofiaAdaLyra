@@ -77,3 +77,43 @@ The running `SofiaApplication.mentor_behavior_snapshot` provides in-memory count
 - `.github/workflows/mentor-readonly-audit.yml` (automated regressions)
 
 This is real runtime-wired source plus unit/CI evidence, not proof that the opt-in Windows service has yet been exercised on your machine.
+
+## Zero reviews or all null grades: runtime troubleshooting
+
+`behavior-status` reports numeric local history **for the account running the CLI**, not whether Sofía's running process has registered its monitor. `total_local_reviews: 0` is a valid, unscored state. A `null` expression-coherence score is expected until real audio/2D avatar delivery receipts can be verified, even if other rubric scores are available.
+
+Run these commands from the checkout with the same venv:
+
+```powershell
+git pull --ff-only
+python -m sofia.mentor behavior-diagnose --repo .
+python -m sofia.mentor behavior-status
+```
+
+`behavior-diagnose` makes **no network request** and changes no configuration. It reports whether the current shell has the correct enable flag and source root, whether the chosen profile exists, and whether the current account has any saved reviews. Its `runtime_service_environment_verified` value is intentionally false: a separate Windows service cannot be diagnosed simply by reading the shell's environment.
+
+To distinguish a local 14B critic failure from missing live integration, while Venus is idle and not gaming:
+
+```powershell
+python -m sofia.mentor behavior-smoke --repo . --mentor-model qwen3:14b --confirm-idle
+```
+
+This makes **one local Ollama model call** on a hardcoded **synthetic** question. It produces temporary numeric scores on screen only, **does not** increment the production review history, and does not establish that a real Sofía response was observed. If it fails, the issue is the model/format/local provider, not the running app's capture hook.
+
+For a Windows Service Control Manager installation, use the actual service name `SofiaAdaLyra` (from `src/sofia/run/windows_service_spec.py`) to check **without restarting**:
+
+```powershell
+Get-CimInstance Win32_Service -Filter "Name='SofiaAdaLyra'" |
+  Select-Object Name, State, StartName
+```
+
+The service may run under another account with a separate `%LOCALAPPDATA%` or released wheel and could lack the opt-in environment variable. Do not assume the developer shell's `$env:` is inherited by the service, or that `git pull` automatically updates a verified active release. Determine its actual startup environment and deployment version using your approved service-management workflow; only then make a supervised configuration change and normal restart. **Do not launch a competing second canonical Sofía instance.**
+
+Normal live acceptance, with permission from conversation participants:
+1. Enable the monitor in the *actual* application process, including an accessible source root, and start through existing deployment controls.
+2. Have a genuine completed desktop/Discord conversation. Avoid sensitive content while testing optional local quality analysis.
+3. Let the machine remain in a known `idle` or `normal` activity state and conversationally idle at least five minutes. Wait for the existing background coordinator to admit a review subject to STOP and budget.
+4. Inspect `SofiaApplication.mentor_behavior_snapshot` through an authorized application diagnostic. `observed_turns`, `pending_private_turns`, `failed_reviews`, and `last_error_kind` distinguish capture, idle scheduling and critic issues.
+5. Read the local history from the **same service account** (or through authorized administration) and confirm at least one `reviewed_turns` count; do not copy private runtime paths/IDs into public Git.
+
+This diagnostic feature does not read the running service's memory, send screenshots, change production settings, or discover private transcripts.
