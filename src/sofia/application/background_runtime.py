@@ -458,6 +458,16 @@ def create_background_coordinator(
         activity_store=activity_store, host_id=host_id,
     )
 
+    # Owner opt-in: observe settled responses without delaying them, then
+    # review at most one private sample on an idle-approved background tick.
+    # This never contacts OpenAI and never exports raw emotional history.
+    from sofia.mentor.behavior_monitor import register_behavior_monitor
+    register_behavior_monitor(
+        application=application, coordinator=coordinator,
+        activity_store=activity_store, host_id=host_id,
+        repo=os.environ.get("SOFIA_MENTOR_SOURCE_ROOT", "."),
+    )
+
     # Model discovery is a scheduled READ ONLY inventory, not an installation
     # or inference worker. It reuses the owner's /tags /version /show service,
     # canonical cognition_model_inventory, and RUN's existing single-flight
