@@ -235,6 +235,9 @@ class _TkDesktopWorkbench:
         self._matrix_status = ""
         self._close_requested = False
         self._last_rendered_ids: tuple[str, ...] = ()
+        self._latest_history_ids: tuple[str, ...] = ()
+        self._visibility_path = Path(str(configuration.state_path) + ".chat-display.json")
+        self._hidden_through_id = self._load_display_boundary()
         self._tool_specs = ()
         self._palette = canonical_theme()
         runtime_settings = RuntimeUserSettingsStore(configuration.state_path).load()
@@ -366,6 +369,12 @@ class _TkDesktopWorkbench:
             style="Sofia.TButton",
         )
         self._tools_button.pack(side="right", padx=(10, 0))
+
+        self._clear_screen_button = self._ttk.Button(
+            header, text="Clear Screen", command=self._clear_screen,
+            style="Sofia.TButton",
+        )
+        self._clear_screen_button.pack(side="right", padx=(10, 0))
 
         self._avatar_mode_value = self._tk.StringVar(
             master=self._root, value="2D",
@@ -832,6 +841,11 @@ class _TkDesktopWorkbench:
         if not content.strip():
             return
 
+        if content.strip().casefold() in {"clear chat", "clear screen", "cls"}:
+            self._clear_screen()
+            self._replace_input("")
+            return
+
         self._busy = True
         self._set_enabled(False)
         self._status.set("Sofía is responding...")
@@ -1277,22 +1291,59 @@ class _TkDesktopWorkbench:
             self._refresh_theme_timer,
         )
 
-    def _render_history(self, messages) -> None:
-        ids = tuple(message.message_id for message in messages)
-        if ids == self._last_rendered_ids:
-            return
+    def _load_display_boundary(self) -> str | None:
+        """Load the UI-only cursor; never alter conversation state."""
+        try:
+            record = json.loads(self._visibility_path.read_text(encoding="utf-8"))
+            if record.get("session_id") == self._session_id:
+                value = record.get("hidden_through_id")
+                return value if isinstance(value, str) and value else None
+        except (OSError, ValueError, TypeError, AttributeError):
+            pass
+        return None
 
+    def _clear_screen(self) -> None:
+        """Hide rendered messages, without sending a turn or touching memory."""
+        if self._latest_history_ids:
+            self._hidden_through_id = self._latest_history_ids[-1]
+            try:
+                self._visibility_path.parent.mkdir(parents=True, exist_ok=True)
+                self._visibility_path.write_text(
+                    json.dumps({
+                        "session_id": self._session_id,
+                        "hidden_through_id": self._hidden_through_id,
+                    }),
+                    encoding="utf-8",
+                )
+            except OSError as exc:
+                self._status.set(f"Clear Screen could not persist: {type(exc).__name__}")
         self._history.configure(state="normal")
         self._history.delete("1.0", "end")
-        for message in messages:
+        self._history.configure(state="disabled")
+        self._last_rendered_ids = ()
+        self._status.set("Screen cleared; conversation preserved")
+
+    def _render_history(self, messages) -> None:
+        ids = tuple(message.message_id for message in messages)
+        self._latest_history_ids = ids
+        if ids == self._last_rendered_ids:
+            return
+        visible = messages
+        if self._hidden_through_id in ids:
+            visible = messages[ids.index(self._hidden_through_id) + 1:]
+        elif self._hidden_through_id is not None:
+            # Missing anchor means a distinct or pruned history; do not
+            # silently resurrect messages on an ordinary redraw.
+            visible = ()
+        self._history.configure(state="normal")
+        self._history.delete("1.0", "end")
+        for message in visible:
+            if message.content is None or not str(message.content).strip() or str(message.content).strip() == "None":
+                continue
             label = "YOU" if message.actor == "user" else "SOFÍA"
             tag = "user" if message.actor == "user" else "sofia"
             self._history.insert("end", f"{label}\n", tag)
-            self._history.insert(
-                "end",
-                f"{message.content}\n",
-                "body",
-            )
+            self._history.insert("end", f"{message.content}\n", "body")
         self._history.configure(state="disabled")
         self._history.see("end")
         self._last_rendered_ids = ids
