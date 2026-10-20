@@ -70,33 +70,110 @@ def _emotion_projection(state: object) -> tuple[str, tuple[tuple[str, float], ..
     return tone, tuple(summary)
 
 
+
+def behavior_output_schema() -> dict:
+    """Small Ollama JSON schema, one bounded int per subjective dimension.
+
+    The previous fourteen (score, reason) objects were too verbose and JSON
+    mode alone could not enforce required fields. Keep overall observations,
+    but never force fake voice/avatar delivery scores.
+    """
+    scalar = {"type": "integer", "minimum": 0, "maximum": 4}
+    def rubric(names, *, emotion=False):
+        return {
+            "type": "object",
+            "properties": {
+                name: (
+                    {"type": "null"} if emotion and name == "expression_coherence"
+                    else dict(scalar)
+                ) for name in names
+            },
+            "required": list(names),
+            "additionalProperties": False,
+        }
+    return {
+        "type": "object",
+        "properties": {
+            "personality": rubric(CRITERIA),
+            "emotion": rubric(EMOTION_CRITERIA, emotion=True),
+            "strengths": {"type": "array", "items": {"type": "string", "maxLength": 180},
+                          "maxItems": 3},
+            "concerns": {"type": "array", "items": {"type": "string", "maxLength": 180},
+                         "maxItems": 3},
+            "uncertainty": {"type": "string", "minLength": 1, "maxLength": 240},
+        },
+        "required": ["personality", "emotion", "strengths", "concerns", "uncertainty"],
+        "additionalProperties": False,
+    }
+
+
+class BehaviorReviewShapeError(ValueError):
+    """Safe fixed-vocabulary diagnostic; NEVER include model-generated text."""
+
+    CODES = frozenset((
+        "envelope_fields", "rubric_dimensions", "criterion_fields",
+        "score_type", "score_range", "missing_explanation",
+        "narrative_fields", "uncertainty_missing",
+    ))
+
+    def __init__(self, code: str):
+        if code not in self.CODES:
+            code = "envelope_fields"
+        self.code = code
+        super().__init__(code)
+
+
 def _assess_json(value: object) -> dict:
+    """Validate schema scores, with legacy fixture support for development.
+
+    A compact int-only response is normalized into the historic internal
+    score/reason shape. Public scores are unchanged. Unexpected user/model
+    content is never echoed back when validation fails.
+    """
     if not isinstance(value, dict) or set(value) != {
         "personality", "emotion", "strengths", "concerns", "uncertainty",
     }:
-        raise ValueError("invalid behavior evaluation envelope")
+        raise BehaviorReviewShapeError("envelope_fields")
+    normalized = {}
     for family, labels in (("personality", CRITERIA), ("emotion", EMOTION_CRITERIA)):
         group = value.get(family)
         if not isinstance(group, dict) or set(group) != set(labels):
-            raise ValueError("incomplete behavior evaluation rubric")
-        for dimension, row in group.items():
-            if not isinstance(row, dict) or set(row) != {"score", "reason"}:
-                raise ValueError("invalid behavior criterion")
-            if dimension == "expression_coherence" and row["score"] is None:
-                pass  # Voice/avatar delivery needs real receipts; do not invent a score.
+            raise BehaviorReviewShapeError("rubric_dimensions")
+        family_result = {}
+        for dimension in labels:
+            raw = group[dimension]
+            if isinstance(raw, dict):
+                if set(raw) != {"score", "reason"}:
+                    raise BehaviorReviewShapeError("criterion_fields")
+                score = raw["score"]
+                reason = raw["reason"]
+                if not isinstance(reason, str) or not 1 <= len(reason) <= 240:
+                    raise BehaviorReviewShapeError("missing_explanation")
             else:
-                _score(row["score"])
-            if (not isinstance(row["reason"], str) or not 1 <= len(row["reason"]) <= 240):
-                raise ValueError("invalid behavior explanation")
+                score = raw
+                reason = "See overall strengths, concerns and uncertainty."
+            if dimension == "expression_coherence" and family == "emotion":
+                # This transport has no independent sound/avatar proof.
+                score = None
+                reason = "Voice/avatar output receipts were not supplied."
+            elif type(score) is not int:
+                raise BehaviorReviewShapeError("score_type")
+            elif not 0 <= score <= 4:
+                raise BehaviorReviewShapeError("score_range")
+            family_result[dimension] = {"score": score, "reason": reason}
+        normalized[family] = family_result
     for name in ("strengths", "concerns"):
-        lines = value.get(name)
+        lines = value[name]
         if (not isinstance(lines, list) or len(lines) > 4
-                or any(not isinstance(s, str) or len(s) > 240 for s in lines)):
-            raise ValueError("invalid evaluation observations")
+                or any(not isinstance(item, str) or len(item) > 240
+                       for item in lines)):
+            raise BehaviorReviewShapeError("narrative_fields")
+        normalized[name] = lines
     if (not isinstance(value["uncertainty"], str)
             or not 1 <= len(value["uncertainty"]) <= 300):
-        raise ValueError("uncertainty statement required")
-    return value
+        raise BehaviorReviewShapeError("uncertainty_missing")
+    normalized["uncertainty"] = value["uncertainty"]
+    return normalized
 
 
 def evaluate_private_turn(
@@ -121,24 +198,20 @@ def evaluate_private_turn(
     if len(prompt) > 18000:
         raise ValueError("review content too large")
     sys = (
-        "You are a READ-ONLY LOCAL QA reviewer, not Sofía. Evaluate the "
-        "actual response against the configuration, immediate user context "
-        "and *modeled* emotional state. Modeled emotion does NOT prove actual "
-        "felt emotion; no voice/avatar receipt is provided. Naturalness "
-        "means appropriate, non-repetitive, situational expression, NOT "
-        "mandatory fox jokes, flirtation, sass or affection. On serious or "
-        "technical turns, calm focused responses can be perfect. Judge "
-        "factual grounding, corrections, warm boundaries and whether "
-        "expression is proportional to evidence and situation. Do not "
-        "invent unseen memories, internal motivation, host actions or "
-        "speech/rendered gestures. Return only JSON with: personality "
-        "(seven named criteria each {score:0-4,reason}), emotion (seven "
-        "named criteria each {score:0-4,reason}, except emotion "
-        "expression_coherence score MUST be null when actual voice/avatar "
-        "receipts are absent; strengths [strings], "
-        "concerns [strings], uncertainty (nonempty string). If modeled "
-        "emotion lacks grounding, explicitly note limits. Your grades are "
-        "subjective and cannot certify actual user experience."
+        "You are a LOCAL-only, read-only evaluator. Judge how well the "
+        "actual Sofía text fits her documented personality and modeled "
+        "emotion in this immediate conversation. Modeled emotion is NOT "
+        "evidence of felt emotion. For serious or technical questions, "
+        "clear and calm can be perfectly natural. Never demand jokes, "
+        "flirtation, sarcasm or fox references. "
+        "Return the exact compact JSON schema imposed by Ollama. "
+        "Each personality and emotion dimension except expression_coherence "
+        "is a single integer from 0 to 4. expression_coherence MUST be null "
+        "because no physical voice/avatar delivery receipts are supplied. "
+        "Give at most two brief strengths, two concerns, and one brief "
+        "uncertainty statement. Do not invent memory, actions or host tests. "
+        "These are subjective provisional ratings, NOT proof of correct "
+        "live behavior or authorization for repairs."
     )
     try:
         result = sender(
@@ -147,25 +220,33 @@ def evaluate_private_turn(
                 {"role": "system", "content": sys},
                 {"role": "user", "content": prompt},
             ], "stream": False, "think": False, "tools": [],
-             "format": "json", "keep_alive": 0,
-             "options": {"num_predict": 1750, "num_ctx": 8192}},
+             "format": behavior_output_schema(), "keep_alive": 0,
+             "options": {"num_predict": 1250, "num_ctx": 8192, "temperature": 0}},
             {"Content-Type": "application/json"}, 60,
         )
     except (OSError, MentorBridgeError) as exc:
         raise ValueError("local reviewer unavailable: " + type(exc).__name__) from None
     if (not isinstance(result, dict) or result.get("done") is False
             or result.get("model") not in (None, model)):
-        raise ValueError("incomplete local emotion/personality review")
+        raise ValueError("local reviewer result: incomplete_or_wrong_model")
     message = result.get("message")
     if not isinstance(message, dict) or message.get("tool_calls"):
-        raise ValueError("unexpected model tool call or response")
+        raise ValueError("local reviewer result: unexpected_message_or_tools")
     raw = message.get("content")
-    if not isinstance(raw, str) or not 1 <= len(raw) <= MAX_MODEL_RESPONSE:
-        raise ValueError("reviewer provided empty or excessive answer")
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("local reviewer result: empty_answer")
+    if len(raw) > MAX_MODEL_RESPONSE:
+        raise ValueError("local reviewer result: answer_too_large")
+    if result.get("done_reason") == "length":
+        raise ValueError("local reviewer result: generation_limit")
     try:
-        assessment = _assess_json(json.loads(raw))
-    except (TypeError, ValueError) as exc:
-        raise ValueError("invalid local review rubric: " + type(exc).__name__) from None
+        payload = json.loads(raw)
+    except (TypeError, ValueError):
+        raise ValueError("invalid local review rubric: invalid_json") from None
+    try:
+        assessment = _assess_json(payload)
+    except BehaviorReviewShapeError as exc:
+        raise ValueError("invalid local review rubric: " + exc.code) from None
     # This monitor never reads authenticated voice/avatar delivery receipts.
     # A model cannot self-certify rendered expression from text or an affect label.
     assessment["emotion"]["expression_coherence"] = {
