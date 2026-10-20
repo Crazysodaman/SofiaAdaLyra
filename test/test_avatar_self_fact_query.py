@@ -508,3 +508,45 @@ def test_discord_typo_what_is_your_wearing_uses_canonical_presentation():
     assert result.content.startswith("I'm in my day engineer outfit right now.")
     assert "Fitted technical long-sleeve top" in result.content
     assert "wool coat" not in result.content.casefold()
+
+
+def test_tail_presence_uses_actual_canonical_anatomy_not_model_invention():
+    for question in ("do u have a tail", "Do you have a fox tail?"):
+        result = answer(question)
+        assert result.recognized
+        assert "one fox tail" in result.content
+        assert "dark violet" in result.content
+        assert "lighter violet" in result.content
+        assert "fluffy fur" in result.content
+        assert "slender" not in result.content
+        assert "little tail" not in result.content
+        assert "just moved" not in result.content
+
+
+def test_tail_presence_does_not_claim_tail_when_canonical_anatomy_lacks_it():
+    from dataclasses import replace as replace_fields
+
+    embodiment, presentation, outfits = sources()
+    physical = embodiment.physical_self
+    no_tail = replace_fields(
+        physical,
+        anatomy=tuple(
+            (name, value) for name, value in physical.anatomy if name != "tail"
+        ),
+    )
+    no_tail_embodiment = replace_fields(embodiment, physical_self=no_tail)
+    result = AvatarSelfFactResolver().resolve(
+        "do u have a tail",
+        embodiment=no_tail_embodiment,
+        presentation=presentation,
+        available_outfit_ids=outfits,
+    )
+    assert result.recognized
+    assert "no fox tail recorded" in result.content
+
+
+def test_tail_query_is_not_confused_with_other_anatomy_questions():
+    resolver = AvatarSelfFactResolver()
+    assert resolver.is_tail_presence_query("do u have a tail?")
+    assert not resolver.is_tail_presence_query("does my robot have a tail?")
+    assert not resolver.is_tail_presence_query("why is your tail moving?")
