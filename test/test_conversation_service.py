@@ -1450,3 +1450,58 @@ def test_outfit_why_scope_uses_only_the_eligible_immediate_exchange():
         outfit[1],
         msg(ConversationRole.USER, "why?"),
     ))
+
+
+def test_outfit_why_scope_reaches_real_provider_request_without_cross_domain_leak(tmp_path):
+    """CA-5704/CA-506: host build_request includes only eligible outfit context."""
+    from datetime import datetime, timedelta, timezone
+    from sofia.conversation.model import ConversationMessage
+    from sofia.cognition.matrix import ContextPlan
+
+    application = create_application(tmp_path)
+    application.start()
+    service = application.conversation
+    when = datetime.now(timezone.utc)
+    for offset, (mid, role, content) in enumerate((
+        ("outfit-u1", ConversationRole.USER, "What are you wearing?"),
+        ("outfit-a1", ConversationRole.ASSISTANT, "Wearing a dress and sandals."),
+        ("outfit-u2", ConversationRole.USER, "why?"),
+    )):
+        service._conversation_store.save(ConversationMessage(
+            id=mid,
+            session_id=service.session_id,
+            role=role,
+            content=content,
+            created_at=when + timedelta(seconds=offset),
+        ))
+
+    service._current_matrix_message_id = "outfit-u2"
+    service._current_context_plan = ContextPlan(
+        included_domains=(MatrixDomain.AVATAR,),
+        history_policy=HistoryPolicy.LAST_TURN,
+        max_history_messages=3,
+    )
+    service._matrix_domains_for_message = lambda _id: (MatrixDomain.AVATAR,)
+    request = service._build_request()
+    assert any(
+        message.role.value == "system"
+        and "TRUSTED OUTFIT CHOICE FOLLOW-UP" in message.content
+        for message in request.messages
+    )
+    assert any(
+        message.role.value == "assistant" and message.content == "Wearing a dress and sandals."
+        for message in request.messages
+    )
+
+    # An excluded prior domain must not be restored from the raw transcript.
+    service._matrix_domains_for_message = lambda _id: (MatrixDomain.GOALS,)
+    excluded = service._build_request()
+    assert not any(
+        "TRUSTED OUTFIT CHOICE FOLLOW-UP" in message.content
+        for message in excluded.messages
+    )
+    assert not any(
+        message.role.value == "assistant" and message.content == "Wearing a dress and sandals."
+        for message in excluded.messages
+    )
+    application.shutdown()
