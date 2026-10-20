@@ -509,6 +509,81 @@ class ConversationService(ConversationMatrixMixin):
             raise TypeError("pre-response hook must be callable or None")
         self._pre_response_hook = hook
 
+    def _grounded_avatar_turn(
+        self, *, message: ConversationMessage,
+        principal: PrincipalContext | None,
+    ) -> CognitiveResponse | None:
+        """Answer narrow self-facts using the authoritative avatar, not model lore.
+
+        A one-word why is eligible only if the immediately preceding exchange
+        survives the normal Context Matrix domain filter. The original saved
+        text and the current presentation remain separate trusted owners.
+        """
+        resolver = self._runtime._avatar_self_fact_resolver
+        is_tail = resolver.is_tail_presence_query(message.content)
+        is_reason = (
+            _OUTFIT_WHY_RE.fullmatch(message.content) is not None
+            or _OUTFIT_EXPLICIT_WHY_RE.search(message.content) is not None
+        )
+        if not is_tail and not is_reason:
+            return None
+
+        query = message.content
+        if is_reason:
+            recent = self._conversation_store.recent_messages(
+                message.session_id, limit=3,
+            )
+            context_plan = (
+                self._current_context_plan
+                if self._current_matrix_message_id == message.id
+                else None
+            )
+            visible = (
+                _matrix_context_window(
+                    recent, context_plan,
+                    domain_lookup=self._matrix_domains_for_message,
+                    current_message_id=message.id,
+                )
+                if context_plan is not None
+                else _conversation_cognitive_window(recent)
+            )
+            if not _is_outfit_choice_followup(visible):
+                return None
+            # Only a host-selected fixed canonical query, never arbitrary
+            # excerpts, is forwarded to the self-fact resolver.
+            query = "why did you choose that"
+
+        runtime = self._runtime
+        if runtime.embodiment is None or runtime.avatar_presentation is None:
+            return None
+        presentation = runtime.avatar_projection_for(principal=principal)
+        if presentation is None:
+            return None
+        privacy = self._current_privacy_plan
+        if (
+            resolver.allows_private_projection(query)
+            and (privacy is None or privacy.allow_private_presentation_candidate)
+        ):
+            grant = runtime._private_presentation_grants.resolve(
+                principal=principal, explicit_current_opt_in=True,
+            )
+            if grant is not None:
+                private = runtime.avatar_projection_for(
+                    principal=principal, private_grant=grant,
+                )
+                if private is not None:
+                    presentation = private
+        answer = resolver.resolve(
+            query,
+            embodiment=runtime.embodiment,
+            presentation=presentation,
+            available_outfit_ids=runtime.avatar_presentation.available_outfit_ids,
+            wardrobe_matrix=runtime._avatar_matrix_for(presentation),
+        )
+        if not answer.recognized:
+            return None
+        return CognitiveResponse(content=answer.content)
+
     def set_clothing_action_handler(self, handler) -> None:
         """Install the host-owned AVATAR wardrobe state-action boundary."""
         if handler is not None and not callable(handler):
@@ -1353,6 +1428,16 @@ class ConversationService(ConversationMatrixMixin):
                 response = self._matrix_finalize_deterministic_response(response)
                 self._persist_response(response)
                 return response
+
+        grounded_avatar = self._grounded_avatar_turn(
+            message=user_message, principal=principal,
+        )
+        if grounded_avatar is not None:
+            grounded_avatar = self._matrix_finalize_deterministic_response(
+                grounded_avatar
+            )
+            self._persist_response(grounded_avatar)
+            return grounded_avatar
 
         v2_handler = self._v2_answer_handler
         if v2_handler is not None and self.cognitive_plan is not None:
