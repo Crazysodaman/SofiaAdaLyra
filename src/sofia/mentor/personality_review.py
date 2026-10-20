@@ -221,7 +221,8 @@ def publish_public_personality_summary(repo: Path | str, report: dict) -> dict:
     """Only explicit owner CLI consent may write bounded, numeric public data."""
     root = Path(repo).resolve(strict=True)
     path = root / PUBLIC_SUMMARY
-    if path.is_symlink() or path.parent.is_symlink():
+    if (path.is_symlink() or path.parent.is_symlink()
+            or root not in path.parent.resolve().parents):
         raise PersonalityReviewError("unsafe public summary destination")
     if path.exists() and not path.is_file():
         raise PersonalityReviewError("public summary cannot overwrite directory")
@@ -241,7 +242,8 @@ def load_public_personality_summary(repo: Path | str) -> dict | None:
     path = root / PUBLIC_SUMMARY
     if not path.exists():
         return None
-    if path.is_symlink() or not path.is_file() or path.stat().st_size > 4096:
+    if (path.is_symlink() or not path.is_file()
+            or root not in path.resolve().parents or path.stat().st_size > 4096):
         raise PersonalityReviewError("unsafe stored public personality summary")
     try:
         obj = json.loads(path.read_text(encoding="utf-8"))
