@@ -1,0 +1,31 @@
+name: V18 Direct Code Evidence Audit
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit algorithm unit tests
+        run: python -m unittest discover -s test -p 'test_v18_direct_code_audit.py' -v
+      - name: Inspect all original unclassified tasks against actual code
+        run: python scripts/v18_direct_code_audit.py --repo . --out v18-code-audit-results
+      - name: Upload code audit files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v18-direct-code-${{ github.sha }}
+          path: v18-code-audit-results/
+          if-no-files-found: warn
+          retention-days: 90
