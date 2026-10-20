@@ -23,6 +23,10 @@ from .exchange import write_public_outbox, read_review
 from .remote_inbox import MentorReviewConsumer
 from .behavior_history import read_counts, default_local_path, public_free_summary
 from .behavior_diagnostics import diagnose_behavior
+from .windows_service_settings import (
+    service_settings_status, configure_custom_service_settings,
+    disable_custom_service_settings,
+)
 from .behavior_monitor import PrivateTurn, evaluate_private_turn
 from .system_parts import system_parts_summary
 from .personality_review import (
@@ -48,6 +52,15 @@ def main(argv: list[str] | None = None) -> int:
     diagnose.add_argument("--repo", type=Path, default=Path("."))
     diagnose.add_argument("--history", type=Path, default=None,
                           help="Optional authorized local score file from another account")
+
+    svc = sub.add_parser(
+        "behavior-service", help="View/prepare opt-in Windows SCM MENTOR settings; no restarts"
+    )
+    svc.add_argument("--action", choices=("status", "plan", "enable", "disable"),
+                     default="status")
+    svc.add_argument("--source-root", type=Path, default=None)
+    svc.add_argument("--approve-scm-change", action="store_true",
+                     help="Owner explicitly authorizes these two optional SCM custom options")
 
     smoke = sub.add_parser(
         "behavior-smoke", help="Run one synthetic local emotion/personality rubric test"
@@ -135,6 +148,29 @@ def main(argv: list[str] | None = None) -> int:
             if args.command == "system-status":
                 systems = system_parts_summary(args.repo)
                 print(json.dumps(systems, indent=2, ensure_ascii=False))
+                return 0
+            if args.command == "behavior-service":
+                if args.action == "status":
+                    reply = service_settings_status()
+                elif args.action == "plan":
+                    if args.source_root is None:
+                        raise MentorBridgeError("service plan requires --source-root")
+                    reply = configure_custom_service_settings(
+                        root=args.source_root, apply=False,
+                    )
+                elif args.action == "enable":
+                    if not args.approve_scm_change or args.source_root is None:
+                        raise MentorBridgeError(
+                            "SCM enable requires --source-root and --approve-scm-change"
+                        )
+                    reply = configure_custom_service_settings(
+                        root=args.source_root, apply=True,
+                    )
+                else:
+                    if not args.approve_scm_change:
+                        raise MentorBridgeError("SCM disable requires --approve-scm-change")
+                    reply = disable_custom_service_settings(apply=True)
+                print(json.dumps(reply, indent=2, ensure_ascii=False))
                 return 0
             if args.command == "behavior-diagnose":
                 print(json.dumps(diagnose_behavior(
