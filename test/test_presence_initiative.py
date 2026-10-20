@@ -1794,9 +1794,11 @@ def test_presence_delivery_refuses_source_grounding_change_after_queue(
 
 def _queued_real_pending_followup(state):
     from sofia.cognition.v2.focus import SQLiteConversationFocusStore
-    from sofia.social.principals import local_sparks_principal
+    from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
     sent = []
-    service = configured(state, sent)
+    service = configured(
+        state, sent, outreach_policy=policy(recipient_id=SPARKS_PRINCIPAL_ID),
+    )
     principal = local_sparks_principal()
     engine = PresenceInitiativeEngine(state_path=state, act_service=service)
     focus = _bound_focus(state)
@@ -1821,21 +1823,35 @@ def test_pending_followup_declined_after_queue_cannot_deliver(state):
 
 def test_pending_followup_resolved_after_queue_cannot_deliver(state):
     from sofia.cognition.v2.focus import SQLiteConversationFocusStore
-    engine, service, owner, thread, _, sent = _queued_real_pending_followup(state)
+    engine, service, owner, thread, decision, sent = _queued_real_pending_followup(state)
     focus = _bound_focus(state, unresolved=False)
     focus = type(focus)(session_id=focus.session_id, audience_id=focus.audience_id, revision=2)
     SQLiteConversationFocusStore(state).commit(focus, expected_revision=1)
     assert service.deliver_one(now=NOW + timedelta(minutes=1)) is None
     assert sent == []
+    assert "authorization_unavailable" in {
+        item.reason for item in OutreachTraceStore(state).history(notice_id=decision.notice_id)
+    }
 
 
 def test_pending_followup_deleted_original_turn_cannot_deliver(state):
     import sqlite3
-    _engine, service, _owner, thread, _, sent = _queued_real_pending_followup(state)
+    _engine, service, _owner, thread, decision, sent = _queued_real_pending_followup(state)
     with sqlite3.connect(state) as db:
         db.execute("DELETE FROM conversation_messages WHERE id=?", (thread.source_turn_id,))
     assert service.deliver_one(now=NOW + timedelta(minutes=1)) is None
     assert sent == []
+    assert "authorization_unavailable" in {
+        item.reason for item in OutreachTraceStore(state).history(notice_id=decision.notice_id)
+    }
+
+
+def test_pending_followup_valid_original_delivers_once(state):
+    _engine, service, _owner, _thread, _decision, sent = _queued_real_pending_followup(state)
+    result = service.deliver_one(now=NOW + timedelta(minutes=1))
+    assert result is not None and result.outcome is DeliveryOutcome.DELIVERED
+    assert len(sent) == 1
+    assert service.deliver_one(now=NOW + timedelta(minutes=2)) is None
 
 
 def test_suppressed_pending_followup_retries_only_in_later_six_hour_window(state):
