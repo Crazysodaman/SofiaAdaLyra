@@ -111,3 +111,56 @@ def test_replace_input_clears_disabled_composer_and_restores_state():
     assert fake._input.content == ""
     assert fake._input.state == "disabled"
     assert fake._input.modified is False
+
+
+def test_clear_screen_missing_anchor_recovers_only_newer_messages():
+    from datetime import datetime, timedelta, timezone
+    from types import SimpleNamespace
+    from sofia.ui.desktop import _visible_history_after_clear
+    marker = datetime(2026, 10, 20, 10, 0, tzinfo=timezone.utc)
+    history = (
+        SimpleNamespace(message_id="old", created_at=marker - timedelta(seconds=1)),
+        SimpleNamespace(message_id="new", created_at=marker + timedelta(seconds=1)),
+    )
+    visible = _visible_history_after_clear(
+        history, hidden_id="pruned-anchor", hidden_at=marker,
+    )
+    assert tuple(x.message_id for x in visible) == ("new",)
+    # An intact anchor preserves exact visibility independent of clock precision.
+    assert tuple(x.message_id for x in _visible_history_after_clear(
+        history, hidden_id="old", hidden_at=marker + timedelta(days=1),
+    )) == ("new",)
+    assert _visible_history_after_clear(
+        history, hidden_id="legacy-anchor", hidden_at=None,
+    ) == ()
+
+
+def test_clear_screen_missing_anchor_does_not_reset_memory_or_visibility_cursor(tmp_path):
+    from datetime import datetime, timezone
+    import json
+    from sofia.ui.desktop import _TkDesktopWorkbench
+
+    dummy = type("DesktopStub", (), {})()
+    dummy._session_id = "session:main"
+    dummy._visibility_path = tmp_path / "display.json"
+    dummy._latest_history_ids = ("turn:last",)
+    dummy._last_rendered_ids = ("turn:last",)
+    class Widget:
+        def __init__(self):
+            self.calls = []
+        def configure(self, **kw):
+            self.calls.append(("configure", kw))
+        def delete(self, start, end):
+            self.calls.append(("delete", start, end))
+    class Status:
+        def __init__(self): self.value = ""
+        def set(self, value): self.value = value
+    dummy._history = Widget()
+    dummy._status = Status()
+    _TkDesktopWorkbench._clear_screen(dummy)
+    persisted = json.loads(dummy._visibility_path.read_text(encoding="utf-8"))
+    assert persisted["hidden_through_id"] == "turn:last"
+    assert datetime.fromisoformat(persisted["hidden_at"]).tzinfo is not None
+    assert dummy._last_rendered_ids == ()
+    assert dummy._status.value == "Screen cleared; conversation preserved"
+

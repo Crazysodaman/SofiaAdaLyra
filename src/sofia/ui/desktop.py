@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from queue import Empty, Queue
 from dataclasses import replace
 from pathlib import Path
@@ -102,6 +103,25 @@ def _chamfer_points(
         0, height - actual,
         0, actual,
     )
+
+
+def _visible_history_after_clear(messages, *, hidden_id, hidden_at):
+    """UI-only filter, including when an older hidden anchor was pruned.
+
+    A missing anchor must not hide new messages forever or resurrect older
+    history. An old cursor without a timestamp remains conservatively hidden
+    until the next explicit Clear Screen creates a proper timestamp.
+    """
+    ids = tuple(message.message_id for message in messages)
+    if hidden_id is not None and hidden_id in ids:
+        return messages[ids.index(hidden_id) + 1:]
+    if hidden_at is not None:
+        return tuple(
+            message for message in messages
+            if message.created_at.tzinfo is not None
+            and message.created_at > hidden_at
+        )
+    return messages if hidden_id is None else ()
 
 
 class _ChamferButton:
@@ -238,6 +258,7 @@ class _TkDesktopWorkbench:
         self._latest_history_ids: tuple[str, ...] = ()
         self._visibility_path = Path(str(configuration.state_path) + ".chat-display.json")
         self._hidden_through_id = self._load_display_boundary()
+        self._hidden_through_at = self._load_display_time()
         self._tool_specs = ()
         self._palette = canonical_theme()
         runtime_settings = RuntimeUserSettingsStore(configuration.state_path).load()
@@ -1302,21 +1323,36 @@ class _TkDesktopWorkbench:
             pass
         return None
 
+    def _load_display_time(self) -> datetime | None:
+        try:
+            record = json.loads(self._visibility_path.read_text(encoding="utf-8"))
+            if record.get("session_id") != self._session_id:
+                return None
+            value = datetime.fromisoformat(record["hidden_at"])
+            if value.tzinfo is not None and value.utcoffset() is not None:
+                return value
+        except (OSError, ValueError, TypeError, KeyError, AttributeError):
+            pass
+        return None
+
     def _clear_screen(self) -> None:
         """Hide rendered messages, without sending a turn or touching memory."""
-        if self._latest_history_ids:
-            self._hidden_through_id = self._latest_history_ids[-1]
-            try:
-                self._visibility_path.parent.mkdir(parents=True, exist_ok=True)
-                self._visibility_path.write_text(
-                    json.dumps({
-                        "session_id": self._session_id,
-                        "hidden_through_id": self._hidden_through_id,
-                    }),
-                    encoding="utf-8",
-                )
-            except OSError as exc:
-                self._status.set(f"Clear Screen could not persist: {type(exc).__name__}")
+        self._hidden_through_id = (
+            self._latest_history_ids[-1] if self._latest_history_ids else None
+        )
+        self._hidden_through_at = datetime.now(timezone.utc)
+        try:
+            self._visibility_path.parent.mkdir(parents=True, exist_ok=True)
+            self._visibility_path.write_text(
+                json.dumps({
+                    "session_id": self._session_id,
+                    "hidden_through_id": self._hidden_through_id,
+                    "hidden_at": self._hidden_through_at.isoformat(),
+                }),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            self._status.set(f"Clear Screen could not persist: {type(exc).__name__}")
         self._history.configure(state="normal")
         self._history.delete("1.0", "end")
         self._history.configure(state="disabled")
@@ -1328,13 +1364,10 @@ class _TkDesktopWorkbench:
         self._latest_history_ids = ids
         if ids == self._last_rendered_ids:
             return
-        visible = messages
-        if self._hidden_through_id in ids:
-            visible = messages[ids.index(self._hidden_through_id) + 1:]
-        elif self._hidden_through_id is not None:
-            # Missing anchor means a distinct or pruned history; do not
-            # silently resurrect messages on an ordinary redraw.
-            visible = ()
+        visible = _visible_history_after_clear(
+            messages, hidden_id=self._hidden_through_id,
+            hidden_at=self._hidden_through_at,
+        )
         self._history.configure(state="normal")
         self._history.delete("1.0", "end")
         for message in visible:

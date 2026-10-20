@@ -251,6 +251,93 @@ class SofiaActService:
                 return Decision.MUTED
         return Decision.ELIGIBLE_FOR_AUTHORIZATION
 
+    @staticmethod
+    def _fresh_pending_conversation_decision(
+        db: sqlite3.Connection, original: sqlite3.Row, payload: DeliveryPayload,
+    ) -> Decision:
+        """Fail closed if a queued reminder was declined, resolved or revoked.
+
+        Read the canonical pending thread, session owner, user turn and current
+        Cognition focus at the final ACT boundary. Projection is never consent
+        to continue sending after its original source changes.
+        """
+        if (
+            original["trigger_kind"] != "conversation_followup"
+            or original["recipient_id"] != SPARKS_PRINCIPAL_ID
+            or payload.recipient_id != SPARKS_PRINCIPAL_ID
+            or original["audience_id"] != "local:text"
+        ):
+            return Decision.AUTHORIZATION_UNAVAILABLE
+        try:
+            value = json.loads(original["value_json"])
+            if not isinstance(value, dict):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            thread_id = value.get("thread_id")
+            source_turn_id = value.get("source_turn_id")
+            if not isinstance(thread_id, str) or not isinstance(source_turn_id, str):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            thread = db.execute(
+                "SELECT * FROM presence_pending_conversation WHERE thread_id=? "
+                "AND notice_id=? AND principal_id=? AND audience_id=?",
+                (thread_id, payload.message_id, SPARKS_PRINCIPAL_ID, "local:text"),
+            ).fetchone()
+            if thread is None or thread["source_turn_id"] != source_turn_id:
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            if thread["status"] == "declined":
+                return Decision.USER_DECLINED
+            if thread["status"] != "offered":
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            binding = db.execute(
+                "SELECT principal_id,audience_id FROM social_session_principal "
+                "WHERE session_id=?",
+                (thread["session_id"],),
+            ).fetchone()
+            if (
+                binding is None
+                or (binding["principal_id"], binding["audience_id"])
+                != (SPARKS_PRINCIPAL_ID, "local:text")
+            ):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            original_turn = db.execute(
+                "SELECT role,created_at FROM conversation_messages "
+                "WHERE id=? AND session_id=?",
+                (source_turn_id, thread["session_id"]),
+            ).fetchone()
+            if original_turn is None or original_turn["role"] != "user":
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            first_seen = datetime.fromisoformat(original_turn["created_at"])
+            if (
+                first_seen.tzinfo is None or first_seen.utcoffset() is None
+                or first_seen.astimezone(timezone.utc).isoformat() != thread["created_at"]
+            ):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            focus = db.execute(
+                "SELECT payload_json FROM cognition_v2_conversation_focus "
+                "WHERE session_id=? AND audience_id=?",
+                (thread["session_id"], thread["audience_id"]),
+            ).fetchone()
+            if focus is None:
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            data = json.loads(focus["payload_json"])
+            if not isinstance(data, dict):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            unresolved = data.get("unresolved_requests")
+            if not isinstance(unresolved, list):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+            if not any(
+                isinstance(item, dict)
+                and item.get("request_id") == thread["focus_item_id"]
+                and item.get("source_turn_id") == source_turn_id
+                and item.get("subject_id") == thread["subject_id"]
+                and item.get("request_kind") == thread["request_kind"]
+                and item.get("predicate") == thread["predicate"]
+                for item in unresolved
+            ):
+                return Decision.AUTHORIZATION_UNAVAILABLE
+        except (sqlite3.Error, TypeError, ValueError, KeyError):
+            return Decision.AUTHORIZATION_UNAVAILABLE
+        return Decision.ELIGIBLE_FOR_AUTHORIZATION
+
     def _fresh_life_project_pre_send_decision(
         self, payload: DeliveryPayload,
     ) -> Decision:
@@ -351,6 +438,10 @@ class SofiaActService:
                 source_current = False
             if not source_current:
                 return Decision.AUTHORIZATION_UNAVAILABLE
+            if original["event_id"].startswith("conversation-followup:"):
+                return self._fresh_pending_conversation_decision(
+                    db, original, payload,
+                )
             if not original["event_id"].startswith("life-update:"):
                 return Decision.ELIGIBLE_FOR_AUTHORIZATION
             if (

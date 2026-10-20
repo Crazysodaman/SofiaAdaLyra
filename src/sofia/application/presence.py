@@ -1216,17 +1216,23 @@ class PresenceInitiativeEngine:
         thread = self._pending_from_row(row)
         label = thread.predicate or thread.subject_id or thread.request_kind
         safe_label = " ".join(label.replace("_", " ").replace(".", " ").split())[:96]
+        # One durable, immutable opportunity per six-hour retry window.
+        # Mutating updated_at must never change the identity of a prior event.
+        attempt_window = int(
+            (stamp - thread.eligible_after).total_seconds() // (6 * 3600)
+        )
+        attempted_at = thread.eligible_after + timedelta(hours=6 * attempt_window)
         event_id = "conversation-followup:" + sha256(
-            thread.thread_id.encode("utf-8")
+            (thread.thread_id + "\0" + str(attempt_window)).encode("utf-8")
         ).hexdigest()[:32]
         observation = WorldObservation(
             observation_id="pending-observed:" + sha256(
-                (thread.thread_id + "\0" + thread.updated_at.isoformat()).encode("utf-8")
+                (thread.thread_id + "\0" + thread.created_at.isoformat()).encode("utf-8")
             ).hexdigest()[:32],
             subject_id=thread.subject_id or "conversation:unfinished",
             predicate="conversation.unfinished_thread",
             source_id="cognition:v2-focus",
-            observed_at=thread.updated_at,
+            observed_at=thread.created_at,
             expires_at=thread.expires_at,
             confidence=1.0,
             epistemic_state=WorldEpistemicState.KNOWN,
@@ -1234,7 +1240,6 @@ class PresenceInitiativeEngine:
             value={
                 "thread_id": thread.thread_id,
                 "source_turn_id": thread.source_turn_id,
-                "evidence_refs": thread.evidence_refs,
             },
             audience_id=thread.audience_id,
         )
@@ -1245,7 +1250,7 @@ class PresenceInitiativeEngine:
                 f"We left {safe_label} unfinished earlier. "
                 "Would you like to pick it back up?"
             ),
-            created_at=stamp, expires_at=thread.expires_at,
+            created_at=attempted_at, expires_at=thread.expires_at,
             category=OutreachCategory.SOCIAL,
             importance=Importance.ROUTINE, salience=0.55,
             recipient_id=principal.principal_id,
