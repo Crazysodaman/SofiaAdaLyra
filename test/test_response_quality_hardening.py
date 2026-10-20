@@ -905,3 +905,33 @@ def test_explicit_outfit_why_after_deflection_uses_grounded_fallback():
     response = _provider(client).respond(request)
     assert "why those exact pieces were chosen" in response.content
     assert len(client.calls) == 2
+
+
+def test_checkin_rejects_invented_subjective_elapsed_waiting():
+    request = _request("How are you?")
+    fabricated = CognitiveResponse(content=(
+        "Just perking up now that we're back in sync. The last twelve hours "
+        "felt like a long pause, but seeing you here again clears it."
+    ))
+    assert response_quality_issue(request, fabricated) == (
+        "emotion_temporal_overclaim"
+    )
+
+    client = _Client(
+        fabricated.content,
+        "I'm doing well, and it's good to talk again.",
+    )
+    actual = _provider(client).respond(request)
+    assert actual.content == "I'm doing well, and it's good to talk again."
+    assert len(client.calls) == 2
+    assert "uninterrupted awareness" in (
+        client.calls[1]["messages"][-2]["content"]
+    )
+
+
+def test_simple_present_checkin_remains_valid_without_fake_time_history():
+    request = _request("How are you?")
+    reply = CognitiveResponse(
+        content="Pretty good. Nice to have something interesting to discuss."
+    )
+    assert response_quality_issue(request, reply) is None
