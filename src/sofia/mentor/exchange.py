@@ -15,7 +15,7 @@ import re
 from typing import Any
 
 from .audit import STAGES, MentorAuditError, audit_checkout
-from .system_parts import system_parts_summary
+from .system_parts import system_parts_summary, PARTS
 
 OUTBOX_SCHEMA = "sofia.mentor.public-outbox.v1"
 INBOX_SCHEMA = "sofia.mentor.advisory-review.v1"
@@ -124,9 +124,9 @@ def validate_advisory_review(raw: dict) -> dict:
     allowed = {
         "schema", "visibility", "reviewed_source_revision",
         "review_created_at", "reviewer", "summary", "recommendations",
-        "limitations",
+        "limitations", "part_reviews",
     }
-    if set(raw) != allowed or raw.get("schema") != INBOX_SCHEMA:
+    if not set(raw).issubset(allowed) or not (set(raw) - {"part_reviews"}) == (allowed - {"part_reviews"}) or raw.get("schema") != INBOX_SCHEMA:
         raise MentorExchangeError("invalid inbox schema or unexpected fields")
     if raw.get("visibility") != "public":
         raise MentorExchangeError("only public advisory review permitted")
@@ -173,6 +173,36 @@ def validate_advisory_review(raw: dict) -> dict:
     ids = [e["id"] for e in entries]
     if len(ids) != len(set(ids)):
         raise MentorExchangeError("duplicate recommendation IDs")
+    part_reviews = raw.get("part_reviews", [])
+    if (not isinstance(part_reviews, list)
+            or len(part_reviews) > len(PARTS)):
+        raise MentorExchangeError("invalid subsystem review count")
+    allowed_part_ids = {part.id for part in PARTS}
+    found_parts = set()
+    for entry in part_reviews:
+        if (not isinstance(entry, dict) or set(entry) != {
+            "part_id", "verdict", "evidence_type", "finding", "next_check",
+        }):
+            raise MentorExchangeError("invalid system-part review shape")
+        part_id = entry.get("part_id")
+        if (part_id not in allowed_part_ids or part_id in found_parts):
+            raise MentorExchangeError("unknown or duplicated system part")
+        found_parts.add(part_id)
+        if entry.get("verdict") not in (
+            "unverified", "needs_attention", "provisional_match"
+        ):
+            raise MentorExchangeError("unsupported subsystem verdict")
+        if entry.get("evidence_type") not in (
+            "public_code", "ci_result", "sanitized_sample", "no_evidence"
+        ):
+            raise MentorExchangeError("unverified evidence type")
+        for field in ("finding", "next_check"):
+            value = entry[field]
+            if not isinstance(value, str) or not 1 <= len(value) <= 320:
+                raise MentorExchangeError("unbounded part review content")
+        if (entry["verdict"] == "provisional_match"
+                and entry["evidence_type"] not in ("ci_result", "sanitized_sample")):
+            raise MentorExchangeError("part match requires actual checked evidence")
     limits = raw.get("limitations")
     if (not isinstance(limits, list) or len(limits) > 10
             or any(not isinstance(v, str) or len(v) > 250 for v in limits)):
