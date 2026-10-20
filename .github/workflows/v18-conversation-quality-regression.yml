@@ -10,6 +10,9 @@ on:
       - 'test/test_conversation_service.py'
       - 'test/test_response_quality_hardening.py'
       - 'test/test_short_contact_channel_quality.py'
+      - 'test/test_cognition_v2_turn_kernel.py'
+      - 'test/test_personality_expression_g9.py'
+      - 'test/test_personality_pipeline.py'
       - '.github/workflows/v18-conversation-quality-regression.yml'
   workflow_dispatch:
 permissions:
@@ -18,7 +21,7 @@ jobs:
   focused-regression:
     name: Conversation quality (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -43,7 +46,7 @@ jobs:
           src/sofia/cognition/quality_repair.py
       - name: Run focused conversation and provider regression
         run: >-
-          python -m pytest -q
+          python -m pytest -q --durations=15
           test/test_conversation_service.py
           test/test_response_quality_hardening.py
           test/test_short_contact_channel_quality.py
