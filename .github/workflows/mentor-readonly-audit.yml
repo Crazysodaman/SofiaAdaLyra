@@ -33,6 +33,10 @@ jobs:
         env:
           PYTHONPATH: src
         run: python -m sofia.mentor audit --repo . --output mentor-report.json --markdown mentor-summary.md
+      - name: Reconcile all unclassified V18 tasks without promotions
+        env:
+          PYTHONPATH: src
+        run: python -m sofia.mentor.bulk_reconcile --repo . --output mentor-bulk.json --csv mentor-bulk.csv
       - name: Verify public Git mailbox is readable and safe
         env:
           PYTHONPATH: src
@@ -54,6 +58,8 @@ jobs:
           path: |
             mentor-report.json
             mentor-summary.md
+            mentor-bulk.json
+            mentor-bulk.csv
           if-no-files-found: warn
           retention-days: 30
 
