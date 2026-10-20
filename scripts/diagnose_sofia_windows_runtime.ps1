@@ -78,7 +78,12 @@ try {
     $python = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
         $_.Name -match '(?i)^(python|pythonw|pythonservice)([0-9.]*)\.exe$'
     })
-    $observable = @($python | Where-Object { [string]$_.CommandLine -ne '' })
+    # Desktop/tray must be visible in the current interactive user session,
+    # not a separate service or RDP session.
+    $sessionId = (Get-Process -Id $PID).SessionId
+    $observable = @($python | Where-Object {
+        $_.SessionId -eq $sessionId -and [string]$_.CommandLine -ne ''
+    })
     $ui = @($observable | Where-Object {
         $_.CommandLine -match '(?i)(-m\s+sofia\.ui(?:\s|$)|-m\s+sofia\.ui\.desktop(?:\s|$))'
     })
