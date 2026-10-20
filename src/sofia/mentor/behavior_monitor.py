@@ -196,11 +196,16 @@ class BehaviorMonitor:
     """
 
     def __init__(self, *, repo: Path | str, model: str = "qwen3:14b",
-                 evaluator: Callable = evaluate_private_turn) -> None:
+                 evaluator: Callable = evaluate_private_turn,
+                 history_path: Path | str | None = None) -> None:
         self.repo = Path(repo).resolve(strict=True)
         self.model = model
         self._evaluator = evaluator
         self._lock = RLock()
+        self._history_path = history_path
+        from .behavior_history import empty_counts, read_counts
+        self._counts = (empty_counts() if history_path is None
+                        else read_counts(history_path))
         self._pending: deque[PrivateTurn] = deque(maxlen=MAX_PENDING)
         self._observed = 0
         self._reviewed = 0
@@ -270,6 +275,18 @@ class BehaviorMonitor:
             }
             self._reviewed += 1
             self._last_error = None
+            from .behavior_history import merge_scores, save_counts
+            try:
+                updated = merge_scores(
+                    self._counts, outcome["personality_scores"],
+                    outcome["emotion_scores"],
+                )
+                if self._history_path is not None:
+                    save_counts(self._history_path, updated, repo=self.repo)
+                self._counts = updated
+            except (OSError, ValueError, TypeError) as exc:
+                # Foreground responses remain unaffected, and no raw text is logged.
+                self._last_error = "ScoreHistory" + type(exc).__name__
         return {"status": "provisional_review_complete", "commands_executed": 0}
 
     def snapshot(self) -> dict:
@@ -291,6 +308,8 @@ class BehaviorMonitor:
                 "sample_text_exposed": False,
                 "exported_to_public_git": False,
                 "human_validation_completed": False,
+                "local_score_history_enabled": self._history_path is not None,
+                "local_score_total_reviews": self._counts["reviewed_turns"],
                 "actions_executed": 0,
             }
 
@@ -309,7 +328,9 @@ def register_behavior_monitor(*, application, coordinator,
     service = getattr(application, "_conversation_service", None)
     if service is None or not callable(getattr(service, "ready_for_idle_reflection", None)):
         raise ValueError("canonical emotional conversation service required")
-    reviewer = BehaviorMonitor(repo=repo) if monitor is None else monitor
+    from .behavior_history import default_local_path
+    reviewer = (BehaviorMonitor(repo=repo, history_path=default_local_path())
+                if monitor is None else monitor)
     if not isinstance(reviewer, BehaviorMonitor):
         raise TypeError("MENTOR must use a bounded BehaviorMonitor")
     application._mentor_behavior_monitor = reviewer
