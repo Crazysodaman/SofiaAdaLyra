@@ -1,9 +1,17 @@
-﻿from pathlib import Path
+﻿import hashlib
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
 
 from sofia.filesystem.observation import (
     FilesystemObservationStore,
     FilesystemObserver,
 )
+
+pytestmark = [pytest.mark.pkg_dev]
 
 
 def test_observer_records_files_and_ignores_runtime_directories(

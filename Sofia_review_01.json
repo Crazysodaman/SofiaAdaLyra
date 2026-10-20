@@ -1,0 +1,202 @@
+{
+  "10": {
+    "inputs": {
+      "text": "﻿masterpiece, best quality, newest, absurdres,\ndetailed anime illustration, clean lineart,\nsoft cel shading, subtle gradients, natural skin tones,\nsolo, 1girl, adult woman, sofiaadalyra,\nfox girl, human face, human body,\n(strict front view:1.2), full body, standing,\nneutral A-pose,\n(level shoulders:1.2), (level hips:1.2),\nsymmetrical posture,\narms relaxed slightly away from torso,\nhands visible, both feet flat on ground,\nnatural adult proportions,\nslender softly curvy body, lightly athletic build,\nmoderate bust, narrow waist, fuller hips,\n(long crimson red layered hair:1.25),\nnatural flowing back hair, long side locks,\nsoft layered bangs,\n(violet eyes:1.2), confident neutral expression,\n(two crimson fox ears with pastel lavender inner fur:1.3),\n(one sleek crimson fox tail with pastel lavender tip:1.3),\nrealistic fur direction, proportionate tail,\nnude anatomical character reference,\nunobstructed anatomy,\nplain light gray studio background,\nsoft diffuse studio lighting, full character in frame\n",
+      "clip": [
+        "20",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive Prompt"
+    }
+  },
+  "11": {
+    "inputs": {
+      "text": "worst quality, low quality, lowres, blurry, jpeg artifacts, 3d, photorealistic, bad anatomy, incorrect anatomy, bad proportions, deformed body, elongated torso, tiny head, extra limbs, extra fingers, fused fingers, missing fingers, bad hands, bad feet, asymmetrical shoulders, tilted hips, twisted torso, crossed legs, walking pose, contrapposto, duplicate character, multiple girls, split screen, extra tails, multiple tails, fox paws, animal feet, animal muzzle, short hair, bob cut, purple hair streaks, lavender hair, white inner ears, white tail tip, white fox tail, oversized tail, giant fluffy tail, braided tail, plastic skin, waxy skin, glossy highlights, harsh specular lighting, oversaturated red skin, red color cast, colored studio lighting, gradient magenta background, clothing, dress, kimono, robe, uniform, armor, jewelry, belt, stockings, shoes, text, watermark, logo, reference sheet, panels, cropped, out of frame",
+      "clip": [
+        "20",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative Prompt"
+    }
+  },
+  "12": {
+    "inputs": {
+      "seed": 1092335167303385,
+      "steps": 32,
+      "cfg": 5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "20",
+        0
+      ],
+      "positive": [
+        "57",
+        0
+      ],
+      "negative": [
+        "57",
+        1
+      ],
+      "latent_image": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "13": {
+    "inputs": {
+      "width": 896,
+      "height": 1344,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent"
+    }
+  },
+  "14": {
+    "inputs": {
+      "samples": [
+        "12",
+        0
+      ],
+      "vae": [
+        "20",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "20": {
+    "inputs": {
+      "ckpt_name": "waiIllustriousSDXL_v170.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "22": {
+    "inputs": {
+      "images": [
+        "24",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "24": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "width": 1792,
+      "height": 2688,
+      "crop": "disabled",
+      "image": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "Upscale Image"
+    }
+  },
+  "55": {
+    "inputs": {
+      "image": "front_pose_896x1344.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "56": {
+    "inputs": {
+      "control_net_name": "illustriousXL_v10.safetensors"
+    },
+    "class_type": "ControlNetLoader",
+    "_meta": {
+      "title": "Load ControlNet Model"
+    }
+  },
+  "57": {
+    "inputs": {
+      "strength": 0.85,
+      "start_percent": 0,
+      "end_percent": 0.85,
+      "positive": [
+        "10",
+        0
+      ],
+      "negative": [
+        "11",
+        0
+      ],
+      "control_net": [
+        "56",
+        0
+      ],
+      "image": [
+        "58",
+        0
+      ],
+      "vae": [
+        "20",
+        2
+      ]
+    },
+    "class_type": "ControlNetApplyAdvanced",
+    "_meta": {
+      "title": "Apply ControlNet"
+    }
+  },
+  "58": {
+    "inputs": {
+      "detect_hand": "enable",
+      "detect_body": "enable",
+      "detect_face": "enable",
+      "resolution": 1024,
+      "bbox_detector": "yolox_l.onnx",
+      "pose_estimator": "dw-ll_ucoco_384_bs5.torchscript.pt",
+      "scale_stick_for_xinsr_cn": "enable",
+      "image": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "DWPreprocessor",
+    "_meta": {
+      "title": "DWPose Estimator"
+    }
+  },
+  "66": {
+    "inputs": {
+      "images": [
+        "58",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  }
+}
