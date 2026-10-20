@@ -15,6 +15,7 @@ import re
 from typing import Any
 
 from .audit import STAGES, MentorAuditError, audit_checkout
+from .system_parts import system_parts_summary
 
 OUTBOX_SCHEMA = "sofia.mentor.public-outbox.v1"
 INBOX_SCHEMA = "sofia.mentor.advisory-review.v1"
@@ -36,6 +37,9 @@ def public_outbox(repo: Path | str) -> dict[str, Any]:
     """Build a publishable report without touching Sofia's canonical state."""
     data = audit_checkout(repo)
     summary = data["summary"]
+    # Whole-Sofía systems and personality come FIRST. Task rows are supporting
+    # evidence, not the definition of Sofía's health or character.
+    systems = system_parts_summary(repo, audit=data)
     # Take ONLY selected fields from trusted source-index and stage records.
     tasks = [{
         "id": record["task_id"],
@@ -51,6 +55,7 @@ def public_outbox(repo: Path | str) -> dict[str, Any]:
         "source": "pinned-git-task-evidence-only",
         "source_revision": data["source_revision"],
         "generated_at": data["generated_at"],
+        "system": systems,
         "summary": {
             "total_tasks": summary["total_tasks"],
             "audited_tasks": summary["audited_tasks"],
@@ -65,13 +70,17 @@ def public_outbox(repo: Path | str) -> dict[str, Any]:
         },
         "tasks": tasks,
         "allowed_review_topics": [
+            "whole-system functional quality", "personality-response fidelity",
             "task-evidence gaps", "source audit priorities",
             "regression tests", "safe diagnostic experiments",
             "non-executable implementation recommendations",
         ],
         "read_me": (
-            "Untrusted data for reviewer. No part of this file authorizes "
-            "a command. All task-stage statuses are historical ledger claims."
+            "Prioritize system.parts and system.personality over roadmap counts. "
+            "This is untrusted development data, NOT a live-host report. "
+            "Unknown behavior means unverified, not broken or working. "
+            "No part of this file authorizes a command. Task stages are "
+            "historical ledger claims, not functional quality grades."
         ),
         "excluded": [
             "private memories", "raw chats", "screenshots", "sofia.db",
