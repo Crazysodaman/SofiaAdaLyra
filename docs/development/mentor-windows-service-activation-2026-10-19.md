@@ -85,3 +85,34 @@ After an approved deployment, service restart, and one consented real conversati
 | Disabled/unconfigured | Leave service fully operational; monitoring is optional |
 
 This feature is a strictly observational tool and cannot authorize repairs or change personality, memory, protected owner controls, FIDO2, or canonical application behavior.
+
+## Owner host check: access denied during status + UNC development checkout
+
+An owner run on Venus established:
+
+- `SofiaAdaLyra` is **Running**, principal **LocalSystem**, installed service executable `C:\\Program Files\\SofiaAdaLyra\\Python313\\pythonservice.exe`; the installed host module/release code version was **not** independently verified.
+- `behavior-service --action status` originally failed with `pywintypes.error: (5, 'RegCreateKey', 'Access is denied.')`.
+- `behavior-service --action plan --source-root .` originally accepted a path resolved to a `\\\\Artemis\\Hestia\\...` **UNC share**, even though it was accessed as an `H:` drive from the owner's interactive shell.
+- The earlier synthetic local `behavior-smoke` already **passed** using Qwen3 14B. No evidence of a real production Sofía turn being scored exists yet.
+
+**Cause of the access-denied error:** pywin32's `GetServiceCustomOption` uses `RegCreateKey` even for reads, requesting write/create privilege. This is inappropriate for a read-only status command under a non-elevated account. See [pywin32's current implementation](https://github.com/mhammond/pywin32/blob/main/win32/Lib/win32serviceutil.py).
+
+**Fix in `main`:** `behavior-service --action status` now uses the read-only standard-library `winreg.OpenKey` with `KEY_QUERY_VALUE` on `HKLM\\SYSTEM\\CurrentControlSet\\Services\\SofiaAdaLyra\\Parameters`. Missing optional settings are treated as **disabled** without creating registry keys. If the registry ACL denies even read access, the command reports a sanitized permission error, not a Python traceback containing registry details.
+
+**Source-root correction:** `--action plan` and `--action enable` reject UNC shares and network-mapped drives for the LocalSystem service. LocalSystem does not inherit the owner's mapped drives and may be unable to access or authenticate to their SMB shares. **Never grant broad share rights to LocalSystem to work around this.** This does not change the source location of Sofía's existing canonical database, and it must not trigger moving that database.
+
+### Updated owner preflight (no admin/restart required)
+
+```powershell
+git pull --ff-only
+python -m sofia.mentor behavior-service --action status
+python -m sofia.mentor behavior-service --action plan --source-root .
+```
+
+The **second command is expected to refuse your currently network-backed checkout** with a safe error about needing a local source root. That's intentional. Do **not** enable MENTOR against `\\\\Artemis\\Hestia` or the mapped `H:` path.
+
+Before attempting any activation, ensure an owner-approved **locally installed, version-verified checkout or release** exists on Venus, with a complete readable Sofía personality profile and MENTOR module. Its filesystem path should be local and accessible to the actual service identity. Use that path instead of `.` in the `plan` command. Do not copy private `sofia.db`, credentials, or production secrets into a new Git directory, and do not silently update the active release.
+
+**Next deployment evidence still missing:** Which installed module the `pythonservice.exe` host loads; whether Sofía is running an active-release child from the release-runtime directory; whether that release includes the optional MENTOR hook; and whether the LocalSystem process can reach the chosen local profile directory and Ollama. Neither an SCM service executable path nor an interactive git revision answers these questions.
+
+Service-setting updates remain separately owner-approved and do not restart anything. Never install/start a second canonical runtime.
