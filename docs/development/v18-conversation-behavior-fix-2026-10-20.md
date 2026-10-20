@@ -40,10 +40,18 @@ python -m pytest -q `
 ```
 
 **Owner-reported result: 129 passed, 0 failed, in 1469.16 seconds
-(approximately 24 minutes 29 seconds).** This is useful local focused
-regression evidence. The owner's local `git rev-parse HEAD`, Python version,
-and pytest version were not supplied with this output; do not silently attach
-the run to a guessed SHA. This is not CI and not a live Ollama dialogue trial.
+(approximately 24 minutes 29 seconds).** The owner subsequently supplied:
+
+- **Tested Git HEAD:** `49318c9ac3c1306b613f43d2caaedb8f18f8c4d6`
+- **Python:** `3.12.10`
+- **Environment:** Windows Venus, activated `.venv` PowerShell session
+- **Pytest version:** not recorded in the supplied output
+
+This pins the reported passing regression to an exact local source revision.
+It is owner-provided output, not an independently executed test in this
+development session. This is **not** a CI receipt and **not** a live Ollama
+conversation acceptance trial. Later audit and CI-timeout commits do not
+retroactively change the tested SHA.
 
 The first cross-platform quality workflow had `timeout-minutes: 20`, shorter
 than the observed Windows subset runtime. Its successor increases the cap
@@ -56,7 +64,7 @@ performance question as open.
 These are source code, authored tests, and the owner-reported local Windows pass above. **No matching-commit GitHub Actions result or live Ollama conversation trial has been observed.** The CI workflow exists but its success is NOT asserted. No independent live Venus/Ollama answer-quality trial has been executed.
 
 Needed before Level 4:
-1. Pin the owner-passed focused regression to its actual local Git SHA and record environment details. Re-run any changed production paths if later code edits affect behavior.
+1. Local tested SHA and Python version are recorded above. Capture pytest version if needed and re-run tests if any later production changes affect the behavior; retain a per-task source-to-test mapping.
 2. Run a live Venus conversation with the configured primary and secondary Ollama routes: "what are you wearing?" → "why?" → "I mean why you choose your outfit?". Check relevance, natural language, truthful selection reason/unknown, and absence of user-directed contempt.
 3. Check ordinary "why?" after a technical answer and unrelated metaphors for false positives.
 4. Record actual outputs/commit/time and audit privacy, authority, memory and wardrobe state.
