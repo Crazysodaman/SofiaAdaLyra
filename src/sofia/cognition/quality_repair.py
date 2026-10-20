@@ -87,6 +87,20 @@ def grounded_quality_fallback(
         ))
 
     if issue == "user_directed_contempt":
+        if (
+            "TRUSTED OUTFIT CHOICE FOLLOW-UP" in system_context
+            and re.fullmatch(
+                r"\s*(?:(?:so|but)\s+)?why(?:\s+though)?\s*[?!.]*\s*",
+                user, re.IGNORECASE,
+            )
+        ):
+            # The outfit was actually described in eligible dialogue, but
+            # that does not establish the wardrobe controller's motive.
+            return CognitiveResponse(content=(
+                "I can describe the outfit, but the available context doesn't "
+                "establish why those exact pieces were chosen. I shouldn't "
+                "invent a reason."
+            ))
         return CognitiveResponse(content=(
             "You're right to press on the evidence. I should answer the question "
             "without inventing motives for you or getting defensive."
@@ -439,6 +453,17 @@ def build_rephrase_request(
             "bite belongs on bad reasoning and unsupported claims, not on the user. "
             "Own mistakes cleanly and answer the latest request directly."
         )
+        if any(
+            message.role is CognitiveRole.SYSTEM
+            and "TRUSTED OUTFIT CHOICE FOLLOW-UP" in message.content
+            for message in request.messages
+        ):
+            detail += (
+                " The short 'why?' asks about the outfit in the immediately "
+                "preceding answer. Explain the selection reason only with "
+                "trusted evidence; otherwise say it is unknown. Never demand "
+                "that the user restate the already-visible question."
+            )
     elif issue == "ai_parody_metaphor_overuse":
         detail = (
             "Your draft leaned on fake-AI machinery metaphors such as circuits, "
