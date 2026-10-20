@@ -21,11 +21,35 @@ from .local_bridge import LocalBridgeConfig, run_local_dialogue
 from .oracles import get_oracle
 from .exchange import write_public_outbox, read_review
 from .remote_inbox import MentorReviewConsumer
+from .system_parts import system_parts_summary
+from .personality_review import (
+    review_response, publish_public_personality_summary,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m sofia.mentor")
     sub = parser.add_subparsers(dest="command", required=True)
+    systems = sub.add_parser(
+        "system-status", help="Inspect whole-Sofía source, evidence and personality status"
+    )
+    systems.add_argument("--repo", type=Path, default=Path("."))
+
+    persona = sub.add_parser(
+        "personality-review", help="Privately compare one owner-selected Sofía reply with her source profile"
+    )
+    persona.add_argument("--repo", type=Path, default=Path("."))
+    persona.add_argument("--scenario", required=True, choices=sorted(SCENARIOS))
+    persona.add_argument("--response-file", type=Path, required=True)
+    persona.add_argument("--mentor-model", required=True)
+    persona.add_argument("--source-kind", required=True, choices=[
+        "owner-selected-sofia-output", "model-only-synthetic",
+    ])
+    persona.add_argument("--confirm-idle", action="store_true",
+                       help="Explicit confirmation Venus may use GPU locally")
+    persona.add_argument("--approve-public-summary", action="store_true",
+                       help="Consent to write numeric-only summary into the PUBLIC Git checkout; never raw reply")
+
     audit = sub.add_parser("audit", help="Verify 780-task inventory and historical evidence")
     audit.add_argument("--repo", type=Path, default=Path("."))
     audit.add_argument("--output", type=Path, default=None,
@@ -87,6 +111,31 @@ def main(argv: list[str] | None = None) -> int:
                       help="I authorize sharing this public synthetic fixture and stateless model output")
     try:
         if args := parser.parse_args(argv):
+            if args.command == "system-status":
+                systems = system_parts_summary(args.repo)
+                print(json.dumps(systems, indent=2, ensure_ascii=False))
+                return 0
+            if args.command == "personality-review":
+                if not args.confirm_idle:
+                    raise MentorBridgeError(
+                        "local reviewer requires --confirm-idle; do not compete with gaming"
+                    )
+                inp = args.response_file
+                if inp.is_symlink() or not inp.is_file() or inp.stat().st_size > 5000:
+                    raise MentorBridgeError("owner-selected response file invalid or too large")
+                text = inp.read_text(encoding="utf-8-sig")
+                assessment = review_response(
+                    repo=args.repo, scenario_id=args.scenario,
+                    response=text, model=args.mentor_model,
+                    source_kind=args.source_kind,
+                )
+                result = {"assessment": assessment, "private": True}
+                if args.approve_public_summary:
+                    result["published_local_file"] = publish_public_personality_summary(
+                        args.repo, assessment,
+                    )
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+                return 0
             if args.command == "exchange-export":
                 print(json.dumps(write_public_outbox(args.repo), indent=2))
                 return 0
