@@ -85,6 +85,7 @@ jobs:
           test/test_personality_expression_g9.py
           test/test_conversation_emotion_appraisal.py
           test/test_emotional_conversation_integration.py
+          test/test_emotional_conversation_mentor_hook.py
           test/test_current_emotional_state.py
           test/test_vision_cross_platform.py
           test/test_vision_action_workflow.py
