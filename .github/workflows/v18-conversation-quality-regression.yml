@@ -1,0 +1,52 @@
+name: V18 Conversation Follow-up and Quality Regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/sofia/application/conversation_service.py'
+      - 'src/sofia/cognition/repetition_guard.py'
+      - 'src/sofia/cognition/quality_repair.py'
+      - 'src/sofia/cognition/providers/ollama_provider.py'
+      - 'test/test_conversation_service.py'
+      - 'test/test_response_quality_hardening.py'
+      - 'test/test_short_contact_channel_quality.py'
+      - '.github/workflows/v18-conversation-quality-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  focused-regression:
+    name: Conversation quality (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Sofía and pytest
+        run: python -m pip install -e . pytest
+      - name: Compile edited production modules
+        run: >-
+          python -m compileall -q
+          src/sofia/application/conversation_service.py
+          src/sofia/cognition/repetition_guard.py
+          src/sofia/cognition/quality_repair.py
+      - name: Run focused conversation and provider regression
+        run: >-
+          python -m pytest -q
+          test/test_conversation_service.py
+          test/test_response_quality_hardening.py
+          test/test_short_contact_channel_quality.py
+          test/test_cognition_v2_turn_kernel.py
+          test/test_personality_expression_g9.py
+          test/test_personality_pipeline.py
