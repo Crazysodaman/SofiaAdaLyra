@@ -81,6 +81,7 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_mentor_", ("pkg_verify", "pkg_safe")),
     ("test_v18_change_guard.py", ("pkg_verify", "pkg_dev")),
     ("test_v18_five_stage_audit.py", ("pkg_verify",)),
+    ("test_v18_direct_code_audit.py", ("pkg_verify",)),
     ("test_v18_success_oracle_contract.py", ("pkg_verify", "pkg_core")),
     ("test_life_objective_parser_bounded.py", ("pkg_core", "pkg_verify")),
     ("test_fleet_build_backend_hash_lock.py", ("pkg_ops", "pkg_verify")),
