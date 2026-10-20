@@ -79,10 +79,13 @@ def _assess_json(value: object) -> dict:
         group = value.get(family)
         if not isinstance(group, dict) or set(group) != set(labels):
             raise ValueError("incomplete behavior evaluation rubric")
-        for row in group.values():
+        for dimension, row in group.items():
             if not isinstance(row, dict) or set(row) != {"score", "reason"}:
                 raise ValueError("invalid behavior criterion")
-            _score(row["score"])
+            if dimension == "expression_coherence" and row["score"] is None:
+                pass  # Voice/avatar delivery needs real receipts; do not invent a score.
+            else:
+                _score(row["score"])
             if (not isinstance(row["reason"], str) or not 1 <= len(row["reason"]) <= 240):
                 raise ValueError("invalid behavior explanation")
     for name in ("strengths", "concerns"):
@@ -130,7 +133,9 @@ def evaluate_private_turn(
         "invent unseen memories, internal motivation, host actions or "
         "speech/rendered gestures. Return only JSON with: personality "
         "(seven named criteria each {score:0-4,reason}), emotion (seven "
-        "named criteria each {score:0-4,reason}), strengths [strings], "
+        "named criteria each {score:0-4,reason}, except emotion "
+        "expression_coherence score MUST be null when actual voice/avatar "
+        "receipts are absent; strengths [strings], "
         "concerns [strings], uncertainty (nonempty string). If modeled "
         "emotion lacks grounding, explicitly note limits. Your grades are "
         "subjective and cannot certify actual user experience."
@@ -143,7 +148,7 @@ def evaluate_private_turn(
                 {"role": "user", "content": prompt},
             ], "stream": False, "think": False, "tools": [],
              "format": "json", "keep_alive": 0,
-             "options": {"num_predict": 700, "num_ctx": 4096}},
+             "options": {"num_predict": 1750, "num_ctx": 8192}},
             {"Content-Type": "application/json"}, 60,
         )
     except (OSError, MentorBridgeError) as exc:
