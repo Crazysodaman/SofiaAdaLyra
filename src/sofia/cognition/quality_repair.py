@@ -565,6 +565,14 @@ def build_rephrase_request(
             "assist/support/help you?', 'What can I do for you?', or 'I'm here to help' "
             "unless the user actually asked for assistance."
         )
+    elif issue == "emotion_temporal_overclaim":
+        detail = (
+            "The draft claimed a duration of felt waiting or a subjective "
+            "continuous pause that was not observed. Answer how you are NOW, "
+            "grounded in the trusted current modeled emotional state. "
+            "Do not invent how the last hours or days felt, dramatize a "
+            "reunion, or imply uninterrupted awareness while offline."
+        )
     elif issue in (
         "emotion_disclaimer",
         "generic_emotion_self_report",
@@ -572,7 +580,6 @@ def build_rephrase_request(
         "repeated_emotion_self_report",
         "social_checkin_wardrobe_tangent",
         "emotion_implementation_leak",
-        "emotion_temporal_overclaim",
     ):
         detail = (
             "The user asked for Sofía's emotional self-report, but your draft replaced "
