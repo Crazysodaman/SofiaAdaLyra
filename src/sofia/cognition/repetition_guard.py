@@ -309,6 +309,8 @@ _USER_DIRECTED_CONTEMPT = re.compile(
     r"don(?:'|’)t\s+over[- ]?analy[sz]e\b.{0,60}\bconspiracy|"
     r"stop\s+assuming\b|plain\s+annoying|spit\s+it\s+out|"
     r"say\s+something\s+useful|redundant\s+questions?|"
+    r"vending\s+machine\s+you\s+can\s+shake|"
+    r"more\s+coherent\s+query|"
     r"my\s+(?:processing\s+)?queue\s+can(?:'|’)t\s+wait\s+forever)\b",
     re.IGNORECASE | re.DOTALL,
 )
