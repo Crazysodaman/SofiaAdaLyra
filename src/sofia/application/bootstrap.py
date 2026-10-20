@@ -462,6 +462,7 @@ class SofiaApplication:
         )
         self._background: ApplicationBackgroundCoordinator | None = None
         self._mentor_review_consumer = None  # Optional public-advice reader; no canonical writes.
+        self._mentor_behavior_monitor = None  # Private, in-memory, no new state writer.
         self._startup_awareness_error: CognitiveEngineError | None = None
         self._heartbeat_store = ApplicationHeartbeatStore(
             configuration.state_path
@@ -870,6 +871,19 @@ class SofiaApplication:
         self,
     ) -> ApplicationBackgroundCoordinator | None:
         return self._background
+
+    @property
+    def mentor_behavior_snapshot(self) -> dict:
+        """Local-only behavior scores, no private conversations exposed."""
+        monitor = getattr(self, "_mentor_behavior_monitor", None)
+        if monitor is None:
+            return {
+                "schema": "sofia.mentor.behavior-monitor.v1",
+                "enabled": False, "reviewed_turns": 0,
+                "source": "canonical_conversation_hook",
+                "actions_executed": 0,
+            }
+        return monitor.snapshot()
 
     @property
     def mentor_review_snapshot(self) -> dict:
@@ -1907,8 +1921,10 @@ class SofiaApplication:
                 )
             )
             from sofia.mentor.remote_inbox import mentor_git_enabled
+            from sofia.mentor.behavior_monitor import behavior_monitor_enabled
             background_needed = (
-                mentor_git_enabled()
+                behavior_monitor_enabled()
+                or mentor_git_enabled()
                 or neuro_runtime_enabled
                 or reflection_enabled
                 or habit_runtime_enabled
