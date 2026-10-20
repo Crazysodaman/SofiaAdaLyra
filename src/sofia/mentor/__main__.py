@@ -155,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
                     "source_revision": review["reviewed_source_revision"],
                     "summary": review["summary"],
                     "recommendations": review["recommendations"],
+                    "part_reviews": review.get("part_reviews", []),
                     "limitations": review["limitations"],
                     "advisory_only": True,
                     "automatic_actions_authorized": False,
