@@ -21,6 +21,7 @@ from .local_bridge import LocalBridgeConfig, run_local_dialogue
 from .oracles import get_oracle
 from .exchange import write_public_outbox, read_review
 from .remote_inbox import MentorReviewConsumer
+from .behavior_history import read_counts, default_local_path, public_free_summary
 from .system_parts import system_parts_summary
 from .personality_review import (
     review_response, publish_public_personality_summary,
@@ -35,6 +36,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     systems.add_argument("--repo", type=Path, default=Path("."))
 
+    behavior = sub.add_parser(
+        "behavior-status",
+        help="Show only locally stored aggregate personality/emotion scores; no transcripts"
+    )
     persona = sub.add_parser(
         "personality-review", help="Privately compare one owner-selected Sofía reply with her source profile"
     )
@@ -114,6 +119,12 @@ def main(argv: list[str] | None = None) -> int:
             if args.command == "system-status":
                 systems = system_parts_summary(args.repo)
                 print(json.dumps(systems, indent=2, ensure_ascii=False))
+                return 0
+            if args.command == "behavior-status":
+                print(json.dumps(
+                    public_free_summary(read_counts(default_local_path())),
+                    indent=2, ensure_ascii=False,
+                ))
                 return 0
             if args.command == "personality-review":
                 if not args.confirm_idle:
