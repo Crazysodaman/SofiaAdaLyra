@@ -175,3 +175,106 @@ def review_response(
             "Response text and private memory must never be added to public Git.",
         ],
     }
+
+
+PUBLIC_SUMMARY = "docs/mentor_exchange/evidence/personality_latest.json"
+
+
+def public_personality_summary(report: dict) -> dict:
+    """Strict, raw-text-free summary; only from this reviewed local schema."""
+    if (not isinstance(report, dict) or report.get("schema") != MARKER
+            or report.get("assessment_status") != "PROVISIONAL_LOCAL_LLM_REVIEW"
+            or report.get("source_kind") not in SOURCE_KINDS
+            or report.get("scenario_id") not in SCENARIOS
+            or report.get("response_provenance_verified") is not False
+            or report.get("raw_response_included") is not False):
+        raise PersonalityReviewError("invalid or overly trusted personality report")
+    rubric = report.get("rubric")
+    if not isinstance(rubric, dict) or set(rubric) != set(CRITERIA):
+        raise PersonalityReviewError("invalid personality dimensions")
+    grades = {name: _score(rubric[name]["score"]) for name in CRITERIA}
+    profile_hash = report.get("source_profile_sha256")
+    if (not isinstance(profile_hash, str)
+            or re.fullmatch(r"[0-9a-f]{64}", profile_hash) is None):
+        raise PersonalityReviewError("missing personality profile digest")
+    return {
+        "schema": "sofia.mentor.personality-public-summary.v1",
+        "scenario_id": report["scenario_id"],
+        "source_kind": report["source_kind"],
+        "response_provenance_verified": False,
+        "assessment_status": "PROVISIONAL_LOCAL_LLM_REVIEW",
+        "profile_sha256": profile_hash,
+        "score_range": [0, 4],
+        "rubric_scores": grades,
+        "review_count": 1,
+        "raw_transcript_exported": False,
+        "independent_validation": False,
+        "limitations": [
+            "Ratings from a local critic are subjective and provisional.",
+            "The output cannot prove it came from a production Sofía turn.",
+            "No response text, prompts, memory, host IDs or personal data included.",
+        ],
+    }
+
+
+def publish_public_personality_summary(repo: Path | str, report: dict) -> dict:
+    """Only explicit owner CLI consent may write bounded, numeric public data."""
+    root = Path(repo).resolve(strict=True)
+    path = root / PUBLIC_SUMMARY
+    if path.is_symlink() or path.parent.is_symlink():
+        raise PersonalityReviewError("unsafe public summary destination")
+    if path.exists() and not path.is_file():
+        raise PersonalityReviewError("public summary cannot overwrite directory")
+    summary = public_personality_summary(report)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(summary, indent=2, sort_keys=True) + "\n"
+    if len(encoded.encode("utf-8")) > 4096:
+        raise PersonalityReviewError("summary too large")
+    path.write_text(encoded, encoding="utf-8")
+    return {"file": PUBLIC_SUMMARY, "public": True,
+            "only_numeric_scores": True,
+            "git_committed": False, "git_pushed": False}
+
+
+def load_public_personality_summary(repo: Path | str) -> dict | None:
+    root = Path(repo).resolve(strict=True)
+    path = root / PUBLIC_SUMMARY
+    if not path.exists():
+        return None
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 4096:
+        raise PersonalityReviewError("unsafe stored public personality summary")
+    try:
+        obj = json.loads(path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise PersonalityReviewError("invalid stored personality JSON") from exc
+    expected = {
+        "schema", "scenario_id", "source_kind", "response_provenance_verified",
+        "assessment_status", "profile_sha256", "score_range",
+        "rubric_scores", "review_count", "raw_transcript_exported",
+        "independent_validation", "limitations",
+    }
+    if not isinstance(obj, dict) or set(obj) != expected:
+        raise PersonalityReviewError("unexpected public summary fields")
+    if (obj["schema"] != "sofia.mentor.personality-public-summary.v1"
+            or obj["assessment_status"] != "PROVISIONAL_LOCAL_LLM_REVIEW"
+            or obj["scenario_id"] not in SCENARIOS
+            or obj["source_kind"] not in SOURCE_KINDS
+            or obj["response_provenance_verified"] is not False
+            or obj["raw_transcript_exported"] is not False
+            or obj["independent_validation"] is not False
+            or obj["score_range"] != [0, 4]
+            or obj["review_count"] != 1):
+        raise PersonalityReviewError("public personality summary overstates trust")
+    if not isinstance(obj["profile_sha256"], str) or not re.fullmatch(
+        r"[0-9a-f]{64}", obj["profile_sha256"]
+    ):
+        raise PersonalityReviewError("invalid persona digest")
+    if not isinstance(obj["rubric_scores"], dict) or set(obj["rubric_scores"]) != set(CRITERIA):
+        raise PersonalityReviewError("invalid published rubric")
+    for value in obj["rubric_scores"].values():
+        _score(value)
+    if (not isinstance(obj["limitations"], list)
+            or len(obj["limitations"]) > 4
+            or any(not isinstance(x, str) or len(x) > 200 for x in obj["limitations"])):
+        raise PersonalityReviewError("invalid published limitations")
+    return obj
