@@ -185,7 +185,8 @@ def validate_advisory_review(raw: dict) -> dict:
         }):
             raise MentorExchangeError("invalid system-part review shape")
         part_id = entry.get("part_id")
-        if (part_id not in allowed_part_ids or part_id in found_parts):
+        if (not isinstance(part_id, str) or part_id not in allowed_part_ids
+                or part_id in found_parts):
             raise MentorExchangeError("unknown or duplicated system part")
         found_parts.add(part_id)
         if entry.get("verdict") not in (
