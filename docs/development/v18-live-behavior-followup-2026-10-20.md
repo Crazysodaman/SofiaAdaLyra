@@ -56,6 +56,34 @@ live failure classes**. That run must not be retroactively relabeled failed.
 - `.github/workflows/v18-conversation-quality-regression.yml` now watches
   and runs the new AVATAR coverage.
 
+## Owner-reported focused Windows run on 5275eec4
+
+The owner fast-forwarded Venus to
+`5275eec4ece753e063f6c3f8f6ada9b9804f9793` and executed the
+documented `-k "tail or outfit or checkin_rejects_invented_subjective_elapsed_waiting or simple_present_checkin"`
+subset, with `--durations=10`.
+
+Result: **30 passed, 1 failed, 110 deselected, 145.74 seconds**.
+The sole failure was
+`test_tail_presence_does_not_claim_tail_when_canonical_anatomy_lacks_it`.
+The actual implementation returned
+`I don't have a fox tail recorded in my canonical avatar.`,
+which is the correct negative fact for the synthetic tail-free fixture.
+The test had incorrectly asserted the literal substring
+`no fox tail recorded`; it did not appear in that correct sentence.
+This was an **assertion wording mismatch**, not a demonstrated production
+false-positive tail claim. The test now verifies
+`don't have a fox tail recorded` and separately excludes a positive
+`Yes, my avatar has one fox tail` response.
+
+Three conversation-service tests took 40.77, 40.51 and 39.80 seconds
+respectively. Their cost needs profiling separately; no particular
+cause is established by durations alone.
+
+**The new assertion has not yet been rerun on Venus.** No CI or live
+model acceptance has been confirmed for this revision. Do not promote
+a task solely because 30 scoped tests passed.
+
 ## Validation status and open acceptance
 
 **Source changes committed; no post-change pytest or CI pass has been
