@@ -1412,3 +1412,41 @@ def test_blank_input_does_not_bind_session_principal(
         assert bindings.get(session_id) is None
     finally:
         application.shutdown()
+
+
+def test_outfit_why_scope_uses_only_the_eligible_immediate_exchange():
+    """CA-5704: an elliptical why follows the visible outfit answer, not an old topic."""
+    from sofia.application.conversation_service import _is_outfit_choice_followup
+
+    def msg(role, content):
+        return SimpleNamespace(role=role, content=content)
+
+    outfit = (
+        msg(ConversationRole.USER, "What are you wearing?"),
+        msg(
+            ConversationRole.ASSISTANT,
+            "Grounded answer: wearing a light summer dress and sandals.",
+        ),
+        msg(ConversationRole.USER, "why?"),
+    )
+    assert _is_outfit_choice_followup(outfit)
+    assert _is_outfit_choice_followup(
+        (*outfit[:-1], msg(ConversationRole.USER, "So why though?"))
+    )
+
+    # Domain filtering may exclude the prior assistant. The helper must not
+    # reach back into an unfiltered/private lifetime transcript to compensate.
+    assert not _is_outfit_choice_followup(outfit[::2])
+    assert not _is_outfit_choice_followup(
+        (*outfit[:-1], msg(ConversationRole.USER, "Why is Artemis offline?"))
+    )
+    assert not _is_outfit_choice_followup((
+        msg(ConversationRole.USER, "What are you wearing?"),
+        msg(ConversationRole.ASSISTANT, "I cannot access avatar state."),
+        msg(ConversationRole.USER, "why?"),
+    ))
+    assert not _is_outfit_choice_followup((
+        msg(ConversationRole.USER, "Check Artemis CPU."),
+        outfit[1],
+        msg(ConversationRole.USER, "why?"),
+    ))
