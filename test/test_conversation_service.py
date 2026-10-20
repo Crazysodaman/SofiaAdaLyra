@@ -1530,3 +1530,47 @@ def test_outfit_why_scope_reaches_real_provider_request_without_cross_domain_lea
         for message in explicit_request.messages
     )
     application.shutdown()
+
+
+def test_live_avatar_tail_and_outfit_why_use_authoritative_state(tmp_path: Path):
+    """The complete conversation path must not let a model invent self-facts."""
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        tail = application.conversation.respond("do u have a tail")
+        assert "one fox tail" in tail.content
+        assert "dark violet" in tail.content
+        assert "fluffy" in tail.content
+        assert "sleek, slender" not in tail.content
+
+        wearing = application.conversation.respond("What are you wearing?")
+        assert "outfit" in wearing.content.lower()
+
+        reason = application.conversation.respond("why?")
+        assert "outfit" in reason.content.lower()
+        assert "old papers" not in reason.content.lower()
+        assert "inspiration" not in reason.content.lower()
+        assert "vending machine" not in reason.content.lower()
+        assert reason.content != "Test cognitive response."
+
+        # The explicit post-deflection variant is independently resolvable.
+        explicit = application.conversation.respond(
+            "I mean why you choose your outfit?"
+        )
+        assert "outfit" in explicit.content.lower()
+        assert "old papers" not in explicit.content.lower()
+    finally:
+        application.shutdown()
+
+
+def test_grounded_avatar_bare_why_requires_eligible_previous_outfit(tmp_path: Path):
+    """A generic why must not be reinterpreted as a wardrobe query."""
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        application.conversation.respond("Check Artemis CPU.")
+        reply = application.conversation.respond("why?")
+        assert "canonical daily" not in reply.content.lower()
+        assert "wardrobe planner" not in reply.content.lower()
+    finally:
+        application.shutdown()
