@@ -60,7 +60,7 @@ def _reject_service_network_path(path: Path) -> None:
         drive = path.drive
         if drive and len(drive) == 2 and drive[1] == ":":
             import ctypes
-            drive_kind = ctypes.windll.kernel32.GetDriveTypeW(drive + "\\\\")
+            drive_kind = ctypes.windll.kernel32.GetDriveTypeW(drive + chr(92))
             if drive_kind == 4:
                 raise MentorServiceSettingsError(
                     "service source root is a mapped network drive; "
@@ -84,9 +84,9 @@ def _read_registry_option(
         registry = winreg
     if service != SERVICE or option not in (FLAG_OPTION, ROOT_OPTION):
         raise MentorServiceSettingsError("unrecognized MENTOR registry option")
-    key_path = (
-        "SYSTEM\\\\CurrentControlSet\\\\Services\\\\" + SERVICE + "\\\\Parameters"
-    )
+    key_path = chr(92).join((
+        "SYSTEM", "CurrentControlSet", "Services", SERVICE, "Parameters"
+    ))
     try:
         with registry.OpenKey(
             registry.HKEY_LOCAL_MACHINE, key_path, 0, registry.KEY_QUERY_VALUE,
