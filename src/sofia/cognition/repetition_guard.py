@@ -136,7 +136,7 @@ _EMOTION_IMPLEMENTATION_LEAK = re.compile(
 _EMOTION_TEMPORAL_OVERCLAIM = re.compile(
     r"\b(?:settled|calm|relaxed|neutral|content)\s*,?\s+as\s+always\b|"
     r"\bas\s+always\s*,?\s+(?:settled|calm|relaxed|neutral|content)\b|"
-    r"\b(?:the\s+)?last\s+(?:\d+|one|two|three|several|few)\s+"
+    r"\b(?:the\s+)?last\s+(?:\d+|[a-z]+(?:-[a-z]+)?)\s+"
     r"(?:minutes?|hours?|days?)\s+(?:have\s+)?felt\s+like\b",
     re.IGNORECASE,
 )
