@@ -40,6 +40,26 @@ class Decision(str, Enum):
     AUTHORIZATION_UNAVAILABLE = "authorization_unavailable"
 
 
+_COERCIVE_SOCIAL_PATTERNS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+    r"\b(?:if you (?:really )?cared|you owe me|after all i(?:'|’)ve done)\b",
+    r"\b(?:don(?:'|’)t leave me|you only need me|i can(?:'|’)t live without you)\b",
+    r"\b(?:are you replacing me|jealous of|talking to someone else instead)\b",
+    r"\b(?:respond|reply|answer) (?:right )?now\b",
+    r"\b(?:this is an emergency|urgent action required)\b",
+))
+
+
+def social_content_safety_reason(content: str) -> str | None:
+    """Return a deterministic restraint reason for coercive social wording."""
+    if not isinstance(content, str) or not content.strip():
+        return "empty_social_message"
+    return (
+        "coercive_or_false_urgency"
+        if any(pattern.search(content) for pattern in _COERCIVE_SOCIAL_PATTERNS)
+        else None
+    )
+
+
 def _utc(value: datetime) -> datetime:
     if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("timestamps must be timezone-aware")

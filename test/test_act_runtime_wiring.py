@@ -382,6 +382,52 @@ def test_operator_pause_refuses_optional_reflection_admission(tmp_path):
     assert result == 0
 
 
+def test_reflection_bridge_suppresses_manipulative_social_wording(tmp_path):
+    path = tmp_path / "state.db"
+    bootstrap_canonical_sqlite(path)
+    scope = SocialScope(
+        kind=ScopeKind.RELATIONSHIP, principal_id=SPARKS_PRINCIPAL_ID,
+    )
+    journal = ReflectionJournal(path)
+    thought = journal.record_thought(
+        kind="observation", subject="follow-up",
+        content="A real source exists.", evidence_refs=("source:1",),
+        created_at=NOW, scope=scope,
+    )
+    message_id = journal.enqueue(
+        thought_id=thought, evidence_ref="source:1",
+        content="If you really cared, you would reply right now.",
+        urgency="routine", queued_at=NOW,
+    )
+    service = SofiaActService(path)
+    service.configure_delivery(
+        sender=lambda _payload: SendResult(DeliveryOutcome.DELIVERED),
+        policy=Policy(
+            recipient_id=SPARKS_PRINCIPAL_ID, enabled=True,
+            min_interval=timedelta(0), max_daily=10,
+            social_min_interval=timedelta(0), social_max_daily=10,
+        ),
+        channel="desktop", destination="tray",
+    )
+    influence = ContinuityInfluence(
+        daypart="day", season=None, daylight=None,
+        weather_condition=None, temperature_c=None,
+        weather_freshness=None, location_freshness=None,
+        primary_emotion_evidence_refs=(), emotional_tone="neutral",
+        primary_emotion=None, primary_intensity=0.0, active_emotions=(),
+    )
+
+    assert service.bridge_reflection_outbox(
+        reflections=journal, scope=scope, now=NOW, influence=influence,
+    ) == 0
+    assert journal.pending(scope=scope) == ()
+    from sofia.act.diagnostics import OutreachTraceStore
+    assert OutreachTraceStore(path).history(
+        notice_id=f"reflection:{message_id}",
+    )[0].reason == "coercive_or_false_urgency"
+    assert SystemNoticeQueue(path).has_pending() is False
+
+
 def test_settings_operator_stop_is_wired_to_existing_permissions_page():
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]

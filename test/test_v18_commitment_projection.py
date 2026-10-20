@@ -37,6 +37,10 @@ def make_goal(
             GoalLifecycleEvent(
                 event_id="goal-event:2", from_status=initial, to_status=status,
                 actor_principal_id="user:owner", occurred_at=NOW - timedelta(hours=1),
+                evidence_refs=(
+                    ("execution-receipt:weekly-report",)
+                    if status is GoalStatus.COMPLETED else ()
+                ),
             ),
         )
     return Goal(
@@ -52,6 +56,10 @@ def make_goal(
         ),
         history=history, blocked_reason=blocked_reason,
         expires_at=expires_at, run_state=run_state,
+        completion_evidence=(
+            ("execution-receipt:weekly-report",)
+            if status is GoalStatus.COMPLETED else ()
+        ),
     )
 
 
@@ -86,7 +94,19 @@ def test_terminal_goal_is_a_history_record_not_an_open_commitment():
     assert record is not None
     assert record.active is False
     assert record.cancellable is False
+    assert record.status == "cancelled"
+    assert record.terminal_event_id == "goal-event:2"
     assert record.should_follow_up(now=NOW + timedelta(days=30)) is False
+
+
+def test_completed_promise_requires_and_projects_exact_fulfillment_receipt():
+    goal = make_goal(status=GoalStatus.COMPLETED, expires_at=None)
+    record = commitment_from_goal(goal)
+    assert record is not None
+    assert record.status == "fulfilled"
+    assert record.fulfillment_receipts == ("execution-receipt:weekly-report",)
+    assert record.active is False
+
 
 
 def test_system_and_maintenance_goals_are_not_user_commitments():

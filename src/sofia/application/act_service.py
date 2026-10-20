@@ -20,7 +20,10 @@ from sofia.act.delivery import (
     DeliveryRunResult,
     SendResult,
 )
-from sofia.act.outreach import Decision, Importance, OutreachCategory, Policy
+from sofia.act.outreach import (
+    Decision, Importance, OutreachCategory, Policy,
+    social_content_safety_reason,
+)
 from sofia.act.system_notice import SystemNoticeQueue
 from sofia.act.diagnostics import OutreachTraceStore
 from sofia.interaction.goal_journal import GoalJournal
@@ -188,6 +191,16 @@ class SofiaActService:
         bridged = 0
         queue = SystemNoticeQueue(self.state_path)
         for entry in reflections.pending(limit=10, scope=scope):
+            content_restraint = social_content_safety_reason(entry.content)
+            if content_restraint is not None:
+                OutreachTraceStore(self.state_path).record(
+                    notice_id=f"reflection:{entry.message_id}",
+                    stage="suppressed", reason=content_restraint,
+                    recorded_at=now, channel=self._default_channel,
+                    destination=self._default_destination,
+                )
+                reflections.mark_outbox_bridged(message_id=entry.message_id)
+                continue
             base = {
                 "routine": 0.35,
                 "excited": 0.60,
@@ -278,7 +291,8 @@ class SofiaActService:
                 or original["trigger_kind"] not in {
                     "approval_request", "conversation_followup",
                     "dev_finding", "fleet_anomaly", "goal_change",
-                    "operational_alert", "reflection", "task_completed",
+                    "operational_alert", "reflection", "shared_activity_offer",
+                    "task_completed",
                 }
                 or original["audience_id"] not in {
                     None, "sparks", "local:text",
@@ -340,7 +354,9 @@ class SofiaActService:
             if not original["event_id"].startswith("life-update:"):
                 return Decision.ELIGIBLE_FOR_AUTHORIZATION
             if (
-                original["trigger_kind"] != "task_completed"
+                original["trigger_kind"] not in {
+                    "task_completed", "shared_activity_offer",
+                }
                 or original["recipient_id"] != SPARKS_PRINCIPAL_ID
                 or payload.recipient_id != SPARKS_PRINCIPAL_ID
                 or original["audience_id"] != "local:text"

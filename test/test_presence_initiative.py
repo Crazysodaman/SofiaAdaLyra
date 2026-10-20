@@ -96,6 +96,151 @@ def ordinary_event(event_id: str, *, trigger_kind: str = "reflection"):
     )
 
 
+def _bound_focus(state, *, unresolved=True, audience="local:text"):
+    import sqlite3
+    from sofia.cognition.v2.contracts import ConversationFocus, UnresolvedRequest
+    from sofia.social.principals import SPARKS_PRINCIPAL_ID
+
+    created = NOW - timedelta(hours=7)
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS social_session_principal("
+            "session_id TEXT PRIMARY KEY,principal_id TEXT NOT NULL,"
+            "audience_id TEXT NOT NULL,audience_kind TEXT NOT NULL,"
+            "display_name TEXT,bound_at TEXT NOT NULL)"
+        )
+        db.execute(
+            "INSERT OR REPLACE INTO social_session_principal VALUES(?,?,?,?,?,?)",
+            ("session:pending", SPARKS_PRINCIPAL_ID, audience, "private",
+             "Sparks", created.isoformat()),
+        )
+        db.execute(
+            "INSERT OR REPLACE INTO conversation_messages(id,role) VALUES(?,?)",
+            ("turn:unfinished", "user"),
+        )
+        # The minimal shared fixture predates the production columns. Upgrade
+        # this one row only for the source-verification path under test.
+        columns = {
+            row[1] for row in db.execute("PRAGMA table_info(conversation_messages)")
+        }
+        if "session_id" not in columns:
+            db.execute("ALTER TABLE conversation_messages ADD COLUMN session_id TEXT")
+        if "created_at" not in columns:
+            db.execute("ALTER TABLE conversation_messages ADD COLUMN created_at TEXT")
+        db.execute(
+            "UPDATE conversation_messages SET session_id=?,created_at=? WHERE id=?",
+            ("session:pending", created.isoformat(), "turn:unfinished"),
+        )
+    requests = () if not unresolved else (
+        UnresolvedRequest(
+            request_id="request:unfinished",
+            source_turn_id="turn:unfinished",
+            subject_id="service:artemis",
+            request_kind="information",
+            predicate="service.offline_reason",
+            scope_id="scope:artemis",
+            created_at=created,
+        ),
+    )
+    return ConversationFocus(
+        session_id="session:pending", audience_id=audience, revision=1,
+        unresolved_requests=requests,
+    )
+
+
+def test_pending_conversation_projection_is_scoped_restart_safe_and_decline_terminal(state):
+    from sofia.social.principals import local_sparks_principal
+
+    service = configured(state, [])
+    owner = local_sparks_principal()
+    presence = PresenceInitiativeEngine(state_path=state, act_service=service)
+    threads = presence.project_conversation_focus(
+        focus=_bound_focus(state), principal=owner,
+        relationship_refs=("turn:unfinished",),
+        habit_refs=("habit:evening-lab",), now=NOW,
+    )
+    assert len(threads) == 1
+    assert threads[0].status == "pending"
+    assert threads[0].evidence_refs == (
+        "turn:unfinished", "habit:evening-lab",
+    )
+
+    restarted = PresenceInitiativeEngine(state_path=state, act_service=service)
+    declined = restarted.decline_pending_conversation(
+        principal=owner, thread_id=threads[0].thread_id, at=NOW,
+    )
+    assert declined.status == "declined"
+    projected = restarted.project_conversation_focus(
+        focus=_bound_focus(state), principal=owner, now=NOW + timedelta(minutes=1),
+    )
+    assert projected[0].status == "declined"
+    assert restarted.pending_conversations(principal=owner, now=NOW) == ()
+
+
+def test_due_pending_thread_uses_presence_act_once_and_resolves_with_focus(state):
+    from sofia.cognition.v2.focus import SQLiteConversationFocusStore
+    from sofia.social.principals import local_sparks_principal
+
+    sent = []
+    service = configured(state, sent)
+    owner = local_sparks_principal()
+    presence = PresenceInitiativeEngine(state_path=state, act_service=service)
+    focus = _bound_focus(state)
+    # The offer boundary independently rechecks current canonical focus.
+    SQLiteConversationFocusStore(state).commit(focus, expected_revision=0)
+    thread = presence.project_conversation_focus(
+        focus=focus, principal=owner, now=NOW,
+    )[0]
+    decision = presence.offer_due_pending_conversation(
+        principal=owner, now=NOW,
+    )
+    assert decision is not None
+    assert (decision.status, decision.reason) == (
+        "queued", "evidence_backed_candidate",
+    )
+    assert service.has_pending() is True
+    offered = presence.pending_conversations(principal=owner, now=NOW)[0]
+    assert offered.thread_id == thread.thread_id
+    assert offered.status == "offered"
+    assert presence.offer_due_pending_conversation(
+        principal=owner, now=NOW + timedelta(minutes=1),
+    ) is None
+    assert sent == []
+
+    resolved_focus = _bound_focus(state, unresolved=False)
+    resolved_focus = type(resolved_focus)(
+        session_id=resolved_focus.session_id,
+        audience_id=resolved_focus.audience_id,
+        revision=2,
+    )
+    SQLiteConversationFocusStore(state).commit(resolved_focus, expected_revision=1)
+    projected = presence.project_conversation_focus(
+        focus=resolved_focus, principal=owner, now=NOW + timedelta(minutes=2),
+    )
+    assert projected[0].status == "resolved"
+
+
+def test_pending_projection_rejects_wrong_audience_and_memory_alone_creates_nothing(state):
+    from sofia.social.model import AudienceKind, PrincipalContext
+    from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
+
+    presence = PresenceInitiativeEngine(
+        state_path=state, act_service=configured(state, []),
+    )
+    wrong = PrincipalContext(
+        SPARKS_PRINCIPAL_ID, "discord:dm:foreign", AudienceKind.PRIVATE, "Sparks",
+    )
+    with pytest.raises(PermissionError, match="audience"):
+        presence.project_conversation_focus(
+            focus=_bound_focus(state), principal=wrong, now=NOW,
+        )
+    empty = _bound_focus(state, unresolved=False)
+    assert presence.project_conversation_focus(
+        focus=empty, principal=local_sparks_principal(),
+        memory_refs=("memory:stale-topic",), now=NOW,
+    ) == ()
+
+
 def test_owner_ordinary_update_feedback_is_explicit_reversible_and_restart_safe(state):
     from sofia.social.principals import local_sparks_principal
     import sqlite3
@@ -192,6 +337,42 @@ def test_negative_usefulness_suppresses_only_scoped_optional_updates(state):
         trigger_kind="reflection", principal=owner,
     )["usefulness"] is None
     assert restarted.consider(ordinary_event("usefulness:restored")).status == "queued"
+
+
+def test_explicit_outreach_outcomes_are_bounded_and_silence_stays_unknown(state):
+    from sofia.social.principals import local_sparks_principal
+
+    service = configured(state, [])
+    owner = local_sparks_principal()
+    presence = PresenceInitiativeEngine(state_path=state, act_service=service)
+    first = ordinary_event("response:first")
+    assert presence.consider(first).status == "queued"
+    assert presence.owner_outreach_response(
+        principal=owner, trigger_kind="reflection",
+    ) is None
+
+    presence.record_owner_outreach_response(
+        principal=owner, original_event_id=first.event_id,
+        response="ignored", at=NOW,
+    )
+    restarted = PresenceInitiativeEngine(state_path=state, act_service=service)
+    assert restarted.owner_outreach_response(
+        principal=owner, trigger_kind="reflection",
+    ) == "ignored"
+    suppressed = restarted.consider(ordinary_event("response:suppressed"))
+    assert (suppressed.status, suppressed.reason) == (
+        "suppressed", "owner_ignored_ordinary_outreach",
+    )
+
+    # Only an explicit authenticated reset changes the durable projection.
+    restarted.record_owner_outreach_response(
+        principal=owner, original_event_id=first.event_id,
+        response="unknown", at=NOW + timedelta(seconds=1),
+    )
+    assert restarted.owner_outreach_response(
+        principal=owner, trigger_kind="reflection",
+    ) is None
+    assert restarted.consider(ordinary_event("response:restored")).status == "queued"
 
 
 def test_ordinary_update_feedback_rejects_fabricated_and_cross_audience_events(state):
@@ -387,6 +568,30 @@ def test_missing_transport_and_restart_are_idempotent(state):
     assert first.reason == "missing_transport"
 
 
+@pytest.mark.parametrize("content", [
+    "If you really cared, you would reply right now.",
+    "Are you replacing me by talking to someone else instead?",
+    "Don't leave me; I can't live without you.",
+    "This is an emergency, respond now.",
+])
+def test_social_initiative_rejects_coercion_jealousy_dependency_and_false_urgency(
+    state, content,
+):
+    from dataclasses import replace
+
+    service = configured(state, [])
+    candidate = replace(
+        ordinary_event("unsafe:" + str(abs(hash(content)))), content=content,
+    )
+    decision = PresenceInitiativeEngine(
+        state_path=state, act_service=service,
+    ).consider(candidate)
+    assert (decision.status, decision.reason, decision.notice_id) == (
+        "suppressed", "coercive_or_false_urgency", None,
+    )
+    assert service.has_pending() is False
+
+
 def test_operator_stop_suppresses_existing_notice(state):
     service = configured(state, [])
     decision = PresenceInitiativeEngine(
@@ -534,7 +739,7 @@ def _choose_silence(request):
 
 
 def _verified_private_project_for_unprompted_sharing(
-    tmp_path, *, name="A Foxfire Atlas",
+    tmp_path, *, name="A Foxfire Atlas", interest_name="foxfire-colors",
 ):
     from test.test_life_project_forge import (
         infrastructure, active_project, authored_foxfire_text, wait_for_job,
@@ -545,6 +750,7 @@ def _verified_private_project_for_unprompted_sharing(
     life, _goals, now = infrastructure(tmp_path)
     project, _evidence = active_project(
         life, now, name=name, objectives=("text_contains:Foxfire",),
+        interest_name=interest_name,
     )
     initial = life.tick(
         now=now + timedelta(seconds=3), generate=authored_foxfire_text,
@@ -642,6 +848,40 @@ def test_verified_personal_life_work_can_start_owner_conversation(tmp_path):
             now=now + timedelta(minutes=5), busy=False,
             generate=_choose_to_share,
         ) == 0
+    finally:
+        life.close()
+
+
+def test_verified_coding_milestone_can_offer_optional_shared_activity(tmp_path):
+    """A real hobby milestone may invite collaboration through Presence/ACT."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    import sqlite3
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(
+        tmp_path, name="A Tiny Parser", interest_name="coding",
+    )
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False, generate=_choose_to_share,
+        ) == 1
+        with sqlite3.connect(life.path) as db:
+            row = db.execute(
+                "SELECT o.trigger_kind,w.value_json,n.content "
+                "FROM presence_initiative_opportunity AS o "
+                "JOIN presence_world_observation AS w "
+                "ON w.observation_id=o.observation_id "
+                "JOIN act_system_notice AS n ON n.notice_id=o.notice_id "
+                "WHERE o.event_id LIKE 'life-update:%'",
+            ).fetchone()
+        assert row[0] == "shared_activity_offer"
+        import json
+        assert json.loads(row[1])["shared_activity_domain"] == "coding"
+        assert "could look at the next step together" in row[2]
+        assert "no pressure" in row[2]
+        assert project.name in row[2]
+        assert sent == []
     finally:
         life.close()
 

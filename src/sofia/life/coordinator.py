@@ -1364,6 +1364,8 @@ class SelfDirectedLifeCoordinator:
                 "source_evidence_refs": evidence_refs,
                 "moment_kind": kind,
                 "interest_id": interest.interest_id,
+                "interest_name": interest.name,
+                "interest_context": interest.context,
                 "salience": round(min(
                     0.90, 0.40 + interest.strength * interest.confidence * 0.4
                 ), 3),

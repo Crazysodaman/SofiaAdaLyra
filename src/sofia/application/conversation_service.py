@@ -342,6 +342,7 @@ class ConversationService(ConversationMatrixMixin):
         )
         self._learning_coordinator = None
         self._habit_continuity = None
+        self._presence_projection = None
         self._pre_response_hook = None
         self._clothing_action_handler = None
         self._wardrobe_generation_handler = None
@@ -378,6 +379,7 @@ class ConversationService(ConversationMatrixMixin):
         self._last_post_persistence_errors: tuple[str, ...] = ()
         self._reply_model_origin_store = None
         self._last_reply_model_origin_error: str | None = None
+        self._last_presence_projection_error: str | None = None
 
     @property
     def session(self) -> ConversationSession | None:
@@ -410,6 +412,47 @@ class ConversationService(ConversationMatrixMixin):
                     "coordinator must be HabitContinuityCoordinator or None"
                 )
         self._habit_continuity = coordinator
+
+    def set_presence_projection(self, presence) -> None:
+        """Install the existing application-owned prospective topic projection."""
+        if presence is not None:
+            from sofia.application.presence import PresenceInitiativeEngine
+            if not isinstance(presence, PresenceInitiativeEngine):
+                raise TypeError(
+                    "presence must be PresenceInitiativeEngine or None"
+                )
+        self._presence_projection = presence
+
+    def _project_pending_conversations(
+        self, *, principal: PrincipalContext | None, now: datetime,
+    ) -> None:
+        """Project settled v2 focus with scoped REL/HABIT/MEM references."""
+        presence = self._presence_projection
+        focus = self._latest_conversation_focus
+        if presence is None or principal is None or focus is None:
+            return
+        relationship_refs = tuple(
+            item.evidence_ref
+            for item in self._relationship_store.history(principal.principal_id)
+            if item.audience_id == principal.audience_id
+        )[-4:]
+        habit_refs: tuple[str, ...] = ()
+        habit = self._habit_continuity
+        if habit is not None:
+            patterns = habit.patterns.patterns(
+                principal_id=principal.principal_id,
+                audience_id=principal.audience_id,
+            )
+            habit_refs = tuple(
+                ref for pattern in patterns[-4:] for ref in pattern.evidence_refs[-2:]
+            )[-4:]
+        presence.project_conversation_focus(
+            focus=focus, principal=principal,
+            relationship_refs=relationship_refs,
+            habit_refs=habit_refs,
+            memory_refs=self._current_conversation_retrieval_refs,
+            now=now,
+        )
 
     def set_pre_response_hook(self, hook) -> None:
         """Install one application-owned hook that refreshes trusted live state."""
@@ -1765,6 +1808,18 @@ class ConversationService(ConversationMatrixMixin):
                 evidence_refs=response.evidence_refs,
                 evidence=evidence,
             )
+            try:
+                self._project_pending_conversations(
+                    principal=bound_principal,
+                    now=assistant_message.created_at,
+                )
+                self._last_presence_projection_error = None
+            except Exception as exc:
+                self._last_presence_projection_error = type(exc).__name__
+                _LOG.exception(
+                    "Prospective conversation projection failed; original "
+                    "messages and Cognition v2 focus remain authoritative"
+                )
             self._current_coordinated_turn = None
 
     def _finalize_response(

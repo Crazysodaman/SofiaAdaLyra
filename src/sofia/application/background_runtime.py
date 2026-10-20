@@ -124,6 +124,21 @@ def bridge_voluntary_life_outreach(
     )
     if candidate["audience_id"] != "local:text":
         return 0
+    interest_words = {
+        word.strip(".,:;!?()[]{}").casefold()
+        for field in (candidate.get("interest_name"), candidate.get("interest_context"))
+        if isinstance(field, str)
+        for word in field.split()
+    }
+    shared_domains = (
+        ("robotics", {"robot", "robotics", "gaia"}),
+        ("railway", {"railway", "railroad", "jmri", "train"}),
+        ("coding", {"code", "coding", "software", "programming"}),
+        ("virtual_lab", {"lab", "laboratory", "simulation", "experiment"}),
+    )
+    shared_domain = next((
+        name for name, markers in shared_domains if interest_words & markers
+    ), None)
     # Sofía's model may choose to share or to remain quiet. It never
     # writes the outgoing factual claims or gets additional authority.
     from sofia.life.outreach_agent import (
@@ -216,6 +231,7 @@ def bridge_voluntary_life_outreach(
             "independent_objectives_verified": completed,
             "original_artifact_bytes_verified": True,
             "artifact_disclosed": False,
+            "shared_activity_domain": shared_domain,
         },
         audience_id="local:text",
     )
@@ -254,9 +270,17 @@ def bridge_voluntary_life_outreach(
             f"A little progress on {name}: I made a draft. "
             "I'm still sorting out how it holds up, but I wanted to tell you."
         )
+    if shared_domain is not None:
+        content += (
+            " If that sounds fun, we could look at the next step together; "
+            "no pressure if you'd rather leave it there."
+        )
     decision = presence.consider(InitiativeEvent(
         event_id=event_id,
-        trigger_kind="task_completed",
+        trigger_kind=(
+            "shared_activity_offer" if shared_domain is not None
+            else "task_completed"
+        ),
         observation=observation,
         content=content,
         created_at=now,
@@ -563,6 +587,30 @@ def create_background_coordinator(
         set_act_ready = getattr(coordinator, "set_act_ready", None)
         if callable(set_act_ready):
             set_act_ready(act_service.has_pending)
+
+        def revisit_pending_conversation(now):
+            """Offer one due v2 thread through Presence/ACT, never a new sender."""
+            activity = activity_store.state(host_id).effective
+            if activity in {
+                ActivityMode.GAMING, ActivityMode.BUSY,
+                ActivityMode.DO_NOT_DISTURB,
+            }:
+                return None
+            from sofia.social.principals import local_sparks_principal
+            decision = application._presence.offer_due_pending_conversation(
+                principal=local_sparks_principal(), now=now,
+            )
+            return None if decision is None else {
+                "event_id": decision.event_id,
+                "status": decision.status,
+                "reason": decision.reason,
+            }
+
+        coordinator.set_task(
+            "conversation_followup",
+            revisit_pending_conversation,
+            interval_seconds=300.0,
+        )
 
     autonomous_work = getattr(application, "_autonomous_work", None)
     if autonomous_work is not None:

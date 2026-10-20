@@ -41,6 +41,9 @@ class CommitmentRecord:
     cancellable: bool
     active: bool
     follow_up_after: datetime | None
+    status: str = "pending"
+    fulfillment_receipts: tuple[str, ...] = ()
+    terminal_event_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.commitment_id, str) or not self.commitment_id.strip():
@@ -69,6 +72,23 @@ class CommitmentRecord:
             or self.follow_up_after.utcoffset() is None
         ):
             raise CommitmentError("follow_up_after must be timezone-aware")
+        if self.status not in {
+            "pending", "blocked", "paused", "fulfilled", "cancelled",
+            "declined", "expired", "superseded",
+        }:
+            raise CommitmentError("invalid commitment status")
+        if not isinstance(self.fulfillment_receipts, tuple) or any(
+            not isinstance(value, str) or not value.strip()
+            for value in self.fulfillment_receipts
+        ):
+            raise CommitmentError("fulfillment receipts must be source IDs")
+        if self.status == "fulfilled" and not self.fulfillment_receipts:
+            raise CommitmentError("fulfilled commitment requires a receipt")
+        if self.terminal_event_id is not None and (
+            not isinstance(self.terminal_event_id, str)
+            or not self.terminal_event_id.strip()
+        ):
+            raise CommitmentError("terminal_event_id must be a source ID")
 
     def is_overdue(self, *, now: datetime) -> bool:
         if now.tzinfo is None or now.utcoffset() is None:
@@ -112,6 +132,22 @@ def commitment_from_goal(goal: Goal) -> CommitmentRecord | None:
         preconditions = preconditions + ("awaiting operator approval",)
     # Follow-up becomes appropriate at the completion deadline; a promise with
     # no deadline is never proactively chased unless it is overdue-blocked.
+    terminal = goal.history[-1] if goal.history and goal.status in _TERMINAL else None
+    status = {
+        GoalStatus.ACTIVE: "pending",
+        GoalStatus.BLOCKED: "blocked",
+        GoalStatus.PAUSED: "paused",
+        GoalStatus.COMPLETED: "fulfilled",
+        GoalStatus.CANCELLED: "cancelled",
+        GoalStatus.REJECTED: "declined",
+        GoalStatus.EXPIRED: "expired",
+        GoalStatus.SUPERSEDED: "superseded",
+    }.get(goal.status, "pending")
+    fulfillment = (
+        tuple(terminal.evidence_refs)
+        if terminal is not None and goal.status is GoalStatus.COMPLETED
+        else ()
+    )
     return CommitmentRecord(
         commitment_id=goal.id,
         requested_by_principal_id=goal.owner_principal_id,
@@ -122,4 +158,7 @@ def commitment_from_goal(goal: Goal) -> CommitmentRecord | None:
         cancellable=goal.status not in _TERMINAL,
         active=active,
         follow_up_after=goal.expires_at if active else None,
+        status=status,
+        fulfillment_receipts=fulfillment,
+        terminal_event_id=None if terminal is None else terminal.event_id,
     )

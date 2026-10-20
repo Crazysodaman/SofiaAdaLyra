@@ -500,6 +500,10 @@ class SettingsSections:
         self.sql_panel(frames["ACT"], "Outreach decision and delivery trace", "act_outreach_trace")
         self.sql_panel(frames["ACT"], "Presence initiative opportunities", "presence_initiative_opportunity")
         self.sql_panel(frames["ACT"], "Evidence-backed world observations", "presence_world_observation")
+        self.sql_panel(
+            frames["ACT"], "Pending conversation threads",
+            "presence_pending_conversation",
+        )
         # An explicit tray action is genuine owner feedback; absence of a
         # response is not disinterest. This uses the same Presence decision
         # owner as ACT, and a decline blocks future unsolicited invitations
@@ -545,7 +549,9 @@ class SettingsSections:
                        JOIN presence_world_observation AS w
                          ON w.observation_id=o.observation_id
                        WHERE o.event_id LIKE 'life-update:%'
-                         AND o.trigger_kind='task_completed'
+                         AND o.trigger_kind IN (
+                           'task_completed','shared_activity_offer'
+                         )
                          AND o.status='queued' AND o.recipient_id=?
                          AND w.audience_id='local:text'
                        ORDER BY o.created_at DESC,o.event_id DESC LIMIT 64""",
@@ -679,7 +685,8 @@ class SettingsSections:
                        WHERE o.status='queued' AND o.recipient_id=?
                          AND w.audience_id=?
                          AND o.trigger_kind IN (
-                           'conversation_followup','dev_finding','goal_change','reflection'
+                           'conversation_followup','dev_finding','goal_change',
+                           'reflection','shared_activity_offer'
                          )
                        ORDER BY o.created_at DESC,o.event_id DESC LIMIT 64""",
                     (
@@ -720,6 +727,25 @@ class SettingsSections:
                     parent=root,
                 )
 
+        def save_ordinary_response(value):
+            event_id = ordinary_update_options.get(selected_update.get())
+            if event_id is None:
+                raise ValueError("select a recorded ordinary update")
+            owner = PresenceInitiativeEngine(
+                state_path=config.state_path,
+                act_service=SofiaActService(config.state_path),
+            )
+            owner.record_owner_outreach_response(
+                principal=local_sparks_principal(),
+                original_event_id=event_id, response=value,
+                at=datetime.now(timezone.utc),
+            )
+            self.messagebox.showinfo(
+                "Outreach response recorded",
+                "Only this explicit response was learned; silence remains unknown.",
+                parent=root,
+            )
+
         def clear_ordinary_feedback():
             save_ordinary_feedback("usefulness", "unknown", notify=False)
             save_ordinary_feedback("interruptiveness", "unknown", notify=False)
@@ -743,6 +769,17 @@ class SettingsSections:
                     lambda d=dimension, v=value: save_ordinary_feedback(d, v)
                 ),
             ).pack(side="left", padx=(0, 6))
+        for label, value in (
+            ("Accepted", "accepted"),
+            ("Not now", "ignored"),
+            ("Declined", "declined"),
+        ):
+            ttk.Button(
+                ordinary_actions, text=label,
+                command=self.guarded(
+                    lambda response=value: save_ordinary_response(response)
+                ),
+            ).pack(side="left", padx=(0, 6))
         ttk.Button(
             ordinary_feedback_frame, text="Refresh ordinary updates",
             command=self.guarded(refresh_ordinary_updates),
@@ -755,6 +792,10 @@ class SettingsSections:
         self.sql_panel(
             frames["ACT"], "Ordinary update feedback history",
             "presence_update_feedback_event",
+        )
+        self.sql_panel(
+            frames["ACT"], "Explicit outreach response history",
+            "presence_outreach_response_event",
         )
         self.group(frames["Fleet"], "fleet_cognition", "Cognitive placement", runtime.fleet_cognition or config.fleet_cognition)
         self.group(frames["Fleet"], "fleet_bootstrap", "Agent provisioning", runtime.fleet_bootstrap or config.fleet_bootstrap)

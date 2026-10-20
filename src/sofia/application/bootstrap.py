@@ -417,6 +417,7 @@ class SofiaApplication:
             act_service=self._act_service,
             neuro_priority=self._neuro.background_priority,
         )
+        self._conversation_service.set_presence_projection(self._presence)
         self._autonomous_work = AutonomousWorkCoordinator(
             state_path=configuration.state_path,
             workspace=Path(configuration.filesystem_root),
@@ -518,6 +519,16 @@ class SofiaApplication:
     @property
     def life(self) -> SelfDirectedLifeCoordinator:
         return self._life
+
+    def commitments(self, principal) -> tuple:
+        """Return scoped promise projections; GOALS remains authoritative."""
+        from sofia.ops.commitment import commitment_from_goal
+        return tuple(
+            record
+            for goal in self._goals.list_visible(principal)
+            for record in (commitment_from_goal(goal),)
+            if record is not None
+        )
 
     @property
     def neuro(self) -> NeuroRuntime:

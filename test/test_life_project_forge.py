@@ -160,6 +160,7 @@ def authored_foxfire_text(request):
 def active_project(
     life, now, *, name="A Foxfire Atlas",
     scope=ProjectScope.PERSONAL_PRIVATE, objectives=None,
+    interest_name="foxfire-colors", interest_context="creative",
 ):
     evidence = life.record_observation(
         kind="curiosity", source="test:recorded-reflection",
@@ -167,7 +168,7 @@ def active_project(
         now=now,
     )
     interest = life.revise_interest(
-        name="foxfire-colors", context="creative", strength=0.82,
+        name=interest_name, context=interest_context, strength=0.82,
         confidence=0.9, reason="Repeated grounded aesthetic curiosity.",
         evidence_refs=(evidence,), now=now,
     )

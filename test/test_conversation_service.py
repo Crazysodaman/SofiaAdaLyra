@@ -144,12 +144,35 @@ def test_conversation_service_is_application_boundary(
 
     assert application.conversation.session is None
     assert application.conversation.session_id is None
+    assert application.conversation._presence_projection is application.presence
 
     application.start()
 
     assert application.conversation.session is not None
     assert application.conversation.session_id is not None
 
+    application.shutdown()
+
+
+def test_unresolved_authenticated_turn_reaches_presence_projection(tmp_path: Path):
+    """The normal production turn, not a test-only helper, creates the projection."""
+    from datetime import datetime, timezone
+
+    application = create_application(tmp_path)
+    application.start()
+    owner = local_sparks_principal()
+    application.conversation.respond(
+        "Why is Artemis offline?", principal=owner,
+    )
+
+    threads = application.presence.pending_conversations(
+        principal=owner, now=datetime.now(timezone.utc), include_closed=True,
+    )
+    assert threads
+    assert all(item.principal_id == owner.principal_id for item in threads)
+    assert all(item.audience_id == owner.audience_id for item in threads)
+    assert any(item.source_turn_id == application.conversation.messages()[0].id
+               for item in threads)
     application.shutdown()
 
 
@@ -233,6 +256,10 @@ def test_authenticated_conversation_creates_and_manages_canonical_user_goal(
     assert created.content.startswith("Added and activated goal:")
     goals = application.goals.list_visible(sparks)
     assert len(goals) == 1
+    commitments = application.commitments(sparks)
+    assert len(commitments) == 1
+    assert commitments[0].commitment_id == goals[0].id
+    assert commitments[0].status == "pending"
     assert goals[0].title == "checking why Artemis is dropping offline"
     assert goals[0].evidence_refs == (created.evidence_refs[0],)
 

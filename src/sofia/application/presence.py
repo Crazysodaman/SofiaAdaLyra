@@ -16,13 +16,18 @@ import json
 from pathlib import Path
 import re
 import sqlite3
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from sofia.act.outreach import Importance, OutreachCategory
+from sofia.act.outreach import (
+    Importance, OutreachCategory, social_content_safety_reason,
+)
 from sofia.application.act_service import SofiaActService
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+
+if TYPE_CHECKING:
+    from sofia.cognition.v2.contracts import ConversationFocus
 
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
@@ -254,16 +259,66 @@ class InitiativeDecision:
     notice_id: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class PendingConversationThread:
+    """Source-linked prospective topic; never factual memory or authority."""
+
+    thread_id: str
+    principal_id: str
+    audience_id: str
+    session_id: str
+    focus_item_id: str
+    source_turn_id: str
+    subject_id: str | None
+    request_kind: str
+    predicate: str | None
+    evidence_refs: tuple[str, ...]
+    status: str
+    created_at: datetime
+    eligible_after: datetime
+    expires_at: datetime
+    updated_at: datetime
+    notice_id: str | None = None
+
+    def __post_init__(self) -> None:
+        for name in (
+            "thread_id", "principal_id", "audience_id", "session_id",
+            "focus_item_id", "source_turn_id", "request_kind",
+        ):
+            if _ID.fullmatch(str(getattr(self, name))) is None:
+                raise ValueError(f"{name} must be a bounded identifier")
+        for value in (self.subject_id, self.predicate):
+            if value is not None and _ID.fullmatch(value) is None:
+                raise ValueError("subject and predicate must be bounded identifiers")
+        if self.status not in {
+            "pending", "offered", "declined", "resolved", "expired",
+        }:
+            raise ValueError("invalid pending conversation status")
+        if not isinstance(self.evidence_refs, tuple) or not self.evidence_refs:
+            raise ValueError("pending conversation requires source evidence")
+        if any(_ID.fullmatch(value) is None for value in self.evidence_refs):
+            raise ValueError("pending conversation evidence must be bounded IDs")
+        for value in (
+            self.created_at, self.eligible_after, self.expires_at,
+            self.updated_at,
+        ):
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise ValueError("pending conversation times must be timezone-aware")
+        if not self.created_at <= self.eligible_after < self.expires_at:
+            raise ValueError("pending conversation time window is invalid")
+
+
 class PresenceInitiativeEngine:
     """Persist world snapshots and enqueue only reviewed event classes in ACT."""
 
     _ELIGIBLE_TRIGGERS = frozenset({
         "approval_request", "conversation_followup", "dev_finding",
         "fleet_anomaly", "goal_change", "operational_alert",
-        "reflection", "task_completed",
+        "reflection", "shared_activity_offer", "task_completed",
     })
     _ORDINARY_FEEDBACK_TRIGGERS = frozenset({
         "conversation_followup", "dev_finding", "goal_change", "reflection",
+        "shared_activity_offer",
     })
 
     def __init__(
@@ -387,6 +442,53 @@ class PresenceInitiativeEngine:
                     original_event_id TEXT NOT NULL,
                     recorded_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS presence_outreach_response (
+                    principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    trigger_kind TEXT NOT NULL,
+                    response TEXT NOT NULL CHECK(
+                        response IN ('accepted','declined','ignored')
+                    ),
+                    original_event_id TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(principal_id,audience_id,trigger_kind)
+                );
+                CREATE TABLE IF NOT EXISTS presence_outreach_response_event (
+                    response_event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    trigger_kind TEXT NOT NULL,
+                    response TEXT NOT NULL CHECK(
+                        response IN ('accepted','declined','ignored','unknown')
+                    ),
+                    original_event_id TEXT NOT NULL,
+                    recorded_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS presence_pending_conversation (
+                    thread_id TEXT PRIMARY KEY,
+                    principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    session_id TEXT NOT NULL,
+                    focus_item_id TEXT NOT NULL,
+                    source_turn_id TEXT NOT NULL,
+                    subject_id TEXT,
+                    request_kind TEXT NOT NULL,
+                    predicate TEXT,
+                    evidence_refs_json TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN (
+                        'pending','offered','declined','resolved','expired'
+                    )),
+                    created_at TEXT NOT NULL,
+                    eligible_after TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    notice_id TEXT,
+                    UNIQUE(principal_id,audience_id,session_id,focus_item_id)
+                );
+                CREATE INDEX IF NOT EXISTS presence_pending_scope
+                    ON presence_pending_conversation(
+                        principal_id,audience_id,status,eligible_after
+                    );
                 """
             )
 
@@ -617,7 +719,9 @@ class PresenceInitiativeEngine:
                    FROM presence_initiative_opportunity AS o
                    JOIN presence_world_observation AS w
                      ON w.observation_id=o.observation_id
-                   WHERE o.event_id=? AND o.trigger_kind='task_completed'""",
+                   WHERE o.event_id=? AND o.trigger_kind IN (
+                       'task_completed','shared_activity_offer'
+                   )""",
                 (original_event_id,),
             ).fetchone()
             if (
@@ -774,6 +878,82 @@ class PresenceInitiativeEngine:
                      usefulness, interruptiveness, original_event_id, stamped),
                 )
 
+    def record_owner_outreach_response(
+        self, *, principal: PrincipalContext, original_event_id: str,
+        response: str, at: datetime,
+    ) -> None:
+        """Record an explicit response; lack of a record remains unknown.
+
+        ``ignored`` is accepted only as an authenticated user action (for
+        example a UI "not now" control). Elapsed silence never writes it and
+        positive outcomes never relax ACT spacing or daily limits.
+        """
+        self._require_private_sparks(principal)
+        if response not in {"accepted", "declined", "ignored", "unknown"}:
+            raise ValueError("typed owner outreach response required")
+        if not isinstance(original_event_id, str) or _ID.fullmatch(original_event_id) is None:
+            raise ValueError("exact bounded Presence event ID required")
+        if not isinstance(at, datetime) or at.tzinfo is None or at.utcoffset() is None:
+            raise ValueError("source-aware owner response time required")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            original = db.execute(
+                """SELECT o.trigger_kind,o.recipient_id,o.status,w.audience_id
+                   FROM presence_initiative_opportunity AS o
+                   JOIN presence_world_observation AS w
+                     ON w.observation_id=o.observation_id
+                   WHERE o.event_id=?""",
+                (original_event_id,),
+            ).fetchone()
+            if (
+                original is None
+                or original["trigger_kind"] not in self._ORDINARY_FEEDBACK_TRIGGERS
+                or original["recipient_id"] != principal.principal_id
+                or original["status"] != "queued"
+                or original["audience_id"] != principal.audience_id
+            ):
+                raise PermissionError("no matching authentic ordinary outreach")
+            stamped = self._utc(at).isoformat()
+            db.execute(
+                "INSERT INTO presence_outreach_response_event("
+                "principal_id,audience_id,trigger_kind,response,"
+                "original_event_id,recorded_at) VALUES(?,?,?,?,?,?)",
+                (principal.principal_id, principal.audience_id,
+                 original["trigger_kind"], response, original_event_id, stamped),
+            )
+            if response == "unknown":
+                db.execute(
+                    "DELETE FROM presence_outreach_response WHERE principal_id=? "
+                    "AND audience_id=? AND trigger_kind=?",
+                    (principal.principal_id, principal.audience_id,
+                     original["trigger_kind"]),
+                )
+            else:
+                db.execute(
+                    """INSERT INTO presence_outreach_response VALUES(?,?,?,?,?,?)
+                       ON CONFLICT(principal_id,audience_id,trigger_kind)
+                       DO UPDATE SET response=excluded.response,
+                         original_event_id=excluded.original_event_id,
+                         updated_at=excluded.updated_at""",
+                    (principal.principal_id, principal.audience_id,
+                     original["trigger_kind"], response,
+                     original_event_id, stamped),
+                )
+
+    def owner_outreach_response(
+        self, *, principal: PrincipalContext, trigger_kind: str,
+    ) -> str | None:
+        self._require_private_sparks(principal)
+        if trigger_kind not in self._ORDINARY_FEEDBACK_TRIGGERS:
+            raise ValueError("response is limited to ordinary outreach")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT response FROM presence_outreach_response WHERE "
+                "principal_id=? AND audience_id=? AND trigger_kind=?",
+                (principal.principal_id, principal.audience_id, trigger_kind),
+            ).fetchone()
+        return None if row is None else str(row["response"])
+
     def _ordinary_update_feedback_suppression_reason(
         self, *, trigger_kind: str, recipient_id: str, audience_id: str | None,
     ) -> str | None:
@@ -791,6 +971,13 @@ class PresenceInitiativeEngine:
                 "WHERE principal_id=? AND audience_id=? AND trigger_kind=?",
                 (recipient_id, audience_id, trigger_kind),
             ).fetchone()
+            response = db.execute(
+                "SELECT response FROM presence_outreach_response WHERE "
+                "principal_id=? AND audience_id=? AND trigger_kind=?",
+                (recipient_id, audience_id, trigger_kind),
+            ).fetchone()
+        if response is not None and response["response"] in {"declined", "ignored"}:
+            return f"owner_{response['response']}_ordinary_outreach"
         if row is None:
             return None
         if row["interruptiveness"] == "too_interruptive":
@@ -798,6 +985,281 @@ class PresenceInitiativeEngine:
         if row["usefulness"] == "not_useful":
             return "owner_marked_not_useful"
         return None
+
+    @staticmethod
+    def _pending_from_row(row: sqlite3.Row) -> PendingConversationThread:
+        return PendingConversationThread(
+            thread_id=row["thread_id"],
+            principal_id=row["principal_id"],
+            audience_id=row["audience_id"],
+            session_id=row["session_id"],
+            focus_item_id=row["focus_item_id"],
+            source_turn_id=row["source_turn_id"],
+            subject_id=row["subject_id"],
+            request_kind=row["request_kind"],
+            predicate=row["predicate"],
+            evidence_refs=tuple(json.loads(row["evidence_refs_json"])),
+            status=row["status"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            eligible_after=datetime.fromisoformat(row["eligible_after"]),
+            expires_at=datetime.fromisoformat(row["expires_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+            notice_id=row["notice_id"],
+        )
+
+    def project_conversation_focus(
+        self, *, focus: "ConversationFocus", principal: PrincipalContext,
+        relationship_refs: tuple[str, ...] = (),
+        habit_refs: tuple[str, ...] = (), memory_refs: tuple[str, ...] = (),
+        now: datetime,
+    ) -> tuple[PendingConversationThread, ...]:
+        """Derive prospective threads from canonical unresolved v2 focus.
+
+        REL/HABIT/MEM references provide bounded relevance context, but never
+        create a topic by themselves. A decline is terminal for the exact
+        focus item, and a later restart or projection cannot reopen it.
+        """
+        from sofia.cognition.v2.contracts import ConversationFocus
+
+        if not isinstance(focus, ConversationFocus):
+            raise TypeError("focus must be canonical ConversationFocus")
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if focus.audience_id != principal.audience_id:
+            raise PermissionError("conversation focus audience does not match principal")
+        if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("projection time must be timezone-aware")
+        contextual = tuple(dict.fromkeys(
+            (*relationship_refs[-4:], *habit_refs[-4:], *memory_refs[-4:])
+        ))
+        if any(
+            not isinstance(ref, str) or _ID.fullmatch(ref) is None
+            for ref in contextual
+        ):
+            raise ValueError("continuity evidence references must be bounded IDs")
+        items = tuple(focus.unresolved_requests)[:16]
+        active_ids = {item.request_id for item in items}
+        stamp = self._utc(now)
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            binding = db.execute(
+                "SELECT principal_id,audience_id FROM social_session_principal "
+                "WHERE session_id=?", (focus.session_id,),
+            ).fetchone()
+            if binding is None or (
+                binding["principal_id"], binding["audience_id"]
+            ) != (principal.principal_id, principal.audience_id):
+                raise PermissionError("canonical conversation binding is unavailable")
+            prior = db.execute(
+                "SELECT thread_id,focus_item_id,status FROM "
+                "presence_pending_conversation WHERE principal_id=? "
+                "AND audience_id=? AND session_id=?",
+                (principal.principal_id, principal.audience_id, focus.session_id),
+            ).fetchall()
+            for row in prior:
+                if (
+                    row["status"] in {"pending", "offered"}
+                    and row["focus_item_id"] not in active_ids
+                ):
+                    db.execute(
+                        "UPDATE presence_pending_conversation SET status='resolved',"
+                        "updated_at=? WHERE thread_id=? AND status IN ('pending','offered')",
+                        (stamp.isoformat(), row["thread_id"]),
+                    )
+            for item in items:
+                source = db.execute(
+                    "SELECT role,created_at FROM conversation_messages "
+                    "WHERE id=? AND session_id=?",
+                    (item.source_turn_id, focus.session_id),
+                ).fetchone()
+                if source is None or source["role"] != "user":
+                    continue
+                created = datetime.fromisoformat(source["created_at"])
+                if created.tzinfo is None or created.utcoffset() is None:
+                    continue
+                created = created.astimezone(timezone.utc)
+                if created > stamp:
+                    continue
+                digest = sha256(
+                    (principal.principal_id + "\0" + principal.audience_id + "\0"
+                     + focus.session_id + "\0" + item.request_id).encode("utf-8")
+                ).hexdigest()[:32]
+                thread_id = f"pending-thread:{digest}"
+                evidence = tuple(dict.fromkeys((item.source_turn_id, *contextual)))
+                eligible = max(stamp, created + timedelta(hours=6))
+                expires = created + timedelta(days=7)
+                if eligible >= expires:
+                    continue
+                old = db.execute(
+                    "SELECT * FROM presence_pending_conversation WHERE thread_id=?",
+                    (thread_id,),
+                ).fetchone()
+                if old is not None:
+                    immutable = (
+                        old["principal_id"], old["audience_id"], old["session_id"],
+                        old["focus_item_id"], old["source_turn_id"], old["subject_id"],
+                        old["request_kind"], old["predicate"], old["created_at"],
+                    )
+                    desired = (
+                        principal.principal_id, principal.audience_id, focus.session_id,
+                        item.request_id, item.source_turn_id, item.subject_id,
+                        item.request_kind, item.predicate, created.isoformat(),
+                    )
+                    if immutable != desired:
+                        raise ValueError("pending thread identity was reused")
+                    if old["status"] in {"declined", "resolved", "expired"}:
+                        continue
+                    db.execute(
+                        "UPDATE presence_pending_conversation SET evidence_refs_json=?,"
+                        "updated_at=? WHERE thread_id=?",
+                        (json.dumps(evidence), stamp.isoformat(), thread_id),
+                    )
+                else:
+                    db.execute(
+                        "INSERT INTO presence_pending_conversation VALUES("
+                        "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (
+                            thread_id, principal.principal_id, principal.audience_id,
+                            focus.session_id, item.request_id, item.source_turn_id,
+                            item.subject_id, item.request_kind, item.predicate,
+                            json.dumps(evidence), "pending", created.isoformat(),
+                            eligible.isoformat(), expires.isoformat(), stamp.isoformat(), None,
+                        ),
+                    )
+            db.execute(
+                "UPDATE presence_pending_conversation SET status='expired',updated_at=? "
+                "WHERE status='pending' AND expires_at<=?",
+                (stamp.isoformat(), stamp.isoformat()),
+            )
+            rows = db.execute(
+                "SELECT * FROM presence_pending_conversation WHERE principal_id=? "
+                "AND audience_id=? AND session_id=? ORDER BY created_at,thread_id",
+                (principal.principal_id, principal.audience_id, focus.session_id),
+            ).fetchall()
+        return tuple(self._pending_from_row(row) for row in rows)
+
+    def pending_conversations(
+        self, *, principal: PrincipalContext, now: datetime, limit: int = 20,
+        include_closed: bool = False,
+    ) -> tuple[PendingConversationThread, ...]:
+        self._require_private_sparks(principal)
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("pending conversation limit must be 1..100")
+        stamp = self._utc(now)
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "UPDATE presence_pending_conversation SET status='expired',updated_at=? "
+                "WHERE status='pending' AND expires_at<=?",
+                (stamp.isoformat(), stamp.isoformat()),
+            )
+            query = (
+                "SELECT * FROM presence_pending_conversation WHERE principal_id=? "
+                "AND audience_id=? "
+                + ("" if include_closed else "AND status IN ('pending','offered') ")
+                + "ORDER BY updated_at DESC,thread_id LIMIT ?"
+            )
+            rows = db.execute(
+                query, (principal.principal_id, principal.audience_id, limit),
+            ).fetchall()
+        return tuple(self._pending_from_row(row) for row in rows)
+
+    def decline_pending_conversation(
+        self, *, principal: PrincipalContext, thread_id: str, at: datetime,
+    ) -> PendingConversationThread:
+        self._require_private_sparks(principal)
+        if not isinstance(thread_id, str) or _ID.fullmatch(thread_id) is None:
+            raise ValueError("exact pending thread ID required")
+        stamp = self._utc(at)
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT * FROM presence_pending_conversation WHERE thread_id=? "
+                "AND principal_id=? AND audience_id=?",
+                (thread_id, principal.principal_id, principal.audience_id),
+            ).fetchone()
+            if row is None:
+                raise LookupError("pending conversation is unavailable in this scope")
+            if row["status"] not in {"resolved", "expired"}:
+                db.execute(
+                    "UPDATE presence_pending_conversation SET status='declined',updated_at=? "
+                    "WHERE thread_id=?", (stamp.isoformat(), thread_id),
+                )
+            changed = db.execute(
+                "SELECT * FROM presence_pending_conversation WHERE thread_id=?",
+                (thread_id,),
+            ).fetchone()
+        return self._pending_from_row(changed)
+
+    def offer_due_pending_conversation(
+        self, *, principal: PrincipalContext, now: datetime,
+    ) -> InitiativeDecision | None:
+        """Queue at most one still-current follow-up through existing ACT."""
+        self._require_private_sparks(principal)
+        stamp = self._utc(now)
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT p.*,f.payload_json FROM presence_pending_conversation AS p "
+                "JOIN cognition_v2_conversation_focus AS f "
+                "ON f.session_id=p.session_id AND f.audience_id=p.audience_id "
+                "WHERE p.principal_id=? AND p.audience_id=? AND p.status='pending' "
+                "AND p.eligible_after<=? AND p.expires_at>? "
+                "ORDER BY p.created_at,p.thread_id LIMIT 8",
+                (principal.principal_id, principal.audience_id,
+                 stamp.isoformat(), stamp.isoformat()),
+            ).fetchall()
+        row = next((candidate for candidate in rows if any(
+            item.get("request_id") == candidate["focus_item_id"]
+            for item in json.loads(candidate["payload_json"])["unresolved_requests"]
+        )), None)
+        if row is None:
+            return None
+        thread = self._pending_from_row(row)
+        label = thread.predicate or thread.subject_id or thread.request_kind
+        safe_label = " ".join(label.replace("_", " ").replace(".", " ").split())[:96]
+        event_id = "conversation-followup:" + sha256(
+            thread.thread_id.encode("utf-8")
+        ).hexdigest()[:32]
+        observation = WorldObservation(
+            observation_id="pending-observed:" + sha256(
+                (thread.thread_id + "\0" + thread.updated_at.isoformat()).encode("utf-8")
+            ).hexdigest()[:32],
+            subject_id=thread.subject_id or "conversation:unfinished",
+            predicate="conversation.unfinished_thread",
+            source_id="cognition:v2-focus",
+            observed_at=thread.updated_at,
+            expires_at=thread.expires_at,
+            confidence=1.0,
+            epistemic_state=WorldEpistemicState.KNOWN,
+            availability=WorldAvailability.NOT_APPLICABLE,
+            value={
+                "thread_id": thread.thread_id,
+                "source_turn_id": thread.source_turn_id,
+                "evidence_refs": thread.evidence_refs,
+            },
+            audience_id=thread.audience_id,
+        )
+        decision = self.consider(InitiativeEvent(
+            event_id=event_id, trigger_kind="conversation_followup",
+            observation=observation,
+            content=(
+                f"We left {safe_label} unfinished earlier. "
+                "Would you like to pick it back up?"
+            ),
+            created_at=stamp, expires_at=thread.expires_at,
+            category=OutreachCategory.SOCIAL,
+            importance=Importance.ROUTINE, salience=0.55,
+            recipient_id=principal.principal_id,
+        ))
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "UPDATE presence_pending_conversation SET status=?,notice_id=?,updated_at=? "
+                "WHERE thread_id=? AND status='pending'",
+                (
+                    "offered" if decision.status == "queued" else "pending",
+                    decision.notice_id, stamp.isoformat(), thread.thread_id,
+                ),
+            )
+        return decision
 
     def recent_life_project_outreach(
         self, *, now: datetime, recipient_id: str = SPARKS_PRINCIPAL_ID,
@@ -819,7 +1281,9 @@ class PresenceInitiativeEngine:
         with closing(self._connect()) as db:
             row = db.execute(
                 """SELECT 1 FROM presence_initiative_opportunity
-                   WHERE recipient_id=? AND trigger_kind='task_completed'
+                   WHERE recipient_id=? AND trigger_kind IN (
+                       'task_completed','shared_activity_offer'
+                   )
                    AND event_id LIKE 'life-update:%'
                    AND status='queued' AND created_at>=?
                    LIMIT 1""",
@@ -896,6 +1360,12 @@ class PresenceInitiativeEngine:
             audience_id=event.observation.audience_id,
         )) is not None:
             reason = feedback_restraint
+        elif (
+            event.category is OutreachCategory.SOCIAL
+            and (content_restraint := social_content_safety_reason(event.content))
+            is not None
+        ):
+            reason = content_restraint
         elif event.trigger_kind in self._ELIGIBLE_TRIGGERS:
             route = self.act_service.delivery_route
             if route is None:
