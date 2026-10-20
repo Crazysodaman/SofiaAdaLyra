@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import sys
 from datetime import datetime, timezone
 
@@ -15,6 +16,9 @@ from sofia.run.active_release import (
 )
 from sofia.run.release_process import ReleaseChildProcess
 from sofia.run.windows_service_spec import RUNTIME_SERVICE
+from sofia.mentor.windows_service_settings import (
+    load_custom_service_settings, MentorServiceSettingsError,
+)
 from sofia.run.update_restart import (
     ActiveReleaseChangeMonitor,
     UpdateRestartAction,
@@ -181,6 +185,23 @@ if sys.platform == "win32":
 
         def SvcDoRun(self):
             state_path = self._state_path()
+            # Read existing SCM custom options once at startup. The service
+            # host (and a separately launched active-release child) receives
+            # the same narrowly scoped MENTOR settings via its environment.
+            # Invalid optional settings must not disrupt the canonical brain.
+            try:
+                options = load_custom_service_settings()
+                os.environ.update(options.environment())
+                if options.enabled:
+                    servicemanager.LogInfoMsg(
+                        f"{self._svc_name_} optional local MENTOR QA is enabled"
+                    )
+            except MentorServiceSettingsError:
+                os.environ["SOFIA_MENTOR_BEHAVIOR_ENABLED"] = "false"
+                os.environ.pop("SOFIA_MENTOR_SOURCE_ROOT", None)
+                servicemanager.LogWarningMsg(
+                    f"{self._svc_name_} invalid optional MENTOR settings; QA disabled"
+                )
             try:
                 while True:
                     result = self._run_active_release(state_path)
