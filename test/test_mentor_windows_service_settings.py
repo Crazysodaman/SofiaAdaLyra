@@ -13,7 +13,8 @@ from sofia.mentor.windows_service_settings import (
     FLAG_OPTION, ROOT_OPTION, SERVICE, MentorServiceSettingsError,
     configure_custom_service_settings, decode_options,
     disable_custom_service_settings, load_custom_service_settings,
-    service_settings_status, validate_root,
+    service_settings_status, validate_root, _read_registry_option,
+    _reject_service_network_path,
 )
 
 
@@ -101,6 +102,75 @@ class MentorServiceSettingsTests(TestCase):
             return
         with self.assertRaises(MentorServiceSettingsError):
             validate_root(link)
+
+    def test_read_only_registry_reader_does_not_create_keys(self):
+        class Key:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+        class ReadOnlyRegistry:
+            HKEY_LOCAL_MACHINE = "HKLM"
+            KEY_QUERY_VALUE = 1
+            def __init__(self):
+                self.opened = []
+            def OpenKey(self, hive, path, reserved, access):
+                self.opened.append((hive, path, reserved, access))
+                return Key()
+            def QueryValueEx(self, key, option):
+                return ("true" if option == FLAG_OPTION else str(self_root), 1)
+        self_root = self.root
+        reg = ReadOnlyRegistry()
+        self.assertEqual(
+            _read_registry_option(SERVICE, FLAG_OPTION, "", registry=reg), "true"
+        )
+        self.assertEqual(len(reg.opened), 1)
+        self.assertEqual(
+            reg.opened[0],
+            ("HKLM", "SYSTEM" + chr(92) + "CurrentControlSet"
+             + chr(92) + "Services" + chr(92) + SERVICE
+             + chr(92) + "Parameters", 0, 1),
+        )
+        self.assertFalse(hasattr(reg, "RegCreateKey"))
+        self.assertFalse(hasattr(reg, "SetValue"))
+
+    def test_missing_options_return_disabled_without_writes(self):
+        class ReadOnlyRegistry:
+            HKEY_LOCAL_MACHINE = 1
+            KEY_QUERY_VALUE = 2
+            @staticmethod
+            def OpenKey(*args):
+                raise FileNotFoundError("missing parameters")
+        self.assertEqual(_read_registry_option(
+            SERVICE, FLAG_OPTION, "", registry=ReadOnlyRegistry
+        ), "")
+        self.assertFalse(decode_options("", "").enabled)
+
+    def test_read_only_registry_denial_is_sanitized_not_traceback(self):
+        class NoAccess:
+            HKEY_LOCAL_MACHINE = 1
+            KEY_QUERY_VALUE = 2
+            @staticmethod
+            def OpenKey(*args):
+                raise PermissionError("private registry details")
+        with self.assertRaises(MentorServiceSettingsError) as ctx:
+            _read_registry_option(SERVICE, FLAG_OPTION, "", registry=NoAccess)
+        self.assertIn("denied", str(ctx.exception))
+        self.assertNotIn("private registry details", str(ctx.exception))
+
+    def test_network_share_not_valid_as_windows_local_system_source(self):
+        for name in (
+            chr(92)*2 + "Server" + chr(92) + "Share" + chr(92) + "Sofia",
+            "//Server/Share/Sofia",
+            chr(92)*2 + "?" + chr(92) + "UNC" + chr(92) + "Server",
+        ):
+            with self.subTest(name=name), self.assertRaisesRegex(
+                MentorServiceSettingsError, "network share"
+            ):
+                _reject_service_network_path(Path(name))
+        # Reject before even probing the share.
+        with self.assertRaisesRegex(MentorServiceSettingsError, "network share"):
+            validate_root(chr(92)*2 + "Server" + chr(92) + "Share" + chr(92) + "Sofia")
 
     def test_cli_enable_requires_double_opt_in_no_registry_call(self):
         with patch("sofia.mentor.__main__.configure_custom_service_settings",
