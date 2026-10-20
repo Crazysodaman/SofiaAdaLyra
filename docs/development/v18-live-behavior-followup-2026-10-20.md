@@ -80,8 +80,16 @@ Three conversation-service tests took 40.77, 40.51 and 39.80 seconds
 respectively. Their cost needs profiling separately; no particular
 cause is established by durations alone.
 
-**The new assertion has not yet been rerun on Venus.** No CI or live
-model acceptance has been confirmed for this revision. Do not promote
+**Follow-up owner-reported Venus rerun:** `python -m pytest -q
+test/test_avatar_self_fact_query.py -k "tail_presence"` returned
+**2 passed, 31 deselected in 4.63 seconds**. Both selected tail-presence
+regressions are green, including the previously incorrect assertion.
+The owner did not supply a fresh `git rev-parse HEAD` with this rerun.
+The corrected assertion was committed in `991a5f8`; do not attribute the
+run to a more specific current checkout SHA without fresh evidence.
+The remaining 31 deselected tests did not run in this command.
+
+No CI or live model acceptance has been confirmed for this revision. Do not promote
 a task solely because 30 scoped tests passed.
 
 ## Validation status and open acceptance
