@@ -7,6 +7,7 @@ performing any Discord network operation.
 
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -77,7 +78,7 @@ class DiscordInboxStore:
         return connection
 
     def _initialize_database(self) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS discord_inbox (
@@ -135,6 +136,7 @@ class DiscordInboxStore:
                 )
                 """
             )
+            connection.commit()
 
     @staticmethod
     def _digest(screened: InboundScreen) -> str:
@@ -238,7 +240,7 @@ class DiscordInboxStore:
         message_id: int,
     ) -> DiscordInboxRecord | None:
         key = self._key(bot_user_id, channel_id, message_id)
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 """
                 SELECT
@@ -492,7 +494,7 @@ class DiscordInboxStore:
         message_id: int,
     ) -> DiscordOutboxRecord | None:
         key = self._key(bot_user_id, channel_id, message_id)
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 """
                 SELECT
@@ -600,7 +602,7 @@ class DiscordInboxStore:
             ORDER BY created_at, response_id
         """
         params = (str(bot_user_id), str(channel_id), *states)
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             rows = connection.execute(query, params).fetchall()
 
         return tuple(
@@ -623,7 +625,7 @@ class DiscordInboxStore:
         )
 
     def count_outcome_unknown(self) -> int:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 """
                 SELECT COUNT(*) AS count
@@ -635,7 +637,7 @@ class DiscordInboxStore:
         return int(row["count"])
 
     def count(self) -> int:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 "SELECT COUNT(*) AS count FROM discord_inbox"
             ).fetchone()

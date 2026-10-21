@@ -14,6 +14,7 @@ from pathlib import Path
 import sys
 
 from .audit import MentorAuditError, audit_checkout, compare_reports
+from ..config.model_catalog import LEGACY_SINGLE_PRESET
 from .report import markdown_report
 from .bridge import BridgeConfig, MentorBridgeError, SCENARIOS, run_synthetic_dialogue
 from .openai_diagnostics import check_openai_model
@@ -66,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
         "behavior-smoke", help="Run one synthetic local emotion/personality rubric test"
     )
     smoke.add_argument("--repo", type=Path, default=Path("."))
-    smoke.add_argument("--mentor-model", default="qwen3:14b")
+    smoke.add_argument("--mentor-model", default=LEGACY_SINGLE_PRESET.model)
     smoke.add_argument("--confirm-idle", action="store_true",
                        help="Operator affirms local GPU may be used while not gaming")
     persona = sub.add_parser(

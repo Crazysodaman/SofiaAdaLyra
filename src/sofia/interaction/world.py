@@ -7,6 +7,7 @@ Only committed transitions are reported as completed world actions.
 """
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
@@ -81,7 +82,7 @@ class LabWorld:
         self.path = Path(state_path)
         if str(state_path) == ":memory:" or not self.path.parent.is_dir():
             raise ValueError("Lab state must use an existing on-disk directory.")
-        with self._connect() as db:
+        with closing(self._connect()) as db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS lab_rooms (
                     id TEXT PRIMARY KEY, name TEXT NOT NULL
@@ -114,13 +115,15 @@ class LabWorld:
         _id(room_id, "room_id")
         if not isinstance(name, str) or not 0 < len(name.strip()) <= 100:
             raise ValueError("A room name is required.")
-        with self._connect() as db:
+        with closing(self._connect()) as db:
             db.execute("INSERT INTO lab_rooms VALUES (?, ?)", (room_id, name.strip()))
+            db.commit()
 
     def add_actor(self, actor_id: str) -> None:
         _id(actor_id, "actor_id")
-        with self._connect() as db:
+        with closing(self._connect()) as db:
             db.execute("INSERT INTO lab_actors VALUES (?, NULL)", (actor_id,))
+            db.commit()
 
     def add_object(self, object_id: str, name: str, kind: str, room_id: str) -> None:
         _id(object_id, "object_id")
@@ -128,13 +131,14 @@ class LabWorld:
         if kind not in ("tool", "equipment") or not isinstance(name, str) or not 0 < len(name.strip()) <= 100:
             raise ValueError("A named tool or equipment item is required.")
         state = "available" if kind == "tool" else "idle"
-        with self._connect() as db:
+        with closing(self._connect()) as db:
             db.execute("INSERT INTO lab_objects VALUES (?, ?, ?, ?, NULL, ?)",
                        (object_id, name.strip(), kind, room_id, state))
+            db.commit()
 
     def snapshot(self) -> dict[str, tuple[tuple[object, ...], ...]]:
         """Read actual persisted location and inventory; no imagined objects."""
-        with self._connect() as db:
+        with closing(self._connect()) as db:
             rooms = tuple(db.execute("SELECT id, name FROM lab_rooms ORDER BY id"))
             actors = tuple(db.execute("SELECT id, room_id FROM lab_actors ORDER BY id"))
             objects = tuple(db.execute(
@@ -150,7 +154,7 @@ class LabWorld:
         if not isinstance(action, WorldAction):
             raise TypeError("WorldAction is required.")
         payload = action.payload()
-        with self._connect() as db:
+        with closing(self._connect()) as db:
             db.execute("BEGIN IMMEDIATE")
             prior = db.execute(
                 "SELECT payload, status, reason, actor_id, verb, target_id "
@@ -159,11 +163,13 @@ class LabWorld:
             if prior is not None:
                 if prior[0] != payload:
                     raise ValueError("A world request ID cannot be reused for another action.")
+                db.commit()
                 return WorldOutcome(action.request_id, *prior[1:])
             status, reason = self._transition(db, action)
             db.execute("INSERT INTO lab_action_log VALUES (?, ?, ?, ?, ?, ?, ?)",
                        (action.request_id, payload, status, reason, action.actor_id,
                         action.verb, action.target_id))
+            db.commit()
             return WorldOutcome(action.request_id, status, reason,
                                 action.actor_id, action.verb, action.target_id)
 

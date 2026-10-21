@@ -7,6 +7,7 @@ increments a generation so replies staged under older authority become stale.
 
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -67,7 +68,7 @@ class DiscordBindingStore:
         return connection
 
     def _initialize_database(self) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS discord_channel_bindings (
@@ -97,6 +98,7 @@ class DiscordBindingStore:
                 )
                 """
             )
+            connection.commit()
 
     @staticmethod
     def _ids(
@@ -195,7 +197,7 @@ class DiscordBindingStore:
         """Return the unique non-revoked binding for one bot/owner pair."""
         if not _snowflake(bot_user_id) or not _snowflake(owner_user_id):
             raise ValueError("Discord IDs must be positive unsigned 64-bit integers")
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             rows = connection.execute(
                 """
                 SELECT
@@ -240,7 +242,7 @@ class DiscordBindingStore:
     ) -> DiscordChannelBinding | None:
         if not _snowflake(bot_user_id) or not _snowflake(channel_id):
             raise ValueError("Discord IDs must be positive unsigned 64-bit integers")
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 """
                 SELECT
@@ -494,7 +496,7 @@ class DiscordBindingStore:
     ) -> DiscordOutboundBinding | None:
         if not isinstance(response_id, str) or not response_id.strip():
             raise ValueError("response_id must be a non-empty string")
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 """
                 SELECT

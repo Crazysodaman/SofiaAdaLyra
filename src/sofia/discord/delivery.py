@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from contextlib import closing
 from dataclasses import dataclass
 from enum import Enum
 from hashlib import sha256
@@ -103,7 +104,7 @@ class DiscordDeliveryStore:
         return connection
 
     def _initialize_database(self) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS discord_delivery_chunks (
@@ -137,6 +138,8 @@ class DiscordDeliveryStore:
                         f"ALTER TABLE discord_delivery_chunks "
                         f"ADD COLUMN {column} {definition}"
                     )
+
+            connection.commit()
 
     def prepare(
         self,
@@ -237,7 +240,7 @@ class DiscordDeliveryStore:
     def list(self, response_id: str) -> tuple[DiscordDeliveryChunk, ...]:
         if not isinstance(response_id, str) or not response_id.strip():
             raise ValueError("response_id must be non-empty text")
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             rows = connection.execute(
                 """
                 SELECT response_id, chunk_index, content, content_digest, state,
@@ -406,7 +409,7 @@ class DiscordDeliveryStore:
         if not isinstance(send_token, str) or not send_token.strip():
             raise ValueError("send_token must be non-empty text")
         token = send_token.strip()
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 """
@@ -420,9 +423,10 @@ class DiscordDeliveryStore:
                 """,
                 (error_kind.strip()[:128], response_id, chunk_index, token),
             )
+            connection.commit()
 
     def count_outcome_unknown(self) -> int:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 """
                 SELECT COUNT(*) AS count

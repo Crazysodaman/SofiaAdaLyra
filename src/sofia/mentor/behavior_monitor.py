@@ -18,6 +18,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Callable
 
+from ..config.model_catalog import LEGACY_SINGLE_PRESET
 from .bridge import MentorBridgeError, OLLAMA_ENDPOINT, _send_json
 from .personality_review import _read_profile, CRITERIA, _score
 
@@ -178,7 +179,7 @@ def _assess_json(value: object) -> dict:
 
 def evaluate_private_turn(
     *, repo: Path | str, turn: PrivateTurn,
-    model: str = "qwen3:14b", sender: Callable = _send_json,
+    model: str = LEGACY_SINGLE_PRESET.model, sender: Callable = _send_json,
 ) -> dict:
     """One local JSON review. No persistent private response or external API."""
     from .bridge import BridgeConfig
@@ -282,7 +283,8 @@ class BehaviorMonitor:
     A failure never alters Sofía's response or schedules an extra model call.
     """
 
-    def __init__(self, *, repo: Path | str, model: str = "qwen3:14b",
+    def __init__(self, *, repo: Path | str,
+                 model: str = LEGACY_SINGLE_PRESET.model,
                  evaluator: Callable = evaluate_private_turn,
                  history_path: Path | str | None = None) -> None:
         self.repo = Path(repo).resolve(strict=True)
