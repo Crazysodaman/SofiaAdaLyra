@@ -186,3 +186,34 @@ def test_release_build_backend_is_hash_pinned_and_never_re_resolved_in_isolated_
     for output in ("$distA", "$distB"):
         assert f'pip wheel --no-build-isolation --no-deps --wheel-dir "{output}"' in workflow
     assert "pip wheel --no-deps --wheel-dir" not in workflow
+
+
+def test_release_source_stage_is_exact_git_bytes_outside_the_checkout():
+    """Wheels must be built from staged exact Git HEAD bytes stored outside the
+    checkout, never from an in-tree release-source tree that would duplicate
+    pytest modules under test.conftest during collection."""
+    root = Path(__file__).resolve().parents[1]
+    pipeline = (root / ".github/workflows/release-candidate.yml").read_text(
+        encoding="utf-8",
+    )
+    materialize = pipeline.index("- name: Materialize clean tracked source")
+    emit_stage_env = pipeline.index(
+        '"SOFIA_RELEASE_SOURCE=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV',
+    )
+    staging = pipeline.index(
+        "python src/sofia/verify/stage_release_source.py "
+        '--checkout "$env:GITHUB_WORKSPACE" --target "$sourceRoot"',
+    )
+    venv_lock = pipeline.index("- name: Verify exact hashed runtime lock")
+    build = pipeline.index("- name: Build wheel twice and require reproducibility")
+    assert materialize < emit_stage_env < staging < venv_lock < build
+    # The staged copy must live in $RUNNER_TEMP, outside $GITHUB_WORKSPACE.
+    assert '$sourceRoot = Join-Path $env:RUNNER_TEMP "sofia-release-source"' \
+        in pipeline
+    assert "Join-Path $env:GITHUB_WORKSPACE" not in pipeline
+    assert "git archive" not in pipeline
+    # Every wheel build copies from the staged source, not from the checkout.
+    assert pipeline.count("os.environ['SOFIA_RELEASE_SOURCE']") == 1
+    assert (
+        "temp/'sofia-source-build-a'") in pipeline and (
+        "temp/'sofia-source-build-b'") in pipeline
