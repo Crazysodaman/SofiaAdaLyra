@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
+import os
 import sqlite3
 
 
@@ -157,20 +158,12 @@ class FilesystemObserver:
 
         entries: list[FilesystemEntry] = []
 
-        paths = sorted(
-            self._root.rglob("*"),
+        for path in sorted(
+            self._collect_candidate_paths(),
             key=lambda path: str(path).casefold(),
-        )
-
-        for path in paths:
+        ):
             if len(entries) >= self.MAX_FILES:
                 break
-
-            if not path.is_file():
-                continue
-
-            if self._is_ignored(path):
-                continue
 
             try:
                 stat = path.stat()
@@ -201,6 +194,71 @@ class FilesystemObserver:
             entries=tuple(entries),
         )
 
+    def _collect_candidate_paths(self) -> list[Path]:
+        """
+        Enumerate candidate files with the legacy acceptance semantics.
+
+        Earlier revisions enumerated the whole tree with a recursive glob
+        and filtered discovered names afterwards. That cost was dominated
+        by ignored directories (for example .git and .venv) and doubled the
+        per-file stat count. The candidate set, its casefold sorting and the
+        MAX_FILES acceptance prefix are unchanged. Traversal now skips
+        ignored names at the source and refuses directory cycles.
+        """
+        candidates: list[Path] = []
+        visited_dirs: set[tuple[int, int]] = set()
+        directory_queue: list[Path] = [self._root]
+
+        while directory_queue:
+            directory = directory_queue.pop()
+            self._scan_directory(
+                directory,
+                visited_dirs,
+                directory_queue,
+                candidates,
+            )
+
+        return candidates
+
+    def _scan_directory(
+        self,
+        directory: Path,
+        visited_dirs: set[tuple[int, int]],
+        directory_queue: list[Path],
+        candidates: list[Path],
+    ) -> None:
+        try:
+            directory_stat = os.stat(directory)
+        except OSError:
+            return
+
+        identity = (directory_stat.st_dev, directory_stat.st_ino)
+
+        if identity in visited_dirs:
+            return
+
+        visited_dirs.add(identity)
+
+        try:
+            with os.scandir(directory) as scan:
+                scan_entries = list(scan)
+        except OSError:
+            return
+
+        for entry in scan_entries:
+            if entry.name in self._IGNORED_PARTS:
+                continue
+
+            try:
+                if entry.is_dir(follow_symlinks=False):
+                    directory_queue.append(Path(entry.path))
+                    continue
+
+                if entry.is_file():
+                    candidates.append(Path(entry.path))
+            except OSError:
+                continue
+
     @staticmethod
     def _hash_file(path: Path) -> str:
         digest = sha256()
@@ -215,17 +273,6 @@ class FilesystemObserver:
                 digest.update(chunk)
 
         return digest.hexdigest()
-
-    def _is_ignored(self, path: Path) -> bool:
-        try:
-            relative = path.relative_to(self._root)
-        except ValueError:
-            return True
-
-        return any(
-            part in self._IGNORED_PARTS
-            for part in relative.parts
-        )
 
 
 class FilesystemObservationStore:

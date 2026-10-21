@@ -10,6 +10,8 @@ import stat
 import sys
 from contextlib import closing
 
+from sofia.state.sqlite_uri import sqlite_file_uri
+
 
 @dataclass(frozen=True, slots=True)
 class RelocationPreflight:
@@ -398,7 +400,7 @@ def discover_local_state_candidates(
             # A matching schema remains merely a candidate, not authority.
             try:
                 with closing(sqlite3.connect(
-                    database.as_uri() + "?mode=ro", uri=True, timeout=2,
+                    sqlite_file_uri(database, read_only=True), uri=True, timeout=2,
                 )) as connection:
                     connection.execute("PRAGMA query_only=ON")
                     tables = {name for (name,) in connection.execute(

@@ -38,6 +38,7 @@ from sofia.ops.recovery import BackupEvidence, RestoreVerification
 from sofia.state.component_schema import verify_production_component_schemas
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.sqlite_uri import sqlite_file_uri
 from sofia.constitution.store import (
     ConstitutionStore,
     canonical_constitution_text,
@@ -766,7 +767,7 @@ class BackupEngine:
             # Do not echo row IDs or private data in recovery error receipts.
             try:
                 with closing(sqlite3.connect(
-                    staged_db.as_uri() + "?mode=ro", uri=True,
+                    sqlite_file_uri(staged_db, read_only=True), uri=True,
                 )) as db:
                     db.execute("PRAGMA query_only=ON")
                     broken_reference = db.execute(

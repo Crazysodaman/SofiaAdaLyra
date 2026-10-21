@@ -15,6 +15,7 @@ from sofia.environment.model import EnvironmentSnapshot
 from sofia.ops.model import HostTelemetry
 from sofia.voice import TTSStatus
 from sofia.state.plane import StatePlane
+from sofia.state.sqlite_uri import sqlite_file_uri
 
 from .adapters import (
     _signal,
@@ -67,7 +68,7 @@ class NeuroInputCoordinator:
         self.last_error: str | None = None
 
     def _connect(self) -> sqlite3.Connection:
-        uri = self.path.resolve().as_uri() + "?mode=ro"
+        uri = sqlite_file_uri(self.path.resolve())
         db = sqlite3.connect(uri, uri=True, timeout=5)
         db.execute("PRAGMA busy_timeout=5000")
         return db

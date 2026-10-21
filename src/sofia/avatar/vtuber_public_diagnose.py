@@ -13,6 +13,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.config import production_state_path
+from sofia.state.sqlite_uri import sqlite_file_uri
 from sofia.ui.avatar2d_installation import discover_public_avatar2d_root
 from .presentation import (
     AppearanceState, AttireMode, AudienceScope, PresentationProjection,
@@ -27,7 +28,7 @@ def _public_snapshot(state_path: Path) -> tuple[dict | None, str]:
     if not state_path.is_file():
         return None, "canonical database is absent at this location"
     try:
-        uri = state_path.resolve().as_uri() + "?mode=ro"
+        uri = sqlite_file_uri(state_path.resolve(), read_only=True)
         with sqlite3.connect(uri, uri=True, timeout=2) as db:
             row = db.execute(
                 "SELECT snapshot_json FROM avatar_presentation_state "
@@ -113,7 +114,7 @@ def diagnose_public_avatar2d(
     if state_path.is_file():
         try:
             from .wardrobe_review import apply_document
-            uri = state_path.resolve().as_uri() + "?mode=ro"
+            uri = sqlite_file_uri(state_path.resolve(), read_only=True)
             with sqlite3.connect(uri, uri=True, timeout=2) as db:
                 try:
                     reviews = db.execute(

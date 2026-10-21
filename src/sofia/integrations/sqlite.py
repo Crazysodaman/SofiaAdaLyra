@@ -6,6 +6,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from sofia.state.sqlite_uri import sqlite_file_uri
+
 class SQLiteReadAdapter:
     def __init__(self,path:Path)->None:
         self.path=path.resolve()
@@ -40,7 +42,7 @@ class SQLiteReadAdapter:
         destination=destination.resolve()
         if destination==self.path: raise ValueError("backup destination must differ from source")
         destination.parent.mkdir(parents=True,exist_ok=True)
-        source=sqlite3.connect(f"file:{self.path.as_posix()}?mode=ro",uri=True,timeout=5)
+        source=sqlite3.connect(sqlite_file_uri(self.path, read_only=True),uri=True,timeout=5)
         target=sqlite3.connect(destination,timeout=5)
         try:
             source.backup(target)
@@ -63,5 +65,5 @@ class SQLiteReadAdapter:
         return {"vacuumed":True}
 
     def _connect_ro(self):
-        uri=f"file:{self.path.as_posix()}?mode=ro"
+        uri=sqlite_file_uri(self.path, read_only=True)
         return sqlite3.connect(uri,uri=True,timeout=5)

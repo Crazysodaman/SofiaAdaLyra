@@ -14,6 +14,7 @@ from uuid import UUID
 
 from sofia.memory.deletion_ledger import MemoryDeletionLedger
 from sofia.ops.backup import BackupCipher, load_backup_key
+from sofia.state.sqlite_uri import sqlite_file_uri
 
 
 def _ledger(args) -> MemoryDeletionLedger:
@@ -51,7 +52,7 @@ def _forget(args) -> int:
     journal.entries()  # missing external state is an error, never a fresh journal
     # Verify live original audience before the durable deletion instruction
     # is appended. Never use model-provided IDs as an authority.
-    with sqlite3.connect(f"file:{target.as_posix()}?mode=ro", uri=True) as db:
+    with sqlite3.connect(sqlite_file_uri(target, read_only=True), uri=True) as db:
         scoped = db.execute(
             "SELECT principal_id,audience_id FROM memory_candidate WHERE candidate_id=?",
             (str(candidate),),

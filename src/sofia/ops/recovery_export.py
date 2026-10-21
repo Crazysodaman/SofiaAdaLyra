@@ -16,6 +16,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.ops.state_mobility import _filesystem_kind, _unsafe_ancestor
+from sofia.state.sqlite_uri import sqlite_file_uri
 
 
 _EXPORT_SCHEMA = "sofia.portable-conversations.v1"
@@ -97,7 +98,7 @@ def export_portable_conversations(
 
     # Read-only snapshot, no auto-creation or implicit schema bootstrap.
     with closing(sqlite3.connect(
-        state_path.as_uri() + "?mode=ro", uri=True, timeout=5.0,
+        sqlite_file_uri(state_path, read_only=True), uri=True, timeout=5.0,
     )) as db:
         db.row_factory = sqlite3.Row
         if not _has_table(db, "conversation_messages"):

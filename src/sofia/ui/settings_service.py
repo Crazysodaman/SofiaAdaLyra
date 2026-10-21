@@ -9,6 +9,7 @@ import sys
 
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.state.sqlite_uri import sqlite_file_uri
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.safe.secret_store import ProtectedSecretStore
 from sofia.mobile.provisioning import mobile_companion_ready
@@ -131,7 +132,7 @@ def database_diagnostics(path: Path) -> str:
     # Diagnostics must never take a write-capable connection simply to
     # inspect integrity and schema. No PRAGMA schema mutation or bootstrap.
     with closing(sqlite3.connect(
-        verified.as_uri() + "?mode=ro", uri=True, timeout=10.0,
+        sqlite_file_uri(verified, read_only=True), uri=True, timeout=10.0,
     )) as db:
         canonical.validate()
         integrity = db.execute("PRAGMA quick_check").fetchall()

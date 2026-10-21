@@ -11,21 +11,13 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import sqlite3
-from urllib.parse import quote
+
+from sofia.state.sqlite_uri import sqlite_uri_from_posix
 
 
 def _sqlite_uri_for_path(raw: str) -> str:
-    """Build a no-create SQLite URI, including a Windows UNC pathname.
-
-    An empty URI authority followed by //server/share keeps the network path
-    in the path portion instead of treating 'server' as a forbidden URI host.
-    """
-    encoded = quote(raw, safe="/:")
-    if raw.startswith("//"):
-        return "file://" + encoded + "?mode=ro"
-    if len(raw) >= 2 and raw[1] == ":":
-        return "file:///" + encoded + "?mode=ro"
-    return "file:" + encoded + "?mode=ro"
+    """Shared no-create SQLite URI, including a Windows UNC pathname."""
+    return sqlite_uri_from_posix(raw, read_only=True)
 
 
 def reflection_audit(state_path: Path) -> dict[str, object]:

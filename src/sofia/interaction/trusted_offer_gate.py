@@ -14,6 +14,7 @@ import sqlite3
 
 from sofia.cognition.model import CognitiveRequest
 from sofia.interaction.action_grammar import parse_user_action
+from sofia.state.sqlite_uri import sqlite_file_uri
 from sofia.interaction.offer_route import OFFER
 from sofia.interaction.conversation_offer_context import (
     routed_conversation_choice_request, routed_conversation_expression_request,
@@ -53,7 +54,7 @@ def _policy_gate(*, state_path: Path, session_id: str) -> str | None:
     """
     if not state_path.is_file():
         raise FileNotFoundError('Existing state database required for offer gate.')
-    with closing(sqlite3.connect(state_path.resolve().as_uri() + '?mode=ro',
+    with closing(sqlite3.connect(sqlite_file_uri(state_path.resolve(), read_only=True),
                                  uri=True, timeout=5)) as db:
         existing = {row[0] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}

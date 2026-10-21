@@ -13,6 +13,8 @@ import sqlite3
 import stat
 import tempfile
 
+from sofia.state.sqlite_uri import sqlite_file_uri
+
 
 class CanonicalStateUnavailable(FileNotFoundError):
     """The configured canonical SQLite state is missing or unsafe."""
@@ -120,7 +122,7 @@ class CanonicalSQLiteGuard:
             raise TypeError("read_only must be bool")
         path = self.validate()
         database = sqlite3.connect(
-            path.as_uri() + ("?mode=ro" if read_only else "?mode=rw"),
+            sqlite_file_uri(path, read_only=read_only),
             uri=True, timeout=timeout,
             check_same_thread=check_same_thread, factory=factory,
         )

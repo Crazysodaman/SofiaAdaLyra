@@ -9,6 +9,8 @@ import json
 import shutil
 import sqlite3
 
+from sofia.state.sqlite_uri import sqlite_file_uri
+
 
 @dataclass(frozen=True,slots=True)
 class RecoverySnapshot:
@@ -47,7 +49,7 @@ class RecoverySnapshotManager:
 
     @staticmethod
     def _integrity(path:Path)->tuple[str,...]:
-        uri=f"file:{path.resolve().as_posix()}?mode=ro"
+        uri=sqlite_file_uri(path.resolve(), read_only=True)
         with closing(sqlite3.connect(uri,uri=True,timeout=10)) as db:
             rows=db.execute("PRAGMA integrity_check").fetchall()
         return tuple(str(row[0]) for row in rows)
@@ -68,7 +70,7 @@ class RecoverySnapshotManager:
         target=self.root/f"{label}-{stamp}.sqlite"
         if target.exists():
             raise FileExistsError("recovery snapshot already exists")
-        src=sqlite3.connect(f"file:{source.resolve().as_posix()}?mode=ro",uri=True,timeout=10)
+        src=sqlite3.connect(sqlite_file_uri(source.resolve(), read_only=True),uri=True,timeout=10)
         dst=sqlite3.connect(target,timeout=10)
         try:
             src.backup(dst)

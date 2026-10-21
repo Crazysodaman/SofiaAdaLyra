@@ -22,6 +22,8 @@ import stat
 from typing import Callable
 from uuid import UUID
 
+from sofia.state.sqlite_uri import sqlite_file_uri
+
 from sofia.ops.backup import BackupCipher
 
 
@@ -282,7 +284,7 @@ class MemoryDeletionLedger:
         )
         examined = 0
         with closing(sqlite3.connect(
-            state_path.as_uri() + "?mode=ro", uri=True, timeout=10,
+            sqlite_file_uri(state_path, read_only=True), uri=True, timeout=10,
         )) as db:
             present = {
                 row[0] for row in db.execute(

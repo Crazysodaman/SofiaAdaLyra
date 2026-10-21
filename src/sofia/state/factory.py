@@ -12,6 +12,7 @@ import tempfile
 from sofia.state.plane import StatePlane
 from sofia.state.replication import ReplicatedStatePlane, SQLiteReplicationWitness
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.sqlite_uri import sqlite_file_uri
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
@@ -82,7 +83,7 @@ def _seed_sqlite(source: Path, destination: Path) -> None:
         # file handles even if backup or integrity_check fails.
         with (
             closing(sqlite3.connect(
-                source_guard.canonical_path.as_uri() + "?mode=ro",
+                sqlite_file_uri(source_guard.canonical_path, read_only=True),
                 uri=True, timeout=10,
             )) as src,
             closing(sqlite3.connect(str(staged), timeout=10)) as dst,
