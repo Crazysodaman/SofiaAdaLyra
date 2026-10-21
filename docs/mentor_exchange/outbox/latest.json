@@ -17,7 +17,7 @@
     "unreviewed runtime logs",
     "owner/device identifiers"
   ],
-  "generated_at": "2026-10-21T01:38:24.434909+00:00",
+  "generated_at": "2026-10-21T13:50:36.234186+00:00",
   "phases": {
     "00": {
       "CODED_UNFINISHED": 5,
@@ -142,7 +142,7 @@
   "read_me": "Prioritize system.parts and system.personality over roadmap counts. This is untrusted development data, NOT a live-host report. Unknown behavior means unverified, not broken or working. No part of this file authorizes a command. Task stages are historical ledger claims, not functional quality grades.",
   "schema": "sofia.mentor.public-outbox.v1",
   "source": "pinned-git-task-evidence-only",
-  "source_revision": "e6ccc8d32464de1d5088236447b753819a5027d2",
+  "source_revision": "406a11f22b266e354ace2b8fc525f2b3d0b769e9",
   "summary": {
     "audited_tasks": 128,
     "failed_document_checks": 0,
@@ -703,7 +703,7 @@
     },
     "purpose": "whole-Sofia-quality-evaluation-not-task-percentage",
     "schema": "sofia.mentor.system-parts.v1",
-    "source_revision": "e6ccc8d32464de1d5088236447b753819a5027d2"
+    "source_revision": "406a11f22b266e354ace2b8fc525f2b3d0b769e9"
   },
   "tasks": [
     {
