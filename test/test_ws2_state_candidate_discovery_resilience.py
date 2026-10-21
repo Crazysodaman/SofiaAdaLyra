@@ -44,6 +44,11 @@ def test_unreadable_one_candidate_does_not_exclude_other_known_candidates(
     _db(known / "sofia.db")
     _db(other / "sofia.db")
     from pathlib import Path
+    # Machine-global guessed roots must not leak real host installations
+    # into this synthetic equality assertion.
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path / "guessed-programdata"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "guessed-appdata"))
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     original_open = Path.open
 
     def deny_one_database(self, *args, **kwargs):

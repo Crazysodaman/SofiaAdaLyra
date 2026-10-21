@@ -52,7 +52,10 @@ class TestMentorReport(unittest.TestCase):
     def test_cli_rejects_unsafe_markdown_target(self):
         with TemporaryDirectory() as tmp:
             target = Path(tmp) / "report.md"
-            target.symlink_to(Path(tmp) / "outside.md")
+            try:
+                target.symlink_to(Path(tmp) / "outside.md")
+            except (OSError, NotImplementedError):
+                self.skipTest("symlinks unavailable on test host")
             with patch("sofia.mentor.__main__.audit_checkout", return_value=self._sample()):
                 with redirect_stdout(io.StringIO()):
                     self.assertEqual(
