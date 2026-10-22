@@ -8,9 +8,11 @@ Sofía 2.0 is the new product generation. Sofía V18 and earlier code are the pr
 
 1. [Architecture](ARCHITECTURE.md): responsibilities, runtime boundaries, core-versus-module decisions and failure isolation.
 2. [Core 1.0 plan](CORE_1_0_PLAN.md): CORE-01–40 feature inventory, CORE-B00–B08 development sequence and acceptance.
-3. [Non-Core plan](NON_CORE_MODULE_PLAN.md): specific platform, bundled release and optional modules; interfaces, safety, sequencing and acceptance.
-4. [780-task integration](UNIFIED_780_PLAN.md): preserve the original CA/ML/GA requirements while mapping them to Sofía 2.0 owners.
-5. [Development workflow](DEVELOPMENT_WORKFLOW.md): local OpenCode execution, snapshots, safe merges, evidence and owner-controlled release.
+3. [Platform and Module Catalog](PLATFORM_AND_MODULE_CATALOG_V1.md): eight Platform work packages, module profiles, maintenance and readiness.
+4. [Complete 55-entry ownership matrix](MODULE_OWNERSHIP_MATRIX.md): Core/Platform/module/adapter placement and all approved catalog entries.
+5. [Non-Core plan](NON_CORE_MODULE_PLAN.md): specific platform, bundled release and optional modules; interfaces, safety, sequencing and acceptance.
+6. [780-task integration](UNIFIED_780_PLAN.md): preserve the original CA/ML/GA requirements while mapping them to Sofía 2.0 owners.
+7. [Development workflow](DEVELOPMENT_WORKFLOW.md): local OpenCode execution, snapshots, safe merges, evidence and owner-controlled release.
 
 ## Product and ownership
 
@@ -19,9 +21,11 @@ Sofía 2.0 is the new product generation. Sofía V18 and earlier code are the pr
 | Sofía Core 1.0 | identity, cognition, memory, personality, modeled emotions, relationships, interests, agency and evaluation | Core B00–B08 |
 | Runtime platform | canonical writer, application lifecycle, SAFE authority, RUN job execution, module manager, versioned updates, recovery and observability | required foundation |
 | Bundled companion modules | desktop chat, Discord bridge, 2D fox avatar and approved expression surfaces | Sofía 2.0 companion release |
-| Optional modules | speech, research, art, development execution, homelab, robotics, trains, games, mobile and experiments | staged independent releases |
+| Optional modules and attached components | 47 optional module designs plus 1 interaction submodule and 2 adapters; voice/mobile are companion entries | staged, individually governed capabilities |
 
 **Design distinction:** the Core may express a need for a capability, but it does not acquire permission to execute that capability. The verified capability gateway, SAFE, RUN and external release supervisor retain their existing authority.
+
+**Catalog expansion (October 22, 2026):** all 41 existing module entries plus 14 additional entries are owner-approved as **design requirements only**. Of 55 named entries, 5 are companions, 47 optional and 3 attached components; actual deployment or readiness is not implied.
 
 ## Governing sources
 

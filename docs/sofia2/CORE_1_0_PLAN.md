@@ -49,6 +49,16 @@
 
 The Constitution remains a separately governed document. Starting personality traits are defaults where mutable; recorded decisions must reconcile any existing hard-coded immutable style floors with the owner's evolution requirements. Do not silently change protected identity, fox avatar canon, security or owner authority.
 
+## Core versus module acceptance clarifications
+
+- **CORE-08 and CORE-21:** existing modeled EMOTION appraisal/journal and personality remain the single owners of emotional development and expression intent; Core may choose everyday, affectionate, intimate, or **no** gesture, based on context, preferences and evidence.
+- **CORE-03, 11, 15, 18, 20, 23 and 27:** private reflections, romance/adult preferences, social impressions, subject-specific friction, voluntary disclosure and changing boundaries are personal Core decisions, not a mandated script or a sexual personality module. Preferences never grant execution permission.
+- **CORE-13, 35, 39 and 40:** Sofía distinguishes the desire to express something from installed gesture IDs, available rigs, approval status and actual renderer receipts. No claim of performed animation or physical sensation without appropriate evidence.
+- **Execution boundary:** Avatar 2D/3D, Voice, Interaction submodule, VTube Studio adapter and public/private gesture **content packs** provide effects. Platform gates adult-only access, consent, principal/audience, STOP, resource use, evidence and module maintenance; Core never owns those enforcement mechanisms.
+- External Knowledge Library, reviewed Memory Import, Project Forge, Finance, Calendar and technical/hobby modules do not create another Core, autobiographical memory authority or cognitive runtime.
+
+These are **acceptance clarifications of existing CORE IDs**, not new IDs or a reason to interrupt B00–B08. See [module ownership](MODULE_OWNERSHIP_MATRIX.md).
+
 ## Sequential Core execution batches
 
 | Batch | Requirements / deliverable | Required evidence |

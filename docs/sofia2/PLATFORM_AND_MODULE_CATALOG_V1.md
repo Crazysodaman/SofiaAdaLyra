@@ -1,8 +1,8 @@
-# Sofía 2.0 — Platform-first architecture and module catalog (draft v3)
+# Sofía 2.0 — Platform-first architecture and module catalog (owner design v4)
 
 **Decision record date:** 2026-10-21 (America/Chicago)  
 **Repository baseline:** `Crazysodaman/SofiaAdaLyra`, branch `main`, observed `e5e4407e7da725b51b17eee344ac54a12ec59d1b`  
-**Status:** Proposed implementation-ready design requirements, **not** a claim of implementation or Gate completion. v3 incorporates owner-approved module profiles, Fleet forecasting, interoperability testing, and mandatory per-module maintenance profiles. Additional extensions in §8 remain suggestions only.  
+**Status:** Owner-approved catalog **design only**, not a claim of implementation or Gate completion. V4 includes the existing module profiles, Fleet forecasts, interoperability and maintenance contracts, all 41 earlier entries plus 14 additions. §8 platform extensions remain proposed until separately accepted.  
 **Repository document:** `docs/sofia2/PLATFORM_AND_MODULE_CATALOG_V1.md` (owner-authorized publication).  
 **Development order:** Platform first (PLAT-01–08), then Companion (RM-*), then optional modules. OpenCode is sole writer for its active local Core tree; publishing this document does not authorize deployment, edits to that tree, DB migration, service restarts, or subsequent GitHub changes.
 
@@ -264,7 +264,7 @@ RM-VOICE is a release candidate until measured voice quality and scope evidence 
 
 **MOD-SENSORS clarification:** Sofía may already receive weather from ENVIRONMENT/NWS and some values from Home Assistant. Keep using those producers. MOD-SENSORS adds a pluggable *physical acquisition adapter* with sensor identity, calibration, freshness, privacy, device access, units, uncertainty and failure reporting; it is not a second weather intelligence or memory module. Cameras also require separate consent and MOD-VISION to interpret approved imagery. Internet weather remains a provider adapter; local weather stations become optional hardware adapters.
 
-### 3.3 Recommended IT modules (10 new catalog candidates)
+### 3.3 IT modules (10 owner-accepted design entries)
 
 | ID | Name | Capability; default authority |
 | --- | --- | --- |
@@ -281,7 +281,7 @@ RM-VOICE is a release candidate until measured voice quality and scope evidence 
 
 **Separation:** MOD-HOMELAB owns the *specific topology and trusted resource graph* of the owner's lab. MOD-IT-* provide reusable diagnostic/execution adapters. They may call each other only through registered, authorized capabilities. Do not duplicate Fleet host trust, STOP, secrets, RUN, or backups of canonical Core state.
 
-### 3.4 Further maker/engineering candidates (4)
+### 3.4 Maker/engineering modules (4 owner-accepted design entries)
 
 | ID | Name | Purpose |
 | --- | --- | --- |
@@ -290,7 +290,34 @@ RM-VOICE is a release candidate until measured voice quality and scope evidence 
 | MOD-3D-PRINT | 3D printing | Slicing, printer telemetry, approved print submission, job monitoring |
 | MOD-ENERGY | Energy and UPS | Power consumption, battery/UPS status, runtime advice, controlled load shedding |
 
-These four are **proposals**, not approved installed modules or blockers for Platform/Companion. Keep their integrations independent and protect physical actions.
+These four are **accepted design entries**, not approved installations or completed features. Likewise, the ten IT entries are accepted for the catalog only. Keep integrations independent and protect physical actions.
+
+### 3.5 Owner-approved expansion: 14 additional catalog entries
+
+The owner has accepted **all 41 existing entries plus all 14 below** for design inclusion, not for implementation claims, installed status, or authority to execute. The **55 entries** consist of **5 companion release modules, 47 optional module designs, 1 attached submodule and 2 adapters**. Three attached entries are not standalone services. See the [complete ownership matrix](MODULE_OWNERSHIP_MATRIX.md).
+
+| ID | Name | Packaging | Correct parent or domain | Scope and boundary | V18 source pointer / verification |
+| --- | --- | --- | --- | --- | --- |
+| `MOD-AVATAR3D` | 3D Avatar | OPTIONAL | Companion/Avatar | 3D rig, full-body animation, physics and actual frame receipts | `src/sofia/ui/avatar3d_renderer.py` |
+| `MOD-AVATAR-STUDIO` | Avatar Studio | OPTIONAL | Creative/Avatar | Wardrobe and scene authoring, layered rig compatibility, review of public/private assets | `src/sofia/avatar/authoring.py; avatar/scene_editor.py` |
+| `MOD-INTERACTION` | Avatar Interaction | SUBMODULE | RM-AVATAR2D + MOD-AVATAR3D (also Virtual World) | Pointer hit tests, user-offered virtual interactions and gesture event parsing; Core chooses its own response | `src/sofia/interaction/; avatar/vtuber_hit_test.py` |
+| `MOD-VTUBER-BRIDGE` | VTube Studio Bridge | ADAPTER | RM-AVATAR2D | Owner-paired external 2D renderer adapter; no independent personality or render claims | `src/sofia/avatar/vtube_studio_bridge.py` |
+| `MOD-WORKSHOP` | Hephaestus Workshop | OPTIONAL | Homelab/Science | Isolated VM experiments, guest preparation and signed lab artifacts | `src/sofia/ops/workshop_provision.py; ops/workshop_policy.py` |
+| `MOD-DIGITAL-TWIN` | Digital Twin | OPTIONAL | Homelab/Simulation | Hypothetical infrastructure dependency and failure scenarios, not live effects | `src/sofia/ops/digital_twin.py` |
+| `MOD-KNOWLEDGE-LIBRARY` | Knowledge Library | OPTIONAL | Research/Documents | External indexed references, bounded retrieval and source revisions, not autobiographical memory | `src/sofia/knowledge/service.py` |
+| `MOD-MEMORY-IMPORT` | Memory Import | ADAPTER | PLAT-02 + Core MEM admission | Reviewed foreign memory/conversation imports; candidate promotion stays with canonical memory owner | `src/sofia/memory/chatgpt_import.py; memory/chatgpt_migration.py` |
+| `MOD-PROJECT-FORGE` | Project Forge | OPTIONAL | Creative/Productivity | Artifact generation, run management, evaluation and delivery; Core owns personal goals | `src/sofia/life/draft_agent.py; creative/service.py` |
+| `MOD-FILE-WATCH` | File Watch | OPTIONAL | IT/Observation | Approved directory-change observation and permitted workflow triggers | `src/sofia/filesystem/changes.py; filesystem/orchestrator.py` |
+| `MOD-HOUSEHOLD` | Household | OPTIONAL | Home/Productivity | Grocy, Mealie, Homebox and consented inventory/meal workflows | `src/sofia/Specific domain provider unverified; generic integration framework exists` |
+| `MOD-FINANCE` | Personal Finance | OPTIONAL | Private productivity | Firefly III and budget analysis with distinct sensitive-data grants; no unapproved transfers | `src/sofia/Dedicated finance provider not yet verified` |
+| `MOD-DATA-ANALYTICS` | Data Analytics | OPTIONAL | Research/Productivity | CSV/structured data, statistics, reports and charts | `src/sofia/Dedicated analytics provider not yet verified` |
+| `MOD-CALENDAR` | Calendar | OPTIONAL | Productivity/Communications | Provider event sync, conflict checks, meeting preparation and action receipts | `src/sofia/Dedicated calendar provider not yet verified` |
+
+**Explicit Core / Platform split:** Core owns modeled emotions, private thoughts, sexuality/romantic and other preferences, social impressions, gesture selection and refusal, creativity/curiosity, and autobiography. Platform owns SAFE consent/adult gates, canonical state, RUN/ACT, trusted evidence, Fleet forecasts, health/maintenance, module profiles, compatibility and updates. Avatar modules own actual animations, public and privately gated gesture **content packs**, rigging, click hit tests and verified rendering. No second emotional system, permission issuer, memory authority or cognitive runtime is added.
+
+**Attached entries:** `MOD-INTERACTION` is a shared **Avatar submodule** for user input and interaction events; `MOD-VTUBER-BRIDGE` is an **RM-AVATAR2D renderer provider**; `MOD-MEMORY-IMPORT` is an **owner-reviewed state/memory import adapter**. They inherit parents' activation, authorization and maintenance profiles. The other 11 new entries are separately scoped optional capabilities.
+
+**Provider separation:** Smart Home operates connected appliances, Sensors observes physical hardware, and the existing ENVIRONMENT service merges time/weather/environment evidence. Homelab binds approved site-specific nodes; IT modules offer reusable diagnostics. Core interests/goals are never copied into Project Forge or a hobby module. Finance, Household and Calendar retain separate sensitive-data grants. Memory Import proposes reviewed candidates rather than directly editing autobiography.
 
 ## 4. Universal Production Readiness (owner's revised labels)
 

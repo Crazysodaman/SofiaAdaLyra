@@ -149,6 +149,12 @@ Own structured logs, trace IDs, sanitized diagnostics, source/task evidence proj
 **Boundary:** evaluator advice is evidence to review, not a source of authority, identity rewrite, success certification or live deployment permission.
 **Acceptance:** blind/negative controls, exact rubric/test cases, result provenance, no overclaim of real-life acceptance.
 
+### 4.1 Complete module inventory and parent boundaries
+
+As approved on October 22, 2026, the catalog now holds **55 named entries**, retaining the older 41 and adding 14: 5 release, 47 optional, 1 attached interaction submodule and 2 adapters. All ten formerly proposed IT and four maker/engineering entries are accepted **for design**, not deployed. See [full catalog](PLATFORM_AND_MODULE_CATALOG_V1.md) and the [55-entry ownership register](MODULE_OWNERSHIP_MATRIX.md).
+
+The new entries are: `MOD-AVATAR3D`, `MOD-AVATAR-STUDIO`, `MOD-INTERACTION` (**Avatar submodule**), `MOD-VTUBER-BRIDGE` (**Avatar renderer adapter**), `MOD-WORKSHOP`, `MOD-DIGITAL-TWIN`, `MOD-KNOWLEDGE-LIBRARY`, `MOD-MEMORY-IMPORT` (**PLAT-02/MEM adapter**), `MOD-PROJECT-FORGE`, `MOD-FILE-WATCH`, `MOD-HOUSEHOLD`, `MOD-FINANCE`, `MOD-DATA-ANALYTICS`, and `MOD-CALENDAR`. These are not new Core emotions, gesture decisions, rights, autobiographical stores, or execution supervisors. All actual effects still use Platform SAFE/RUN, per-profile maintenance and interoperability tests. Public/private gesture assets are content packs within Avatar, not another new module.
+
 ## 5. Non-Core implementation waves
 
 | Wave | Goal | Main dependencies | Exit criterion |

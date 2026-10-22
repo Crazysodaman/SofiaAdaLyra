@@ -46,6 +46,10 @@ Core-20 means spontaneous curiosity and interest development across permitted su
 
 Core can **request** code inspection, maintenance or change preparation. A bounded inspector/developer adapter does the work; signed release activation is separately guarded.
 
+## Placement of expanded module boundaries
+
+The [55-entry ownership matrix](MODULE_OWNERSHIP_MATRIX.md) is the cross-layer source of truth for the owner-approved catalog. Core retains emotion, autobiographical memory, personal choice/gesture intent, intimacy preferences, interests and relationship judgments. PLAT-01–08 retain the canonical writer, SAFE and execution approvals, trusted events, Fleet/resource forecasts, module maintenance, interoperability, signing and release gates. Independently scoped modules supply capabilities; VTube Studio and Memory Import inherit parent authority; avatar interaction interpretation is attached to the avatar interface. Public/private animation collections are versioned content packs, never personalities. The complete set of IT, household, finance, data, calendar, maker and simulation modules cannot bypass either boundary.
+
 ## Platform ownership
 
 1. **Runtime shell:** composition, heartbeat, start/stop supervisor, crash recovery, safe-mode startup, operator pause, retention and health.
