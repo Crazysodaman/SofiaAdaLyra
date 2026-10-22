@@ -75,8 +75,11 @@ from sofia.memory.autobiography import AutobiographyTimeline
 from sofia.memory.significance import SignificantMemoryStore
 from sofia.communication import CommunicationLearningService, ShorthandStore
 from sofia.rel.impressions import ImpressionService, ImpressionStore
+from sofia.rel.repair import RepairService, RepairStore
+from sofia.modules.registry import ModuleRegistryService, ModuleRegistryStore
 from sofia.agency import AgencyService, AnticipationStore, DilemmaStore
 from sofia.personality.boundaries import BoundaryService, BoundaryStore
+from sofia.personality.preferences import RomancePreferenceService
 from sofia.application.fleet_runtime import (
     configure_fleet_enrollment_notices,
 )
@@ -157,7 +160,7 @@ from sofia.distributed.state_paths import migrate_legacy_fleet_sidecars
 from sofia.personality.influence import ContinuityInfluence
 from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
-from sofia.social.model import PrincipalContext
+from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import local_sparks_principal, SPARKS_PRINCIPAL_ID
 from sofia.state.component_schema import verify_production_component_schemas
 from sofia.ui.drafts import UIDraftStore
@@ -341,6 +344,11 @@ class SofiaApplication:
         )
         self._impression_store = ImpressionStore(configuration.state_path)
         self._impressions = ImpressionService(self._impression_store)
+        self._repair_store = RepairStore(configuration.state_path)
+        self._repair = RepairService(self._repair_store)
+        self._module_registry = ModuleRegistryService(
+            ModuleRegistryStore(configuration.state_path)
+        )
         self._boundary_store = BoundaryStore(configuration.state_path)
         self._boundaries = BoundaryService(self._boundary_store)
         self._agency_dilemma_store = DilemmaStore(configuration.state_path)
@@ -362,6 +370,9 @@ class SofiaApplication:
         )
         self._preference_registry = PreferenceRegistry(configuration.state_path)
         self._communication_preferences = CommunicationPreferenceService(
+            self._preference_registry
+        )
+        self._romance_preferences = RomancePreferenceService(
             self._preference_registry
         )
         self._conviction_store = ConvictionStore(configuration.state_path)
@@ -458,6 +469,9 @@ class SofiaApplication:
         )
         self._conversation_service.set_boundary_context_provider(
             self._boundary_context_for_principal
+        )
+        self._conversation_service.set_romance_context_provider(
+            self._romance_context_for_principal
         )
         self._conversation_service.set_trait_evolution_provider(
             self._evolved_trait_context
@@ -610,6 +624,16 @@ class SofiaApplication:
         return self._impressions
 
     @property
+    def relationship_repair(self) -> RepairService:
+        """Owner-session writer for relationship-repair offers."""
+        return self._repair
+
+    @property
+    def module_registry(self) -> ModuleRegistryService:
+        """Owner-session registry for Sofía's own module manifests."""
+        return self._module_registry
+
+    @property
     def agency(self) -> AgencyService:
         """Owner-session writer for the independent-agency ledger."""
         return self._agency
@@ -618,6 +642,44 @@ class SofiaApplication:
     def boundaries(self) -> BoundaryService:
         """Owner-session writer for Sofía's own disclosure boundaries."""
         return self._boundaries
+
+    @property
+    def romance_preferences(self) -> RomancePreferenceService:
+        """Owner-session writer over canonical romance preference data."""
+        return self._romance_preferences
+
+    def set_romance_preference(
+        self, *, principal: PrincipalContext, kind: str, level: float,
+        reason: str, evidence_ref: str, expected_revision: int | None,
+        now: datetime | None = None,
+    ) -> PreferenceRecord:
+        """Persist one authenticated, audience-scoped romance preference."""
+        service = self._romance_preferences
+        if kind == "interest":
+            return service.record_interest(
+                principal=principal, level=level, reason=reason,
+                evidence_ref=evidence_ref,
+                expected_revision=expected_revision,
+                now=now or datetime.now(timezone.utc),
+            )
+        if kind == "intimate":
+            return service.record_intimate_comfort(
+                principal=principal, level=level, reason=reason,
+                evidence_ref=evidence_ref,
+                expected_revision=expected_revision,
+                now=now or datetime.now(timezone.utc),
+            )
+        if kind == "public-disclosure":
+            return service.record_public_disclosure(
+                principal=principal, level=level, reason=reason,
+                evidence_ref=evidence_ref,
+                expected_revision=expected_revision,
+                now=now or datetime.now(timezone.utc),
+            )
+        raise ValueError(
+            "romance preference kind must be interest, intimate, or "
+            "public-disclosure"
+        )
 
     @property
     def personality_evolution(self) -> PersonalityEvolutionService:
@@ -1011,6 +1073,19 @@ class SofiaApplication:
         return self._boundaries.working_context(
             principal,
             audience_id=principal.audience_id,
+        )
+
+    def _romance_context_for_principal(
+        self,
+        principal: PrincipalContext,
+        query_text: str,
+    ) -> str | None:
+        del query_text
+        return self._romance_preferences.working_context(
+            principal,
+            private_audience=(
+                principal.audience_kind is AudienceKind.PRIVATE
+            ),
         )
 
     def observe_body_reflex(self, observation: BodyReflexObservation):

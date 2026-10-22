@@ -50,7 +50,7 @@ from sofia.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
 from sofia.runtime.runtime import SofiaRuntime
-from sofia.social.model import PrincipalContext
+from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.rel.store import RelationshipStore
 from sofia.neuro import NeuroRuntime, NeuroStateSnapshot, NeuroWakeMode
@@ -411,6 +411,8 @@ class ConversationService(ConversationMatrixMixin):
         self._last_impression_error: str | None = None
         self._boundary_provider = None
         self._last_boundary_error: str | None = None
+        self._romance_provider = None
+        self._last_romance_error: str | None = None
         self._neuro_runtime: NeuroRuntime | None = None
         self._current_neuro_snapshot: NeuroStateSnapshot | None = None
         self._current_neuro_message_id: str | None = None
@@ -751,6 +753,13 @@ class ConversationService(ConversationMatrixMixin):
         self._boundary_provider = provider
         self._last_boundary_error = None
 
+    def set_romance_context_provider(self, provider) -> None:
+        """Install a bounded read-only romance-preference projection."""
+        if provider is not None and not callable(provider):
+            raise TypeError("romance context provider must be callable or None")
+        self._romance_provider = provider
+        self._last_romance_error = None
+
     def set_goal_command_handler(self, handler) -> None:
         """Install the authenticated host-owned canonical goal command boundary."""
         if handler is not None and not callable(handler):
@@ -975,6 +984,42 @@ class ConversationService(ConversationMatrixMixin):
             return None
         if not isinstance(content, str) or not content.strip():
             self._last_boundary_error = "InvalidBoundaryContext"
+            return None
+        return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
+
+    def _romance_context_message(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> CognitiveMessage | None:
+        provider = self._romance_provider
+        principal = self._principal_context()
+        context_plan = getattr(self, "_current_context_plan", None)
+        privacy_plan = getattr(self, "_current_privacy_plan", None)
+        if (
+            provider is None
+            or principal is None
+            or current_user is None
+            or context_plan is None
+            or privacy_plan is None
+            or self._current_matrix_message_id != current_user.id
+            # Romance preference data is owner-private by construction;
+            # shared audiences never receive the projection at all.
+            or             principal.audience_kind is not AudienceKind.PRIVATE
+            or not context_plan.allows(MatrixDomain.REL)
+        ):
+            return None
+        try:
+            content = provider(principal, current_user.content)
+            self._last_romance_error = None
+        except Exception as exc:
+            self._last_romance_error = type(exc).__name__
+            _LOG.exception(
+                "Romance context projection failed; continuing without it"
+            )
+            return None
+        if not isinstance(content, str) or not content.strip():
+            self._last_romance_error = "InvalidRomanceContext"
             return None
         return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
 
@@ -2427,6 +2472,9 @@ class ConversationService(ConversationMatrixMixin):
         boundary_context = self._boundary_context_message(
             current_user=current_user,
         )
+        romance_context = self._romance_context_message(
+            current_user=current_user,
+        )
         # Factual/permission-bearing projections get first admission, followed
         # by specifically requested episodic material, current workspace and
         # optional project context.  Scope/relevance checks remain with each
@@ -2475,6 +2523,11 @@ class ConversationService(ConversationMatrixMixin):
                 ContextClass.VALUES,
                 "personality:own-boundaries",
                 () if boundary_context is None else (boundary_context,),
+            ),
+            (
+                ContextClass.FACTUAL_EVIDENCE,
+                "personality:romance-preferences",
+                () if romance_context is None else (romance_context,),
             ),
         ):
             if group:

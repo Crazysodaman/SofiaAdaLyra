@@ -20,6 +20,7 @@ from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
     PROJECT_ROOT
+    / "src"
     / "sofia"
     / "constitution"
     / "constitution.md"

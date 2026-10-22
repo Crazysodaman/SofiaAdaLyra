@@ -11,6 +11,14 @@ from sofia.rel.impressions import (
     ImpressionStatus,
     ImpressionStore,
 )
+from sofia.rel.repair import (
+    RepairChangeKind,
+    RepairError,
+    RepairRecord,
+    RepairService,
+    RepairStatus,
+    RepairStore,
+)
 
 __all__=[
     "RelationshipContact", "RelationshipStore", "NicknameEvent", "NicknameProposal",
@@ -18,4 +26,6 @@ __all__=[
     "ImpressionChangeKind", "ImpressionEntry", "ImpressionError",
     "ImpressionKind", "ImpressionRecord", "ImpressionService",
     "ImpressionStatus", "ImpressionStore",
+    "RepairChangeKind", "RepairError", "RepairRecord", "RepairService",
+    "RepairStatus", "RepairStore",
 ]

@@ -10,7 +10,7 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
-from sofia.social.model import PrincipalContext
+from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 
@@ -321,3 +321,241 @@ class CommunicationPreferenceService:
             expected_revision=expected_revision,
             now=now,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class RomancePreferenceState:
+    """Sofía's recorded romance/intimacy preferences for one audience.
+
+    Preference data only. A recorded interest, comfort level, or boundary is
+    never consent, willingness, or permission; adult-only rows exist only in
+    owner-private audience scopes and never claim biology they do not have.
+    """
+
+    interest: float | None = None
+    intimate_comfort: float | None = None
+    public_disclosure: float | None = None
+    evidence_refs: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        for name in (
+            "interest", "intimate_comfort", "public_disclosure",
+        ):
+            value = getattr(self, name)
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not 0.0 <= float(value) <= 1.0
+            ):
+                raise ValueError(f"{name} must be None or a number in 0..1")
+        if not isinstance(self.evidence_refs, tuple):
+            raise TypeError("evidence_refs must be a tuple")
+
+
+class RomancePreferenceService:
+    """Typed romance/intimacy adapter over the canonical preference registry.
+
+    One modeled preference engine, no new machinery: records live in the
+    existing ``PreferenceRegistry`` with romance categories. Writes are
+    Sparks-session gated. The adult-only intimate category is refused outside
+    owner-private audiences; the Platform still enforces adult-only access
+    independently.
+    """
+
+    INTEREST_CATEGORY = "romance.interest"
+    INTIMATE_CATEGORY = "romance.intimate"   # adult-only, private audiences
+    TARGET = "general"
+    CONTEXT = "general"
+
+    def __init__(self, registry: PreferenceRegistry) -> None:
+        if not isinstance(registry, PreferenceRegistry):
+            raise TypeError("registry must be PreferenceRegistry")
+        self.registry = registry
+
+    @staticmethod
+    def _require_sparks(principal: PrincipalContext) -> None:
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated principal required")
+        if principal.principal_id != SPARKS_PRINCIPAL_ID:
+            raise PermissionError(
+                "romance preference writes require the authenticated owner"
+            )
+
+    @staticmethod
+    def _level(record: PreferenceRecord | None) -> float | None:
+        if record is None or record.disposition is PreferenceDisposition.UNKNOWN:
+            return None
+        if record.disposition is PreferenceDisposition.INDIFFERENT:
+            return 0.5
+        if record.disposition in {
+            PreferenceDisposition.DISLIKE,
+            PreferenceDisposition.STRONG_AVERSION,
+        }:
+            return round(1.0 - record.strength, 3)
+        return round(record.strength, 3)
+
+    def _record(
+        self, principal: PrincipalContext, *, category: str, level: float,
+        reason: str, evidence_ref: str, expected_revision: int | None,
+        now: datetime,
+    ) -> PreferenceRecord:
+        if isinstance(level, bool) or not isinstance(level, (int, float)):
+            raise TypeError("romance preference level must be numeric")
+        level = float(level)
+        if not 0.0 <= level <= 1.0:
+            raise ValueError("romance preference level must be in 0..1")
+        reason = reason.strip()
+        if not reason or len(reason) > 1000:
+            raise ValueError("romance preference reason must be bounded text")
+        evidence_ref = evidence_ref.strip()
+        if not evidence_ref or len(evidence_ref) > 300:
+            raise ValueError("romance preference evidence_ref is required")
+        now = _aware_utc(now)
+        if category == self.INTIMATE_CATEGORY and (
+            principal.audience_kind is not AudienceKind.PRIVATE
+        ):
+            raise PermissionError(
+                "adult-only intimate preferences are audience-gated to "
+                "owner-private scopes; the Platform enforces this too"
+            )
+        if level == 0.5:
+            disposition = PreferenceDisposition.INDIFFERENT
+            strength = 0.5
+        elif level > 0.5:
+            disposition = PreferenceDisposition.LIKE
+            strength = level
+        else:
+            disposition = PreferenceDisposition.DISLIKE
+            strength = 1.0 - level
+        return self.registry.revise(
+            subject=PreferenceSubject.SOFIA,
+            category=category,
+            target_id=self.TARGET,
+            context=self.CONTEXT,
+            disposition=disposition,
+            strength=strength,
+            confidence=1.0,
+            reason=reason,
+            evidence_ref=evidence_ref,
+            audience_id=principal.audience_id,
+            expected_revision=expected_revision,
+            now=now,
+        )
+
+    def record_interest(
+        self, principal: PrincipalContext, *, level: float, reason: str,
+        evidence_ref: str, expected_revision: int | None, now: datetime,
+    ) -> PreferenceRecord:
+        self._require_sparks(principal)
+        return self._record(
+            principal, category=self.INTEREST_CATEGORY, level=level,
+            reason=reason, evidence_ref=evidence_ref,
+            expected_revision=expected_revision, now=now,
+        )
+
+    def record_intimate_comfort(
+        self, principal: PrincipalContext, *, level: float, reason: str,
+        evidence_ref: str, expected_revision: int | None, now: datetime,
+    ) -> PreferenceRecord:
+        self._require_sparks(principal)
+        return self._record(
+            principal, category=self.INTIMATE_CATEGORY, level=level,
+            reason=reason, evidence_ref=evidence_ref,
+            expected_revision=expected_revision, now=now,
+        )
+
+    def record_public_disclosure(
+        self, principal: PrincipalContext, *, level: float, reason: str,
+        evidence_ref: str, expected_revision: int | None, now: datetime,
+    ) -> PreferenceRecord:
+        self._require_sparks(principal)
+        return self._record(
+            principal, category="romance.public-disclosure", level=level,
+            reason=reason, evidence_ref=evidence_ref,
+            expected_revision=expected_revision, now=now,
+        )
+
+    def current_rows(
+        self, principal: PrincipalContext,
+    ) -> dict[str, PreferenceRecord | None]:
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated principal required")
+        categories = (
+            self.INTEREST_CATEGORY,
+            self.INTIMATE_CATEGORY,
+            "romance.public-disclosure",
+        )
+        return {
+            category: self.registry.current(
+                subject=PreferenceSubject.SOFIA,
+                category=category,
+                target_id=self.TARGET,
+                context=self.CONTEXT,
+                audience_id=principal.audience_id,
+            )
+            for category in categories
+        }
+
+    def for_principal(
+        self, principal: PrincipalContext,
+    ) -> RomancePreferenceState:
+        rows = self.current_rows(principal)
+        return RomancePreferenceState(
+            interest=self._level(rows[self.INTEREST_CATEGORY]),
+            intimate_comfort=self._level(rows[self.INTIMATE_CATEGORY]),
+            public_disclosure=self._level(rows["romance.public-disclosure"]),
+            evidence_refs=tuple(
+                row.evidence_ref
+                for category in sorted(rows)
+                if (row := rows[category]) is not None
+            ),
+        )
+
+    def working_context(
+        self, principal: PrincipalContext, *,
+        private_audience: bool,
+    ) -> str | None:
+        """Bounded read-only projection for conversation context."""
+        rows = self.current_rows(principal)
+        lines = [
+            "SOFÍA'S RECORDED ROMANCE AND INTIMACY PREFERENCES "
+            "(preference data, not consent)",
+            "A chosen level is her own ongoing stance about herself. It is "
+            "never willingness right now, never permission, never an action "
+            "plan, and it never grants contact. She may refuse in any moment "
+            "and may have changed her mind since; ask, honor the newest "
+            "answer, and record changes rather than assuming.",
+            "The Platform's adult-only access rules override this data.",
+        ]
+        entries = 0
+        for category, row in sorted(rows.items()):
+            if row is None:
+                continue
+            entries += 1
+            label = {
+                self.INTEREST_CATEGORY: "romantic interest",
+                self.INTIMATE_CATEGORY: "intimate comfort (adult-only, "
+                "private audiences only)",
+                "romance.public-disclosure": "public disclosure comfort",
+            }[category]
+            lines.append(
+                f"- {label}: {self._level(row):.2f} ({row.reason}; "
+                f"evidence: {row.evidence_ref})"
+            )
+        if not entries:
+            return None
+        intimate_row = rows[self.INTIMATE_CATEGORY]
+        if intimate_row is not None and not private_audience:
+            # Defense in depth: the row could only exist for this audience
+            # if it was recorded privately, but never project it outward.
+            return None
+        text = "\n".join(lines)
+        return text if len(text) <= 2000 else text[:1999]
+
+
+def _aware_utc(value: datetime) -> datetime:
+    if not isinstance(value, datetime) or (
+        value.tzinfo is None or value.utcoffset() is None
+    ):
+        raise ValueError("romance preference write needs a UTC-aware instant")
+    return value.astimezone(timezone.utc)

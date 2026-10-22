@@ -522,8 +522,8 @@ forced catchphrases exist by design.
 
 ## B06 — Relationships and independent agency (CORE-11, CORE-18, CORE-17, CORE-25, CORE-27, CORE-29, CORE-22, CORE-31, CORE-23)
 
-Status: **in progress** (5 of ~7 slices implemented this session; all
-work uncommitted). Existing: rel store/nicknames, social
+Status: **complete pending commit** (7 implemented slices this session;
+all work uncommitted). Existing: rel store/nicknames, social
 principal/audience session binding, session-local guarded affect;
 PRESENCE initiative engine feeds ACT; GOALS(origins incl. SELF);
 LIFE coordinator; autonomous work coordinator; v2 turn-classifier covers
@@ -713,22 +713,93 @@ turn ("…I feel calm after a quiet pause, though my romance history
 still weighs on me.") reaching the model request with exactly one
 boundary block.
 
-### B06 remaining (planned next for this batch)
+### Slice 6 — Romance/intimacy preference data (implemented, tests pass)
 
-- Romance/adult preferences as modeled preference data (Personal
-  Preferences module; not a new engine; Platform continues enforcing
-  adult-only access); relationship repair/apology records pairing with
-  impressions; per-relationship gesture-family preferences.
-- Regression note: after slices 1–5 the combined targeted run
-  (boundaries, impressions, agency, expression gate + runtime, beliefs
-  wiring, autobiography wiring, communication learning, context budget,
-  habit matrix + foundation, personality evolution, life fulfillment)
-  showed 89 passed; ruff clean. No commit (owner authorization
-  required).
+Owner spec E satisfied as modeled preference data, NOT a new engine:
+`RomancePreferenceService` lives in `src/sofia/personality/preferences.py`
+and stores rows in the existing `PreferenceRegistry` (canonical
+`personality_preference_revision` table, CAS `expected_revision`
+("revision changed"), subject=SOFIA), with three validated categories:
+
+- `romance.interest` — romantic interest level toward the conversation
+  audience (checked; changed preferences recorded via revisions; 0.5 =
+  indifference, e.g. "partly curiosity after the quiet week").
+- `romance.intimate` — adult-only; writes are refused with PermissionError
+  outside owner-private audiences; read paths project intimate rows into
+  conversation only when the audience itself is private (including a
+  defense-in-depth `private_audience` argument recheck in
+  `working_context`); the Platform still enforces adult-only access
+  independently.
+- `romance.public-disclosure` — public/private distinction level.
+
+Writes are Sparks-session gated; dispositions map LIKE/DISLIKE/INDIFFERENT
+to 0..1 levels; biology is never claimed by the data layer. `working_context`
+renders "SOFÍA'S RECORDED ROMANCE AND INTIMACY PREFERENCES (preference data,
+not consent)" explicitly stating a recorded level is "never willingness
+right now, never permission…never grants contact", that she may refuse any
+moment, and that "The Platform's adult-only access rules override this
+data."
+
+Production wiring (uncommitted): bootstrap shares the existing
+`PreferenceRegistry`, property `romance_preferences`, and
+`set_romance_preference(principal, kind∈{interest,intimate,
+public-disclosure}, …)`; conversation `set_romance_context_provider` +
+`_romance_context_message` requiring PRIVATE audience kind plus
+`MatrixDomain.REL` plan admission, classified under
+`ContextClass.FACTUAL_EVIDENCE` as `personality:romance-preferences`.
+
+Tests (`test/test_romance_preferences.py`, 6 passed): owner gate +
+adult-only shared-audience refusal, CAS + changed-preference revisions,
+intimate rows kept inside private scopes (service + context), honest
+framing assertions, state validation, bootstrap wiring including unknown
+kind ValueError, and end-to-end turn ("Being close to you has felt real
+lately, our bond included.") reaching the model with the preference block
+in private scope.
+
+### Slice 7 — Relationship-repair offers (implemented, tests pass)
+
+`src/sofia/rel/repair.py` (new): `RepairRecord` (repair_id `repair:<uuid>`,
+principal/subject/audience scope, message ≤600, evidence 1..8 refs,
+optional `impression_ref` linkage into the impressions store, statuses
+open/accepted/declined/withdrawn strictly matching change kinds
+offer/accept/decline/withdraw) + canonical stores `rel_repair_revision`
+(PK repair_id,revision) / `rel_repair_current` (one open/scope row per
+principal+subject+audience — no parallel repair threads) with CAS holds.
+`RepairService` (Sparks-gated): `offer` (origin always an offer),
+`observe_outcome` (only open offers; accept/decline/withdraw recorded as
+OBSERVED outcomes with evidence; no forgiveness timers, no forced
+acceptance, decline is recorded without follow-up pressure), plus
+`open_offers` reads. Documentary invariants: reconnection stays vulnerable
+and non-coercive; nothing converts refusal into leverage.
+
+Production wiring (uncommitted): bootstrap constructs RepairStore +
+RepairService on the canonical db with `relationship_repair` accessors;
+no automatic conversation projection (repair is deliberate, not narrated
+raw) — surface pairing left to owner-facing UI/reflection use.
+
+Tests (`test/test_rel_repair.py`, 4 passed): offer→accept CAS/scope
+(".already exists" parallel offer, store reopen, history, double-outcome
+refusal), decline/withdraw recording without open residue + LookupError +
+outcome-kind guard, owner gate (foreign principal PermissionError), and
+bootstrap wiring with an end-to-end offer row.
+
+### B06 remaining (deliberately deferred or tracked)
+
+- Per-relationship gesture-family preferences: the romance preference
+  categories cover personal stance; expression-family preference beyond
+  the influence matrix remains a future enhancement, not a Core-1.0
+  blocker.
+- Regression note: after slices 1–7 the combined targeted run
+  (romance preferences, repair, impressions, agency, expression gate,
+  boundaries, beliefs wiring, autobiography wiring, communication
+  learning, context budget, habit matrix + foundation, expression
+  runtime, personality evolution, life fulfillment) showed 99 passed;
+  ruff clean. No commit made (owner authorization required).
 
 ## B07 — Modules and self-maintenance (CORE-35, CORE-36, CORE-37, CORE-38, CORE-39, CORE-40)
 
-Status: **pending**. Existing: codebase inspector/analyzer (read-only,
+Status: **in progress** (slices 1–3 implemented this session; remaining
+plan below). Existing: codebase inspector/analyzer (read-only,
 one-shot), filesystem change observation capability, DEV/EVOLVE governed
 candidate pipeline (detached worktree, verified gates, no self-approval),
 OPS drift/repair/maintenance, run supervision and systemd unit,
@@ -736,9 +807,78 @@ OPS drift/repair/maintenance, run supervision and systemd unit,
 Gaps observed: no module manifest/registry (grep: none), no persistent
 codebase inspection cache or source-change-driven re-analysis correlation,
 no typed module health/lifecycle states, no in-process subsystem restart
-supervision. Plan: `src/sofia/modules/` manifest validation + registry +
-compatibility + health projection reusing CapabilitySystem/Gateway/SAFE;
-discovery yields untrusted candidates only.
+supervision.
+
+### Slice 1 — Manifest model + untrusted discovery (implemented, tests pass)
+
+`src/sofia/modules/manifest.py` (new package): `ModuleManifest`
+(sofia.*-dotted name, semver version, purpose/boundary_notes ≤800,
+≤32 distinct dotted `declared_capabilities`, ≤32 distinct
+`declared_dependencies` with self-reference refused, bounded
+`authority_boundary`) with strict `parse_manifest` validation
+(rejects missing/extra fields) and `ModuleManifestError`.
+`discover_candidates(root)` observes `src/sofia/*/module_manifest.json`
+under the authorized root only; documents that fail parsing or
+validation are returned as `ManifestCandidate(path, manifest=None,
+parse_error=...)` — discovery never registers anything, never executes
+candidate code, and yields no trust.
+
+### Slice 2 — Canonical registry with owner-session trust (implemented, tests pass)
+
+`src/sofia/modules/registry.py`: `ModuleRegistration` (manifest +
+revision + `TrustState` candidate/verified/retired; candidates must
+carry their observed source path; verified/retired revisions drop it),
+`ModuleRegistryStore` (canonical tables `modules_manifest_revision` PK
+(name,revision) + `modules_manifest_current` one current rev per name +
+`modules_health_cache`; CAS persist `BEGIN IMMEDIATE` with
+"revision changed" stale detection), `ModuleRegistryService`
+(Sparks-principal-gated): `record_candidate` (revision 1, refuses
+dependency cycles already visible among candidate/verified entries),
+`verify` (only candidates; requires the implementation to be actually
+present in the authorized `CodebaseInspectionEvidence` — a manifest
+cannot be trusted on file existence alone; re-checks cycles),
+`retire`. `compatibility()`/`compatibility_report()` produce typed
+entries `compatible` / `candidate-only` / `major-version-mismatch` /
+`unregistered` per declared dependency.
+
+### Slice 3 — Health projection + inspection cache correlation (implemented, tests pass)
+
+`ModuleHealth` enum unknown/observed/degraded/suspect +
+`ModuleHealthReport` + `correlate_health()` persisting the health cache
+per 64-hex inspection digest and returning `HealthChange` diffs
+(first observation is reported as unknown→observed);
+`health_projection()` maps: non-verified → unknown; verified with no
+matching inspected python modules → suspect; verified with parse errors
+→ degraded; else observed. This is the persistent inspection-cache +
+source-change-driven re-analysis correlation the batch called for (the
+inspection digest anchors re-analysis runs).
+
+Wiring (uncommitted): bootstrap constructs
+`ModuleRegistryStore/Service` and exposes `app.module_registry`. No new
+capability adapter yet (module inspection stays read-only surface for
+the owner session; DEV/EVOLVE integration is a later slice).
+
+Tests (`test/test_modules_registry.py`, 7 passed): typed manifest
+rejections, discovery candidates-only (broken JSON captured as
+candidate, only files under the authorized root observed, no trust
+granted), owner gate + candidate→verify(empty evidence refuses; real
+evidence passes)→retire lifecycle, compatibility transitions
+(candidate-only → compatible; major-version-mismatch on a 2.x depender)
++ degraded/suspect health projections, cache persistence + change
+diffs (unknown→observed, observed→suspect) + digest-format guard,
+two-module cycle refused at registration, bootstrap wiring with
+start/shutdown.
+
+### B07 remaining (planned next for this batch)
+
+- Capability adapter over module inspection via CapabilitySystem/Safe/
+  Gateway classification (observation-only, owner-auth-bound), DEV/
+  EVOLVE correlation (manifest-driven candidate intake instead of raw
+  grep), in-process subsystem restart supervision and in-repo OPS drift
+  hooks beyond the existing control-plane stores.
+- Regression: after slices 1–3, combined targeted run (B06 suites +
+  modules registry: items above) showed 106 passed; ruff clean. No
+  commit (owner authorization required).
 
 ## B08 — Full system integration and acceptance
 
