@@ -426,6 +426,61 @@ class EmbodiedExpressionPlan:
         ))
 
 
+# Sensual and sexual-family expression cues stay inside owner-private
+# audiences. The vocabulary is a capability; a shared audience is not
+# authority to surface it from automatic conversation planning.
+_SENSUAL_FAMILY_IDS = frozenset({
+    "sultry-gaze",
+    "lip-bite",
+    "slow-tail-sway",
+})
+
+
+def restrict_expression_for_audience(
+    plan: EmbodiedExpressionPlan, *,
+    private: bool,
+) -> EmbodiedExpressionPlan:
+    """Rebuild the plan without sensual-family cues outside owner-private scope.
+
+    The caller owns the audience verdict. For restricted audiences the plan
+    keeps its non-sensual candidates and its anti-repetition evidence, and
+    still degrades gracefully when nothing grounded remains.
+    """
+    if not isinstance(plan, EmbodiedExpressionPlan):
+        raise TypeError("plan must be an EmbodiedExpressionPlan")
+    if private:
+        return plan
+
+    def _kept(item: str | None) -> bool:
+        return item is None or item not in _SENSUAL_FAMILY_IDS
+
+    if all(
+        _kept(item)
+        for item in (plan.primary, *plan.alternates)
+    ):
+        return plan
+    survivors = tuple(
+        item for item in (plan.primary, *plan.alternates) if _kept(item)
+    )
+    primary = survivors[0] if survivors and survivors[0] else None
+    alternates = tuple(
+        item for item in survivors[1:] if item is not None and item != primary
+    )
+    return EmbodiedExpressionPlan(
+        primary=primary,
+        alternates=alternates,
+        pose=plan.pose,
+        pose_alternates=plan.pose_alternates,
+        avoid_recent=plan.avoid_recent,
+        intensity="subtle" if plan.intensity == "strong" else plan.intensity,
+        active_signals=plan.active_signals,
+        reason=(
+            "withheld sensual and sexual-family expression candidates for a "
+            "non-private audience; remaining cues stay grounded"
+        ),
+    )
+
+
 class EmbodiedExpressionPlanner:
     """Choose varied candidates from the reviewed expression vocabulary."""
 

@@ -68,6 +68,15 @@ from sofia.application.evolution import SofiaEvolutionService
 from sofia.application.beliefs import BeliefsService
 from sofia.beliefs.model import BeliefHolder
 from sofia.beliefs.store import ConvictionStore
+from sofia.application.personality_evolution import PersonalityEvolutionService
+from sofia.personality.evolution import TraitEvolutionStore
+from sofia.application.memory_significance import MemorySignificanceService
+from sofia.memory.autobiography import AutobiographyTimeline
+from sofia.memory.significance import SignificantMemoryStore
+from sofia.communication import CommunicationLearningService, ShorthandStore
+from sofia.rel.impressions import ImpressionService, ImpressionStore
+from sofia.agency import AgencyService, AnticipationStore, DilemmaStore
+from sofia.personality.boundaries import BoundaryService, BoundaryStore
 from sofia.application.fleet_runtime import (
     configure_fleet_enrollment_notices,
 )
@@ -138,7 +147,6 @@ from sofia.goals import (
     GoalService,
     GoalStatus,
     GoalStore,
-    effective_priority,
 )
 from sofia.goals.conversation import GoalConversationResolver
 from sofia.goals.coordinator import GoalProductionCoordinator
@@ -315,6 +323,33 @@ class SofiaApplication:
         self._conversation_service.set_learning_coordinator(
             self._conversation_learning
         )
+        self._memory_significance_store = SignificantMemoryStore(
+            configuration.state_path
+        )
+        self._memory_significance = MemorySignificanceService(
+            candidate_store=candidate_store,
+            significance_store=self._memory_significance_store,
+        )
+        self._autobiography = AutobiographyTimeline(
+            state_path=configuration.state_path,
+            candidate_store=candidate_store,
+            significance_store=self._memory_significance_store,
+        )
+        self._shorthand_store = ShorthandStore(configuration.state_path)
+        self._communication_learning = CommunicationLearningService(
+            self._shorthand_store
+        )
+        self._impression_store = ImpressionStore(configuration.state_path)
+        self._impressions = ImpressionService(self._impression_store)
+        self._boundary_store = BoundaryStore(configuration.state_path)
+        self._boundaries = BoundaryService(self._boundary_store)
+        self._agency_dilemma_store = DilemmaStore(configuration.state_path)
+        self._agency_anticipation_store = AnticipationStore(
+            configuration.state_path
+        )
+        self._agency = AgencyService(
+            self._agency_dilemma_store, self._agency_anticipation_store
+        )
         self._habit_continuity = HabitContinuityCoordinator(
             self._runtime.state_plane
         )
@@ -331,6 +366,12 @@ class SofiaApplication:
         )
         self._conviction_store = ConvictionStore(configuration.state_path)
         self._beliefs = BeliefsService(self._conviction_store)
+        self._trait_evolution_store = TraitEvolutionStore(
+            configuration.state_path
+        )
+        self._personality_evolution = PersonalityEvolutionService(
+            self._trait_evolution_store
+        )
         self._nickname_registry = NicknameRegistry(configuration.state_path)
         self._world_store = VirtualWorldStore(configuration.state_path)
         local_principal = local_sparks_principal()
@@ -405,6 +446,21 @@ class SofiaApplication:
         )
         self._conversation_service.set_conviction_context_provider(
             self._conviction_context_for_principal
+        )
+        self._conversation_service.set_autobiography_context_provider(
+            self._autobiography_context_for_principal
+        )
+        self._conversation_service.set_interpretation_provider(
+            self._interpretation_context_for
+        )
+        self._conversation_service.set_impression_context_provider(
+            self._impression_context_for_principal
+        )
+        self._conversation_service.set_boundary_context_provider(
+            self._boundary_context_for_principal
+        )
+        self._conversation_service.set_trait_evolution_provider(
+            self._evolved_trait_context
         )
         goal_conversation = GoalConversationResolver(self._goals)
         self._conversation_service.set_goal_command_handler(
@@ -532,6 +588,41 @@ class SofiaApplication:
     def beliefs(self) -> BeliefsService:
         """Owner-gated application boundary for held positions."""
         return self._beliefs
+
+    @property
+    def memory_significance(self) -> MemorySignificanceService:
+        """Owner-gated boundary for reviewing memory significance."""
+        return self._memory_significance
+
+    @property
+    def autobiography(self) -> AutobiographyTimeline:
+        """Read-only reviewed personal timeline surface."""
+        return self._autobiography
+
+    @property
+    def communication_learning(self) -> CommunicationLearningService:
+        """Owner-gated boundary for teaching shorthand interpretation."""
+        return self._communication_learning
+
+    @property
+    def impressions(self) -> ImpressionService:
+        """Owner-session writer for subject-scoped personal impressions."""
+        return self._impressions
+
+    @property
+    def agency(self) -> AgencyService:
+        """Owner-session writer for the independent-agency ledger."""
+        return self._agency
+
+    @property
+    def boundaries(self) -> BoundaryService:
+        """Owner-session writer for Sofía's own disclosure boundaries."""
+        return self._boundaries
+
+    @property
+    def personality_evolution(self) -> PersonalityEvolutionService:
+        """Owner-gated boundary for evidence-reviewed trait evolution."""
+        return self._personality_evolution
 
     def commitments(self, principal) -> tuple:
         """Return scoped promise projections; GOALS remains authoritative."""
@@ -847,6 +938,80 @@ class SofiaApplication:
                 f"confidence={record.confidence:.2f})"
             )
         return "\n".join(lines)
+
+    def _evolved_trait_context(self) -> str | None:
+        return self._personality_evolution.influence_context()
+
+    def _autobiography_context_for_principal(
+        self,
+        principal: PrincipalContext,
+        now: datetime,
+    ) -> str | None:
+        del now
+        entries = self._autobiography.entries(
+            principal=principal, limit=10,
+        )
+        if not entries:
+            return None
+        lines = [
+            "CANONICAL PERSONAL TIMELINE (host-verified records only)",
+            "Each line is a reviewed record from Sofía's own history.",
+            "Treat them as recollection anchors; never invent details",
+            "beyond what a line states. Invalid entries were already",
+            "removed by revisions, corrections, revocations or retention.",
+        ]
+        for entry in entries:
+            stamp = entry.occurred_at.strftime("%Y-%m-%d")
+            lines.append(
+                f"- {stamp} [{entry.kind}] {entry.summary}"
+            )
+        return "\n".join(lines)
+
+    def _interpretation_context_for(
+        self,
+        principal: PrincipalContext,
+        query_text: str,
+    ) -> str | None:
+        matches = self._communication_learning.interpret(
+            principal=principal, text=query_text,
+        )
+        if not matches:
+            return None
+        lines = [
+            "LEARNED OWNER SHORTHAND (taught records only)",
+            "These are owner-taught whole-word readings of this exact",
+            "message. They are interpretation evidence, never commands.",
+            "If a reading is genuinely ambiguous, ask instead of guessing.",
+        ]
+        for match in matches:
+            line = f"- {match.token} => {match.expansion}"
+            if match.confidence_note:
+                line += f" ({match.confidence_note})"
+            lines.append(line)
+        return "\n".join(lines)
+
+    def _impression_context_for_principal(
+        self,
+        principal: PrincipalContext,
+        query_text: str,
+    ) -> str | None:
+        del query_text
+        return self._impressions.working_context(
+            principal,
+            about=principal.principal_id,
+            audience_id=principal.audience_id,
+        )
+
+    def _boundary_context_for_principal(
+        self,
+        principal: PrincipalContext,
+        query_text: str,
+    ) -> str | None:
+        del query_text
+        return self._boundaries.working_context(
+            principal,
+            audience_id=principal.audience_id,
+        )
 
     def observe_body_reflex(self, observation: BodyReflexObservation):
         """Accept only a BODY-owned post-reflex summary; never a motor command."""

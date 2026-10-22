@@ -7,6 +7,12 @@ from .model import (
     ProjectStatus, ResourceBudget, SelectionKind, TechnicalOutcome,
 )
 from .store import LifeStore
+from .hobby import HobbyEngagement, HobbyRecord, HobbyStatus, HobbyStore
+from .decay import (
+    DecayedHobby, DecayedInterest, effective_hobby_strength,
+    effective_interest_strength, hobby_decay_report, interest_decay_report,
+)
+from .fulfillment import FulfillmentReader, FulfillmentReport
 from .coordinator import SelfDirectedLifeCoordinator
 from .idea_agent import (
     ProjectIdeaAgent, ProjectIdeaGenerationError, ProjectIdeaSuggestion,
@@ -19,4 +25,8 @@ __all__ = [
     "ProjectScope", "ProjectStatus", "ResourceBudget", "SelectionKind",
     "TechnicalOutcome", "LifeStore", "SelfDirectedLifeCoordinator",
     "ProjectIdeaAgent", "ProjectIdeaGenerationError", "ProjectIdeaSuggestion",
+    "HobbyEngagement", "HobbyRecord", "HobbyStatus", "HobbyStore",
+    "DecayedHobby", "DecayedInterest", "effective_hobby_strength",
+    "effective_interest_strength", "hobby_decay_report", "interest_decay_report",
+    "FulfillmentReader", "FulfillmentReport",
 ]

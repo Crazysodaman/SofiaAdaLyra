@@ -45,6 +45,9 @@ from .model import (
 from .idea_agent import ProjectIdeaAgent
 from .draft_agent import ProjectDraftAgent, ProjectDraftGenerationError
 from .store import LifeStore, ProjectWorkPending
+from .decay import interest_decay_report, hobby_decay_report
+from .fulfillment import FulfillmentReader
+from .hobby import HobbyEngagement, HobbyRecord, HobbyStatus, HobbyStore
 from .procedures import LifeProcedureCatalog
 
 
@@ -77,6 +80,7 @@ class SelfDirectedLifeCoordinator:
             raise TypeError("canonical GoalService and CapabilityGateway required")
         self.path = Path(state_path)
         self.store = LifeStore(self.path)
+        self.hobby_store = HobbyStore(self.path)
         self.procedures = LifeProcedureCatalog(self.path)
         self.operator_stop = OperatorStopStore(self.path)
         self.goals, self.gateway = goals, gateway
@@ -144,6 +148,92 @@ class SelfDirectedLifeCoordinator:
             value, expected_revision=None if existing is None else existing.revision,
         )
         return value
+
+    def record_hobby(
+        self, *, name: str, description: str, strength: float, confidence: float,
+        reason: str, evidence_refs: tuple[str, ...], now: datetime,
+        retire: bool = False,
+    ) -> HobbyRecord:
+        """Durable non-artifact hobby record; revision-1 creates, later revises."""
+        self._verify_evidence(evidence_refs)
+        existing = self.hobby_store.current(name, audience_id=LOCAL_AUDIENCE)
+        digest = sha256(f"{name.casefold()}\0hobby".encode()).hexdigest()[:24]
+        value = HobbyRecord(
+            f"hobby:{digest}", name, description, strength, confidence,
+            HobbyStatus.RETIRED if retire else HobbyStatus.ACTIVE,
+            reason, evidence_refs, LOCAL_AUDIENCE,
+            1 if existing is None else existing.revision + 1, now,
+        )
+        self.hobby_store.hold(
+            value, expected_revision=None if existing is None else existing.revision,
+        )
+        return value
+
+    def retire_hobby(
+        self, *, name: str, reason: str, evidence_refs: tuple[str, ...],
+        now: datetime,
+    ) -> HobbyRecord:
+        """Retain the latest strength but mark the hobby retired from pursuit."""
+        self._verify_evidence(evidence_refs)
+        existing = self.hobby_store.current(name, audience_id=LOCAL_AUDIENCE)
+        if existing is None:
+            raise ValueError("cannot retire an unrecorded hobby")
+        value = HobbyRecord(
+            existing.hobby_id, name, existing.description, existing.strength,
+            existing.confidence, HobbyStatus.RETIRED, reason, evidence_refs,
+            LOCAL_AUDIENCE, existing.revision + 1, now,
+        )
+        self.hobby_store.hold(value, expected_revision=existing.revision)
+        return value
+
+    def engage_hobby(
+        self, *, name: str, summary: str, duration_minutes: int,
+        evidence_refs: tuple[str, ...], engaged_at: datetime, now: datetime,
+    ) -> HobbyEngagement:
+        """Record one evidence-backed instance of spending time on a hobby."""
+        self._verify_evidence(evidence_refs)
+        hobby = self.hobby_store.current(name, audience_id=LOCAL_AUDIENCE)
+        if hobby is None or hobby.status is not HobbyStatus.ACTIVE:
+            raise RuntimeError("hobby engagement requires an active hobby revision")
+        value = HobbyEngagement(
+            f"hobby-engagement:{uuid4()}", name, summary, duration_minutes,
+            evidence_refs, LOCAL_AUDIENCE, engaged_at,
+        )
+        self.hobby_store.record_engagement(
+            value, now=now, hobby_id=hobby.hobby_id,
+        )
+        return value
+
+    def active_hobbies(self) -> tuple[HobbyRecord, ...]:
+        return self.hobby_store.active_hobbies(audience_id=LOCAL_AUDIENCE)
+
+    def hobby_history(self, name: str) -> tuple[HobbyRecord, ...]:
+        return self.hobby_store.history(name, audience_id=LOCAL_AUDIENCE)
+
+    def hobby_engagements(self, name: str, *, limit: int = 32) -> tuple[HobbyEngagement, ...]:
+        return self.hobby_store.engagements(
+            name, audience_id=LOCAL_AUDIENCE, limit=limit,
+        )
+
+    def decayed_interests(self, *, now: datetime) -> tuple:
+        return interest_decay_report(
+            self.store.active_interests(audience_id=LOCAL_AUDIENCE), now=now,
+        )
+
+    def decayed_hobbies(self, *, now: datetime) -> tuple:
+        hobbies = self.active_hobbies()
+        anchors = {
+            hobby.name: self.hobby_store.last_engaged_at(
+                hobby.name, audience_id=LOCAL_AUDIENCE,
+            )
+            for hobby in hobbies
+        }
+        return hobby_decay_report(hobbies, now=now, last_engaged_by=anchors)
+
+    def fulfillment_window(self, *, now: datetime, window_days: int = 30):
+        return FulfillmentReader(self.path).report(
+            now=now, audience_id=LOCAL_AUDIENCE, window_days=window_days,
+        )
 
     def _original_scoped_evidence_current(
         self, *, refs: tuple[str, ...], audience_id: str,

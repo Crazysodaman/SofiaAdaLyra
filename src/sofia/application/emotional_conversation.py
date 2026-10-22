@@ -26,6 +26,7 @@ from sofia.cognition.model import (
 from sofia.cognition.matrix import (
     EmbodiedExpressionPlan,
     EmbodiedExpressionPlanner,
+    restrict_expression_for_audience,
     HistoryPolicy,
     MatrixDomain,
     ResponseValidationDisposition,
@@ -176,6 +177,8 @@ class EmotionalConversationService(ConversationService):
         self._presentation_revision_provider = None
         self._last_expression_runtime_error: str | None = None
         self._communication_preference_provider = None
+        self._trait_evolution_provider = None
+        self._last_trait_evolution_error: str | None = None
         self._active_channel = "conversation"
         self._model_lock = model_lock if model_lock is not None else RLock()
         if (
@@ -208,6 +211,30 @@ class EmotionalConversationService(ConversationService):
         if provider is not None and not callable(provider):
             raise TypeError("communication preference provider must be callable")
         self._communication_preference_provider = provider
+
+    def set_trait_evolution_provider(self, provider) -> None:
+        """Install a bounded, read-only reviewed trait influence projection."""
+        if provider is not None and not callable(provider):
+            raise TypeError("trait evolution provider must be callable or None")
+        self._trait_evolution_provider = provider
+        self._last_trait_evolution_error = None
+
+    def _trait_evolution_context(self) -> str | None:
+        provider = getattr(self, "_trait_evolution_provider", None)
+        if provider is None:
+            return None
+        try:
+            context = provider()
+            self._last_trait_evolution_error = None
+        except Exception as exc:
+            self._last_trait_evolution_error = type(exc).__name__
+            _LOG.exception(
+                "Trait evolution projection failed; continuing without it"
+            )
+            return None
+        if not isinstance(context, str) or not context.strip():
+            return None
+        return context
 
     def _communication_preferences(
         self, principal: PrincipalContext | None = None,
@@ -1003,10 +1030,20 @@ class EmotionalConversationService(ConversationService):
                 influence=influence,
                 recent_assistant_messages=recent_assistant,
             )
+            principal_ahead = self._principal_context()
+            if principal_ahead is not None and (
+                principal_ahead.audience_kind is not AudienceKind.PRIVATE
+            ):
+                expression_plan = restrict_expression_for_audience(
+                    expression_plan, private=False,
+                )
         self._current_expression_plan = expression_plan
 
         projections = []
         projections.append(expression_modulation.prompt())
+        trait_evolution_context = self._trait_evolution_context()
+        if trait_evolution_context is not None:
+            projections.append(trait_evolution_context)
         tracker = getattr(self, "_user_affect_tracker", None)
         if tracker is None:
             tracker = UserAffectTracker()

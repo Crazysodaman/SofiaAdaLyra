@@ -403,6 +403,14 @@ class ConversationService(ConversationMatrixMixin):
         self._last_goal_context_error: str | None = None
         self._conviction_provider = None
         self._last_conviction_error: str | None = None
+        self._autobiography_provider = None
+        self._last_autobiography_error: str | None = None
+        self._interpretation_provider = None
+        self._last_interpretation_error: str | None = None
+        self._impression_provider = None
+        self._last_impression_error: str | None = None
+        self._boundary_provider = None
+        self._last_boundary_error: str | None = None
         self._neuro_runtime: NeuroRuntime | None = None
         self._current_neuro_snapshot: NeuroStateSnapshot | None = None
         self._current_neuro_message_id: str | None = None
@@ -713,6 +721,36 @@ class ConversationService(ConversationMatrixMixin):
         self._conviction_provider = provider
         self._last_conviction_error = None
 
+    def set_autobiography_context_provider(self, provider) -> None:
+        """Install a bounded read-only canonical personal-timeline projection."""
+        if provider is not None and not callable(provider):
+            raise TypeError(
+                "autobiography context provider must be callable or None"
+            )
+        self._autobiography_provider = provider
+        self._last_autobiography_error = None
+
+    def set_interpretation_provider(self, provider) -> None:
+        """Install a bounded read-only learned-shorthand interpretation surface."""
+        if provider is not None and not callable(provider):
+            raise TypeError("interpretation provider must be callable or None")
+        self._interpretation_provider = provider
+        self._last_interpretation_error = None
+
+    def set_impression_context_provider(self, provider) -> None:
+        """Install a bounded read-only subject-scoped impression projection."""
+        if provider is not None and not callable(provider):
+            raise TypeError("impression context provider must be callable or None")
+        self._impression_provider = provider
+        self._last_impression_error = None
+
+    def set_boundary_context_provider(self, provider) -> None:
+        """Install a bounded read-only personal-boundary projection."""
+        if provider is not None and not callable(provider):
+            raise TypeError("boundary context provider must be callable or None")
+        self._boundary_provider = provider
+        self._last_boundary_error = None
+
     def set_goal_command_handler(self, handler) -> None:
         """Install the authenticated host-owned canonical goal command boundary."""
         if handler is not None and not callable(handler):
@@ -806,6 +844,137 @@ class ConversationService(ConversationMatrixMixin):
             return None
         if not isinstance(content, str) or not content.strip():
             self._last_conviction_error = "InvalidConvictionContext"
+            return None
+        return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
+
+    def _autobiography_context_message(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> CognitiveMessage | None:
+        provider = self._autobiography_provider
+        principal = self._principal_context()
+        context_plan = getattr(self, "_current_context_plan", None)
+        if (
+            provider is None
+            or principal is None
+            or current_user is None
+            or self._current_matrix_message_id != current_user.id
+            or context_plan is None
+            or not context_plan.allows(MatrixDomain.MEMORY)
+        ):
+            return None
+        try:
+            content = provider(principal, datetime.now(timezone.utc))
+            self._last_autobiography_error = None
+        except Exception as exc:
+            self._last_autobiography_error = type(exc).__name__
+            _LOG.exception(
+                "Autobiography context projection failed; continuing without it"
+            )
+            return None
+        if content is None:
+            return None
+        if not isinstance(content, str) or not content.strip():
+            self._last_autobiography_error = "InvalidAutobiographyContext"
+            return None
+        return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
+
+    def _interpretation_context_messages(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> tuple[CognitiveMessage, ...]:
+        provider = self._interpretation_provider
+        principal = self._principal_context()
+        context_plan = getattr(self, "_current_context_plan", None)
+        privacy_plan = getattr(self, "_current_privacy_plan", None)
+        if (
+            provider is None
+            or principal is None
+            or current_user is None
+            or context_plan is None
+            or privacy_plan is None
+            or self._current_matrix_message_id != current_user.id
+        ):
+            return ()
+        try:
+            content = provider(principal, current_user.content)
+            self._last_interpretation_error = None
+        except Exception as exc:
+            self._last_interpretation_error = type(exc).__name__
+            _LOG.exception(
+                "Interpretation projection failed; continuing without it"
+            )
+            return ()
+        if not isinstance(content, str) or not content.strip():
+            self._last_interpretation_error = "InvalidInterpretationContext"
+            return ()
+        return (CognitiveMessage(role=CognitiveRole.SYSTEM, content=content),)
+
+    def _impression_context_message(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> CognitiveMessage | None:
+        provider = self._impression_provider
+        principal = self._principal_context()
+        context_plan = getattr(self, "_current_context_plan", None)
+        privacy_plan = getattr(self, "_current_privacy_plan", None)
+        if (
+            provider is None
+            or principal is None
+            or current_user is None
+            or context_plan is None
+            or privacy_plan is None
+            or self._current_matrix_message_id != current_user.id
+            or not context_plan.allows(MatrixDomain.REL)
+        ):
+            return None
+        try:
+            content = provider(principal, current_user.content)
+            self._last_impression_error = None
+        except Exception as exc:
+            self._last_impression_error = type(exc).__name__
+            _LOG.exception(
+                "Impression context projection failed; continuing without it"
+            )
+            return None
+        if not isinstance(content, str) or not content.strip():
+            self._last_impression_error = "InvalidImpressionContext"
+            return None
+        return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
+
+    def _boundary_context_message(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> CognitiveMessage | None:
+        provider = self._boundary_provider
+        principal = self._principal_context()
+        context_plan = getattr(self, "_current_context_plan", None)
+        privacy_plan = getattr(self, "_current_privacy_plan", None)
+        if (
+            provider is None
+            or principal is None
+            or current_user is None
+            or context_plan is None
+            or privacy_plan is None
+            or self._current_matrix_message_id != current_user.id
+            or not context_plan.allows(MatrixDomain.SOCIAL)
+        ):
+            return None
+        try:
+            content = provider(principal, current_user.content)
+            self._last_boundary_error = None
+        except Exception as exc:
+            self._last_boundary_error = type(exc).__name__
+            _LOG.exception(
+                "Boundary context projection failed; continuing without it"
+            )
+            return None
+        if not isinstance(content, str) or not content.strip():
+            self._last_boundary_error = "InvalidBoundaryContext"
             return None
         return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
 
@@ -2246,6 +2415,18 @@ class ConversationService(ConversationMatrixMixin):
         conviction_context = self._conviction_context_message(
             current_user=current_user,
         )
+        autobiography_context = self._autobiography_context_message(
+            current_user=current_user,
+        )
+        interpretation_context = self._interpretation_context_messages(
+            current_user=current_user,
+        )
+        impression_context = self._impression_context_message(
+            current_user=current_user,
+        )
+        boundary_context = self._boundary_context_message(
+            current_user=current_user,
+        )
         # Factual/permission-bearing projections get first admission, followed
         # by specifically requested episodic material, current workspace and
         # optional project context.  Scope/relevance checks remain with each
@@ -2274,6 +2455,26 @@ class ConversationService(ConversationMatrixMixin):
                 ContextClass.VALUES,
                 "beliefs:held-convictions",
                 () if conviction_context is None else (conviction_context,),
+            ),
+            (
+                ContextClass.EPISODIC,
+                "memory:autobiography",
+                () if autobiography_context is None else (autobiography_context,),
+            ),
+            (
+                ContextClass.FACTUAL_EVIDENCE,
+                "communication:learned-shorthand",
+                interpretation_context,
+            ),
+            (
+                ContextClass.FACTUAL_EVIDENCE,
+                "rel:impressions",
+                () if impression_context is None else (impression_context,),
+            ),
+            (
+                ContextClass.VALUES,
+                "personality:own-boundaries",
+                () if boundary_context is None else (boundary_context,),
             ),
         ):
             if group:

@@ -12,9 +12,12 @@ from uuid import uuid4
 
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
-from sofia.cognition.matrix import EmbodiedExpressionPlan
+from sofia.cognition.matrix import (
+    EmbodiedExpressionPlan,
+    restrict_expression_for_audience,
+)
 from sofia.personality.influence import ContinuityInfluence
-from sofia.social.model import PrincipalContext
+from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.voice.prosody_matrix import VoiceProsodyMatrix, VoiceProsodyProfile
 
 
@@ -246,6 +249,8 @@ class ExpressionRuntime:
             raise TypeError("authenticated principal required")
         if not text.strip():
             raise ValueError("settled response text required")
+        if principal.audience_kind is not AudienceKind.PRIVATE and plan is not None:
+            plan = restrict_expression_for_audience(plan, private=False)
         profile = VoiceProsodyMatrix().plan(influence).profile
         active = tuple(item.name for item in state.active)
         evidence = tuple(dict.fromkeys(

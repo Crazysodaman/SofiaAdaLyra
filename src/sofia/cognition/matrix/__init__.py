@@ -11,7 +11,12 @@ from .influence import (
 )
 from .response import MatrixResponsePlanner, MatrixResponseValidator
 from .multi_question import merge_question_turns, split_multi_question
-from .expression_plan import EmbodiedExpressionPlan, EmbodiedExpressionPlanner, recent_expression_ids
+from .expression_plan import (
+    EmbodiedExpressionPlan,
+    EmbodiedExpressionPlanner,
+    recent_expression_ids,
+    restrict_expression_for_audience,
+)
 from .evidence import MatrixEvidenceResolver
 from .authority import MatrixAuthorityPlanner
 from .context_plan import MatrixContextPlanner
@@ -94,5 +99,6 @@ __all__ = [
     "ResponseValidationDisposition",
     "TurnEnvelope",
     "recent_expression_ids",
+    "restrict_expression_for_audience",
     "TurnMatrix",
 ]
