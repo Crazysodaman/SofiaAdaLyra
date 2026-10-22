@@ -65,6 +65,9 @@ from sofia.application.act_service import (
 from sofia.act.outreach import Importance, OutreachCategory
 from sofia.capability.gateway import CapabilityGateway
 from sofia.application.evolution import SofiaEvolutionService
+from sofia.application.beliefs import BeliefsService
+from sofia.beliefs.model import BeliefHolder
+from sofia.beliefs.store import ConvictionStore
 from sofia.application.fleet_runtime import (
     configure_fleet_enrollment_notices,
 )
@@ -326,6 +329,8 @@ class SofiaApplication:
         self._communication_preferences = CommunicationPreferenceService(
             self._preference_registry
         )
+        self._conviction_store = ConvictionStore(configuration.state_path)
+        self._beliefs = BeliefsService(self._conviction_store)
         self._nickname_registry = NicknameRegistry(configuration.state_path)
         self._world_store = VirtualWorldStore(configuration.state_path)
         local_principal = local_sparks_principal()
@@ -397,6 +402,9 @@ class SofiaApplication:
         )
         self._conversation_service.set_goal_context_provider(
             self._goal_context_for_principal
+        )
+        self._conversation_service.set_conviction_context_provider(
+            self._conviction_context_for_principal
         )
         goal_conversation = GoalConversationResolver(self._goals)
         self._conversation_service.set_goal_command_handler(
@@ -519,6 +527,11 @@ class SofiaApplication:
     @property
     def life(self) -> SelfDirectedLifeCoordinator:
         return self._life
+
+    @property
+    def beliefs(self) -> BeliefsService:
+        """Owner-gated application boundary for held positions."""
+        return self._beliefs
 
     def commitments(self, principal) -> tuple:
         """Return scoped promise projections; GOALS remains authoritative."""
@@ -801,6 +814,39 @@ class SofiaApplication:
 
     def _goal_context_for_principal(self, principal, now: datetime) -> str | None:
         return self._goals.prompt_context(principal, now=now)
+
+    def _conviction_context_for_principal(
+        self,
+        principal: PrincipalContext,
+        query_text: str,
+    ) -> str | None:
+        matches = self._beliefs.working_context(
+            query_text=query_text,
+            audience_id=principal.audience_id,
+            owner_audience_id=(
+                principal.audience_id
+                if principal.principal_id == SPARKS_PRINCIPAL_ID
+                else None
+            ),
+        )
+        if not matches:
+            return None
+        lines = [
+            "CANONICAL HELD POSITIONS (authored records only)",
+            "SOFÍA-held lines are her current positions; OWNER-held lines are",
+            "attributed to the owner and must never be asserted as Sofía's own.",
+            "If a current turn may support or contradict one, ask before",
+            "reasserting it as settled.",
+        ]
+        for match in matches:
+            record = match.record
+            holder = "SOFÍA" if record.holder is BeliefHolder.SOFIA else "OWNER"
+            lines.append(
+                f"- [{holder}] {record.topic}: {record.statement} "
+                f"(stance={record.stance.value}, "
+                f"confidence={record.confidence:.2f})"
+            )
+        return "\n".join(lines)
 
     def observe_body_reflex(self, observation: BodyReflexObservation):
         """Accept only a BODY-owned post-reflex summary; never a motor command."""

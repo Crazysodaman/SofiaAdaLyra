@@ -108,6 +108,11 @@ _DOMAIN_CONCEPTS = {
     "continuity": frozenset({
         "background", "continue", "pending", "previous", "unfinished",
     }),
+    "values": frozenset({
+        "believe", "believes", "believed", "belief", "beliefs", "conviction",
+        "convictions", "opinion", "opinions", "stance", "stances", "disagree",
+        "disagreement", "principle", "principles",
+    }),
 }
 _EVIDENCE_PREDICATES = {
     "environment": "environment.current",
@@ -482,7 +487,7 @@ class MatrixV2Planner:
             return ReasoningRequirement.DETERMINISTIC
         if {"ops", "machine", "dev", "body"} & set(domains):
             return ReasoningRequirement.DEEP
-        if {"social", "emotion", "interaction", "rel", "memory"} & set(domains):
+        if {"social", "emotion", "interaction", "rel", "memory", "values"} & set(domains):
             return ReasoningRequirement.STANDARD
         if "environment" in domains:
             return ReasoningRequirement.DETERMINISTIC

@@ -401,6 +401,8 @@ class ConversationService(ConversationMatrixMixin):
         self._v2_answer_handler = None
         self._v2_evidence_reader = None
         self._last_goal_context_error: str | None = None
+        self._conviction_provider = None
+        self._last_conviction_error: str | None = None
         self._neuro_runtime: NeuroRuntime | None = None
         self._current_neuro_snapshot: NeuroStateSnapshot | None = None
         self._current_neuro_message_id: str | None = None
@@ -704,6 +706,13 @@ class ConversationService(ConversationMatrixMixin):
         self._goal_context_provider = provider
         self._last_goal_context_error = None
 
+    def set_conviction_context_provider(self, provider) -> None:
+        """Install a bounded read-only held-belief projection."""
+        if provider is not None and not callable(provider):
+            raise TypeError("conviction context provider must be callable or None")
+        self._conviction_provider = provider
+        self._last_conviction_error = None
+
     def set_goal_command_handler(self, handler) -> None:
         """Install the authenticated host-owned canonical goal command boundary."""
         if handler is not None and not callable(handler):
@@ -764,6 +773,39 @@ class ConversationService(ConversationMatrixMixin):
             return None
         if not isinstance(content, str) or not content.strip():
             self._last_goal_context_error = "InvalidGoalContext"
+            return None
+        return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
+
+    def _conviction_context_message(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> CognitiveMessage | None:
+        provider = self._conviction_provider
+        principal = self._principal_context()
+        context_plan = getattr(self, "_current_context_plan", None)
+        if (
+            provider is None
+            or principal is None
+            or current_user is None
+            or self._current_matrix_message_id != current_user.id
+            or context_plan is None
+            or not context_plan.allows(MatrixDomain.VALUES)
+        ):
+            return None
+        try:
+            content = provider(principal, current_user.content)
+            self._last_conviction_error = None
+        except Exception as exc:
+            self._last_conviction_error = type(exc).__name__
+            _LOG.exception(
+                "Conviction context projection failed; continuing without it"
+            )
+            return None
+        if content is None:
+            return None
+        if not isinstance(content, str) or not content.strip():
+            self._last_conviction_error = "InvalidConvictionContext"
             return None
         return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
 
@@ -2201,6 +2243,9 @@ class ConversationService(ConversationMatrixMixin):
             current_user=current_user,
         )
         goal_context = self._goal_context_message(current_user=current_user)
+        conviction_context = self._conviction_context_message(
+            current_user=current_user,
+        )
         # Factual/permission-bearing projections get first admission, followed
         # by specifically requested episodic material, current workspace and
         # optional project context.  Scope/relevance checks remain with each
@@ -2224,6 +2269,11 @@ class ConversationService(ConversationMatrixMixin):
                 ContextClass.PROJECT,
                 "goals:current-context",
                 () if goal_context is None else (goal_context,),
+            ),
+            (
+                ContextClass.VALUES,
+                "beliefs:held-convictions",
+                () if conviction_context is None else (conviction_context,),
             ),
         ):
             if group:

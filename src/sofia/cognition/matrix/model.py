@@ -46,6 +46,7 @@ class MatrixDomain(str, Enum):
     AUTHORITY = "authority"
     CONTINUITY = "continuity"
     GOALS = "goals"
+    VALUES = "values"
 
 
 class MatrixRelevance(int, Enum):

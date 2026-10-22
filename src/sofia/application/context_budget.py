@@ -20,6 +20,7 @@ class ContextClass(str, Enum):
     WORKSPACE = "workspace"
     PROJECT = "project"
     AFFECT_STYLE = "affect_style"
+    VALUES = "values"
 
 
 DEFAULT_CLASS_LIMITS = {
@@ -28,6 +29,7 @@ DEFAULT_CLASS_LIMITS = {
     ContextClass.WORKSPACE: 2_000,
     ContextClass.PROJECT: 2_000,
     ContextClass.AFFECT_STYLE: 12_000,
+    ContextClass.VALUES: 1_800,
 }
 
 
