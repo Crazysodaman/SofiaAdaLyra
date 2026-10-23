@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
-from sofia.package_metadata import application_name, application_version
+from sofia.core.package_metadata import application_name, application_version
 from sofia.avatar.presentation import (
     AudienceScope,
     PresentationAuthority,

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
     'from sofia.platform.application.bootstrap import SofiaApplication',
     'from sofia.platform.application import ConversationService, SofiaApplication',
     'from sofia.platform.runtime.runtime import SofiaRuntime',
-    'from sofia.package_metadata import application_version',
+    'from sofia.core.package_metadata import application_version',
     'from sofia.ui.terminal import ConversationLoop',
 ])
 def test_application_and_interaction_can_import_in_either_order(first):

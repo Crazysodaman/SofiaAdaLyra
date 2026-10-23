@@ -1,6 +1,6 @@
 from importlib.metadata import metadata, version
 
-from sofia.package_metadata import (
+from sofia.core.package_metadata import (
     application_name,
     application_version,
 )

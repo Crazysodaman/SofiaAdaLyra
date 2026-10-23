@@ -12,8 +12,8 @@ _EXPORT_MODULES = {
     "ConversationService": "sofia.platform.application.conversation_service",
     "SofiaApplication": "sofia.platform.application.bootstrap",
     "SofiaApplicationError": "sofia.platform.application.bootstrap",
-    "application_name": "sofia.package_metadata",
-    "application_version": "sofia.package_metadata",
+    "application_name": "sofia.core.package_metadata",
+    "application_version": "sofia.core.package_metadata",
 }
 
 __all__ = list(_EXPORT_MODULES)
