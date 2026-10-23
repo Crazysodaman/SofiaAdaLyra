@@ -12,7 +12,7 @@ from hashlib import sha256
 from pathlib import Path
 from uuid import UUID
 import json,re
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.evolve.training_sources import TrainingDatasetStore
 from sofia.evolve.training_policy import AdaptationPlan,assess_registered_adaptation
 

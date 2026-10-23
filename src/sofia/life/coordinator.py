@@ -30,7 +30,7 @@ from sofia.personality.preferences import (
 )
 from sofia.rel.nicknames import NicknameProposal, NicknameRegistry
 from sofia.safe.operator_stop import OperatorStopStore
-from sofia.run.work import (
+from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkJob, WorkResult, WorkStatus,
 )
 from sofia.social.principals import local_sparks_principal

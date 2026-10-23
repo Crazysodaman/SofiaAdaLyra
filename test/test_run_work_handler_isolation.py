@@ -3,11 +3,11 @@ import time
 
 import pytest
 
-from sofia.run.work import (
+from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkResult, WorkStatus,
 )
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 pytestmark = pytest.mark.pkg_run

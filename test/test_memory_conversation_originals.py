@@ -5,7 +5,7 @@ import pytest
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.memory.originals import (
     ConversationOriginalRetriever,
     OriginalRetrievalRequest,

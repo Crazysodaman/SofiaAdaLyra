@@ -2,9 +2,9 @@
 
 import pytest
 
-from sofia.application import SofiaApplication, SofiaApplicationError
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.application import SofiaApplication, SofiaApplicationError
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent

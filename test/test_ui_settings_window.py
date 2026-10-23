@@ -5,10 +5,10 @@ import os
 
 import pytest
 
-from sofia.config.user_settings import RuntimeUserSettingsStore
-from sofia.config.defaults import production_storage_layout
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.defaults import production_storage_layout
 from sofia.identity.model import IdentityBootstrapMode
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.emotion.journal import EmotionalJournal
 from sofia.social.model import SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID

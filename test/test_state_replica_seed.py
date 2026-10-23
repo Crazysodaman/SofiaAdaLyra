@@ -8,9 +8,9 @@ import os
 
 import pytest
 
-from sofia.state.factory import _seed_sqlite
-from sofia.state.sqlite_access import SQLiteAccess, _ObservedConnection
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.factory import _seed_sqlite
+from sofia.platform.state.sqlite_access import SQLiteAccess, _ObservedConnection
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def _primary(path: Path) -> None:
@@ -61,7 +61,7 @@ def test_concurrent_publisher_is_not_replaced(tmp_path, monkeypatch):
         Path(dst).write_bytes(b"other-writer")
         raise FileExistsError("replica already published")
 
-    monkeypatch.setattr("sofia.state.factory.os.link", competing_publish)
+    monkeypatch.setattr("sofia.platform.state.factory.os.link", competing_publish)
     with pytest.raises(FileExistsError):
         _seed_sqlite(primary, replica)
     assert replica.read_bytes() == b"other-writer"
@@ -129,8 +129,8 @@ def test_replica_seed_refuses_source_swap_during_read_connection(
             os.replace(replacement, primary)
         return original(database, *args, **kwargs)
 
-    monkeypatch.setattr("sofia.state.factory.sqlite3.connect", swap_before_open)
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    monkeypatch.setattr("sofia.platform.state.factory.sqlite3.connect", swap_before_open)
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
     with pytest.raises(CanonicalStateUnavailable, match="replaced"):
         _seed_sqlite(primary, replica)
     assert switched

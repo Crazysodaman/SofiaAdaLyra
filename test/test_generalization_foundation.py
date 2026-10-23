@@ -6,15 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from sofia.application import SofiaApplication
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.application import SofiaApplication
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.generalization import (
     AttemptMetrics, ExplorationAdmission, GeneralizationService, NovelProblemCase,
     NovelProblemSuite, ProblemDomain, SuiteSplit, answer_digest,
 )
 from sofia.learning.contracts import DataUse, DataUseGrant
 from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 18, 12, tzinfo=timezone.utc)

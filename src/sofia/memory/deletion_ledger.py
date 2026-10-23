@@ -22,7 +22,7 @@ import stat
 from typing import Callable
 from uuid import UUID
 
-from sofia.state.sqlite_uri import sqlite_file_uri
+from sofia.platform.state.sqlite_uri import sqlite_file_uri
 
 from sofia.ops.backup import BackupCipher
 

@@ -2,9 +2,9 @@
 
 import pytest
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
-from sofia.config.model import (
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -12,9 +12,9 @@ from sofia.filesystem.model import (
     FilesystemOperation,
     FilesystemResultKind,
 )
-from sofia.runtime.model import RuntimeState
+from sofia.platform.runtime.model import RuntimeState
 from sofia.social.principals import local_sparks_principal
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent

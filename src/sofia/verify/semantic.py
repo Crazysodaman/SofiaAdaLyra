@@ -13,9 +13,9 @@ import sqlite3
 import sys
 import tempfile
 
-from sofia.config import create_production_configuration
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard, bootstrap_canonical_sqlite
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.config import create_production_configuration
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard, bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 
 

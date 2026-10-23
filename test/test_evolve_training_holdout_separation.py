@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.evolve.training_sources import (
     TrainingDatasetStore, inspect_public_dataset,
 )

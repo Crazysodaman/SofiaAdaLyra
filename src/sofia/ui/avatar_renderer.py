@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable
 
-from sofia.application.expression_runtime import ExpressionDecision
+from sofia.platform.application.expression_runtime import ExpressionDecision
 from sofia.avatar.presentation import PresentationProjection
 from sofia.voice.prosody_matrix import VoiceProsodyProfile
 

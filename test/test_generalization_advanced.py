@@ -17,9 +17,9 @@ from sofia.goals.evidence import GoalEvidenceLedger
 from sofia.goals.model import CompletionKind, GoalCompletionCondition
 from sofia.learning import LearningService
 from sofia.learning.contracts import DataUseGrant
-from sofia.run.work import DurableWorkStore, WorkStatus
+from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.verify.generalization_transfer import SCHEMA, canonical
 
 

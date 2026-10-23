@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.codebase.model import (
     CodebaseEvidenceKind,
@@ -12,9 +12,9 @@ from sofia.codebase.model import (
     PythonModule,
     PythonSymbol,
 )
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.modules.manifest import parse_manifest
-from sofia.modules.platform import (
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.core.modreg.manifest import parse_manifest
+from sofia.core.modreg.platform import (
     FakeCapabilitySpec,
     FakePlatformModuleObserver,
     ModuleObservationKind,
@@ -23,7 +23,7 @@ from sofia.modules.platform import (
     PlacementObservation,
     PlacementMode,
 )
-from sofia.modules.proposals import (
+from sofia.core.modreg.proposals import (
     ModuleNeed,
     ModuleProposalService,
     ModuleProposalStore,
@@ -31,16 +31,16 @@ from sofia.modules.proposals import (
     ProposalAction,
     ProposalStatus,
 )
-from sofia.modules.registry import (
+from sofia.core.modreg.registry import (
     ModuleRegistryService,
     ModuleRegistryStore,
 )
-from sofia.modules.self_model import (
+from sofia.core.modreg.self_model import (
     CapabilitySelfModel,
     Grounding,
     ModuleAwarenessRow,
 )
-from sofia.modules.workshop import (
+from sofia.core.modreg.workshop import (
     WorkshopRequestError,
     WorkshopRequestService,
     WorkshopRequestStatus,
@@ -48,7 +48,7 @@ from sofia.modules.workshop import (
 )
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import local_sparks_principal
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 7, 5, 9, 30, tzinfo=timezone.utc)
 
@@ -403,7 +403,7 @@ def test_need_evaluation_and_proposal_flow(tmp_path):
     )
     assert resolved.status is ProposalStatus.DEFERRED
     assert resolved.revision == 2
-    from sofia.modules.proposals import ProposalError
+    from sofia.core.modreg.proposals import ProposalError
 
     with pytest.raises(ProposalError, match="revision changed"):
         proposals_down.resolve(
@@ -611,7 +611,7 @@ def test_capability_system_gate(tmp_path):
         CapabilityResultKind,
     )
     from sofia.capability.system import CapabilitySystem
-    from sofia.modules.capability import (
+    from sofia.core.modreg.capability import (
         MODULE_AWARENESS_CAPABILITY,
         ModuleAwarenessCapability,
     )

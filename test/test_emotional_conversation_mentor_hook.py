@@ -6,8 +6,8 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from sofia.application.conversation_service import ConversationService
-from sofia.application.emotional_conversation import EmotionalConversationService
+from sofia.platform.application.conversation_service import ConversationService
+from sofia.platform.application.emotional_conversation import EmotionalConversationService
 
 
 class TestMentorFinalResponseHook(TestCase):
@@ -33,8 +33,8 @@ class TestMentorFinalResponseHook(TestCase):
             patch.object(EmotionalConversationService, "_record_expression_decision"),
             patch.object(EmotionalConversationService, "current_emotional_state",
                          return_value=state),
-            patch("sofia.application.emotional_conversation.emit_performance"),
-            patch("sofia.application.emotional_conversation.performance_trace_enabled",
+            patch("sofia.platform.application.emotional_conversation.emit_performance"),
+            patch("sofia.platform.application.emotional_conversation.performance_trace_enabled",
                   return_value=False),
         ):
             result = svc.respond("Can you prove the service is live?", channel="conversation")
@@ -58,10 +58,10 @@ class TestMentorFinalResponseHook(TestCase):
             patch.object(EmotionalConversationService, "_record_expression_decision"),
             patch.object(EmotionalConversationService, "current_emotional_state",
                          return_value=SimpleNamespace(tone="positive", active=())),
-            patch("sofia.application.emotional_conversation.emit_performance"),
-            patch("sofia.application.emotional_conversation.performance_trace_enabled",
+            patch("sofia.platform.application.emotional_conversation.emit_performance"),
+            patch("sofia.platform.application.emotional_conversation.performance_trace_enabled",
                   return_value=False),
-            patch("sofia.application.emotional_conversation._LOG") as log,
+            patch("sofia.platform.application.emotional_conversation._LOG") as log,
         ):
             self.assertIs(svc.respond("Check it"), answer)
         self.assertEqual(svc._active_user_requests, 0)
@@ -80,8 +80,8 @@ class TestMentorFinalResponseHook(TestCase):
             patch.object(ConversationService, "respond", side_effect=replayed),
             patch.object(EmotionalConversationService, "_persist_pending_emotion_appraisal") as appraise,
             patch.object(EmotionalConversationService, "_record_expression_decision") as express,
-            patch("sofia.application.emotional_conversation.emit_performance"),
-            patch("sofia.application.emotional_conversation.performance_trace_enabled",
+            patch("sofia.platform.application.emotional_conversation.emit_performance"),
+            patch("sofia.platform.application.emotional_conversation.performance_trace_enabled",
                   return_value=False),
         ):
             self.assertIs(svc.respond("repeat"), answer)

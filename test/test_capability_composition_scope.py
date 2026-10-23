@@ -11,13 +11,13 @@ from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.model import CapabilityResultKind
 from sofia.capability.model import CapabilityProposal
 from sofia.codebase.capability import CODEBASE_INSPECT_CAPABILITY
-from sofia.composition.root import compose
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.config.model import (
+from sofia.platform.composition.root import compose
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.runtime.model import RuntimeState
+from sofia.platform.runtime.model import RuntimeState
 from sofia.social.principals import local_sparks_principal
 
 

@@ -18,7 +18,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Callable
 
-from ..config.model_catalog import LEGACY_SINGLE_PRESET
+from sofia.platform.config.model_catalog import LEGACY_SINGLE_PRESET
 from .bridge import MentorBridgeError, OLLAMA_ENDPOINT, _send_json
 from .personality_review import _read_profile, CRITERIA, _score
 

@@ -15,7 +15,7 @@ import sqlite3
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.social.model import PrincipalContext
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 @dataclass(frozen=True, slots=True)

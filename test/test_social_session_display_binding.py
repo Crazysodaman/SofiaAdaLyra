@@ -9,7 +9,7 @@ import pytest
 
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite, CanonicalStateUnavailable
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite, CanonicalStateUnavailable
 
 
 def principal(*, audience="local:text", name="Sparks", kind=AudienceKind.PRIVATE):

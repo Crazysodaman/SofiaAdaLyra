@@ -15,7 +15,7 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.distributed.capabilities import (
     CapabilityInventory,
     inventory_is_current,

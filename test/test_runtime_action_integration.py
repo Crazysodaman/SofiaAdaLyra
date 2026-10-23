@@ -1,11 +1,11 @@
 ﻿from sofia.action.executor import FailClosedActionExecutor
 from sofia.action.system import ActionSystem
-from sofia.config.model import (
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.composition.root import compose
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.composition.root import compose
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_composed_runtime_contains_action_system(tmp_path):

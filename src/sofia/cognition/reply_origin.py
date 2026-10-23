@@ -14,7 +14,7 @@ from pathlib import Path
 
 from sofia.cognition.matrix.model import CognitionExecutionTrace
 from sofia.social.model import PrincipalContext
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class ReplyModelOriginStore:

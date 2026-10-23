@@ -14,8 +14,8 @@ from .inventory import MachineInventory
 from .location import MachineLocationRegistry
 from .persistence import SQLiteMachineInventoryPersistence
 from .refresh import MachineInventoryRefresher
-from sofia.state.plane import StatePlane
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.plane import StatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 HARDWARE_INSPECT_CAPABILITY=Capability(
     name="hardware.inspect",

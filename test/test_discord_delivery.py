@@ -18,7 +18,7 @@ from sofia.discord.delivery import (
 from sofia.discord.inbound import DiscordTextEvent, screen_text_dm
 from sofia.discord.outbound import DiscordOutboundGate, OutboundDenial
 from sofia.discord.store import DiscordInboxStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 OWNER = 123456789012345678
 BOT = 987654321098765432

@@ -9,9 +9,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sofia.state.canonical_sqlite import require_existing_sqlite
+from sofia.platform.state.canonical_sqlite import require_existing_sqlite
 
-from sofia.config import SofiaConfiguration
+from sofia.platform.config import SofiaConfiguration
 from sofia.ui.control_center import DesktopControlSettingsStore
 
 
@@ -37,5 +37,5 @@ def create_desktop_application(configuration: SofiaConfiguration):
     if not isinstance(configuration, SofiaConfiguration):
         raise TypeError("configuration must be a SofiaConfiguration")
     _enforce_single_database_mode(configuration)
-    from sofia.application import SofiaApplication
+    from sofia.platform.application import SofiaApplication
     return SofiaApplication(configuration)

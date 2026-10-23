@@ -72,8 +72,8 @@ def test_no_baseline_means_no_observed_changes(tmp_path):
 
 
 def test_application_open_ingests_only_actual_workspace_delta(monkeypatch, tmp_path):
-    from sofia.application.conversation_service import ConversationService
-    from sofia.application.emotional_conversation import EmotionalConversationService
+    from sofia.platform.application.conversation_service import ConversationService
+    from sofia.platform.application.emotional_conversation import EmotionalConversationService
 
     monkeypatch.setattr(ConversationService, "open", lambda self: None)
     service = object.__new__(EmotionalConversationService)
@@ -89,8 +89,8 @@ def test_application_open_ingests_only_actual_workspace_delta(monkeypatch, tmp_p
 
 
 def test_open_without_personality_does_not_infer_emotion(monkeypatch, tmp_path):
-    from sofia.application.conversation_service import ConversationService
-    from sofia.application.emotional_conversation import EmotionalConversationService
+    from sofia.platform.application.conversation_service import ConversationService
+    from sofia.platform.application.emotional_conversation import EmotionalConversationService
 
     monkeypatch.setattr(ConversationService, "open", lambda self: None)
     service = object.__new__(EmotionalConversationService)

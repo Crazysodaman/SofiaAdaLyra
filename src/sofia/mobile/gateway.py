@@ -11,7 +11,7 @@ from threading import RLock
 import re
 import sqlite3
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.conversation.lifelong import LifelongThreadStore
 from sofia.safe.permissions import PermissionStore
 from sofia.social.model import AudienceKind, PrincipalContext

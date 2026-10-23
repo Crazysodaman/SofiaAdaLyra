@@ -480,7 +480,7 @@ class WorkshopPreviewStore:
 
     def __init__(self, state_path):
         from pathlib import Path
-        from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+        from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
         self.path=Path(state_path)
         self._guard=CanonicalSQLiteGuard(self.path)
         from contextlib import closing

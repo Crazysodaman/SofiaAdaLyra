@@ -15,9 +15,9 @@ import math
 import re
 from uuid import UUID
 
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.neuro.connectome.associative import SparseAssociativeMemory
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _ALGORITHM = SparseAssociativeMemory.ALGORITHM_VERSION

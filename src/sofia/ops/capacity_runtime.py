@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import shutil
 
-from sofia.application.presence import WorldAvailability, WorldEpistemicState
+from sofia.platform.application.presence import WorldAvailability, WorldEpistemicState
 from sofia.ops.capacity import (
     CapacityBudget, CapacityError, DEFAULT_BUDGETS, Level,
     assess_capacity,

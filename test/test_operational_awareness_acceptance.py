@@ -3,13 +3,13 @@ from uuid import UUID
 
 import pytest
 
-from sofia.application import SofiaApplication
-from sofia.config.model import (
+from sofia.platform.application import SofiaApplication
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.runtime.model import RuntimeState
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.runtime.model import RuntimeState
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -245,7 +245,7 @@ def test_failed_start_does_not_expose_partial_operational_state(
 def test_partial_runtime_reopen_failure_closes_all_resources(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failing_store: str,
 ):
-    from sofia.runtime import SofiaRuntimeError
+    from sofia.platform.runtime import SofiaRuntimeError
 
     runtime = create_application(tmp_path).runtime
     calls = []
@@ -279,7 +279,7 @@ def test_partial_runtime_reopen_failure_closes_all_resources(
 def test_runtime_startup_preserves_failure_when_cleanup_also_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
-    from sofia.runtime import SofiaRuntimeError
+    from sofia.platform.runtime import SofiaRuntimeError
 
     runtime = create_application(tmp_path).runtime
     failure = OSError("startup failure")

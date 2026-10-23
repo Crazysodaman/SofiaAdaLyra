@@ -7,11 +7,11 @@ import sqlite3
 
 import pytest
 
-from sofia.application.act_service import SofiaActService
-from sofia.application.autonomous_work import AutonomousWorkCoordinator, ImprovementDiagnostic
-from sofia.application.evolution import SofiaEvolutionService
-from sofia.application.presence import PresenceInitiativeEngine
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.application.act_service import SofiaActService
+from sofia.platform.application.autonomous_work import AutonomousWorkCoordinator, ImprovementDiagnostic
+from sofia.platform.application.evolution import SofiaEvolutionService
+from sofia.platform.application.presence import PresenceInitiativeEngine
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.dev.capability import DevToolService
 from sofia.dev.opencode import (
     EngineeringExecutionResult, EngineeringExecutionRequest, OpenCodeAdapter,
@@ -20,12 +20,12 @@ from sofia.dev.opencode import (
 )
 from sofia.evolve.lifecycle import EvolutionProposalStatus
 from sofia.evolve.orchestrator import CodeEvolutionOrchestrator
-from sofia.run.work import (
+from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkOverloadError,
     WorkResult, WorkStatus,
 )
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.safe.dev_approval import DevApprovalVerifier
 
 

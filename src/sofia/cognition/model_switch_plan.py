@@ -17,7 +17,7 @@ from typing import Callable
 from sofia.cognition.model_admission import (
     ModelTrialEvidence, compare_models,
 )
-from sofia.config.user_settings import (
+from sofia.platform.config.user_settings import (
     RuntimeUserSettings, RuntimeUserSettingsStore,
 )
 

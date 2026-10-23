@@ -4,7 +4,7 @@ from __future__ import annotations
 import sqlite3
 
 from sofia.neuro.store import neuro_connectome_diagnostics, neuro_observability_text
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_connectome_settings_are_visible_without_live_neuro_snapshot(tmp_path):

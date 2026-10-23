@@ -20,9 +20,9 @@ from uuid import uuid4
 from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.goals.model import GoalStatus
 from sofia.goals.service import GoalService
-from sofia.run.work import DurableWorkStore, WorkStatus
+from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.social.model import PrincipalContext
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}\Z")

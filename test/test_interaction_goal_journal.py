@@ -66,7 +66,7 @@ def test_missing_source_and_unapproved_delivery_are_rejected(goals):
 
 
 def test_journal_does_not_recreate_or_follow_replaced_canonical_state(goals, tmp_path):
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     path = goals.path
     moved = tmp_path / "original.db"
@@ -89,7 +89,7 @@ def test_journal_does_not_recreate_or_follow_replaced_canonical_state(goals, tmp
 
 
 def test_goal_journal_rejects_symlink_and_missing_state(tmp_path):
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     missing = tmp_path / "not-installed.db"
     with pytest.raises(CanonicalStateUnavailable):

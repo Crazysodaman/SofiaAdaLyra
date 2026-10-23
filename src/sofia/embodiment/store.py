@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from sofia.state.atomic_file import atomic_write_text
+from sofia.platform.state.atomic_file import atomic_write_text
 
 from sofia.embodiment.model import (
     AvatarEmbodiment,

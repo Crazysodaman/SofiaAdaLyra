@@ -12,8 +12,8 @@ import os
 from pathlib import Path
 import sqlite3
 
-from sofia.config import production_state_path
-from sofia.state.sqlite_uri import sqlite_file_uri
+from sofia.platform.config import production_state_path
+from sofia.platform.state.sqlite_uri import sqlite_file_uri
 from sofia.ui.avatar2d_installation import discover_public_avatar2d_root
 from .presentation import (
     AppearanceState, AttireMode, AudienceScope, PresentationProjection,

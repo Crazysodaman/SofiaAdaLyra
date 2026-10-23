@@ -7,15 +7,15 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.continuity.model import ContinuityEventKind, create_continuity_event
 from sofia.filesystem.change_filter import exclude_internal_state_changes
 from sofia.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
 from sofia.filesystem.observation import FilesystemEntry
-from sofia.operational.model import ContinuityEvidenceStatus, RuntimeContinuity
-from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
-from sofia.runtime.runtime import SofiaRuntime
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.operational.model import ContinuityEvidenceStatus, RuntimeContinuity
+from sofia.platform.runtime.internal_workspace import normalize_runtime_workspace_awareness
+from sofia.platform.runtime.runtime import SofiaRuntime
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 9, 20, 19, tzinfo=timezone.utc)
 
@@ -127,7 +127,7 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
         matrix_for=lambda item_ids: None,
     )
     monkeypatch.setattr(
-        "sofia.application.bootstrap.load_or_bootstrap_presentation",
+        "sofia.platform.application.bootstrap.load_or_bootstrap_presentation",
         lambda *, embodiment, state_path: presentation_bundle,
     )
 
@@ -148,15 +148,15 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
         install_presentation_bundle,
     )
     monkeypatch.setattr(
-        "sofia.application.bootstrap.OutfitPlanner",
+        "sofia.platform.application.bootstrap.OutfitPlanner",
         lambda wardrobe, presets, **kwargs: None,
     )
     monkeypatch.setattr(
-        "sofia.application.bootstrap.HeadlessPresentationRoutine",
+        "sofia.platform.application.bootstrap.HeadlessPresentationRoutine",
         lambda **kwargs: None,
     )
     monkeypatch.setattr(
-        "sofia.application.bootstrap.ClothingActionService",
+        "sofia.platform.application.bootstrap.ClothingActionService",
         lambda *args, **kwargs: SimpleNamespace(handle=lambda **kwargs: None),
     )
 

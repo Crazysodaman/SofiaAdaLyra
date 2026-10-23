@@ -8,14 +8,14 @@ import platform
 import sys
 
 from sofia.package_metadata import application_version
-from sofia.config.model import CURRENT_CONFIGURATION_SCHEMA_VERSION
+from sofia.platform.config.model import CURRENT_CONFIGURATION_SCHEMA_VERSION
 from sofia.dev.release_signing import sign_manifest_file
 from sofia.dev.supply_chain import (
     construct_release_evidence,
     verify_release_evidence,
 )
 from sofia.distributed.version import CURRENT_FLEET_PROTOCOL_VERSION
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 def _read_digest(path: Path) -> str:

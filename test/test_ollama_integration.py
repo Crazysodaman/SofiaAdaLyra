@@ -10,8 +10,8 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.composition.root import compose
-from sofia.config.model import (
+from sofia.platform.composition.root import compose
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )

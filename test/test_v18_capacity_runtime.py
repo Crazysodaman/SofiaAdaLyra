@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.application.presence import WorldAvailability, WorldEpistemicState
+from sofia.platform.application.presence import WorldAvailability, WorldEpistemicState
 from sofia.ops.capacity import CapacityError, Reading
 from sofia.ops.capacity_runtime import _disk_level, record_local_capacity
 from sofia.ops.capacity import Level
@@ -115,7 +115,7 @@ def test_boundaries_on_small_and_large_real_filesystems():
 
 def test_background_runtime_registers_exact_owned_callback():
     from inspect import getsource
-    from sofia.application.background_runtime import create_background_coordinator
+    from sofia.platform.application.background_runtime import create_background_coordinator
     source = getsource(create_background_coordinator)
     assert 'coordinator.set_task(' in source
     assert '"local_capacity_observation"' in source

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.application.emotional_conversation import EmotionalConversationService
+from sofia.platform.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveResponse
 from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.reflection import ReflectionJournal

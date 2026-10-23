@@ -10,13 +10,13 @@ from sofia.habits.patterns import (
     HabitPattern,
     HabitSuppression,
 )
-from sofia.state.json_repository import JsonStateRepository
-from sofia.state.namespaces import (
+from sofia.platform.state.json_repository import JsonStateRepository
+from sofia.platform.state.namespaces import (
     HABIT_EVIDENCE_INVALIDATION,
     HABIT_PATTERN,
     HABIT_SUPPRESSION,
 )
-from sofia.state.plane import StatePlane, StatePlaneConflictError
+from sofia.platform.state.plane import StatePlane, StatePlaneConflictError
 
 
 class HabitPatternStore:

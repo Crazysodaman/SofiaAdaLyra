@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import sqlite3
 
 from sofia.goals.evidence import GoalEvidenceIndex
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_minimal_conversation_schema_does_not_crash_or_promote_missing_evidence(tmp_path):
@@ -44,7 +44,7 @@ def test_goal_evidence_fails_closed_if_database_swapped_during_read_open(
     from contextlib import closing
     import os
     import pytest
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     replacement = bootstrap_canonical_sqlite(tmp_path / "other.db")
@@ -62,7 +62,7 @@ def test_goal_evidence_fails_closed_if_database_swapped_during_read_open(
         return actual_connect(database, *args, **kwargs)
 
     monkeypatch.setattr(
-        "sofia.state.canonical_sqlite.sqlite3.connect",
+        "sofia.platform.state.canonical_sqlite.sqlite3.connect",
         swap_during_sqlite_open,
     )
     with pytest.raises(CanonicalStateUnavailable, match="replaced"):
@@ -73,7 +73,7 @@ def test_goal_evidence_fails_closed_if_database_swapped_during_read_open(
 def test_guard_read_only_connection_cannot_mutate_database(tmp_path):
     from contextlib import closing
     import pytest
-    from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+    from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
     path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     with closing(CanonicalSQLiteGuard(path).connect(read_only=True)) as db:

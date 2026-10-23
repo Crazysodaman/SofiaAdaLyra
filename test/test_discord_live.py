@@ -16,7 +16,7 @@ from sofia.discord.live import (
     run_live_discord,
 )
 from sofia.discord.provisioning import DiscordProvisioning
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 OWNER = 123456789012345678

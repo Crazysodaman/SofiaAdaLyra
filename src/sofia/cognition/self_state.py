@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sofia.embodiment.model import Embodiment
-from sofia.operational.model import OperationalState
+from sofia.platform.operational.model import OperationalState
 from sofia.self_model.model import SofiaCoreState
 
 

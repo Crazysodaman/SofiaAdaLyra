@@ -28,7 +28,7 @@ from sofia.cognition.quality_repair import (
     build_rephrase_request,
     grounded_quality_fallback,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.cognition.strict_json import loads_strict_model_json
 
 

@@ -8,8 +8,8 @@ import json
 import os
 import sqlite3
 
-from sofia.config.user_settings import OutreachSettings, RuntimeUserSettingsStore
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.config.user_settings import OutreachSettings, RuntimeUserSettingsStore
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from .settings_service import database_diagnostics
 
 
@@ -342,8 +342,8 @@ class SettingsSections:
         from threading import Thread
         from sofia.cognition.model_inventory import ModelInventoryStore
         from sofia.machine.discovery import create_machine_discovery
-        from sofia.config import create_production_configuration
-        from sofia.config.cognitive_models import CognitiveModelSelection
+        from sofia.platform.config import create_production_configuration
+        from sofia.platform.config.cognitive_models import CognitiveModelSelection
         from sofia.integrations.ollama import OllamaAdapter
         from datetime import datetime, timezone
 
@@ -508,8 +508,8 @@ class SettingsSections:
         # response is not disinterest. This uses the same Presence decision
         # owner as ACT, and a decline blocks future unsolicited invitations
         # about the named private project across Desktop/Discord.
-        from sofia.application.act_service import SofiaActService
-        from sofia.application.presence import PresenceInitiativeEngine
+        from sofia.platform.application.act_service import SofiaActService
+        from sofia.platform.application.presence import PresenceInitiativeEngine
 
         life_feedback_frame = ttk.LabelFrame(
             frames["ACT"], text="Personal project conversation preferences",
@@ -1745,7 +1745,7 @@ class SettingsSections:
 
         # Phase 11 owner control of the ONE application RUN background budget.
         # These are reservation credits, never asserted hardware usage.
-        from sofia.application.optional_budget import (
+        from sofia.platform.application.optional_budget import (
             OptionalAutonomyBudget,OptionalBudgetLimits,
         )
         autonomy_budget=OptionalAutonomyBudget(config.state_path)
@@ -2284,7 +2284,7 @@ class SettingsSections:
     def memory_panel(self, parent):
         from sofia.memory.provenance import CandidateStatus
         from sofia.memory.provenance_store import DurableMemoryCandidateStore
-        from sofia.application.memory_review import MemoryReviewService
+        from sofia.platform.application.memory_review import MemoryReviewService
         from sofia.conversation.store import ConversationStore
         from sofia.social.principals import (
             SPARKS_PRINCIPAL_ID, local_sparks_principal,
@@ -2602,6 +2602,6 @@ class SettingsSections:
             target = filedialog.asksaveasfilename(parent=self.root, title="Export saved settings", defaultextension=".json", filetypes=(("JSON", "*.json"),))
             if target:
                 from pathlib import Path
-                from sofia.state.atomic_file import atomic_write_text
+                from sofia.platform.state.atomic_file import atomic_write_text
                 atomic_write_text(Path(target), RuntimeUserSettingsStore._encode(RuntimeUserSettingsStore(self.config.state_path).load()))
         self.ttk.Button(parent, text="Export saved settings…", command=self.guarded(export)).pack(anchor="w", pady=6)

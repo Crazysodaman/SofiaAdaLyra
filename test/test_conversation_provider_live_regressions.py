@@ -3,10 +3,10 @@
 from dataclasses import replace
 from datetime import datetime, timezone
 
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.defaults import create_default_configuration
+from sofia.platform.config.defaults import create_default_configuration
 
 
 def _application(monkeypatch, tmp_path, responses):
@@ -26,7 +26,7 @@ def _application(monkeypatch, tmp_path, responses):
         state_path=tmp_path / "isolated-sofia.db",
         filesystem_root=tmp_path,
     )
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(configuration.state_path)
     application = SofiaApplication(configuration)
     application.start()
@@ -926,7 +926,7 @@ def test_no_trace_store_never_inherits_unscoped_matrix_context(
     monkeypatch, tmp_path,
 ):
     """Loss of canonical trace storage cannot reuse another audience's cache."""
-    import sofia.application.conversation_matrix as matrix_module
+    import sofia.platform.application.conversation_matrix as matrix_module
 
     observed = []
     original = matrix_module._inherit_last_turn_domains

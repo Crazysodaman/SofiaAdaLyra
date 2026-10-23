@@ -15,7 +15,7 @@ from sofia.environment.model import (
     MobileDeviceObservation,
 )
 from sofia.environment.provider import EnvironmentProviderObservation
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .model import MobileSensorReport
 from .pairing import MobileDeviceCredentialStore

@@ -13,8 +13,8 @@ from sofia.cognition.engine import CognitiveEngine
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.providers.test_provider import TestLLMProvider
 from sofia.cognition.system import CognitiveSystem
-from sofia.composition.root import compose
-from sofia.config.model import (
+from sofia.platform.composition.root import compose
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -23,9 +23,9 @@ from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import EmbodimentStore
 from sofia.memory.system import MemorySystem
 from sofia.personality.store import PersonalityStore
-from sofia.runtime.model import RuntimeState
-from sofia.runtime.runtime import SofiaRuntime
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.runtime.model import RuntimeState
+from sofia.platform.runtime.runtime import SofiaRuntime
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.fixture(autouse=True)

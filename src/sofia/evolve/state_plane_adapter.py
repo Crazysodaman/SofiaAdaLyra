@@ -5,11 +5,11 @@ from hashlib import sha256
 import json
 from uuid import uuid4
 
-from sofia.config.reviewed_projection import validate_reviewed_configuration_content
+from sofia.platform.config.reviewed_projection import validate_reviewed_configuration_content
 from sofia.evolve.revision import RevisionAdapter, RevisionScope
 from sofia.interaction.evolved_preference import validate_evolved_preference_content
-from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.plane import StatePlane
 
 
 _EMPTY_DIGEST = sha256(b"").hexdigest()

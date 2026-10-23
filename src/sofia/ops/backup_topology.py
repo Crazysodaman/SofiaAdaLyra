@@ -15,8 +15,8 @@ from sofia.ops.backup import (
     load_backup_key,
     rotate_backups,
 )
-from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.plane import StatePlane
 
 
 @dataclass(frozen=True, slots=True)

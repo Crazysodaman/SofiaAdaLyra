@@ -5,10 +5,10 @@ import sqlite3
 
 import pytest
 
-from sofia.application.act_service import SofiaActService
+from sofia.platform.application.act_service import SofiaActService
 from sofia.social.principals import local_sparks_principal
 from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.application.presence import (
+from sofia.platform.application.presence import (
     CrossModalObservationReceipt, ObservationModality,
     OriginalDataAccess, ObservationPrivacy, PresenceInitiativeEngine,
     WorldAvailability, WorldEpistemicState, WorldObservation,

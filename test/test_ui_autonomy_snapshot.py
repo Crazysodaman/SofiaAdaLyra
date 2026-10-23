@@ -3,7 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import sqlite3
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.ui.settings_sections import SettingsSections
 
 

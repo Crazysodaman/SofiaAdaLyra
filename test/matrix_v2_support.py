@@ -1,5 +1,5 @@
 """Small test adapter for assertions migrating from retired Matrix v1."""
-from sofia.application.conversation_matrix import (
+from sofia.platform.application.conversation_matrix import (
     _v2_evidence_matrix,
     _v2_safeguard_turn,
 )

@@ -4,11 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.application.conversation_service import ConversationService
+from sofia.platform.application.conversation_service import ConversationService
 from sofia.neuro import NeuralSignal, NeuroRuntime
 from sofia.neuro.store import NeuroObservabilityStore
 from sofia.neuro.workspace import NeuroSharedWorkspace
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark=pytest.mark.pkg_core
 NOW=datetime(2026,10,11,12,tzinfo=timezone.utc)

@@ -9,7 +9,7 @@ import pytest
 from sofia.creative import ArtifactKind
 from sofia.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
 from sofia.life.model import ProjectStatus
-from sofia.run.work import WorkStatus
+from sofia.platform.run.work import WorkStatus
 from sofia.social.principals import local_sparks_principal
 from test.test_life_project_forge import infrastructure, active_project
 

@@ -66,13 +66,13 @@ def test_filesystem_authorization_can_target_specific_path():
         operations=(
             FilesystemAuthorizationOperation.READ_FILE,
         ),
-        target=Path("/sofia/src/sofia/runtime/runtime.py"),
+        target=Path("/sofia/src/sofia/platform.runtime/runtime.py"),
         decision=AuthorizationDecision.ALLOW,
         reason="Explicit authorization from Sparks.",
     )
 
     assert authorization.target == Path(
-        "/sofia/src/sofia/runtime/runtime.py"
+        "/sofia/src/sofia/platform.runtime/runtime.py"
     )
 
 

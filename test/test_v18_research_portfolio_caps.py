@@ -13,7 +13,7 @@ from sofia.neuro.research_registry import (
     EvaluatedResearchOutcome, ResearchEvidenceRegistry,
     reviewed_baseline_studies,
 )
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = pytest.mark.pkg_verify
 NOW = datetime(2026, 10, 12, 18, tzinfo=timezone.utc)

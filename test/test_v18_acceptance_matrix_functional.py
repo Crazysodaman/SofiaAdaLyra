@@ -156,7 +156,7 @@ def test_revoked_private_memory_cannot_enter_shared_retrieval_context(tmp_path):
     from sofia.memory.provenance_store import DurableMemoryCandidateStore
     from sofia.memory.system import MemorySystem
     from sofia.social.model import AudienceKind, PrincipalContext
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
     path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = DurableMemoryCandidateStore(path)
@@ -223,7 +223,7 @@ def test_known_model_outage_is_not_a_factual_reply_or_execution_grant(caplog):
     """
     row = _case("Model outage leaves factual evidence unknown")
     assert row["selectors"]["failure"] == "model_outage"
-    from sofia.application.background_runtime import (
+    from sofia.platform.application.background_runtime import (
         _consider_life_idea_without_wedging_worker,
     )
     from sofia.cognition.engine import CognitiveEngineError
@@ -233,7 +233,7 @@ def test_known_model_outage_is_not_a_factual_reply_or_execution_grant(caplog):
         CognitiveToolDefinition,
     )
     from sofia.cognition.provider import LLMProvider, LLMProviderError
-    from sofia.config.model import ProviderConfiguration
+    from sofia.platform.config.model import ProviderConfiguration
 
     class OfflineProvider(LLMProvider):
         def __init__(self):

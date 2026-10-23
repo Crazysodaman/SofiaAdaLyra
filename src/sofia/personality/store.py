@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from sofia.personality.model import PersonalityProfile
-from sofia.state.atomic_file import atomic_write_text
+from sofia.platform.state.atomic_file import atomic_write_text
 
 
 class PersonalityStoreError(Exception):

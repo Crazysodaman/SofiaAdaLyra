@@ -3,9 +3,9 @@ import sqlite3
 
 import pytest
 
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
-from sofia.state.component_schema import (
+from sofia.platform.state.component_schema import (
     PRODUCTION_COMPONENT_SCHEMAS,
     verify_production_component_schemas,
 )

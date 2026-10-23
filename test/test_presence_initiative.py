@@ -5,8 +5,8 @@ import pytest
 from sofia.act.delivery import DeliveryOutcome, SendResult
 from sofia.act.diagnostics import OutreachTraceStore
 from sofia.act.outreach import Importance, OutreachCategory, Policy
-from sofia.application.act_service import SofiaActService
-from sofia.application.presence import (
+from sofia.platform.application.act_service import SofiaActService
+from sofia.platform.application.presence import (
     InitiativeEvent,
     PresenceInitiativeEngine,
     WorldAvailability,
@@ -744,7 +744,7 @@ def _verified_private_project_for_unprompted_sharing(
     from test.test_life_project_forge import (
         infrastructure, active_project, authored_foxfire_text, wait_for_job,
     )
-    from sofia.run.work import WorkStatus
+    from sofia.platform.run.work import WorkStatus
     from sofia.life import ProjectStatus
 
     life, _goals, now = infrastructure(tmp_path)
@@ -793,7 +793,7 @@ def _owner_only_outreach(life):
 
 def test_verified_personal_life_work_can_start_owner_conversation(tmp_path):
     """A verified creative achievement may be mentioned without per-project approval."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -854,7 +854,7 @@ def test_verified_personal_life_work_can_start_owner_conversation(tmp_path):
 
 def test_verified_coding_milestone_can_offer_optional_shared_activity(tmp_path):
     """A real hobby milestone may invite collaboration through Presence/ACT."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     import sqlite3
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
@@ -889,7 +889,7 @@ def test_verified_coding_milestone_can_offer_optional_shared_activity(tmp_path):
 @pytest.mark.parametrize("busy", [True, False])
 def test_life_can_choose_silence_despite_verified_project(tmp_path, busy):
     """Foreground activity or voluntary quiet overrides an exciting project."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
 
     life, _project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -913,7 +913,7 @@ def test_life_can_choose_silence_despite_verified_project(tmp_path, busy):
 
 def test_life_project_outreach_never_uses_unverified_or_nonprivate_work(tmp_path):
     """Even a high-curiosity project cannot claim success without source proof."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from test.test_life_project_forge import infrastructure, active_project
     from sofia.life import ProjectScope
 
@@ -934,7 +934,7 @@ def test_life_project_outreach_never_uses_unverified_or_nonprivate_work(tmp_path
 @pytest.mark.parametrize("route", ["home_assistant", "mobile"])
 def test_life_personal_story_cannot_escape_pinned_owner_routes(tmp_path, route):
     """No LIFE-private update goes to unverified shared or alternate routes."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
 
     life, _project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -961,7 +961,7 @@ def test_life_personal_story_cannot_escape_pinned_owner_routes(tmp_path, route):
 
 def test_life_unprompted_conversation_respects_owner_outreach_mute(tmp_path):
     from dataclasses import replace
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
 
     life, _project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -988,7 +988,7 @@ def test_life_unprompted_conversation_respects_owner_outreach_mute(tmp_path):
 
 def test_life_celebration_does_not_outlive_its_independent_proof(tmp_path):
     """A historical completed label must not trigger sharing after corruption."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -1016,7 +1016,7 @@ def test_life_celebration_does_not_outlive_its_independent_proof(tmp_path):
 
 def test_life_celebration_expires_instead_of_announcing_old_work(tmp_path):
     """An older completion is history, not a reason to message days later."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
 
     life, _project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -1038,11 +1038,11 @@ def test_life_reviewed_draft_can_be_shared_without_claiming_objective_success(
     tmp_path,
 ):
     """Sofía can mention an actual draft before calling the project successful."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from test.test_life_project_forge import (
         infrastructure, active_project, authored_foxfire_text, wait_for_job,
     )
-    from sofia.run.work import WorkStatus
+    from sofia.platform.run.work import WorkStatus
     from sofia.life import ProjectStatus
 
     life, _goals, now = infrastructure(tmp_path)
@@ -1095,7 +1095,7 @@ def test_life_reviewed_draft_can_be_shared_without_claiming_objective_success(
 
 def test_life_reviewed_draft_wont_share_corrupt_bytes(tmp_path):
     """An original completed RUN is not enough after creative bytes are altered."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from test.test_life_project_forge import (
         infrastructure, active_project, authored_foxfire_text, wait_for_job,
     )
@@ -1129,7 +1129,7 @@ def test_life_reviewed_draft_wont_share_corrupt_bytes(tmp_path):
 
 def test_life_outreach_does_not_pass_through_untrusted_project_mentions(tmp_path):
     """A model-authored title cannot become Discord mentions or rich markup."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     import sqlite3
 
     life, _project, now = _verified_private_project_for_unprompted_sharing(
@@ -1157,7 +1157,7 @@ def test_life_outreach_does_not_pass_through_untrusted_project_mentions(tmp_path
 
 def test_life_social_update_uses_owner_bound_discord_route(tmp_path):
     """A production-configured owner DM route retains private Sparks scope."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from sofia.social.principals import SPARKS_PRINCIPAL_ID
     import sqlite3
 
@@ -1196,7 +1196,7 @@ def test_life_social_update_uses_owner_bound_discord_route(tmp_path):
 
 def test_life_chooses_silence_without_spawning_notice(tmp_path):
     """Independent creative success does not compel a notification."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     import sqlite3
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
@@ -1222,7 +1222,7 @@ def test_life_chooses_silence_without_spawning_notice(tmp_path):
 
 def test_life_refuses_invalid_model_outreach_choice_without_sending(tmp_path):
     """Invalid model JSON is a failed optional choice, never assumed approval."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from sofia.cognition.model import CognitiveResponse
 
     life, _project, now = _verified_private_project_for_unprompted_sharing(
@@ -1243,7 +1243,7 @@ def test_life_refuses_invalid_model_outreach_choice_without_sending(tmp_path):
 
 def test_life_quiet_and_busy_never_wake_outreach_model(tmp_path):
     """ACT restraint comes before optional cognitive work, not afterward."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
 
     life, _project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -1274,7 +1274,7 @@ def test_life_outreach_rechecks_exact_source_and_route_after_model(
     tmp_path, changed,
 ):
     """A previously grounded model choice cannot queue a stale LIFE update."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -1327,7 +1327,7 @@ def test_life_outreach_rechecks_exact_source_and_route_after_model(
 
 def test_life_outreach_operator_stop_after_model_choice_is_honored(tmp_path):
     """A choice made before the user's stop cannot queue a later notice."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
 
     life, _project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -1358,7 +1358,7 @@ def test_life_outreach_operator_stop_after_model_choice_is_honored(tmp_path):
 
 def test_explicit_project_decline_prevents_future_model_wakeup(tmp_path, monkeypatch):
     """A user's reviewed no stops new outreach, but not the creative project."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from sofia.social.principals import local_sparks_principal
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
@@ -1448,7 +1448,7 @@ def test_life_owner_feedback_rejects_cross_scope_and_fabricated_opportunities(
 
 def test_owner_life_decline_is_explicit_not_inferred_from_silence(tmp_path):
     """No recipient reply must never be recorded as dislike or rejection."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from sofia.social.principals import local_sparks_principal
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
@@ -1471,7 +1471,7 @@ def test_owner_life_decline_is_explicit_not_inferred_from_silence(tmp_path):
 
 def test_owner_can_change_project_feedback_with_audited_history(tmp_path):
     """Authenticated owner may reverse an old choice; model cannot do so."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from sofia.social.principals import local_sparks_principal
     import sqlite3
 
@@ -1525,7 +1525,7 @@ def test_owner_can_change_project_feedback_with_audited_history(tmp_path):
 
 def test_owner_decline_terminates_queued_update_before_sender(tmp_path):
     """An already queued project note cannot reach Desktop or Discord after no."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from sofia.social.principals import local_sparks_principal
     from sofia.act.diagnostics import OutreachTraceStore
     import sqlite3
@@ -1625,7 +1625,7 @@ def test_missing_original_life_presence_observation_refuses_queued_transport(
     tmp_path,
 ):
     """Losing the original private event must not authorize an old ACT notice."""
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from sofia.act.diagnostics import OutreachTraceStore
     import sqlite3
 
@@ -1663,7 +1663,7 @@ def test_missing_original_life_presence_observation_refuses_queued_transport(
 
 
 def test_presence_notice_with_changed_evidence_identity_fails_closed(tmp_path):
-    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     import sqlite3
 
     life, project, now = _verified_private_project_for_unprompted_sharing(tmp_path)

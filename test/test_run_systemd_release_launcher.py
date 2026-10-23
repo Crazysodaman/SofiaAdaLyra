@@ -9,8 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.run import systemd_release_launcher as launcher
-from sofia.run.active_release import ReleaseEnvironmentManager
+from sofia.platform.run import systemd_release_launcher as launcher
+from sofia.platform.run.active_release import ReleaseEnvironmentManager
 
 
 def _stub_state(monkeypatch, active):

@@ -14,7 +14,7 @@ from pathlib import Path
 import sys
 
 from .audit import MentorAuditError, audit_checkout, compare_reports
-from ..config.model_catalog import LEGACY_SINGLE_PRESET
+from sofia.platform.config.model_catalog import LEGACY_SINGLE_PRESET
 from .report import markdown_report
 from .bridge import BridgeConfig, MentorBridgeError, SCENARIOS, run_synthetic_dialogue
 from .openai_diagnostics import check_openai_model

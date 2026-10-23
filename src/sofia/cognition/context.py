@@ -20,7 +20,7 @@ from sofia.filesystem.model import FilesystemResult
 from sofia.identity.model import SofiaIdentity
 from sofia.memory.historical import HistoricalConversationEvidence
 from sofia.memory.model import MemoryRecord
-from sofia.operational.model import (
+from sofia.platform.operational.model import (
     OperationalState,
     RuntimeContinuity,
 )

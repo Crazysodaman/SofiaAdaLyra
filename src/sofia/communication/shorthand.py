@@ -17,7 +17,7 @@ from pathlib import Path
 import re
 import sqlite3
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _TOKEN = re.compile(r"^[a-z][a-z0-9'-]{1,39}$")

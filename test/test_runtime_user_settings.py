@@ -3,14 +3,14 @@ import json
 
 import pytest
 
-from sofia.config.user_settings import (
+from sofia.platform.config.user_settings import (
     CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION,
     OutreachSettings,
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
 from sofia.environment.model import LocationSubject
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.fixture(autouse=True)

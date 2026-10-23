@@ -11,7 +11,7 @@ from sofia.cognition.model import (
     CognitiveToolDefinition,
 )
 from sofia.cognition.provider import LLMProvider
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.distributed.inference import RemoteInferenceRequest
 from sofia.distributed.inference_service import (
     LocalOllamaInferenceService,

@@ -8,10 +8,10 @@ import json
 
 import pytest
 
-from sofia.config.state_home_pointer import (
+from sofia.platform.config.state_home_pointer import (
     _DOMAIN, _SCHEMA, read_verified_state_home,
 )
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def _link_or_skip(path, destination, *, directory=False):

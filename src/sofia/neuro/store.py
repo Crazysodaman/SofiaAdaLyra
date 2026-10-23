@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 import sqlite3
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .model import NeuralSignal, NeuroRoutingDecision, NeuroStateSnapshot
 
@@ -307,7 +307,7 @@ def neuro_connectome_diagnostics(state_path: str | Path) -> tuple[str, ...]:
     cross-audience candidate text or identity in operator diagnostics.
     Missing receipts remain explicitly unknown.
     """
-    from sofia.config.user_settings import RuntimeUserSettingsStore
+    from sofia.platform.config.user_settings import RuntimeUserSettingsStore
     from sofia.neuro.connectome.competition import CircuitCompetition
     from sofia.neuro.connectome.associative import SparseAssociativeMemory
     from sofia.neuro.salience import SalienceNetwork
@@ -384,7 +384,7 @@ def neuro_observability_text(state_path: str | Path) -> str:
     observed_method = snapshot.get("selection_method")
     from sofia.neuro.connectome.competition import CircuitCompetition
     is_circuit = observed_method == CircuitCompetition.ALGORITHM_VERSION
-    from sofia.config.user_settings import RuntimeUserSettingsStore
+    from sofia.platform.config.user_settings import RuntimeUserSettingsStore
     competition_configured = RuntimeUserSettingsStore(state_path).load().neuro_competition_enabled
     if is_circuit:
         fallback = "not observed: latest snapshot used the circuit"

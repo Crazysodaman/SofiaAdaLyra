@@ -14,7 +14,7 @@ from uuid import UUID
 
 from sofia.memory.deletion_ledger import MemoryDeletionLedger
 from sofia.ops.backup import BackupCipher, load_backup_key
-from sofia.state.sqlite_uri import sqlite_file_uri
+from sofia.platform.state.sqlite_uri import sqlite_file_uri
 
 
 def _ledger(args) -> MemoryDeletionLedger:

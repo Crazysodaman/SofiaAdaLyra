@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from sofia.config import production_state_path
+from sofia.platform.config import production_state_path
 from sofia.safe.operator_stop import OperatorStopStore
 
 

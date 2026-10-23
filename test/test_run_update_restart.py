@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
-from sofia.config.user_settings import (
+from sofia.platform.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
-from sofia.run.active_release import ActiveRelease
-from sofia.run.update_restart import (
+from sofia.platform.run.active_release import ActiveRelease
+from sofia.platform.run.update_restart import (
     ActiveReleaseChangeMonitor,
     UpdateRestartAction,
     configured_update_restart_mode,

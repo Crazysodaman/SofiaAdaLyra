@@ -10,15 +10,15 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.application import SofiaApplication
-from sofia.application.memory_significance import MemorySignificanceService
+from sofia.platform.application import SofiaApplication
+from sofia.platform.application.memory_significance import MemorySignificanceService
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.life.model import ExperienceRecord
 from sofia.life.store import LifeStore
 from sofia.memory.autobiography import AutobiographyTimeline
 from sofia.social.principals import local_sparks_principal
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (

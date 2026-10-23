@@ -76,7 +76,7 @@ def test_v18_accepted_claim_must_have_exact_receipt(tmp_path):
     fixture.parent.mkdir(parents=True, exist_ok=True)
     fixture.write_text("# mocked local source\n", encoding="utf-8")
     claimed["production_wiring"] = {
-        "entrypoint": "sofia.application",
+        "entrypoint": "sofia.platform.application",
         "remaining": "tests_only",
         "explanation": "A synthetic trace with the fields required to reach receipt validation.",
         "source_review_sha": records["reviewed_main_sha"],

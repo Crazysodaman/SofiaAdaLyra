@@ -27,7 +27,7 @@ from sofia.ops.workshop_handoff import (
 )
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 @dataclass(frozen=True,slots=True)

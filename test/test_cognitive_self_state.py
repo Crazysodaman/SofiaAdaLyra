@@ -13,7 +13,7 @@ from sofia.embodiment.model import (
     PhysicalSelf,
 )
 from sofia.identity.model import SofiaIdentity
-from sofia.operational.model import OperationalState
+from sofia.platform.operational.model import OperationalState
 from sofia.self_model.model import SelfConcept, SofiaCoreState
 
 

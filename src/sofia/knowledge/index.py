@@ -11,7 +11,7 @@ import re
 import sqlite3
 from typing import Callable
 
-from sofia.state.sqlite_access import shared_sqlite_access
+from sofia.platform.state.sqlite_access import shared_sqlite_access
 
 
 EmbeddingProvider = Callable[[str], tuple[float, ...]]

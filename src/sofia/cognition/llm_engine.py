@@ -10,7 +10,7 @@ from sofia.cognition.provider import (
     LLMProvider,
     LLMProviderError,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 class LLMCognitiveEngine(CognitiveEngine):

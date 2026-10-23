@@ -13,8 +13,8 @@ from pathlib import Path
 
 from .discovery import create_machine_discovery
 from .location import MachineLocationRegistry, new_machine_location
-from sofia.config import production_state_path
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.config import production_state_path
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from .persistence import SQLiteMachineInventoryPersistence
 
 

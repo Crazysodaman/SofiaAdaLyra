@@ -19,11 +19,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.config.defaults import create_production_configuration
+from sofia.platform.config.defaults import create_production_configuration
 from sofia.interaction.expanded_service import ExpandedConversationService
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 _CASES = (
     ('offer', 'I ask to hug you'),

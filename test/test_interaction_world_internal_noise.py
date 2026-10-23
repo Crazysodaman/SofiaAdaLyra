@@ -8,9 +8,9 @@ from sofia.continuity.model import ContinuityEventKind, create_continuity_event
 from sofia.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
 from sofia.filesystem.observation import FilesystemEntry
 from sofia.interaction.world_setup import lab_state_path
-from sofia.operational.model import ContinuityEvidenceStatus, RuntimeContinuity
-from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
-from sofia.runtime.runtime import SofiaRuntime
+from sofia.platform.operational.model import ContinuityEvidenceStatus, RuntimeContinuity
+from sofia.platform.runtime.internal_workspace import normalize_runtime_workspace_awareness
+from sofia.platform.runtime.runtime import SofiaRuntime
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 

@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
 from sofia.safe.audit import AuditChain
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 def dev_approval_signature_payload(approval: DevApproval) -> bytes:

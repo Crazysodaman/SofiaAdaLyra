@@ -3,14 +3,14 @@ import pytest
 from types import SimpleNamespace
 import re
 
-from sofia.config import (
+from sofia.platform.config import (
     create_production_configuration,
     production_state_path,
 )
-from sofia.config.layout import RuntimeStorageLayout
+from sofia.platform.config.layout import RuntimeStorageLayout
 from sofia.identity.model import IdentityBootstrapMode
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
-import sofia.config.layout as layout_module
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
+import sofia.platform.config.layout as layout_module
 
 
 ROOT = Path(__file__).resolve().parents[1]

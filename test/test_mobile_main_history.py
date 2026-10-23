@@ -22,7 +22,7 @@ from sofia.safe.permissions import PermissionStore
 from test.owner_auth_fixture import private_with_signed_owner
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 10, tzinfo=timezone.utc)

@@ -13,7 +13,7 @@ from enum import Enum
 from pathlib import Path
 import sqlite3
 
-from sofia.system.model import ProcessInspection
+from sofia.platform.system.model import ProcessInspection
 
 
 class ActivityMode(str, Enum):

@@ -1,18 +1,18 @@
 from pathlib import Path
 
-from sofia.config.cognitive_models import CognitiveModelSelection
-from sofia.config.model import (
+from sofia.platform.config.cognitive_models import CognitiveModelSelection
+from sofia.platform.config.model import (
     CognitiveRoutingConfiguration,
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.config.model_catalog import (
+from sofia.platform.config.model_catalog import (
     DEFAULT_PROVIDER_MODEL,
     RECOMMENDED_PRIMARY_MODEL,
     RECOMMENDED_SECONDARY_MODEL,
     known_local_model_names,
 )
-from sofia.config.user_settings import RuntimeUserSettings
+from sofia.platform.config.user_settings import RuntimeUserSettings
 
 
 PROJECT_ROOT = Path(__file__).parent.parent

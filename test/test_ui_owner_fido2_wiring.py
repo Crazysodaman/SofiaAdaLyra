@@ -9,7 +9,7 @@ import sqlite3
 import pytest
 
 from sofia.safe import owner_approval_ui
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_protected_settings_ui_calls_real_web_authn_without_actor_only_approvals():

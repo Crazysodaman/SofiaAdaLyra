@@ -15,7 +15,7 @@ from uuid import UUID
 
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.originals import SourceMessage
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 def _utc(value: datetime) -> str:

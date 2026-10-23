@@ -17,7 +17,7 @@ from pathlib import Path
 import sys
 from typing import Callable
 
-from sofia.config.state_home_pointer import (
+from sofia.platform.config.state_home_pointer import (
     _DOMAIN, _SCHEMA, _require_unredirected_path,
 )
 from sofia.ops.state_relocation import (

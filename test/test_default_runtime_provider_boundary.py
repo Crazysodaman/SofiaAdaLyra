@@ -10,11 +10,11 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.cognition.routing import RoutingCognitiveEngine
-from sofia.composition.root import compose
-from sofia.config import create_default_configuration
-from sofia.config.model import ModelLifecycleConfiguration
+from sofia.platform.composition.root import compose
+from sofia.platform.config import create_default_configuration
+from sofia.platform.config.model import ModelLifecycleConfiguration
 from sofia.environment.config import EnvironmentConfiguration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 class CapturingOllamaClient:

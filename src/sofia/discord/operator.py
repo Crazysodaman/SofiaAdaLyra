@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import sys
 from typing import Callable
 
-from sofia.config import SofiaConfiguration, create_production_configuration
+from sofia.platform.config import SofiaConfiguration, create_production_configuration
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.delivery import DiscordDeliveryStore
 from sofia.discord.provisioning import DiscordIdentity

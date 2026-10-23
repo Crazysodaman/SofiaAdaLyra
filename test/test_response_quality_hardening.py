@@ -6,7 +6,7 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.cognition.repetition_guard import response_quality_issue
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 class _Client:

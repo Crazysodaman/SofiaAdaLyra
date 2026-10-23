@@ -13,8 +13,8 @@ from sofia.integrations.portainer import PortainerAdapter
 from sofia.machine.hardware import create_hardware_discovery
 from sofia.ops.local_telemetry import collect_local_telemetry
 from sofia.distributed.release_agent import create_agent_release_service_from_environment
-from sofia.system.capability import create_local_system_backend
-from sofia.system.model import SystemCapabilityName,SystemCapabilityRequest
+from sofia.platform.system.capability import create_local_system_backend
+from sofia.platform.system.model import SystemCapabilityName,SystemCapabilityRequest
 
 from .agent import RemoteAgentDispatcher
 

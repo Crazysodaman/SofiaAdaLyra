@@ -15,8 +15,8 @@ from sofia.habits.model import ObservationCoverage, SourceQuality
 from sofia.habits.pattern_store import HabitPatternStore
 from sofia.habits.patterns import CadenceKind, HabitCategory
 from sofia.habits.store import HabitObservationRecorder, HabitObservationStore
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PRINCIPAL = "sparks"

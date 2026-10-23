@@ -7,13 +7,13 @@ a conversation into another transport.
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.conversation.lifelong import LifelongThreadStore
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def _principal(audience):

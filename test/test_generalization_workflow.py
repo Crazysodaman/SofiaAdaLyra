@@ -8,9 +8,9 @@ from sofia.generalization.workflow import GeneralizationWorkflowStore, WorkflowS
 from sofia.goals import GoalEvidenceIndex, GoalService, GoalStore
 from sofia.goals.evidence import GoalEvidenceLedger
 from sofia.goals.model import CompletionKind, GoalCompletionCondition
-from sofia.run.work import DurableWorkStore, WorkStatus
+from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 NOW = datetime(2026, 10, 18, 12, tzinfo=timezone.utc)

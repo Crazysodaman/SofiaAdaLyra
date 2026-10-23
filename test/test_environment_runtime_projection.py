@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 import re
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.model import (
     CognitiveMessage,
@@ -12,14 +12,14 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.cognition.provider import LLMProvider
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.environment.config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
 )
 from sofia.environment.model import WeatherObservation
 from sofia.environment.provider import EnvironmentProviderObservation
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent

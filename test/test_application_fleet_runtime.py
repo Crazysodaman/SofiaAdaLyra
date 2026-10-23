@@ -6,17 +6,17 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.application.act_service import SofiaActService
-from sofia.application.fleet_runtime import (
+from sofia.platform.application.act_service import SofiaActService
+from sofia.platform.application.fleet_runtime import (
     configure_fleet_enrollment_notices,
     create_fleet_bootstrap_coordinator,
     create_fleet_reconciliation_notifier,
 )
-from sofia.config.model import FleetBootstrapConfiguration
+from sofia.platform.config.model import FleetBootstrapConfiguration
 from sofia.ops import InstallAuthority
 from sofia.ops.capability import OpsToolService
 from sofia.ops.reconciliation_journal import FleetReconciliationRecord
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.fixture(autouse=True)

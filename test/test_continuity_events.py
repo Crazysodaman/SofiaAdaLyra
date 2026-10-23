@@ -11,7 +11,7 @@ from sofia.filesystem.observation import (
     FilesystemEntry,
     FilesystemObservation,
 )
-from sofia.operational.model import (
+from sofia.platform.operational.model import (
     ContinuityEvidenceStatus,
     RuntimeContinuity,
 )

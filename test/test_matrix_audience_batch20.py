@@ -13,7 +13,7 @@ from sofia.cognition.matrix.model import (
     MatrixTrace, ResponseStrategy, TurnEnvelope, TurnMatrix,
 )
 from sofia.cognition.matrix.trace import MatrixTraceStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_verify]
 NOW = datetime(2026, 10, 17, tzinfo=timezone.utc)

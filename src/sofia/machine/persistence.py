@@ -4,7 +4,7 @@ from contextlib import closing
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from sofia.state.atomic_file import retire_legacy_file
+from sofia.platform.state.atomic_file import retire_legacy_file
 
 from sofia.machine.inventory import MachineInventory
 from sofia.machine.inventory_codec import deserialize_inventory, serialize_inventory

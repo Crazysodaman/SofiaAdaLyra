@@ -8,11 +8,11 @@ import sys
 
 import pytest
 
-from sofia.config import create_production_configuration
-from sofia.config.defaults import production_storage_layout
+from sofia.platform.config import create_production_configuration
+from sofia.platform.config.defaults import production_storage_layout
 from sofia.identity.model import IdentityBootstrapMode
-from sofia.config.model import FleetCognitionConfiguration, FleetDiscoveryConfiguration
-from sofia.config.user_settings import OutreachSettings, RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.platform.config.model import FleetCognitionConfiguration, FleetDiscoveryConfiguration
+from sofia.platform.config.user_settings import OutreachSettings, RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.safe.secret_store import ProtectedSecretStore
 from sofia.ui.control_center import DesktopControlSettings, DesktopControlSettingsStore, GameMode
@@ -47,9 +47,9 @@ def test_settings_survive_a_new_python_process_and_reach_configuration(tmp_path)
     settings_service.save_settings(path, desktop, runtime, host_id="host")
     code = """
 import json, sys
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.ui.control_center import DesktopControlSettingsStore
-from sofia.config import create_production_configuration
+from sofia.platform.config import create_production_configuration
 from pathlib import Path
 p=Path(sys.argv[1]); u=RuntimeUserSettingsStore(p).load(); d=DesktopControlSettingsStore(p).load()
 c=create_production_configuration(state_path=p)
@@ -147,7 +147,7 @@ def test_old_schema_migrates_without_overwriting_user_values(tmp_path):
 
 
 def test_saved_outreach_policy_reaches_sender_and_operational_notices(tmp_path, monkeypatch):
-    from sofia.application.act_service import SofiaActService, configure_act_delivery_from_environment, notification_destination_from_environment
+    from sofia.platform.application.act_service import SofiaActService, configure_act_delivery_from_environment, notification_destination_from_environment
     path = profile(tmp_path)
     outreach = OutreachSettings(enabled=True, mute=True, delivery_channel="home_assistant", notification_service="mobile_app_owner", quiet_start_local=21, quiet_end_local=9, max_daily=2, social_max_daily=2, operational_max_daily=4)
     RuntimeUserSettingsStore(path).save(RuntimeUserSettings(home_assistant_url="http://localhost:8123", outreach=outreach))
@@ -211,7 +211,7 @@ def test_quiet_hours_persist_and_project_into_policy(tmp_path):
 def test_settings_and_tray_do_not_bootstrap_missing_canonical_state(tmp_path):
     from sofia.ui.settings_window import _ensure_state_database
     from sofia.ui.tray_agent import _ensure_state
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     missing = tmp_path / "state" / "sofia.db"
     for consumer_startup in (_ensure_state_database, _ensure_state):
@@ -229,7 +229,7 @@ def test_settings_and_tray_do_not_bootstrap_missing_canonical_state(tmp_path):
 def test_settings_and_tray_reject_symlinked_state_path(tmp_path):
     from sofia.ui.settings_window import _ensure_state_database
     from sofia.ui.tray_agent import _ensure_state
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     canonical = tmp_path / "canonical.db"
     canonical.touch()
@@ -245,7 +245,7 @@ def test_settings_and_tray_reject_symlinked_state_path(tmp_path):
 
 
 def test_settings_service_refuses_missing_or_replaced_canonical_database(tmp_path):
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     missing = tmp_path / "unknown.db"
     with pytest.raises(CanonicalStateUnavailable):
@@ -268,7 +268,7 @@ def test_settings_service_refuses_missing_or_replaced_canonical_database(tmp_pat
 
 
 def test_settings_service_rejects_redirected_database_diagnostics(tmp_path):
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     source = profile(tmp_path)
     link = tmp_path / "linked.db"

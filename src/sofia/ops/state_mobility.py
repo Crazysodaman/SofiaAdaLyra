@@ -10,7 +10,7 @@ import stat
 import sys
 from contextlib import closing
 
-from sofia.state.sqlite_uri import sqlite_file_uri
+from sofia.platform.state.sqlite_uri import sqlite_file_uri
 
 
 @dataclass(frozen=True, slots=True)

@@ -10,8 +10,8 @@ from sofia.cognition.model_switch_plan import (
     ModelPromotionUncertain, PreparedModelRoleChange,
     promote_prepared_model_role,
 )
-from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 11, 12, tzinfo=timezone.utc)

@@ -6,7 +6,7 @@ import pytest
 from sofia.cognition.model import CognitiveRequest
 from sofia.cognition.provider import LLMProviderError
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config import create_default_configuration
+from sofia.platform.config import create_default_configuration
 
 
 class MalformedClient:

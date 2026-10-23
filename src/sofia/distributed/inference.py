@@ -20,7 +20,7 @@ from sofia.cognition.model import (
     CognitiveToolCall,
     CognitiveToolDefinition,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 WIRE_VERSION = 1

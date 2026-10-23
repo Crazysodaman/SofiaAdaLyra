@@ -8,7 +8,7 @@ on:
       - 'src/sofia/learning/**'
       - 'src/sofia/memory/ranking.py'
       - 'src/sofia/life/**'
-      - 'src/sofia/application/presence.py'
+      - 'src/sofia/platform.application/presence.py'
   workflow_dispatch:
 
 permissions:

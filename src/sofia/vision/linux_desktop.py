@@ -222,8 +222,8 @@ def require_linux_game_clear() -> None:
     This is a conservative machine-level process scan in addition to STOP and
     foreground identity; a paused/running game is still a game.
     """
-    from sofia.system.capability import create_local_system_backend
-    from sofia.system.model import (
+    from sofia.platform.system.capability import create_local_system_backend
+    from sofia.platform.system.model import (
         SystemCapabilityName, SystemCapabilityRequest, SystemCapabilityResultKind,
     )
     from sofia.ops.activity import detect_windows_game

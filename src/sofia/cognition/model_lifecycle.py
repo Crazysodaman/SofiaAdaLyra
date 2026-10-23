@@ -11,8 +11,8 @@ from typing import Any, Callable, Mapping, Protocol
 from sofia.cognition.engine import CognitiveEngine, CognitiveEngineError
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.runtime_state import CognitionRuntimeStateStore
-from sofia.config.cognitive_models import CognitiveModelSelection
-from sofia.config.model import ModelLifecycleConfiguration, ProviderConfiguration
+from sofia.platform.config.cognitive_models import CognitiveModelSelection
+from sofia.platform.config.model import ModelLifecycleConfiguration, ProviderConfiguration
 
 
 class CognitiveModelRole(str, Enum):

@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.run import systemd_runtime as runtime
+from sofia.platform.run import systemd_runtime as runtime
 
 
 def test_mobile_http_proxy_dispatches_only_on_headless_application_thread():
@@ -50,8 +50,8 @@ def test_mobile_http_proxy_dispatches_only_on_headless_application_thread():
 
 
 def _prepare_runtime(tmp_path: Path, monkeypatch):
-    from sofia.application import bootstrap
-    from sofia.config import defaults
+    from sofia.platform.application import bootstrap
+    from sofia.platform.config import defaults
 
     state = tmp_path / "sofia.db"
     state.touch()

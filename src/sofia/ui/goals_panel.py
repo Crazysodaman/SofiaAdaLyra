@@ -10,7 +10,7 @@ from sofia.goals import GoalEvidenceIndex, GoalEvidenceLedger, GoalService, Goal
 from sofia.goals.model import GoalOrigin, GoalRunState, GoalStatus
 from sofia.goals.policy import effective_priority
 from sofia.social.principals import local_sparks_principal
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 class GoalsPanel:

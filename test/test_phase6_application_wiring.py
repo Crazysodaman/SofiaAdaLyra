@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from sofia.application import SofiaApplication
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.application import SofiaApplication
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.life import SelfDirectedLifeCoordinator
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_run]

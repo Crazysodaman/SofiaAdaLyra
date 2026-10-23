@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from threading import Event
 
-from sofia.application.expression_runtime import AvatarExpressionState, ExpressionRuntime
+from sofia.platform.application.expression_runtime import AvatarExpressionState, ExpressionRuntime
 from sofia.avatar.presentation import (
     AppearanceState, AttireMode, AudienceScope, PresentationProjection,
 )
@@ -10,10 +10,10 @@ from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
 from sofia.personality.influence import ContinuityInfluence
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.social.principals import local_sparks_principal
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from pathlib import Path
 import pytest
 

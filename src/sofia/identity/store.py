@@ -3,7 +3,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from sofia.identity.model import IdentityBootstrapMode, SofiaIdentity
-from sofia.state.atomic_file import atomic_write_text
+from sofia.platform.state.atomic_file import atomic_write_text
 
 
 class IdentityStoreError(Exception):

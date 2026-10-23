@@ -2,7 +2,7 @@
 
 
 def test_configuration_can_import_before_environment_service():
-    from sofia.config.model import SofiaConfiguration
+    from sofia.platform.config.model import SofiaConfiguration
     from sofia.environment import EnvironmentService
 
     assert SofiaConfiguration is not None
@@ -21,7 +21,7 @@ def test_environment_service_import_does_not_eagerly_bootstrap_runtime():
 
 
 def test_runtime_public_api_still_resolves_lazily():
-    from sofia.runtime import RuntimeState, SofiaRuntime, SofiaRuntimeError
+    from sofia.platform.runtime import RuntimeState, SofiaRuntime, SofiaRuntimeError
 
     assert RuntimeState is not None
     assert SofiaRuntime is not None

@@ -2,15 +2,15 @@
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 
 from sofia.cognition.model_inventory import (
     ModelInventoryStore, collect_local_model_inventory,
 )
-from sofia.config.cognitive_models import CognitiveModelSelection
-from sofia.config.model import ProviderConfiguration
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.cognitive_models import CognitiveModelSelection
+from sofia.platform.config.model import ProviderConfiguration
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 
 pytestmark = pytest.mark.pkg_core
 NOW = datetime(2026, 10, 11, tzinfo=timezone.utc)
@@ -166,7 +166,7 @@ def test_malformed_or_unbounded_tag_inventory_never_claims_empty_machine():
 def test_run_owned_readonly_discovery_uses_reviewed_local_ollama_roles(
     tmp_path, monkeypatch,
 ):
-    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.platform.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(
@@ -195,7 +195,7 @@ def test_run_owned_readonly_discovery_uses_reviewed_local_ollama_roles(
 
 
 def test_failed_unattended_scan_keeps_prior_confirmed_inventory(tmp_path):
-    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.platform.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(
@@ -223,7 +223,7 @@ def test_failed_unattended_scan_keeps_prior_confirmed_inventory(tmp_path):
 
 
 def test_unreviewed_model_never_gets_a_rank_or_role_from_discovery(tmp_path):
-    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.platform.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(
@@ -246,7 +246,7 @@ def test_unreviewed_model_never_gets_a_rank_or_role_from_discovery(tmp_path):
 def test_old_or_future_inventory_does_not_offer_models_for_current_role_review(
     tmp_path,
 ):
-    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.platform.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
@@ -278,7 +278,7 @@ def test_old_or_future_inventory_does_not_offer_models_for_current_role_review(
 
 
 def test_model_without_content_address_is_only_historical_inventory(tmp_path):
-    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.platform.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
@@ -307,7 +307,7 @@ def test_model_without_content_address_is_only_historical_inventory(tmp_path):
 
 
 def test_out_of_order_inventory_scan_cannot_rewind_host_snapshot(tmp_path):
-    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.platform.config.user_settings import RuntimeUserSettings
     from sofia.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(RuntimeUserSettings(

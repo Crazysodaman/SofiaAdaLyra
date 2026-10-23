@@ -16,7 +16,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.ops.state_mobility import _filesystem_kind, _unsafe_ancestor
-from sofia.state.sqlite_uri import sqlite_file_uri
+from sofia.platform.state.sqlite_uri import sqlite_file_uri
 
 
 _EXPORT_SCHEMA = "sofia.portable-conversations.v1"

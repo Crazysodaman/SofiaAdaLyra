@@ -15,8 +15,8 @@ from pathlib import Path
 import sqlite3
 from typing import Mapping
 
-from sofia.config.cognitive_models import CognitiveModelSelection
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.config.cognitive_models import CognitiveModelSelection
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -231,7 +231,7 @@ def refresh_local_model_inventory(
     read-only /tags, /version and /show endpoints are invoked. This function
     never pulls, loads, performs inference, or changes the configured role.
     """
-    from sofia.config import create_production_configuration
+    from sofia.platform.config import create_production_configuration
     from sofia.integrations.ollama import OllamaAdapter
 
     config = create_production_configuration(state_path=Path(state_path))

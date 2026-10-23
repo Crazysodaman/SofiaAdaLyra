@@ -15,7 +15,7 @@ from pathlib import Path
 import re
 import sqlite3
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from typing import Callable
 
 from .history import delivery_history

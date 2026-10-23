@@ -10,7 +10,7 @@ from sofia.cognition.model import (
 from sofia.continuity.model import (
     ContinuityEventKind,
 )
-from sofia.operational.model import (
+from sofia.platform.operational.model import (
     ContinuityEvidenceStatus,
     RuntimeContinuity,
 )

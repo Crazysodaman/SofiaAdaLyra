@@ -6,14 +6,14 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.composition.engines import create_cognitive_engine, create_model_lifecycle
-from sofia.composition.split_topology import (
+from sofia.platform.composition.engines import create_cognitive_engine, create_model_lifecycle
+from sofia.platform.composition.split_topology import (
     SplitInferenceDeployment,
     selected_split_deployment,
     validate_split_inference_runtime,
 )
 from sofia.distributed.inference_client import ConfiguredRemoteInferenceClient
-from sofia.config.model import (
+from sofia.platform.config.model import (
     FleetCognitionConfiguration,
     ProviderConfiguration,
     CognitiveRoutingConfiguration,

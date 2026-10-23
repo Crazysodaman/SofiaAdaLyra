@@ -8,15 +8,15 @@ import pytest
 
 from sofia.dev.release import ReleaseManifest
 from sofia.dev.release_store import ReleaseStateStore
-from sofia.run.active_release import (
+from sofia.platform.run.active_release import (
     ActiveReleaseError,
     ActiveReleaseResolver,
     ReleaseEnvironmentManager,
 )
-from sofia.run.release import directory_sha256
+from sofia.platform.run.release import directory_sha256
 from sofia.safe.release import ReleaseActivationEvidence
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 3, 4, 0, tzinfo=timezone.utc)
@@ -159,7 +159,7 @@ def test_environment_manager_reuses_only_matching_stamped_environment(
             python.write_bytes(b"python")
 
     monkeypatch.setattr(
-        "sofia.run.active_release.venv.EnvBuilder",
+        "sofia.platform.run.active_release.venv.EnvBuilder",
         FakeBuilder,
     )
     manager = ReleaseEnvironmentManager(

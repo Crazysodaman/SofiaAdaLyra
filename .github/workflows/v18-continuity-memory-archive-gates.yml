@@ -7,8 +7,8 @@ on:
       - 'src/sofia/conversation/**'
       - 'src/sofia/mobile/**'
       - 'src/sofia/memory/**'
-      - 'src/sofia/state/**'
-      - 'src/sofia/application/conversation_service.py'
+      - 'src/sofia/platform.state/**'
+      - 'src/sofia/platform.application/conversation_service.py'
       - 'test/test_ws2_*.py'
       - 'test/test_memory_*.py'
       - 'test/test_lifelong_*.py'
@@ -47,7 +47,7 @@ jobs:
       - name: Install checked-out Sofia and tests
         run: python -m pip install -e . pytest
       - name: Compile original-source conversation and memory code
-        run: python -m compileall -q src/sofia/conversation src/sofia/mobile src/sofia/memory src/sofia/state
+        run: python -m compileall -q src/sofia/conversation src/sofia/mobile src/sofia/memory src/sofia/platform.state
       - name: Phase 05 original conversation and multi-device scope
         run: >
           python -m pytest -q

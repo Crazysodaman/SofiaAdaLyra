@@ -2,9 +2,9 @@
 from dataclasses import replace
 import pytest
 
-from sofia.composition.root import compose
+from sofia.platform.composition.root import compose
 from sofia.identity.model import IdentityBootstrapMode
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 from test.test_memory_runtime_wiring import _configuration
 
 

@@ -5,10 +5,10 @@ Fixtures simulate Fleet and Hyper-V; no VM, network, installer or CI run.
 from datetime import datetime,timedelta,timezone
 from uuid import uuid4
 import json
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.distributed.capability import RemoteFleetToolService
 from sofia.integrations.hyperv import HyperVAdapter
 from sofia.ops.workshop_network import network_policy_digest,SWITCH_NAME

@@ -4,7 +4,7 @@ import sys
 from sofia.machine import location_cli
 from sofia.machine.discovery import MachineDiscoveryResult
 from sofia.machine.location import MachineLocationRegistry
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.machine.model import (
     MachineIdentity,
     OperatingSystemInfo,

@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sys
 
-from sofia.config import production_state_path
+from sofia.platform.config import production_state_path
 from sofia.memory.chatgpt_export import parse_chatgpt_export_archive
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.chatgpt_import import parse_chatgpt_memory_dump
-from sofia.state.canonical_sqlite import require_existing_sqlite
+from sofia.platform.state.canonical_sqlite import require_existing_sqlite
 from sofia.memory.chatgpt_import_store import ChatGPTMemoryImportStore
 from sofia.memory.chatgpt_migration import ChatGPTMemoryMigrationService
 

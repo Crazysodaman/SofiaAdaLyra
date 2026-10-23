@@ -27,7 +27,7 @@ from sofia.dev.capability import (
     create_dev_tool_bindings,
 )
 from sofia.dev.workflow import EngineeringCandidate
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.knowledge.capability import KnowledgeCapabilitySet
 from sofia.safe.dev_approval import (
     DevApprovalVerifier,
@@ -39,9 +39,9 @@ from sofia.safe.execution_approval import (
     execution_fingerprint,
 )
 from sofia.safe.operator_stop import OperatorStopStore
-from sofia.composition.authorization import create_capability_authorizer
-from sofia.composition.root import compose
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.composition.authorization import create_capability_authorizer
+from sofia.platform.composition.root import compose
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.safe.permissions import PermissionStore
 from sofia.safe.permissions_cli import main as permissions_cli_main
 from sofia.safe.permission_capability import PermissionInspectionCapability

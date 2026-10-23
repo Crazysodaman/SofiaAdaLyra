@@ -20,7 +20,7 @@ from sofia.vision.consent import (
     ScreenObservationPermit,ScreenObservationReceipt,
     propose_screen_permit,receipt_from_permitted_bytes,
 )
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 class ScreenJourney(str,Enum):
     LOOK_AT_WINDOW="look_at_approved_window"

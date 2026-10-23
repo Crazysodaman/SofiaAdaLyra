@@ -62,8 +62,8 @@ def test_real_change_survives_noise_exclusion_and_remains_idempotent(tmp_path):
 
 
 def test_application_open_does_not_journal_only_its_own_state_change(monkeypatch, tmp_path):
-    from sofia.application.conversation_service import ConversationService
-    from sofia.application.emotional_conversation import EmotionalConversationService
+    from sofia.platform.application.conversation_service import ConversationService
+    from sofia.platform.application.emotional_conversation import EmotionalConversationService
 
     state = tmp_path / "sofia.db"
     monkeypatch.setattr(ConversationService, "open", lambda self: None)

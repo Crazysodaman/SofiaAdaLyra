@@ -1,24 +1,24 @@
 from datetime import datetime, timedelta, timezone
 import sqlite3
 
-import sofia.application.act_service as act_service
+import sofia.platform.application.act_service as act_service
 from sofia.act.delivery import ActOutbox, DeliveryOutcome, SendResult
 from sofia.act.system_notice import SystemNoticeQueue
 from sofia.act.outreach import Decision
-from sofia.application.act_service import SofiaActService
+from sofia.platform.application.act_service import SofiaActService
 from sofia.act.outreach import Policy
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.influence import ContinuityInfluence
 from sofia.social.model import SocialScope, ScopeKind
-from sofia.config.user_settings import (
+from sofia.platform.config.user_settings import (
     OutreachSettings,
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
 from sofia.discord.binding import DiscordBindingStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 import pytest
 

@@ -472,7 +472,7 @@ class WorkshopHandoffStore:
     def __init__(self, state_path):
         from pathlib import Path
         from contextlib import closing
-        from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+        from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
         self._guard=CanonicalSQLiteGuard(Path(state_path))
         with closing(self._guard.connect(timeout=10)) as db, db:
             db.execute(

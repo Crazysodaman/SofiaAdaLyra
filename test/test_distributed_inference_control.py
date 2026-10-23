@@ -11,7 +11,7 @@ from sofia.cognition.model import (
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.distributed.authorization import RemoteGrant
 from sofia.distributed.capabilities import (
     CapabilityInventory,

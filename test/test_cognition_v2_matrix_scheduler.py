@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.cognition.v2 import (
     ActionRequirement,
     ConversationFocus,
@@ -13,8 +13,8 @@ from sofia.cognition.v2 import (
     TurnKernelInput,
     ValidatedCognitiveScheduler,
 )
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 
 

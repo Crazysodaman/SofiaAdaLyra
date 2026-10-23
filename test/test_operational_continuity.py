@@ -5,11 +5,11 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.operational.model import (
+from sofia.platform.operational.model import (
     ContinuityEvidenceStatus,
     RuntimeContinuity,
 )
-from sofia.operational.store import OperationalStore
+from sofia.platform.operational.store import OperationalStore
 
 
 def test_first_runtime_has_unknown_continuity(

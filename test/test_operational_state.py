@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.operational.model import OperationalState
+from sofia.platform.operational.model import OperationalState
 
 
 def create_state() -> OperationalState:

@@ -10,8 +10,8 @@ import sqlite3
 
 import pytest
 
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
-from sofia.state.replication import (
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.platform.state.replication import (
     SQLiteReplicationWitness, ReplicationError,
 )
 

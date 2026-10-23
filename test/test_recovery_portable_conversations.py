@@ -16,7 +16,7 @@ from sofia.conversation.store import ConversationStore
 from sofia.ops.recovery_export import export_portable_conversations
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 @pytest.fixture(autouse=True)
 def _synthetic_verified_local_media(monkeypatch):

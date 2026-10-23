@@ -20,13 +20,13 @@ from sofia.cognition.routing import (
     CognitiveRoutingPolicy,
     RoutingCognitiveEngine,
 )
-from sofia.composition.engines import create_cognitive_engine
-from sofia.config import create_default_configuration
-import sofia.config.defaults as config_defaults
-from sofia.config.user_settings import RuntimeUserSettings
+from sofia.platform.composition.engines import create_cognitive_engine
+from sofia.platform.config import create_default_configuration
+import sofia.platform.config.defaults as config_defaults
+from sofia.platform.config.user_settings import RuntimeUserSettings
 from sofia.ops.capability import OpsToolService
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.config.model import (
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.config.model import (
     CognitiveRoutingConfiguration,
     FleetCognitionConfiguration,
     ProviderConfiguration,
@@ -608,7 +608,7 @@ def test_default_configuration_parses_fleet_cognition_policy(monkeypatch):
 
 def test_composition_wraps_both_routed_roles_for_fleet_cognition(tmp_path):
     state = tmp_path / "sofia.db"
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(state)
     routing = CognitiveRoutingConfiguration(
         enabled=True,
@@ -657,7 +657,7 @@ def test_composition_wraps_both_routed_roles_for_fleet_cognition(tmp_path):
 
 def test_fleet_cognition_fails_closed_without_remote_transport(tmp_path):
     state = tmp_path / "sofia.db"
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(state)
     configuration = SofiaConfiguration(
         constitution_path=tmp_path / "constitution.md",

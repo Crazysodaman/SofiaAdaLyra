@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.ui.avatar_mode import (
     AvatarVisualMode, AvatarModeUnavailable, ExclusiveAvatarRenderer,
 )

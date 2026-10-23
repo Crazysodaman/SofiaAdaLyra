@@ -11,16 +11,16 @@ import os
 from pathlib import Path
 from typing import Any
 
-from sofia.config.model import CURRENT_CONFIGURATION_SCHEMA_VERSION
+from sofia.platform.config.model import CURRENT_CONFIGURATION_SCHEMA_VERSION
 from sofia.dev.release import ReleaseManifest
 from sofia.dev.release_store import ReleaseStateStore
 from sofia.dev.supply_chain import verify_release_evidence
 from sofia.distributed.version import CURRENT_FLEET_PROTOCOL_VERSION
-from sofia.run.release import ReleaseManager
+from sofia.platform.run.release import ReleaseManager
 from sofia.safe.audit import AuditChain
 from sofia.safe.release import ReleaseActivationGuard, ReleaseVerificationError
 from sofia.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 class AgentReleaseError(RuntimeError):

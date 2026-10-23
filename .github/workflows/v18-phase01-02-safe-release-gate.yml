@@ -7,7 +7,7 @@ on:
     # edit from other workers. Repository-wide gates retain full coverage.
     paths:
       - 'src/sofia/safe/**'
-      - 'src/sofia/application/background.py'
+      - 'src/sofia/platform.application/background.py'
       - 'src/sofia/cognition/tools.py'
       - 'src/sofia/verify/**'
       - 'test/test_safe_*.py'
@@ -55,7 +55,7 @@ jobs:
         run: python -m pip install -e . pytest
 
       - name: Compile SAFE and integration boundary paths
-        run: python -m compileall -q src/sofia/safe src/sofia/application/background.py src/sofia/verify
+        run: python -m compileall -q src/sofia/safe src/sofia/platform.application/background.py src/sofia/verify
 
       - name: Exercise owner authority, PAUSE races and gate truth
         run: >-

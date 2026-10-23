@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.environment.config import EnvironmentConfiguration
 from sofia.environment.factory import (
     HOME_ASSISTANT_ENVIRONMENT_CAPABILITY,
@@ -14,7 +14,7 @@ from sofia.environment.home_assistant import HomeAssistantEnvironmentProvider
 from sofia.environment.config import ConfiguredLocation
 from sofia.environment.model import LocationSubject
 from sofia.environment.nws import NwsEnvironmentProvider
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.fixture(autouse=True)

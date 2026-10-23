@@ -6,7 +6,7 @@ import sqlite3
 from threading import RLock
 
 from sofia.memory.chatgpt_import import ChatGPTMemoryImportBatch, ChatGPTMemoryImportItem
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class ChatGPTMemoryImportStore:

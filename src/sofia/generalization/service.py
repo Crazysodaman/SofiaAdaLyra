@@ -11,12 +11,12 @@ import sqlite3
 from typing import Callable
 from uuid import uuid4
 
-from sofia.application.optional_budget import OptionalAutonomyBudget
+from sofia.platform.application.optional_budget import OptionalAutonomyBudget
 from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.learning.contracts import DataUse
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.social.model import PrincipalContext
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .contracts import (
     AttemptMetrics, ExplorationAdmission, NovelProblemCase, NovelProblemSuite, SuiteSplit,

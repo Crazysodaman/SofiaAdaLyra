@@ -267,12 +267,12 @@ def test_production_fleet_manifest_exposes_only_readonly_host_and_media_inspecti
 
 
 def test_canonical_preview_is_model_readable_but_never_an_action_grant(tmp_path):
-    from sofia.config.user_settings import RuntimeUserSettingsStore
+    from sofia.platform.config.user_settings import RuntimeUserSettingsStore
     from sofia.ops.workshop_provision import (
         WorkshopPreflight, WorkshopRemotePreview, WorkshopPreviewStore,
     )
     state=tmp_path/"sofia.db"
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(state)
     RuntimeUserSettingsStore(state).load()
     now=datetime.now(timezone.utc)

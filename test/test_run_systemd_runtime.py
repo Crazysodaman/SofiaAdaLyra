@@ -1,13 +1,13 @@
 """Headless canonical application service: source contracts, not host deployment."""
 from pathlib import Path, PurePosixPath
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.identity.model import IdentityBootstrapMode
 from threading import Event
 from types import SimpleNamespace
 
 import pytest
 
-from sofia.run import systemd_runtime as runtime
+from sofia.platform.run import systemd_runtime as runtime
 
 def _headless_fixture_configuration(state: Path) -> SofiaConfiguration:
     """Typed inert fixture; never discover or bootstrap a production state home."""
@@ -35,10 +35,10 @@ def spec() -> runtime.SystemdRuntimeSpec:
 
 def test_approved_debian_13_runtime_has_separate_os_preflight_and_canonical_service():
     unit = runtime.render_unit(spec())
-    assert "ExecStartPre=/opt/sofia/.venv/bin/python -m sofia.run.systemd_runtime verify-guest" in unit
-    assert "ExecStart=/opt/sofia/.venv/bin/python -m sofia.run.systemd_release_launcher" in unit
+    assert "ExecStartPre=/opt/sofia/.venv/bin/python -m sofia.platform.run.systemd_runtime verify-guest" in unit
+    assert "ExecStart=/opt/sofia/.venv/bin/python -m sofia.platform.run.systemd_release_launcher" in unit
     assert "ExecStart=" not in unit.replace(
-        "ExecStart=/opt/sofia/.venv/bin/python -m sofia.run.systemd_release_launcher", ""
+        "ExecStart=/opt/sofia/.venv/bin/python -m sofia.platform.run.systemd_release_launcher", ""
     )
     assert "EnvironmentFile=/etc/sofia/production.env" in unit
     assert "SOFIA_RUNTIME_MODE=production" in unit
@@ -116,8 +116,8 @@ def test_runtime_rejects_environment_file_overrides_before_state_bootstrap(
 def test_runtime_uses_existing_application_and_always_shuts_down(
     tmp_path, monkeypatch,
 ):
-    from sofia.application import bootstrap
-    from sofia.config import defaults
+    from sofia.platform.application import bootstrap
+    from sofia.platform.config import defaults
 
     state = tmp_path / "sofia.db"
     state.touch()
@@ -269,8 +269,8 @@ def test_fixed_systemd_notifications_use_unix_socket_without_shell(monkeypatch):
 def test_shutdown_during_application_start_never_reports_systemd_ready(
     tmp_path, monkeypatch,
 ):
-    from sofia.application import bootstrap
-    from sofia.config import defaults
+    from sofia.platform.application import bootstrap
+    from sofia.platform.config import defaults
     from types import SimpleNamespace
 
     state = tmp_path / "sofia.db"

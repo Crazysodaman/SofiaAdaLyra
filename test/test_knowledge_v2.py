@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.fixture(autouse=True)

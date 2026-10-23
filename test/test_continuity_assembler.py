@@ -8,7 +8,7 @@ from sofia.cognition.model import (
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.operational.model import (
+from sofia.platform.operational.model import (
     ContinuityEvidenceStatus,
     RuntimeContinuity,
 )

@@ -15,8 +15,8 @@ from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.system import MemorySystem
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 
 

@@ -13,11 +13,11 @@ from threading import Lock, Thread
 import time
 from uuid import uuid4
 
-from sofia.config import create_production_configuration
-from sofia.state.canonical_sqlite import require_existing_sqlite
-from sofia.config.cognitive_models import CognitiveModelSelection
-from sofia.config.model import ModelLifecycleConfiguration
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config import create_production_configuration
+from sofia.platform.state.canonical_sqlite import require_existing_sqlite
+from sofia.platform.config.cognitive_models import CognitiveModelSelection
+from sofia.platform.config.model import ModelLifecycleConfiguration
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.cognition.model_lifecycle import CognitiveModelRole
 from sofia.cognition.matrix import MatrixTraceStore
@@ -31,16 +31,16 @@ from sofia.ops.activity import (
     observed_desktop_activity,
 )
 from sofia.ops.capability import OpsToolService
-from sofia.system.capability import create_local_system_backend
+from sofia.platform.system.capability import create_local_system_backend
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
     execution_fingerprint,
 )
-from sofia.state.component_schema import verify_production_component_schemas
+from sofia.platform.state.component_schema import verify_production_component_schemas
 from sofia.ui.notifications import DesktopNotificationStore
-from sofia.system.model import (
+from sofia.platform.system.model import (
     SystemCapabilityName,
     SystemCapabilityRequest,
     SystemCapabilityResultKind,

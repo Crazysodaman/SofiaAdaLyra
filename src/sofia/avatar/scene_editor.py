@@ -20,7 +20,7 @@ from .scene_compositor import (
 )
 from .vtuber_asset_bundle import Avatar2DAssetError
 from .wardrobe_catalog import build_starter_wardrobe
-from sofia.config import production_state_path
+from sofia.platform.config import production_state_path
 from sofia.ui.avatar2d_installation import discover_public_avatar2d_root
 
 

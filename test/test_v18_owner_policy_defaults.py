@@ -1,8 +1,8 @@
 """Owner-selected V18 default limits, no live settings or hosts touched."""
 from datetime import timedelta
 
-from sofia.config.user_settings import OutreachSettings
-from sofia.application.optional_budget import OptionalBudgetLimits
+from sofia.platform.config.user_settings import OutreachSettings
+from sofia.platform.application.optional_budget import OptionalBudgetLimits
 
 
 def test_owner_selected_outreach_defaults_remain_bounded_and_quiet():

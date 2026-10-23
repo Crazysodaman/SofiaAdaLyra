@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
-from sofia.application.conversation_service import ConversationService
-from sofia.application.emotional_conversation import EmotionalConversationService
+from sofia.platform.application.conversation_service import ConversationService
+from sofia.platform.application.emotional_conversation import EmotionalConversationService
 from sofia.filesystem.changes import FilesystemChangeEvent
 from sofia.emotion.clarification import ClarificationJournal
 from sofia.emotion.journal import EmotionalJournal

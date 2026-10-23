@@ -15,7 +15,7 @@ from sofia.cognition.routing import (
     CognitiveEngineRegistry,
     RoutingCognitiveEngine,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 NOW = datetime(2026, 10, 1, 22, 0, tzinfo=timezone.utc)

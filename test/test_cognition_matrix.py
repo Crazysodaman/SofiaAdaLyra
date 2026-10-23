@@ -19,8 +19,8 @@ from test.matrix_v2_support import (
     v2_evidence,
     v2_registry as default_matrix_registry,
 )
-from sofia.runtime.evidence import project_matrix_evidence
-from sofia.application.conversation_matrix import (
+from sofia.platform.runtime.evidence import project_matrix_evidence
+from sofia.platform.application.conversation_matrix import (
     ConversationMatrixMixin,
     _inherit_last_turn_domains,
     _inherit_last_turn_read_tools,

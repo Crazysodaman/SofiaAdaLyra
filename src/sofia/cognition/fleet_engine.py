@@ -8,7 +8,7 @@ from uuid import UUID
 
 from sofia.cognition.engine import CognitiveEngine, CognitiveEngineError
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.ops.capability import OpsToolService
 from sofia.ops.model import FleetHost, WorkloadContract
 

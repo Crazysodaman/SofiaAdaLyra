@@ -13,7 +13,7 @@ from ollama import Client
 import pytest
 
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ThoughtAgent

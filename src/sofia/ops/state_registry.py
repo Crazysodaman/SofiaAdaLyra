@@ -9,9 +9,9 @@ from uuid import UUID
 from sofia.ops.fleet import FleetRemovalApproval
 from sofia.ops.fleet import FleetRegistry
 from sofia.ops.model import FleetHost, HostLifecycle, HostTelemetry
-from sofia.state.atomic_file import retire_legacy_file
-from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane
+from sofia.platform.state.atomic_file import retire_legacy_file
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.plane import StatePlane
 
 
 class StatePlaneFleetRegistry(FleetRegistry):

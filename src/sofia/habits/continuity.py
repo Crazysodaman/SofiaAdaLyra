@@ -16,7 +16,7 @@ from sofia.habits.pattern_store import HabitPatternStore
 from sofia.habits.patterns import CadenceKind, HabitCategory
 from sofia.habits.store import HabitObservationRecorder, HabitObservationStore
 from sofia.social.model import PrincipalContext
-from sofia.state.plane import StatePlane
+from sofia.platform.state.plane import StatePlane
 
 
 def _daypart(hour: int) -> str:

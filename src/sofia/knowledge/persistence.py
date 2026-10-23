@@ -2,7 +2,7 @@ from __future__ import annotations
 from contextlib import closing
 import json
 from pathlib import Path
-from sofia.state.atomic_file import retire_legacy_file
+from sofia.platform.state.atomic_file import retire_legacy_file
 from datetime import datetime
 import sqlite3
 from .model import KnowledgeDocument,KnowledgeFact,SourceKind

@@ -15,7 +15,7 @@ from sofia.ops import (
     WorkloadContract,
     detect_windows_game,
 )
-from sofia.system.model import ProcessInspection
+from sofia.platform.system.model import ProcessInspection
 
 
 NOW = datetime(2026, 9, 26, 20, 0, tzinfo=timezone.utc)

@@ -11,7 +11,7 @@ from hashlib import sha256
 import re
 from typing import Iterable
 
-from sofia.application.expression_runtime import ExpressionIntent
+from sofia.platform.application.expression_runtime import ExpressionIntent
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.cognition.repetition_guard import response_quality_issue
 

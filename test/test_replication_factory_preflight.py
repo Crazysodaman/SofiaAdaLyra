@@ -4,14 +4,14 @@ import sqlite3
 
 import pytest
 
-import sofia.state.factory as factory
-from sofia.state.canonical_sqlite import (
+import sofia.platform.state.factory as factory
+from sofia.platform.state.canonical_sqlite import (
     CanonicalStateUnavailable, bootstrap_canonical_sqlite,
 )
-from sofia.state.replication import (
+from sofia.platform.state.replication import (
     ReplicatedStatePlane, SQLiteReplicationWitness, ReplicationError,
 )
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 def _paths(tmp_path, monkeypatch):

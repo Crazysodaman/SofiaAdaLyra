@@ -6,14 +6,14 @@ from datetime import datetime, timezone
 from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.habits.model import ObservationCoverage, SourceQuality
 from sofia.habits.patterns import CadenceKind, HabitCategory
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 NOW = datetime(2026, 10, 2, 20, 0, tzinfo=timezone.utc)
 
 
 def coordinator(tmp_path) -> HabitContinuityCoordinator:
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(tmp_path / "state.db")
     return HabitContinuityCoordinator(
         SQLiteStatePlane(tmp_path / "state.db")

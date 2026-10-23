@@ -9,7 +9,7 @@ import sqlite3
 import pytest
 
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
 
 def test_imported_evidence_owner_rejects_canonical_database_removal(tmp_path):

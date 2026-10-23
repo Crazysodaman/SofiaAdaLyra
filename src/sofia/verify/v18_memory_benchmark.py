@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import Callable
 
-from sofia.application.conversation_service import _retrieve_specific_conversation
+from sofia.platform.application.conversation_service import _retrieve_specific_conversation
 from sofia.conversation.model import ConversationMessage, ConversationRole
 
 FAMILIES = ("longmemeval-inspired", "locomo-inspired", "agent-environment-inspired")

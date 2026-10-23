@@ -11,7 +11,7 @@ from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.originals import SourceMessage
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class ChatGPTMemoryMigrationService:

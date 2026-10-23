@@ -3,7 +3,7 @@ from contextlib import closing
 from datetime import datetime, timedelta, timezone
 import sqlite3
 
-from sofia.run.work import (
+from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkStatus, WorkResult,
 )
 

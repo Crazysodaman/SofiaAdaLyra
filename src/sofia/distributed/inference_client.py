@@ -8,7 +8,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.https_transport import PinnedHttpsRemoteTransport
 from sofia.distributed.inference_control import DurableRemoteInferenceControl

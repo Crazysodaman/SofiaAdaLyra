@@ -10,7 +10,7 @@ import sqlite3
 import pytest
 
 from sofia.memory.chatgpt_import_store import ChatGPTMemoryImportStore
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 from test.test_chatgpt_memory_import import _import
 
 

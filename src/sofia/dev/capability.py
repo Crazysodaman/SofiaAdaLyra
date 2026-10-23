@@ -14,9 +14,9 @@ from sofia.cognition.tools import CognitiveToolBinding
 from sofia.dev.approval import DevOperation
 from sofia.safe.dev_approval import DevApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
-from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.plane import StatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 from .opencode import EngineeringExecutionRequest
 from .workflow import EngineeringCandidate, EngineeringWorkflow

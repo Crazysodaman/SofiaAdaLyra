@@ -25,7 +25,7 @@ import shutil
 import subprocess
 import tempfile
 
-from sofia.state.path_policy import inside_git_worktree
+from sofia.platform.state.path_policy import inside_git_worktree
 
 _DEBIAN_DVD_NAME = re.compile(
     r"^debian-13\.[0-9]+\.[0-9]+-amd64-DVD-1\.iso$", re.IGNORECASE

@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.application.memory_review import MemoryReviewService
+from sofia.platform.application.memory_review import MemoryReviewService
 from sofia.memory.originals import SourceMessage
 from sofia.memory.provenance import MemoryCandidate
 from sofia.social.model import AudienceKind, PrincipalContext

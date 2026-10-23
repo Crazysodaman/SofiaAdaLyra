@@ -5,7 +5,7 @@ from sofia.cognition.engine import CognitiveEngine
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.cognition.routing import CognitiveEngineRegistry, RoutingCognitiveEngine
 from sofia.cognition.runtime_state import CognitionRuntimeStateStore
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 NOW = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)

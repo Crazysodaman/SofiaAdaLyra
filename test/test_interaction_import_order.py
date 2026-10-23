@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.mark.parametrize('first', [
     'from sofia.interaction.chat import InteractiveConversationService',
-    'from sofia.application.bootstrap import SofiaApplication',
-    'from sofia.application import ConversationService, SofiaApplication',
-    'from sofia.runtime.runtime import SofiaRuntime',
+    'from sofia.platform.application.bootstrap import SofiaApplication',
+    'from sofia.platform.application import ConversationService, SofiaApplication',
+    'from sofia.platform.runtime.runtime import SofiaRuntime',
     'from sofia.package_metadata import application_version',
     'from sofia.ui.terminal import ConversationLoop',
 ])
@@ -25,10 +25,10 @@ def test_application_and_interaction_can_import_in_either_order(first):
     program = '\n'.join((
         first,
         'from sofia.interaction.chat import InteractiveConversationService',
-        'from sofia.application.bootstrap import SofiaApplication, SofiaApplicationError',
+        'from sofia.platform.application.bootstrap import SofiaApplication, SofiaApplicationError',
         'from sofia.ui.terminal import ConversationLoop',
-        'from sofia.application.conversation_service import ConversationService',
-        'from sofia.application import (',
+        'from sofia.platform.application.conversation_service import ConversationService',
+        'from sofia.platform.application import (',
         '    SofiaApplication as ExportedApplication,',
         '    SofiaApplicationError as ExportedError,',
         '    ConversationService as ExportedService,',
@@ -55,12 +55,12 @@ def test_application_and_interaction_can_import_in_either_order(first):
 def test_application_package_and_metadata_do_not_import_runtime_or_bootstrap():
     program = '\n'.join((
         'import sys',
-        'import sofia.application',
-        'from sofia.application import application_name, application_version',
+        'import sofia.platform.application',
+        'from sofia.platform.application import application_name, application_version',
         'assert application_name() and application_version()',
-        'assert "sofia.application.bootstrap" not in sys.modules',
-        'assert "sofia.application.conversation_service" not in sys.modules',
-        'assert "sofia.runtime.runtime" not in sys.modules',
+        'assert "sofia.platform.application.bootstrap" not in sys.modules',
+        'assert "sofia.platform.application.conversation_service" not in sys.modules',
+        'assert "sofia.platform.runtime.runtime" not in sys.modules',
     ))
     result = subprocess.run(
         [sys.executable, '-c', program], cwd=ROOT,

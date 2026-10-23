@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from sofia.config import (
+from sofia.platform.config import (
     create_default_configuration,
 )
-from sofia.config.model import ProviderConfiguration
-from sofia.config.model_catalog import (
+from sofia.platform.config.model import ProviderConfiguration
+from sofia.platform.config.model_catalog import (
     DEFAULT_PROVIDER_CONTEXT_SIZE,
     DEFAULT_PROVIDER_MODEL,
     DEFAULT_PROVIDER_MAX_OUTPUT_TOKENS,

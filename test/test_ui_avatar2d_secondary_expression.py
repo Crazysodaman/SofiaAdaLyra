@@ -6,7 +6,7 @@ not a claim of 3D integration or supervised Venus visual acceptance.
 from dataclasses import replace
 from types import SimpleNamespace
 
-from sofia.application.expression_runtime import AvatarExpressionState
+from sofia.platform.application.expression_runtime import AvatarExpressionState
 from sofia.avatar.vtuber_character_bundle import load_selected_character_sprites
 from sofia.avatar.vtuber_character_selection import select_character_parts
 from sofia.ui.avatar2d_renderer import _avatar_channel_cues, _character_expression

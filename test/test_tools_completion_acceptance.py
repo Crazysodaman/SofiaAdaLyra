@@ -8,9 +8,9 @@ import pytest
 
 from sofia.capability.model import Capability,CapabilityRequest,CapabilityResultKind
 from sofia.capability.system import CapabilitySystem
-from sofia.composition.root import compose
-from sofia.config.defaults import create_default_configuration
-from sofia.config.model import ProviderConfiguration,SofiaConfiguration
+from sofia.platform.composition.root import compose
+from sofia.platform.config.defaults import create_default_configuration
+from sofia.platform.config.model import ProviderConfiguration,SofiaConfiguration
 from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.integrations.github import GitHubAdapter
 from sofia.integrations.home_assistant import HomeAssistantAdapter
@@ -28,7 +28,7 @@ from sofia.filesystem.change_capability import FilesystemChangesCapability
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.ops.capability import OpsToolService
 from sofia.ops.model import FleetHost,HostLifecycle,HostTelemetry
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.fixture(autouse=True)

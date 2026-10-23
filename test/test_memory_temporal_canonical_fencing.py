@@ -7,7 +7,7 @@ import sqlite3
 import pytest
 
 from sofia.memory.temporal_candidates import TemporalCandidateStore
-from sofia.state.canonical_sqlite import (
+from sofia.platform.state.canonical_sqlite import (
     CanonicalStateUnavailable, bootstrap_canonical_sqlite,
 )
 

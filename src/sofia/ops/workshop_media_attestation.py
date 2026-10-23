@@ -22,7 +22,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
-from sofia.state.path_policy import inside_git_worktree
+from sofia.platform.state.path_policy import inside_git_worktree
 
 SCHEMA = "sofia-workshop-offline-media-ed25519-v1"
 POLICY = "hephaestus-debian13-console-admin-v1"

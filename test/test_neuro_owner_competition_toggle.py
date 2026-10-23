@@ -8,14 +8,14 @@ import json
 
 import pytest
 
-from sofia.application.bootstrap import SofiaApplication
-from sofia.config.user_settings import (
+from sofia.platform.application.bootstrap import SofiaApplication
+from sofia.platform.config.user_settings import (
     CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION,
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
 from sofia.neuro import NeuroRuntime, NeuralSignal
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 pytestmark = pytest.mark.pkg_core

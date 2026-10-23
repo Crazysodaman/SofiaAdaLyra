@@ -11,7 +11,7 @@ import secrets
 import sqlite3
 
 from sofia.act.diagnostics import ensure_outreach_trace_schema, record_outreach_trace
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _CLAIM_LEASE = timedelta(minutes=5)

@@ -3,7 +3,7 @@ from sofia.cognition.model import (
     CognitiveRequest,
     CognitiveResponse,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 class TestCognitiveEngine(CognitiveEngine):

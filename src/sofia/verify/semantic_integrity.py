@@ -9,8 +9,8 @@ import sqlite3
 
 from sofia.dev.release_store import ReleaseStateStore
 from sofia.safe.audit import AuditChain
-from sofia.state.plane import StatePlane
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.plane import StatePlane
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class IntegritySeverity(str, Enum):

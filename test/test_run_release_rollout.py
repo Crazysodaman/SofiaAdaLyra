@@ -1,14 +1,14 @@
 import pytest
 
-from sofia.run.release_rollout import (
+from sofia.platform.run.release_rollout import (
     ReleaseRolloutCoordinator,
     ReleaseRolloutError,
     ReleaseRolloutJournal,
     ReleaseRolloutTarget,
     RolloutRing,
 )
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 class FakeOperator:

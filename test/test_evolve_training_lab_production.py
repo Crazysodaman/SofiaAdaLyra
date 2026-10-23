@@ -4,10 +4,10 @@ from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from uuid import uuid4
 import json
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.evolve.training_sources import TrainingDatasetStore,inspect_public_dataset
 from sofia.evolve.training_lab import (
     TrainingLabPlan,TrainingLabReviewStore,assess_training_lab,

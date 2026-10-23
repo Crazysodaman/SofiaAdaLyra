@@ -1,7 +1,7 @@
 """CA-1203 optional companion-context admission regressions."""
 import pytest
 
-from sofia.application.context_budget import (
+from sofia.platform.application.context_budget import (
     CompanionContextBudget,
     ContextClass,
 )

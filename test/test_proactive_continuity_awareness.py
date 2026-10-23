@@ -3,11 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.cognition.engine import CognitiveEngineError
-from sofia.config import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config import ProviderConfiguration, SofiaConfiguration
 from sofia.continuity.model import ContinuityEventKind
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent

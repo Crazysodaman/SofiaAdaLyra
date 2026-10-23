@@ -12,8 +12,8 @@ from sofia.cognition.model import (
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.composition.root import compose
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.composition.root import compose
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.memory.chatgpt_export import (
     ChatGPTExportBatch,
     ChatGPTExportConversation,
@@ -56,7 +56,7 @@ def _candidate(content: str) -> MemoryCandidate:
 
 
 def _configuration(tmp_path: Path) -> SofiaConfiguration:
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=tmp_path / "constitution.md",

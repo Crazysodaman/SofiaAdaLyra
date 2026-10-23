@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from sofia.config import create_production_configuration
+from sofia.platform.config import create_production_configuration
 from sofia.learning import LearningService
 from sofia.social.principals import local_sparks_principal
 

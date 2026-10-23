@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from sofia.dev.release import ReleaseManifest
 from sofia.dev.release_cli import sign_release_bundle
-from sofia.run.release import directory_sha256
+from sofia.platform.run.release import directory_sha256
 from sofia.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
 
 

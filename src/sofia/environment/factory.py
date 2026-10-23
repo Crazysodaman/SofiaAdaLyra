@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import os
 
-from sofia.config.model import SofiaConfiguration
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.model import SofiaConfiguration
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.integrations.home_assistant import HomeAssistantAdapter
 from sofia.integrations.nws import NwsAdapter
 from sofia.safe.secret_store import ProtectedSecretStore

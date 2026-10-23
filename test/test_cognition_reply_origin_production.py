@@ -5,13 +5,13 @@ from uuid import uuid4
 import sqlite3
 import pytest
 
-from sofia.application.conversation_service import ConversationService
+from sofia.platform.application.conversation_service import ConversationService
 from sofia.cognition.matrix.model import CognitionExecutionStep, CognitionExecutionTrace
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.reply_origin import ReplyModelOriginStore
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.social.principals import local_sparks_principal, discord_sparks_principal
 
 pytestmark = pytest.mark.pkg_core

@@ -13,7 +13,7 @@ from sofia.ops.backup_topology import (
     BackupTopologyPolicy,
     MultiHostBackupCoordinator,
 )
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 NOW = datetime(2026, 10, 4, 18, 30, tzinfo=timezone.utc)

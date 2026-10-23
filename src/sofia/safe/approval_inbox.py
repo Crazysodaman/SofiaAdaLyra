@@ -18,7 +18,7 @@ from uuid import uuid4
 from sofia.safe.audit import AuditChain
 from sofia.safe.execution_approval import ExecutionApprovalVerifier, execution_fingerprint
 from sofia.safe.permissions import PermissionLevel, capability_permission_policy
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 REQUEST_TTL = timedelta(hours=24)
 CHALLENGE_SECONDS = 90

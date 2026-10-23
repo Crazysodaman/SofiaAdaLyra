@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
-from sofia.config import create_production_configuration
+from sofia.platform.config import create_production_configuration
 from sofia.distributed.durable import DurableRemoteAuthorization
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.https_transport import PinnedHttpsRemoteTransport

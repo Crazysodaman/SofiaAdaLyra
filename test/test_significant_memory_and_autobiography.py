@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.application.memory_significance import MemorySignificanceService
+from sofia.platform.application.memory_significance import MemorySignificanceService
 from sofia.memory.autobiography import AutobiographyTimeline
 from sofia.memory.originals import SourceMessage
 from sofia.memory.provenance import MemoryCandidate
@@ -32,7 +32,7 @@ def candidate(text, *, index=0, principal="person:sparks", audience=None):
 
 
 def persisted(tmp_path):
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     path = tmp_path / "sofia.db"
     bootstrap_canonical_sqlite(path)
     candidates = DurableMemoryCandidateStore(path)
@@ -241,7 +241,7 @@ def test_timeline_quotes_only_current_ga_episode_outcomes_fail_closed(tmp_path):
     from sofia.goals import GoalStore
     from sofia.goals.service import GoalService
     from sofia.learning.contracts import DataUseGrant
-    from sofia.state.sqlite_plane import SQLiteStatePlane
+    from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
     path, candidate_store, significance = persisted(tmp_path)
     SQLiteStatePlane(path)

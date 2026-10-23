@@ -15,7 +15,7 @@ import re
 from uuid import uuid4
 
 from sofia.neuro.consciousness_research import StudyProtocol, inspect_protocol
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _ID = re.compile(r"^[A-Za-z0-9_.:/-]{8,120}$")

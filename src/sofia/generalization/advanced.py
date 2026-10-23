@@ -22,9 +22,9 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.goals.service import GoalService
 from sofia.learning.contracts import DataUse
-from sofia.run.work import DurableWorkStore, WorkStatus
+from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.verify.generalization_transfer import assess_signed_transfer
 
 

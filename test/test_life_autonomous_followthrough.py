@@ -11,7 +11,7 @@ from sofia.life import (
     PersonalJudgment, ProjectIdea, ProjectScope, ProjectStatus,
     TechnicalOutcome,
 )
-from sofia.run.work import WorkStatus
+from sofia.platform.run.work import WorkStatus
 from test.test_life_project_forge import (
     infrastructure, active_project, wait_for_job,
 )

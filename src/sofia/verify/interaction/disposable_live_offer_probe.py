@@ -15,9 +15,9 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from uuid import uuid4
 
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.verify.interaction.disposable import close_disposable_application
-from sofia.config.defaults import create_production_configuration
+from sofia.platform.config.defaults import create_production_configuration
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.interaction import live_offer_service
 from sofia.interaction.offer_route import OFFER

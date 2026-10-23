@@ -9,7 +9,7 @@ from __future__ import annotations
 from queue import Empty, Queue
 from threading import Thread
 
-from sofia.config import SofiaConfiguration
+from sofia.platform.config import SofiaConfiguration
 from sofia.discord.live import (
     DiscordBackgroundService,
     compose_live_discord_for_conversation,

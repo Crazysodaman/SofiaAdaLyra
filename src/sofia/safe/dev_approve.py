@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from uuid import uuid4
 
-from sofia.config import production_state_path
+from sofia.platform.config import production_state_path
 from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
 from sofia.dev.release_signing import load_ed25519_private_key
 from sofia.safe.dev_approval import (

@@ -6,7 +6,7 @@ import sqlite3
 
 import pytest
 
-from sofia.state.canonical_sqlite import (
+from sofia.platform.state.canonical_sqlite import (
     CanonicalStateUnavailable, bootstrap_canonical_sqlite,
 )
 from sofia.ui import settings_service

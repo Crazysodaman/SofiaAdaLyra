@@ -6,14 +6,14 @@ import sqlite3
 
 import pytest
 
-from sofia.application.decision_persistence import inspect_turn_persistence
-from sofia.application.decision_trace import project_companion_decision
+from sofia.platform.application.decision_persistence import inspect_turn_persistence
+from sofia.platform.application.decision_trace import project_companion_decision
 from sofia.cognition.matrix.model import (
     HistoryPolicy, MatrixConfidence, MatrixIntent, MatrixTrace,
     ResponseStrategy, TurnEnvelope, TurnMatrix,
 )
 from sofia.cognition.matrix.trace import MatrixTraceStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_verify]
 NOW = datetime(2026, 10, 13, 18, tzinfo=timezone.utc)
@@ -263,7 +263,7 @@ def test_missing_canonical_database_never_gets_recreated(tmp_path):
 
 
 def test_live_application_projection_uses_real_persisted_turn(tmp_path):
-    from sofia.application import SofiaApplication
+    from sofia.platform.application import SofiaApplication
     from sofia.verify.cognition_v2_baseline import _configuration
 
     config = _configuration(tmp_path)
@@ -287,7 +287,7 @@ def test_live_application_projection_uses_real_persisted_turn(tmp_path):
 
 
 def test_turn_neuro_provenance_is_exact_and_ephemeral(tmp_path):
-    from sofia.application.conversation_service import ConversationService
+    from sofia.platform.application.conversation_service import ConversationService
     from sofia.neuro.model import NeuroStateSnapshot
 
     path, matrix = _fixture(tmp_path)

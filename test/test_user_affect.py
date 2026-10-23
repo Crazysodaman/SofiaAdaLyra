@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.application.emotional_conversation import EmotionalConversationService
-from sofia.application.conversation_service import ConversationService
+from sofia.platform.application.emotional_conversation import EmotionalConversationService
+from sofia.platform.application.conversation_service import ConversationService
 from sofia.cognition.matrix import (
     ResponseValidation,
     ResponseValidationDisposition,

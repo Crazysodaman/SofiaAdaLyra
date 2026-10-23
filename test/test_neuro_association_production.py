@@ -8,7 +8,7 @@ import pytest
 
 pytestmark = pytest.mark.pkg_mem
 
-from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.memory.originals import SourceMessage
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore

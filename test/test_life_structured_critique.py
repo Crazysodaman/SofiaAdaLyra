@@ -6,7 +6,7 @@ import pytest
 
 from sofia.creative import ArtifactKind
 from sofia.life import PersonalJudgment, TechnicalOutcome
-from sofia.run.work import WorkStatus
+from sofia.platform.run.work import WorkStatus
 from sofia.life.validation import ObjectiveDisposition, StructuredArtifactCritique
 
 from test.test_life_project_forge import (

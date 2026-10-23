@@ -15,12 +15,12 @@ import platform
 from pathlib import Path
 import sqlite3
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.creative import (
     ArtifactRevision, CreativeExplorer, CreativeStore, NativeCreativeAdapter,
 )
 from sofia.goals.evidence import GoalEvidenceIndex
-from sofia.run.work import DurableWorkStore, WorkStatus
+from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.social.principals import local_sparks_principal
 
 from .model import LifeProject, ProjectScope, ProjectStatus, TechnicalOutcome

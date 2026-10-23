@@ -16,7 +16,7 @@ from sofia.safe.execution_approval import (
 from sofia.safe.permissions import (
     PermissionStore, private_authority_parameters, standing_grant_parameters,
 )
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from test.owner_auth_fixture import (
     grant_with_signed_owner, private_with_signed_owner,
     record_verified_owner_approval, revoke_with_signed_owner,

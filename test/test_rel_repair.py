@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.application import SofiaApplication
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.application import SofiaApplication
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.rel.repair import (
     RepairChangeKind,
     RepairError,
@@ -15,7 +15,7 @@ from sofia.rel.repair import (
 )
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import local_sparks_principal
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 6, 28, 10, 5, tzinfo=timezone.utc)
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from sofia.config.model import (
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )

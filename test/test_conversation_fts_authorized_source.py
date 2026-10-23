@@ -15,7 +15,7 @@ from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.social.principals import local_sparks_principal, discord_sparks_principal
 from sofia.social.store import SocialSessionStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_fulltext_original_search_checks_exact_authenticated_audience(tmp_path):

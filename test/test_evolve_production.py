@@ -5,9 +5,9 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sofia.application.evolution import SofiaEvolutionService
-from sofia.composition.root import compose
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.application.evolution import SofiaEvolutionService
+from sofia.platform.composition.root import compose
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.evolve.approval import ApprovalAction
 from sofia.evolve.lifecycle import (
     EvolutionEvidence,
@@ -21,8 +21,8 @@ from sofia.safe.evolve_approval import (
     approval_signature_payload,
     revocation_signature_payload,
 )
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 5, 10, 0, tzinfo=timezone.utc)

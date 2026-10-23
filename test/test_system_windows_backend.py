@@ -6,13 +6,13 @@ from datetime import datetime
 
 import pytest
 
-from sofia.system.model import (
+from sofia.platform.system.model import (
     SystemCapability,
     SystemCapabilityName,
     SystemCapabilityRequest,
     SystemCapabilityResultKind,
 )
-from sofia.system.windows import WindowsSystemCapabilityBackend
+from sofia.platform.system.windows import WindowsSystemCapabilityBackend
 
 
 def _request(
@@ -176,7 +176,7 @@ def test_windows_backend_exposes_process_system_network_and_service_capabilities
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -199,7 +199,7 @@ def test_process_inspection_returns_structured_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -237,7 +237,7 @@ def test_process_filter_by_pid(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -264,7 +264,7 @@ def test_process_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -299,7 +299,7 @@ def test_invalid_process_parameters_fail(
     parameters: dict[str, object],
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -322,7 +322,7 @@ def test_system_inspection_returns_structured_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -367,7 +367,7 @@ def test_system_inspection_rejects_parameters(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -390,7 +390,7 @@ def test_system_virtual_machine_detection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -426,7 +426,7 @@ def test_network_inspection_returns_interfaces_routes_and_dns(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -483,7 +483,7 @@ def test_network_interface_filter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -510,7 +510,7 @@ def test_network_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -547,7 +547,7 @@ def test_invalid_network_parameters_fail(
     parameters: dict[str, object],
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -570,7 +570,7 @@ def test_service_inspection_returns_structured_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -611,7 +611,7 @@ def test_service_filter_by_name(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -638,7 +638,7 @@ def test_service_filter_by_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -665,7 +665,7 @@ def test_service_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -702,7 +702,7 @@ def test_invalid_service_parameters_fail(
     parameters: dict[str, object],
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -725,7 +725,7 @@ def test_non_windows_is_explicitly_unsupported(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Linux",
     )
 
@@ -751,7 +751,7 @@ def test_powershell_missing_is_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -774,7 +774,7 @@ def test_powershell_failure_is_failed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -797,7 +797,7 @@ def test_invalid_json_is_failed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -817,7 +817,7 @@ def test_backend_does_not_accept_arbitrary_execution_parameters(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -832,7 +832,7 @@ def test_unsupported_capability_is_explicit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
 
@@ -854,7 +854,7 @@ def test_process_inspection_accepts_windows_powershell_json_datetime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
     payload = json.dumps(
@@ -887,7 +887,7 @@ def test_process_inspection_accepts_iso_datetime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.windows.platform.system",
+        "sofia.platform.system.windows.platform.system",
         lambda: "Windows",
     )
     payload = json.dumps(

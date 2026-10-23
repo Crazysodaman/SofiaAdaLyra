@@ -11,8 +11,8 @@ import pytest
 
 from test.owner_auth_fixture import record_verified_owner_approval
 
-from sofia.config.user_settings import RuntimeUserSettingsStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.distributed.capability import RemoteFleetToolService
 from sofia.integrations.hyperv import HyperVAdapter
 from sofia.ops.workshop_handoff import (

@@ -1,5 +1,5 @@
 """Production runtime settings keep Sofía's NWS station explicit."""
-from sofia.config.user_settings import RuntimeUserSettings
+from sofia.platform.config.user_settings import RuntimeUserSettings
 
 
 def test_runtime_weather_defaults_to_kgky_station():

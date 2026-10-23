@@ -13,9 +13,9 @@ import math
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane
-from sofia.state.atomic_file import retire_legacy_file
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.plane import StatePlane
+from sofia.platform.state.atomic_file import retire_legacy_file
 
 
 SCHEMA_VERSION = 1

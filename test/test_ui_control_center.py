@@ -167,7 +167,7 @@ def test_tray_status_reports_arbitrary_dual_model_roles_without_name_logic():
 
 def test_desktop_control_store_refuses_replaced_canonical_database(tmp_path):
     import pytest
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     path = _state(tmp_path)
     store = DesktopControlSettingsStore(path)
@@ -192,7 +192,7 @@ def test_desktop_control_store_refuses_replaced_canonical_database(tmp_path):
 
 def test_desktop_control_store_never_bootstraps_or_follows_redirected_state(tmp_path):
     import pytest
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     missing = tmp_path / "state" / "sofia.db"
     with pytest.raises(CanonicalStateUnavailable):

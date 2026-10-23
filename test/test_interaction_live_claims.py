@@ -9,7 +9,7 @@ import pytest
 
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService, interaction_prompt
 from sofia.interaction.grammar import NaturalInteractionEngine

@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from sofia.run import (
+from sofia.platform.run import (
     OpportunityPolicy,
     PeriodicThoughtGate,
     PeriodicThoughtRunner,

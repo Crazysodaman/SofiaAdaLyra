@@ -26,7 +26,7 @@ def test_process_registry_blocks_windows_handle_reentry(tmp_path, monkeypatch):
     import os
     import sys
     from types import SimpleNamespace
-    import sofia.run.process_lock as process_lock
+    import sofia.platform.run.process_lock as process_lock
 
     first = DiscordProcessLock(tmp_path / "sofia.db")
     second = DiscordProcessLock(tmp_path / "sofia.db")

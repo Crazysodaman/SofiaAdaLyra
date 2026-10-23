@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from sofia.run import LocalRunLeaseStore
+from sofia.platform.run import LocalRunLeaseStore
 
 START = datetime(2026, 9, 25, 18, tzinfo=timezone.utc)
 

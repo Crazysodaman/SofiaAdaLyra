@@ -4,9 +4,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.personality.preferences import (
     PreferenceDisposition,
     PreferenceRegistry,
@@ -15,7 +15,7 @@ from sofia.personality.preferences import (
 )
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import local_sparks_principal
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 6, 25, 21, 10, tzinfo=timezone.utc)
 

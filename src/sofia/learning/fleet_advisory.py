@@ -16,7 +16,7 @@ import sqlite3
 
 from sofia.ops.activity import ActivityMode
 from sofia.ops.latency import FleetLatencyStore
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _HORIZONS = (5, 15, 30)

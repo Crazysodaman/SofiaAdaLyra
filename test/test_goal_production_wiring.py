@@ -1,7 +1,7 @@
 from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner
 from datetime import datetime, timedelta, timezone
 import pytest
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import json
 import sqlite3
 
@@ -20,8 +20,8 @@ from sofia.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 from sofia.social.principals import local_sparks_principal
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.safe.permissions import PermissionStore
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
 
 
 NOW = datetime(2026, 10, 6, 12, tzinfo=timezone.utc)

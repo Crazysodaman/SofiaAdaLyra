@@ -13,7 +13,7 @@ import pytest
 from sofia.memory.originals import SourceMessage
 from sofia.memory.provenance import MemoryCandidate, CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable, bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable, bootstrap_canonical_sqlite
 
 
 def _candidate():

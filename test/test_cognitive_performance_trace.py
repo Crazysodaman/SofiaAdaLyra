@@ -7,7 +7,7 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.cognition.performance import emit_performance, ollama_metric
 from sofia.cognition.provider import LLMProviderError
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 class FakeClient:

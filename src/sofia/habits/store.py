@@ -10,9 +10,9 @@ from sofia.habits.model import (
     ObservationCoverage,
     SourceQuality,
 )
-from sofia.state.json_repository import JsonStateRepository
-from sofia.state.namespaces import HABIT_COVERAGE, HABIT_OBSERVATION
-from sofia.state.plane import StatePlane, StatePlaneConflictError
+from sofia.platform.state.json_repository import JsonStateRepository
+from sofia.platform.state.namespaces import HABIT_COVERAGE, HABIT_OBSERVATION
+from sofia.platform.state.plane import StatePlane, StatePlaneConflictError
 
 
 class HabitObservationStore:

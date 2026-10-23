@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from sofia.application.conversation_service import ConversationService
+from sofia.platform.application.conversation_service import ConversationService
 from test.matrix_v2_support import v2_evidence
 from test.matrix_v2_support import (
     V2MatrixCoordinator as MatrixCoordinator,

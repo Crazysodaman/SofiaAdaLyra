@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from sofia.system.linux import LinuxSystemCapabilityBackend
-from sofia.system.model import (
+from sofia.platform.system.linux import LinuxSystemCapabilityBackend
+from sofia.platform.system.model import (
     SystemCapability,
     SystemCapabilityName,
     SystemCapabilityRequest,
@@ -78,7 +78,7 @@ def test_non_linux_is_unsupported(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Windows",
     )
 
@@ -99,7 +99,7 @@ def test_process_inspection_reads_proc(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -127,7 +127,7 @@ def test_process_inspection_reads_proc(
     )
 
     monkeypatch.setattr(
-        "sofia.system.linux.os.readlink",
+        "sofia.platform.system.linux.os.readlink",
         lambda path: "/usr/bin/python",
     )
 
@@ -157,7 +157,7 @@ def test_process_limit_is_enforced(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -202,7 +202,7 @@ def test_process_rejects_unknown_parameter(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -230,19 +230,19 @@ def test_system_inspection_reads_os_and_kernel(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
     monkeypatch.setattr(
-        "sofia.system.linux.socket.gethostname",
+        "sofia.platform.system.linux.socket.gethostname",
         lambda: "artemis",
     )
     monkeypatch.setattr(
-        "sofia.system.linux.platform.machine",
+        "sofia.platform.system.linux.platform.machine",
         lambda: "x86_64",
     )
     monkeypatch.setattr(
-        "sofia.system.linux.platform.release",
+        "sofia.platform.system.linux.platform.release",
         lambda: "6.12.1-test",
     )
 
@@ -285,7 +285,7 @@ def test_system_detects_vmware(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -330,7 +330,7 @@ def test_system_inspection_rejects_unknown_parameter(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -357,7 +357,7 @@ def test_network_reads_interfaces_routes_dns(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -500,7 +500,7 @@ def test_network_interface_filter(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -570,7 +570,7 @@ def test_network_invalid_json_fails(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -618,7 +618,7 @@ def test_service_inspection_uses_fixed_systemctl_command(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -689,7 +689,7 @@ def test_service_name_filter(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -733,7 +733,7 @@ def test_service_state_filter(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -777,7 +777,7 @@ def test_service_limit(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -821,7 +821,7 @@ def test_service_rejects_unknown_parameter(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -848,7 +848,7 @@ def test_service_command_failure_is_failed(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -879,7 +879,7 @@ def test_missing_ip_command_is_unavailable(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 
@@ -929,7 +929,7 @@ def test_network_limit(
     proc, sys, etc = linux_roots
 
     monkeypatch.setattr(
-        "sofia.system.linux.platform.system",
+        "sofia.platform.system.linux.platform.system",
         lambda: "Linux",
     )
 

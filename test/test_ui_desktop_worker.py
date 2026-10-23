@@ -6,7 +6,7 @@ import json
 from queue import Queue
 import sqlite3
 
-from sofia.config.model import (
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -43,7 +43,7 @@ def _configuration(tmp_path: Path) -> SofiaConfiguration:
         ),
         encoding="utf-8",
     )
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=CONSTITUTION_PATH,

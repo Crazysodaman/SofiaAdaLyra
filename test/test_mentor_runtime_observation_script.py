@@ -16,7 +16,7 @@ SCRIPT = ROOT / "scripts" / "diagnose_sofia_windows_runtime.ps1"
 class WindowsReadOnlyObservationScriptTests(TestCase):
     def test_script_is_present_and_labels_unverified_runtime(self):
         content = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("sofia.runtime.windows-observation.v1", content)
+        self.assertIn("sofia.platform.runtime.windows-observation.v1", content)
         self.assertIn("no_child_bootstrap_or_stopped_application_unverified", content)
         self.assertIn("unknown_not_reading_database", content)
         self.assertIn("SCM RUNNING means wrapper alive", content)

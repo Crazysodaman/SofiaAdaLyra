@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.ops.activity import ActivityMode
-from sofia.system.model import (
+from sofia.platform.system.model import (
     ProcessInspection,
     SystemCapability,
     SystemCapabilityName,
@@ -11,7 +11,7 @@ from sofia.system.model import (
 )
 from sofia.ui.control_center import GameMode
 from sofia.ui.tray_agent import TrayAgentApplication
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_auto_mode_records_detected_steam_game_without_web_api(tmp_path):

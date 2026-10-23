@@ -11,7 +11,7 @@ from datetime import datetime
 import json
 import sys
 
-from sofia.config import production_state_path
+from sofia.platform.config import production_state_path
 from sofia.safe.approval_inbox import ApprovalInbox
 
 

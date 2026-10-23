@@ -2,7 +2,7 @@
 
 import pytest
 
-from sofia.system import (
+from sofia.platform.system import (
     NetworkInterfaceInspection,
     NetworkInspection,
     NetworkRouteInspection,

@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths:
       - 'src/sofia/vision/**'
-      - 'src/sofia/application/presence.py'
-      - 'src/sofia/application/background_runtime.py'
+      - 'src/sofia/platform.application/presence.py'
+      - 'src/sofia/platform.application/background_runtime.py'
       - 'src/sofia/life/**'
       - 'src/sofia/ops/workshop_*.py'
       - 'src/sofia/ops/digital_twin.py'

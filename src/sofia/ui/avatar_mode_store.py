@@ -8,7 +8,7 @@ from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from .avatar_mode import AvatarVisualMode
 
 

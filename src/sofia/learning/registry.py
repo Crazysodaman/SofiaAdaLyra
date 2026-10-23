@@ -13,7 +13,7 @@ import re
 import sqlite3
 from typing import Callable
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .contracts import DataUse, DataUseGrant
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sofia.runtime.clock import runtime_clock_snapshot
+from sofia.platform.runtime.clock import runtime_clock_snapshot
 
 from .astronomy import daylight_for, season_for
 from .config import EnvironmentConfiguration

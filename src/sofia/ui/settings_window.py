@@ -8,16 +8,16 @@ import ipaddress
 import json
 from uuid import uuid4
 
-from sofia.config import create_production_configuration
-from sofia.state.canonical_sqlite import require_existing_sqlite
-from sofia.config.model_catalog import (
+from sofia.platform.config import create_production_configuration
+from sofia.platform.state.canonical_sqlite import require_existing_sqlite
+from sofia.platform.config.model_catalog import (
     RECOMMENDED_PRIMARY_CONTEXT_SIZE,
     RECOMMENDED_PRIMARY_MODEL,
     RECOMMENDED_SECONDARY_CONTEXT_SIZE,
     RECOMMENDED_SECONDARY_MODEL,
     known_local_model_names,
 )
-from sofia.config.user_settings import (
+from sofia.platform.config.user_settings import (
     OutreachSettings,
     RuntimeUserSettingsStore,
 )
@@ -663,7 +663,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         if installing_model["active"]:
             return
         try:
-            from sofia.config.cognitive_models import CognitiveModelSelection
+            from sofia.platform.config.cognitive_models import CognitiveModelSelection
             from sofia.cognition.model_lifecycle import CognitiveModelRole
             from sofia.safe.operator_stop import OperatorStopStore
 

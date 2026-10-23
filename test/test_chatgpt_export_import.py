@@ -11,7 +11,7 @@ from sofia.memory.import_chatgpt import main as import_chatgpt_main
 from sofia.memory.provenance import CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 9, 28, 18, 0, tzinfo=timezone.utc)

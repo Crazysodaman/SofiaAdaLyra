@@ -8,12 +8,12 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.defaults import create_default_configuration
+from sofia.platform.config.defaults import create_default_configuration
 from sofia.interaction.ledger import InteractionLedger
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.mark.parametrize('text,region,gesture,kind', (

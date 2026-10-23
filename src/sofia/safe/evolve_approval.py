@@ -19,7 +19,7 @@ from sofia.evolve.approval import (
     ApprovalVerifier,
 )
 from sofia.safe.audit import AuditChain
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from sofia.evolve.revision import (
     RevisionApproval,

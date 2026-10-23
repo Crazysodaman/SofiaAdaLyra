@@ -1,14 +1,14 @@
 from pathlib import Path
 
 import pytest
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.fixture(autouse=True)
 def _disposable_environment_settings(tmp_path):
     bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.environment.model import LocationSubject
 from sofia.environment.settings_cli import configure, main
 

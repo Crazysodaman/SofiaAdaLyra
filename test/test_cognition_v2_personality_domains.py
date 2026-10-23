@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.cognition.v2 import (
     AnswerPlan,
     ClaimPlan,
@@ -16,8 +16,8 @@ from sofia.cognition.v2 import (
     ValidatedAnswerDraft,
     merge_validated_drafts,
 )
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.personality.modulation import ExpressionModulation
 
 

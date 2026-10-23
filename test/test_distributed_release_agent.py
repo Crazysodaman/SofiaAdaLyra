@@ -10,9 +10,9 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from sofia.dev.release import ReleaseManifest
 from sofia.dev.release_signing import sign_manifest
 from sofia.distributed.release_agent import AgentReleaseService
-from sofia.run.release import directory_sha256
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.run.release import directory_sha256
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 4, 23, 0, tzinfo=timezone.utc)

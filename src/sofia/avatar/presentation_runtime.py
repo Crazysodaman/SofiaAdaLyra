@@ -270,7 +270,7 @@ def load_or_bootstrap_presentation(
             initial_appearance=_appearance_from_embodiment(embodiment),
         )
         store.save(authority)
-    from sofia.config.user_settings import RuntimeUserSettingsStore
+    from sofia.platform.config.user_settings import RuntimeUserSettingsStore
     from uuid import uuid4
     selected = RuntimeUserSettingsStore(state_path).load().avatar_daily_outfit
     if selected is not None and authority.last_daily.outfit_id != selected:

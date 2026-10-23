@@ -14,7 +14,7 @@ import socket
 import sys
 import time
 
-from sofia.config import production_state_path
+from sofia.platform.config import production_state_path
 from sofia.vision.desktop_control import DesktopAction, DesktopInputService
 
 

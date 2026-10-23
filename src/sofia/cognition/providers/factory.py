@@ -1,7 +1,7 @@
 ﻿from sofia.cognition.provider import LLMProvider
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.cognition.providers.test_provider import TestLLMProvider
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 def create_llm_provider(

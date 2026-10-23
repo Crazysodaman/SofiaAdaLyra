@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sofia.social.model import PrincipalContext
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class MobileMainSeenStore:

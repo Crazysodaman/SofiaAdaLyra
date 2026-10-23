@@ -7,7 +7,7 @@ from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.model import Capability
 from sofia.capability.system import CapabilitySystem
 from sofia.cognition.model import CognitiveToolDefinition
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.cognition.tools import CognitiveToolBinding, CognitiveToolDispatcher
 from sofia.cognition.v2 import (
     ActionRequirement,

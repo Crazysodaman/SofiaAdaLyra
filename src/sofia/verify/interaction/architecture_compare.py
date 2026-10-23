@@ -83,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Local imports keep stubbed contract tests independent of Ollama and any DB.
     from sofia.cognition.providers.ollama_provider import OllamaProvider
-    from sofia.config.defaults import create_production_configuration
+    from sofia.platform.config.defaults import create_production_configuration
     from sofia.constitution.store import ConstitutionIntegrityVerifier
     from sofia.constitution.store import ConstitutionStore
     from sofia.embodiment.store import EmbodimentStore

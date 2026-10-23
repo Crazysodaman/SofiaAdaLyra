@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 
-from sofia.config.model import SofiaConfiguration
+from sofia.platform.config.model import SofiaConfiguration
 from sofia.ui.process_lock import TrayProcessAlreadyRunning, TrayProcessLock
 
 

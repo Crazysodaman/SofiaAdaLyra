@@ -10,7 +10,7 @@ import pytest
 from test.owner_auth_fixture import resume_with_signed_owner_proof
 
 from sofia.safe.operator_stop import OperatorStopStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def _canonical_db(tmp_path):

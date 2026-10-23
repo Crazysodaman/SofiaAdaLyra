@@ -12,7 +12,7 @@ from uuid import UUID
 
 from sofia.cognition.provider import LLMProvider
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.distributed.inference import (
     RemoteInferenceRequest,
     RemoteInferenceResponse,

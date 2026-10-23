@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from sofia.safe.approval_inbox import ApprovalInbox
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.owner_webauthn import OwnerWebAuthnVerifier
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = pytest.mark.pkg_safe
 

@@ -2,8 +2,8 @@ from dataclasses import asdict, replace
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 import pytest
 

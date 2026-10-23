@@ -8,7 +8,7 @@ import socket
 import sys
 import tempfile
 
-from sofia.config.defaults import production_state_path
+from sofia.platform.config.defaults import production_state_path
 from sofia.ops.recovery import DEFAULT_RECOVERY_OBJECTIVES
 from sofia.ops.recovery_export import export_portable_conversations
 from sofia.ops.backup import (

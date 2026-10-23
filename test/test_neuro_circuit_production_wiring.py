@@ -6,7 +6,7 @@ import pytest
 from sofia.neuro import NeuralSignal, NeuroRuntime
 from sofia.neuro.connectome.competition import CircuitCompetition, CompetitionResult
 from sofia.neuro.store import NeuroObservabilityStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 pytestmark = pytest.mark.pkg_core

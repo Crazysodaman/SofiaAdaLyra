@@ -1,10 +1,10 @@
 ﻿from pathlib import Path
 
-from sofia.application import SofiaApplication
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.application import SofiaApplication
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.authorization.evaluator import FilesystemAuthorizationEvaluator
 from sofia.social.principals import local_sparks_principal
-from sofia.config.model import (
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )

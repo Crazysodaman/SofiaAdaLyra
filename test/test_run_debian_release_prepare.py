@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from sofia.run import debian_release_prepare as prepare
+from sofia.platform.run import debian_release_prepare as prepare
 
 
 SHA = "a" * 40

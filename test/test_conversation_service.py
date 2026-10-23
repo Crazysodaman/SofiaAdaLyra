@@ -6,12 +6,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.application import (
+from sofia.platform.application import (
     ConversationService,
     SofiaApplication,
 )
 from sofia.authority.model import Authority
-from sofia.config.model import (
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -81,7 +81,7 @@ def create_configuration(
     personality_path: Path,
     state_path: Path,
 ) -> SofiaConfiguration:
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(state_path)
     return SofiaConfiguration(
         constitution_path=str(CONSTITUTION_PATH),
@@ -670,7 +670,7 @@ def test_normal_reply_finalizes_before_assistant_message_is_persisted(
 def test_standalone_question_does_not_replay_prior_clothing_chat(
     tmp_path, latest
 ):
-    from sofia.application.conversation_service import (
+    from sofia.platform.application.conversation_service import (
         _conversation_cognitive_window,
     )
     from sofia.conversation.model import ConversationMessage
@@ -697,7 +697,7 @@ def test_standalone_question_does_not_replay_prior_clothing_chat(
 
 
 def test_followup_keeps_recent_history_but_has_bounded_window():
-    from sofia.application.conversation_service import (
+    from sofia.platform.application.conversation_service import (
         _conversation_cognitive_window,
     )
     from sofia.conversation.model import ConversationMessage
@@ -815,7 +815,7 @@ def test_channel_propagates_through_full_conversation_stack_to_matrix_trace(
 def test_matrix_context_window_applies_typed_history_limits():
     from datetime import datetime, timezone
 
-    from sofia.application.conversation_service import _matrix_context_window
+    from sofia.platform.application.conversation_service import _matrix_context_window
     from sofia.cognition.matrix import (
         ContextPlan,
         HistoryPolicy,
@@ -1195,7 +1195,7 @@ def test_matrix_context_window_filters_excluded_domains_across_history_policies(
 ):
     from datetime import datetime, timezone
 
-    from sofia.application.conversation_service import _matrix_context_window
+    from sofia.platform.application.conversation_service import _matrix_context_window
     from sofia.cognition.matrix import ContextPlan, MatrixDomain
     from sofia.conversation.model import ConversationMessage
 
@@ -1270,7 +1270,7 @@ def test_matrix_context_window_filters_excluded_domains_across_history_policies(
 def test_last_turn_followup_inherits_prior_semantic_domains_as_context_only():
     from datetime import datetime, timezone
 
-    from sofia.application.conversation_matrix import _inherit_last_turn_domains
+    from sofia.platform.application.conversation_matrix import _inherit_last_turn_domains
     from test.matrix_v2_support import (
         V2MatrixCoordinator as MatrixCoordinator,
         v2_registry as default_matrix_registry,
@@ -1416,7 +1416,7 @@ def test_blank_input_does_not_bind_session_principal(
 
 def test_outfit_why_scope_uses_only_the_eligible_immediate_exchange():
     """CA-5704: an elliptical why follows the visible outfit answer, not an old topic."""
-    from sofia.application.conversation_service import _is_outfit_choice_followup
+    from sofia.platform.application.conversation_service import _is_outfit_choice_followup
 
     def msg(role, content):
         return SimpleNamespace(role=role, content=content)

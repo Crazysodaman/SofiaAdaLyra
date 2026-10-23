@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from sofia.config.model import ModelLifecycleConfiguration
+from sofia.platform.config.model import ModelLifecycleConfiguration
 from sofia.ui.control_center import GameMode
 from sofia.ui.tray_agent import TrayAgentApplication
 

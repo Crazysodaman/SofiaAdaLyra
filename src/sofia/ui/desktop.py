@@ -15,12 +15,12 @@ from dataclasses import replace
 from pathlib import Path
 import subprocess
 import sys
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.ui.control_center import DesktopControlSettingsStore
 import traceback
 from typing import Any
 
-from sofia.config import SofiaConfiguration, create_production_configuration
+from sofia.platform.config import SofiaConfiguration, create_production_configuration
 from sofia.ui.desktop_worker import DesktopApplicationWorker
 from sofia.ui.quick_tools import (
     quick_tool_by_label,

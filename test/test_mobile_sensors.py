@@ -10,7 +10,7 @@ from sofia.environment.service import EnvironmentService
 from sofia.mobile.model import MobileSensorReport
 from sofia.mobile.sensors import MobileSensorProvider, MobileSensorStore
 from sofia.mobile.pairing import MobileDeviceCredentialStore
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
 
 NOW = datetime(2026, 10, 5, 20, 0, tzinfo=timezone.utc)

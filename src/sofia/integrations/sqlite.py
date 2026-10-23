@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from sofia.state.sqlite_uri import sqlite_file_uri
+from sofia.platform.state.sqlite_uri import sqlite_file_uri
 
 class SQLiteReadAdapter:
     def __init__(self,path:Path)->None:

@@ -22,8 +22,8 @@ from sofia.ops.workload_backend import (
     WorkloadOperationBinding,
 )
 from sofia.ops.workload_store import WorkloadInstanceStore
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def binding(name, *, expect=False, ref=False):

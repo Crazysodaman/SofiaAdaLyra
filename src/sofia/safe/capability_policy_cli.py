@@ -4,12 +4,12 @@ import argparse
 from pathlib import Path
 import sys
 
-from sofia.config import production_state_path
+from sofia.platform.config import production_state_path
 from sofia.safe.capability_policy import (
     protected_capability_extras,
     set_protected_capability_extras,
 )
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 def main(argv:list[str]|None=None)->int:

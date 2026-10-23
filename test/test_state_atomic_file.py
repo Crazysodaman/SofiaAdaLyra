@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-import sofia.state.atomic_file as atomic_file
-from sofia.state.atomic_file import atomic_write_text
+import sofia.platform.state.atomic_file as atomic_file
+from sofia.platform.state.atomic_file import atomic_write_text
 
 
 def test_atomic_write_creates_and_replaces_text(tmp_path: Path) -> None:

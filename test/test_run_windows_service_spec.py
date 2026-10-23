@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.run.windows_service_spec import (
+from sofia.platform.run.windows_service_spec import (
     RUNTIME_SERVICE,
     WATCHDOG_SERVICE,
     WindowsServiceSpec,

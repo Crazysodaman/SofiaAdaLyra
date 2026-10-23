@@ -6,7 +6,7 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 class FakeOllamaResponse:

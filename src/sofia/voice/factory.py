@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from sofia.config.user_settings import RuntimeUserSettings
+from sofia.platform.config.user_settings import RuntimeUserSettings
 
 from .sapi import WindowsSapiBackend
 from .tts import TextToSpeechService

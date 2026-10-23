@@ -3,20 +3,20 @@ from threading import Event, Thread
 
 import pytest
 
-import sofia.application.bootstrap as bootstrap
-from sofia.application import SofiaApplication, SofiaApplicationError
-from sofia.application.act_service import SofiaActService
+import sofia.platform.application.bootstrap as bootstrap
+from sofia.platform.application import SofiaApplication, SofiaApplicationError
+from sofia.platform.application.act_service import SofiaActService
 from sofia.cognition.engine import CognitiveEngineError
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.config.user_settings import RuntimeUserSettings
-from sofia.runtime.model import RuntimeState
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.user_settings import RuntimeUserSettings
+from sofia.platform.runtime.model import RuntimeState
 from sofia.social.principals import (
     discord_sparks_principal,
     local_sparks_principal,
 )
 from sofia.social.store import SocialSessionStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.fixture(autouse=True)

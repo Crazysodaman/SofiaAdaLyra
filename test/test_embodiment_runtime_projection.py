@@ -8,9 +8,9 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.cognition.provider import LLMProvider
-from sofia.composition.root import compose
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.config.model import (
+from sofia.platform.composition.root import compose
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )

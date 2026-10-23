@@ -18,7 +18,7 @@ import secrets
 import sqlite3
 import sys
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 _DEVICE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z")
 _TOKEN = re.compile(r"sm1_[A-Za-z0-9_-]{48,128}\Z")

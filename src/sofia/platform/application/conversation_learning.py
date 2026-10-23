@@ -1,0 +1,188 @@
+"""Conservative automatic conversation-to-memory candidate generation.
+
+The coordinator runs only after a user message has been durably persisted.
+It may create PROPOSED provenance-backed memory candidates, never promote them.
+Candidate content is the exact saved user text so no model-generated paraphrase
+can silently become memory truth.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+import re
+from uuid import UUID, NAMESPACE_URL, uuid5
+
+from sofia.platform.application.memory_review import MemoryReviewService
+from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.memory.provenance import CandidateStatus
+from sofia.social.model import PrincipalContext
+
+
+_EXPLICIT_MEMORY = re.compile(
+    r"^\s*(?:please\s+)?remember\s+(?:that\s+)?\S+",
+    re.IGNORECASE,
+)
+_STABLE_FIRST_PERSON = re.compile(
+    r"^\s*(?:"
+    r"i\s+(?:really\s+)?(?:like|love|prefer|hate|dislike|use|work\s+(?:as|at)|"
+    r"live\s+in|want|don't\s+want|do\s+not\s+want)\b|"
+    r"i(?:'m|\s+am)\s+(?:a|an)\b|"
+    r"my\s+[a-z0-9 _'’-]{1,80}\s+is\b|"
+    r"call\s+me\b"
+    r")",
+    re.IGNORECASE,
+)
+_EXPLICIT_CORRECTION = re.compile(
+    r"^\s*(?:"
+    r"(?:actually|correction|to\s+correct\s+that)[,:]?\s*"
+    r"i\s+(?:(?:now|no\s+longer|don't|do\s+not)\s+)?"
+    r"(?:like|love|prefer|hate|dislike|use|want)\b|"
+    r"i\s+(?:no\s+longer|don't|do\s+not)\s+"
+    r"(?:like|love|prefer|hate|dislike|use|want)\b|"
+    r"i\s+changed\s+my\s+mind[,:]?\s*i\s+"
+    r"(?:now\s+)?(?:like|love|prefer|hate|dislike|use|want)\b"
+    r")",
+    re.IGNORECASE,
+)
+
+_CORRECTION_ONLY = re.compile(
+    r"^\s*(?:forget\b|stop\s+tracking\b|that's\s+not\s+a\s+habit\b|"
+    r"that\s+is\s+not\s+a\s+habit\b)",
+    re.IGNORECASE,
+)
+
+# Conservative admission-only guard. A user message remains in the original
+# conversation under its existing audience/retention policy, but high-risk
+# secrets must not be duplicated into a separate proactive memory candidate
+# merely because they match a first-person or "remember that" pattern.
+_SENSITIVE_AUTO_MEMORY = re.compile(
+    r"\b(?:passwords?|passphrases?|api[ _-]?keys?|private[ _-]?keys?|"
+    r"secret[ _-]?keys?|client[ _-]?secrets?|access[ _-]?tokens?|"
+    r"refresh[ _-]?tokens?|recovery[ _-]?(?:codes?|phrases?|keys?)|"
+    r"seed[ _-]?phrases?|one[ _-]?time[ _-]?(?:passwords?|codes?)|"
+    r"two[ _-]?factor[ _-]?(?:codes?|secrets?)|"
+    r"authenticator[ _-]?(?:secrets?|codes?)|"
+    r"pin(?:[ _-]?codes?)?|otp|totp|cvv|cvc|"
+    r"security[ _-]?(?:questions?|answers?)|"
+    r"social[ _-]?security[ _-]?numbers?|ssn|"
+    r"bank[ _-]?account[ _-]?(?:numbers?|details?)|"
+    r"routing[ _-]?numbers?|credit[ _-]?card[ _-]?(?:numbers?|details?)|"
+    r"debit[ _-]?card[ _-]?(?:numbers?|details?)|"
+    r"passport[ _-]?numbers?)\b|"
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----|"
+    r"\b(?:Bearer\s+[A-Za-z0-9._~+/-]{12,})|"
+    r"\bAuthorization\s*:\s*(?:Basic|Bearer|Digest)\s+[^\s,;]+|"
+    r"\b(?:password|passwd|token|secret|api[ _-]?key|credential)\s*[:=]\s*[^\s,;]+|"
+    r"\b(?:https?|postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqps?|sftp)://"
+    r"[^/\s:@]+:[^/\s@]+@",
+    re.IGNORECASE,
+)
+
+# A fictional line is still original conversation evidence, but not evidence
+# of a real-world preference, event, location or enduring autobiography.
+# Do not turn explicit roleplay/hypothetical framing into automatic MEM
+# candidates that later require the user to hunt down and revoke.
+_FICTIONAL_AUTO_MEMORY = re.compile(
+    r"^\s*(?:in\s+(?:this|our|the)\s+(?:roleplay|fictional\s+story|"
+    r"story|simulation|game)\b|as\s+(?:my|a|the)\s+"
+    r"(?:character|npc|role)\b|pretend\s+(?:that\s+)?|"
+    r"hypothetically\b|for\s+(?:this|the)\s+fictional\s+scenario\b)|"
+    r"\b(?:in\s+(?:this|our)\s+(?:roleplay|fictional\s+story)|"
+    r"as\s+my\s+character|for\s+(?:this|the)\s+story)\b",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class LearningResult:
+    source_message_id: str
+    candidate_id: UUID | None
+    proposed: bool
+    reason: str
+
+
+class ConversationLearningCoordinator:
+    """Create reviewable candidates from explicit durable user evidence."""
+
+    def __init__(self, memory_review: MemoryReviewService) -> None:
+        if not isinstance(memory_review, MemoryReviewService):
+            raise TypeError("memory_review must be a MemoryReviewService")
+        self._memory_review = memory_review
+
+    @staticmethod
+    def _candidate_id(message: ConversationMessage) -> UUID:
+        return uuid5(
+            NAMESPACE_URL,
+            f"sofia-memory-candidate:{message.session_id}:{message.id}",
+        )
+
+    @staticmethod
+    def _is_learnable(content: str) -> tuple[bool, str]:
+        text = content.strip()
+        if not 4 <= len(text) <= 1000:
+            return False, "outside bounded learning length"
+        if "\x00" in text or chr(96) * 3 in text:
+            return False, "code/binary-like content is not auto-proposed"
+        if _SENSITIVE_AUTO_MEMORY.search(text):
+            return False, "private credential or identity data is not auto-proposed"
+        if _FICTIONAL_AUTO_MEMORY.search(text):
+            return False, "explicit fiction or roleplay is not autobiographical evidence"
+        if _CORRECTION_ONLY.search(text):
+            return False, "correction commands are handled by explicit controls"
+        if _EXPLICIT_MEMORY.search(text):
+            return True, "explicit remember request"
+        if _EXPLICIT_CORRECTION.search(text):
+            # Preserve the exact durable source. The existing review UI
+            # selects which earlier fact to supersede; this creates only a
+            # PROPOSED candidate, never silently revoking a previous fact.
+            return True, "explicit correction requiring memory review"
+        if _STABLE_FIRST_PERSON.search(text):
+            return True, "explicit first-person preference or stable fact"
+        return False, "no reviewed automatic-learning pattern matched"
+
+    def observe_user_message(
+        self,
+        *,
+        message: ConversationMessage,
+        principal: PrincipalContext | None,
+    ) -> LearningResult:
+        if not isinstance(message, ConversationMessage):
+            raise TypeError("message must be a ConversationMessage")
+        if message.role is not ConversationRole.USER:
+            raise ValueError("automatic learning accepts only saved user messages")
+        if principal is None:
+            return LearningResult(
+                message.id,
+                None,
+                False,
+                "unbound conversations cannot create personal memory candidates",
+            )
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("principal must be a PrincipalContext or None")
+
+        learnable, reason = self._is_learnable(message.content)
+        if not learnable:
+            return LearningResult(message.id, None, False, reason)
+
+        candidate_id = self._candidate_id(message)
+        existing = self._memory_review.status(candidate_id)
+        if existing is not None:
+            return LearningResult(
+                message.id,
+                candidate_id,
+                existing is CandidateStatus.PROPOSED,
+                f"candidate already exists with status {existing.value}",
+            )
+
+        candidate = self._memory_review.propose(
+            session_id=message.session_id,
+            message_ids=(message.id,),
+            content=message.content.strip(),
+            created_at=message.created_at,
+            candidate_id=candidate_id,
+        )
+        return LearningResult(
+            message.id,
+            candidate.candidate_id,
+            True,
+            reason,
+        )

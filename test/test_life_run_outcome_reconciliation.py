@@ -5,7 +5,7 @@ Authored for the owner's deferred test campaign; not executed here.
 from datetime import timedelta
 
 from sofia.life.model import ProjectStatus
-from sofia.run.work import WorkStatus
+from sofia.platform.run.work import WorkStatus
 from sofia.social.principals import local_sparks_principal
 from test.test_life_project_forge import infrastructure, active_project
 

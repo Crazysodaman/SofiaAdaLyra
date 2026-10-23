@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sofia.run import windows_acceptance
+from sofia.platform.run import windows_acceptance
 
 
 class Status:

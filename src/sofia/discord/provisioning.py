@@ -10,8 +10,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 import os
 
-from sofia.config.model import SofiaConfiguration
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.model import SofiaConfiguration
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.discord.access import SingleUserDiscordConfig, _snowflake
 from sofia.safe.secret_store import ProtectedSecretStore
 

@@ -16,7 +16,7 @@ from sofia.life import (
     TechnicalOutcome,
 )
 from sofia.life.procedures import LifeProcedureCatalog
-from sofia.run.work import WorkStatus
+from sofia.platform.run.work import WorkStatus
 from test.test_life_project_forge import (
     active_project, infrastructure, wait_for_job,
 )

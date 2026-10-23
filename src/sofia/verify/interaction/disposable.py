@@ -1,5 +1,5 @@
 """Application-owned cleanup for disposable interaction probes."""
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 
 
 def close_disposable_application(app: SofiaApplication, *, started: bool) -> None:

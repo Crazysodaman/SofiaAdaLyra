@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from sofia.application.decision_persistence import inspect_turn_persistence
-from sofia.application.decision_trace import project_companion_decision
-from sofia.application.event_contracts import (
+from sofia.platform.application.decision_persistence import inspect_turn_persistence
+from sofia.platform.application.decision_trace import project_companion_decision
+from sofia.platform.application.event_contracts import (
     CanonicalEventOwner,
     ContractErrorState,
     EVENT_FIELD_OWNERS,
@@ -31,7 +31,7 @@ from sofia.cognition.matrix.model import (
     ToolExposurePlan,
 )
 from sofia.neuro.model import NeuralActivation, NeuroStateSnapshot
-from sofia.run.work import WorkJob, WorkStatus
+from sofia.platform.run.work import WorkJob, WorkStatus
 from test.test_v18_decision_persistence import NOW, _fixture
 
 

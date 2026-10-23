@@ -1,8 +1,8 @@
 ﻿from pathlib import Path
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.ui.terminal import ConversationLoop
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.cognition.matrix import MatrixTraceStore
 
 
@@ -45,7 +45,7 @@ def create_application(
     personality_path: Path,
     state_path: Path,
 ) -> SofiaApplication:
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(state_path)
     configuration = SofiaConfiguration(
         constitution_path=str(CONSTITUTION_PATH),

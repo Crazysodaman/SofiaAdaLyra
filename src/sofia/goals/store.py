@@ -6,8 +6,8 @@ from hashlib import sha256
 import json
 from uuid import uuid4
 
-from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane, StatePlaneConflictError
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.plane import StatePlane, StatePlaneConflictError
 
 from .model import (
     CompletionKind,

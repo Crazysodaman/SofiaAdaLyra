@@ -13,7 +13,7 @@ from sofia.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
 from sofia.safe.operator_stop import OperatorStopStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from test.owner_auth_fixture import record_verified_owner_approval
 
 

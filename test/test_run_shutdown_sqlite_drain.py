@@ -7,10 +7,10 @@ from threading import Event, Thread
 
 import pytest
 
-from sofia.run.work import (
+from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkResult, WorkStatus,
 )
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 11, 9, tzinfo=timezone.utc)
@@ -86,7 +86,7 @@ def test_uncooperative_worker_reports_unfinished_shutdown_instead_of_success(tmp
 
 def test_all_application_owned_executor_closes_require_bounded_drain():
     import inspect
-    from sofia.application.autonomous_work import AutonomousWorkCoordinator
+    from sofia.platform.application.autonomous_work import AutonomousWorkCoordinator
     from sofia.life.coordinator import SelfDirectedLifeCoordinator
     for owner in (AutonomousWorkCoordinator,SelfDirectedLifeCoordinator):
         source = inspect.getsource(owner.close)

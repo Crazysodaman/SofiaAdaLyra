@@ -6,8 +6,8 @@ from dataclasses import replace
 from pathlib import Path
 import sys
 
-from sofia.config.defaults import production_state_path
-from sofia.config.user_settings import (
+from sofia.platform.config.defaults import production_state_path
+from sofia.platform.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )

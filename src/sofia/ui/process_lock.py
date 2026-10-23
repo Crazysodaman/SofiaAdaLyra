@@ -1,5 +1,5 @@
 """Single tray ownership using RUN's shared OS-backed process lock."""
-from sofia.run.process_lock import StateProcessLock
+from sofia.platform.run.process_lock import StateProcessLock
 
 
 class TrayProcessAlreadyRunning(RuntimeError):

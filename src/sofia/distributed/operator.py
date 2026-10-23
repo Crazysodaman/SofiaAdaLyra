@@ -5,7 +5,7 @@ from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from uuid import UUID,uuid4
 
-from sofia.config import create_production_configuration
+from sofia.platform.config import create_production_configuration
 from sofia.distributed.authorization import RemoteGrant
 from sofia.distributed.durable import DurableRemoteAuthorization
 from sofia.distributed.model import ApprovedEndpoint

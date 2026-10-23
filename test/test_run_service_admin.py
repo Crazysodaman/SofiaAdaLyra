@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from sofia.run import service_admin
-from sofia.run.runtime_service import SofiaRuntimeWindowsService
-from sofia.run.watchdog_service import SofiaWatchdogWindowsService
-from sofia.run.windows_service_spec import RUNTIME_SERVICE, WATCHDOG_SERVICE
+from sofia.platform.run import service_admin
+from sofia.platform.run.runtime_service import SofiaRuntimeWindowsService
+from sofia.platform.run.watchdog_service import SofiaWatchdogWindowsService
+from sofia.platform.run.windows_service_spec import RUNTIME_SERVICE, WATCHDOG_SERVICE
 
 
 class ExistingServiceError(RuntimeError):

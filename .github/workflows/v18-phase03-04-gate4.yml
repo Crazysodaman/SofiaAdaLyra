@@ -8,7 +8,7 @@ on:
       - 'tools/verify_sofia_portable_jsonl.py'
       - 'src/sofia/ops/recovery_export.py'
       - 'src/sofia/ops/state_*.py'
-      - 'src/sofia/config/state_home_pointer.py'
+      - 'src/sofia/platform.config/state_home_pointer.py'
       - 'test/test_state_relocation*.py'
       - 'test/test_state_home_pointer*.py'
       - 'test/test_backup*.py'

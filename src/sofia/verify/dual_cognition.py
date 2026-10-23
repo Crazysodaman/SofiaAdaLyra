@@ -22,9 +22,9 @@ from sofia.cognition.routing import (
     RoutingCognitiveEngine,
     RoutingExecution,
 )
-from sofia.composition.root import compose
-from sofia.config import create_production_configuration
-from sofia.config.cognitive_models import CognitiveModelSelection
+from sofia.platform.composition.root import compose
+from sofia.platform.config import create_production_configuration
+from sofia.platform.config.cognitive_models import CognitiveModelSelection
 
 
 @dataclass(frozen=True, slots=True)

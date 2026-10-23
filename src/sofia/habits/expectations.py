@@ -6,9 +6,9 @@ from enum import Enum
 from uuid import NAMESPACE_URL, uuid5
 
 from sofia.habits.patterns import HabitPattern
-from sofia.state.json_repository import JsonStateRepository
-from sofia.state.namespaces import HABIT_EXPECTATION
-from sofia.state.plane import StatePlane
+from sofia.platform.state.json_repository import JsonStateRepository
+from sofia.platform.state.namespaces import HABIT_EXPECTATION
+from sofia.platform.state.plane import StatePlane
 
 
 class ExpectationStatus(str, Enum):

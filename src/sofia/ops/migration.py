@@ -14,8 +14,8 @@ from sofia.ops.workload_backend import (
     WorkloadOutcomeUncertain,
 )
 from sofia.ops.workload_store import WorkloadInstanceStore
-from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.plane import StatePlane
 
 
 @dataclass(frozen=True, slots=True)

@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import re
 
-from sofia.config.authority import ConfigurationPrecedence, ConfigurationValue
-from sofia.config.state_store import StatePlaneConfigurationStore
-from sofia.state.plane import StatePlane
+from sofia.platform.config.authority import ConfigurationPrecedence, ConfigurationValue
+from sofia.platform.config.state_store import StatePlaneConfigurationStore
+from sofia.platform.state.plane import StatePlane
 
 _CAPABILITY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$")
 _POLICY_KEY = "capabilities.enabled_extra"

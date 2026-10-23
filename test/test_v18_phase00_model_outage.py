@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.application.background_runtime import (
+from sofia.platform.application.background_runtime import (
     _consider_life_idea_without_wedging_worker,
 )
 from sofia.cognition.engine import CognitiveEngineError
@@ -67,7 +67,7 @@ def test_background_idea_guard_does_not_hide_authority_or_state_errors(unexpecte
 
 def test_production_life_background_calls_guard_before_durable_tick():
     from inspect import getsource
-    from sofia.application.background_runtime import create_background_coordinator
+    from sofia.platform.application.background_runtime import create_background_coordinator
     source = getsource(create_background_coordinator)
     assert "project = _consider_life_idea_without_wedging_worker(" in source
     assert "result = life.tick(" in source

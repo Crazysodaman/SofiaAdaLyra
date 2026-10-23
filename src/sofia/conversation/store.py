@@ -9,7 +9,7 @@ from sofia.conversation.model import (
     ConversationRole,
     ConversationSession,
 )
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.social.model import PrincipalContext
 
 

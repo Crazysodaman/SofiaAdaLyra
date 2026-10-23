@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.application.conversation_service import (
+from sofia.platform.application.conversation_service import (
     _MAX_SPECIFIC_RETRIEVAL_CHARACTERS, _retrieve_specific_conversation,
 )
 from sofia.conversation.model import ConversationMessage, ConversationRole

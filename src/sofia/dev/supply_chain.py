@@ -17,7 +17,7 @@ import re
 import zipfile
 
 from sofia.dev.release import ReleaseManifest
-from sofia.run.release import directory_sha256
+from sofia.platform.run.release import directory_sha256
 
 
 _PIN = re.compile(

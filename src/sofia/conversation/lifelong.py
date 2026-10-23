@@ -19,7 +19,7 @@ from uuid import uuid4
 from sofia.cognition.model import CognitiveResponse, CognitiveToolCall
 from sofia.social.model import PrincipalContext
 from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _NAME = re.compile(r"^[\w][\w .:/()-]{0,119}$", re.UNICODE)

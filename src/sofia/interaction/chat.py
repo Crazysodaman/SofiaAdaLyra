@@ -13,7 +13,7 @@ import re
 from time import monotonic
 from uuid import uuid4
 
-from sofia.application.emotional_conversation import EmotionalConversationService
+from sofia.platform.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.interaction.body_discussion import body_discussion_prompt

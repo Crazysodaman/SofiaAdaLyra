@@ -21,7 +21,7 @@ import tempfile
 from time import perf_counter_ns, process_time_ns
 from uuid import uuid4
 
-from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.memory.originals import SourceMessage
 from sofia.memory.provenance import MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore

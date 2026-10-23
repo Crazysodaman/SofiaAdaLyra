@@ -6,7 +6,7 @@ import sqlite3
 
 import pytest
 
-from sofia.application.decision_persistence import inspect_turn_persistence
+from sofia.platform.application.decision_persistence import inspect_turn_persistence
 from test.test_v18_decision_persistence import _fixture, NOW
 
 pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_verify]
@@ -161,7 +161,7 @@ def test_assistant_reply_at_settlement_boundary_remains_valid(tmp_path):
 
 
 def test_canonical_settlement_is_not_independent_quality_or_effect_proof(tmp_path):
-    from sofia.application.decision_trace import project_companion_decision
+    from sofia.platform.application.decision_trace import project_companion_decision
 
     state, matrix = _settled(tmp_path)
     settled = inspect_turn_persistence(state, matrix_trace=matrix)
@@ -182,8 +182,8 @@ def test_canonical_settlement_is_not_independent_quality_or_effect_proof(tmp_pat
 
 
 def test_durable_response_cannot_launder_model_claim_into_goal_effect(tmp_path):
-    from sofia.application.decision_trace import project_companion_decision
-    from sofia.application.event_contracts import (
+    from sofia.platform.application.decision_trace import project_companion_decision
+    from sofia.platform.application.event_contracts import (
         CanonicalEventOwner, EventOwnershipProjection,
     )
 

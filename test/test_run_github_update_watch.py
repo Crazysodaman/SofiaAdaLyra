@@ -10,8 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.run import github_update_watch as watch
-from sofia.run import systemd_update_watch as unit
+from sofia.platform.run import github_update_watch as watch
+from sofia.platform.run import systemd_update_watch as unit
 
 
 REV_A = "a" * 40
@@ -87,7 +87,7 @@ def test_signed_exact_main_bundle_is_eligible_but_not_activated(tmp_path, monkey
     (bundle / "release-signature.bin").write_bytes(b"signed")
     key = tmp_path / "trusted-public.pem"
     key.write_bytes(b"test public key")
-    import sofia.run.github_update_watch as mod
+    import sofia.platform.run.github_update_watch as mod
     monkeypatch.setattr(mod, "verify_release_evidence", lambda path:
         SimpleNamespace(git_revision=REV_B, release_id="release-1",
                         manifest_sha256="c" * 64))
@@ -147,7 +147,7 @@ def test_systemd_watcher_is_isolated_and_never_requests_restart():
     assert "StateDirectory=sofia-updater" in rendered
     assert "NoNewPrivileges=true" in rendered
     assert "ProtectSystem=strict" in rendered
-    assert "sofia.run.github_update_watch" in rendered
+    assert "sofia.platform.run.github_update_watch" in rendered
     assert "systemctl restart" not in rendered
     assert "sofia-runtime.service" not in [
         line for line in rendered.splitlines() if line.startswith("Exec")

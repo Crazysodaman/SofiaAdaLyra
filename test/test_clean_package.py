@@ -4,8 +4,8 @@ import sqlite3
 
 import pytest
 
-from sofia.clean.planner import CleanupCandidate, CleanupPlan, ReleaseCleanupPlanner
-from sofia.clean.recovery import RecoverySnapshotManager
+from sofia.platform.clean.planner import CleanupCandidate, CleanupPlan, ReleaseCleanupPlanner
+from sofia.platform.clean.recovery import RecoverySnapshotManager
 
 
 NOW = datetime(2026, 9, 28, 18, 0, tzinfo=timezone.utc)
@@ -111,7 +111,7 @@ def test_recovery_snapshot_is_verified_and_detects_tampering(tmp_path):
 
 def test_recovery_snapshot_and_verification_close_database_handles(tmp_path, monkeypatch):
     import sqlite3
-    import sofia.clean.recovery as recovery_module
+    import sofia.platform.clean.recovery as recovery_module
 
     source = tmp_path / "source.db"
     db = sqlite3.connect(source)

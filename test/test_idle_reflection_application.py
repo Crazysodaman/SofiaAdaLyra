@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.application import bootstrap, background_runtime
+from sofia.platform.application import bootstrap, background_runtime
 
 
 class FakeWorker:

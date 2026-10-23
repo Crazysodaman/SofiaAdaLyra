@@ -9,8 +9,8 @@ import sqlite3
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sofia.application import SofiaApplication
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.application import SofiaApplication
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.goals.evidence import GoalEvidenceLedger
 from sofia.learning.contracts import (
     DataUse, DataUseGrant, OutcomeClass, Prediction, PredictionDisposition,
@@ -50,7 +50,7 @@ def _application_configuration(tmp_path: Path) -> SofiaConfiguration:
         '"communication_style":"Direct and evidence-minded."}',
         encoding="utf-8",
     )
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
         constitution_path=project / "src/sofia/constitution/constitution.md",

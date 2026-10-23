@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 import sqlite3
 
-from sofia.state.sqlite_uri import sqlite_uri_from_posix
+from sofia.platform.state.sqlite_uri import sqlite_uri_from_posix
 
 
 def _sqlite_uri_for_path(raw: str) -> str:
@@ -87,7 +87,7 @@ def reflection_audit(state_path: Path) -> dict[str, object]:
 
 
 def main() -> int:
-    from sofia.config.defaults import create_production_configuration
+    from sofia.platform.config.defaults import create_production_configuration
     path = create_production_configuration().state_path
     try:
         result = reflection_audit(path)

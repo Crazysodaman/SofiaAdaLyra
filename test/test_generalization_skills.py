@@ -13,7 +13,7 @@ from sofia.generalization.skills import LearnedSkillStore
 from sofia.goals.evidence import GoalEvidenceLedger
 from sofia.learning.contracts import DataUse, DataUseGrant
 from sofia.life.procedures import ProcedureRecord
-from sofia.run.work import DurableWorkStore, WorkStatus
+from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.social.model import AudienceKind, PrincipalContext
 
 

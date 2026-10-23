@@ -5,7 +5,7 @@ import pytest
 
 from sofia.ops.capacity_probe import measure_storage, report_storage
 from sofia.ops.capacity import CapacityError
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = pytest.mark.pkg_ops
 

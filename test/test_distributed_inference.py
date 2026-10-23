@@ -10,7 +10,7 @@ from sofia.cognition.model import (
     CognitiveToolCall,
     CognitiveToolDefinition,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.distributed.inference import (
     MAX_CONTENT_BYTES,
     MAX_MESSAGES,

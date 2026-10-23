@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sofia.application.bootstrap import SofiaApplication
+    from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.social.principals import local_sparks_principal
 
 

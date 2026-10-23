@@ -162,7 +162,7 @@ def test_delayed_or_stale_voice_receipt_is_not_a_spoken_output():
     from datetime import datetime, timedelta, timezone
     from hashlib import sha256
 
-    from sofia.application.expression_runtime import (
+    from sofia.platform.application.expression_runtime import (
         ExpressionDecision, ExpressionIntent,
     )
     from sofia.voice.prosody_matrix import VoiceProsodyProfile

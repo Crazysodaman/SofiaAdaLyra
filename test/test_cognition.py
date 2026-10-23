@@ -18,7 +18,7 @@ from sofia.cognition.provider import (
 )
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 class RecordingLLMProvider(LLMProvider):

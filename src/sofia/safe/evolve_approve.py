@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 from uuid import uuid4
 
-from sofia.config import production_state_path
+from sofia.platform.config import production_state_path
 from sofia.evolve.amendment import ProtectedTarget
 from sofia.evolve.approval import AmendmentApproval, ApprovalAction
 from sofia.evolve.revision import RevisionApproval

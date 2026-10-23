@@ -2,17 +2,17 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane
-from sofia.state.replication import (
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.plane import StatePlane
+from sofia.platform.state.replication import (
     ReplicatedStatePlane,
     ReplicationPartialCommitError,
     SQLiteReplicationWitness,
     StaleWriterError,
     WriterLeaseHeldError,
 )
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 4, 18, 0, tzinfo=timezone.utc)

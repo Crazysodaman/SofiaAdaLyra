@@ -8,11 +8,11 @@ import sqlite3
 
 import pytest
 
-from sofia.application.background import BackgroundBudget
+from sofia.platform.application.background import BackgroundBudget
 from sofia.conversation.store import ConversationStore
-from sofia.run.work import DurableWorkStore
+from sofia.platform.run.work import DurableWorkStore
 from sofia.safe.audit import AuditChain
-from sofia.state.canonical_sqlite import (
+from sofia.platform.state.canonical_sqlite import (
     CanonicalSQLiteGuard,
     CanonicalStateUnavailable,
     bootstrap_canonical_sqlite,
@@ -84,7 +84,7 @@ def test_guard_refuses_replacement_during_sqlite_open_and_closes_new_handle(
     tmp_path, monkeypatch,
 ):
     """No swapped-in file may be adopted between stat and sqlite3.connect."""
-    from sofia.state import canonical_sqlite
+    from sofia.platform.state import canonical_sqlite
 
     path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     guard = CanonicalSQLiteGuard(path)

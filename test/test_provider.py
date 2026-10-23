@@ -8,7 +8,7 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.provider import LLMProviderError
 from sofia.cognition.providers.test_provider import TestLLMProvider
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.cognition.providers.factory import create_llm_provider
 
 

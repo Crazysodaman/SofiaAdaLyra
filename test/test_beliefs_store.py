@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.application.beliefs import BeliefsService
+from sofia.platform.application.beliefs import BeliefsService
 from sofia.beliefs.model import (
     BeliefChangeKind,
     BeliefHolder,
@@ -22,7 +22,7 @@ from sofia.beliefs.model import (
 from sofia.beliefs.store import ConvictionStore, BeliefConcurrencyError
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import local_sparks_principal
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 EVIDENCE = ("memory:session-2026-01-02", "conversation:turn-15")
 COUNTER_EVIDENCE = ("conversation:turn-99",)

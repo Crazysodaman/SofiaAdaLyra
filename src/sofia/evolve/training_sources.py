@@ -11,8 +11,8 @@ from hashlib import sha256
 from pathlib import Path
 import os
 import json,re
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
-from sofia.state.path_policy import inside_git_worktree
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.path_policy import inside_git_worktree
 
 TRAINING_METHODS={
     "modelfile_prompt":{"weights_modified":False,"dataset_required":False,

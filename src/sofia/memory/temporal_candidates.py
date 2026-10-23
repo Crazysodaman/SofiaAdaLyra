@@ -12,7 +12,7 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 @dataclass(frozen=True, slots=True)

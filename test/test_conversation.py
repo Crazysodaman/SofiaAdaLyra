@@ -6,7 +6,7 @@ from sofia.conversation.model import (
     ConversationSession,
 )
 from sofia.conversation.store import ConversationStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_conversation_store_persists_messages(

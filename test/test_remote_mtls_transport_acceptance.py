@@ -22,7 +22,7 @@ from sofia.distributed.operations import RemoteOperationRequest,RemoteOutcome
 from sofia.distributed.tls import public_key_fingerprint_from_pem_certificate
 from sofia.ops.model import FleetHost,HostLifecycle
 from sofia.ops.state_registry import StatePlaneFleetRegistry
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 def _write_key(path:Path,key):

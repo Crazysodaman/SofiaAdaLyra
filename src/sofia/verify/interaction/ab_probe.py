@@ -17,7 +17,7 @@ from sofia.cognition.conversation_assembler import ConversationalContextAssemble
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.defaults import create_production_configuration
+from sofia.platform.config.defaults import create_production_configuration
 from sofia.constitution.store import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import EmbodimentStore

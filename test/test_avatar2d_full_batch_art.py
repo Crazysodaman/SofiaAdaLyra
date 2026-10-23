@@ -14,7 +14,7 @@ from sofia.avatar.vtuber_full_batch_art import (
 )
 from sofia.avatar.vtuber_wardrobe_production import GARMENT_FILES
 from sofia.safe.permissions import PermissionStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.social.principals import local_sparks_principal
 from test.owner_auth_fixture import private_with_signed_owner
 

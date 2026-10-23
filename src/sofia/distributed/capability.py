@@ -16,7 +16,7 @@ from sofia.ops.model import HostLifecycle
 from sofia.ops.latency import FleetLatencyStore
 from sofia.ops.state_registry import StatePlaneFleetRegistry
 from sofia.safe.operator_stop import OperatorStopStore
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 from .authorization import remote_operation_is_read_only
 from .endpoint_policy_durable import DurableEndpointPolicy

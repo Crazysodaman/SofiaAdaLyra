@@ -8,10 +8,10 @@ import tomllib
 
 import pytest
 
-from sofia.config.layout import RuntimeStorageLayout
+from sofia.platform.config.layout import RuntimeStorageLayout
 from sofia.identity.model import IdentityBootstrapMode
-import sofia.config.layout as layout_module
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable, require_existing_sqlite
+import sofia.platform.config.layout as layout_module
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable, require_existing_sqlite
 
 
 def test_missing_checkout_layout_uses_imported_wheel_seeds(tmp_path, monkeypatch):
@@ -25,7 +25,10 @@ def test_missing_checkout_layout_uses_imported_wheel_seeds(tmp_path, monkeypatch
         tmp_path / "fake-venv" / "lib" / "python3.13",
         mode_override="development",
     )
-    expected = Path(layout_module.__file__).resolve().parents[1]
+    # The imported-package seed root is the sofia package directory
+    # (layout.py is nested two packages under sofia/ since the
+    # platform restructure).
+    expected = Path(layout_module.__file__).resolve().parents[2]
     assert layout.source_root == expected
     layout.provision_from_source()
     require_existing_sqlite(layout.state_path)

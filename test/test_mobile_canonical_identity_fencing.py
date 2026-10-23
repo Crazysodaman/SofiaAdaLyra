@@ -13,7 +13,7 @@ from sofia.mobile.sensors import MobileSensorStore
 from sofia.mobile.notifications import MobileNotificationStore
 from sofia.mobile.gateway import MobileCompanionGateway
 from test.test_mobile_gateway import FakeApplication
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
 
 def test_existing_pairing_owner_fails_closed_after_database_replacement(tmp_path):

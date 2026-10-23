@@ -5,9 +5,9 @@ import pytest
 
 from sofia.ops.model import FleetHost, HostLifecycle
 from sofia.ops.state_registry import StatePlaneFleetRegistry
-from sofia.state.model import StateKey
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.model import StateKey
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 @pytest.fixture(autouse=True)

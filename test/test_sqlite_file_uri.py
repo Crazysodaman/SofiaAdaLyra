@@ -11,7 +11,7 @@ import sqlite3
 
 import pytest
 
-from sofia.state.sqlite_uri import sqlite_file_uri, sqlite_uri_from_posix
+from sofia.platform.state.sqlite_uri import sqlite_file_uri, sqlite_uri_from_posix
 
 
 def test_sqlite_uri_exact_shape_for_posix_drive_and_unc_paths():
@@ -37,10 +37,10 @@ def test_sqlite_file_uri_accepts_paths_and_optional_modes():
         "file:////Artemis/Hestia/state.db?mode=rw"
     )
 
-    local = Path("C:/Users/sofia/state.db")
+    local = Path("C:/Users/sofia/platform.state.db")
 
     assert sqlite_file_uri(local, read_only=True) == (
-        "file:///C:/Users/sofia/state.db?mode=ro"
+        "file:///C:/Users/sofia/platform.state.db?mode=ro"
     )
 
     with pytest.raises(TypeError):
@@ -67,7 +67,7 @@ def test_local_sqlite_state_connects_with_the_shared_builder(tmp_path: Path):
 
 def _canonical_state_path() -> Path | None:
     try:
-        from sofia.config import production_state_path
+        from sofia.platform.config import production_state_path
 
         configured = production_state_path()
     except Exception:

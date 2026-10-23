@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 
-from sofia.application.idle_reflection import IdleReflectionWorker
+from sofia.platform.application.idle_reflection import IdleReflectionWorker
 from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.reflection import ReflectionJournal
 

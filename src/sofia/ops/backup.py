@@ -31,14 +31,14 @@ from uuid import uuid4
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from sofia.config.defaults import production_storage_layout
+from sofia.platform.config.defaults import production_storage_layout
 from sofia.identity.model import IdentityBootstrapMode
 from sofia.identity.store import IdentityStore
 from sofia.ops.recovery import BackupEvidence, RestoreVerification
-from sofia.state.component_schema import verify_production_component_schemas
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.sqlite_uri import sqlite_file_uri
+from sofia.platform.state.component_schema import verify_production_component_schemas
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_uri import sqlite_file_uri
 from sofia.constitution.store import (
     ConstitutionStore,
     canonical_constitution_text,

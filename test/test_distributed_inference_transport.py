@@ -10,7 +10,7 @@ from sofia.cognition.model import (
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.distributed.https_transport import (
     HttpsTransportError,
     PinnedHttpsRemoteTransport,

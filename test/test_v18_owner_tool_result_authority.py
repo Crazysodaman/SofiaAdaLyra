@@ -4,7 +4,7 @@ from inspect import getsource
 
 import pytest
 
-from sofia.application.conversation_service import (
+from sofia.platform.application.conversation_service import (
     ConversationService, _owner_direct_tool_result_context,
     _MAX_OWNER_TOOL_SOURCE_BYTES,
 )

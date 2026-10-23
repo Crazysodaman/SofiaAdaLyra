@@ -1,11 +1,11 @@
 """Windows-sensitive disposable-probe cleanup; no real Ollama or production DB."""
 from dataclasses import replace
 
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.defaults import create_default_configuration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.defaults import create_default_configuration
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch, tmp_path):

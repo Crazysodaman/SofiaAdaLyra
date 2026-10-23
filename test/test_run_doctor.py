@@ -9,8 +9,8 @@ import sqlite3
 import pytest
 
 from sofia.constitution.store import canonical_constitution_text
-from sofia.run import doctor
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.run import doctor
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SEED_CONSTITUTION = (

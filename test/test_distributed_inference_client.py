@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.distributed.inference_client import ConfiguredRemoteInferenceClient
 from sofia.safe.operator_stop import OperatorStopStore
 

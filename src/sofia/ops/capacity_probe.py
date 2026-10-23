@@ -16,7 +16,7 @@ import stat
 from sofia.ops.capacity import (
     CapacityAssessment, CapacityError, DEFAULT_BUDGETS, Reading, assess_capacity,
 )
-from sofia.state.canonical_sqlite import require_existing_sqlite
+from sofia.platform.state.canonical_sqlite import require_existing_sqlite
 
 _MAX_ENTRIES = 100_000
 _MAX_DEPTH = 16

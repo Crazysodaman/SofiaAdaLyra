@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.run.release import ReleaseManager, ReleaseManagerError, directory_sha256
+from sofia.platform.run.release import ReleaseManager, ReleaseManagerError, directory_sha256
 
 
 def test_incompatible_old_release_cannot_rollback_canonical_state(tmp_path):

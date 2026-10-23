@@ -6,7 +6,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class SocialSessionStore:

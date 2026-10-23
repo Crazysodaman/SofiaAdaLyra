@@ -2,7 +2,7 @@
 from datetime import datetime,timedelta,timezone
 import sqlite3
 import pytest
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.vision.journeys import (
     ScreenJourney,ScreenJourneyReceiptStore,
     propose_owner_screen_journey,journey_policy,

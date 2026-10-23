@@ -11,7 +11,7 @@ from sofia.filesystem.model import (
     FilesystemResult,
     FilesystemResultKind,
 )
-from sofia.runtime.runtime import SofiaRuntime
+from sofia.platform.runtime.runtime import SofiaRuntime
 
 
 class FilesystemOrchestrator:

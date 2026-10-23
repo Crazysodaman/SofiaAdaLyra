@@ -14,7 +14,7 @@ from sofia.cognition.repetition_guard import (
 from sofia.cognition.quality_repair import (
     build_rephrase_request,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 _OLD = (
     '*ears twitch, tail swishes* I appreciate the gesture, but this is '

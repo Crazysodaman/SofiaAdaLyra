@@ -9,7 +9,7 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.provider import LLMProviderError
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 
 
 class FakeOllamaFunction:

@@ -17,7 +17,7 @@ from pathlib import Path
 import re
 import sqlite3
 
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 _TRAIT = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{1,59}$")
 

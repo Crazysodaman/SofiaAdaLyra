@@ -3,11 +3,11 @@ import json
 
 import pytest
 
-from sofia.application import SofiaApplication
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.application import SofiaApplication
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.cognition.matrix import HistoryPolicy
-from sofia.config.model import (
+from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )

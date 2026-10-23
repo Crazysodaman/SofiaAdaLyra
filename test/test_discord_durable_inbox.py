@@ -9,8 +9,8 @@ from sofia.discord.access import Denial, DiscordInboundFacts, SingleUserDiscordC
 from sofia.discord.inbound import DiscordTextEvent, screen_text_dm
 from sofia.discord.ingress import DiscordIngress, IngressDisposition
 from sofia.discord.store import DiscordInboxStore, InboxAcceptResult
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
 OWNER = 123456789012345678
 BOT = 987654321098765432

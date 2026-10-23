@@ -2,7 +2,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.ui import tray_launcher
 
 

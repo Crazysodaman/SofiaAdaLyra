@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.config.defaults import production_storage_layout
+from sofia.platform.config.defaults import production_storage_layout
 from sofia.ops.backup import BackupCipher, BackupEngine, BackupError
 from test.test_ops_backup_restore import NOW, make_state
 

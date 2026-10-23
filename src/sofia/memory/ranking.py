@@ -22,7 +22,7 @@ from sofia.memory.model import MemoryRecord
 from sofia.memory.provenance import CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class RelevanceJudgment(str, Enum):

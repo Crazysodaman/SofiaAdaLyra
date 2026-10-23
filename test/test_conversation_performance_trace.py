@@ -2,8 +2,8 @@
 from threading import Event, RLock, Thread
 from time import monotonic
 
-from sofia.application.conversation_service import ConversationService
-from sofia.application.emotional_conversation import EmotionalConversationService
+from sofia.platform.application.conversation_service import ConversationService
+from sofia.platform.application.emotional_conversation import EmotionalConversationService
 
 
 def test_conversation_trace_is_content_free(monkeypatch, capsys):

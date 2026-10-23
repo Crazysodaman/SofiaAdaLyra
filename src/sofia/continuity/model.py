@@ -2,7 +2,7 @@
 from enum import Enum
 
 from sofia.filesystem.changes import FilesystemChangeEvent
-from sofia.operational.model import (
+from sofia.platform.operational.model import (
     ContinuityEvidenceStatus,
     RuntimeContinuity,
 )

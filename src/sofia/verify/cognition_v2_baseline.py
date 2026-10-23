@@ -20,10 +20,10 @@ import tempfile
 from time import perf_counter, process_time, sleep
 from typing import Callable
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.cognition.performance import efficiency_snapshot
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 # Git checkout metadata comes from the caller's exact working checkout.

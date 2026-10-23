@@ -3,7 +3,7 @@ from pathlib import Path
 from threading import RLock
 from types import SimpleNamespace
 
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
 from sofia.avatar.generated_proposal import GarmentGenerationBrief
 from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation

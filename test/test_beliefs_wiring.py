@@ -9,13 +9,13 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.application import SofiaApplication
-from sofia.application.beliefs import BeliefsService
+from sofia.platform.application import SofiaApplication
+from sofia.platform.application.beliefs import BeliefsService
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.beliefs.model import BeliefHolder, BeliefStance
 from sofia.social.principals import local_sparks_principal
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (

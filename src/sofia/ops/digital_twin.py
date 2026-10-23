@@ -15,7 +15,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from sofia.ops.model import FleetHost
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 _SCENARIOS=frozenset({
     "dns_outage", "fleet_agent_unreachable", "disk_pressure",

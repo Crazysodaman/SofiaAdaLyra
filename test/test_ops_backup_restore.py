@@ -6,7 +6,7 @@ import sqlite3
 
 import pytest
 
-from sofia.config.defaults import production_storage_layout
+from sofia.platform.config.defaults import production_storage_layout
 from sofia.memory.deletion_ledger import MemoryDeletionLedger
 from sofia.ops.backup import (
     BackupCipher,

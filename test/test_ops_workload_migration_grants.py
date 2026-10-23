@@ -15,7 +15,7 @@ from sofia.safe.execution_approval import (
     execution_fingerprint,
 )
 from sofia.ops.workload import ManagedWorkload, MigrationPlan, StateMode
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from test.owner_auth_fixture import record_verified_owner_approval
 
 import pytest

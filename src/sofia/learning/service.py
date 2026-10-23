@@ -21,7 +21,7 @@ from typing import Callable, Mapping
 from types import MappingProxyType
 
 from sofia.goals.evidence import GoalEvidence, GoalEvidenceIndex
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .contracts import (
     DataUse, DataUseGrant, OutcomeClass, PROHIBITED_TRAINING_SOURCES,

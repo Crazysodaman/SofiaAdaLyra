@@ -7,9 +7,9 @@ from pathlib import Path
 import sqlite3
 import sys
 
-from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
-from sofia.state.sqlite_uri import sqlite_file_uri
+from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.sqlite_uri import sqlite_file_uri
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.safe.secret_store import ProtectedSecretStore
 from sofia.mobile.provisioning import mobile_companion_ready
@@ -171,8 +171,8 @@ def install_approved_configured_model(
     from sofia.cognition.model_lifecycle import (
         CognitiveModelRole, ModelLifecycleManager, ModelLifecycleStatus,
     )
-    from sofia.config import create_production_configuration
-    from sofia.config.cognitive_models import CognitiveModelSelection
+    from sofia.platform.config import create_production_configuration
+    from sofia.platform.config.cognitive_models import CognitiveModelSelection
     from sofia.integrations.ollama import OllamaAdapter
     from sofia.safe.execution_approval import ExecutionApprovalVerifier
     from sofia.safe.operator_stop import OperatorStopStore

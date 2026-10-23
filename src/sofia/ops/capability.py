@@ -51,8 +51,8 @@ from .workload_backend import (
     WorkloadExecutionCatalog,
     WorkloadOutcomeUncertain,
 )
-from sofia.state.plane import StatePlane
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.plane import StatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 import os
 from sofia.distributed.agent_tools import create_default_agent_dispatcher
 from sofia.distributed.capability import create_configured_remote_fleet_service
@@ -147,7 +147,7 @@ class OpsToolService:
         return tuple(self._host(host) for host in self.registry.hosts())
 
     def optional_autonomy_budget(self) -> dict[str,Any]:
-        from sofia.application.optional_budget import OptionalAutonomyBudget
+        from sofia.platform.application.optional_budget import OptionalAutonomyBudget
         return OptionalAutonomyBudget(Path(self.state_path)).report(
             now=datetime.now(timezone.utc),
         )

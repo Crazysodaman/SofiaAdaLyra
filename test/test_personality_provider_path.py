@@ -4,7 +4,7 @@ from sofia.cognition.context import CognitiveContext
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.cognition.provider import LLMProvider
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.personality.model import PersonalityProfile
 
 

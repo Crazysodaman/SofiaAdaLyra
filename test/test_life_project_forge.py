@@ -30,10 +30,10 @@ from sofia.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )
 from sofia.rel.nicknames import NicknameRegistry, NicknameStatus
-from sofia.run.work import WorkStatus
+from sofia.platform.run.work import WorkStatus
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.social.principals import local_sparks_principal
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_run, pytest.mark.pkg_interact]
@@ -41,7 +41,7 @@ pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_run, pytest.mark.pkg_interac
 
 def infrastructure(tmp_path, *, authorized=True, share_callback=None):
     path = tmp_path / "sofia.db"
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(path)
     # The real application bootstraps conversation storage before ACT/INTERACT;
     # LIFE-only tests compose those services directly and must preserve that

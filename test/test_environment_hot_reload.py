@@ -1,10 +1,10 @@
 from dataclasses import replace
 from types import SimpleNamespace
 
-from sofia.application import bootstrap
-from sofia.application.bootstrap import SofiaApplication
-from sofia.config.user_settings import RuntimeUserSettingsStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.application import bootstrap
+from sofia.platform.application.bootstrap import SofiaApplication
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 class FakeRuntime:

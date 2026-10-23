@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.application.personality_evolution import (
+from sofia.platform.application.personality_evolution import (
     PersonalityEvolutionService,
 )
 from sofia.personality.evolution import (
@@ -22,7 +22,7 @@ from sofia.personality.evolution import (
 )
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import local_sparks_principal
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 EVIDENCE = ("memory:session-2026-02-01",)
 
@@ -424,11 +424,11 @@ def test_evolved_traits_reach_the_model_request(
     from datetime import timezone as _timezone
     from pathlib import Path as _Path
 
-    from sofia.application import SofiaApplication
+    from sofia.platform.application import SofiaApplication
     from sofia.cognition.model import CognitiveResponse, CognitiveRole
-    from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+    from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
     from sofia.social.principals import local_sparks_principal
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
     project_root = _Path(__file__).parent.parent
 

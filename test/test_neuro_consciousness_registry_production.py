@@ -5,8 +5,8 @@ import sqlite3
 
 import pytest
 
-from sofia.config.user_settings import RuntimeUserSettingsStore
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.neuro.consciousness_research import StudyProtocol
 from sofia.neuro.research_registry import (
     EvaluatedResearchOutcome, PreregisteredStudy, ResearchEvidenceRegistry,

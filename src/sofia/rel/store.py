@@ -7,9 +7,9 @@ import sqlite3
 
 from sofia.rel.model import RelationshipContact
 from sofia.social.model import PrincipalContext
-from sofia.state.json_repository import JsonStateRepository
-from sofia.state.namespaces import REL_CONTACT_OBSERVATION
-from sofia.state.plane import StatePlane, StatePlaneConflictError
+from sofia.platform.state.json_repository import JsonStateRepository
+from sofia.platform.state.namespaces import REL_CONTACT_OBSERVATION
+from sofia.platform.state.plane import StatePlane, StatePlaneConflictError
 
 
 class RelationshipStore:

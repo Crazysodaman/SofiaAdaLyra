@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.distributed.capability import RemoteFleetToolService
 from sofia.integrations.hyperv import HyperVAdapter
 from sofia.ops.workshop_handoff import (
@@ -212,7 +212,7 @@ def test_missing_mismatched_or_wrong_host_signed_media_never_passes_review():
 
 def test_canonical_handoff_store_is_read_only_and_does_not_confer_authority(tmp_path):
     state=tmp_path/"sofia.db"
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(state)
     RuntimeUserSettingsStore(state).load()
     service=object.__new__(RemoteFleetToolService)

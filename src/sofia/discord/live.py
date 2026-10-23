@@ -17,12 +17,12 @@ import sys
 from threading import Event, Thread
 from typing import Callable, Protocol
 
-from sofia.application import SofiaApplication
-from sofia.config import (
+from sofia.platform.application import SofiaApplication
+from sofia.platform.config import (
     SofiaConfiguration,
     create_production_configuration,
 )
-from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.bridge import DiscordConversationBridge
 from sofia.discord.delivery import DiscordDeliveryStore, DiscordSafeSender

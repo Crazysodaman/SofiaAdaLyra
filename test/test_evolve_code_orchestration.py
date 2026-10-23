@@ -3,16 +3,16 @@ import sqlite3
 
 import pytest
 
-from sofia.application.evolution import SofiaEvolutionService
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.application.evolution import SofiaEvolutionService
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.dev.capability import DevToolService
 from sofia.evolve.code import CodeEvolutionProposal
 from sofia.evolve.lifecycle import EvolutionOutcome, EvolutionProposalStatus
 from sofia.evolve.lifecycle import EvolutionLifecycleStore
 from sofia.evolve.orchestrator import CodeEvolutionOrchestrator
-from sofia.run.release_rollout import ReleaseRolloutJournal, ReleaseRolloutResult
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.run.release_rollout import ReleaseRolloutJournal, ReleaseRolloutResult
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 5, 14, 0, tzinfo=timezone.utc)

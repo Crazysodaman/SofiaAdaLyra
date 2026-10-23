@@ -4,7 +4,7 @@ import pytest
 
 from sofia.ops.history import SQLiteTelemetryHistory
 from sofia.ops.model import HostTelemetry
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)

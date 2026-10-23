@@ -17,9 +17,9 @@ import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from sofia.application.bootstrap import SofiaApplication
+from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.verify.interaction.disposable import close_disposable_application
-from sofia.config.defaults import create_production_configuration
+from sofia.platform.config.defaults import create_production_configuration
 from sofia.conversation.model import ConversationRole
 
 

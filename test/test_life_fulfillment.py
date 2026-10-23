@@ -29,7 +29,7 @@ def hobby(name="piano", *, revision=1, audience_id="local:text", status=HobbySta
 
 def store(tmp_path):
     path = tmp_path / "sofia.db"
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(path)
     return HobbyStore(path)
 
@@ -180,7 +180,7 @@ def test_hobby_decay_reinforces_from_engagement_anchor():
 
 def test_fulfillment_reader_aggregates_window(tmp_path):
     path = tmp_path / "sofia.db"
-    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(path)
     LifeStore(path)  # deploy life schema
     HobbyStore(path)  # deploy hobby schema

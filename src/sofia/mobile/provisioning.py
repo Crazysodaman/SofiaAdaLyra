@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import sqlite3
 
-from sofia.config import SofiaConfiguration
+from sofia.platform.config import SofiaConfiguration
 from .pairing import MobileDeviceCredentialStore
 
 from .server import MobileServerConfiguration

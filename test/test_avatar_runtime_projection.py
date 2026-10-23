@@ -6,7 +6,7 @@ import json
 import pytest
 import sqlite3
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.presentation import (
     AppearanceState,
@@ -22,8 +22,8 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.cognition.provider import LLMProvider
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent

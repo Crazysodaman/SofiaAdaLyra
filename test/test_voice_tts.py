@@ -8,7 +8,7 @@ from sofia.voice.tts import (
 )
 from threading import Event
 from dataclasses import replace
-from sofia.config.user_settings import RuntimeUserSettings
+from sofia.platform.config.user_settings import RuntimeUserSettings
 from sofia.voice.factory import create_tts_service_from_environment
 
 

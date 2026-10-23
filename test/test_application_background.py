@@ -3,9 +3,9 @@ import sqlite3
 
 import pytest
 
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
-from sofia.application.background import (
+from sofia.platform.application.background import (
     ApplicationBackgroundCoordinator,
     BackgroundBudget,
 )

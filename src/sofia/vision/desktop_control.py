@@ -94,8 +94,8 @@ def game_process_clear() -> bool:
     """
     if sys.platform != "win32":
         raise PermissionError("Windows-only live game inspection")
-    from sofia.system.capability import create_local_system_backend
-    from sofia.system.model import (
+    from sofia.platform.system.capability import create_local_system_backend
+    from sofia.platform.system.model import (
         SystemCapabilityName, SystemCapabilityRequest,
         SystemCapabilityResultKind,
     )

@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 from types import SimpleNamespace
 
-from sofia.application.conversation_service import ConversationService
+from sofia.platform.application.conversation_service import ConversationService
 from sofia.avatar.wardrobe_planner import wardrobe_emotion_influences
 from sofia.cognition.matrix.expression_plan import EmbodiedExpressionPlanner
 from sofia.avatar.presentation import AppearanceState, PresentationAuthority

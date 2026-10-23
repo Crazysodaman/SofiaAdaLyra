@@ -14,11 +14,11 @@ from sofia.cognition.model import (
     CognitiveResponse,
     CognitiveToolCall,
 )
-from sofia.config.model import ProviderConfiguration
+from sofia.platform.config.model import ProviderConfiguration
 from sofia.ops.capability import OpsToolService
 from sofia.ops.model import FleetHost, HostLifecycle, HostTelemetry
-from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW=datetime(2026,9,29,20,0,tzinfo=timezone.utc)

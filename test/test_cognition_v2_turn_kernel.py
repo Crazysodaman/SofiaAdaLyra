@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.cognition.v2 import (
     AcquisitionState,
     ConversationFocusConflict,
@@ -16,8 +16,8 @@ from sofia.cognition.v2 import (
     SQLiteConversationFocusStore,
     TurnKernelInput,
 )
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 PROJECT_ROOT = Path(__file__).parent.parent

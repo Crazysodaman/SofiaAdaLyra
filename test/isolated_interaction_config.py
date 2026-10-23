@@ -5,7 +5,7 @@ model installation or production database lookup is performed here.
 """
 from pathlib import Path
 
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.identity.model import IdentityBootstrapMode
 
 

@@ -1,9 +1,9 @@
 """Direct operational questions must not invent live measurements or model use."""
 import pytest
 
-from sofia.config.cognitive_models import CognitiveModelSelection
-from sofia.config.model import ProviderConfiguration
-from sofia.operational.status_queries import OperationalStatusQueryResolver
+from sofia.platform.config.cognitive_models import CognitiveModelSelection
+from sofia.platform.config.model import ProviderConfiguration
+from sofia.platform.operational.status_queries import OperationalStatusQueryResolver
 
 
 SELECTION = CognitiveModelSelection(

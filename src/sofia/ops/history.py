@@ -4,8 +4,8 @@ from contextlib import closing
 from dataclasses import asdict
 from datetime import datetime, timezone
 import json
-from sofia.state.atomic_file import retire_legacy_file
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.atomic_file import retire_legacy_file
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from pathlib import Path
 import sqlite3
 from .model import HostTelemetry

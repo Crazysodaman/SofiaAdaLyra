@@ -15,9 +15,9 @@ import sqlite3
 
 from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.life.procedures import LifeProcedureCatalog, ProcedureRecord
-from sofia.run.work import DurableWorkStore, WorkStatus
+from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.social.model import PrincipalContext
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _RISKS = ("read_only", "isolated_change", "protected")

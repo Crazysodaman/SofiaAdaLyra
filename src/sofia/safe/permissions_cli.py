@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from sofia.safe.owner_browser import authorize_exact_action
 
-from sofia.config import production_state_path
+from sofia.platform.config import production_state_path
 from sofia.safe.permissions import (
     PermissionLevel,
     PermissionStore,

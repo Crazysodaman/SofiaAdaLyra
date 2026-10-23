@@ -22,8 +22,8 @@ from sofia.cognition.routing import (
     CognitiveRoute,
     RoutingCognitiveEngine,
 )
-from sofia.config.cognitive_models import CognitiveModelSelection
-from sofia.config.model import (
+from sofia.platform.config.cognitive_models import CognitiveModelSelection
+from sofia.platform.config.model import (
     ModelLifecycleConfiguration,
     ProviderConfiguration,
 )

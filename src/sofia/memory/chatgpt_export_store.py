@@ -10,7 +10,7 @@ import sqlite3
 from sofia.memory.chatgpt_export import ChatGPTExportBatch
 from sofia.memory.historical import HistoricalConversationEvidence
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 _SEARCH_TOKEN = re.compile(r"[A-Za-z0-9À-ÿ']+")

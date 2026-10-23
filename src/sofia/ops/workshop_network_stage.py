@@ -18,7 +18,7 @@ from sofia.distributed.durable import DurableRemoteAuthorization
 from sofia.ops.workshop_network import SWITCH_NAME,network_policy_digest
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
-from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 @dataclass(frozen=True,slots=True)

@@ -170,8 +170,8 @@ def test_venus_requires_fresh_non_override_and_game_clear(monkeypatch):
 
 def test_live_process_inspection_detects_running_nonsteam_game(monkeypatch):
     """No game detection depends on psutil or Steam membership alone."""
-    from sofia.system import capability as caps
-    from sofia.system.model import (
+    from sofia.platform.system import capability as caps
+    from sofia.platform.system.model import (
         ProcessInspection, SystemCapability, SystemCapabilityName,
         SystemCapabilityResultKind,
     )
@@ -203,8 +203,8 @@ def test_live_process_inspection_detects_running_nonsteam_game(monkeypatch):
 
 
 def test_live_process_inspection_failure_never_means_safe_to_click(monkeypatch):
-    from sofia.system import capability as caps
-    from sofia.system.model import (
+    from sofia.platform.system import capability as caps
+    from sofia.platform.system.model import (
         ProcessInspection, SystemCapability, SystemCapabilityName,
         SystemCapabilityResultKind,
     )

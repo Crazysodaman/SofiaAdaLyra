@@ -6,8 +6,8 @@ from contextlib import closing
 import pytest
 
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.state.canonical_sqlite import CanonicalStateUnavailable, bootstrap_canonical_sqlite
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable, bootstrap_canonical_sqlite
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 from test.test_memory_reviewed_corrections import _candidate
 

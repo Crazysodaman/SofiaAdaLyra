@@ -2,10 +2,10 @@
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 import sqlite3
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
-from sofia.application.background import BackgroundBudget
-from sofia.application.optional_budget import (
+from sofia.platform.application.background import BackgroundBudget
+from sofia.platform.application.optional_budget import (
     OptionalAutonomyBudget,OptionalBudgetLimits,reserve_profile,
 )
 from sofia.safe.permissions import PermissionLevel,capability_permission_policy

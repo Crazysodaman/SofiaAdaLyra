@@ -1,9 +1,9 @@
 """Production cutover checks: one semantic planner and one completed trace."""
 from pathlib import Path
 
-from sofia.application import SofiaApplication
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.application import SofiaApplication
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 ROOT = Path(__file__).parent.parent

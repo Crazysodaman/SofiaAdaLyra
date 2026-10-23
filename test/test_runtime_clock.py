@@ -1,7 +1,7 @@
 """Read-only runtime clock contracts."""
 from datetime import datetime, timezone
 
-from sofia.runtime.clock import runtime_clock_snapshot
+from sofia.platform.runtime.clock import runtime_clock_snapshot
 
 
 def test_runtime_clock_preserves_same_instant_and_host_local_awareness():

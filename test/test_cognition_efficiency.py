@@ -8,10 +8,10 @@ from sofia.cognition.budgets import model_token_budget
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.cognition.performance import efficiency_snapshot
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.model import ProviderConfiguration
-from sofia.runtime.hot_state import HotState, HotStateEntry
-from sofia.state.sqlite_access import shared_sqlite_access
-from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.config.model import ProviderConfiguration
+from sofia.platform.runtime.hot_state import HotState, HotStateEntry
+from sofia.platform.state.sqlite_access import shared_sqlite_access
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 9, tzinfo=timezone.utc)

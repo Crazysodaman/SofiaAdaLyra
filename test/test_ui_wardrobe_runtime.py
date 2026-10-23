@@ -2,10 +2,10 @@ from dataclasses import replace
 from datetime import datetime, timezone
 
 from test.test_ui_application import configuration
-from sofia.application import SofiaApplication
+from sofia.platform.application import SofiaApplication
 from sofia.avatar.wardrobe_review import WardrobeReviewStore, document
 from sofia.cognition.model import CognitiveResponse
-from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 
 
 def test_editor_review_updates_live_avatar_and_survives_application_restart(configuration, monkeypatch):

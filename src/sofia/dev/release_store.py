@@ -5,8 +5,8 @@ import json
 
 from sofia.dev.release import ReleaseManifest
 from sofia.safe.release import ReleaseActivationEvidence
-from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane
+from sofia.platform.state.model import StateClass, StateKey, StateRecord
+from sofia.platform.state.plane import StatePlane
 
 
 class ReleaseStateStore:

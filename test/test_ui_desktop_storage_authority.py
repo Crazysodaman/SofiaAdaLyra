@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
-from sofia.application import SofiaApplication
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.application import SofiaApplication
+from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.ui.control_center import (
     DesktopControlSettingsStore,
     RemoteChatMode,
@@ -90,7 +90,7 @@ def test_legacy_remote_chat_setting_is_migrated_to_local(tmp_path):
 
 def test_detached_desktop_refuses_to_bootstrap_missing_canonical_state(tmp_path):
     import pytest
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     config = configuration(tmp_path)
     config.state_path.unlink()
@@ -101,7 +101,7 @@ def test_detached_desktop_refuses_to_bootstrap_missing_canonical_state(tmp_path)
 
 def test_detached_desktop_rejects_redirected_canonical_state(tmp_path):
     import pytest
-    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+    from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     config = configuration(tmp_path)
     prior = config.state_path.with_name("safe.db")
