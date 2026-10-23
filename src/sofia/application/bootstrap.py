@@ -76,7 +76,11 @@ from sofia.memory.significance import SignificantMemoryStore
 from sofia.communication import CommunicationLearningService, ShorthandStore
 from sofia.rel.impressions import ImpressionService, ImpressionStore
 from sofia.rel.repair import RepairService, RepairStore
+from sofia.modules.platform import PlatformModuleObserver
+from sofia.modules.proposals import ModuleProposalService, ModuleProposalStore
 from sofia.modules.registry import ModuleRegistryService, ModuleRegistryStore
+from sofia.modules.self_model import CapabilitySelfModel
+from sofia.modules.workshop import WorkshopRequestService, WorkshopRequestStore
 from sofia.agency import AgencyService, AnticipationStore, DilemmaStore
 from sofia.personality.boundaries import BoundaryService, BoundaryStore
 from sofia.personality.preferences import RomancePreferenceService
@@ -349,6 +353,14 @@ class SofiaApplication:
         self._module_registry = ModuleRegistryService(
             ModuleRegistryStore(configuration.state_path)
         )
+        self._module_awareness = CapabilitySelfModel(self._module_registry, None)
+        self._module_proposals = ModuleProposalService(
+            ModuleProposalStore(configuration.state_path),
+            self._module_awareness,
+        )
+        self._workshop_requests = WorkshopRequestService(
+            WorkshopRequestStore(configuration.state_path)
+        )
         self._boundary_store = BoundaryStore(configuration.state_path)
         self._boundaries = BoundaryService(self._boundary_store)
         self._agency_dilemma_store = DilemmaStore(configuration.state_path)
@@ -472,6 +484,9 @@ class SofiaApplication:
         )
         self._conversation_service.set_romance_context_provider(
             self._romance_context_for_principal
+        )
+        self._conversation_service.set_module_awareness_context_provider(
+            self._module_awareness_context_for_principal
         )
         self._conversation_service.set_trait_evolution_provider(
             self._evolved_trait_context
@@ -632,6 +647,21 @@ class SofiaApplication:
     def module_registry(self) -> ModuleRegistryService:
         """Owner-session registry for Sofía's own module manifests."""
         return self._module_registry
+
+    @property
+    def module_awareness(self) -> CapabilitySelfModel:
+        """Read-only capability self-model over Platform observations."""
+        return self._module_awareness
+
+    @property
+    def module_proposals(self) -> ModuleProposalService:
+        """Owner-session writer for Sofía's capability proposals."""
+        return self._module_proposals
+
+    @property
+    def workshop_requests(self) -> WorkshopRequestService:
+        """Owner-session writer for workshop development requests."""
+        return self._workshop_requests
 
     @property
     def agency(self) -> AgencyService:
@@ -1087,6 +1117,23 @@ class SofiaApplication:
                 principal.audience_kind is AudienceKind.PRIVATE
             ),
         )
+
+    def _module_awareness_context_for_principal(
+        self,
+        principal: PrincipalContext,
+        query_text: str,
+    ) -> str:
+        del principal
+        del query_text
+        summary = self._module_awareness.awareness_summary(limit=2000)
+        assert summary is not None
+        return summary
+
+    def update_platform_module_observer(
+        self, observer: PlatformModuleObserver | None,
+    ) -> None:
+        """Compose-time injection of Codex's typed Platform observers."""
+        self._module_awareness.set_platform_observer(observer)
 
     def observe_body_reflex(self, observation: BodyReflexObservation):
         """Accept only a BODY-owned post-reflex summary; never a motor command."""

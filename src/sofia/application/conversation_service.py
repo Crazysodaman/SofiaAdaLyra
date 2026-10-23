@@ -413,6 +413,8 @@ class ConversationService(ConversationMatrixMixin):
         self._last_boundary_error: str | None = None
         self._romance_provider = None
         self._last_romance_error: str | None = None
+        self._module_awareness_provider = None
+        self._last_module_awareness_error: str | None = None
         self._neuro_runtime: NeuroRuntime | None = None
         self._current_neuro_snapshot: NeuroStateSnapshot | None = None
         self._current_neuro_message_id: str | None = None
@@ -760,6 +762,15 @@ class ConversationService(ConversationMatrixMixin):
         self._romance_provider = provider
         self._last_romance_error = None
 
+    def set_module_awareness_context_provider(self, provider) -> None:
+        """Install the bounded read-only module-awareness projection."""
+        if provider is not None and not callable(provider):
+            raise TypeError(
+                "module awareness provider must be callable or None"
+            )
+        self._module_awareness_provider = provider
+        self._last_module_awareness_error = None
+
     def set_goal_command_handler(self, handler) -> None:
         """Install the authenticated host-owned canonical goal command boundary."""
         if handler is not None and not callable(handler):
@@ -1020,6 +1031,46 @@ class ConversationService(ConversationMatrixMixin):
             return None
         if not isinstance(content, str) or not content.strip():
             self._last_romance_error = "InvalidRomanceContext"
+            return None
+        return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
+
+    def _module_awareness_context_message(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> CognitiveMessage | None:
+        provider = self._module_awareness_provider
+        context_plan = getattr(self, "_current_context_plan", None)
+        privacy_plan = getattr(self, "_current_privacy_plan", None)
+        if (
+            provider is None
+            or current_user is None
+            or context_plan is None
+            or privacy_plan is None
+            or self._current_matrix_message_id != current_user.id
+            # Awareness is operationally DEV/MACHINE/OPS/COGNITION evidence.
+            or not any(
+                context_plan.allows(domain)
+                for domain in (
+                    MatrixDomain.DEV,
+                    MatrixDomain.MACHINE,
+                    MatrixDomain.OPS,
+                    MatrixDomain.COGNITION,
+                )
+            )
+        ):
+            return None
+        try:
+            content = provider(self._principal_context(), current_user.content)
+            self._last_module_awareness_error = None
+        except Exception as exc:
+            self._last_module_awareness_error = type(exc).__name__
+            _LOG.exception(
+                "Module awareness projection failed; continuing without it"
+            )
+            return None
+        if not isinstance(content, str) or not content.strip():
+            self._last_module_awareness_error = "InvalidModuleAwarenessContext"
             return None
         return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
 
@@ -2475,6 +2526,9 @@ class ConversationService(ConversationMatrixMixin):
         romance_context = self._romance_context_message(
             current_user=current_user,
         )
+        module_context = self._module_awareness_context_message(
+            current_user=current_user,
+        )
         # Factual/permission-bearing projections get first admission, followed
         # by specifically requested episodic material, current workspace and
         # optional project context.  Scope/relevance checks remain with each
@@ -2528,6 +2582,11 @@ class ConversationService(ConversationMatrixMixin):
                 ContextClass.FACTUAL_EVIDENCE,
                 "personality:romance-preferences",
                 () if romance_context is None else (romance_context,),
+            ),
+            (
+                ContextClass.WORKSPACE,
+                "modules:awareness",
+                () if module_context is None else (module_context,),
             ),
         ):
             if group:
