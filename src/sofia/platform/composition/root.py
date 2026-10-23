@@ -26,9 +26,9 @@ from sofia.platform.config.reviewed_projection import apply_reviewed_configurati
 from sofia.core.constitution.store import ConstitutionIntegrityVerifier
 from sofia.core.constitution.store import ConstitutionStore
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.environment.config import ConfiguredLocation
-from sofia.environment.factory import create_environment_service
-from sofia.environment.model import LocationSubject
+from sofia.core.environment.config import ConfiguredLocation
+from sofia.core.environment.factory import create_environment_service
+from sofia.core.environment.model import LocationSubject
 from sofia.platform.evolve.capability import EvolveCapabilitySet, create_evolve_tool_bindings
 from sofia.platform.evolve.orchestrator import (
     CodeEvolutionOrchestrator,
@@ -49,11 +49,11 @@ from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.platform.net import create_configured_web_tools
 from sofia.core.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.knowledge.access import KnowledgeAccessStore
-from sofia.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
-from sofia.knowledge.lifecycle import SQLiteKnowledgeLifecycle
-from sofia.knowledge.persistence import SQLiteKnowledgeStore
-from sofia.knowledge.service import KnowledgeService
+from sofia.core.knowledge.access import KnowledgeAccessStore
+from sofia.core.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
+from sofia.core.knowledge.lifecycle import SQLiteKnowledgeLifecycle
+from sofia.core.knowledge.persistence import SQLiteKnowledgeStore
+from sofia.core.knowledge.service import KnowledgeService
 from sofia.core.memory.system import MemorySystem
 from sofia.platform.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
 from sofia.platform.machine.discovery import create_machine_discovery

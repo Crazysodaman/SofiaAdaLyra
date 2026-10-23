@@ -5,7 +5,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from sofia.mentor.bridge import (
+from sofia.core.mentor.bridge import (
     BridgeConfig, MentorBridgeError, OPENAI_ENDPOINT, OLLAMA_ENDPOINT,
     SCENARIOS, _send_json, run_synthetic_dialogue,
 )
@@ -148,9 +148,9 @@ class TestMentorDialogue(unittest.TestCase):
     def test_cli_preview_cannot_call_either_provider(self):
         from contextlib import redirect_stdout
         from io import StringIO
-        from sofia.mentor.__main__ import main
+        from sofia.core.mentor.__main__ import main
         stream = StringIO()
-        with patch("sofia.mentor.__main__.run_synthetic_dialogue",
+        with patch("sofia.core.mentor.__main__.run_synthetic_dialogue",
                    side_effect=AssertionError("must never transmit")):
             with redirect_stdout(stream):
                 result = main([

@@ -10,7 +10,7 @@ from sofia.avatar.vtuber_character_selection import select_character_parts
 from sofia.core.embodiment.store import EmbodimentStore
 
 
-SEED=Path(__file__).resolve().parents[1]/"src/sofia/core.embodiment/avatar.json"
+SEED=Path(__file__).resolve().parents[1]/"src/sofia/core/embodiment/avatar.json"
 
 
 def projection(tmp_path):

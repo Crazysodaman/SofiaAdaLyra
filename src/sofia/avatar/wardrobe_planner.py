@@ -10,7 +10,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum
 
-from sofia.environment.model import (
+from sofia.core.environment.model import (
     DaylightState,
     EnvironmentFreshness,
     EnvironmentSnapshot,

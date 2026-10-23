@@ -11,13 +11,13 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from sofia.platform.application import SofiaApplication
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.goals.evidence import GoalEvidenceLedger
-from sofia.learning.contracts import (
+from sofia.core.goals.evidence import GoalEvidenceLedger
+from sofia.core.learning.contracts import (
     DataUse, DataUseGrant, OutcomeClass, Prediction, PredictionDisposition,
     PredictionMode, SourceClass,
 )
-from sofia.learning.registry import CandidateArtifact, CandidateRegistry
-from sofia.learning.service import GroundedSample, LearningService
+from sofia.core.learning.registry import CandidateArtifact, CandidateRegistry
+from sofia.core.learning.service import GroundedSample, LearningService
 from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
@@ -57,7 +57,7 @@ def _application_configuration(tmp_path: Path) -> SofiaConfiguration:
         constitution_hash_path=project / "src/sofia/core/constitution/constitution.sha256",
         identity_path=project / "src/sofia/core/identity/identity.json",
         personality_path=personality,
-        avatar_path=project / "src/sofia/core.embodiment/avatar.json",
+        avatar_path=project / "src/sofia/core/embodiment/avatar.json",
         state_path=state,
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=project,

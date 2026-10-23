@@ -1,6 +1,6 @@
 """Format supplied observation and continuity evidence for cognitive context."""
 from __future__ import annotations
-from sofia.continuity.model import ContinuityEvent, ContinuityEventKind
+from sofia.core.continuity.model import ContinuityEvent, ContinuityEventKind
 from sofia.platform.filesystem.changes import FilesystemChangeEvent
 
 

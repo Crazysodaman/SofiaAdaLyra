@@ -16,7 +16,7 @@ from sofia.platform.run.active_release import (
 )
 from sofia.platform.run.release_process import ReleaseChildProcess
 from sofia.platform.run.windows_service_spec import RUNTIME_SERVICE
-from sofia.mentor.windows_service_settings import (
+from sofia.core.mentor.windows_service_settings import (
     load_custom_service_settings, MentorServiceSettingsError,
 )
 from sofia.platform.run.update_restart import (

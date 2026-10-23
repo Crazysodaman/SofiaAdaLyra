@@ -29,7 +29,7 @@ from sofia.platform.config.model import SofiaConfiguration
 from sofia.core.constitution.store import ConstitutionIntegrityError, ConstitutionIntegrityVerifier
 from sofia.core.constitution.store import Constitution
 from sofia.core.constitution.store import ConstitutionStore
-from sofia.continuity.model import (
+from sofia.core.continuity.model import (
     ContinuityEvent,
     ContinuityEventKind,
     create_continuity_event,
@@ -39,8 +39,8 @@ from sofia.platform.distributed.authorization import remote_host_capability_name
 from sofia.platform.distributed.durable import DurableRemoteAuthorization
 from sofia.core.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.environment.query import EnvironmentQueryResolver
-from sofia.environment.service import EnvironmentService
+from sofia.core.environment.query import EnvironmentQueryResolver
+from sofia.core.environment.service import EnvironmentService
 from sofia.platform.filesystem.changes import (
     FilesystemChangeEvent,
     detect_changes,

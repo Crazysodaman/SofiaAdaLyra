@@ -4,10 +4,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from sofia.learning.contracts import DataUse, DataUseGrant, PredictionMode
-from sofia.learning.fleet_pressure import FleetPressurePilot
-from sofia.learning.fleet_advisory import FleetAdvisoryEngine
-from sofia.learning.service import LearningService
+from sofia.core.learning.contracts import DataUse, DataUseGrant, PredictionMode
+from sofia.core.learning.fleet_pressure import FleetPressurePilot
+from sofia.core.learning.fleet_advisory import FleetAdvisoryEngine
+from sofia.core.learning.service import LearningService
 from sofia.platform.ops.activity import ActivityMode, HostActivityStore
 from sofia.platform.ops.history import SQLiteTelemetryHistory
 from sofia.platform.ops.model import FleetHost, HostLifecycle, HostTelemetry, WorkloadContract

@@ -32,17 +32,17 @@ jobs:
       - name: Source-pinned 780-task QA snapshot
         env:
           PYTHONPATH: src
-        run: python -m sofia.mentor audit --repo . --output mentor-report.json --markdown mentor-summary.md
+        run: python -m sofia.core.mentor audit --repo . --output mentor-report.json --markdown mentor-summary.md
       - name: Reconcile all unclassified V18 tasks without promotions
         env:
           PYTHONPATH: src
-        run: python -m sofia.mentor.bulk_reconcile --repo . --output mentor-bulk.json --csv mentor-bulk.csv
+        run: python -m sofia.core.mentor.bulk_reconcile --repo . --output mentor-bulk.json --csv mentor-bulk.csv
       - name: Verify public Git mailbox is readable and safe
         env:
           PYTHONPATH: src
         run: |
-          python -m sofia.mentor exchange-read --repo . > /dev/null
-          python -m sofia.mentor exchange-export --repo . > /dev/null
+          python -m sofia.core.mentor exchange-read --repo . > /dev/null
+          python -m sofia.core.mentor exchange-export --repo . > /dev/null
       - name: Add owner-readable summary
         if: always()
         shell: bash

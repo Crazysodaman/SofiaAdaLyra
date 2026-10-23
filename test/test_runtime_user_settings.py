@@ -9,7 +9,7 @@ from sofia.platform.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
-from sofia.environment.model import LocationSubject
+from sofia.core.environment.model import LocationSubject
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

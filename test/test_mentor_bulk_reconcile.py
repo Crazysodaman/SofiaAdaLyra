@@ -7,8 +7,8 @@ from unittest import TestCase
 from unittest.mock import patch
 import json
 
-from sofia.mentor.audit import MentorAuditError
-from sofia.mentor.bulk_reconcile import _leads, reconcile_checkout
+from sofia.core.mentor.audit import MentorAuditError
+from sofia.core.mentor.bulk_reconcile import _leads, reconcile_checkout
 
 
 class TestBulkReconcile(TestCase):
@@ -35,7 +35,7 @@ class TestBulkReconcile(TestCase):
             key = record["task_id"]
             rows.append(
                 f"| {key} | - | Build | Unknown | Open | Open | Open | Open | "
-                "Review src/sofia/life/coordinator.py and verified learning | "
+                "Review src/sofia/core/life/coordinator.py and verified learning | "
                 "Check original behavior. |"
             )
         (road / "v18-full-780-task-design-code-gate-status-2026-10-17.md").write_text(
@@ -50,20 +50,20 @@ class TestBulkReconcile(TestCase):
             json.dumps({"tasks": [{
                 "id": "CA-130",
                 "candidate_tracked_source_paths_unverified": [
-                    "src/sofia/life/coordinator.py"
+                    "src/sofia/core/life/coordinator.py"
                 ],
             }]}), encoding="utf-8",
         )
-        (self.root / "src/sofia/life").mkdir(parents=True)
-        (self.root / "src/sofia/life/coordinator.py").write_text(
+        (self.root / "src/sofia/core/life").mkdir(parents=True)
+        (self.root / "src/sofia/core/life/coordinator.py").write_text(
             "def example(): pass\n", encoding="utf-8"
         )
-        self.tracked = {"src/sofia/life/coordinator.py"}
+        self.tracked = {"src/sofia/core/life/coordinator.py"}
 
     def test_all_651_are_triaged_not_promoted(self):
-        with patch("sofia.mentor.bulk_reconcile.audit_checkout",
+        with patch("sofia.core.mentor.bulk_reconcile.audit_checkout",
                    return_value=self.snapshot), patch(
-            "sofia.mentor.bulk_reconcile._git_files", return_value=self.tracked
+            "sofia.core.mentor.bulk_reconcile._git_files", return_value=self.tracked
         ):
             result = reconcile_checkout(self.root)
         self.assertEqual(result["summary"]["classified"], 129)
@@ -72,7 +72,7 @@ class TestBulkReconcile(TestCase):
         self.assertEqual(len(result["unverified_tasks"]), 651)
         row = next(r for r in result["unverified_tasks"]
                    if r["task_id"] == "CA-130")
-        self.assertIn("src/sofia/life/coordinator.py", row["code_leads"])
+        self.assertIn("src/sofia/core/life/coordinator.py", row["code_leads"])
         self.assertIsNone(row["code_implemented"])
         self.assertFalse(row["gate4_accepted"])
         self.assertFalse(row["tests_executed"])
@@ -87,9 +87,9 @@ class TestBulkReconcile(TestCase):
     def test_conflicting_registers_fail_closed(self):
         self.snapshot["tasks"][0]["audited"] = True
         self.snapshot["tasks"][0]["stage"] = "TESTED"
-        with patch("sofia.mentor.bulk_reconcile.audit_checkout",
+        with patch("sofia.core.mentor.bulk_reconcile.audit_checkout",
                    return_value=self.snapshot), patch(
-            "sofia.mentor.bulk_reconcile._git_files", return_value=self.tracked
+            "sofia.core.mentor.bulk_reconcile._git_files", return_value=self.tracked
         ):
             with self.assertRaisesRegex(MentorAuditError, "competing"):
                 reconcile_checkout(self.root)
@@ -99,7 +99,7 @@ class TestBulkReconcile(TestCase):
         master.write_text(master.read_text(encoding="utf-8") +
                           "\n| CA-130 | - | Build | Unknown | x | x | x | x | duplicate | x |\n",
                           encoding="utf-8")
-        with patch("sofia.mentor.bulk_reconcile.audit_checkout",
+        with patch("sofia.core.mentor.bulk_reconcile.audit_checkout",
                    return_value=self.snapshot):
             with self.assertRaises(MentorAuditError):
                 reconcile_checkout(self.root)

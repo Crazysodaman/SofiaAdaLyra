@@ -32,7 +32,7 @@ def test_representative_cross_package_ownership(tmp_path: Path) -> None:
     )
     habit = tmp_path / "test_habit_package_grouping_fixture.py"
     habit.write_text(
-        "from sofia.habits import HabitObservationStore\n",
+        "from sofia.core.habits import HabitObservationStore\n",
         encoding="utf-8",
     )
     assert "pkg_habit" in _package_markers(habit)

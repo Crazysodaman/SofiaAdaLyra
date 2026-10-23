@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.creative.comfyui_prompt_controller import WorkflowEditError, prepare, main
+from sofia.core.creative.comfyui_prompt_controller import WorkflowEditError, prepare, main
 
 
 def workflow():

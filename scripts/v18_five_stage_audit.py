@@ -20,8 +20,8 @@ TRACED = {
         "docs/development/v18-g1-review-batch-b-fleet-evidence-2026-10-17.md",
         "docs/development/v18-g1-batch01-ten-task-acceptance-2026-10-17.md",
     ] for i in range(3106, 3111)},
-    "CA-111": ["src/sofia/life/coordinator.py", "test/test_life_structured_critique.py"],
-    "CA-2203": ["src/sofia/life/validation.py", "test/test_life_structured_critique.py"],
+    "CA-111": ["src/sofia/core/life/coordinator.py", "test/test_life_structured_critique.py"],
+    "CA-2203": ["src/sofia/core/life/validation.py", "test/test_life_structured_critique.py"],
     "CA-3502": ["docs/development/v18-ca3502-success-oracle-separation-2026-10-17.md",
                 "test/test_life_structured_critique.py"],
 }

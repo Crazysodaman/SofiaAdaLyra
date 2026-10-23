@@ -5,12 +5,12 @@ import pytest
 
 from sofia.core.cognition.model import CognitiveResponse
 from sofia.core.cognition.strict_json import loads_strict_model_json
-from sofia.creative.model import ArtifactKind
-from sofia.life.outreach_agent import (
+from sofia.core.creative.model import ArtifactKind
+from sofia.core.life.outreach_agent import (
     ProjectOutreachChoiceAgent, ProjectOutreachChoiceError,
 )
-from sofia.life.idea_agent import ProjectIdeaAgent, ProjectIdeaGenerationError
-from sofia.life.draft_agent import ProjectDraftAgent, ProjectDraftGenerationError
+from sofia.core.life.idea_agent import ProjectIdeaAgent, ProjectIdeaGenerationError
+from sofia.core.life.draft_agent import ProjectDraftAgent, ProjectDraftGenerationError
 from test.test_life_project_forge import active_project, infrastructure
 
 pytestmark = pytest.mark.pkg_core

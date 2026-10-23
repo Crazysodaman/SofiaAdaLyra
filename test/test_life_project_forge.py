@@ -12,16 +12,16 @@ from test.owner_auth_fixture import resume_with_signed_owner_proof
 
 from sofia.platform.capability import CapabilityProposal, CapabilityResultKind, CapabilitySystem
 from sofia.platform.capability.gateway import CapabilityGateway
-from sofia.creative import (
+from sofia.core.creative import (
     ArtifactKind, CreativeArtifactCapability, CreativeExplorer, CreativeService,
     CreativeStore, CreativeWorkspaceManager, CreativeWorldBridge,
     ManagedAssetStore,
 )
 from sofia.core.cognition.model import CognitiveResponse
-from sofia.goals import GoalEvidenceIndex, GoalService, GoalStatus, GoalStore
+from sofia.core.goals import GoalEvidenceIndex, GoalService, GoalStatus, GoalStore
 from sofia.interaction.world_model import ObjectKind, Transform
 from sofia.interaction.world_store import VirtualWorldStore
-from sofia.life import (
+from sofia.core.life import (
     ArtifactEvaluation, ExperienceRecord, MilestoneStatus, PersonalJudgment,
     ProjectIdea, ProjectScope, ProjectStatus, SelfDirectedLifeCoordinator,
     TechnicalOutcome,
@@ -1002,7 +1002,7 @@ def test_ideation_rejects_original_experience_snapshot_changed_during_model(
             confidence=0.91, reason="Independently recorded design curiosity.",
             evidence_refs=(source,), now=now,
         )
-        from sofia.life.model import ExperienceRecord
+        from sofia.core.life.model import ExperienceRecord
         original_id = "experience:source-bound-ideation"
         life.store.record_experience(ExperienceRecord(
             original_id, None, "ordinary_observation",
@@ -1504,7 +1504,7 @@ def test_subjective_artifact_review_remains_visible_after_evaluation(tmp_path):
 def test_life_ideation_keeps_interest_evidence_out_of_system_instruction(tmp_path):
     """A retrieved interest or experience is data, not a new cognitive policy."""
     from sofia.core.cognition.model import CognitiveRole
-    from sofia.life.idea_agent import ProjectIdeaAgent
+    from sofia.core.life.idea_agent import ProjectIdeaAgent
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -1749,7 +1749,7 @@ def test_life_waiting_approval_is_visible_without_execution(tmp_path):
 
 def test_paused_life_project_cannot_claim_queued_grant(tmp_path):
     """A queued one-use grant cannot outlive its canonical LIFE project."""
-    from sofia.creative import creative_request_digest
+    from sofia.core.creative import creative_request_digest
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -1785,7 +1785,7 @@ def test_paused_life_project_cannot_claim_queued_grant(tmp_path):
 
 def test_cancelled_goal_blocks_queued_life_artifact_execution(tmp_path):
     """GOALS cancellation outranks a previously admitted LIFE RUN job."""
-    from sofia.goals import SOFIA_GOAL_OWNER_ID
+    from sofia.core.goals import SOFIA_GOAL_OWNER_ID
 
     life, goals, now = infrastructure(tmp_path)
     try:
@@ -1826,7 +1826,7 @@ def test_cancelled_goal_blocks_queued_life_artifact_execution(tmp_path):
 
 def test_goal_cancellation_first_pauses_unsettled_life_work(tmp_path):
     """Never abandon while a previous RUN effect is queued or uncertain."""
-    from sofia.goals import SOFIA_GOAL_OWNER_ID
+    from sofia.core.goals import SOFIA_GOAL_OWNER_ID
 
     life, goals, now = infrastructure(tmp_path)
     try:
@@ -1874,7 +1874,7 @@ def test_goal_cancellation_first_pauses_unsettled_life_work(tmp_path):
 
 def test_goal_pause_propagates_to_private_life_without_goal_mutation(tmp_path):
     """LIFE respects GOALS pause, without inventing a creative completion."""
-    from sofia.goals import SOFIA_GOAL_OWNER_ID
+    from sofia.core.goals import SOFIA_GOAL_OWNER_ID
 
     life, goals, now = infrastructure(tmp_path)
     try:
@@ -2190,7 +2190,7 @@ def test_goal_derived_life_pause_resumes_only_when_canonical_goal_reactivates(
     tmp_path,
 ):
     """The original GOALS lifecycle may release only its own derived pause."""
-    from sofia.goals import SOFIA_GOAL_OWNER_ID
+    from sofia.core.goals import SOFIA_GOAL_OWNER_ID
 
     life, goals, now = infrastructure(tmp_path)
     try:
@@ -2515,7 +2515,7 @@ def test_multi_interest_life_project_keeps_selected_evidence_scope(tmp_path):
 
 def test_multi_interest_life_ideation_rejects_missing_or_forged_origin(tmp_path):
     """No fallback to arbitrary first interest when the selected origin is unknown."""
-    from sofia.life.idea_agent import ProjectIdeaAgent, ProjectIdeaGenerationError
+    from sofia.core.life.idea_agent import ProjectIdeaAgent, ProjectIdeaGenerationError
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -2824,7 +2824,7 @@ def test_unknown_original_objective_pauses_project_without_revisions(tmp_path):
 
 def test_life_ideation_rejects_oversized_model_json_before_parse(tmp_path):
     """An untrusted model cannot force unbounded optional-idea JSON handling."""
-    from sofia.life.idea_agent import ProjectIdeaAgent, ProjectIdeaGenerationError
+    from sofia.core.life.idea_agent import ProjectIdeaAgent, ProjectIdeaGenerationError
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -2867,7 +2867,7 @@ def test_life_draft_rejects_oversized_model_output_before_artifact_submission(
     tmp_path,
 ):
     """No artifact or RUN job may be minted by an over-budget model response."""
-    from sofia.life.draft_agent import ProjectDraftAgent, ProjectDraftGenerationError
+    from sofia.core.life.draft_agent import ProjectDraftAgent, ProjectDraftGenerationError
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -2886,7 +2886,7 @@ def test_life_draft_rejects_oversized_model_output_before_artifact_submission(
 
 def test_optional_life_selector_respects_external_goal_cancellation(tmp_path):
     """A stale ACTIVE LIFE row cannot override current canonical GOALS."""
-    from sofia.goals import SOFIA_GOAL_OWNER_ID
+    from sofia.core.goals import SOFIA_GOAL_OWNER_ID
 
     life, goals, now = infrastructure(tmp_path)
     try:
@@ -2944,7 +2944,7 @@ def test_optional_life_selector_does_not_reselect_blocked_run(tmp_path):
 
 def test_canonical_life_motivation_is_derived_without_another_owner(tmp_path):
     """Original GOALS, interest and resource records supply selection signals."""
-    from sofia.life import MotivationSignal
+    from sofia.core.life import MotivationSignal
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -3309,7 +3309,7 @@ def test_phase09_active_project_retains_source_and_goal_authority(tmp_path):
         signals = life.motivation_signals(now=at, busy=False, resource_pressure=0.0)
         selected = next((item for item in signals if item.project_id == project.project_id), None)
         assert selected is not None
-        from sofia.goals.service import audience_scope
+        from sofia.core.goals.service import audience_scope
         goal = next(item for item in goals.list_visible(local_sparks_principal())
                     if item.id == project.goal_id)
         assert project.audience_id == "local:text"

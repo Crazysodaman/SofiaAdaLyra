@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from sofia.core.cognition.model import CognitiveResponse
 from sofia.core.cognition.matrix.multi_question import split_multi_question
-from sofia.environment.prompt import environment_details_relevant
+from sofia.core.environment.prompt import environment_details_relevant
 from sofia.core.personality.delivery import grounded_weather_delivery
 from sofia.core.social.model import PrincipalContext
 

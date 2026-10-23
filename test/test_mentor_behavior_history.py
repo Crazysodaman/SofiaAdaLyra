@@ -5,11 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from sofia.mentor.behavior_history import (
+from sofia.core.mentor.behavior_history import (
     empty_counts, merge_scores, read_counts, save_counts, public_free_summary
 )
-from sofia.mentor.behavior_monitor import BehaviorMonitor, EMOTION_CRITERIA
-from sofia.mentor.personality_review import CRITERIA
+from sofia.core.mentor.behavior_monitor import BehaviorMonitor, EMOTION_CRITERIA
+from sofia.core.mentor.personality_review import CRITERIA
 
 
 class TestBehaviorScoreHistory(TestCase):
@@ -66,11 +66,11 @@ class TestBehaviorScoreHistory(TestCase):
 
     def test_private_monitor_stores_only_counts_and_no_user_content(self):
         from datetime import datetime, timezone
-        from sofia.mentor.behavior_monitor import BehaviorMonitor
+        from sofia.core.mentor.behavior_monitor import BehaviorMonitor
         personality, emotion = self.scores()
         def reviewer(*, repo, turn, model):
             return {
-                "schema": "sofia.mentor.behavior-private-review.v1",
+                "schema": "sofia.core.mentor.behavior-private-review.v1",
                 "status": "PROVISIONAL_LOCAL_LLM_REVIEW",
                 "source": "observed-application-response",
                 "personality_scores": personality,

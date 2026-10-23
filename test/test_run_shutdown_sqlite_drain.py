@@ -87,7 +87,7 @@ def test_uncooperative_worker_reports_unfinished_shutdown_instead_of_success(tmp
 def test_all_application_owned_executor_closes_require_bounded_drain():
     import inspect
     from sofia.platform.application.autonomous_work import AutonomousWorkCoordinator
-    from sofia.life.coordinator import SelfDirectedLifeCoordinator
+    from sofia.core.life.coordinator import SelfDirectedLifeCoordinator
     for owner in (AutonomousWorkCoordinator,SelfDirectedLifeCoordinator):
         source = inspect.getsource(owner.close)
         assert "wait=True" in source and "timeout_seconds" in source

@@ -6,7 +6,7 @@ import pytest
 from sofia.platform.application import SofiaApplication
 from sofia.core.cognition.engine import CognitiveEngineError
 from sofia.platform.config import ProviderConfiguration, SofiaConfiguration
-from sofia.continuity.model import ContinuityEventKind
+from sofia.core.continuity.model import ContinuityEventKind
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

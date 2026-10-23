@@ -2,7 +2,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from sofia.continuity.model import (
+from sofia.core.continuity.model import (
     ContinuityEventKind,
     create_continuity_event,
 )

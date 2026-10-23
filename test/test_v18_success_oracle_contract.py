@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from sofia.life.validation import (
+from sofia.core.life.validation import (
     ArtifactObjectiveReport, ObjectiveDisposition, ObjectiveFinding,
 )
-from sofia.creative.model import ArtifactKind
+from sofia.core.creative.model import ArtifactKind
 from test.test_life_objective_parser_bounded import revision_for
-from sofia.life.validation import inspect_objective_artifact
+from sofia.core.life.validation import inspect_objective_artifact
 
 pytestmark = pytest.mark.pkg_verify
 

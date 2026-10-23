@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sofia.habits.continuity import HabitContinuityCoordinator
-from sofia.habits.model import ObservationCoverage, SourceQuality
-from sofia.habits.patterns import CadenceKind, HabitCategory
+from sofia.core.habits.continuity import HabitContinuityCoordinator
+from sofia.core.habits.model import ObservationCoverage, SourceQuality
+from sofia.core.habits.patterns import CadenceKind, HabitCategory
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 

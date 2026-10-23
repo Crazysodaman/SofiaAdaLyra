@@ -28,7 +28,7 @@ def _configuration(tmp_path):
         constitution_hash_path=ROOT / "src/sofia/core/constitution/constitution.sha256",
         identity_path=ROOT / "src/sofia/core/identity/identity.json",
         personality_path=personality,
-        avatar_path=ROOT / "src/sofia/core.embodiment/avatar.json",
+        avatar_path=ROOT / "src/sofia/core/embodiment/avatar.json",
         state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=ROOT,

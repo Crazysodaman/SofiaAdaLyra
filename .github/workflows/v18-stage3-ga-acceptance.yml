@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/v18-stage3-ga-acceptance.yml'
-      - 'src/sofia/generalization/**'
+      - 'src/sofia/core/generalization/**'
       - 'test/test_generalization_*.py'
   workflow_dispatch:
 

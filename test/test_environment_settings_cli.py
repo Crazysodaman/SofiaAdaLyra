@@ -9,8 +9,8 @@ def _disposable_environment_settings(tmp_path):
     bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.environment.model import LocationSubject
-from sofia.environment.settings_cli import configure, main
+from sofia.core.environment.model import LocationSubject
+from sofia.core.environment.settings_cli import configure, main
 
 
 def test_configure_persists_weather_location_and_nws(tmp_path):

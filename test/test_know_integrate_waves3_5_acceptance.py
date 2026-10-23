@@ -1,7 +1,7 @@
 from datetime import datetime,timezone
 from pathlib import Path
 
-from sofia.knowledge import (
+from sofia.core.knowledge import (
     DocumentDisposition,KnowledgeDocument,KnowledgeFact,SQLiteKnowledgeLifecycle,KnowledgeRetriever,
     KnowledgeStore,SourceKind,
 )

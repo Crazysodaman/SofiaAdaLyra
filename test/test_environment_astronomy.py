@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 
-from sofia.environment.astronomy import daylight_for, season_for
-from sofia.environment.model import DaylightState, Season
+from sofia.core.environment.astronomy import daylight_for, season_for
+from sofia.core.environment.model import DaylightState, Season
 
 
 def test_season_is_hemisphere_aware():

@@ -12,16 +12,16 @@ def _synthetic_machine_location_state(tmp_path):
 
 from sofia.platform.composition import root as composition_root
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.environment.config import (
+from sofia.core.environment.config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
 )
-from sofia.environment.factory import (
+from sofia.core.environment.factory import (
     NWS_ENVIRONMENT_CAPABILITY,
     create_environment_service,
 )
-from sofia.environment.model import LocationSubject
-from sofia.environment.nws import NwsEnvironmentProvider
+from sofia.core.environment.model import LocationSubject
+from sofia.core.environment.nws import NwsEnvironmentProvider
 from sofia.platform.machine.location import (
     MachineLocationRegistry,
     new_machine_location,

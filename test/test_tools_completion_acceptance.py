@@ -21,9 +21,9 @@ from sofia.integrations.ollama import OllamaAdapter
 from sofia.integrations.portainer import PortainerAdapter
 from sofia.integrations.sqlite import SQLiteReadAdapter
 from sofia.integrations.storage import StorageAdapter
-from sofia.knowledge.lifecycle import SQLiteKnowledgeLifecycle
-from sofia.knowledge.persistence import SQLiteKnowledgeStore
-from sofia.knowledge.service import KnowledgeService
+from sofia.core.knowledge.lifecycle import SQLiteKnowledgeLifecycle
+from sofia.core.knowledge.persistence import SQLiteKnowledgeStore
+from sofia.core.knowledge.service import KnowledgeService
 from sofia.platform.filesystem.change_capability import FilesystemChangesCapability
 from sofia.platform.filesystem.observation import FilesystemObservationStore
 from sofia.platform.ops.capability import OpsToolService

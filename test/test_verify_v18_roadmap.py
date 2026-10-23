@@ -71,8 +71,8 @@ def test_v18_accepted_claim_must_have_exact_receipt(tmp_path):
     claimed = records["tasks"][0]
     claimed["status"] = "accepted"
     claimed["accepted"] = True
-    claimed["code_paths"] = ["src/sofia/life/coordinator.py"]
-    fixture = tmp_path / "src/sofia/life/coordinator.py"
+    claimed["code_paths"] = ["src/sofia/core/life/coordinator.py"]
+    fixture = tmp_path / "src/sofia/core/life/coordinator.py"
     fixture.parent.mkdir(parents=True, exist_ok=True)
     fixture.write_text("# mocked local source\n", encoding="utf-8")
     claimed["production_wiring"] = {

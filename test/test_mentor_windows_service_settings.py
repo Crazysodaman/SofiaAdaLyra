@@ -8,8 +8,8 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
-from sofia.mentor.__main__ import main
-from sofia.mentor.windows_service_settings import (
+from sofia.core.mentor.__main__ import main
+from sofia.core.mentor.windows_service_settings import (
     FLAG_OPTION, ROOT_OPTION, SERVICE, MentorServiceSettingsError,
     configure_custom_service_settings, decode_options,
     disable_custom_service_settings, load_custom_service_settings,
@@ -24,7 +24,7 @@ class MentorServiceSettingsTests(TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name) / "checkout"
         profile = self.root / "src/sofia/core/personality/personality.json"
-        monitor = self.root / "src/sofia/mentor/behavior_monitor.py"
+        monitor = self.root / "src/sofia/core/mentor/behavior_monitor.py"
         profile.parent.mkdir(parents=True)
         monitor.parent.mkdir(parents=True)
         profile.write_text('{"name":"Sofía","traits":[]}', encoding="utf-8")
@@ -173,7 +173,7 @@ class MentorServiceSettingsTests(TestCase):
             validate_root(chr(92)*2 + "Server" + chr(92) + "Share" + chr(92) + "Sofia")
 
     def test_cli_enable_requires_double_opt_in_no_registry_call(self):
-        with patch("sofia.mentor.__main__.configure_custom_service_settings",
+        with patch("sofia.core.mentor.__main__.configure_custom_service_settings",
                    side_effect=AssertionError("never enable without approval")):
             self.assertEqual(main([
                 "behavior-service", "--action", "enable",
@@ -181,7 +181,7 @@ class MentorServiceSettingsTests(TestCase):
             ]), 2)
 
     def test_cli_plan_only_and_does_not_touch_scm(self):
-        with patch("sofia.mentor.__main__.configure_custom_service_settings",
+        with patch("sofia.core.mentor.__main__.configure_custom_service_settings",
                    wraps=configure_custom_service_settings) as fn:
             output = StringIO()
             with redirect_stdout(output):
@@ -194,8 +194,8 @@ class MentorServiceSettingsTests(TestCase):
         self.assertIn('"will_restart": false', output.getvalue())
 
     def test_cli_status_can_be_mocked_without_pywin32(self):
-        with patch("sofia.mentor.__main__.service_settings_status", return_value={
-            "schema": "sofia.mentor.service-settings.v1", "configured_enabled": False
+        with patch("sofia.core.mentor.__main__.service_settings_status", return_value={
+            "schema": "sofia.core.mentor.service-settings.v1", "configured_enabled": False
         }):
             out = StringIO()
             with redirect_stdout(out):

@@ -8,7 +8,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $report = [ordered]@{
-    schema = 'sofia.runtime.windows-observation.v1'
+    schema = 'sofia.platform.runtime.windows-observation.v1'
     checked_at = (Get-Date).ToUniversalTime().ToString('o')
     service = [ordered]@{
         name = 'SofiaAdaLyra'

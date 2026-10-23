@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Iterable
 
-from sofia.environment.model import EnvironmentFreshness, EnvironmentSnapshot
+from sofia.core.environment.model import EnvironmentFreshness, EnvironmentSnapshot
 from sofia.core.emotion.model import CurrentEmotionalState
 
 

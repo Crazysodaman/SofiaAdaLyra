@@ -11,7 +11,7 @@ from sofia.core.embodiment.store import EmbodimentStore
 from sofia.interaction.core import InteractionEngine
 
 
-AVATAR = Path(__file__).resolve().parents[1] / "src/sofia/core.embodiment/avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src/sofia/core/embodiment/avatar.json"
 DIGEST = "a" * 64
 
 

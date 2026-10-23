@@ -4,7 +4,7 @@ from dataclasses import replace
 import json
 
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.environment.model import LocationSubject
+from sofia.core.environment.model import LocationSubject
 from sofia.platform.state.model import StateKey
 from sofia.platform.state.plane import StatePlane
 

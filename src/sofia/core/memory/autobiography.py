@@ -124,7 +124,7 @@ class AutobiographyTimeline:
     def _experience_entries(
         self, *, limit: int, now: datetime,
     ) -> tuple[AutobiographicalEntry, ...]:
-        from sofia.life.store import LifeStore
+        from sofia.core.life.store import LifeStore
         store = LifeStore(self.path)
         experiences = store.experiences(
             audience_id=self._audience, include_private=True, limit=limit,

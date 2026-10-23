@@ -14,8 +14,8 @@ from sofia.platform.application import SofiaApplication
 from sofia.platform.application.memory_significance import MemorySignificanceService
 from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.life.model import ExperienceRecord
-from sofia.life.store import LifeStore
+from sofia.core.life.model import ExperienceRecord
+from sofia.core.life.store import LifeStore
 from sofia.core.memory.autobiography import AutobiographyTimeline
 from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite

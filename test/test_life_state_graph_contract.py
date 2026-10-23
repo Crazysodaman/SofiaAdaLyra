@@ -10,7 +10,7 @@ def _read(path: str) -> str:
 
 
 def test_project_and_work_statuses_stay_separate_canonical_sources():
-    project = _read("src/sofia/life/model.py")
+    project = _read("src/sofia/core/life/model.py")
     work = _read("src/sofia/platform/run/work.py")
     assert "class ProjectStatus(str, Enum):" in project
     assert "PROJECT_TRANSITIONS = {" in project
@@ -21,7 +21,7 @@ def test_project_and_work_statuses_stay_separate_canonical_sources():
 
 
 def test_original_life_decisions_do_not_retry_ambiguous_external_effects():
-    code = _read("src/sofia/life/coordinator.py")
+    code = _read("src/sofia/core/life/coordinator.py")
     for exact in (
         'disposition = "uncertain_no_automatic_retry"',
         'disposition = "awaiting_separate_operator_approval"',

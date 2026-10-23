@@ -39,7 +39,7 @@ jobs:
           p=Path("docs/mentor_exchange/outbox/latest.json")
           try:
               data=json.loads(p.read_text(encoding="utf-8"))
-              assert data["schema"]=="sofia.mentor.public-outbox.v1"
+              assert data["schema"]=="sofia.core.mentor.public-outbox.v1"
               print(data["source_revision"])
           except (OSError, ValueError, KeyError, AssertionError, TypeError):
               print("")
@@ -64,7 +64,7 @@ jobs:
         if: steps.new-source.outputs.publish == 'true'
         env:
           PYTHONPATH: src
-        run: python -m sofia.mentor exchange-export --repo .
+        run: python -m sofia.core.mentor exchange-export --repo .
       - name: Verify only the outbox is staged and push if changed
         if: steps.new-source.outputs.publish == 'true'
         shell: bash

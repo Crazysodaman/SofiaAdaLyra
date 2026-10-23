@@ -6,7 +6,7 @@ preconditions, uncertainty, cancellation, and when it is appropriate to
 proactively follow up.
 
 This module introduces no new canonical writer and no new table. A commitment is
-a read-only projection of an existing :class:`sofia.goals.model.Goal`; the GOALS
+a read-only projection of an existing :class:`sofia.core.goals.model.Goal`; the GOALS
 state plane remains the sole owner of the durable record. The projection also
 exposes a deterministic follow-up predicate so ACT/LIFE can decide whether a
 proactive reminder is appropriate without inventing authority.
@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from sofia.goals.model import Goal, GoalOrigin, GoalRunState, GoalStatus
+from sofia.core.goals.model import Goal, GoalOrigin, GoalRunState, GoalStatus
 
 _TERMINAL = frozenset({
     GoalStatus.COMPLETED, GoalStatus.REJECTED, GoalStatus.CANCELLED,

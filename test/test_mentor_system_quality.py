@@ -9,13 +9,13 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
-from sofia.mentor.__main__ import main
-from sofia.mentor.exchange import public_outbox
-from sofia.mentor.personality_review import (
+from sofia.core.mentor.__main__ import main
+from sofia.core.mentor.exchange import public_outbox
+from sofia.core.mentor.personality_review import (
     CRITERIA, PersonalityReviewError, load_public_personality_summary,
     public_personality_summary, publish_public_personality_summary, review_response,
 )
-from sofia.mentor.system_parts import PARTS, system_parts_summary
+from sofia.core.mentor.system_parts import PARTS, system_parts_summary
 
 
 class SystemQualityTests(TestCase):
@@ -100,7 +100,7 @@ class SystemQualityTests(TestCase):
 
     def test_outbox_prioritizes_parts_and_personality_over_task_counts(self):
         sample = self.audit()
-        with patch("sofia.mentor.exchange.audit_checkout", return_value=sample):
+        with patch("sofia.core.mentor.exchange.audit_checkout", return_value=sample):
             out = public_outbox(self.root)
         self.assertEqual(out["system"]["part_count"], 15)
         self.assertEqual(out["system"]["personality"]["response_match"], "UNASSESSED")
@@ -184,9 +184,9 @@ class SystemQualityTests(TestCase):
             load_public_personality_summary(self.root)
 
     def test_local_cli_requires_idle_before_private_file_access(self):
-        with patch("sofia.mentor.__main__.review_response",
+        with patch("sofia.core.mentor.__main__.review_response",
                    side_effect=AssertionError("should not call reviewer")):
-            from sofia.mentor.personality_review import PUBLIC_SUMMARY
+            from sofia.core.mentor.personality_review import PUBLIC_SUMMARY
             result = main([
                 "personality-review", "--repo", str(self.root),
                 "--response-file", str(self.root / "private.txt"),
@@ -199,7 +199,7 @@ class SystemQualityTests(TestCase):
     def test_private_cli_reports_without_writing_public_summary_implicitly(self):
         chosen = self.root / "response.txt"
         chosen.write_text("The listener status isn't verified.", encoding="utf-8")
-        with patch("sofia.mentor.__main__.review_response", return_value=self.review()):
+        with patch("sofia.core.mentor.__main__.review_response", return_value=self.review()):
             output = StringIO()
             with redirect_stdout(output):
                 code = main([
@@ -211,7 +211,7 @@ class SystemQualityTests(TestCase):
                 ])
         self.assertEqual(code, 0)
         self.assertIn('"private": true', output.getvalue())
-        from sofia.mentor.personality_review import PUBLIC_SUMMARY
+        from sofia.core.mentor.personality_review import PUBLIC_SUMMARY
         self.assertFalse((self.root / PUBLIC_SUMMARY).exists())
 
 if __name__ == "__main__":

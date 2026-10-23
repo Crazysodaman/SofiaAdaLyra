@@ -7,7 +7,7 @@ import math
 import re
 from typing import Any
 
-from sofia.environment.model import MobileActivityState, MobileNetworkTransport
+from sofia.core.environment.model import MobileActivityState, MobileNetworkTransport
 
 
 _DEVICE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")

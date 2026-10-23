@@ -22,11 +22,11 @@ from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner, WardrobeConte
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.core.conversation.model import ConversationRole
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
-from sofia.environment.astronomy import season_for
-from sofia.environment.model import EnvironmentFreshness, Season, WeatherObservation
-from sofia.environment.provider import EnvironmentProviderObservation
-from sofia.environment.service import EnvironmentService
+from sofia.core.environment.config import ConfiguredLocation, EnvironmentConfiguration
+from sofia.core.environment.astronomy import season_for
+from sofia.core.environment.model import EnvironmentFreshness, Season, WeatherObservation
+from sofia.core.environment.provider import EnvironmentProviderObservation
+from sofia.core.environment.service import EnvironmentService
 from sofia.interaction.expanded_service import ExpandedConversationService
 from sofia.core.emotion.journal import EmotionalJournal
 from sofia.core.personality.influence import ContinuityInfluence, daypart

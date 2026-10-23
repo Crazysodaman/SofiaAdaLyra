@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 import pytest
-from sofia.creative.live2d_recovery import record_submission, reconcile
-from sofia.creative.comfyui_bridge import ComfyBridgeError
+from sofia.core.creative.live2d_recovery import record_submission, reconcile
+from sofia.core.creative.comfyui_bridge import ComfyBridgeError
 
 ID = "11111111-2222-3333-4444-555555555555"
 class Healthy:

@@ -6,7 +6,7 @@ from sofia.avatar.presentation import (
     AudienceScope,
     PresentationProjection,
 )
-from sofia.environment.model import (
+from sofia.core.environment.model import (
     DaylightObservation,
     DaylightState,
     EnvironmentFreshness,

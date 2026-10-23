@@ -6,10 +6,10 @@ from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
 
-from sofia.mentor import MentorAuditError
-from sofia.mentor.__main__ import main
-from sofia.mentor.bridge import MentorBridgeError, OLLAMA_ENDPOINT
-from sofia.mentor.local_bridge import LocalBridgeConfig, run_local_dialogue
+from sofia.core.mentor import MentorAuditError
+from sofia.core.mentor.__main__ import main
+from sofia.core.mentor.bridge import MentorBridgeError, OLLAMA_ENDPOINT
+from sofia.core.mentor.local_bridge import LocalBridgeConfig, run_local_dialogue
 
 
 class LocalOllamaStub:
@@ -185,7 +185,7 @@ class TestLocalMentor(TestCase):
             )
 
     def test_model_feedback_cannot_enable_tools_or_cloud_after_diagnostic_change(self):
-        from sofia.mentor.local_bridge import _reply, MAX_STUDENT_CHARS
+        from sofia.core.mentor.local_bridge import _reply, MAX_STUDENT_CHARS
         seen = []
         def sender(url, payload, headers, timeout):
             seen.append((url, payload))
@@ -202,7 +202,7 @@ class TestLocalMentor(TestCase):
         self.assertIn("at most 100 words", seen[0][1]["messages"][0]["content"])
 
     def test_cli_preview_runs_without_models_or_idle_confirmation(self):
-        with patch("sofia.mentor.__main__.run_local_dialogue",
+        with patch("sofia.core.mentor.__main__.run_local_dialogue",
                    side_effect=AssertionError("must not invoke model")):
             output = StringIO()
             with redirect_stdout(output):
@@ -216,7 +216,7 @@ class TestLocalMentor(TestCase):
         self.assertIn("ECONNREFUSED", output.getvalue())
 
     def test_cli_requires_explicit_idle_confirmation_before_model(self):
-        with patch("sofia.mentor.__main__.run_local_dialogue",
+        with patch("sofia.core.mentor.__main__.run_local_dialogue",
                    side_effect=AssertionError("must not invoke model")):
             result = main([
                 "local-converse", "--scenario", "service-failure",
@@ -225,8 +225,8 @@ class TestLocalMentor(TestCase):
         self.assertEqual(result, 2)
 
     def test_cli_owner_confirmed_idle_invokes_only_local_dialogue(self):
-        fake = {"schema": "sofia.mentor.local-dialogue.v1", "events": []}
-        with patch("sofia.mentor.__main__.run_local_dialogue", return_value=fake) as execute:
+        fake = {"schema": "sofia.core.mentor.local-dialogue.v1", "events": []}
+        with patch("sofia.core.mentor.__main__.run_local_dialogue", return_value=fake) as execute:
             out = StringIO()
             with redirect_stdout(out):
                 status = main([

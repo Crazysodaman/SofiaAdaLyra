@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/v18-stage3-ca-ml-integration.yml'
-      - 'src/sofia/life/**'
-      - 'src/sofia/learning/**'
+      - 'src/sofia/core/life/**'
+      - 'src/sofia/core/learning/**'
       - 'src/sofia/platform/distributed/**'
       - 'src/sofia/core/memory/**'
       - 'test/test_life_*.py'

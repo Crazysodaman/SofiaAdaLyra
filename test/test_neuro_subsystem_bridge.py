@@ -4,7 +4,7 @@ import sqlite3
 from types import SimpleNamespace
 
 from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
-from sofia.environment.model import (
+from sofia.core.environment.model import (
     DaylightObservation,
     DaylightState,
     EnvironmentFreshness,

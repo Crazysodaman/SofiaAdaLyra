@@ -4,10 +4,10 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.generalization.workflow import GeneralizationWorkflowStore, WorkflowStep
-from sofia.goals import GoalEvidenceIndex, GoalService, GoalStore
-from sofia.goals.evidence import GoalEvidenceLedger
-from sofia.goals.model import CompletionKind, GoalCompletionCondition
+from sofia.core.generalization.workflow import GeneralizationWorkflowStore, WorkflowStep
+from sofia.core.goals import GoalEvidenceIndex, GoalService, GoalStore
+from sofia.core.goals.evidence import GoalEvidenceLedger
+from sofia.core.goals.model import CompletionKind, GoalCompletionCondition
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane

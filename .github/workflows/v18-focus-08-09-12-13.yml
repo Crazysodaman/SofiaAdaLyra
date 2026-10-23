@@ -7,7 +7,7 @@ on:
       - 'src/sofia/vision/**'
       - 'src/sofia/platform/application/presence.py'
       - 'src/sofia/platform/application/background_runtime.py'
-      - 'src/sofia/life/**'
+      - 'src/sofia/core/life/**'
       - 'src/sofia/platform/ops/workshop_*.py'
       - 'src/sofia/platform/ops/digital_twin.py'
       - 'test/test_vision_*.py'

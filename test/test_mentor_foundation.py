@@ -9,9 +9,9 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from sofia.mentor import MentorAuditError, audit_checkout, compare_reports
-from sofia.mentor.__main__ import main
-from sofia.mentor.audit import DOCUMENTS, INDEX, LEDGER, STAGES
+from sofia.core.mentor import MentorAuditError, audit_checkout, compare_reports
+from sofia.core.mentor.__main__ import main
+from sofia.core.mentor.audit import DOCUMENTS, INDEX, LEDGER, STAGES
 
 
 class TestMentorFoundation(unittest.TestCase):
@@ -32,7 +32,7 @@ class TestMentorFoundation(unittest.TestCase):
                         + ("".join(f"### {task_id}\n\n" for task_id in ids)
                            if name.endswith("Sofia_Complete_System_Atlas.md") else ""))
         self._write(LEDGER, json.dumps({"schema_version": 1, "tasks": []}))
-        self._write("src/sofia/life/example.py", "def example(): pass\n")
+        self._write("src/sofia/core/life/example.py", "def example(): pass\n")
 
     def _write(self, relative, text):
         path = self.root / relative
@@ -46,7 +46,7 @@ class TestMentorFoundation(unittest.TestCase):
         return {
             "task_id": "CA-0001", "stage": stage,
             "source_sha": self.revision,
-            "source_paths": ["src/sofia/life/example.py"],
+            "source_paths": ["src/sofia/core/life/example.py"],
             "production_entrypoint": "SofiaApplication.life",
             "tests": [{"command": "pytest example", "result": "1 passed"}],
             "ci_runs": [],
@@ -120,7 +120,7 @@ class TestMentorFoundation(unittest.TestCase):
 
     def test_cli_audit_and_task_does_not_create_writer(self):
         output = self.root / "mentor-report.json"
-        with patch("sofia.mentor.audit._head", return_value=self.revision):
+        with patch("sofia.core.mentor.audit._head", return_value=self.revision):
             with redirect_stdout(io.StringIO()):
                 code = main(["audit", "--repo", str(self.root), "--output", str(output)])
             self.assertEqual(code, 0)

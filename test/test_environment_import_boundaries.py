@@ -3,19 +3,19 @@
 
 def test_configuration_can_import_before_environment_service():
     from sofia.platform.config.model import SofiaConfiguration
-    from sofia.environment import EnvironmentService
+    from sofia.core.environment import EnvironmentService
 
     assert SofiaConfiguration is not None
     assert EnvironmentService is not None
 
 
 def test_environment_configuration_can_import_without_runtime_bootstrap():
-    from sofia.environment.config import EnvironmentConfiguration
+    from sofia.core.environment.config import EnvironmentConfiguration
 
     assert EnvironmentConfiguration().location is None
 
 def test_environment_service_import_does_not_eagerly_bootstrap_runtime():
-    from sofia.environment.service import EnvironmentService
+    from sofia.core.environment.service import EnvironmentService
 
     assert EnvironmentService is not None
 
@@ -28,7 +28,7 @@ def test_runtime_public_api_still_resolves_lazily():
     assert SofiaRuntimeError is not None
 
 def test_nws_public_api_resolves_without_eager_runtime_bootstrap():
-    from sofia.environment import NwsEnvironmentProvider
+    from sofia.core.environment import NwsEnvironmentProvider
     from sofia.integrations import NwsAdapter
 
     assert NwsEnvironmentProvider is not None

@@ -13,12 +13,12 @@ from sofia.core.cognition.model import (
 )
 from sofia.core.cognition.provider import LLMProvider
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.environment.config import (
+from sofia.core.environment.config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
 )
-from sofia.environment.model import WeatherObservation
-from sofia.environment.provider import EnvironmentProviderObservation
+from sofia.core.environment.model import WeatherObservation
+from sofia.core.environment.provider import EnvironmentProviderObservation
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -301,7 +301,7 @@ def test_unrelated_runtime_turn_does_not_refresh_environment_provider(tmp_path):
         def __init__(self):
             self.calls = 0
         def observe(self, *, now):
-            from sofia.environment.provider import EnvironmentProviderObservation
+            from sofia.core.environment.provider import EnvironmentProviderObservation
             self.calls += 1
             return EnvironmentProviderObservation()
 

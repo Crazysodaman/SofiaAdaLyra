@@ -28,7 +28,7 @@ from sofia.platform.dev.capability import (
 )
 from sofia.platform.dev.workflow import EngineeringCandidate
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
-from sofia.knowledge.capability import KnowledgeCapabilitySet
+from sofia.core.knowledge.capability import KnowledgeCapabilitySet
 from sofia.platform.safe.dev_approval import (
     DevApprovalVerifier,
     dev_approval_signature_payload,

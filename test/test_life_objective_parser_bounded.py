@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from hashlib import sha256
 import pytest
 
-from sofia.creative.model import ArtifactKind, ArtifactRevision
-from sofia.life.validation import ObjectiveDisposition, inspect_objective_artifact
+from sofia.core.creative.model import ArtifactKind, ArtifactRevision
+from sofia.core.life.validation import ObjectiveDisposition, inspect_objective_artifact
 
 pytestmark = pytest.mark.pkg_verify
 
@@ -66,7 +66,7 @@ def test_file_integrity_and_unreviewed_objectives_do_not_claim_success(tmp_path)
 
 def test_same_byte_size_replacement_between_lstat_and_open_fails(tmp_path, monkeypatch):
     import os
-    from sofia.life import validation
+    from sofia.core.life import validation
 
     content = b"content with a trustworthy receipt"
     original_file = tmp_path / "item.txt"

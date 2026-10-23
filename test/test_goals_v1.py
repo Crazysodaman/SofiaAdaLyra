@@ -5,7 +5,7 @@ import pytest
 
 from sofia.platform.capability import Capability, CapabilityResultKind, CapabilitySystem
 from sofia.platform.capability.gateway import CapabilityGateway
-from sofia.goals import (
+from sofia.core.goals import (
     CompletionKind,
     GoalCompletionCondition,
     GoalCost,
@@ -19,7 +19,7 @@ from sofia.goals import (
     SOFIA_GOAL_OWNER_ID,
     effective_priority,
 )
-from sofia.goals.evidence import GoalEvidence
+from sofia.core.goals.evidence import GoalEvidence
 from sofia.neuro import NeuralActivation, NeuroInputCoordinator, NeuroRuntime
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane

@@ -9,9 +9,9 @@ from unittest import TestCase
 from unittest.mock import patch
 from urllib import error
 
-from sofia.mentor.__main__ import main
-from sofia.mentor.bridge import _send_json, OPENAI_ENDPOINT, MentorBridgeError
-from sofia.mentor.openai_diagnostics import (
+from sofia.core.mentor.__main__ import main
+from sofia.core.mentor.bridge import _send_json, OPENAI_ENDPOINT, MentorBridgeError
+from sofia.core.mentor.openai_diagnostics import (
     MODELS_ENDPOINT, check_openai_model, openai_http_error,
 )
 
@@ -88,7 +88,7 @@ class TestSafeOpenAIErrors(TestCase):
         class FailingOpener:
             def open(self, req, timeout):
                 raise exc
-        with patch("sofia.mentor.bridge.request.build_opener",
+        with patch("sofia.core.mentor.bridge.request.build_opener",
                    return_value=FailingOpener()):
             with self.assertRaises(MentorBridgeError) as caught:
                 _send_json(OPENAI_ENDPOINT, {
@@ -129,13 +129,13 @@ class TestSafeOpenAIErrors(TestCase):
                 )
 
     def test_no_opt_in_preflight_never_calls_network(self):
-        with patch("sofia.mentor.__main__.check_openai_model",
+        with patch("sofia.core.mentor.__main__.check_openai_model",
                    side_effect=AssertionError("network must not be used")):
             with patch.dict(os.environ, {"OPENAI_API_KEY": "fake-secret"}):
                 self.assertEqual(main(["check-api", "--external-model", "gpt-6-luna"]), 2)
 
     def test_cli_preflight_prints_safe_metadata_not_key(self):
-        with patch("sofia.mentor.__main__.check_openai_model",
+        with patch("sofia.core.mentor.__main__.check_openai_model",
                    return_value={"model": "gpt-6-luna", "metadata_available": True}):
             with patch.dict(os.environ, {"OPENAI_API_KEY": "never-print-this"}):
                 output = StringIO()

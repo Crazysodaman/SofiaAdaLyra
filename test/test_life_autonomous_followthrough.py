@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import json
 
 from sofia.core.cognition.model import CognitiveResponse
-from sofia.life import (
+from sofia.core.life import (
     PersonalJudgment, ProjectIdea, ProjectScope, ProjectStatus,
     TechnicalOutcome,
 )
@@ -228,7 +228,7 @@ def test_background_draft_does_not_schedule_after_goals_pause_during_model(
     tmp_path,
 ):
     """A model reply is not permission that survives a GOALS revocation."""
-    from sofia.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
+    from sofia.core.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
     from sofia.core.social.principals import local_sparks_principal
 
     life, goals, now = infrastructure(tmp_path)
@@ -297,7 +297,7 @@ def test_background_draft_respects_operator_stop_during_model(tmp_path):
 
 def test_revision_abstains_if_goal_pauses_during_generator(tmp_path):
     """The old completed artifact is retained; no new RUN effect is minted."""
-    from sofia.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
+    from sofia.core.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
     from sofia.core.social.principals import local_sparks_principal
 
     life, goals, now = infrastructure(tmp_path)

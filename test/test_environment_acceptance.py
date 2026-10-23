@@ -14,20 +14,20 @@ from sofia.core.cognition.matrix import (
     InfluenceSignal,
     InfluenceSurface,
 )
-from sofia.environment.config import (
+from sofia.core.environment.config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
 )
-from sofia.environment.model import (
+from sofia.core.environment.model import (
     DaylightState,
     EnvironmentFreshness,
     LocationSubject,
     Season,
     WeatherObservation,
 )
-from sofia.environment.provider import EnvironmentProviderObservation
-from sofia.environment.query import EnvironmentQueryResolver
-from sofia.environment.service import EnvironmentService
+from sofia.core.environment.provider import EnvironmentProviderObservation
+from sofia.core.environment.query import EnvironmentQueryResolver
+from sofia.core.environment.service import EnvironmentService
 from sofia.core.personality.influence import ContinuityInfluence, daypart
 
 

@@ -8,8 +8,8 @@ from datetime import timedelta
 
 import pytest
 
-from sofia.creative import ArtifactKind
-from sofia.life import (
+from sofia.core.creative import ArtifactKind
+from sofia.core.life import (
     MilestoneStatus, PersonalJudgment, ProjectIdea, ProjectStatus,
     TechnicalOutcome,
 )

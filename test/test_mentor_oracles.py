@@ -6,10 +6,10 @@ from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
 
-from sofia.mentor.bridge import MentorBridgeError, OLLAMA_ENDPOINT, SCENARIOS
-from sofia.mentor.__main__ import main
-from sofia.mentor.local_bridge import LocalBridgeConfig, run_local_dialogue
-from sofia.mentor.oracles import ORACLES, get_oracle
+from sofia.core.mentor.bridge import MentorBridgeError, OLLAMA_ENDPOINT, SCENARIOS
+from sofia.core.mentor.__main__ import main
+from sofia.core.mentor.local_bridge import LocalBridgeConfig, run_local_dialogue
+from sofia.core.mentor.oracles import ORACLES, get_oracle
 
 
 class OracleTest(TestCase):
@@ -65,7 +65,7 @@ class OracleTest(TestCase):
 
     def test_preview_shows_reference_without_invoking_model(self):
         output = StringIO()
-        with patch("sofia.mentor.__main__.run_local_dialogue",
+        with patch("sofia.core.mentor.__main__.run_local_dialogue",
                    side_effect=AssertionError("no model calls in preview")):
             with redirect_stdout(output):
                 rc = main([

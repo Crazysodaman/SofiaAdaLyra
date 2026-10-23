@@ -7,15 +7,15 @@ import sqlite3
 
 from sofia.platform.capability import Capability, CapabilitySystem
 from sofia.platform.capability.gateway import CapabilityGateway
-from sofia.goals import (
+from sofia.core.goals import (
     CompletionKind, GoalCompletionCondition, GoalEvidenceIndex,
     GoalEvidenceLedger, GoalService, GoalStatus, GoalStore,
 )
-from sofia.goals.coordinator import GoalProductionCoordinator
-from sofia.generalization.advanced import AdvancedGeneralizationStore, EpisodePhase
-from sofia.generalization.contracts import ExplorationAdmission
-from sofia.learning.contracts import DataUseGrant
-from sofia.goals.model import GoalRunState
+from sofia.core.goals.coordinator import GoalProductionCoordinator
+from sofia.core.generalization.advanced import AdvancedGeneralizationStore, EpisodePhase
+from sofia.core.generalization.contracts import ExplorationAdmission
+from sofia.core.learning.contracts import DataUseGrant
+from sofia.core.goals.model import GoalRunState
 from sofia.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 from sofia.core.social.principals import local_sparks_principal
 from sofia.core.social.model import AudienceKind, PrincipalContext

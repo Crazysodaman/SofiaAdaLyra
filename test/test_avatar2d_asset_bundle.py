@@ -21,7 +21,7 @@ from sofia.platform.safe.permissions import PermissionStore
 from sofia.core.social.principals import local_sparks_principal
 
 
-SEED = Path(__file__).resolve().parents[1] / "src/sofia/core.embodiment/avatar.json"
+SEED = Path(__file__).resolve().parents[1] / "src/sofia/core/embodiment/avatar.json"
 
 
 def _chunk(name: bytes, value: bytes) -> bytes:

@@ -9,11 +9,11 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
-from sofia.mentor.__main__ import main
-from sofia.mentor.behavior_diagnostics import diagnose_behavior
-from sofia.mentor.behavior_history import empty_counts, save_counts
-from sofia.mentor.behavior_monitor import EMOTION_CRITERIA
-from sofia.mentor.personality_review import CRITERIA
+from sofia.core.mentor.__main__ import main
+from sofia.core.mentor.behavior_diagnostics import diagnose_behavior
+from sofia.core.mentor.behavior_history import empty_counts, save_counts
+from sofia.core.mentor.behavior_monitor import EMOTION_CRITERIA
+from sofia.core.mentor.personality_review import CRITERIA
 
 
 class BehaviorDiagnosisTests(TestCase):
@@ -76,8 +76,8 @@ class BehaviorDiagnosisTests(TestCase):
 
     def test_cli_diagnose_needs_no_network(self):
         out = StringIO()
-        with patch("sofia.mentor.__main__.diagnose_behavior", return_value={
-            "schema": "sofia.mentor.behavior-diagnosis.v1",
+        with patch("sofia.core.mentor.__main__.diagnose_behavior", return_value={
+            "schema": "sofia.core.mentor.behavior-diagnosis.v1",
             "runtime_service_environment_verified": False,
         }):
             with redirect_stdout(out):
@@ -86,7 +86,7 @@ class BehaviorDiagnosisTests(TestCase):
         self.assertIn("runtime_service_environment_verified", out.getvalue())
 
     def test_synthetic_smoke_requires_idle_before_local_ollama(self):
-        with patch("sofia.mentor.__main__.evaluate_private_turn",
+        with patch("sofia.core.mentor.__main__.evaluate_private_turn",
                    side_effect=AssertionError("cannot invoke without consent")):
             self.assertEqual(main([
                 "behavior-smoke", "--repo", str(self.root)
@@ -99,7 +99,7 @@ class BehaviorDiagnosisTests(TestCase):
             "emotion_scores": {key: 3 if key != "expression_coherence" else None
                                for key in EMOTION_CRITERIA},
         }
-        with patch("sofia.mentor.__main__.evaluate_private_turn",
+        with patch("sofia.core.mentor.__main__.evaluate_private_turn",
                    return_value=mock_result) as evaluate:
             out = StringIO()
             with redirect_stdout(out):

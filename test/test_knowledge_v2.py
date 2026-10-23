@@ -16,11 +16,11 @@ from sofia.core.cognition.v2.contracts import (
 )
 from sofia.core.cognition.v2.matrix import MatrixV2Planner
 from sofia.core.cognition.v2.evidence import CognitiveEvidenceLedger, EvidenceAcquisitionCoordinator
-from sofia.knowledge.evidence import KnowledgeEvidenceCoordinator
-from sofia.knowledge.index import KnowledgeIndex
-from sofia.knowledge.lifecycle import DocumentDisposition, SQLiteKnowledgeLifecycle
-from sofia.knowledge.persistence import SQLiteKnowledgeStore
-from sofia.knowledge.service import KnowledgeService
+from sofia.core.knowledge.evidence import KnowledgeEvidenceCoordinator
+from sofia.core.knowledge.index import KnowledgeIndex
+from sofia.core.knowledge.lifecycle import DocumentDisposition, SQLiteKnowledgeLifecycle
+from sofia.core.knowledge.persistence import SQLiteKnowledgeStore
+from sofia.core.knowledge.service import KnowledgeService
 
 
 def _service(root: Path, *, index=None):

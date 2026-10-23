@@ -65,7 +65,7 @@ def test_source_and_regression_trace_produces_only_stage_two(tmp_path, monkeypat
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# existing source reference\\n", encoding="utf-8")
     monkeypatch.setitem(module.TRACED, "CA-111", [
-        "src/sofia/life/coordinator.py", "test/test_life.py",
+        "src/sofia/core/life/coordinator.py", "test/test_life.py",
     ])
     report = module.build(tmp_path, SHA)
     item = next(t for t in report["tasks"] if t["task_id"] == "CA-111")
@@ -89,7 +89,7 @@ def test_sparse_audited_evidence_promotes_only_exact_task(tmp_path):
             "task_id": "CA-103",
             "stage": "TESTED",
             "source_sha": SHA,
-            "source_paths": ["src/sofia/life/coordinator.py"],
+            "source_paths": ["src/sofia/core/life/coordinator.py"],
             "production_entrypoint": "application background LIFE tick",
             "tests": [{"command": "pytest focused", "result": "1 passed"}],
             "ci_runs": [],

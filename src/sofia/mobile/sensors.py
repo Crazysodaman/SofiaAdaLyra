@@ -8,13 +8,13 @@ import json
 from pathlib import Path
 import sqlite3
 
-from sofia.environment.model import (
+from sofia.core.environment.model import (
     LocationEvidenceKind,
     LocationObservation,
     LocationSubject,
     MobileDeviceObservation,
 )
-from sofia.environment.provider import EnvironmentProviderObservation
+from sofia.core.environment.provider import EnvironmentProviderObservation
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .model import MobileSensorReport

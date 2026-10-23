@@ -11,7 +11,7 @@ from datetime import datetime
 import re
 
 from sofia.avatar.presentation import PresentationProjection
-from sofia.environment.model import (
+from sofia.core.environment.model import (
     DaylightState,
     EnvironmentFreshness,
     EnvironmentSnapshot,

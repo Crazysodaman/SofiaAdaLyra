@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import pytest
-from sofia.knowledge import KnowledgeDocument, KnowledgeFact, KnowledgeStore, SourceKind
+from sofia.core.knowledge import KnowledgeDocument, KnowledgeFact, KnowledgeStore, SourceKind
 
 
 def test_knowledge_requires_registered_provenance():

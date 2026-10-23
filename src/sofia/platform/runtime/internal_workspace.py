@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sofia.continuity.model import (
+from sofia.core.continuity.model import (
     ContinuityEventKind, create_continuity_event,
 )
 from sofia.platform.filesystem.change_filter import exclude_internal_state_changes

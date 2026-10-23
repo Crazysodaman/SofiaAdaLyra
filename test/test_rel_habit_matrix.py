@@ -24,7 +24,7 @@ from sofia.core.conversation.model import (
     ConversationMessage,
     ConversationRole,
 )
-from sofia.habits.patterns import (
+from sofia.core.habits.patterns import (
     CadenceKind,
     HabitCategory,
     HabitLifecycle,

@@ -4,16 +4,16 @@ import pytest
 
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
-from sofia.environment.config import EnvironmentConfiguration
-from sofia.environment.factory import (
+from sofia.core.environment.config import EnvironmentConfiguration
+from sofia.core.environment.factory import (
     HOME_ASSISTANT_ENVIRONMENT_CAPABILITY,
     NWS_ENVIRONMENT_CAPABILITY,
     create_environment_service,
 )
-from sofia.environment.home_assistant import HomeAssistantEnvironmentProvider
-from sofia.environment.config import ConfiguredLocation
-from sofia.environment.model import LocationSubject
-from sofia.environment.nws import NwsEnvironmentProvider
+from sofia.core.environment.home_assistant import HomeAssistantEnvironmentProvider
+from sofia.core.environment.config import ConfiguredLocation
+from sofia.core.environment.model import LocationSubject
+from sofia.core.environment.nws import NwsEnvironmentProvider
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -236,7 +236,7 @@ def test_factory_uses_saved_home_assistant_credentials(
             return "saved-ha-token"
 
     monkeypatch.setattr(
-        "sofia.environment.factory.ProtectedSecretStore.for_state_path",
+        "sofia.core.environment.factory.ProtectedSecretStore.for_state_path",
         lambda path: Secrets(),
     )
 

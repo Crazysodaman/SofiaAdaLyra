@@ -290,7 +290,7 @@ def _configuration(tmp_path: Path) -> SofiaConfiguration:
         ),
         identity_path=PROJECT_ROOT / "src/sofia/core/identity/identity.json",
         personality_path=personality_path,
-        avatar_path=PROJECT_ROOT / "src/sofia/core.embodiment/avatar.json",
+        avatar_path=PROJECT_ROOT / "src/sofia/core/embodiment/avatar.json",
         state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=PROJECT_ROOT,

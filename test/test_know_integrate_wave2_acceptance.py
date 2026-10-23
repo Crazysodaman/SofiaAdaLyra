@@ -1,7 +1,7 @@
 from pathlib import Path
-from sofia.knowledge.service import KnowledgeService
-from sofia.knowledge.lifecycle import SQLiteKnowledgeLifecycle
-from sofia.knowledge.persistence import SQLiteKnowledgeStore
+from sofia.core.knowledge.service import KnowledgeService
+from sofia.core.knowledge.lifecycle import SQLiteKnowledgeLifecycle
+from sofia.core.knowledge.persistence import SQLiteKnowledgeStore
 
 def test_local_ingest_hashes_and_reads(tmp_path:Path):
     p=tmp_path/"doc.txt"; p.write_text("hello",encoding="utf-8")

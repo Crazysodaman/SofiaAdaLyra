@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 import sqlite3
 
-from sofia.goals.evidence import GoalEvidenceIndex
+from sofia.core.goals.evidence import GoalEvidenceIndex
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

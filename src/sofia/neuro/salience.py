@@ -74,7 +74,7 @@ class SalienceNetwork:
         """
         if prediction is None:
             return None
-        from sofia.learning.contracts import Prediction, PredictionMode
+        from sofia.core.learning.contracts import Prediction, PredictionMode
         if not isinstance(signal, NeuralSignal) or not isinstance(prediction, Prediction):
             return None
         if prediction.mode not in (PredictionMode.SHADOW, PredictionMode.ADVISORY):

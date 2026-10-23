@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from sofia.core.cognition.matrix import EvidenceRecord, EvidenceState
 from sofia.core.cognition.model import CognitiveResponse
-from sofia.environment.model import EnvironmentFreshness
+from sofia.core.environment.model import EnvironmentFreshness
 
 if TYPE_CHECKING:
     from sofia.platform.runtime.runtime import SofiaRuntime

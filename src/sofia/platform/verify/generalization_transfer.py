@@ -23,7 +23,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-SCHEMA = "sofia.generalization.transfer.v1"
+SCHEMA = "sofia.core.generalization.transfer.v1"
 REVISION = re.compile(r"[0-9a-f]{40}\Z")
 DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}\Z")

@@ -966,7 +966,7 @@ class EmotionalJournal:
         Project status alone, model prose, inactivity, failure, or abandonment
         never manufactures an emotional episode.
         """
-        from sofia.life.model import ExperienceRecord
+        from sofia.core.life.model import ExperienceRecord
 
         if not isinstance(experience, ExperienceRecord):
             raise TypeError("canonical LIFE ExperienceRecord required")

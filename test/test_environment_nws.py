@@ -2,9 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
-from sofia.environment.model import LocationSubject
-from sofia.environment.nws import NwsEnvironmentProvider
+from sofia.core.environment.config import ConfiguredLocation, EnvironmentConfiguration
+from sofia.core.environment.model import LocationSubject
+from sofia.core.environment.nws import NwsEnvironmentProvider
 from sofia.integrations.nws import NwsAdapter, validate_nws_url
 
 

@@ -1,18 +1,18 @@
 from datetime import datetime, timedelta, timezone
 
-from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
-from sofia.environment.model import (
+from sofia.core.environment.config import ConfiguredLocation, EnvironmentConfiguration
+from sofia.core.environment.model import (
     LocationEvidenceKind,
     LocationObservation,
     LocationSubject,
     WeatherObservation,
 )
-from sofia.environment.prompt import (
+from sofia.core.environment.prompt import (
     environment_details_relevant,
     environment_prompt,
 )
-from sofia.environment.provider import EnvironmentProviderObservation
-from sofia.environment.service import EnvironmentService
+from sofia.core.environment.provider import EnvironmentProviderObservation
+from sofia.core.environment.service import EnvironmentService
 
 
 NOW = datetime(2026, 9, 25, 18, 0, tzinfo=timezone.utc)

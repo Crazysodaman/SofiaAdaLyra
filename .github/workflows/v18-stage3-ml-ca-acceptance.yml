@@ -5,9 +5,9 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/v18-stage3-ml-ca-acceptance.yml'
-      - 'src/sofia/learning/**'
+      - 'src/sofia/core/learning/**'
       - 'src/sofia/core/memory/ranking.py'
-      - 'src/sofia/life/**'
+      - 'src/sofia/core/life/**'
       - 'src/sofia/platform/application/presence.py'
   workflow_dispatch:
 

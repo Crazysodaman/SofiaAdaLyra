@@ -22,7 +22,7 @@ from sofia.ui.avatar2d_renderer import TkLayered2DRenderer
 from sofia.ui.avatar_renderer import AvatarRenderRequest
 
 
-SEED = Path(__file__).resolve().parents[1] / "src/sofia/core.embodiment/avatar.json"
+SEED = Path(__file__).resolve().parents[1] / "src/sofia/core/embodiment/avatar.json"
 
 
 class Root:

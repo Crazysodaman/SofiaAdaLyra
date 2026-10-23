@@ -13,7 +13,7 @@ from sofia.core.cognition.routing import RoutingCognitiveEngine
 from sofia.platform.composition.root import compose
 from sofia.platform.config import create_default_configuration
 from sofia.platform.config.model import ModelLifecycleConfiguration
-from sofia.environment.config import EnvironmentConfiguration
+from sofia.core.environment.config import EnvironmentConfiguration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

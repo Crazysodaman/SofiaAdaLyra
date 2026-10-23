@@ -11,7 +11,7 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.environment.config import environment_configuration_from_environ
+from sofia.core.environment.config import environment_configuration_from_environ
 from sofia.platform.config.layout import RuntimeStorageLayout
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.platform.safe.permissions import automatic_capabilities

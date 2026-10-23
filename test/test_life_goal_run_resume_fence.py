@@ -6,9 +6,9 @@ from datetime import timedelta
 
 import pytest
 
-from sofia.creative import ArtifactKind
-from sofia.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
-from sofia.life.model import ProjectStatus
+from sofia.core.creative import ArtifactKind
+from sofia.core.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
+from sofia.core.life.model import ProjectStatus
 from sofia.platform.run.work import WorkStatus
 from sofia.core.social.principals import local_sparks_principal
 from test.test_life_project_forge import infrastructure, active_project
@@ -305,7 +305,7 @@ def test_one_use_creative_grant_cannot_claim_after_life_pause_resume(
     tmp_path,
 ):
     """The final writer CAS catches a revision change after RUN precheck."""
-    from sofia.creative import creative_request_digest
+    from sofia.core.creative import creative_request_digest
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -343,7 +343,7 @@ def test_one_use_creative_grant_claims_only_matching_original_running_job(
     tmp_path,
 ):
     """A real current RUN job can claim only once, without executing work."""
-    from sofia.creative import creative_request_digest
+    from sofia.core.creative import creative_request_digest
 
     life, _goals, now = infrastructure(tmp_path)
     try:

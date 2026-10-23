@@ -8,12 +8,12 @@ from sofia.core.cognition.grounding import (
 from sofia.core.cognition.model import CognitiveRequest
 from sofia.core.cognition.self_state import AuthoritativeSelfState
 from sofia.core.constitution.store import Constitution
-from sofia.continuity.model import (
+from sofia.core.continuity.model import (
     ContinuityEvent,
     create_continuity_event,
 )
 from sofia.core.embodiment.model import Embodiment
-from sofia.environment.model import EnvironmentSnapshot
+from sofia.core.environment.model import EnvironmentSnapshot
 from sofia.core.embodiment.measurement_query import MeasurementQueryResult
 from sofia.platform.filesystem.changes import FilesystemChangeEvent
 from sofia.platform.filesystem.model import FilesystemResult

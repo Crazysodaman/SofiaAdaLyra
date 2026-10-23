@@ -9,12 +9,12 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
-from sofia.mentor.behavior_monitor import (
+from sofia.core.mentor.behavior_monitor import (
     BehaviorMonitor, EMOTION_CRITERIA, TTL, PrivateTurn,
     _assess_json, behavior_monitor_enabled, evaluate_private_turn,
     register_behavior_monitor,
 )
-from sofia.mentor.personality_review import CRITERIA
+from sofia.core.mentor.personality_review import CRITERIA
 
 
 NOW = datetime(2026, 10, 19, 20, 0, tzinfo=timezone.utc)
@@ -53,7 +53,7 @@ class BehaviorMonitorTests(TestCase):
 
     def report(self, *args, **kwargs):
         return {
-            "schema": "sofia.mentor.behavior-private-review.v1",
+            "schema": "sofia.core.mentor.behavior-private-review.v1",
             "status": "PROVISIONAL_LOCAL_LLM_REVIEW",
             "source": "observed-application-response",
             "personality_scores": {x: 3 for x in CRITERIA},

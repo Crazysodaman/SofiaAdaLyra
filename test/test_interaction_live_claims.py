@@ -18,7 +18,7 @@ from sofia.interaction.ledger import control_command
 from datetime import datetime, timezone
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core' / 'embodiment" / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core' / 'embodiment' / 'avatar.json'
 
 
 @pytest.mark.parametrize('content', [

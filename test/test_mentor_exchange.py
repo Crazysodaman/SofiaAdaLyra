@@ -8,8 +8,8 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
-from sofia.mentor.__main__ import main
-from sofia.mentor.exchange import (
+from sofia.core.mentor.__main__ import main
+from sofia.core.mentor.exchange import (
     INBOX, INBOX_SCHEMA, OUTBOX, OUTBOX_SCHEMA, MentorExchangeError,
     public_outbox, read_review, validate_advisory_review, write_public_outbox,
 )
@@ -81,7 +81,7 @@ class TestMentorGitMailbox(TestCase):
         }
 
     def test_public_export_has_only_allowlisted_metadata(self):
-        with patch("sofia.mentor.exchange.audit_checkout", return_value=self.report()):
+        with patch("sofia.core.mentor.exchange.audit_checkout", return_value=self.report()):
             doc = public_outbox(self.root)
         self.assertEqual(doc["schema"], OUTBOX_SCHEMA)
         self.assertEqual(doc["visibility"], "public")
@@ -94,7 +94,7 @@ class TestMentorGitMailbox(TestCase):
         self.assertEqual(doc["tasks"][0]["id"], "CA-0001")
 
     def test_export_writes_only_designated_path_and_never_commits(self):
-        with patch("sofia.mentor.exchange.audit_checkout", return_value=self.report()):
+        with patch("sofia.core.mentor.exchange.audit_checkout", return_value=self.report()):
             result = write_public_outbox(self.root)
         self.assertEqual(result["path"], OUTBOX)
         self.assertFalse(result["git_committed"])
@@ -104,7 +104,7 @@ class TestMentorGitMailbox(TestCase):
         self.assertFalse(list(self.root.glob("*.db")))
 
     def test_export_does_not_follow_symlinks_or_write_elsewhere(self):
-        with patch("sofia.mentor.exchange.audit_checkout", return_value=self.report()):
+        with patch("sofia.core.mentor.exchange.audit_checkout", return_value=self.report()):
             with self.assertRaises(MentorExchangeError):
                 write_public_outbox(self.root, "../private.json")
             with self.assertRaises(MentorExchangeError):
@@ -188,7 +188,7 @@ class TestMentorGitMailbox(TestCase):
     def test_cli_exports_and_reads_without_action_execution(self):
         from contextlib import redirect_stdout
         from io import StringIO
-        with patch("sofia.mentor.exchange.audit_checkout", return_value=self.report()):
+        with patch("sofia.core.mentor.exchange.audit_checkout", return_value=self.report()):
             output = StringIO()
             with redirect_stdout(output):
                 self.assertEqual(main(["exchange-export", "--repo", str(self.root)]), 0)

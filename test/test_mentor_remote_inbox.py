@@ -9,9 +9,9 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
-from sofia.mentor.__main__ import main
-from sofia.mentor.exchange import MentorExchangeError
-from sofia.mentor.remote_inbox import (
+from sofia.core.mentor.__main__ import main
+from sofia.core.mentor.exchange import MentorExchangeError
+from sofia.core.mentor.remote_inbox import (
     MAX_REVIEW_BYTES, MentorRemoteError, MentorReviewConsumer,
     PUBLIC_INBOX_URL, _raw_get, fetch_public_review,
     mentor_git_enabled, register_application_review_task,
@@ -23,7 +23,7 @@ NOW = datetime(2026, 10, 19, 23, 45, tzinfo=timezone.utc)
 
 def review():
     return {
-        "schema": "sofia.mentor.advisory-review.v1",
+        "schema": "sofia.core.mentor.advisory-review.v1",
         "visibility": "public",
         "reviewed_source_revision": "a" * 40,
         "review_created_at": NOW.isoformat(),
@@ -168,11 +168,11 @@ class TestRemoteInbox(TestCase):
         self.assertIsNone(application._mentor_review_consumer)
 
     def test_cli_public_network_requires_explicit_opt_in(self):
-        with patch("sofia.mentor.__main__.MentorReviewConsumer",
+        with patch("sofia.core.mentor.__main__.MentorReviewConsumer",
                    side_effect=AssertionError("must not fetch")):
             self.assertEqual(main(["exchange-poll"]), 2)
         sample = MentorReviewConsumer(fetcher=lambda *, now: (review(), "a" * 64))
-        with patch("sofia.mentor.__main__.MentorReviewConsumer", return_value=sample):
+        with patch("sofia.core.mentor.__main__.MentorReviewConsumer", return_value=sample):
             output = StringIO()
             with redirect_stdout(output):
                 status = main(["exchange-poll", "--allow-public-network"])
@@ -197,7 +197,7 @@ class TestRemoteInbox(TestCase):
             def open(self, req, timeout):
                 calls.append((req, timeout))
                 return Response(json.dumps(review()).encode())
-        with patch("sofia.mentor.remote_inbox.request.build_opener",
+        with patch("sofia.core.mentor.remote_inbox.request.build_opener",
                    return_value=Opener()):
             raw = _raw_get()
         self.assertTrue(raw)

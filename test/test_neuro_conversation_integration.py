@@ -16,7 +16,7 @@ from sofia.neuro import NeuralSignal
 from sofia.core.emotion.model import CurrentEmotionalState
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.principals import local_sparks_principal
-from sofia.goals import CompletionKind, GoalCompletionCondition
+from sofia.core.goals import CompletionKind, GoalCompletionCondition
 
 
 pytestmark = pytest.mark.pkg_core

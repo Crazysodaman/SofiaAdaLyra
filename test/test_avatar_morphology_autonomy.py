@@ -15,7 +15,7 @@ from sofia.core.embodiment.model import Measurement
 from sofia.core.embodiment.store import EmbodimentStore
 
 
-SEED = Path(__file__).resolve().parents[1] / "src/sofia/core.embodiment/avatar.json"
+SEED = Path(__file__).resolve().parents[1] / "src/sofia/core/embodiment/avatar.json"
 
 
 def baseline():

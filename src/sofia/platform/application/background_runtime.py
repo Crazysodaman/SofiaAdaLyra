@@ -54,7 +54,7 @@ def _consider_life_idea_without_wedging_worker(
     existing work, previously approved goals and durable RUN receipts.
     """
     from sofia.core.cognition.engine import CognitiveEngineError
-    from sofia.life.idea_agent import ProjectIdeaGenerationError
+    from sofia.core.life.idea_agent import ProjectIdeaGenerationError
     try:
         return life.consider_new_project(
             generate=generate, now=now, busy=busy,
@@ -141,7 +141,7 @@ def bridge_voluntary_life_outreach(
     ), None)
     # Sofía's model may choose to share or to remain quiet. It never
     # writes the outgoing factual claims or gets additional authority.
-    from sofia.life.outreach_agent import (
+    from sofia.core.life.outreach_agent import (
         ProjectOutreachChoiceAgent, ProjectOutreachChoiceError,
     )
     if not callable(generate):
@@ -477,7 +477,7 @@ def create_background_coordinator(
     # Only the canonical scheduler may poll this public advisory feed.
     # Registration requires explicit environment opt-in, and does not create
     # a second writer, model session or permission authority.
-    from sofia.mentor.remote_inbox import register_application_review_task
+    from sofia.core.mentor.remote_inbox import register_application_review_task
     register_application_review_task(
         application=application, coordinator=coordinator,
         activity_store=activity_store, host_id=host_id,
@@ -486,7 +486,7 @@ def create_background_coordinator(
     # Owner opt-in: observe settled responses without delaying them, then
     # review at most one private sample on an idle-approved background tick.
     # This never contacts OpenAI and never exports raw emotional history.
-    from sofia.mentor.behavior_monitor import register_behavior_monitor
+    from sofia.core.mentor.behavior_monitor import register_behavior_monitor
     register_behavior_monitor(
         application=application, coordinator=coordinator,
         activity_store=activity_store, host_id=host_id,

@@ -5,7 +5,7 @@ import pytest
 
 from sofia.platform.application import SofiaApplication
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.life import SelfDirectedLifeCoordinator
+from sofia.core.life import SelfDirectedLifeCoordinator
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -25,7 +25,7 @@ def configuration(tmp_path):
         constitution_hash_path=project / "src/sofia/core/constitution/constitution.sha256",
         identity_path=project / "src/sofia/core/identity/identity.json",
         personality_path=personality,
-        avatar_path=project / "src/sofia/core.embodiment/avatar.json",
+        avatar_path=project / "src/sofia/core/embodiment/avatar.json",
         state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=project,

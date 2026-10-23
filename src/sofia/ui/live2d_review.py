@@ -156,8 +156,8 @@ def open_review_window(parent, *, tk=None):
             messagebox.showinfo("No generation pending", "This review job has no saved ComfyUI submission. Your source and checklist remain available.", parent=root)
             return
         try:
-            from sofia.creative.comfyui_bridge import ComfyUIBridge
-            from sofia.creative.live2d_recovery import reconcile
+            from sofia.core.creative.comfyui_bridge import ComfyUIBridge
+            from sofia.core.creative.live2d_recovery import reconcile
             recovered = reconcile(job, ComfyUIBridge())
         except (OSError, ValueError, KeyError) as exc:
             messagebox.showerror("Cannot inspect job", str(exc), parent=root)

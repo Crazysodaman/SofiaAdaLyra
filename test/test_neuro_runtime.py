@@ -90,7 +90,7 @@ def test_neuro_turn_prefers_required_domain_without_creating_authority():
 
 def test_ml025_prediction_is_read_only_and_never_overrides_deterministic_salience():
     from hashlib import sha256
-    from sofia.learning.contracts import Prediction, PredictionMode
+    from sofia.core.learning.contracts import Prediction, PredictionMode
 
     network = SalienceNetwork()
     signal = NeuralSignal(

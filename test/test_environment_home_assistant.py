@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 
-from sofia.environment.config import (
+from sofia.core.environment.config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
 )
-from sofia.environment.home_assistant import HomeAssistantEnvironmentProvider
-from sofia.environment.model import LocationSubject
+from sofia.core.environment.home_assistant import HomeAssistantEnvironmentProvider
+from sofia.core.environment.model import LocationSubject
 from sofia.integrations.home_assistant import HomeAssistantAdapter
 
 

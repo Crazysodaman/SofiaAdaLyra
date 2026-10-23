@@ -15,7 +15,7 @@ from sofia.core.cognition.model import (
     CognitiveRole,
     CognitiveToolDefinition,
 )
-from sofia.environment.prompt import (
+from sofia.core.environment.prompt import (
     environment_details_relevant,
     environment_prompt,
 )

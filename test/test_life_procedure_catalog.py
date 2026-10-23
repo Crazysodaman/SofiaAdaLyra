@@ -10,12 +10,12 @@ import sqlite3
 
 import pytest
 
-from sofia.creative import ArtifactKind
-from sofia.life import (
+from sofia.core.creative import ArtifactKind
+from sofia.core.life import (
     PersonalJudgment, ProjectIdea, ProjectScope, ProjectStatus,
     TechnicalOutcome,
 )
-from sofia.life.procedures import LifeProcedureCatalog
+from sofia.core.life.procedures import LifeProcedureCatalog
 from sofia.platform.run.work import WorkStatus
 from test.test_life_project_forge import (
     active_project, infrastructure, wait_for_job,
@@ -454,7 +454,7 @@ def test_original_life_draft_cites_only_current_twice_verified_procedure(
 ):
     """The third creative project sees source proof, never implicit tool rights."""
     from sofia.core.cognition.model import CognitiveResponse
-    from sofia.life.draft_agent import ProjectDraftAgent
+    from sofia.core.life.draft_agent import ProjectDraftAgent
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -507,7 +507,7 @@ def test_procedure_source_rot_is_not_reused_for_subsequent_life_draft(
     tmp_path,
 ):
     """Current source invalidation withdraws precedents before model use."""
-    from sofia.life.draft_agent import ProjectDraftAgent
+    from sofia.core.life.draft_agent import ProjectDraftAgent
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -546,7 +546,7 @@ def test_procedure_promotion_rechecks_original_source_under_writer_lock(
     tmp_path, monkeypatch, alter_original,
 ):
     """An original RUN proof changed after bytes-check cannot promote skill."""
-    import sofia.life.procedures as procedures_module
+    import sofia.core.life.procedures as procedures_module
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -1077,7 +1077,7 @@ def test_verified_skill_refuses_stale_native_tool_version_and_quarantines(
     tmp_path,
 ):
     """Two authentic prior successes are not permission to assume new tools."""
-    from sofia.creative import NativeCreativeAdapter
+    from sofia.core.creative import NativeCreativeAdapter
 
     life, _goals, now = infrastructure(tmp_path)
     try:

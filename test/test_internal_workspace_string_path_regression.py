@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
-from sofia.continuity.model import ContinuityEventKind, create_continuity_event
+from sofia.core.continuity.model import ContinuityEventKind, create_continuity_event
 from sofia.platform.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
 from sofia.platform.filesystem.observation import FilesystemEntry
 from sofia.platform.operational.model import ContinuityEvidenceStatus, RuntimeContinuity

@@ -8,11 +8,11 @@ import pytest
 
 from sofia.platform.application import SofiaApplication
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.generalization import (
+from sofia.core.generalization import (
     AttemptMetrics, ExplorationAdmission, GeneralizationService, NovelProblemCase,
     NovelProblemSuite, ProblemDomain, SuiteSplit, answer_digest,
 )
-from sofia.learning.contracts import DataUse, DataUseGrant
+from sofia.core.learning.contracts import DataUse, DataUseGrant
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
@@ -63,7 +63,7 @@ def _application_configuration(tmp_path: Path) -> SofiaConfiguration:
         constitution_hash_path=project / "src/sofia/core/constitution/constitution.sha256",
         identity_path=project / "src/sofia/core/identity/identity.json",
         personality_path=personality,
-        avatar_path=project / "src/sofia/core.embodiment/avatar.json",
+        avatar_path=project / "src/sofia/core/embodiment/avatar.json",
         state_path=state,
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=project,

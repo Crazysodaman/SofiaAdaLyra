@@ -2,11 +2,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.environment.config import (
+from sofia.core.environment.config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
 )
-from sofia.environment.model import (
+from sofia.core.environment.model import (
     LocationEvidenceKind,
     LocationObservation,
     LocationSubject,
@@ -14,9 +14,9 @@ from sofia.environment.model import (
     IndoorEnvironmentObservation,
     WeatherObservation,
 )
-from sofia.environment.provider import EnvironmentProviderObservation
-from sofia.environment.query import EnvironmentQueryResolver
-from sofia.environment.service import EnvironmentService
+from sofia.core.environment.provider import EnvironmentProviderObservation
+from sofia.core.environment.query import EnvironmentQueryResolver
+from sofia.core.environment.service import EnvironmentService
 
 
 NOW = datetime(2026, 9, 25, 18, 0, tzinfo=timezone.utc)

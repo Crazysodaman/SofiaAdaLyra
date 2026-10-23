@@ -10,7 +10,7 @@ from hashlib import sha256
 import json
 import sqlite3
 
-from sofia.knowledge.observation_conflict import (
+from sofia.core.knowledge.observation_conflict import (
     Observation, ObservationSource, compare_observations,
 )
 

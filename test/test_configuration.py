@@ -6,7 +6,7 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.environment.config import EnvironmentConfiguration
+from sofia.core.environment.config import EnvironmentConfiguration
 
 
 def create_configuration() -> SofiaConfiguration:

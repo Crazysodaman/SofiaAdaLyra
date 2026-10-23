@@ -12,8 +12,8 @@ from datetime import datetime, timezone
 import pytest
 
 from sofia.core.conversation.lifelong import LifelongThreadStore
-from sofia.goals.evidence import GoalEvidenceIndex, GoalEvidenceLedger
-from sofia.life.store import LifeStore
+from sofia.core.goals.evidence import GoalEvidenceIndex, GoalEvidenceLedger
+from sofia.core.life.store import LifeStore
 from sofia.core.social.model import AudienceKind, PrincipalContext
 
 

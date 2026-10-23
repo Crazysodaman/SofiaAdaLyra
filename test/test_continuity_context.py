@@ -7,7 +7,7 @@ from sofia.core.cognition.model import (
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.continuity.model import (
+from sofia.core.continuity.model import (
     ContinuityEventKind,
 )
 from sofia.platform.operational.model import (

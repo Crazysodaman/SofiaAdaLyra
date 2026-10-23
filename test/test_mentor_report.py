@@ -7,9 +7,9 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from sofia.mentor.audit import MentorAuditError, SCHEMA, STAGES
-from sofia.mentor.report import markdown_report
-from sofia.mentor.__main__ import main
+from sofia.core.mentor.audit import MentorAuditError, SCHEMA, STAGES
+from sofia.core.mentor.report import markdown_report
+from sofia.core.mentor.__main__ import main
 
 
 class TestMentorReport(unittest.TestCase):
@@ -56,7 +56,7 @@ class TestMentorReport(unittest.TestCase):
                 target.symlink_to(Path(tmp) / "outside.md")
             except (OSError, NotImplementedError):
                 self.skipTest("symlinks unavailable on test host")
-            with patch("sofia.mentor.__main__.audit_checkout", return_value=self._sample()):
+            with patch("sofia.core.mentor.__main__.audit_checkout", return_value=self._sample()):
                 with redirect_stdout(io.StringIO()):
                     self.assertEqual(
                         main(["audit", "--repo", tmp, "--markdown", str(target)]), 2

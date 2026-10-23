@@ -10,7 +10,7 @@ from sofia.avatar.wardrobe_planner import (
     WardrobeContext,
     WearSetting,
 )
-from sofia.environment.model import (
+from sofia.core.environment.model import (
     DaylightObservation,
     DaylightState,
     EnvironmentFreshness,

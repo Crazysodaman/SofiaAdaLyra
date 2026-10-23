@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import pytest
-from sofia.creative import comfyui_host as host
+from sofia.core.creative import comfyui_host as host
 
 class FakeProc:
     def __init__(self, pid=42, exe="C:/Apps/ComfyUI.exe"):

@@ -4,16 +4,16 @@ import json
 import sqlite3
 import pytest
 
-from sofia.knowledge.lifecycle import (
+from sofia.core.knowledge.lifecycle import (
     DocumentDisposition,
     SQLiteKnowledgeLifecycle,
 )
-from sofia.knowledge.model import (
+from sofia.core.knowledge.model import (
     KnowledgeDocument,
     KnowledgeFact,
     SourceKind,
 )
-from sofia.knowledge.persistence import (
+from sofia.core.knowledge.persistence import (
     SQLiteKnowledgeStore,
 )
 

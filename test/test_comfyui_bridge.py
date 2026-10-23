@@ -1,6 +1,6 @@
 import json
 import pytest
-from sofia.creative.comfyui_bridge import ComfyUIBridge, ComfyBridgeError
+from sofia.core.creative.comfyui_bridge import ComfyUIBridge, ComfyBridgeError
 
 PID = "550e8400-e29b-41d4-a716-446655440000"
 

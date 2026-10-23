@@ -1,7 +1,7 @@
 import pytest
 
-from sofia.environment.config import environment_configuration_from_environ
-from sofia.environment.model import LocationSubject
+from sofia.core.environment.config import environment_configuration_from_environ
+from sofia.core.environment.model import LocationSubject
 
 
 def test_empty_environment_configuration_is_safe_and_offline():

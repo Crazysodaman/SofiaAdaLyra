@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.creative import (
+from sofia.core.creative import (
     ArtifactKind, CreativeProject, CreativeRequest, CreativeService,
     CreativeStore, CreativeWorkspaceManager, DevCandidateArtifactAdapter,
     ManagedAssetStore, NativeCreativeAdapter, CreativeExplorer,

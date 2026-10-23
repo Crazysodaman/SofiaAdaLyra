@@ -1,7 +1,7 @@
 import json
 import pytest
 from PIL import Image
-from sofia.creative.live2d_submission import submit_reviewed_workflow
+from sofia.core.creative.live2d_submission import submit_reviewed_workflow
 from sofia.ui.live2d_review import create_review_job
 
 PROMPT_ID = "11111111-2222-3333-4444-555555555555"

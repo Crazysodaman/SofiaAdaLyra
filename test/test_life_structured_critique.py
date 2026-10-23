@@ -4,10 +4,10 @@ from datetime import timedelta
 
 import pytest
 
-from sofia.creative import ArtifactKind
-from sofia.life import PersonalJudgment, TechnicalOutcome
+from sofia.core.creative import ArtifactKind
+from sofia.core.life import PersonalJudgment, TechnicalOutcome
 from sofia.platform.run.work import WorkStatus
-from sofia.life.validation import ObjectiveDisposition, StructuredArtifactCritique
+from sofia.core.life.validation import ObjectiveDisposition, StructuredArtifactCritique
 
 from test.test_life_project_forge import (
     active_project, infrastructure, wait_for_job,

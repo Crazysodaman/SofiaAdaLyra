@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.environment.model import (
+from sofia.core.environment.model import (
     EnvironmentFreshness,
     EnvironmentSnapshot,
     LocationEvidenceKind,

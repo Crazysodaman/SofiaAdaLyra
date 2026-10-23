@@ -22,7 +22,7 @@ from sofia.platform.config.user_settings import (
     RuntimeUserSettingsStore,
 )
 from sofia.core.cognition.runtime_state import CognitionRuntimeStateStore
-from sofia.environment.model import LocationSubject
+from sofia.core.environment.model import LocationSubject
 from sofia.platform.machine.discovery import create_machine_discovery
 from sofia.platform.ops.activity import ActivityMode, HostActivityStore
 from sofia.platform.ops.capability import OpsToolService

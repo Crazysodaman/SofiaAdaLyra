@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 
 from sofia.platform.application.bootstrap import SofiaApplication
-from sofia.continuity.model import ContinuityEventKind, create_continuity_event
+from sofia.core.continuity.model import ContinuityEventKind, create_continuity_event
 from sofia.platform.filesystem.change_filter import exclude_internal_state_changes
 from sofia.platform.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
 from sofia.platform.filesystem.observation import FilesystemEntry

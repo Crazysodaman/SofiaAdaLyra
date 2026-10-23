@@ -7,11 +7,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from sofia.mentor.behavior_monitor import (
+from sofia.core.mentor.behavior_monitor import (
     BehaviorReviewShapeError, EMOTION_CRITERIA, PrivateTurn,
     _assess_json, behavior_output_schema, evaluate_private_turn,
 )
-from sofia.mentor.personality_review import CRITERIA
+from sofia.core.mentor.personality_review import CRITERIA
 
 
 def compact():

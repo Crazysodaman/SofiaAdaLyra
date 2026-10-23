@@ -15,7 +15,7 @@ from sofia.platform.authorization.evaluator import (
 from sofia.platform.authorization.model import (
     AuthorizationDecision as FilesystemAuthorizationDecision,
 )
-from sofia.continuity.model import ContinuityEvent
+from sofia.core.continuity.model import ContinuityEvent
 from sofia.core.conversation.model import (
     ConversationMessage,
     ConversationRole,
@@ -469,7 +469,7 @@ class ConversationService(ConversationMatrixMixin):
     def set_habit_continuity(self, coordinator) -> None:
         """Install the application-owned HABIT observation coordinator."""
         if coordinator is not None:
-            from sofia.habits.continuity import HabitContinuityCoordinator
+            from sofia.core.habits.continuity import HabitContinuityCoordinator
             if not isinstance(coordinator, HabitContinuityCoordinator):
                 raise TypeError(
                     "coordinator must be HabitContinuityCoordinator or None"

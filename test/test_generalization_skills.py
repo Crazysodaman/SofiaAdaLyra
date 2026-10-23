@@ -5,14 +5,14 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.generalization import (
+from sofia.core.generalization import (
     AttemptMetrics, ExplorationAdmission, GeneralizationService, NovelProblemCase,
     NovelProblemSuite, ProblemDomain, SuiteSplit, answer_digest,
 )
-from sofia.generalization.skills import LearnedSkillStore
-from sofia.goals.evidence import GoalEvidenceLedger
-from sofia.learning.contracts import DataUse, DataUseGrant
-from sofia.life.procedures import ProcedureRecord
+from sofia.core.generalization.skills import LearnedSkillStore
+from sofia.core.goals.evidence import GoalEvidenceLedger
+from sofia.core.learning.contracts import DataUse, DataUseGrant
+from sofia.core.life.procedures import ProcedureRecord
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.core.social.model import AudienceKind, PrincipalContext
 

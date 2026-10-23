@@ -328,7 +328,7 @@ def project_matrix_event(
 
 def project_goal_event(goal, event) -> EventOwnershipProjection:
     """Adapt one lifecycle event already present in a canonical Goal."""
-    from sofia.goals.model import Goal, GoalLifecycleEvent
+    from sofia.core.goals.model import Goal, GoalLifecycleEvent
 
     if not isinstance(goal, Goal) or not isinstance(event, GoalLifecycleEvent):
         raise TypeError("canonical Goal and GoalLifecycleEvent required")
@@ -348,7 +348,7 @@ def project_goal_event(goal, event) -> EventOwnershipProjection:
 
 def project_life_event(project, event) -> EventOwnershipProjection:
     """Adapt a LIFE event only when it belongs to the supplied project."""
-    from sofia.life.model import LifeProject, ProjectEvent
+    from sofia.core.life.model import LifeProject, ProjectEvent
 
     if not isinstance(project, LifeProject) or not isinstance(event, ProjectEvent):
         raise TypeError("canonical LifeProject and ProjectEvent required")

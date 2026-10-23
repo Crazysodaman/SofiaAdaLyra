@@ -4,7 +4,7 @@ Authored for the deferred host acceptance campaign; not executed here.
 """
 from datetime import timedelta
 
-from sofia.life.model import ProjectStatus
+from sofia.core.life.model import ProjectStatus
 from sofia.platform.run.work import WorkStatus
 from test.test_life_project_forge import (infrastructure, active_project, wait_for_job, authored_foxfire_text)
 

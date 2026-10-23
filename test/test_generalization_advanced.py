@@ -8,15 +8,15 @@ import sqlite3
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sofia.generalization import ExplorationAdmission
-from sofia.generalization.advanced import (
+from sofia.core.generalization import ExplorationAdmission
+from sofia.core.generalization.advanced import (
     AdvancedGeneralizationStore, EpisodePhase, FailureHypothesis,
 )
-from sofia.goals import GoalEvidenceIndex, GoalService, GoalStore
-from sofia.goals.evidence import GoalEvidenceLedger
-from sofia.goals.model import CompletionKind, GoalCompletionCondition
-from sofia.learning import LearningService
-from sofia.learning.contracts import DataUseGrant
+from sofia.core.goals import GoalEvidenceIndex, GoalService, GoalStore
+from sofia.core.goals.evidence import GoalEvidenceLedger
+from sofia.core.goals.model import CompletionKind, GoalCompletionCondition
+from sofia.core.learning import LearningService
+from sofia.core.learning.contracts import DataUseGrant
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane

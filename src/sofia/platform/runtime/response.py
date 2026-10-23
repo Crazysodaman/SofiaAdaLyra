@@ -15,7 +15,7 @@ from sofia.core.cognition.model import (
 )
 from sofia.core.cognition.operation import CognitiveOperation
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
-from sofia.environment.prompt import environment_details_relevant
+from sofia.core.environment.prompt import environment_details_relevant
 from sofia.platform.filesystem.model import FilesystemResult
 from sofia.core.personality.delivery import grounded_weather_delivery
 from sofia.core.personality.influence import ContinuityInfluence

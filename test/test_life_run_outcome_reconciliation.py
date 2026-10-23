@@ -4,7 +4,7 @@ Authored for the owner's deferred test campaign; not executed here.
 """
 from datetime import timedelta
 
-from sofia.life.model import ProjectStatus
+from sofia.core.life.model import ProjectStatus
 from sofia.platform.run.work import WorkStatus
 from sofia.core.social.principals import local_sparks_principal
 from test.test_life_project_forge import infrastructure, active_project
@@ -12,7 +12,7 @@ from test.test_life_project_forge import infrastructure, active_project
 
 def _queued_job(life, now):
     project, evidence_ref = active_project(life, now)
-    from sofia.creative import ArtifactKind
+    from sofia.core.creative import ArtifactKind
     job = life.schedule_artifact(
         project.project_id,
         artifact_kind=ArtifactKind.TEXT,
@@ -78,7 +78,7 @@ def test_observation_replays_neither_failed_job_nor_its_execution(tmp_path):
 
 def test_expired_unstarted_run_pauses_without_claiming_project_failure(tmp_path):
     """A missed admission window is distinct from failed executed work."""
-    from sofia.goals.model import GoalStatus
+    from sofia.core.goals.model import GoalStatus
 
     life, goals, now = infrastructure(tmp_path)
     try:
@@ -222,7 +222,7 @@ def test_older_original_terminal_run_event_survives_later_queued_job(
     tmp_path,
 ):
     """A new queued job cannot conceal the prior source-backed RUN failure."""
-    from sofia.creative import ArtifactKind
+    from sofia.core.creative import ArtifactKind
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -287,7 +287,7 @@ def test_older_original_terminal_run_event_survives_later_queued_job(
 def test_unverified_older_run_failure_never_overrides_newer_work(tmp_path):
     """Absent original terminal source cannot be projected as verified."""
     import sqlite3
-    from sofia.creative import ArtifactKind
+    from sofia.core.creative import ArtifactKind
 
     life, _goals, now = infrastructure(tmp_path)
     try:

@@ -9,7 +9,7 @@ import sqlite3
 
 import pytest
 
-from sofia.creative import ArtifactKind
+from sofia.core.creative import ArtifactKind
 from sofia.platform.run.work import WorkStatus
 from test.test_life_project_forge import (
     infrastructure, active_project, wait_for_job,

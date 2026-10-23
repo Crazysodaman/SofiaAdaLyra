@@ -12,8 +12,8 @@ from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.core.memory.significance import (
     MarkStatus, MemorySignificance, SignificantMemoryStore,
 )
-from sofia.life.model import ExperienceRecord
-from sofia.life.store import LifeStore
+from sofia.core.life.model import ExperienceRecord
+from sofia.core.life.store import LifeStore
 from sofia.core.social.principals import local_sparks_principal
 
 BASE = datetime(2026, 3, 1, 12, 0, tzinfo=timezone.utc)
@@ -234,13 +234,13 @@ def test_timeline_excludes_stale_and_revoked_sources_and_combines_experiences(tm
 
 
 def test_timeline_quotes_only_current_ga_episode_outcomes_fail_closed(tmp_path):
-    from sofia.generalization.advanced import (
+    from sofia.core.generalization.advanced import (
         AdvancedGeneralizationStore, EpisodePhase,
     )
-    from sofia.generalization.contracts import ExplorationAdmission
-    from sofia.goals import GoalStore
-    from sofia.goals.service import GoalService
-    from sofia.learning.contracts import DataUseGrant
+    from sofia.core.generalization.contracts import ExplorationAdmission
+    from sofia.core.goals import GoalStore
+    from sofia.core.goals.service import GoalService
+    from sofia.core.learning.contracts import DataUseGrant
     from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
     path, candidate_store, significance = persisted(tmp_path)
@@ -259,7 +259,7 @@ def test_timeline_quotes_only_current_ga_episode_outcomes_fail_closed(tmp_path):
         path, goals=GoalService(GoalStore(SQLiteStatePlane(path))),
         admission=lambda: ExplorationAdmission(), learning=_Learning(),
     )
-    from sofia.goals.evidence import GoalEvidenceLedger
+    from sofia.core.goals.evidence import GoalEvidenceLedger
     ledger = GoalEvidenceLedger(path)
     refs = []
     for index, kind in enumerate((

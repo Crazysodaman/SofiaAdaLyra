@@ -10,10 +10,10 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
-from sofia.environment.model import WeatherObservation
-from sofia.environment.provider import EnvironmentProviderObservation
-from sofia.environment.service import EnvironmentService
+from sofia.core.environment.config import ConfiguredLocation, EnvironmentConfiguration
+from sofia.core.environment.model import WeatherObservation
+from sofia.core.environment.provider import EnvironmentProviderObservation
+from sofia.core.environment.service import EnvironmentService
 from sofia.core.emotion.journal import EmotionalJournal
 from sofia.core.emotion.model import ReturnExpectation
 from sofia.core.personality.influence import ContinuityInfluence

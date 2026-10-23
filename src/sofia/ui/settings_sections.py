@@ -2199,7 +2199,7 @@ class SettingsSections:
                 )
 
             if present("life_project"):
-                from sofia.life.coordinator import SOFIA_PROJECT_OWNER, LOCAL_AUDIENCE
+                from sofia.core.life.coordinator import SOFIA_PROJECT_OWNER, LOCAL_AUDIENCE
                 project = db.execute(
                     "SELECT project_id, name, status, updated_at "
                     "FROM life_project WHERE owner_principal_id=? AND audience_id=? "

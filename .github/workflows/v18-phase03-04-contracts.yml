@@ -10,7 +10,7 @@ on:
       - 'src/sofia/platform/ops/capacity_probe.py'
       - 'src/sofia/platform/ops/capacity_runtime.py'
       - 'src/sofia/platform/ops/commitment.py'
-      - 'src/sofia/knowledge/observation_conflict.py'
+      - 'src/sofia/core/knowledge/observation_conflict.py'
       - 'src/sofia/platform/application/presence_conflicts.py'
       - 'src/sofia/platform/application/presence.py'
       - 'src/sofia/platform/verify/drift.py'

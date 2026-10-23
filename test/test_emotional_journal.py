@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from sofia.core.emotion.journal import EmotionalJournal
-from sofia.life.model import ExperienceRecord
+from sofia.core.life.model import ExperienceRecord
 from sofia.core.personality.expression import personality_expression_guidance
 from sofia.core.social.model import AudienceKind, PrincipalContext, SocialScope
 from sofia.core.social.principals import local_sparks_principal

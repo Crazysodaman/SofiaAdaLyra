@@ -5,16 +5,16 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.habits.engine import HabitPatternEngine, pattern_signature
-from sofia.habits.expectations import (
+from sofia.core.habits.engine import HabitPatternEngine, pattern_signature
+from sofia.core.habits.expectations import (
     ExpectationStatus,
     HabitExpectationEngine,
     HabitExpectationStore,
 )
-from sofia.habits.model import ObservationCoverage, SourceQuality
-from sofia.habits.pattern_store import HabitPatternStore
-from sofia.habits.patterns import CadenceKind, HabitCategory
-from sofia.habits.store import HabitObservationRecorder, HabitObservationStore
+from sofia.core.habits.model import ObservationCoverage, SourceQuality
+from sofia.core.habits.pattern_store import HabitPatternStore
+from sofia.core.habits.patterns import CadenceKind, HabitCategory
+from sofia.core.habits.store import HabitObservationRecorder, HabitObservationStore
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 

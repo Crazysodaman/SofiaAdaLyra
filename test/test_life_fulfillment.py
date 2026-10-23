@@ -7,7 +7,7 @@ import pytest
 
 from test.test_life_project_forge import infrastructure
 
-from sofia.life import (
+from sofia.core.life import (
     FulfillmentReader, HobbyEngagement, HobbyRecord, HobbyStatus, HobbyStore,
     InterestRecord, InterestStatus, LifeStore, effective_hobby_strength,
     effective_interest_strength, hobby_decay_report, interest_decay_report,

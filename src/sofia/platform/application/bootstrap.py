@@ -102,7 +102,7 @@ from sofia.platform.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
-from sofia.environment.factory import create_environment_service
+from sofia.core.environment.factory import create_environment_service
 from sofia.core.conversation.store import ConversationStore
 from sofia.core.cognition.engine import CognitiveEngineError
 from sofia.core.cognition.model import CognitiveResponse
@@ -119,7 +119,7 @@ from sofia.core.cognition.v2 import (
     ProductionTurnKernel,
     SQLiteConversationFocusStore,
 )
-from sofia.knowledge.evidence import KnowledgeEvidenceCoordinator
+from sofia.core.knowledge.evidence import KnowledgeEvidenceCoordinator
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.interaction.world_store import VirtualWorldStore
 from sofia.core.personality.preferences import (
@@ -128,15 +128,15 @@ from sofia.core.personality.preferences import (
     PreferenceRegistry,
 )
 from sofia.core.rel.nicknames import NicknameRegistry
-from sofia.creative import (
+from sofia.core.creative import (
     CreativeArtifactCapability, CreativeExplorer, CreativeService,
     CreativeStore, CreativeWorkspaceManager, CreativeWorldBridge,
     ManagedAssetStore,
 )
-from sofia.life import LifeProject, SelfDirectedLifeCoordinator
-from sofia.learning import FleetPressurePilot, LearningService
-from sofia.generalization import ExplorationAdmission, GeneralizationService
-from sofia.learning.registry import create_candidate_registry_from_environment
+from sofia.core.life import LifeProject, SelfDirectedLifeCoordinator
+from sofia.core.learning import FleetPressurePilot, LearningService
+from sofia.core.generalization import ExplorationAdmission, GeneralizationService
+from sofia.core.learning.registry import create_candidate_registry_from_environment
 from sofia.platform.ops.dependencies import DependencyEvidenceStore, default_dependency_registry
 from sofia.platform.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.platform.run.heartbeat import ApplicationHeartbeatStore
@@ -147,22 +147,22 @@ from sofia.neuro import BodyReflexObservation, VoiceSensoryObservation
 from sofia.neuro.coordinator import NeuroInputCoordinator
 from sofia.neuro.store import NeuroObservabilityStore
 from sofia.platform.ops.local_telemetry import collect_local_telemetry
-from sofia.habits.pattern_store import HabitPatternStore
+from sofia.core.habits.pattern_store import HabitPatternStore
 from sofia.core.rel.store import RelationshipStore
-from sofia.goals import (
+from sofia.core.goals import (
     GoalEvidenceIndex,
     GoalService,
     GoalStatus,
     GoalStore,
 )
-from sofia.goals.conversation import GoalConversationResolver
-from sofia.goals.coordinator import GoalProductionCoordinator
+from sofia.core.goals.conversation import GoalConversationResolver
+from sofia.core.goals.coordinator import GoalProductionCoordinator
 from sofia.platform.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
 from sofia.platform.distributed.state_paths import migrate_legacy_fleet_sidecars
 from sofia.core.personality.influence import ContinuityInfluence
-from sofia.habits.continuity import HabitContinuityCoordinator
+from sofia.core.habits.continuity import HabitContinuityCoordinator
 from sofia.platform.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.principals import local_sparks_principal, SPARKS_PRINCIPAL_ID
@@ -1222,7 +1222,7 @@ class SofiaApplication:
         monitor = getattr(self, "_mentor_behavior_monitor", None)
         if monitor is None:
             return {
-                "schema": "sofia.mentor.behavior-monitor.v1",
+                "schema": "sofia.core.mentor.behavior-monitor.v1",
                 "enabled": False, "reviewed_turns": 0,
                 "source": "canonical_conversation_hook",
                 "actions_executed": 0,
@@ -1235,7 +1235,7 @@ class SofiaApplication:
         consumer = getattr(self, "_mentor_review_consumer", None)
         if consumer is None:
             return {
-                "schema": "sofia.mentor.inbox-snapshot.v1",
+                "schema": "sofia.core.mentor.inbox-snapshot.v1",
                 "state": "disabled",
                 "source": "public-github-untrusted",
                 "advisory_only": True,
@@ -2264,8 +2264,8 @@ class SofiaApplication:
                     EmotionalConversationService,
                 )
             )
-            from sofia.mentor.remote_inbox import mentor_git_enabled
-            from sofia.mentor.behavior_monitor import behavior_monitor_enabled
+            from sofia.core.mentor.remote_inbox import mentor_git_enabled
+            from sofia.core.mentor.behavior_monitor import behavior_monitor_enabled
             background_needed = (
                 behavior_monitor_enabled()
                 or mentor_git_enabled()

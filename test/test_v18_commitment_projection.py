@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.goals.model import (
+from sofia.core.goals.model import (
     CompletionKind,
     Goal,
     GoalCompletionCondition,

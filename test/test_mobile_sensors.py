@@ -4,9 +4,9 @@ import sqlite3
 
 import pytest
 
-from sofia.environment import EnvironmentFreshness
-from sofia.environment.prompt import environment_prompt
-from sofia.environment.service import EnvironmentService
+from sofia.core.environment import EnvironmentFreshness
+from sofia.core.environment.prompt import environment_prompt
+from sofia.core.environment.service import EnvironmentService
 from sofia.mobile.model import MobileSensorReport
 from sofia.mobile.sensors import MobileSensorProvider, MobileSensorStore
 from sofia.mobile.pairing import MobileDeviceCredentialStore

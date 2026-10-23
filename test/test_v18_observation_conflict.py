@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.knowledge.observation_conflict import (
+from sofia.core.knowledge.observation_conflict import (
     ConflictError,
     Observation,
     ObservationSource,

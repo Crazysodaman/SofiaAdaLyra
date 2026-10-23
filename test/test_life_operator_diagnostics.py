@@ -1,7 +1,7 @@
 """CA-2216 canonical LIFE diagnostic projection. Authored, not run."""
 from datetime import timedelta
 
-from sofia.life.model import ProjectStatus
+from sofia.core.life.model import ProjectStatus
 from sofia.platform.run.work import WorkStatus
 from test.test_life_project_forge import infrastructure, active_project
 
@@ -27,7 +27,7 @@ def test_active_project_diagnostic_reads_project_and_run_sources(tmp_path):
         assert ready["projects"][0]["source"] == "life_project.status"
         assert ready["projects"][0]["has_verified_completion"] is False
 
-        from sofia.creative import ArtifactKind
+        from sofia.core.creative import ArtifactKind
         evidence = life.record_observation(
             kind="operator-diagnostic", source="test:known",
             assertion="Trace one persistent RUN outcome", now=now,
@@ -135,7 +135,7 @@ def test_life_goal_dependency_view_shows_original_prerequisites(tmp_path):
 
 def test_life_goal_dependency_view_preserves_uncertain_run_and_approval(tmp_path):
     """Outstanding effects and approvals are blockers, not made-up milestones."""
-    from sofia.creative import ArtifactKind
+    from sofia.core.creative import ArtifactKind
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -205,7 +205,7 @@ def test_goal_dependency_view_reports_budget_exhaustion_without_running_work(
 
 def test_life_goal_dependency_completed_run_requires_independent_review(tmp_path):
     """A completed RUN job never becomes an automatic objective-success oracle."""
-    from sofia.creative import ArtifactKind
+    from sofia.core.creative import ArtifactKind
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -247,7 +247,7 @@ def test_life_goal_dependency_completed_run_requires_independent_review(tmp_path
 
 def test_completed_life_diagnostic_revokes_current_proof_after_byte_change(tmp_path):
     """Historical COMPLETED is not proof that the artifact still passes."""
-    from sofia.life import PersonalJudgment, TechnicalOutcome
+    from sofia.core.life import PersonalJudgment, TechnicalOutcome
     from test.test_life_project_forge import (
         authored_foxfire_text, wait_for_job,
     )
@@ -299,7 +299,7 @@ def test_life_review_decision_key_is_stable_until_original_source_changes(
     tmp_path,
 ):
     """A new clock tick cannot mint a new LIFE decision without source change."""
-    from sofia.creative import ArtifactKind
+    from sofia.core.creative import ArtifactKind
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -329,7 +329,7 @@ def test_versioned_expected_effect_projection_settles_only_from_exact_receipt_an
     tmp_path,
 ):
     """RUN completion, objective success and a model claim remain distinct."""
-    from sofia.creative import ArtifactKind
+    from sofia.core.creative import ArtifactKind
     from test.test_life_project_forge import wait_for_job
 
     life, _goals, now = infrastructure(tmp_path)

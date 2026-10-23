@@ -745,7 +745,7 @@ def _verified_private_project_for_unprompted_sharing(
         infrastructure, active_project, authored_foxfire_text, wait_for_job,
     )
     from sofia.platform.run.work import WorkStatus
-    from sofia.life import ProjectStatus
+    from sofia.core.life import ProjectStatus
 
     life, _goals, now = infrastructure(tmp_path)
     project, _evidence = active_project(
@@ -915,7 +915,7 @@ def test_life_project_outreach_never_uses_unverified_or_nonprivate_work(tmp_path
     """Even a high-curiosity project cannot claim success without source proof."""
     from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from test.test_life_project_forge import infrastructure, active_project
-    from sofia.life import ProjectScope
+    from sofia.core.life import ProjectScope
 
     life, _goals, now = infrastructure(tmp_path)
     try:
@@ -1043,7 +1043,7 @@ def test_life_reviewed_draft_can_be_shared_without_claiming_objective_success(
         infrastructure, active_project, authored_foxfire_text, wait_for_job,
     )
     from sofia.platform.run.work import WorkStatus
-    from sofia.life import ProjectStatus
+    from sofia.core.life import ProjectStatus
 
     life, _goals, now = infrastructure(tmp_path)
     try:
