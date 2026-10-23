@@ -24,7 +24,7 @@ from sofia.platform.composition.engines import create_cognitive_engine
 from sofia.platform.config import create_default_configuration
 import sofia.platform.config.defaults as config_defaults
 from sofia.platform.config.user_settings import RuntimeUserSettings
-from sofia.ops.capability import OpsToolService
+from sofia.platform.ops.capability import OpsToolService
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.config.model import (
     CognitiveRoutingConfiguration,

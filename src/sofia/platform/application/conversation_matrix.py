@@ -50,7 +50,7 @@ from sofia.cognition.v2 import ActionRequirement, ReasoningRequirement, TurnPlan
 from sofia.social.model import PrincipalContext
 from sofia.neuro import NeuroWakeMode
 from sofia.voice.tts import TTSStatus
-from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 
 
 def _matrix_context_window(

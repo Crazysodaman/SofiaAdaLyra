@@ -7,8 +7,8 @@ import os
 
 import pytest
 
-import sofia.ops.state_relocation as relocation
-from sofia.ops.state_relocation import StateHomePublicationUncertain
+import sofia.platform.ops.state_relocation as relocation
+from sofia.platform.ops.state_relocation import StateHomePublicationUncertain
 from test.test_venus_artemis_relocation_evidence import _plan, _stage
 
 

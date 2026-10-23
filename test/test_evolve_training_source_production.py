@@ -7,13 +7,13 @@ import json
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.evolve.training_sources import (
+from sofia.platform.evolve.training_sources import (
     TRAINING_METHODS,TrainingDatasetStore,inspect_public_dataset,
 )
-from sofia.evolve.training_policy import (
+from sofia.platform.evolve.training_policy import (
     AdaptationPlan,assess_registered_adaptation,
 )
-from sofia.safe.permissions import capability_permission_policy,PermissionLevel
+from sofia.platform.safe.permissions import capability_permission_policy,PermissionLevel
 
 pytestmark=pytest.mark.pkg_core
 NOW=datetime(2026,10,11,18,tzinfo=timezone.utc)

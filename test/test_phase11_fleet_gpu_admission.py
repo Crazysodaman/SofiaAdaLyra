@@ -8,8 +8,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.ops.model import FleetHost, HostLifecycle, HostTelemetry, WorkloadContract
-from sofia.ops.placement import PlacementEngine
+from sofia.platform.ops.model import FleetHost, HostLifecycle, HostTelemetry, WorkloadContract
+from sofia.platform.ops.placement import PlacementEngine
 
 
 NOW = datetime(2026, 10, 11, 20, tzinfo=timezone.utc)

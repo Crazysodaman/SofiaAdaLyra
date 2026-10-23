@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
-from sofia.ops.desired import Drift
-from sofia.ops.reconciliation_journal import FleetReconciliationJournal
-from sofia.ops.repair_plan import FleetRepairPlanner
+from sofia.platform.ops.desired import Drift
+from sofia.platform.ops.reconciliation_journal import FleetReconciliationJournal
+from sofia.platform.ops.repair_plan import FleetRepairPlanner
 
 
 NOW = datetime(2026, 10, 3, 16, 0, tzinfo=timezone.utc)

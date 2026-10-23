@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from sofia.verify.v18_work_queue import (
+from sofia.platform.verify.v18_work_queue import (
     REVIEW_RELATIVE, build_work_queue,
 )
-from sofia.verify.v18_gate4 import gate4_snapshot
-from sofia.verify.v18_roadmap import RoadmapIntegrityError
+from sofia.platform.verify.v18_gate4 import gate4_snapshot
+from sofia.platform.verify.v18_roadmap import RoadmapIntegrityError
 
 pytestmark = pytest.mark.pkg_verify
 ROOT = Path(__file__).resolve().parents[1]

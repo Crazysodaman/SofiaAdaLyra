@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 import json
 
-from sofia.capability.model import Capability, CapabilityRequest
+from sofia.platform.capability.model import Capability, CapabilityRequest
 
 from .adapters import NativeCreativeAdapter
 from .model import ArtifactKind, CreativeRequest

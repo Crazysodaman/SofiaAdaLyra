@@ -40,7 +40,7 @@ jobs:
       - name: Run revision-pinned verification
         shell: pwsh
         run: >
-          python -m sofia.verify.gate
+          python -m sofia.platform.verify.gate
           --phase "${{ github.event_name == 'workflow_dispatch' && inputs.phase || 'full' }}"
           --evidence-path verify-evidence.json
 

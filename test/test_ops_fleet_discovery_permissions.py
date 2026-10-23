@@ -5,18 +5,18 @@ import pytest
 
 from test.owner_auth_fixture import record_verified_owner_approval
 
-from sofia.capability.model import CapabilityRequest
-from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
-from sofia.distributed.model import DistributedNode, NodeEnrollment
-from sofia.ops.capability import OpsCapabilitySet, OpsToolService
-from sofia.ops.discovery import FleetDiscoveryEvidence
-from sofia.safe.audit import AuditChain
-from sofia.safe.execution_approval import (
+from sofia.platform.capability.model import CapabilityRequest
+from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.platform.distributed.model import DistributedNode, NodeEnrollment
+from sofia.platform.ops.capability import OpsCapabilitySet, OpsToolService
+from sofia.platform.ops.discovery import FleetDiscoveryEvidence
+from sofia.platform.safe.audit import AuditChain
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
     execution_fingerprint,
 )
-from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -98,7 +98,7 @@ def test_fleet_discovery_tool_has_no_approval_parameter(tmp_path):
 
     # The cognitive binding is parameter-free and therefore cannot smuggle an
     # enrollment/trust approval through the discovery path.
-    from sofia.ops.capability import create_ops_tool_bindings
+    from sofia.platform.ops.capability import create_ops_tool_bindings
     binding = next(
         item
         for item in create_ops_tool_bindings()

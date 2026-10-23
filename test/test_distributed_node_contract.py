@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
+from sofia.platform.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
 
 
 

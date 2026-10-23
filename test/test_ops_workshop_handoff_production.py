@@ -11,9 +11,9 @@ from uuid import uuid4
 import pytest
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.distributed.capability import RemoteFleetToolService
+from sofia.platform.distributed.capability import RemoteFleetToolService
 from sofia.integrations.hyperv import HyperVAdapter
-from sofia.ops.workshop_handoff import (
+from sofia.platform.ops.workshop_handoff import (
     WorkshopBlankVMHandoff,
     WorkshopHandoffStore,
     inspect_blank_vm_handoff,
@@ -259,8 +259,8 @@ def test_canonical_handoff_store_is_read_only_and_does_not_confer_authority(tmp_
 
 
 def test_hyperv_workshop_blank_read_permission_separate_from_bootstrap():
-    from sofia.distributed.authorization import remote_operation_is_read_only
-    from sofia.safe.permissions import capability_permission_policy,PermissionLevel
+    from sofia.platform.distributed.authorization import remote_operation_is_read_only
+    from sofia.platform.safe.permissions import capability_permission_policy,PermissionLevel
     assert remote_operation_is_read_only("workshop.inspect","blank_vm")
     assert capability_permission_policy("workshop.guest.bootstrap").level is PermissionLevel.PROTECTED
     assert capability_permission_policy("fleet.enroll").level is PermissionLevel.PROTECTED

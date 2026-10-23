@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.ops import backup_cli
-from sofia.ops.backup import BackupCipher, BackupEngine, BackupError, rotate_backups
-from sofia.ops.backup_topology import BackupTopologyPolicy
+from sofia.platform.ops import backup_cli
+from sofia.platform.ops.backup import BackupCipher, BackupEngine, BackupError, rotate_backups
+from sofia.platform.ops.backup_topology import BackupTopologyPolicy
 from test.test_ops_backup_restore import make_state
 
 

@@ -5,19 +5,19 @@ import json
 from pathlib import Path
 
 from sofia.platform.config.model import SofiaConfiguration
-from sofia.evolve.approval import AmendmentApproval
-from sofia.evolve.code import CodeEvolutionProposal
-from sofia.evolve.amendment import (
+from sofia.platform.evolve.approval import AmendmentApproval
+from sofia.platform.evolve.code import CodeEvolutionProposal
+from sofia.platform.evolve.amendment import (
     AmendmentProposal,
     ProtectedTarget,
     content_digest,
 )
-from sofia.evolve.executor import (
+from sofia.platform.evolve.executor import (
     AmendmentExecution,
     ProtectedAmendmentExecutor,
     ProtectedPaths,
 )
-from sofia.evolve.revision import (
+from sofia.platform.evolve.revision import (
     ReviewedRevisionExecutor,
     RevisionApproval,
     RevisionExecution,
@@ -25,8 +25,8 @@ from sofia.evolve.revision import (
     RevisionScope,
     revision_content_digest,
 )
-from sofia.evolve.state_plane_adapter import StatePlaneRevisionAdapter
-from sofia.evolve.lifecycle import (
+from sofia.platform.evolve.state_plane_adapter import StatePlaneRevisionAdapter
+from sofia.platform.evolve.lifecycle import (
     EvolutionEvidence,
     EvolutionLifecycleStore,
     EvolutionOutcome,
@@ -34,7 +34,7 @@ from sofia.evolve.lifecycle import (
     EvolutionProposalRecord,
     EvolutionProposalStatus,
 )
-from sofia.safe.evolve_approval import DurableEvolutionApprovalVerifier
+from sofia.platform.safe.evolve_approval import DurableEvolutionApprovalVerifier
 from sofia.platform.state.plane import StatePlane
 from sofia.platform.state.model import StateKey
 

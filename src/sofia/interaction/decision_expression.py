@@ -2,7 +2,7 @@
 
 Requests do not persist model choices, grant consent or execute gestures.
 The live staged-offer adapter applies policy and atomic persistence separately.
-Synthetic experiments are owned by sofia.verify.interaction.
+Synthetic experiments are owned by sofia.platform.verify.interaction.
 """
 from __future__ import annotations
 

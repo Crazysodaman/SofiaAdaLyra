@@ -20,7 +20,7 @@ from sofia.learning.contracts import DataUseGrant
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
-from sofia.verify.generalization_transfer import SCHEMA, canonical
+from sofia.platform.verify.generalization_transfer import SCHEMA, canonical
 
 
 NOW = datetime(2026, 10, 18, 17, tzinfo=timezone.utc)

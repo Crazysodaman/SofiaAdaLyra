@@ -1,7 +1,7 @@
 ﻿from dataclasses import dataclass
 from enum import Enum
 
-from sofia.filesystem.changes import FilesystemChangeEvent
+from sofia.platform.filesystem.changes import FilesystemChangeEvent
 from sofia.platform.operational.model import (
     ContinuityEvidenceStatus,
     RuntimeContinuity,

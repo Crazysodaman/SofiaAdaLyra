@@ -119,7 +119,7 @@ def game_process_clear() -> bool:
     known = _GAME_NAMES | frozenset(
         p.strip().casefold() for p in extra.split(",") if p.strip()
     )
-    from sofia.ops.activity import detect_windows_game
+    from sofia.platform.ops.activity import detect_windows_game
     for item in processes:
         if not getattr(item, "name", None):
             raise PermissionError("unknown running process identity")
@@ -132,7 +132,7 @@ def require_workstation_clear(state_path: Path | str, host_id: str, at: datetime
     """A manual NORMAL override never bypasses game protection on Venus."""
     if host_id.casefold() != "venus":
         return
-    from sofia.ops.activity import ActivityMode, HostActivityStore
+    from sofia.platform.ops.activity import ActivityMode, HostActivityStore
     state = HostActivityStore(state_path).state(host_id)
     if (state.override is not ActivityMode.AUTO or
         state.effective is not ActivityMode.NORMAL or
@@ -287,8 +287,8 @@ class DesktopInputService:
             raise PermissionError("requested host does not match executing OS")
         if sys.platform not in {"win32", "linux"}:
             raise PermissionError("only real Windows/Linux interactive sessions supported")
-        from sofia.safe.execution_approval import ExecutionApprovalVerifier
-        from sofia.safe.operator_stop import OperatorStopStore
+        from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+        from sofia.platform.safe.operator_stop import OperatorStopStore
 
         stop = OperatorStopStore(self.state_path)
         def recheck() -> None:

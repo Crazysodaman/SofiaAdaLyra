@@ -66,7 +66,7 @@ class FakeBackend:
 
 def installed_service(monkeypatch, *, stopped=False, window=77,
                       gaming=False, interrupt=False):
-    from sofia.safe import execution_approval, operator_stop
+    from sofia.platform.safe import execution_approval, operator_stop
     backend = FakeBackend(hwnd=window, interrupt=interrupt)
     approvals = []
     class Approval:
@@ -131,7 +131,7 @@ def test_host_identity_mismatch_refused(monkeypatch):
 
 
 def test_venus_requires_fresh_non_override_and_game_clear(monkeypatch):
-    from sofia.ops import activity as act
+    from sofia.platform.ops import activity as act
     instant = datetime(2026, 10, 11, tzinfo=timezone.utc)
 
     observations = {"override": act.ActivityMode.AUTO,

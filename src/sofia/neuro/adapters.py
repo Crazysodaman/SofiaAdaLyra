@@ -8,7 +8,7 @@ import re
 
 from sofia.emotion.model import CurrentEmotionalState
 from sofia.environment.model import EnvironmentFreshness, EnvironmentSnapshot
-from sofia.ops.model import HostTelemetry
+from sofia.platform.ops.model import HostTelemetry
 from sofia.voice import TTSStatus
 
 from .model import NeuralSignal

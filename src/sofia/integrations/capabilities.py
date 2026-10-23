@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any,Callable
-from sofia.capability.model import Capability,CapabilityRequest
+from sofia.platform.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
-from sofia.safe.operator_stop import OperatorStopStore
-from sofia.safe.permissions import PermissionLevel, PermissionStore, capability_permission_policy
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.permissions import PermissionLevel, PermissionStore, capability_permission_policy
 from .github import GitHubAdapter
 from .discord import DiscordOperatorAdapter
 from .home_assistant import HomeAssistantAdapter

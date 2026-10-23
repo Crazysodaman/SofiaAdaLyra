@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from sofia.ops import (
+from sofia.platform.ops import (
     ActivityMode,
     FleetHost,
     HostActivityObservation,

@@ -11,8 +11,8 @@ from uuid import uuid4
 import pytest
 
 from sofia.integrations.hyperv import HyperVAdapter
-from sofia.distributed.capability import RemoteFleetToolService
-from sofia.ops.workshop_provision import (
+from sofia.platform.distributed.capability import RemoteFleetToolService
+from sofia.platform.ops.workshop_provision import (
     EXPECTED_SWITCH,
     WorkshopProvisionPlan,
     inspect_workshop_plan,
@@ -259,7 +259,7 @@ def test_host_pinned_media_mismatch_blocks_workshop_creation():
 
 
 def test_production_fleet_manifest_exposes_only_readonly_host_and_media_inspection():
-    from sofia.distributed.authorization import remote_operation_is_read_only
+    from sofia.platform.distributed.authorization import remote_operation_is_read_only
     assert remote_operation_is_read_only("workshop.inspect","host")
     assert remote_operation_is_read_only("workshop.inspect","media")
     assert not remote_operation_is_read_only("workshop.vm","provision")
@@ -268,7 +268,7 @@ def test_production_fleet_manifest_exposes_only_readonly_host_and_media_inspecti
 
 def test_canonical_preview_is_model_readable_but_never_an_action_grant(tmp_path):
     from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-    from sofia.ops.workshop_provision import (
+    from sofia.platform.ops.workshop_provision import (
         WorkshopPreflight, WorkshopRemotePreview, WorkshopPreviewStore,
     )
     state=tmp_path/"sofia.db"
@@ -302,8 +302,8 @@ def test_canonical_preview_is_model_readable_but_never_an_action_grant(tmp_path)
 
 
 def test_ops_tool_uses_approved_canonical_preview_only():
-    from sofia.ops.capability import OpsCapabilitySet, create_ops_tool_bindings
-    from sofia.safe.permissions import PermissionLevel,capability_permission_policy
+    from sofia.platform.ops.capability import OpsCapabilitySet, create_ops_tool_bindings
+    from sofia.platform.safe.permissions import PermissionLevel,capability_permission_policy
 
     assert capability_permission_policy("ops.workshop.preview").level is PermissionLevel.OBSERVE_READ
     capabilities=OpsCapabilitySet(service=object()).capabilities()

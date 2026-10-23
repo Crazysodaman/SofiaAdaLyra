@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 import re
 
-from sofia.capability.model import CapabilityProposal
+from sofia.platform.capability.model import CapabilityProposal
 
 
 SOFIA_GOAL_OWNER_ID = "sofia:self"

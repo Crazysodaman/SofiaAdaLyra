@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-from sofia.distributed.authorization import RemoteGrant
-from sofia.distributed.durable import DurableRemoteAuthorization
+from sofia.platform.distributed.authorization import RemoteGrant
+from sofia.platform.distributed.durable import DurableRemoteAuthorization
 
 
 def test_revoke_node_disables_all_grants_and_survives_restart(tmp_path):

@@ -264,7 +264,7 @@ def test_missing_canonical_database_never_gets_recreated(tmp_path):
 
 def test_live_application_projection_uses_real_persisted_turn(tmp_path):
     from sofia.platform.application import SofiaApplication
-    from sofia.verify.cognition_v2_baseline import _configuration
+    from sofia.platform.verify.cognition_v2_baseline import _configuration
 
     config = _configuration(tmp_path)
     bootstrap_canonical_sqlite(config.state_path)

@@ -2,7 +2,7 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
-from sofia.distributed.systemd_agent_service import (
+from sofia.platform.distributed.systemd_agent_service import (
     SERVICE_NAME,
     SystemdFleetAgentSpec,
     render_unit,
@@ -26,7 +26,7 @@ def test_systemd_unit_is_boot_persistent_and_restartable():
     assert "RestartSec=5s" in unit
     assert (
         "ExecStart=/opt/sofia-fleet/.venv/bin/python "
-        "-m sofia.distributed.agent_main "
+        "-m sofia.platform.distributed.agent_main "
         "--config /etc/sofia/fleet-agent.json"
     ) in unit
 

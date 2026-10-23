@@ -4,8 +4,8 @@ from uuid import uuid4
 import pytest
 
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.distributed.inference_client import ConfiguredRemoteInferenceClient
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.distributed.inference_client import ConfiguredRemoteInferenceClient
+from sofia.platform.safe.operator_stop import OperatorStopStore
 
 
 def _client(tmp_path):

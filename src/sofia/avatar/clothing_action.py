@@ -12,7 +12,7 @@ from dataclasses import replace
 import re
 from threading import RLock
 
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.social.model import PrincipalContext
 
 from .appearance_action import AppearanceActionService

@@ -269,7 +269,7 @@ def test_background_draft_does_not_schedule_after_goals_pause_during_model(
 
 def test_background_draft_respects_operator_stop_during_model(tmp_path):
     """A late stop suppresses newly drafted optional work."""
-    from sofia.safe.operator_stop import OperatorStopStore
+    from sofia.platform.safe.operator_stop import OperatorStopStore
 
     life, _goals, now = infrastructure(tmp_path)
     project = typed_active_project(

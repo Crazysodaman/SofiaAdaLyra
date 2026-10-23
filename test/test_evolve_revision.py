@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from sofia.evolve import (
+from sofia.platform.evolve import (
     ApprovalAction,
     ReviewedRevisionExecutor,
     RevisionAdapter,

@@ -11,13 +11,13 @@ from uuid import UUID
 import pytest
 
 from sofia.integrations.hyperv import HyperVAdapter, HyperVError
-from sofia.ops.sofia_guest_readiness import (
+from sofia.platform.ops.sofia_guest_readiness import (
     VM_NAME, review_sofia_guest_inventory,
 )
-from sofia.safe.permissions import (
+from sofia.platform.safe.permissions import (
     PermissionLevel, capability_permission_policy,
 )
-from sofia.distributed.authorization import remote_operation_is_read_only
+from sofia.platform.distributed.authorization import remote_operation_is_read_only
 
 VM_ID = "1f50d0cd-7b50-4df0-8d9e-d1f03ec57565"
 
@@ -110,7 +110,7 @@ def test_local_and_remote_guest_inspection_is_explicit_read_only_authority():
 def test_actual_remote_tool_routes_exact_guest_inspection_through_fleet(
     monkeypatch, tmp_path,
 ):
-    from sofia.distributed import capability as remote_module
+    from sofia.platform.distributed import capability as remote_module
     calls = []
 
     class FakeFleet:
@@ -129,7 +129,7 @@ def test_actual_remote_tool_routes_exact_guest_inspection_through_fleet(
         )
     }
     bound = registered["remote.vm.sofia.inspect"]
-    from sofia.capability.model import CapabilityRequest
+    from sofia.platform.capability.model import CapabilityRequest
     request = CapabilityRequest(
         capability=bound.capability,
         parameters={"node_id": VM_ID},

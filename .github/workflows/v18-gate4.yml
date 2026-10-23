@@ -33,7 +33,7 @@ jobs:
         run: python -m pytest -q test/test_v18_gate4.py test/test_v18_ci_receipts.py test/test_v18_gate4_review.py test/test_v18_gate4_acceptance.py test/test_v18_first200_work.py test/test_v18_g1_readiness.py
       - name: Verify exact original requirements for 20 G1 review submissions
         run: >-
-          python -m sofia.verify.v18_g1_readiness
+          python -m sofia.platform.verify.v18_g1_readiness
           --repo .
           --output g1-review-submissions.json
       - name: Generate evidence-only Gate 4 report
@@ -42,7 +42,7 @@ jobs:
           # repository secret. No self-declared key from source is trusted.
           SOFIA_GATE4_TRUSTED_REVIEWER_KEYS: ${{ secrets.SOFIA_GATE4_TRUSTED_REVIEWER_KEYS }}
         run: >-
-          python -m sofia.verify.v18_gate4
+          python -m sofia.platform.verify.v18_gate4
           --repo .
           --output gate4-progress.json
           --markdown-output gate4-progress.md
@@ -50,17 +50,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
-          python -m sofia.verify.v18_ci_receipts
+          python -m sofia.platform.verify.v18_ci_receipts
           --repo .
           --output gate4-remote-ci-receipts.json
       - name: Inventory incomplete independent review without promoting gates
         run: >-
-          python -m sofia.verify.v18_gate4_review
+          python -m sofia.platform.verify.v18_gate4_review
           --repo .
           --output gate4-review-readiness.json
       - name: Report first 200 exact-priority tasks without self-promotion
         run: >-
-          python -m sofia.verify.v18_first200_work
+          python -m sofia.platform.verify.v18_first200_work
           --repo .
           --output gate4-first200-ordered.json
       - name: Upload reports

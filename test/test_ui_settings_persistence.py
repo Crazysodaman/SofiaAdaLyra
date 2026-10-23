@@ -13,8 +13,8 @@ from sofia.platform.config.defaults import production_storage_layout
 from sofia.identity.model import IdentityBootstrapMode
 from sofia.platform.config.model import FleetCognitionConfiguration, FleetDiscoveryConfiguration
 from sofia.platform.config.user_settings import OutreachSettings, RuntimeUserSettings, RuntimeUserSettingsStore
-from sofia.ops.activity import ActivityMode, HostActivityStore
-from sofia.safe.secret_store import ProtectedSecretStore
+from sofia.platform.ops.activity import ActivityMode, HostActivityStore
+from sofia.platform.safe.secret_store import ProtectedSecretStore
 from sofia.ui.control_center import DesktopControlSettings, DesktopControlSettingsStore, GameMode
 from sofia.ui import settings_service
 
@@ -152,7 +152,7 @@ def test_saved_outreach_policy_reaches_sender_and_operational_notices(tmp_path, 
     outreach = OutreachSettings(enabled=True, mute=True, delivery_channel="home_assistant", notification_service="mobile_app_owner", quiet_start_local=21, quiet_end_local=9, max_daily=2, social_max_daily=2, operational_max_daily=4)
     RuntimeUserSettingsStore(path).save(RuntimeUserSettings(home_assistant_url="http://localhost:8123", outreach=outreach))
     from importlib import import_module
-    monkeypatch.setattr(import_module("sofia.safe.secret_store").ProtectedSecretStore, "get", lambda self, key: "protected-test-token")
+    monkeypatch.setattr(import_module("sofia.platform.safe.secret_store").ProtectedSecretStore, "get", lambda self, key: "protected-test-token")
     service = SofiaActService(path)
     assert configure_act_delivery_from_environment(service)
     assert service.policy.mute

@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 
-import sofia.distributed.agent_tools as tools_module
-from sofia.distributed.agent_tools import create_default_agent_dispatcher
-from sofia.ops.model import HostTelemetry
+import sofia.platform.distributed.agent_tools as tools_module
+from sofia.platform.distributed.agent_tools import create_default_agent_dispatcher
+from sofia.platform.ops.model import HostTelemetry
 
 
 def test_default_agent_advertises_read_only_ops_telemetry():

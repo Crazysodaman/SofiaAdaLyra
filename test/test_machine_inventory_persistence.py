@@ -3,8 +3,8 @@ import json
 
 import pytest
 
-from sofia.machine.inventory import MachineInventory
-from sofia.machine.model import (
+from sofia.platform.machine.inventory import MachineInventory
+from sofia.platform.machine.model import (
     HardwareProfile,
     MachineIdentity,
     MachineProfile,
@@ -13,14 +13,14 @@ from sofia.machine.model import (
     PlatformFamily,
     VirtualizationInfo,
 )
-from sofia.machine.observation import (
+from sofia.platform.machine.observation import (
     MachineObservation,
     ObservationProvenance,
     ObservationSource,
     ObservationState,
 )
-from sofia.machine.persistence import SQLiteMachineInventoryPersistence
-from sofia.machine.inventory_codec import deserialize_inventory, serialize_inventory
+from sofia.platform.machine.persistence import SQLiteMachineInventoryPersistence
+from sofia.platform.machine.inventory_codec import deserialize_inventory, serialize_inventory
 
 
 TIMESTAMP = datetime(

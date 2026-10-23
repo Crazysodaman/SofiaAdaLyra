@@ -6,7 +6,7 @@ import sqlite3
 
 import pytest
 
-from sofia.ops.backup import BackupCipher, BackupEngine, BackupError
+from sofia.platform.ops.backup import BackupCipher, BackupEngine, BackupError
 from test.test_ops_backup_restore import make_state, make_erasure_journal
 
 
@@ -37,7 +37,7 @@ def test_authenticated_backup_with_orphaned_foreign_key_cannot_be_published(
         failure_domain="separate-fixture",
     )
     monkeypatch.setattr(
-        "sofia.ops.backup.verify_production_component_schemas",
+        "sofia.platform.ops.backup.verify_production_component_schemas",
         lambda _path: None,
     )
     destination = tmp_path / "restored" / "sofia.db"

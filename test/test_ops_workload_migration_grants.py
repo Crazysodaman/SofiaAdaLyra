@@ -1,20 +1,20 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sofia.distributed.durable import DurableRemoteAuthorization
-from sofia.ops.migration_grants import (
+from sofia.platform.distributed.durable import DurableRemoteAuthorization
+from sofia.platform.ops.migration_grants import (
     migration_approval_parameters,
     migration_execution_profile_sha256,
     migration_remote_grant_specs,
     temporary_migration_remote_grants,
 )
-from sofia.ops.model import WorkloadContract
-from sofia.safe.execution_approval import (
+from sofia.platform.ops.model import WorkloadContract
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
     execution_fingerprint,
 )
-from sofia.ops.workload import ManagedWorkload, MigrationPlan, StateMode
+from sofia.platform.ops.workload import ManagedWorkload, MigrationPlan, StateMode
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from test.owner_auth_fixture import record_verified_owner_approval
 
@@ -26,7 +26,7 @@ def _disposable_migration_approval_state(tmp_path):
     bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 
-from sofia.ops.workload_backend import (
+from sofia.platform.ops.workload_backend import (
     HostWorkloadProfile,
     WorkloadExecutionCatalog,
     WorkloadOperationBinding,

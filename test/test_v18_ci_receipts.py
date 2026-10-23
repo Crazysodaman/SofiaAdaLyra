@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from sofia.verify.v18_ci_receipts import (
+from sofia.platform.verify.v18_ci_receipts import (
     audit_ci_receipts,
     gate4_ci_claims,
     validate_ci_run,
 )
-from sofia.verify.v18_roadmap import RoadmapIntegrityError
+from sofia.platform.verify.v18_roadmap import RoadmapIntegrityError
 
 pytestmark = pytest.mark.pkg_verify
 ROOT = Path(__file__).resolve().parents[1]

@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from sofia.ops.workshop_media import (
+from sofia.platform.ops.workshop_media import (
     BOOT_PARAMETERS,
     MEDIA_POLICY_VERSION,
     PreparedOfflineInstaller,
@@ -123,7 +123,7 @@ def test_media_report_never_claims_user_admin_is_passwordless_or_guest_installed
 
 
 def test_password_collection_requires_hidden_local_input_and_no_cli_secret(monkeypatch):
-    import sofia.ops.workshop_media as media
+    import sofia.platform.ops.workshop_media as media
     responses = iter(("the same private password!", "the same private password!"))
     commands = []
 
@@ -142,7 +142,7 @@ def test_password_collection_requires_hidden_local_input_and_no_cli_secret(monke
 
 
 def test_media_build_never_autopulls_tool_or_launches_host(monkeypatch, tmp_path):
-    import sofia.ops.workshop_media as media
+    import sofia.platform.ops.workshop_media as media
     source = tmp_path / "debian-13.7.0-amd64-DVD-1.iso"
     source.write_bytes(b"faux fixture; tiny file")
     monkeypatch.setattr(media.platform, "system", lambda: "Linux")

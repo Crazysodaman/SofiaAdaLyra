@@ -10,10 +10,10 @@ from test.owner_auth_fixture import record_verified_owner_approval
 from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.platform.config.defaults import production_storage_layout
 from sofia.identity.model import IdentityBootstrapMode
-from sofia.safe.execution_approval import (
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.ui.settings_service import install_approved_configured_model
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
@@ -37,7 +37,7 @@ class ObservedOllama:
 
 def setup(tmp_path, monkeypatch):
     import sofia.integrations.ollama as ollama
-    import sofia.machine.discovery as discovery
+    import sofia.platform.machine.discovery as discovery
     from types import SimpleNamespace
     monkeypatch.setattr(
         discovery, "create_machine_discovery",
@@ -98,7 +98,7 @@ def test_exact_owner_approved_model_is_pulled_once_and_inventory_confirmed(tmp_p
     assert result.model == MODEL
     assert result.state.value == "unloaded"
     assert backend.pulls == [MODEL]
-    from sofia.safe.audit import AuditChain
+    from sofia.platform.safe.audit import AuditChain
     valid, violation = AuditChain(state).verify()
     assert valid and violation is None
     with pytest.raises(PermissionError, match="already consumed"):

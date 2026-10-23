@@ -12,8 +12,8 @@ import pytest
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from sofia.safe.owner_registration import parse_registration, persist_enrollment
-from sofia.safe.owner_webauthn import OwnerWebAuthnVerifier
+from sofia.platform.safe.owner_registration import parse_registration, persist_enrollment
+from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -105,7 +105,7 @@ def test_registration_parser_refuses_mismatched_or_non_uv_evidence(tamper):
 def test_first_hello_once_then_second_key_requires_signed_platform_proof(
     tmp_path, monkeypatch,
 ):
-    from sofia.safe import owner_enroll_browser
+    from sofia.platform.safe import owner_enroll_browser
 
     monkeypatch.setattr(
         owner_enroll_browser, "require_venus_interactive_windows",
@@ -194,7 +194,7 @@ def test_first_hello_once_then_second_key_requires_signed_platform_proof(
 
 
 def test_other_venus_user_sid_cannot_add_an_owner_key(tmp_path, monkeypatch):
-    from sofia.safe import owner_enroll_browser
+    from sofia.platform.safe import owner_enroll_browser
     monkeypatch.setattr(
         owner_enroll_browser, "require_venus_interactive_windows",
         lambda: "S-1-5-21-ORIGINAL",
@@ -222,7 +222,7 @@ def test_other_venus_user_sid_cannot_add_an_owner_key(tmp_path, monkeypatch):
         )
 
 def test_production_host_guard_denies_non_windows_and_unattended(monkeypatch):
-    from sofia.safe import owner_enroll_browser
+    from sofia.platform.safe import owner_enroll_browser
     monkeypatch.setattr(owner_enroll_browser.os, "name", "posix", raising=False)
     with pytest.raises(PermissionError, match="Windows on Venus"):
         owner_enroll_browser.require_venus_interactive_windows()
@@ -231,8 +231,8 @@ def test_production_host_guard_denies_non_windows_and_unattended(monkeypatch):
 def test_revoke_requires_fido2_proof_and_keeps_at_least_one_security_key(
     tmp_path, monkeypatch,
 ):
-    from sofia.safe import owner_enroll_browser
-    from sofia.safe.execution_approval import (
+    from sofia.platform.safe import owner_enroll_browser
+    from sofia.platform.safe.execution_approval import (
         ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
     )
     from test.owner_auth_fixture import record_verified_owner_approval
@@ -267,7 +267,7 @@ def test_revoke_requires_fido2_proof_and_keeps_at_least_one_security_key(
     with pytest.raises(PermissionError, match="last active security"):
         # First remove backup in a properly authorized operation, then
         # refuse to remove the surviving primary key.
-        from sofia.safe.owner_registration import revoke_enrollment
+        from sofia.platform.safe.owner_registration import revoke_enrollment
         target = one
         approver = ExecutionApprovalVerifier(state)
         params = {"credential_id": target}
@@ -322,7 +322,7 @@ def test_revoke_requires_fido2_proof_and_keeps_at_least_one_security_key(
 def test_graphical_owner_session_does_not_require_console_but_initial_enrollment_does(
     tmp_path, monkeypatch,
 ):
-    from sofia.safe import owner_enroll_browser
+    from sofia.platform.safe import owner_enroll_browser
     calls = []
     def token_sid(*, require_terminal=True):
         calls.append(require_terminal)

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable
 from uuid import uuid4
 
-from sofia.act.delivery import (
+from sofia.platform.act.delivery import (
     ActDeliveryRunner,
     ActOutbox,
     DeliveryOutcome,
@@ -20,12 +20,12 @@ from sofia.act.delivery import (
     DeliveryRunResult,
     SendResult,
 )
-from sofia.act.outreach import (
+from sofia.platform.act.outreach import (
     Decision, Importance, OutreachCategory, Policy,
     social_content_safety_reason,
 )
-from sofia.act.system_notice import SystemNoticeQueue
-from sofia.act.diagnostics import OutreachTraceStore
+from sofia.platform.act.system_notice import SystemNoticeQueue
+from sofia.platform.act.diagnostics import OutreachTraceStore
 from sofia.interaction.goal_journal import GoalJournal
 from sofia.personality.influence import ContinuityInfluence, outreach_salience
 from sofia.personality.reflection import ReflectionJournal
@@ -36,7 +36,7 @@ from sofia.ui.notifications import DesktopNotificationStore
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.proactive import DiscordProactiveSender
 from sofia.discord.provisioning import DiscordProvisioning
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 
 
 class SofiaActService:
@@ -556,7 +556,7 @@ def configure_act_delivery_from_environment(
     if not isinstance(service, SofiaActService):
         raise TypeError("service must be a SofiaActService")
     from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-    from sofia.safe.secret_store import ProtectedSecretStore
+    from sofia.platform.safe.secret_store import ProtectedSecretStore
     preferences = RuntimeUserSettingsStore(service.state_path).load()
     outreach = preferences.outreach
     if not (

@@ -7,8 +7,8 @@ on:
       - main
     paths:
       - pyproject.toml
-      - src/sofia/dev/dependency_lock.py
-      - src/sofia/dev/supply_chain.py
+      - src/sofia/platform/dev/dependency_lock.py
+      - src/sofia/platform/dev/supply_chain.py
       - .github/workflows/debian-lock-snapshot.yml
 
 concurrency:
@@ -42,7 +42,7 @@ jobs:
           "$PY" -m pip freeze --exclude-editable \
             | grep -Evi '^sofia-ada-lyra(==|[[:space:]]+@)' \
             | LC_ALL=C sort > "$RUNNER_TEMP/debian-lock.raw"
-          "$PY" -m sofia.dev.dependency_lock \
+          "$PY" -m sofia.platform.dev.dependency_lock \
             "$RUNNER_TEMP/debian-lock.raw" \
             "requirements.lock.linux-py313.txt"
           "$PY" -m pip install --require-hashes --dry-run \

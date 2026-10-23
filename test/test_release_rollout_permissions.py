@@ -1,5 +1,5 @@
-from sofia.distributed.authorization import remote_operation_is_read_only
-from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+from sofia.platform.distributed.authorization import remote_operation_is_read_only
+from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 
 
 def test_remote_release_current_is_level_one_read():

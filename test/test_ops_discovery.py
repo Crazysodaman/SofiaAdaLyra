@@ -3,12 +3,12 @@ from uuid import UUID
 
 import pytest
 
-from sofia.distributed.model import ApprovedEndpoint
-from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
-from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
-from sofia.ops.state_registry import StatePlaneFleetRegistry
+from sofia.platform.distributed.model import ApprovedEndpoint
+from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.platform.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
+from sofia.platform.ops.state_registry import StatePlaneFleetRegistry
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
@@ -16,7 +16,7 @@ from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 @pytest.fixture(autouse=True)
 def _disposable_discovery_state(tmp_path):
     bootstrap_canonical_sqlite(tmp_path / "state.db")
-from sofia.ops import (
+from sofia.platform.ops import (
     FleetDiscoveryBootstrapCoordinator,
     FleetDiscoveryCoordinator,
     FleetDiscoveryEvidence,

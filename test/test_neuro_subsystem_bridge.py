@@ -22,7 +22,7 @@ from sofia.neuro import (
     NeuroRuntime,
     NeuroWakeMode, VoiceSensoryObservation,
 )
-from sofia.ops.model import HostTelemetry
+from sofia.platform.ops.model import HostTelemetry
 from sofia.voice import TTSStatus
 
 

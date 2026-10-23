@@ -7,8 +7,8 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.ops.workshop_network_stage import verified_host_stage_report
-from sofia.ops.workshop_network import SWITCH_NAME
+from sofia.platform.ops.workshop_network_stage import verified_host_stage_report
+from sofia.platform.ops.workshop_network import SWITCH_NAME
 
 
 NOW = datetime(2026, 10, 11, 18, 0, tzinfo=timezone.utc)

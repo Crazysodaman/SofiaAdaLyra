@@ -2,7 +2,7 @@ import sys
 
 import pytest
 
-from sofia.safe.secret_store import ProtectedSecretStore
+from sofia.platform.safe.secret_store import ProtectedSecretStore
 
 
 def test_secret_store_round_trip_without_plaintext(tmp_path):

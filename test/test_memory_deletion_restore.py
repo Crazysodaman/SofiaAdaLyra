@@ -11,7 +11,7 @@ import sqlite3
 import pytest
 
 from sofia.memory.deletion_ledger import MemoryDeletionLedger, MemoryErasureError
-from sofia.ops.backup import BackupCipher, BackupEngine, BackupError
+from sofia.platform.ops.backup import BackupCipher, BackupEngine, BackupError
 from test.test_ops_backup_restore import make_state
 
 
@@ -171,7 +171,7 @@ def test_deletion_replayed_before_older_backup_is_published(
             )
 
     monkeypatch.setattr(
-        "sofia.ops.backup.verify_production_component_schemas",
+        "sofia.platform.ops.backup.verify_production_component_schemas",
         lambda _state: None,
     )
     restored = tmp_path / "restored" / "sofia.db"
@@ -317,7 +317,7 @@ def test_new_erasure_during_staged_restore_aborts_publication(
         )
 
     monkeypatch.setattr(
-        "sofia.ops.backup.verify_production_component_schemas",
+        "sofia.platform.ops.backup.verify_production_component_schemas",
         journal_changes_during_restore,
     )
     target = tmp_path / "not-published" / "sofia.db"

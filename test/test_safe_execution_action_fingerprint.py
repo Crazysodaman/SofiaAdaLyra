@@ -10,7 +10,7 @@ import pytest
 
 from test.owner_auth_fixture import record_verified_owner_approval
 
-from sofia.safe.execution_approval import (
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
 
@@ -204,7 +204,7 @@ def test_level3_verified_windows_hello_can_authorize_exact_once(tmp_path):
 
 
 def test_level3_execution_cli_requires_web_authentication(tmp_path, capsys):
-    from sofia.safe.approve_execution import main
+    from sofia.platform.safe.approve_execution import main
 
     state = tmp_path / "sofia.db"
     state.touch()

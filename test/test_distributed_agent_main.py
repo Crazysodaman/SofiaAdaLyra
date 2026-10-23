@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 
-from sofia.distributed.agent_main import configuration_from_file
+from sofia.platform.distributed.agent_main import configuration_from_file
 
 
 NODE_ID = UUID("11111111-2222-3333-4444-555555555555")

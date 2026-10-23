@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from sofia.act.history import delivery_history
+from sofia.platform.act.history import delivery_history
 
 
 NOW = datetime(2026, 10, 4, 12, tzinfo=timezone.utc)

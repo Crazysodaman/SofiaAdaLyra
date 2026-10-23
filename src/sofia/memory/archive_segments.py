@@ -15,7 +15,7 @@ import json
 import os
 import tempfile
 
-from sofia.ops.backup import BackupCipher
+from sofia.platform.ops.backup import BackupCipher
 
 
 _AAD = b"sofia-archive-segment-v2"

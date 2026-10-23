@@ -18,7 +18,7 @@ import re
 import sqlite3
 from typing import TYPE_CHECKING, Callable
 
-from sofia.act.outreach import (
+from sofia.platform.act.outreach import (
     Importance, OutreachCategory, social_content_safety_reason,
 )
 from sofia.platform.application.act_service import SofiaActService

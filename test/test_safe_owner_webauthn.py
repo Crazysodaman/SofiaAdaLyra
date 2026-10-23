@@ -11,7 +11,7 @@ import pytest
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from sofia.safe.owner_webauthn import OwnerWebAuthnVerifier
+from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -180,7 +180,7 @@ def test_unenrolled_credential_cannot_request_a_challenge(tmp_path):
 
 def test_protected_approval_requires_one_fresh_owner_security_key_proof(tmp_path):
     from uuid import uuid4
-    from sofia.safe.execution_approval import (
+    from sofia.platform.safe.execution_approval import (
         ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
     )
 
@@ -230,7 +230,7 @@ def test_protected_approval_requires_one_fresh_owner_security_key_proof(tmp_path
 
 def test_platform_hello_proof_cannot_be_upgraded_to_protected_fido2(tmp_path):
     from uuid import uuid4
-    from sofia.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier
+    from sofia.platform.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier
 
     state, verifier, key, credential = setup(tmp_path, kind="platform")
     proof_fp = "a" * 64
@@ -261,7 +261,7 @@ def test_platform_hello_proof_cannot_be_upgraded_to_protected_fido2(tmp_path):
 def test_preexisting_unverified_protected_approval_is_fenced_at_all_readers(tmp_path):
     """Historical actor-only rows cannot survive the auth policy upgrade."""
     from uuid import uuid4
-    from sofia.safe.execution_approval import (
+    from sofia.platform.safe.execution_approval import (
         ExecutionApprovalVerifier, execution_fingerprint,
     )
 
@@ -304,7 +304,7 @@ def test_revoked_security_key_cannot_issue_or_preserve_unused_protected_approval
     tmp_path,
 ):
     from uuid import uuid4
-    from sofia.safe.execution_approval import (
+    from sofia.platform.safe.execution_approval import (
         ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
     )
 
@@ -370,7 +370,7 @@ def test_revoked_security_key_cannot_issue_or_preserve_unused_protected_approval
 
 
 def test_canonical_safe_approval_checks_are_safe_before_any_owner_enrollment(tmp_path):
-    from sofia.safe.execution_approval import ExecutionApprovalVerifier
+    from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     approvals = ExecutionApprovalVerifier(state)

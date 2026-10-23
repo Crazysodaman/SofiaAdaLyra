@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 import json
 import pytest
 
-from sofia.ops.history import SQLiteTelemetryHistory
-from sofia.ops.model import HostTelemetry
+from sofia.platform.ops.history import SQLiteTelemetryHistory
+from sofia.platform.ops.model import HostTelemetry
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

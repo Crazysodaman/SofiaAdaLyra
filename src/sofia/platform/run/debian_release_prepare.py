@@ -15,7 +15,7 @@ import re
 import stat
 import sys
 
-from sofia.dev.supply_chain import verify_release_evidence
+from sofia.platform.dev.supply_chain import verify_release_evidence
 from sofia.platform.run.active_release import ActiveRelease, ReleaseEnvironmentManager
 from sofia.platform.run.github_update_watch import UpdateWatchError, verified_inbox_release
 from sofia.platform.run.systemd_runtime import require_debian_guest

@@ -1,6 +1,6 @@
 from sofia.cognition.matrix import EvidenceRecord
 from datetime import datetime,timezone
-from sofia.authority.model import Authority
+from sofia.platform.authority.model import Authority
 from test.matrix_v2_support import V2MatrixCoordinator as MatrixCoordinator, v2_evidence, v2_registry as default_matrix_registry
 from sofia.cognition.matrix import AuthorityDecision,EvidenceKind,EvidenceState,MatrixAuthorityPlanner,MatrixDomain,MatrixEvidenceResolver,MatrixIntent,MatrixRelevance,MatrixResponsePlanner,MatrixResponseValidator,ResponseValidationDisposition,TurnEnvelope
 from sofia.cognition.model import CognitiveResponse

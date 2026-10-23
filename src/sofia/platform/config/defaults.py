@@ -14,7 +14,7 @@ from sofia.platform.config.model import (
 from sofia.environment.config import environment_configuration_from_environ
 from sofia.platform.config.layout import RuntimeStorageLayout
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.safe.permissions import automatic_capabilities
+from sofia.platform.safe.permissions import automatic_capabilities
 
 
 def _repository_root() -> Path:

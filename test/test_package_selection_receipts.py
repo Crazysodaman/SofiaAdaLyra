@@ -2,7 +2,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from sofia.verify.package_selection import PackageSelectionProbe
+from sofia.platform.verify.package_selection import PackageSelectionProbe
 from test.conftest import _explicit_package_markers
 
 

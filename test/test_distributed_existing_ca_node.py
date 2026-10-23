@@ -6,7 +6,7 @@ import pytest
 from cryptography import x509
 from cryptography.x509.oid import ExtendedKeyUsageOID
 
-from sofia.distributed import pki
+from sofia.platform.distributed import pki
 
 
 def test_new_sofia_node_gets_distinct_leaf_keys_under_existing_ca(tmp_path):

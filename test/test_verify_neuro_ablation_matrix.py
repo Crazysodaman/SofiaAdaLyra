@@ -1,7 +1,7 @@
 """Four-way real production NEURO/MEM ablation VERIFY, deferred execution."""
 import pytest
 
-from sofia.verify.neuro_ablation import run_neuro_ablation
+from sofia.platform.verify.neuro_ablation import run_neuro_ablation
 
 pytestmark = pytest.mark.pkg_verify
 

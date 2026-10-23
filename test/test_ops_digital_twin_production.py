@@ -5,14 +5,14 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.ops.digital_twin import (
+from sofia.platform.ops.digital_twin import (
     TwinDependencyStore,TwinReviewedDependency,TwinSnapshot,
     read_digital_twin_fleet,run_digital_twin_scenario,
     simulate_hypothetical_failure,snapshot_from_ops,
 )
-from sofia.ops.model import FleetHost,HostLifecycle,HostTelemetry
-from sofia.ops.capability import OpsCapabilitySet,create_ops_tool_bindings
-from sofia.safe.permissions import capability_permission_policy,PermissionLevel
+from sofia.platform.ops.model import FleetHost,HostLifecycle,HostTelemetry
+from sofia.platform.ops.capability import OpsCapabilitySet,create_ops_tool_bindings
+from sofia.platform.safe.permissions import capability_permission_policy,PermissionLevel
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 
 pytestmark=pytest.mark.pkg_ops
@@ -178,7 +178,7 @@ def test_duplicate_or_impossible_host_graphs_fail_closed():
 
 
 def test_reproducible_capsule_contains_hashed_real_inputs_and_simulation_only(tmp_path):
-    from sofia.ops.digital_twin import TwinExperimentStore
+    from sofia.platform.ops.digital_twin import TwinExperimentStore
     state=tmp_path/"sofia.db"
     from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(state)
@@ -210,13 +210,13 @@ def test_reproducible_capsule_contains_hashed_real_inputs_and_simulation_only(tm
             "SELECT capsule_json FROM ops_twin_experiment_capsule"
         ).fetchone()[0]
     assert '"fixed_seed":0' in content
-    assert '"tool_version":"sofia.ops.digital_twin:dependency_graph_v1"' in content
+    assert '"tool_version":"sofia.platform.ops.digital_twin:dependency_graph_v1"' in content
     assert '"real_world_implementation":"NOT EXECUTED"' in content
 
 
 def test_bad_experiment_source_and_corrupt_capsule_are_never_success():
     from dataclasses import replace
-    from sofia.ops.digital_twin import (
+    from sofia.platform.ops.digital_twin import (
         TwinExperimentStore,assess_twin_experiment,
     )
     snapshot=snapshot_from_ops(
@@ -245,7 +245,7 @@ def test_bad_experiment_source_and_corrupt_capsule_are_never_success():
 
 
 def test_cryptographic_capsule_corruption_detected_before_read(tmp_path):
-    from sofia.ops.digital_twin import TwinExperimentStore
+    from sofia.platform.ops.digital_twin import TwinExperimentStore
     from sqlite3 import connect
     state=tmp_path/"sofia.db"
     from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
@@ -270,7 +270,7 @@ def test_cryptographic_capsule_corruption_detected_before_read(tmp_path):
 
 
 def test_no_approved_dependency_edge_requires_abandonment_label():
-    from sofia.ops.digital_twin import assess_twin_experiment
+    from sofia.platform.ops.digital_twin import assess_twin_experiment
     snapshot=snapshot_from_ops((host("Artemis"),),(),at=AT)
     modeled=simulate_hypothetical_failure(
         snapshot,scenario="container_crash",target_host_id="Artemis",at=AT,
@@ -284,7 +284,7 @@ def test_no_approved_dependency_edge_requires_abandonment_label():
 
 
 def test_genuine_source_catalog_rejects_vm_and_docker_fidelity_overclaims(tmp_path):
-    from sofia.ops.digital_twin import (
+    from sofia.platform.ops.digital_twin import (
         FIDELITY_COMPARISON,PHYSICAL_DOMAIN_BOUNDARIES,
     )
     assert FIDELITY_COMPARISON["dependency_graph_v1"]["implemented"] is True
@@ -307,7 +307,7 @@ def test_genuine_source_catalog_rejects_vm_and_docker_fidelity_overclaims(tmp_pa
 
 
 def test_gaia_virtual_servo_kinematics_cannot_authorize_real_pulses():
-    from sofia.ops.digital_twin import PHYSICAL_DOMAIN_BOUNDARIES
+    from sofia.platform.ops.digital_twin import PHYSICAL_DOMAIN_BOUNDARIES
     gaia=PHYSICAL_DOMAIN_BOUNDARIES["Gaia"]
     assert "NO PHYSICAL SERVO PULSES"==gaia["default"]
     assert "180-degree vs continuous-rotation servo calibration" in gaia["unmeasured"]
@@ -317,7 +317,7 @@ def test_gaia_virtual_servo_kinematics_cannot_authorize_real_pulses():
 
 
 def test_jmri_telemetry_route_simulation_never_implies_train_movement():
-    from sofia.ops.digital_twin import PHYSICAL_DOMAIN_BOUNDARIES
+    from sofia.platform.ops.digital_twin import PHYSICAL_DOMAIN_BOUNDARIES
     jmri=PHYSICAL_DOMAIN_BOUNDARIES["JMRI"]
     assert "NO TRACK POWER OR LOCO MOVEMENT"==jmri["default"]
     assert "owner-reviewed roster" in jmri["read_only_inputs"]
@@ -327,7 +327,7 @@ def test_jmri_telemetry_route_simulation_never_implies_train_movement():
 
 
 def test_unavailable_simulation_tools_and_noisy_source_trigger_abandonment():
-    from sofia.ops.digital_twin import assess_twin_experiment
+    from sofia.platform.ops.digital_twin import assess_twin_experiment
     snap=snapshot_from_ops(
         (host("Artemis"),host("Eos")),
         (edge("Eos","Artemis","dns"),),at=AT,

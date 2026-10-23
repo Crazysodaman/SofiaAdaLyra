@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from sofia.act import (
+from sofia.platform.act import (
     ActDeliveryRunner,
     ActOutbox,
     DeliveryLimits,
@@ -11,8 +11,8 @@ from sofia.act import (
     Policy,
     SendResult,
 )
-from sofia.act.outreach import Decision, OutreachCategory
-from sofia.act.system_notice import SystemNoticeQueue
+from sofia.platform.act.outreach import Decision, OutreachCategory
+from sofia.platform.act.system_notice import SystemNoticeQueue
 
 T0 = datetime(2026, 9, 25, 14, tzinfo=timezone.utc)
 

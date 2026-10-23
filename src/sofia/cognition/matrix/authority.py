@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from sofia.authority.model import Authority
+from sofia.platform.authority.model import Authority
 
 from .model import (
     AuthorityDecision,

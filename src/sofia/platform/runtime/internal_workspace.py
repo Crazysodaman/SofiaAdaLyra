@@ -12,7 +12,7 @@ from pathlib import Path
 from sofia.continuity.model import (
     ContinuityEventKind, create_continuity_event,
 )
-from sofia.filesystem.change_filter import exclude_internal_state_changes
+from sofia.platform.filesystem.change_filter import exclude_internal_state_changes
 from sofia.interaction.world_setup import lab_state_path
 
 _AWARENESS_KINDS = frozenset({

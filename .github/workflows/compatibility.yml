@@ -39,7 +39,7 @@ jobs:
 
       - name: Run static compatibility gate
         run: >
-          python -m sofia.verify.gate
+          python -m sofia.platform.verify.gate
           --phase static
           --evidence-path compatibility-evidence.json
 

@@ -2,13 +2,13 @@ from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import pytest
-from sofia.distributed.authorization import RemoteGrant
-from sofia.distributed.capabilities import CapabilityInventory, RemoteCapability
-from sofia.distributed.model import ApprovedEndpoint
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
-from sofia.distributed.operations import RemoteOperationDenied, RemoteOperationRequest, RemoteOperationResult, RemoteOutcome, RemoteTransport
-from sofia.distributed.remote_control import DurableRemoteControl
+from sofia.platform.distributed.authorization import RemoteGrant
+from sofia.platform.distributed.capabilities import CapabilityInventory, RemoteCapability
+from sofia.platform.distributed.model import ApprovedEndpoint
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
+from sofia.platform.distributed.operations import RemoteOperationDenied, RemoteOperationRequest, RemoteOperationResult, RemoteOutcome, RemoteTransport
+from sofia.platform.distributed.remote_control import DurableRemoteControl
 
 
 NOW=datetime(2026,9,24,tzinfo=timezone.utc)

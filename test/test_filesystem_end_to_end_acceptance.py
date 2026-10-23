@@ -8,7 +8,7 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.filesystem.model import (
+from sofia.platform.filesystem.model import (
     FilesystemOperation,
     FilesystemResultKind,
 )
@@ -317,7 +317,7 @@ def test_authorized_file_read_returns_real_repository_content(
     )
 
     application.conversation.respond(
-        "read src/sofia/filesystem/model.py",
+        "read src/sofia/platform/filesystem/model.py",
         principal=local_sparks_principal(),
         channel="desktop",
     )
@@ -430,7 +430,7 @@ def test_filesystem_evidence_reaches_cognitive_request(
     )
 
     application.conversation.respond(
-        "read src/sofia/filesystem/model.py",
+        "read src/sofia/platform/filesystem/model.py",
         principal=local_sparks_principal(),
         channel="desktop",
     )
@@ -442,7 +442,7 @@ def test_filesystem_evidence_reaches_cognitive_request(
     assert request.messages[-1].role is CognitiveRole.USER
     assert (
         request.messages[-1].content
-        == "read src/sofia/filesystem/model.py"
+        == "read src/sofia/platform/filesystem/model.py"
     )
 
     results = captured_filesystem_results[1]

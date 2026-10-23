@@ -53,7 +53,7 @@ jobs:
           test/test_package_grouping.py
       - name: Emit source-bound Gate 4 status, no production claims
         run: >-
-          python -m sofia.verify.v18_gate4
+          python -m sofia.platform.verify.v18_gate4
           --repo .
           --output gate4-batch50-progress.json
           --markdown-output gate4-batch50-progress.md

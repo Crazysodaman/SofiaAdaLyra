@@ -6,7 +6,7 @@ import pytest
 
 @pytest.mark.parametrize("name", ["ab_probe", "focused_probe"])
 def test_probe_help_does_not_initialize_configuration(name, monkeypatch):
-    module = import_module("sofia.verify.interaction." + name)
+    module = import_module("sofia.platform.verify.interaction." + name)
 
     def unexpected_configuration():
         raise AssertionError("Help attempted configuration provisioning")

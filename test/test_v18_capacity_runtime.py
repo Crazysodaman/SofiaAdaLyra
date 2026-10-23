@@ -8,9 +8,9 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.platform.application.presence import WorldAvailability, WorldEpistemicState
-from sofia.ops.capacity import CapacityError, Reading
-from sofia.ops.capacity_runtime import _disk_level, record_local_capacity
-from sofia.ops.capacity import Level
+from sofia.platform.ops.capacity import CapacityError, Reading
+from sofia.platform.ops.capacity_runtime import _disk_level, record_local_capacity
+from sofia.platform.ops.capacity import Level
 
 pytestmark = pytest.mark.pkg_ops
 NOW = datetime(2026, 10, 15, 22, tzinfo=timezone.utc)

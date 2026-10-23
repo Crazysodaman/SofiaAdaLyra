@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sofia.ops import backup_cli
+from sofia.platform.ops import backup_cli
 
 
 class Result:

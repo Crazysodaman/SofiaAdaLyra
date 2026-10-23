@@ -10,7 +10,7 @@ import sqlite3
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
-from sofia.capability.model import CapabilityResult, CapabilityResultKind
+from sofia.platform.capability.model import CapabilityResult, CapabilityResultKind
 
 from .contracts import AcquisitionState, EpistemicState, EvidenceAtom, EvidenceNeed
 

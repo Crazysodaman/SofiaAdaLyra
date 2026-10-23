@@ -2,14 +2,14 @@
 
 import pytest
 
-from sofia.authority.model import Authority
-from sofia.capability.gateway import CapabilityGateway
-from sofia.capability.model import (
+from sofia.platform.authority.model import Authority
+from sofia.platform.capability.gateway import CapabilityGateway
+from sofia.platform.capability.model import (
     Capability,
     CapabilityResult,
     CapabilityResultKind,
 )
-from sofia.capability.system import CapabilitySystem
+from sofia.platform.capability.system import CapabilitySystem
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.engine import CognitiveEngine
 from sofia.cognition.model import (
@@ -1330,7 +1330,7 @@ def test_untrusted_dataclass_secret_fields_are_redacted_before_property_access()
 
 
 def test_filesystem_tool_evidence_is_bounded_before_context_join(tmp_path):
-    from sofia.filesystem.model import (
+    from sofia.platform.filesystem.model import (
         FilesystemOperation, FilesystemResult, FilesystemResultKind,
     )
     from sofia.cognition.tools import MAX_FORMATTED_TOOL_RESULT_CHARS

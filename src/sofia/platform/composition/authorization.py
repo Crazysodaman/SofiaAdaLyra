@@ -4,11 +4,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 
 from sofia.platform.config.model import SofiaConfiguration
-from sofia.safe.operator_stop import OperatorStopStore
-from sofia.safe.permissions import (
+from sofia.platform.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.permissions import (
     PermissionLevel,
     PermissionStore,
     capability_permission_policy,

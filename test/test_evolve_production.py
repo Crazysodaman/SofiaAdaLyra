@@ -8,15 +8,15 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from sofia.platform.application.evolution import SofiaEvolutionService
 from sofia.platform.composition.root import compose
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.evolve.approval import ApprovalAction
-from sofia.evolve.lifecycle import (
+from sofia.platform.evolve.approval import ApprovalAction
+from sofia.platform.evolve.lifecycle import (
     EvolutionEvidence,
     EvolutionLifecycleStore,
     EvolutionOutcome,
     EvolutionProposalStatus,
 )
-from sofia.evolve.revision import RevisionApproval, RevisionScope
-from sofia.safe.evolve_approval import (
+from sofia.platform.evolve.revision import RevisionApproval, RevisionScope
+from sofia.platform.safe.evolve_approval import (
     DurableEvolutionApprovalVerifier,
     approval_signature_payload,
     revocation_signature_payload,

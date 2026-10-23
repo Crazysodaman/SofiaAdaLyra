@@ -6,7 +6,7 @@ backup creation before final publication. No test execution occurs here.
 """
 import pytest
 
-from sofia.ops.backup import BackupCipher, BackupEngine
+from sofia.platform.ops.backup import BackupCipher, BackupEngine
 from test.test_ops_backup_restore import make_state
 
 
@@ -76,7 +76,7 @@ def test_failed_encryption_cleans_source_local_cleartext_snapshot(
 def test_verified_encrypted_archive_rejects_unlisted_content(
     tmp_path, surprise,
 ):
-    from sofia.ops.backup import BackupError
+    from sofia.platform.ops.backup import BackupError
 
     source, engine, backup_root = _fixture(tmp_path)
     archive, _ = engine.create(

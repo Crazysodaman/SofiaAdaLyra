@@ -5,7 +5,7 @@ from pathlib import Path
 
 CURRENT_CONFIGURATION_SCHEMA_VERSION = 1
 
-from sofia.distributed.version import FleetProtocolVersion
+from sofia.platform.distributed.version import FleetProtocolVersion
 from sofia.environment.config import EnvironmentConfiguration
 from sofia.identity.model import IdentityBootstrapMode
 

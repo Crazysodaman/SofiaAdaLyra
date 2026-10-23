@@ -2,8 +2,8 @@
 from pathlib import Path
 from uuid import uuid4
 
-from sofia.filesystem.changes import detect_changes
-from sofia.filesystem.observation import (
+from sofia.platform.filesystem.changes import detect_changes
+from sofia.platform.filesystem.observation import (
     FilesystemEntry,
     FilesystemObservation,
 )

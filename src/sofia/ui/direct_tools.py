@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
-from sofia.capability.model import CapabilityResult
+from sofia.platform.capability.model import CapabilityResult
 from sofia.cognition.model import CognitiveResponse, CognitiveToolCall
 from sofia.cognition.tools import CognitiveToolDispatcher
-from sofia.safe.permissions import (
+from sofia.platform.safe.permissions import (
     PermissionLevel,
     PrivacyClass,
     capability_permission_policy,

@@ -6,8 +6,8 @@ import sqlite3
 
 import pytest
 
-from sofia.capability.model import Capability,CapabilityRequest,CapabilityResultKind
-from sofia.capability.system import CapabilitySystem
+from sofia.platform.capability.model import Capability,CapabilityRequest,CapabilityResultKind
+from sofia.platform.capability.system import CapabilitySystem
 from sofia.platform.composition.root import compose
 from sofia.platform.config.defaults import create_default_configuration
 from sofia.platform.config.model import ProviderConfiguration,SofiaConfiguration
@@ -24,10 +24,10 @@ from sofia.integrations.storage import StorageAdapter
 from sofia.knowledge.lifecycle import SQLiteKnowledgeLifecycle
 from sofia.knowledge.persistence import SQLiteKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
-from sofia.filesystem.change_capability import FilesystemChangesCapability
-from sofia.filesystem.observation import FilesystemObservationStore
-from sofia.ops.capability import OpsToolService
-from sofia.ops.model import FleetHost,HostLifecycle,HostTelemetry
+from sofia.platform.filesystem.change_capability import FilesystemChangesCapability
+from sofia.platform.filesystem.observation import FilesystemObservationStore
+from sofia.platform.ops.capability import OpsToolService
+from sofia.platform.ops.model import FleetHost,HostLifecycle,HostTelemetry
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

@@ -9,16 +9,16 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.distributed.agent import (
+from sofia.platform.distributed.agent import (
     AgentInferenceEndpoint,
     AgentRequestLedger,
     RemoteInferenceReplayDenied,
 )
-from sofia.distributed.inference import (
+from sofia.platform.distributed.inference import (
     RemoteInferenceRequest,
     RemoteInferenceResponse,
 )
-from sofia.distributed.operations import RemoteOutcome
+from sofia.platform.distributed.operations import RemoteOutcome
 
 
 def _request(node_id):

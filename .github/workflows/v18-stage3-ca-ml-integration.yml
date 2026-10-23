@@ -7,7 +7,7 @@ on:
       - '.github/workflows/v18-stage3-ca-ml-integration.yml'
       - 'src/sofia/life/**'
       - 'src/sofia/learning/**'
-      - 'src/sofia/distributed/**'
+      - 'src/sofia/platform/distributed/**'
       - 'src/sofia/memory/**'
       - 'test/test_life_*.py'
       - 'test/test_distributed_capability_lifecycle.py'

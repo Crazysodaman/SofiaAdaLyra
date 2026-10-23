@@ -5,14 +5,14 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.distributed.authorization import RemoteGrant
-from sofia.distributed.capabilities import CapabilityInventory, RemoteCapability
-from sofia.distributed.durable import (
+from sofia.platform.distributed.authorization import RemoteGrant
+from sofia.platform.distributed.capabilities import CapabilityInventory, RemoteCapability
+from sofia.platform.distributed.durable import (
     DurableDistributedGateway, DurableRemoteAuthorization, DurableRemoteLedger,
 )
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.model import DistributedNode
-from sofia.distributed.operations import (
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.model import DistributedNode
+from sofia.platform.distributed.operations import (
     RemoteOperationDenied, RemoteOperationRequest, RemoteOperationResult,
     RemoteOperationUncertain, RemoteOutcome, RemoteTransport,
 )

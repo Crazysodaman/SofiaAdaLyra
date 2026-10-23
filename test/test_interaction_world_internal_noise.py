@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from sofia.continuity.model import ContinuityEventKind, create_continuity_event
-from sofia.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
-from sofia.filesystem.observation import FilesystemEntry
+from sofia.platform.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
+from sofia.platform.filesystem.observation import FilesystemEntry
 from sofia.interaction.world_setup import lab_state_path
 from sofia.platform.operational.model import ContinuityEvidenceStatus, RuntimeContinuity
 from sofia.platform.runtime.internal_workspace import normalize_runtime_workspace_awareness

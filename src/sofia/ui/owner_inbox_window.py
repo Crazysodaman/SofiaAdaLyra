@@ -8,8 +8,8 @@ from __future__ import annotations
 from queue import Empty, Queue
 from threading import Thread
 
-from sofia.safe.approval_inbox import ApprovalInbox
-from sofia.safe.owner_enroll_browser import require_owner_windows_account
+from sofia.platform.safe.approval_inbox import ApprovalInbox
+from sofia.platform.safe.owner_enroll_browser import require_owner_windows_account
 
 
 def open_owner_inbox_window(state_path, *, parent=None):
@@ -104,7 +104,7 @@ def open_owner_inbox_window(state_path, *, parent=None):
         ):
             return
         try:
-            from sofia.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.platform.safe.owner_approval_ui import select_security_key_for_settings
             credential = select_security_key_for_settings(state_path, parent=root)
         except (PermissionError, OSError, RuntimeError, ValueError) as exc:
             result.set(f"Cannot begin security-key review: {exc}")

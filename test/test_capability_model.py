@@ -1,6 +1,6 @@
 ﻿import pytest
 
-from sofia.capability.model import (
+from sofia.platform.capability.model import (
     Capability,
     CapabilityRequest,
     CapabilityResult,

@@ -1,5 +1,5 @@
 """The release CI fixture never stands in for live canonical state acceptance."""
-from sofia.verify import semantic
+from sofia.platform.verify import semantic
 
 
 def test_isolated_semantic_verification_requires_negative_and_positive_proof(

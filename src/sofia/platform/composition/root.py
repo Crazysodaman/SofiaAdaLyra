@@ -3,12 +3,12 @@ from dataclasses import replace
 import os
 from pathlib import Path
 
-from sofia.action.executor import FailClosedActionExecutor
-from sofia.action.system import ActionSystem
+from sofia.platform.action.executor import FailClosedActionExecutor
+from sofia.platform.action.system import ActionSystem
 from sofia.platform.application.evolution import SofiaEvolutionService
-from sofia.capability.gateway import CapabilityGateway
-from sofia.capability.catalog import ToolCatalogCapability,create_tool_catalog_binding
-from sofia.capability.system import CapabilitySystem
+from sofia.platform.capability.gateway import CapabilityGateway
+from sofia.platform.capability.catalog import ToolCatalogCapability,create_tool_catalog_binding
+from sofia.platform.capability.system import CapabilitySystem
 from sofia.codebase.capability import CodebaseCapability
 from sofia.codebase.inspector import CodebaseInspector
 from sofia.cognition.assembler import CognitiveContextAssembler
@@ -29,24 +29,24 @@ from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.config import ConfiguredLocation
 from sofia.environment.factory import create_environment_service
 from sofia.environment.model import LocationSubject
-from sofia.evolve.capability import EvolveCapabilitySet, create_evolve_tool_bindings
-from sofia.evolve.orchestrator import (
+from sofia.platform.evolve.capability import EvolveCapabilitySet, create_evolve_tool_bindings
+from sofia.platform.evolve.orchestrator import (
     CodeEvolutionOrchestrator,
     SubprocessCandidateVerificationRunner,
 )
-from sofia.distributed.capability import create_configured_remote_fleet_tools
-from sofia.distributed.inference_client import (
+from sofia.platform.distributed.capability import create_configured_remote_fleet_tools
+from sofia.platform.distributed.inference_client import (
     create_configured_remote_inference_client,
 )
-from sofia.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool_bindings
-from sofia.filesystem.capability import FilesystemCapability
-from sofia.filesystem.change_capability import FilesystemChangesCapability,create_filesystem_changes_binding
-from sofia.filesystem.observation import FilesystemObservationStore
+from sofia.platform.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool_bindings
+from sofia.platform.filesystem.capability import FilesystemCapability
+from sofia.platform.filesystem.change_capability import FilesystemChangesCapability,create_filesystem_changes_binding
+from sofia.platform.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
 from sofia.identity.model import IdentityBootstrapMode
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.integrations.capabilities import create_configured_integration_tools
-from sofia.net import create_configured_web_tools
+from sofia.platform.net import create_configured_web_tools
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.knowledge.access import KnowledgeAccessStore
@@ -55,19 +55,19 @@ from sofia.knowledge.lifecycle import SQLiteKnowledgeLifecycle
 from sofia.knowledge.persistence import SQLiteKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
 from sofia.memory.system import MemorySystem
-from sofia.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
-from sofia.machine.discovery import create_machine_discovery
-from sofia.machine.location import MachineLocationRegistry
-from sofia.ops.agent_discovery import (
+from sofia.platform.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
+from sofia.platform.machine.discovery import create_machine_discovery
+from sofia.platform.machine.location import MachineLocationRegistry
+from sofia.platform.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
     create_configured_network_discovery_source,
 )
-from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
-from sofia.safe.dev_approval import DevApprovalVerifier
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
-from sofia.safe.operator_stop import OperatorStopStore
-from sofia.safe.permission_capability import PermissionInspectionCapability, create_permission_tool_binding
-from sofia.safe.permissions import PermissionStore, automatic_capabilities, is_explicitly_classified
+from sofia.platform.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
+from sofia.platform.safe.dev_approval import DevApprovalVerifier
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.permission_capability import PermissionInspectionCapability, create_permission_tool_binding
+from sofia.platform.safe.permissions import PermissionStore, automatic_capabilities, is_explicitly_classified
 from sofia.platform.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.platform.runtime.runtime import SofiaRuntime

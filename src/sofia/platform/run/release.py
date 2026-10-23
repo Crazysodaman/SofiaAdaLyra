@@ -8,11 +8,11 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from sofia.dev.release import ReleaseManifest
-from sofia.dev.release_store import ReleaseStateStore
-from sofia.distributed.version import FleetProtocolVersion
-from sofia.safe.audit import AuditChain
-from sofia.safe.release import ReleaseActivationGuard
+from sofia.platform.dev.release import ReleaseManifest
+from sofia.platform.dev.release_store import ReleaseStateStore
+from sofia.platform.distributed.version import FleetProtocolVersion
+from sofia.platform.safe.audit import AuditChain
+from sofia.platform.safe.release import ReleaseActivationGuard
 
 
 class ReleaseManagerError(RuntimeError):

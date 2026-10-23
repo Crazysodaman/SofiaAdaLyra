@@ -18,7 +18,7 @@ from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.mobile.gateway import MobileCompanionGateway
 from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionStore
 from test.owner_auth_fixture import private_with_signed_owner
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore

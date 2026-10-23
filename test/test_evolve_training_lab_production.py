@@ -8,11 +8,11 @@ from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.evolve.training_sources import TrainingDatasetStore,inspect_public_dataset
-from sofia.evolve.training_lab import (
+from sofia.platform.evolve.training_sources import TrainingDatasetStore,inspect_public_dataset
+from sofia.platform.evolve.training_lab import (
     TrainingLabPlan,TrainingLabReviewStore,assess_training_lab,
 )
-from sofia.safe.permissions import capability_permission_policy,PermissionLevel
+from sofia.platform.safe.permissions import capability_permission_policy,PermissionLevel
 
 pytestmark=pytest.mark.pkg_core
 NOW=datetime(2026,10,11,20,tzinfo=timezone.utc)
@@ -159,7 +159,7 @@ def test_training_review_rejects_invalid_clock_type(tmp_path):
     {"preserve_source_privacy": 1},
 ])
 def test_adaptation_review_rejects_malformed_rights_and_quotas(bad):
-    from sofia.evolve.training_policy import AdaptationPlan, assess_adaptation
+    from sofia.platform.evolve.training_policy import AdaptationPlan, assess_adaptation
 
     values = dict(
         base_model_digest="a" * 64,
@@ -227,7 +227,7 @@ def test_training_plan_expires_and_never_acquires_permanent_rights(tmp_path):
 def test_option_b_unverified_internal_network_blocks_training_lab_even_if_ids_match(
     tmp_path,monkeypatch,
 ):
-    from sofia.ops.workshop_handoff import WorkshopHandoffStore
+    from sofia.platform.ops.workshop_handoff import WorkshopHandoffStore
     state,ds,training,heldout=model_and_sources(tmp_path)
     proposed=plan(training,heldout)
     handoff=WorkshopHandoffStore(state)

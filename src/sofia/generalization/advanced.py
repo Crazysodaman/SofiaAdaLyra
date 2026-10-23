@@ -25,7 +25,7 @@ from sofia.learning.contracts import DataUse
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
-from sofia.verify.generalization_transfer import assess_signed_transfer
+from sofia.platform.verify.generalization_transfer import assess_signed_transfer
 
 
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}\Z")

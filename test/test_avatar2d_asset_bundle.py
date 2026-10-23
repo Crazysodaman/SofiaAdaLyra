@@ -17,7 +17,7 @@ from sofia.avatar.vtuber_asset_bundle import (
     Avatar2DAssetError, Avatar2DAssetGateway,
 )
 from sofia.embodiment.store import EmbodimentStore
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionStore
 from sofia.social.principals import local_sparks_principal
 
 

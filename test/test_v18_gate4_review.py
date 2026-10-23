@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from sofia.verify.v18_gate4_review import main, review_readiness, review_report
+from sofia.platform.verify.v18_gate4_review import main, review_readiness, review_report
 
 pytestmark = pytest.mark.pkg_verify
 

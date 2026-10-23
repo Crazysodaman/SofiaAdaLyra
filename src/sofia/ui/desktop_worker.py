@@ -22,7 +22,7 @@ from sofia.ui.theme import canonical_theme
 from sofia.mobile.gateway import MobileCompanionGateway
 from sofia.mobile.provisioning import MobileProvisioning
 from sofia.mobile.server import MobileCompanionServer
-from sofia.net import (
+from sofia.platform.net import (
     CloudflareTunnelConfiguration,
     CloudflareTunnelSupervisor,
 )

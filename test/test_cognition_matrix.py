@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from sofia.authority.model import Authority
+from sofia.platform.authority.model import Authority
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,

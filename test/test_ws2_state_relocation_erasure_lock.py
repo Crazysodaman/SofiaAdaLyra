@@ -5,7 +5,7 @@ backup rotation, Android dispatch or CI invocation is performed here.
 """
 from contextlib import contextmanager
 
-import sofia.ops.state_relocation as relocation
+import sofia.platform.ops.state_relocation as relocation
 from sofia.memory.deletion_ledger import MemoryDeletionLedger
 from test.test_venus_artemis_relocation_evidence import _plan, _stage
 

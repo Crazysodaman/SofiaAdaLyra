@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from sofia.verify.v18_next50_audit import BATCH_RELATIVE, audit_next50
-from sofia.verify.v18_roadmap import RoadmapIntegrityError
+from sofia.platform.verify.v18_next50_audit import BATCH_RELATIVE, audit_next50
+from sofia.platform.verify.v18_roadmap import RoadmapIntegrityError
 
 pytestmark = pytest.mark.pkg_verify
 ROOT = Path(__file__).resolve().parents[1]

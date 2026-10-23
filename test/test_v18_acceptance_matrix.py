@@ -1,7 +1,7 @@
 """CA-1206: every acceptance axis combination is planned, never pretended."""
 import pytest
 
-from sofia.verify.v18_acceptance_matrix import (
+from sofia.platform.verify.v18_acceptance_matrix import (
     AXES, EXPECTED_COUNT, acceptance_plan,
 )
 

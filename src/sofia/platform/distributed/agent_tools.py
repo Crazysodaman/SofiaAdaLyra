@@ -1,0 +1,380 @@
+"""Default typed operations exposed by the fleet agent."""
+from __future__ import annotations
+from dataclasses import asdict,is_dataclass
+from enum import Enum
+import os,platform
+from pathlib import Path
+from typing import Any,Mapping
+
+from sofia.integrations.hyperv import HyperVAdapter
+from sofia.integrations.local_maintenance import LocalMaintenanceAdapter
+from sofia.integrations.ollama import OllamaAdapter
+from sofia.integrations.portainer import PortainerAdapter
+from sofia.platform.machine.hardware import create_hardware_discovery
+from sofia.platform.ops.local_telemetry import collect_local_telemetry
+from sofia.platform.distributed.release_agent import create_agent_release_service_from_environment
+from sofia.platform.system.capability import create_local_system_backend
+from sofia.platform.system.model import SystemCapabilityName,SystemCapabilityRequest
+
+from .agent import RemoteAgentDispatcher
+
+def _plain(value:Any)->Any:
+    if is_dataclass(value): return {k:_plain(v) for k,v in asdict(value).items()}
+    if isinstance(value,Enum): return value.value
+    if isinstance(value,Path): return str(value)
+    if isinstance(value,Mapping): return {str(k):_plain(v) for k,v in value.items()}
+    if isinstance(value,(tuple,list,set,frozenset)): return [_plain(v) for v in value]
+    return value
+
+def create_default_agent_dispatcher(
+    *,
+    inference_models: tuple[str, ...] = (),
+    release_service=None,
+)->RemoteAgentDispatcher:
+    dispatcher=RemoteAgentDispatcher()
+    backend=create_local_system_backend()
+    by_name={cap.name:cap for cap in backend.supported_capabilities}
+
+    def system_handler(name:SystemCapabilityName):
+        capability=by_name[name]
+        def execute(parameters):
+            result=backend.execute(SystemCapabilityRequest(capability,dict(parameters)))
+            return _plain(result)
+        return execute
+
+    if SystemCapabilityName.PROCESS_INSPECT in by_name:
+        dispatcher.register("system.inspect","process",system_handler(SystemCapabilityName.PROCESS_INSPECT))
+    if SystemCapabilityName.SYSTEM_INSPECT in by_name:
+        dispatcher.register("system.inspect","system",system_handler(SystemCapabilityName.SYSTEM_INSPECT))
+    if SystemCapabilityName.NETWORK_INSPECT in by_name:
+        dispatcher.register("system.inspect","network",system_handler(SystemCapabilityName.NETWORK_INSPECT))
+    if SystemCapabilityName.SERVICE_INSPECT in by_name:
+        dispatcher.register("system.inspect","service",system_handler(SystemCapabilityName.SERVICE_INSPECT))
+
+    hardware=create_hardware_discovery()
+    dispatcher.register("system.inspect","hardware",lambda p:_plain(hardware.discover()))
+    dispatcher.register(
+        "ops.telemetry",
+        "latest",
+        lambda p: _plain(collect_local_telemetry()),
+    )
+
+    if not isinstance(inference_models, tuple):
+        raise TypeError("inference_models must be a tuple")
+    if any(
+        not isinstance(model, str) or not model.strip()
+        for model in inference_models
+    ):
+        raise ValueError("inference_models must contain nonempty strings")
+
+    ollama=OllamaAdapter()
+    dispatcher.register(
+        "llm.inspect",
+        "inference_policy",
+        lambda p: {"allowed_models": list(inference_models)},
+    )
+    dispatcher.register("llm.inspect","models",lambda p:_plain(ollama.models()))
+    dispatcher.register("llm.inspect","running",lambda p:_plain(ollama.running()))
+    dispatcher.register(
+        "llm.inspect",
+        "show",
+        lambda p:_plain(ollama.show(str(p["model"]))),
+    )
+    dispatcher.register(
+        "llm.manage",
+        "pull",
+        lambda p:_plain(ollama.pull(str(p["model"]))),
+    )
+    dispatcher.register(
+        "llm.manage",
+        "load",
+        lambda p:_plain(
+            ollama.load(
+                str(p["model"]),
+                keep_alive=str(p.get("keep_alive","10m")),
+            )
+        ),
+    )
+    dispatcher.register(
+        "llm.manage",
+        "unload",
+        lambda p:_plain(ollama.unload(str(p["model"]))),
+    )
+
+    maintenance=LocalMaintenanceAdapter()
+    dispatcher.register("service.manage","start",lambda p:_plain(maintenance.service(str(p["service"]),"start")))
+    dispatcher.register("service.manage","stop",lambda p:_plain(maintenance.service(str(p["service"]),"stop")))
+    dispatcher.register("service.manage","restart",lambda p:_plain(maintenance.service(str(p["service"]),"restart")))
+    dispatcher.register("system.manage","reboot",lambda p:_plain(maintenance.reboot()))
+    dispatcher.register("package.manage","update",lambda p:_plain(maintenance.package_update(str(p["package"]))))
+
+    if platform.system()=="Windows":
+        hyperv=HyperVAdapter()
+        dispatcher.register("vm.inspect","list",lambda p:_plain(hyperv.vms()))
+        dispatcher.register("vm.inspect","get",lambda p:_plain(hyperv.vm(str(p["vm"]))))
+        dispatcher.register(
+            "vm.inspect", "sofia_preflight",
+            lambda p: _plain(hyperv.sofia_guest_inventory()) if not p else
+            (_ for _ in ()).throw(ValueError("Sofia VM inspection takes no parameters")),
+        )
+        # Read-only, static Hyper-V host preflight over the already-pinned
+        # Fleet mTLS transport. No guest write or generic PowerShell route.
+        dispatcher.register(
+            "workshop.inspect","installer_status",
+            lambda p:_plain(hyperv.workshop_installer_status())
+            if not p else (_ for _ in ()).throw(
+                ValueError("installer status observation accepts no parameters")
+            ),
+        )
+        dispatcher.register(
+            "workshop.inspect","network_stage_preflight",
+            lambda p:_plain(hyperv.workshop_internal_stage_preflight())
+            if not p else (_ for _ in ()).throw(
+                ValueError("current Hephaestus network observation has no parameters")
+            ),
+        )
+        dispatcher.register(
+            "workshop.inspect","blank_vm",
+            lambda p:_plain(hyperv.workshop_handoff_vm())
+            if not p else (_ for _ in ()).throw(
+                ValueError("blank VM inspection takes no arbitrary guest or path")
+            ),
+        )
+        dispatcher.register(
+            "workshop.inspect","host",
+            lambda p:_plain(hyperv.workshop_host())
+            if not p else (_ for _ in ()).throw(
+                ValueError("host inspection accepts no remote parameters")
+            ),
+        )
+        # Only images under a host-admin configured offline media root may
+        # be hashed remotely. A model cannot turn this into host file probing.
+        workshop_image_root=os.environ.get(
+            "SOFIA_WORKSHOP_IMAGE_ROOT",""
+        ).strip()
+        workshop_owner_public_key=os.environ.get(
+            "SOFIA_WORKSHOP_MEDIA_OWNER_PUBKEY",""
+        ).strip()
+        if workshop_image_root:
+            def reviewed_media_digest(parameters):
+                if tuple(parameters) != ("image_path",):
+                    raise ValueError("exact approved media path required")
+                from sofia.platform.ops.workshop_provision import _path
+                requested=str(_path(str(parameters["image_path"])))
+                root=Path(workshop_image_root).resolve(strict=True)
+                media=Path(requested).resolve(strict=True)
+                if (
+                    not root.is_dir() or not media.is_file()
+                    or not media.is_relative_to(root)
+                    or media.suffix.casefold() not in {".iso",".vhdx"}
+                    or media.stat().st_size > 128 * (1024 ** 3)
+                ):
+                    raise PermissionError(
+                        "media outside host-approved offline image root"
+                    )
+                # SHA-256 alone does NOT prove console-admin/SSH policy.
+                # Pinned Ed25519 owner signature is checked on Artemis and
+                # the full ISO digest is independently verified.
+                if media.suffix.casefold()==".iso":
+                    if not workshop_owner_public_key:
+                        raise PermissionError(
+                            "owner media signing key not pinned on Artemis"
+                        )
+                    from sofia.platform.ops.workshop_media_attestation import (
+                        verify_prepared_media,
+                    )
+                    evidence=verify_prepared_media(
+                        iso_path=media,
+                        trusted_public_key_file=workshop_owner_public_key,
+                        verify_full_iso=True,
+                    )
+                    return {
+                        **evidence,
+                        "bytes":media.stat().st_size,
+                    }
+                return {
+                    "sha256":hyperv.workshop_image_sha256(str(media)),
+                    "bytes":media.stat().st_size,
+                    "kind":media.suffix.casefold(),
+                    "owner_signed":False,
+                }
+            dispatcher.register(
+                "workshop.inspect","media",
+                reviewed_media_digest,
+            )
+        # Privileged bootstrap registration is opt-in on Artemis itself.
+        # Never expose the operation on a default workstation/agent.
+        # Host admin binds an exact VM GUID + OS disk and a local image root.
+        from uuid import UUID
+        from re import fullmatch
+        from sofia.platform.ops.workshop_provision import _path
+        bootstrap_enabled=os.environ.get(
+            "SOFIA_WORKSHOP_BOOTSTRAP_ENABLED",""
+        ).strip()=="1"
+        pinned_vm=os.environ.get(
+            "SOFIA_WORKSHOP_BOOTSTRAP_VM_ID",""
+        ).strip()
+        pinned_disk=os.environ.get(
+            "SOFIA_WORKSHOP_BOOTSTRAP_OS_DISK",""
+        ).strip()
+        # Owner-created Hephaestus network preparation is a distinct,
+        # Level-4 single-use host mutation. A design decision alone never
+        # registers this capability. Administrator pins VM GUID on Artemis.
+        network_stage_enabled=os.environ.get(
+            "SOFIA_WORKSHOP_NETWORK_STAGE_ENABLED",""
+        ).strip()=="1"
+        network_vm=os.environ.get(
+            "SOFIA_WORKSHOP_NETWORK_VM_ID",""
+        ).strip()
+        if network_stage_enabled:
+            if not network_vm:
+                raise PermissionError(
+                    "Artemis administrator must pin existing Hephaestus VM GUID "
+                    "before allowing protected Internal switch staging"
+                )
+            network_exact_vm=str(UUID(network_vm))
+            from sofia.platform.ops.workshop_network import network_policy_digest
+            network_digest=network_policy_digest()
+
+            def guarded_internal_link_stage(parameters):
+                if set(parameters)!={
+                    "vm_id","network_policy_digest","approval_id",
+                }:
+                    raise PermissionError(
+                        "exact one-use Internal-link stage request required"
+                    )
+                supplied=str(UUID(str(parameters["vm_id"])))
+                if (
+                    supplied!=network_exact_vm
+                    or parameters["network_policy_digest"]!=network_digest
+                    or not isinstance(parameters["approval_id"],str)
+                    or not parameters["approval_id"].strip()
+                ):
+                    raise PermissionError(
+                        "network stage VM identity or host-only /30 policy changed"
+                    )
+                return _plain(hyperv.stage_hephaestus_internal_link(
+                    vm_id=supplied,
+                ))
+            dispatcher.register(
+                "workshop.network","stage",guarded_internal_link_stage,
+            )
+        if bootstrap_enabled:
+            if not pinned_vm or not pinned_disk or not workshop_image_root:
+                raise PermissionError(
+                    "host-admin workshop bootstrap requires pinned VM GUID, "
+                    "OS VHDX and approved offline media root"
+                )
+            approved_vm=str(UUID(pinned_vm))
+            approved_disk=str(_path(pinned_disk))
+            allowed_root=Path(workshop_image_root).resolve(strict=True)
+            if not allowed_root.is_dir():
+                raise PermissionError("offline media root is not a directory")
+
+            def reviewed_hephaestus_boot(parameters):
+                if set(parameters)!={
+                    "vm_id","disk_path","iso_path","iso_sha256",
+                    "handoff_fingerprint","approval_id",
+                }:
+                    raise ValueError("exact protected bootstrap parameters required")
+                vm_id=str(UUID(str(parameters["vm_id"])))
+                disk_path=str(_path(str(parameters["disk_path"])))
+                iso_path=str(_path(str(parameters["iso_path"])))
+                media_sha=str(parameters["iso_sha256"])
+                handoff_hash=str(parameters["handoff_fingerprint"])
+                if (
+                    vm_id!=approved_vm
+                    or disk_path.casefold()!=approved_disk.casefold()
+                    or fullmatch(r"[0-9a-f]{64}",handoff_hash) is None
+                    or fullmatch(r"[0-9a-f]{64}",media_sha) is None
+                ):
+                    raise PermissionError(
+                        "bootstrap VM, disk or exact handoff identity not authorized"
+                    )
+                source=Path(iso_path).resolve(strict=True)
+                if (
+                    not source.is_relative_to(allowed_root)
+                    or not source.is_file()
+                    or source.suffix.casefold()!=".iso"
+                    or source.stat().st_size > 16*(1024**3)
+                    or source.stat().st_size < 100*(1024**2)
+                ):
+                    raise PermissionError("unattended ISO outside approved offline root")
+                # The boot endpoint checks the actual signed account and
+                # network policy, even if the caller bypassed Settings.
+                if not workshop_owner_public_key:
+                    raise PermissionError("host has no pinned media signing key")
+                from sofia.platform.ops.workshop_media_attestation import (
+                    verify_prepared_media, POLICY as REQUIRED_INSTALL_POLICY,
+                )
+                signed=verify_prepared_media(
+                    iso_path=source,
+                    trusted_public_key_file=workshop_owner_public_key,
+                    verify_full_iso=True,
+                )
+                if (
+                    signed.get("sha256")!=media_sha
+                    or signed.get("policy_version")!=REQUIRED_INSTALL_POLICY
+                    or signed.get("owner_signed") is not True
+                ):
+                    raise PermissionError("approved console-admin ISO policy not met")
+                # Host command also rehashes immediately before DVD/start.
+                return _plain(hyperv.bootstrap_existing_hephaestus(
+                    vm_id=vm_id,os_disk_path=disk_path,
+                    iso_path=str(source),iso_sha256=media_sha,
+                ))
+
+            dispatcher.register(
+                "workshop.bootstrap","start",reviewed_hephaestus_boot,
+            )
+        dispatcher.register("vm.manage","start",lambda p:_plain(hyperv.start(str(p["vm"]))))
+        dispatcher.register("vm.manage","stop",lambda p:_plain(hyperv.stop(str(p["vm"]),force=bool(p.get("force",False)))))
+
+    port_url=os.environ.get("SOFIA_AGENT_PORTAINER_URL","").strip()
+    port_key=os.environ.get("SOFIA_AGENT_PORTAINER_API_KEY","").strip()
+    port_endpoint=os.environ.get("SOFIA_AGENT_PORTAINER_ENDPOINT_ID","").strip()
+    if port_url and port_key and port_endpoint:
+        port=PortainerAdapter(port_url,port_key,int(port_endpoint))
+        dispatcher.register("container.inspect","list",lambda p:_plain(port.containers()))
+        dispatcher.register("container.inspect","get",lambda p:_plain(port.container(str(p["container"]))))
+        dispatcher.register("container.inspect","stats",lambda p:_plain(port.container_stats(str(p["container"]))))
+        dispatcher.register("container.inspect","logs",lambda p:_plain(port.container_logs(
+            str(p["container"]),
+            tail=int(p.get("tail",200)),
+            max_bytes=int(p.get("max_bytes",262144)),
+        )))
+        dispatcher.register("container.inspect","info",lambda p:_plain(port.info()))
+        dispatcher.register("container.inspect","summary",lambda p:_plain(port.summary()))
+        dispatcher.register("container.inspect","images",lambda p:_plain(port.images()))
+        dispatcher.register("container.inspect","volumes",lambda p:_plain(port.volumes()))
+        dispatcher.register("container.inspect","networks",lambda p:_plain(port.networks()))
+        dispatcher.register("container.inspect","stacks",lambda p:_plain(port.stacks()))
+        dispatcher.register("container.manage","restart",lambda p:_plain(
+            port.restart(str(p["container"]),timeout_seconds=int(p.get("timeout_seconds",10)))
+        ))
+
+    if release_service is None:
+        release_service=create_agent_release_service_from_environment()
+    if release_service is not None:
+        dispatcher.register(
+            "release.inspect",
+            "current",
+            lambda p:_plain(release_service.current(dict(p))),
+        )
+        dispatcher.register(
+            "release.manage",
+            "stage",
+            lambda p:_plain(release_service.stage(dict(p))),
+        )
+        dispatcher.register(
+            "release.manage",
+            "activate",
+            lambda p:_plain(release_service.activate(dict(p))),
+        )
+        dispatcher.register(
+            "release.manage",
+            "rollback",
+            lambda p:_plain(release_service.rollback(dict(p))),
+        )
+
+    return dispatcher

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from sofia.ops.failure_triage import (
+from sofia.platform.ops.failure_triage import (
     FailureCategory,
     FailureKind,
     FailureSignature,

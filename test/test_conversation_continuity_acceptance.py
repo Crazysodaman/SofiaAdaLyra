@@ -11,7 +11,7 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.filesystem.model import FilesystemResult
+from sofia.platform.filesystem.model import FilesystemResult
 from sofia.social.principals import local_sparks_principal
 
 

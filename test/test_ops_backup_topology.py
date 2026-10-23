@@ -5,8 +5,8 @@ import sqlite3
 
 import pytest
 
-from sofia.ops.backup import BackupCipher, BackupEngine
-from sofia.ops.backup_topology import (
+from sofia.platform.ops.backup import BackupCipher, BackupEngine
+from sofia.platform.ops.backup_topology import (
     BackupTarget,
     BackupTopologyError,
     BackupTopologyJournal,

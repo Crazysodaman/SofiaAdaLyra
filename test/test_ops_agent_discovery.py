@@ -4,9 +4,9 @@ from uuid import UUID
 
 import pytest
 
-import sofia.ops.agent_discovery as discovery_module
-from sofia.ops.agent_discovery import create_configured_fleet_discovery_source
-from sofia.ops import (
+import sofia.platform.ops.agent_discovery as discovery_module
+from sofia.platform.ops.agent_discovery import create_configured_fleet_discovery_source
+from sofia.platform.ops import (
     AgentDiscoveryTarget,
     FleetDiscoveryEvidence,
     CombinedFleetDiscoverySource,

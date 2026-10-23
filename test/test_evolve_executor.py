@@ -8,7 +8,7 @@ import pytest
 
 from sofia.constitution.store import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
-from sofia.evolve import (
+from sofia.platform.evolve import (
     AmendmentApproval,
     AmendmentExecutionStatus,
     AmendmentProposal,

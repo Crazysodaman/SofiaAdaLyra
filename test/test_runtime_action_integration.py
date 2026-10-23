@@ -1,5 +1,5 @@
-﻿from sofia.action.executor import FailClosedActionExecutor
-from sofia.action.system import ActionSystem
+﻿from sofia.platform.action.executor import FailClosedActionExecutor
+from sofia.platform.action.system import ActionSystem
 from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,

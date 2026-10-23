@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
-from sofia.act.diagnostics import OutreachTraceStore
+from sofia.platform.act.diagnostics import OutreachTraceStore
 
 
 @dataclass(frozen=True, slots=True)

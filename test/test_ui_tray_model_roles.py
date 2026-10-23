@@ -137,7 +137,7 @@ def test_tray_unloads_every_current_configured_model_role(monkeypatch):
         ):
             calls.append((target, action, approval_id, llm_model))
 
-    from sofia.safe import owner_approval_ui, owner_browser
+    from sofia.platform.safe import owner_approval_ui, owner_browser
     app.config = SimpleNamespace(state_path=Path("test-only-canonical.db"))
     app._service = Service()
     approved = []

@@ -13,7 +13,7 @@ from sofia.avatar.vtuber_full_batch_art import (
     _draft_png, build_draft_batch, _art_color,
 )
 from sofia.avatar.vtuber_wardrobe_production import GARMENT_FILES
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.social.principals import local_sparks_principal
 from test.owner_auth_fixture import private_with_signed_owner

@@ -9,10 +9,10 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
 
-from sofia.verify.v18_gate4_acceptance import (
+from sofia.platform.verify.v18_gate4_acceptance import (
     REGISTRY_SCHEMA, authenticate_review, load_review_receipts,
 )
-from sofia.verify.v18_roadmap import RoadmapIntegrityError
+from sofia.platform.verify.v18_roadmap import RoadmapIntegrityError
 
 pytestmark = pytest.mark.pkg_verify
 
@@ -61,7 +61,7 @@ def test_missing_external_trust_anchor_cannot_certify(monkeypatch, tmp_path):
 
 def test_matching_signed_independent_receipt_can_be_authenticated(monkeypatch, tmp_path):
     private = Ed25519PrivateKey.generate()
-    from sofia.verify import v18_gate4_acceptance
+    from sofia.platform.verify import v18_gate4_acceptance
     monkeypatch.setattr(v18_gate4_acceptance, "_git_blob",
                         lambda root, path: b"independent review")
     assert authenticate_review(
@@ -73,7 +73,7 @@ def test_matching_signed_independent_receipt_can_be_authenticated(monkeypatch, t
 
 def test_changed_original_requirement_or_forged_signer_fails_closed(monkeypatch, tmp_path):
     private = Ed25519PrivateKey.generate()
-    from sofia.verify import v18_gate4_acceptance
+    from sofia.platform.verify import v18_gate4_acceptance
     monkeypatch.setattr(v18_gate4_acceptance, "_git_blob",
                         lambda root, path: b"independent review")
     signed = certificate(private)
@@ -93,7 +93,7 @@ def test_changed_original_requirement_or_forged_signer_fails_closed(monkeypatch,
 
 def test_different_review_bytes_fail_even_with_valid_signature(monkeypatch, tmp_path):
     private = Ed25519PrivateKey.generate()
-    from sofia.verify import v18_gate4_acceptance
+    from sofia.platform.verify import v18_gate4_acceptance
     monkeypatch.setattr(v18_gate4_acceptance, "_git_blob",
                         lambda root, path: b"changed by a different commit")
     with pytest.raises(RoadmapIntegrityError, match="changed"):

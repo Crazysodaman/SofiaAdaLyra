@@ -8,9 +8,9 @@ from uuid import UUID
 
 import pytest
 
-from sofia.ops import artemis_controller as controller
-from sofia.ops import artemis_controller_admin as admin
-from sofia.ops import artemis_controller_service as service
+from sofia.platform.ops import artemis_controller as controller
+from sofia.platform.ops import artemis_controller_admin as admin
+from sofia.platform.ops import artemis_controller_service as service
 
 
 VM_ID = UUID("1f50d0cd-7b50-4df0-8d9e-d1f03ec57565")

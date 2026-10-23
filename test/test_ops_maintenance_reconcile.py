@@ -3,14 +3,14 @@ from pathlib import Path
 
 import pytest
 
-from sofia.ops.fleet import FleetRegistry
-from sofia.ops.maintenance import (
+from sofia.platform.ops.fleet import FleetRegistry
+from sofia.platform.ops.maintenance import (
     MaintenanceOperation,
     MaintenancePolicy,
     MaintenanceRequest,
 )
-from sofia.ops.model import FleetHost, HostLifecycle
-from sofia.ops.reconcile import (
+from sofia.platform.ops.model import FleetHost, HostLifecycle
+from sofia.platform.ops.reconcile import (
     MaintenanceExecutionResult,
     MaintenanceReceiptOutcome,
     MaintenanceReceiptStore,

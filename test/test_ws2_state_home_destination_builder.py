@@ -5,7 +5,7 @@ run and no tests/CI are invoked during source authoring.
 """
 import pytest
 
-from sofia.ops.state_mobility import (
+from sofia.platform.ops.state_mobility import (
     inspect_state_relocation, proposed_state_home_from_parent,
 )
 
@@ -53,7 +53,7 @@ def test_unreadable_canonical_source_produces_a_blocker_not_a_crash(
 ):
     """Read-only relocation inspection cannot bootstrap a missing/wrong DB."""
     from pathlib import Path
-    from sofia.ops import state_mobility
+    from sofia.platform.ops import state_mobility
 
     original = tmp_path / "original" / "sofia.db"
     original.parent.mkdir()

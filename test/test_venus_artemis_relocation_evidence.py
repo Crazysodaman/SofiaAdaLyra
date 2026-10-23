@@ -9,10 +9,10 @@ from types import SimpleNamespace
 
 import pytest
 
-import sofia.ops.state_relocation as relocation
-from sofia.ops.backup import BackupCipher, BackupEngine, BackupError
-from sofia.ops.recovery import RestoreVerification
-from sofia.ops.state_relocation import (
+import sofia.platform.ops.state_relocation as relocation
+from sofia.platform.ops.backup import BackupCipher, BackupEngine, BackupError
+from sofia.platform.ops.recovery import RestoreVerification
+from sofia.platform.ops.state_relocation import (
     RelocationAuthorization, StagedStateHome, stage_verified_state_home,
 )
 
@@ -109,7 +109,7 @@ def _stage(
         ),
     )
     monkeypatch.setattr(
-        "sofia.ops.state_mobility._filesystem_kind",
+        "sofia.platform.ops.state_mobility._filesystem_kind",
         lambda _path: "local",
     )
     authorization_checks = 0
@@ -290,7 +290,7 @@ def test_source_special_entry_is_rejected_before_backup_collection(tmp_path, mon
 def test_source_inventory_drift_blocks_staging_after_backup(tmp_path, monkeypatch):
     """A file appearing after backup must not become an unarchived old source."""
     proof = _plan(tmp_path)
-    from sofia.ops.state_relocation import _inventory_persistent_state_files
+    from sofia.platform.ops.state_relocation import _inventory_persistent_state_files
     original_inventory = _inventory_persistent_state_files
     calls = []
 

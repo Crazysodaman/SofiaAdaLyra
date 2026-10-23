@@ -4,9 +4,9 @@ from uuid import uuid4
 
 import pytest
 
-import sofia.distributed.capability as fleet_capability
-from sofia.distributed.capability import RemoteFleetToolService
-from sofia.distributed.operations import RemoteOperationResult, RemoteOutcome
+import sofia.platform.distributed.capability as fleet_capability
+from sofia.platform.distributed.capability import RemoteFleetToolService
+from sofia.platform.distributed.operations import RemoteOperationResult, RemoteOutcome
 
 
 def _service(tmp_path: Path) -> RemoteFleetToolService:

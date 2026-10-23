@@ -9,8 +9,8 @@ from uuid import UUID
 from sofia.cognition.engine import CognitiveEngine, CognitiveEngineError
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.ops.capability import OpsToolService
-from sofia.ops.model import FleetHost, WorkloadContract
+from sofia.platform.ops.capability import OpsToolService
+from sofia.platform.ops.model import FleetHost, WorkloadContract
 
 
 RemoteInfer = Callable[

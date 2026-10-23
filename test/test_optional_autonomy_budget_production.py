@@ -8,7 +8,7 @@ from sofia.platform.application.background import BackgroundBudget
 from sofia.platform.application.optional_budget import (
     OptionalAutonomyBudget,OptionalBudgetLimits,reserve_profile,
 )
-from sofia.safe.permissions import PermissionLevel,capability_permission_policy
+from sofia.platform.safe.permissions import PermissionLevel,capability_permission_policy
 pytestmark=pytest.mark.pkg_run
 T=datetime(2026,10,11,12,tzinfo=timezone.utc)
 

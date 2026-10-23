@@ -12,7 +12,7 @@ from sofia.platform.composition.split_topology import (
     selected_split_deployment,
     validate_split_inference_runtime,
 )
-from sofia.distributed.inference_client import ConfiguredRemoteInferenceClient
+from sofia.platform.distributed.inference_client import ConfiguredRemoteInferenceClient
 from sofia.platform.config.model import (
     FleetCognitionConfiguration,
     ProviderConfiguration,

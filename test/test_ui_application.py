@@ -6,7 +6,7 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionStore
 from test.owner_auth_fixture import private_with_signed_owner
 
 

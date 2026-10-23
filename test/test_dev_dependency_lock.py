@@ -3,8 +3,8 @@ import zipfile
 
 import pytest
 
-from sofia.dev import dependency_lock
-from sofia.dev.supply_chain import LockedDependency
+from sofia.platform.dev import dependency_lock
+from sofia.platform.dev.supply_chain import LockedDependency
 
 
 def make_wheel(path: Path, name: str, version: str) -> Path:

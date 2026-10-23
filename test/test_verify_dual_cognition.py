@@ -3,7 +3,7 @@ from sofia.cognition.routing import (
     RoutingExecution,
     RoutingExecutionStep,
 )
-from sofia.verify.dual_cognition import assess_dual_cognition
+from sofia.platform.verify.dual_cognition import assess_dual_cognition
 
 
 def execution(

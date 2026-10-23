@@ -10,13 +10,13 @@ from pathlib import Path
 import sqlite3
 import subprocess
 
-from sofia.act.outreach import Importance, OutreachCategory
+from sofia.platform.act.outreach import Importance, OutreachCategory
 from sofia.platform.application.presence import (
     InitiativeEvent, PresenceInitiativeEngine, WorldAvailability,
     WorldEpistemicState, WorldObservation,
 )
 from sofia.platform.application.evolution import SofiaEvolutionService
-from sofia.evolve.orchestrator import CodeEvolutionOrchestrator
+from sofia.platform.evolve.orchestrator import CodeEvolutionOrchestrator
 from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkJob, WorkResult, WorkStatus,
 )

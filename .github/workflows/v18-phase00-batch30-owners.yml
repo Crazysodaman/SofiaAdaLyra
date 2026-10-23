@@ -82,7 +82,7 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
         shell: bash
         run: >-
-          python -m sofia.verify.v18_phase00_audit
+          python -m sofia.platform.verify.v18_phase00_audit
           --repo .
           --expected-revision "$EXPECTED_SHA"
           --output v18-phase00-batch30-owners-proof.json

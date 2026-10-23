@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 import pytest
 
-from sofia.ops.backup import BackupEntry, BackupManifest
+from sofia.platform.ops.backup import BackupEntry, BackupManifest
 
 
 def _entry(logical="protected/identity.json", payload="0000.bin"):

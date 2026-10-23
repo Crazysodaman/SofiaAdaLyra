@@ -10,7 +10,7 @@ import os
 from typing import Mapping
 
 from sofia.platform.config.model import SofiaConfiguration
-from sofia.distributed.inference_client import ConfiguredRemoteInferenceClient
+from sofia.platform.distributed.inference_client import ConfiguredRemoteInferenceClient
 
 
 @dataclass(frozen=True, slots=True)

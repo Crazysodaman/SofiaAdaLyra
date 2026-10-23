@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-import sofia.ops.local_telemetry as telemetry_module
-from sofia.ops.local_telemetry import (
+import sofia.platform.ops.local_telemetry as telemetry_module
+from sofia.platform.ops.local_telemetry import (
     _linux_cpu_percent,
     _linux_meminfo,
     collect_local_telemetry,

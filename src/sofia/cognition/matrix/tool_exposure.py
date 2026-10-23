@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 
 from .visibility import (
     asks_about_machine_visibility,

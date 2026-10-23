@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.verify.v18_g1_readiness import (
+from sofia.platform.verify.v18_g1_readiness import (
     G1SubmissionError, inspect_g1_submissions,
 )
 

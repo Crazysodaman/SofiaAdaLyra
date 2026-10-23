@@ -5,8 +5,8 @@ import pytest
 
 from test.owner_auth_fixture import record_verified_owner_approval
 
-from sofia.safe.audit import AuditChain
-from sofia.safe.execution_approval import (
+from sofia.platform.safe.audit import AuditChain
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
     execution_fingerprint,

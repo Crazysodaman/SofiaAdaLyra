@@ -9,11 +9,11 @@ from sofia.cognition.model import (
 )
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.offer_route import OFFER
-from sofia.verify.interaction.boundary_counterfactual_probe import (
+from sofia.platform.verify.interaction.boundary_counterfactual_probe import (
     _print_observation, counterfactual_pair,
 )
 from sofia.interaction.decision_expression import from_reviewed_action
-from sofia.verify.interaction.prototype import real_sensor_fixture
+from sofia.platform.verify.interaction.prototype import real_sensor_fixture
 
 
 def _inputs():

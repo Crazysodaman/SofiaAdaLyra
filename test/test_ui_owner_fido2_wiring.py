@@ -8,7 +8,7 @@ import sqlite3
 
 import pytest
 
-from sofia.safe import owner_approval_ui
+from sofia.platform.safe import owner_approval_ui
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

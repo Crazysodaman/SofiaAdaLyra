@@ -3,7 +3,7 @@ from __future__ import annotations
 import json,platform,subprocess
 from typing import Any
 
-from sofia.ops.workshop_policy import CANONICAL_RUNTIME_VM_NAME
+from sofia.platform.ops.workshop_policy import CANONICAL_RUNTIME_VM_NAME
 
 class HyperVError(RuntimeError): pass
 
@@ -41,7 +41,7 @@ class HyperVAdapter:
         provision, enroll, or promote a production writer.
         """
         from dataclasses import asdict
-        from sofia.ops.sofia_guest_readiness import review_sofia_guest_inventory
+        from sofia.platform.ops.sofia_guest_readiness import review_sofia_guest_inventory
 
         command = (
             "$ErrorActionPreference='Stop'; "
@@ -517,7 +517,7 @@ class HyperVAdapter:
         has been installed, attested or enrolled.
         """
         from uuid import UUID
-        from sofia.ops.workshop_provision import _path
+        from sofia.platform.ops.workshop_provision import _path
         import re
         exact_id=str(UUID(vm_id))
         disk=str(_path(os_disk_path))
@@ -747,7 +747,7 @@ class HyperVAdapter:
 
     def workshop_image_sha256(self, image_path: str) -> str:
         """Hash an exactly reviewed local image path, without loading it."""
-        from sofia.ops.workshop_provision import _path
+        from sofia.platform.ops.workshop_provision import _path
         verified_path = str(_path(image_path))
         # A fixed cmdlet and a quoted local path, never arbitrary scripts.
         command = (

@@ -1,11 +1,11 @@
 ﻿from pathlib import Path
 
-from sofia.capability.model import (
+from sofia.platform.capability.model import (
     Capability,
     CapabilityRequest,
     CapabilityResultKind,
 )
-from sofia.capability.system import CapabilitySystem
+from sofia.platform.capability.system import CapabilitySystem
 
 
 def make_capability() -> Capability:

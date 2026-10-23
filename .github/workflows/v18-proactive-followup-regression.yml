@@ -3,10 +3,10 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/sofia/platform.application/presence.py'
-      - 'src/sofia/platform.application/act_service.py'
-      - 'src/sofia/platform.application/background_runtime.py'
-      - 'src/sofia/platform.application/conversation_service.py'
+      - 'src/sofia/platform/application/presence.py'
+      - 'src/sofia/platform/application/act_service.py'
+      - 'src/sofia/platform/application/background_runtime.py'
+      - 'src/sofia/platform/application/conversation_service.py'
       - 'src/sofia/ui/desktop.py'
       - 'test/test_presence_initiative.py'
       - 'test/test_act_runtime_wiring.py'

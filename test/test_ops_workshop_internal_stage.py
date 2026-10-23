@@ -9,19 +9,19 @@ from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.distributed.capability import RemoteFleetToolService
+from sofia.platform.distributed.capability import RemoteFleetToolService
 from sofia.integrations.hyperv import HyperVAdapter
-from sofia.ops.workshop_network import network_policy_digest,SWITCH_NAME
-from sofia.ops.workshop_network_stage import (
+from sofia.platform.ops.workshop_network import network_policy_digest,SWITCH_NAME
+from sofia.platform.ops.workshop_network_stage import (
     WorkshopNetworkStageStore,stage_approved_internal_network,
 )
-from sofia.safe.execution_approval import (
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval,ExecutionApprovalVerifier,execution_fingerprint,
 )
-from sofia.distributed.authorization import (
+from sofia.platform.distributed.authorization import (
     remote_host_capability_name,remote_operation_is_read_only,
 )
-from sofia.safe.permissions import capability_permission_policy,PermissionLevel
+from sofia.platform.safe.permissions import capability_permission_policy,PermissionLevel
 from test.owner_auth_fixture import record_verified_owner_approval
 
 NOW=datetime.now(timezone.utc)
@@ -223,7 +223,7 @@ def test_stage_cannot_authorize_a_different_vm_or_unrecognized_policy(tmp_path):
             approval_id=approval.approval_id,at=NOW,
         )
     assert not calls
-    from sofia.ops.workshop_network import guest_network_contract
+    from sofia.platform.ops.workshop_network import guest_network_contract
     assert guest_network_contract()["nat_enabled"] is False
     assert len(network_policy_digest())==64
 

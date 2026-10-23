@@ -1,11 +1,11 @@
 ﻿from datetime import datetime, timezone
 from pathlib import Path
 
-from sofia.filesystem.changes import (
+from sofia.platform.filesystem.changes import (
     FilesystemChangeKind,
     detect_changes,
 )
-from sofia.filesystem.observation import (
+from sofia.platform.filesystem.observation import (
     FilesystemEntry,
     FilesystemObservation,
 )

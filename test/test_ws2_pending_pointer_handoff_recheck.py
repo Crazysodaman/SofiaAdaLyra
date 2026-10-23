@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from sofia.ops.state_promotion import prepare_pending_state_pointer
+from sofia.platform.ops.state_promotion import prepare_pending_state_pointer
 from test.test_ws2_pending_home_pointer_durability import _plan
 
 

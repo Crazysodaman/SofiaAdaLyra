@@ -2,11 +2,11 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
-from sofia.capability.model import Capability,CapabilityRequest
+from sofia.platform.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
-from sofia.safe.permissions import (
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.permissions import (
     PermissionLevel,
     PermissionStore,
     capability_permission_policy,

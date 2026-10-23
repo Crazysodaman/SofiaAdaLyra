@@ -1,4 +1,4 @@
-from sofia.ops.activity import ActivityMode
+from sofia.platform.ops.activity import ActivityMode
 from sofia.ui.control_center import GameMode
 from sofia.ui.settings_window import _activity_override
 

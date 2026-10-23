@@ -226,7 +226,7 @@ def require_linux_game_clear() -> None:
     from sofia.platform.system.model import (
         SystemCapabilityName, SystemCapabilityRequest, SystemCapabilityResultKind,
     )
-    from sofia.ops.activity import detect_windows_game
+    from sofia.platform.ops.activity import detect_windows_game
     backend = create_local_system_backend()
     cap = next((item for item in backend.supported_capabilities
                 if item.name is SystemCapabilityName.PROCESS_INSPECT), None)

@@ -57,7 +57,7 @@ jobs:
           "SOFIA_VERIFICATION_EVIDENCE=$(Join-Path $env:RUNNER_TEMP 'verification-evidence.json')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           # Stage raw reviewed Git objects. A Windows tar extraction can
           # rewrite text newlines and break HEAD-to-wheel byte provenance.
-          python src/sofia/verify/stage_release_source.py --checkout "$env:GITHUB_WORKSPACE" --target "$sourceRoot"
+          python src/sofia/platform/verify/stage_release_source.py --checkout "$env:GITHUB_WORKSPACE" --target "$sourceRoot"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify exact hashed runtime lock
@@ -115,7 +115,7 @@ jobs:
       - name: Assert exact source and installed package provenance
         shell: pwsh
         run: |
-          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.verify.source_provenance `
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.platform.verify.source_provenance `
             --checkout "$env:GITHUB_WORKSPACE" `
             --archive "$env:SOFIA_RELEASE_SOURCE" `
             --venv "$env:SOFIA_RELEASE_VENV" `
@@ -126,7 +126,7 @@ jobs:
         shell: pwsh
         run: |
           $Log = "$env:RUNNER_TEMP\sofia-windows-verification.log"
-          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.verify.gate --phase full --installed-wheel-only --repo "$env:GITHUB_WORKSPACE" --evidence-path "$env:SOFIA_VERIFICATION_EVIDENCE" 2>&1 |
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.platform.verify.gate --phase full --installed-wheel-only --repo "$env:GITHUB_WORKSPACE" --evidence-path "$env:SOFIA_VERIFICATION_EVIDENCE" 2>&1 |
             Tee-Object -FilePath $Log
           $Status = $LASTEXITCODE
           if ($Status -ne 0) {
@@ -156,7 +156,7 @@ jobs:
           PARENT_MANIFEST_SHA256: ${{ inputs.parent_manifest_sha256 }}
         run: |
           $Args = @(
-            "-m","sofia.dev.release_cli","construct",
+            "-m","sofia.platform.dev.release_cli","construct",
             "--git-revision","${{ github.sha }}",
             "--lock","requirements.lock.windows-py312.txt",
             "--wheel",$env:RELEASE_WHEEL,
@@ -177,7 +177,7 @@ jobs:
           }
           & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" @Args
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.dev.release_cli verify --release-dir release-evidence
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.platform.dev.release_cli verify --release-dir release-evidence
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload unsigned release candidate evidence

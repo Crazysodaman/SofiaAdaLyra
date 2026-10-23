@@ -2,7 +2,7 @@
 
 import pytest
 
-from sofia.authority.model import Authority
+from sofia.platform.authority.model import Authority
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import (
     CognitiveMessage,

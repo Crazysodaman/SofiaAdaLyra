@@ -6,15 +6,15 @@ import zipfile
 
 import pytest
 
-from sofia.dev.release_signing import sign_manifest
-from sofia.dev.supply_chain import (
+from sofia.platform.dev.release_signing import sign_manifest
+from sofia.platform.dev.supply_chain import (
     canonical_dependency_lock,
     construct_release_evidence,
     generate_sbom,
     parse_requirements_lock,
     verify_release_evidence,
 )
-from sofia.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
+from sofia.platform.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
 from sofia.platform.run.release import directory_sha256
 
 from cryptography.hazmat.primitives import serialization

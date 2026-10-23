@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sofia.machine.capability import MachineToolService
-from sofia.machine.location_cli import _known_identity
-from sofia.machine.persistence import SQLiteMachineInventoryPersistence
-from sofia.machine.location import new_machine_location
-from sofia.machine.model import (
+from sofia.platform.machine.capability import MachineToolService
+from sofia.platform.machine.location_cli import _known_identity
+from sofia.platform.machine.persistence import SQLiteMachineInventoryPersistence
+from sofia.platform.machine.location import new_machine_location
+from sofia.platform.machine.model import (
     HardwareProfile,
     MachineIdentity,
     MachineProfile,
@@ -14,7 +14,7 @@ from sofia.machine.model import (
     PlatformFamily,
     VirtualizationInfo,
 )
-from sofia.machine.observation import (
+from sofia.platform.machine.observation import (
     MachineObservation,
     ObservationProvenance,
     ObservationSource,

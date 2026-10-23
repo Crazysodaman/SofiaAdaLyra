@@ -2,13 +2,13 @@ from datetime import datetime, timedelta, timezone
 import sqlite3
 
 import sofia.platform.application.act_service as act_service
-from sofia.act.delivery import ActOutbox, DeliveryOutcome, SendResult
-from sofia.act.system_notice import SystemNoticeQueue
-from sofia.act.outreach import Decision
+from sofia.platform.act.delivery import ActOutbox, DeliveryOutcome, SendResult
+from sofia.platform.act.system_notice import SystemNoticeQueue
+from sofia.platform.act.outreach import Decision
 from sofia.platform.application.act_service import SofiaActService
-from sofia.act.outreach import Policy
+from sofia.platform.act.outreach import Policy
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.influence import ContinuityInfluence
 from sofia.social.model import SocialScope, ScopeKind
@@ -188,7 +188,7 @@ def test_discord_outreach_uses_only_the_pinned_sparks_dm(
         session_id="session-1",
     )
     monkeypatch.setattr(
-        "sofia.safe.secret_store.ProtectedSecretStore.get",
+        "sofia.platform.safe.secret_store.ProtectedSecretStore.get",
         lambda self, key: "protected-token",
     )
     sent = []
@@ -421,7 +421,7 @@ def test_reflection_bridge_suppresses_manipulative_social_wording(tmp_path):
         reflections=journal, scope=scope, now=NOW, influence=influence,
     ) == 0
     assert journal.pending(scope=scope) == ()
-    from sofia.act.diagnostics import OutreachTraceStore
+    from sofia.platform.act.diagnostics import OutreachTraceStore
     assert OutreachTraceStore(path).history(
         notice_id=f"reflection:{message_id}",
     )[0].reason == "coercive_or_false_urgency"

@@ -21,8 +21,8 @@ from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.cognition.model_lifecycle import CognitiveModelRole
 from sofia.cognition.matrix import MatrixTraceStore
-from sofia.machine.discovery import create_machine_discovery
-from sofia.ops.activity import (
+from sofia.platform.machine.discovery import create_machine_discovery
+from sofia.platform.ops.activity import (
     ActivityMode,
     HostActivityObservation,
     HostActivityStore,
@@ -30,10 +30,10 @@ from sofia.ops.activity import (
     windows_desktop_idle_seconds,
     observed_desktop_activity,
 )
-from sofia.ops.capability import OpsToolService
+from sofia.platform.ops.capability import OpsToolService
 from sofia.platform.system.capability import create_local_system_backend
-from sofia.safe.operator_stop import OperatorStopStore
-from sofia.safe.execution_approval import (
+from sofia.platform.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
     execution_fingerprint,
@@ -472,11 +472,11 @@ class TrayAgentApplication:
             action,
             **model_kwargs,
         )
-        from sofia.safe.owner_approval_ui import (
+        from sofia.platform.safe.owner_approval_ui import (
             active_owner_credentials, select_owner_credential,
         )
-        from sofia.safe.owner_browser import authorize_exact_action
-        from sofia.safe.permissions import (
+        from sofia.platform.safe.owner_browser import authorize_exact_action
+        from sofia.platform.safe.permissions import (
             PermissionLevel, capability_permission_policy,
         )
 

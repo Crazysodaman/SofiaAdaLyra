@@ -2,11 +2,11 @@ from hashlib import sha256
 from datetime import datetime, timezone
 from uuid import uuid4
 import pytest
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
-from sofia.distributed.endpoint_bound_gateway import IdentityBoundGateway
-from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
-from sofia.distributed.operations import RemoteOperationDenied, RemoteOperationRequest
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.platform.distributed.endpoint_bound_gateway import IdentityBoundGateway
+from sofia.platform.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
+from sofia.platform.distributed.operations import RemoteOperationDenied, RemoteOperationRequest
 
 
 class StubGateway:
@@ -24,7 +24,7 @@ def test_constructor_requires_real_endpoint_gateway(tmp_path):
 
 
 def test_retired_identity_is_denied_before_gateway(tmp_path):
-    from sofia.distributed.endpoint_bound_gateway import EndpointBoundDurableGateway
+    from sofia.platform.distributed.endpoint_bound_gateway import EndpointBoundDurableGateway
     # Contract is covered without constructing transport: invoke cannot pass identity boundary.
     ids=DurableNodeIdentityRegistry(tmp_path/"id.db")
     rec=record(); ids.enroll(rec); ids.retire(rec.node.node_id)

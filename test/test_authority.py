@@ -2,7 +2,7 @@
 
 import pytest
 
-from sofia.authority.model import Authority
+from sofia.platform.authority.model import Authority
 
 
 def test_authority_defaults_to_response_and_proposal() -> None:

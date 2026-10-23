@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.distributed.authorization import (
+from sofia.platform.distributed.authorization import (
     RemoteGrant,
     remote_operation_is_read_only,
 )
@@ -68,8 +68,8 @@ def test_active_grants_lists_current_grants_across_nodes(tmp_path):
     from datetime import timedelta
     from uuid import uuid4
 
-    from sofia.distributed.authorization import RemoteGrant
-    from sofia.distributed.durable import DurableRemoteAuthorization
+    from sofia.platform.distributed.authorization import RemoteGrant
+    from sofia.platform.distributed.durable import DurableRemoteAuthorization
 
     now = datetime.now(timezone.utc)
     store = DurableRemoteAuthorization(tmp_path / "sofia.db")

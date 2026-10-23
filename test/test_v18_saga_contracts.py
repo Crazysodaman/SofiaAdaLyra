@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from sofia.ops.saga import (
+from sofia.platform.ops.saga import (
     CompensationPlan,
     EffectClass,
     Escalation,
@@ -58,7 +58,7 @@ def test_idempotent_effect_requires_a_stable_key_and_retries_automatically(monke
         )
     # Demonstrate the generic planning contract with an explicitly declared
     # simulated receiver that is known to deduplicate requests.
-    from sofia.ops.saga import OPERATIONS
+    from sofia.platform.ops.saga import OPERATIONS
     monkeypatch.setitem(OPERATIONS, "test.deduplicated.read", OperationEffect(
         operation_id="test.deduplicated.read",
         effect_class=EffectClass.RETRYABLE_IDEMPOTENT,

@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 import sqlite3
 
-from sofia.act.diagnostics import OutreachTraceStore
+from sofia.platform.act.diagnostics import OutreachTraceStore
 import sofia.mobile.notifications as notification_module
 
 import pytest

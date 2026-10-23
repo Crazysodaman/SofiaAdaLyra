@@ -8,11 +8,11 @@ from uuid import UUID
 import pytest
 from cryptography import x509
 
-from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
-from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.model import NodeTransport
-from sofia.distributed.pki import _refuse_network_secret_root, bootstrap_pair
-from sofia.ops.windows_rekey_bootstrap import (
+from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.platform.distributed.model import NodeTransport
+from sofia.platform.distributed.pki import _refuse_network_secret_root, bootstrap_pair
+from sofia.platform.ops.windows_rekey_bootstrap import (
     _enroll_fresh_controller,
     _prepare_bundle,
 )

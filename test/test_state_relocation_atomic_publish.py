@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from sofia.ops.state_relocation import _publish_new_home_without_replacing
+from sofia.platform.ops.state_relocation import _publish_new_home_without_replacing
 
 
 @pytest.mark.skipif(
@@ -151,7 +151,7 @@ def test_linux_publication_refuses_pre_rename_fsync_failure(tmp_path, monkeypatc
 def test_linux_post_rename_fsync_failure_is_explicitly_uncertain(tmp_path, monkeypatch):
     import os
 
-    from sofia.ops.state_relocation import StateHomePublicationUncertain
+    from sofia.platform.ops.state_relocation import StateHomePublicationUncertain
 
     staging = tmp_path / ".sofia.restore-synthetic"
     destination = tmp_path / "sofia"

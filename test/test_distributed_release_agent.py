@@ -7,9 +7,9 @@ import zipfile
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sofia.dev.release import ReleaseManifest
-from sofia.dev.release_signing import sign_manifest
-from sofia.distributed.release_agent import AgentReleaseService
+from sofia.platform.dev.release import ReleaseManifest
+from sofia.platform.dev.release_signing import sign_manifest
+from sofia.platform.distributed.release_agent import AgentReleaseService
 from sofia.platform.run.release import directory_sha256
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite

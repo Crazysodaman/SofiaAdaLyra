@@ -7,7 +7,7 @@ from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 import pytest
 
-from sofia.machine.location import (
+from sofia.platform.machine.location import (
     MachineLocationRecord,
     MachineLocationRegistry,
     new_machine_location,

@@ -10,7 +10,7 @@ def _disposable_knowledge_state(tmp_path):
     bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 from types import SimpleNamespace
 
-from sofia.capability.model import CapabilityResult, CapabilityResultKind
+from sofia.platform.capability.model import CapabilityResult, CapabilityResultKind
 from sofia.cognition.v2.contracts import (
     ActionRequirement, ConversationFocus, EvidenceNeed, TurnKernelInput,
 )

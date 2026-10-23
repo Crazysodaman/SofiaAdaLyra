@@ -4,8 +4,8 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import pytest
-from sofia.verify.v18_gate4 import gate4_snapshot, markdown_summary
-from sofia.verify.v18_roadmap import LEDGER_RELATIVE, RoadmapIntegrityError
+from sofia.platform.verify.v18_gate4 import gate4_snapshot, markdown_summary
+from sofia.platform.verify.v18_roadmap import LEDGER_RELATIVE, RoadmapIntegrityError
 
 pytestmark = pytest.mark.pkg_verify
 ROOT = Path(__file__).resolve().parents[1]

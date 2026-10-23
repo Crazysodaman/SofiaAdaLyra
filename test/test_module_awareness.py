@@ -605,12 +605,12 @@ def test_bootstrap_wiring_and_conversation_reach(
 
 
 def test_capability_system_gate(tmp_path):
-    from sofia.capability.model import (
+    from sofia.platform.capability.model import (
         Capability,
         CapabilityRequest,
         CapabilityResultKind,
     )
-    from sofia.capability.system import CapabilitySystem
+    from sofia.platform.capability.system import CapabilitySystem
     from sofia.core.modreg.capability import (
         MODULE_AWARENESS_CAPABILITY,
         ModuleAwarenessCapability,

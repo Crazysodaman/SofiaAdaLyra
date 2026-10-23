@@ -11,7 +11,7 @@ from sofia.cognition.model import (
     CognitiveToolDefinition,
 )
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.distributed.inference import (
+from sofia.platform.distributed.inference import (
     MAX_CONTENT_BYTES,
     MAX_MESSAGES,
     RemoteInferenceContractError,

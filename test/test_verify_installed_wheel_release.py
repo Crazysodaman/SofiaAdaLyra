@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.verify import gate, source_provenance
+from sofia.platform.verify import gate, source_provenance
 
 
 def test_installed_package_provenance_rejects_checkout_import(tmp_path, monkeypatch):
@@ -52,12 +52,12 @@ def test_release_workflow_explicitly_requests_installed_distribution():
     pipeline = (root / ".github/workflows/release-candidate.yml").read_text(
         encoding="utf-8",
     )
-    assert "sofia.verify.gate --phase full --installed-wheel-only" in pipeline
+    assert "sofia.platform.verify.gate --phase full --installed-wheel-only" in pipeline
     assert "--repo" in pipeline
 
 
 def test_release_pytest_marker_flag_is_isolated_from_developer_runs():
-    from sofia.verify import package_selection
+    from sofia.platform.verify import package_selection
     # Release gating opts in explicitly through the caller's environment,
     # leaving regular editable-package developer commands unchanged.
     import inspect
@@ -201,7 +201,7 @@ def test_release_source_stage_is_exact_git_bytes_outside_the_checkout():
         '"SOFIA_RELEASE_SOURCE=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV',
     )
     staging = pipeline.index(
-        "python src/sofia/verify/stage_release_source.py "
+        "python src/sofia/platform/verify/stage_release_source.py "
         '--checkout "$env:GITHUB_WORKSPACE" --target "$sourceRoot"',
     )
     venv_lock = pipeline.index("- name: Verify exact hashed runtime lock")

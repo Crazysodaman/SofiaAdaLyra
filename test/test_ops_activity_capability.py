@@ -1,14 +1,14 @@
 from datetime import datetime, timezone
 import sqlite3
 
-from sofia.ops import ActivityMode, FleetHost, HostLifecycle, HostTelemetry
-from sofia.ops.capability import OpsToolService
-from sofia.ops.reconcile import (
+from sofia.platform.ops import ActivityMode, FleetHost, HostLifecycle, HostTelemetry
+from sofia.platform.ops.capability import OpsToolService
+from sofia.platform.ops.reconcile import (
     MaintenanceReceipt,
     MaintenanceReceiptOutcome,
 )
-from sofia.ops.desired import DesiredWorkloadPlacement
-from sofia.ops.workload import WorkloadInstance, WorkloadPhase
+from sofia.platform.ops.desired import DesiredWorkloadPlacement
+from sofia.platform.ops.workload import WorkloadInstance, WorkloadPhase
 
 
 NOW = datetime(2026, 9, 26, 21, 0, tzinfo=timezone.utc)

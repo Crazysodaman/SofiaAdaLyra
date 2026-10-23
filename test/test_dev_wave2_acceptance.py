@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import patch, Mock
 import pytest
-from sofia.dev.opencode import (
+from sofia.platform.dev.opencode import (
     EngineeringExecutionRequest,
     OpenCodeAdapter,
     OpenCodeExecutionError,
@@ -35,15 +35,15 @@ def test_request_bounds_engineering_iterations_and_test_selectors():
         req(tests=("--pdb",))
 
 def test_directory_write_scope_allows_children(tmp_path:Path):
-    guard=WorkspaceGuard(tmp_path,("src/sofia/dev",))
-    assert guard.resolve_allowed("src/sofia/dev/workflow.py")==(
-        tmp_path/"src/sofia/dev/workflow.py"
+    guard=WorkspaceGuard(tmp_path,("src/sofia/platform/dev",))
+    assert guard.resolve_allowed("src/sofia/platform/dev/workflow.py")==(
+        tmp_path/"src/sofia/platform/dev/workflow.py"
     )
 
 def test_opencode_uses_default_agent_unless_host_configures_one(tmp_path:Path,monkeypatch):
     executable=tmp_path/"opencode"
     executable.write_text("",encoding="utf-8")
-    monkeypatch.setattr("sofia.dev.opencode.shutil.which",lambda value:str(executable))
+    monkeypatch.setattr("sofia.platform.dev.opencode.shutil.which",lambda value:str(executable))
     default=OpenCodeAdapter(tmp_path).command(req())
     named=OpenCodeAdapter(tmp_path,agent="sofia-build").command(req())
     assert "--agent" not in default.argv

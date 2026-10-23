@@ -10,7 +10,7 @@ from sofia.platform.application import (
     ConversationService,
     SofiaApplication,
 )
-from sofia.authority.model import Authority
+from sofia.platform.authority.model import Authority
 from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -25,7 +25,7 @@ from sofia.cognition.routing import (
     CognitiveEngineRegistry,
     RoutingCognitiveEngine,
 )
-from sofia.safe.permissions import (
+from sofia.platform.safe.permissions import (
     PermissionLevel,
     capability_permission_policy,
 )
@@ -545,7 +545,7 @@ def test_conversation_service_processes_filesystem_request(
     )
 
     response = application.conversation.respond(
-        "read src/sofia/filesystem/model.py",
+        "read src/sofia/platform/filesystem/model.py",
         principal=local_sparks_principal(),
         channel="desktop",
     )
@@ -555,7 +555,7 @@ def test_conversation_service_processes_filesystem_request(
     messages = application.conversation.messages()
 
     assert messages[-2].content == (
-        "read src/sofia/filesystem/model.py"
+        "read src/sofia/platform/filesystem/model.py"
     )
 
     assert messages[-1].content == (
@@ -573,7 +573,7 @@ def test_filesystem_request_without_authorization_remains_denied(
     application.start()
 
     response = application.conversation.respond(
-        "read src/sofia/filesystem/model.py"
+        "read src/sofia/platform/filesystem/model.py"
     )
 
     assert response.content == "Test cognitive response."

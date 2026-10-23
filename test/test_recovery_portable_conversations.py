@@ -13,7 +13,7 @@ import pytest
 from sofia.conversation.lifelong import LifelongThreadStore
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
-from sofia.ops.recovery_export import export_portable_conversations
+from sofia.platform.ops.recovery_export import export_portable_conversations
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
@@ -24,7 +24,7 @@ def _synthetic_verified_local_media(monkeypatch):
     # authorized as a durable production home. These tests exercise JSONL
     # behavior in isolated synthetic paths, not actual host disk admission.
     monkeypatch.setattr(
-        "sofia.ops.recovery_export._filesystem_kind",
+        "sofia.platform.ops.recovery_export._filesystem_kind",
         lambda _path: "local",
     )
 
@@ -148,7 +148,7 @@ def test_portable_export_rejects_redirects_and_unverified_remote_storage(
             approve_sensitive_plaintext=True,
         )
     monkeypatch.setattr(
-        "sofia.ops.recovery_export._filesystem_kind",
+        "sofia.platform.ops.recovery_export._filesystem_kind",
         lambda _path: "remote",
     )
     with pytest.raises(PermissionError, match="proven local storage"):
@@ -190,7 +190,7 @@ def test_portable_recovery_rejects_unreadable_oversized_original_without_truncat
     # Exercise the real exporter with a tiny synthetic version of the
     # independent tool's size limit. The full limit is 16 MiB.
     monkeypatch.setattr(
-        "sofia.ops.recovery_export._MAX_PORTABLE_LINE_BYTES", 512,
+        "sofia.platform.ops.recovery_export._MAX_PORTABLE_LINE_BYTES", 512,
     )
     state, output, _ = _fixture(tmp_path)
     with sqlite3.connect(state) as db:

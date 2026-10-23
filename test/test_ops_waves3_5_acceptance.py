@@ -1,13 +1,13 @@
-from sofia.ops.history import SQLiteTelemetryHistory
+from sofia.platform.ops.history import SQLiteTelemetryHistory
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 import pytest
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.model import DistributedNode
-from sofia.ops import AuthenticatedPeerEvidence, BackupEvidence, DesiredHostState, DesiredWorkloadPlacement, FleetEnrollmentApproval, FleetEnrollmentService, FleetHost, FleetRegistry, FleetRemovalApproval, FleetRemovalApprovalRequired, HostLifecycle, MachineNodeBinding, MaintenanceOperation, MaintenancePolicy, MaintenanceRequest, RecoveryDenied, RecoveryGuard, RestoreVerification, WorkloadInstance, WorkloadPhase, detect_drift
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.model import DistributedNode
+from sofia.platform.ops import AuthenticatedPeerEvidence, BackupEvidence, DesiredHostState, DesiredWorkloadPlacement, FleetEnrollmentApproval, FleetEnrollmentService, FleetHost, FleetRegistry, FleetRemovalApproval, FleetRemovalApprovalRequired, HostLifecycle, MachineNodeBinding, MaintenanceOperation, MaintenancePolicy, MaintenanceRequest, RecoveryDenied, RecoveryGuard, RestoreVerification, WorkloadInstance, WorkloadPhase, detect_drift
 
 NOW=datetime.now(timezone.utc)
 
@@ -22,7 +22,7 @@ def _fleet(host_id="venus",trusted=True):
 
 
 def test_telemetry_history_round_trip(tmp_path:Path):
-    from sofia.ops import HostTelemetry
+    from sofia.platform.ops import HostTelemetry
     history=SQLiteTelemetryHistory(bootstrap_canonical_sqlite(tmp_path/"sofia.db"))
     telemetry=HostTelemetry(NOW,cpu_percent=12.0,ram_used_bytes=1,ram_total_bytes=2)
     history.append("venus",telemetry)

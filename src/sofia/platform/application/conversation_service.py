@@ -9,10 +9,10 @@ import sqlite3
 from threading import RLock
 from uuid import uuid4
 
-from sofia.authorization.evaluator import (
+from sofia.platform.authorization.evaluator import (
     FilesystemAuthorizationEvaluator,
 )
-from sofia.authorization.model import (
+from sofia.platform.authorization.model import (
     AuthorizationDecision as FilesystemAuthorizationDecision,
 )
 from sofia.continuity.model import ContinuityEvent
@@ -46,7 +46,7 @@ from sofia.platform.application.context_budget import (
     CompanionContextBudget,
     ContextClass,
 )
-from sofia.filesystem.orchestrator import (
+from sofia.platform.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
 from sofia.platform.runtime.runtime import SofiaRuntime

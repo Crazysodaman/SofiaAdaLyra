@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from sofia.distributed import windows_agent_service_admin as admin
-from sofia.distributed.windows_agent_service import (
+from sofia.platform.distributed import windows_agent_service_admin as admin
+from sofia.platform.distributed.windows_agent_service import (
     SERVICE_NAME,
     SofiaFleetAgentWindowsService,
 )

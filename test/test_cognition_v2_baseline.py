@@ -1,6 +1,6 @@
 """The Batch 1 benchmark reports unavailable metrics honestly."""
 
-from sofia.verify.cognition_v2_baseline import capture_baseline
+from sofia.platform.verify.cognition_v2_baseline import capture_baseline
 
 
 def test_cognition_v2_control_path_baseline_is_measured_without_fake_metrics():

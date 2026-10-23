@@ -1,5 +1,5 @@
-from sofia.ops.desired import Drift
-from sofia.ops.repair_plan import (
+from sofia.platform.ops.desired import Drift
+from sofia.platform.ops.repair_plan import (
     FleetRepairPlanner,
     FleetRepairProposal,
     RepairProposalKind,

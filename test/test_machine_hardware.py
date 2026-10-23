@@ -2,15 +2,15 @@
 
 import pytest
 
-import sofia.machine.hardware as hardware_module
-from sofia.machine.hardware import (
+import sofia.platform.machine.hardware as hardware_module
+from sofia.platform.machine.hardware import (
     HardwareDiscoveryResult,
     LinuxHardwareDiscovery,
     UnsupportedHardwareDiscovery,
     WindowsHardwareDiscovery,
     create_hardware_discovery,
 )
-from sofia.machine.model import (
+from sofia.platform.machine.model import (
     HardwareProfile,
     PlatformFamily,
     VirtualizationInfo,

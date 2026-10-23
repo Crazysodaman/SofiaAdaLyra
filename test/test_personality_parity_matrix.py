@@ -3,7 +3,7 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.verify.personality_parity import (
+from sofia.platform.verify.personality_parity import (
     CHANNELS,
     FIXED_PERSONALITY_PROBES,
     PersonalityProbeObservation,

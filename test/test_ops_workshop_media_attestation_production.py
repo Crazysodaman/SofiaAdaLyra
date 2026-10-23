@@ -8,14 +8,14 @@ import os
 
 import pytest
 
-from sofia.ops.workshop_media_attestation import (
+from sofia.platform.ops.workshop_media_attestation import (
     POLICY,
     create_owner_signing_keypair,
     media_manifest_payload,
     sign_prepared_media,
     verify_prepared_media,
 )
-from sofia.ops.workshop_media import MEDIA_POLICY_VERSION
+from sofia.platform.ops.workshop_media import MEDIA_POLICY_VERSION
 
 pytestmark=pytest.mark.pkg_ops
 
@@ -63,7 +63,7 @@ def _owner_key(tmp_path,monkeypatch):
     private_dir.mkdir(mode=0o700)
     _restrict_owner_test_folder(private_dir)
     monkeypatch.setattr(
-        "sofia.ops.workshop_media_attestation.getpass",
+        "sofia.platform.ops.workshop_media_attestation.getpass",
         lambda _: "test-owner-local-passphrase-only",
     )
     keys=create_owner_signing_keypair(private_dir)
@@ -194,7 +194,7 @@ def test_generation_requires_private_owner_key_dir(tmp_path,monkeypatch):
     else:
         folder.chmod(0o777)
     monkeypatch.setattr(
-        "sofia.ops.workshop_media_attestation.getpass",
+        "sofia.platform.ops.workshop_media_attestation.getpass",
         lambda _: "not-a-real-user-secret",
     )
     # POSIX inspects mode bits; Windows inspects the real DACL owner and
@@ -208,13 +208,13 @@ def test_generation_requires_private_owner_key_dir(tmp_path,monkeypatch):
 def test_key_pair_is_explicitly_owner_private_and_not_regenerated(tmp_path,monkeypatch):
     private,public=_owner_key(tmp_path,monkeypatch)
     assert private.exists() and public.exists()
-    from sofia.ops.workshop_media_attestation import _assert_owner_private_path
+    from sofia.platform.ops.workshop_media_attestation import _assert_owner_private_path
     _assert_owner_private_path(private, directory=False)
     with pytest.raises(FileExistsError,match="overwrite"):
         create_owner_signing_keypair(private.parent)
 
 def test_owner_signed_media_contract_explicitly_requires_guest_firewall():
-    from sofia.ops.workshop_media_attestation import media_manifest_payload
+    from sofia.platform.ops.workshop_media_attestation import media_manifest_payload
     p=media_manifest_payload(
         media_name="hephaestus-debian13-offline.iso",
         media_sha256="a"*64,base_sha256="b"*64,

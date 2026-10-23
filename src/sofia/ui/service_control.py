@@ -8,7 +8,7 @@ from typing import Protocol
 
 from sofia.integrations.local_maintenance import LocalMaintenanceAdapter
 from sofia.integrations.ollama import OllamaAdapter
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 
 from .control_center import ServiceAction, ServiceKind, ServiceTarget
 

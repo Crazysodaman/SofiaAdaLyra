@@ -2,12 +2,12 @@
 
 import pytest
 
-from sofia.authorization import (
+from sofia.platform.authorization import (
     AuthorizationDecision,
     AuthorizationDomain,
     FilesystemAuthorizationOperation,
 )
-from sofia.authorization.evaluator import (
+from sofia.platform.authorization.evaluator import (
     FilesystemAuthorizationEvaluator,
 )
 from sofia.social.model import AudienceKind, PrincipalContext

@@ -12,20 +12,20 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.distributed.authorization import RemoteGrant
-from sofia.distributed.capabilities import (
+from sofia.platform.distributed.authorization import RemoteGrant
+from sofia.platform.distributed.capabilities import (
     CapabilityInventory,
     RemoteCapability,
 )
-from sofia.distributed.model import ApprovedEndpoint
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.inference import RemoteInferenceResponse
-from sofia.distributed.inference_control import (
+from sofia.platform.distributed.model import ApprovedEndpoint
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.inference import RemoteInferenceResponse
+from sofia.platform.distributed.inference_control import (
     DurableRemoteInferenceControl,
     RemoteInferenceDenied,
     RemoteInferenceUncertain,
 )
-from sofia.distributed.model import (
+from sofia.platform.distributed.model import (
     DistributedNode,
     NodeEndpoint,
     NodeTransport,

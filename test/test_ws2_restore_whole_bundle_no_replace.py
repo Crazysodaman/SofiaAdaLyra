@@ -6,8 +6,8 @@ import os
 
 import pytest
 
-import sofia.ops.backup as backup_module
-from sofia.ops.backup import (
+import sofia.platform.ops.backup as backup_module
+from sofia.platform.ops.backup import (
     BackupCipher, BackupEngine, BackupError, RestorePublicationUncertain,
 )
 from test.test_ops_backup_restore import make_erasure_journal, make_state

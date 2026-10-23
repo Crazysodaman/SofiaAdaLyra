@@ -3,7 +3,7 @@ from hashlib import sha256
 
 import pytest
 
-from sofia.ops import (
+from sofia.platform.ops import (
     InstallAuthority, InstallOperation, InstallOutcome, OfflineArtifactCache,
     PlatformArtifact, PlatformInstallCoordinator, PlatformInstallPlan,
     PlatformInstallReceipt, PlatformInstallStore, PlatformKind, RecoveryBundle,

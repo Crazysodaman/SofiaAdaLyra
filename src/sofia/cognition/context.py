@@ -15,8 +15,8 @@ from sofia.continuity.model import (
 from sofia.embodiment.model import Embodiment
 from sofia.environment.model import EnvironmentSnapshot
 from sofia.embodiment.measurement_query import MeasurementQueryResult
-from sofia.filesystem.changes import FilesystemChangeEvent
-from sofia.filesystem.model import FilesystemResult
+from sofia.platform.filesystem.changes import FilesystemChangeEvent
+from sofia.platform.filesystem.model import FilesystemResult
 from sofia.identity.model import SofiaIdentity
 from sofia.memory.historical import HistoricalConversationEvidence
 from sofia.memory.model import MemoryRecord
@@ -25,7 +25,7 @@ from sofia.platform.operational.model import (
     RuntimeContinuity,
 )
 from sofia.personality.model import PersonalityProfile
-from sofia.safe.permissions import AdultPrivateAuthority
+from sofia.platform.safe.permissions import AdultPrivateAuthority
 from sofia.social.model import PrincipalContext
 from sofia.self_model.model import SofiaCoreState
 from sofia.self_model.operational import SofiaOperationalSelfModel

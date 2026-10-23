@@ -1,21 +1,21 @@
 from datetime import datetime, timezone
 
-from sofia.machine.discovery import MachineDiscoveryResult
-from sofia.machine.hardware import HardwareDiscoveryResult
-from sofia.machine.inventory import MachineInventory
-from sofia.machine.model import (
+from sofia.platform.machine.discovery import MachineDiscoveryResult
+from sofia.platform.machine.hardware import HardwareDiscoveryResult
+from sofia.platform.machine.inventory import MachineInventory
+from sofia.platform.machine.model import (
     HardwareProfile,
     MachineIdentity,
     OperatingSystemInfo,
     PlatformFamily,
     VirtualizationInfo,
 )
-from sofia.machine.observation import (
+from sofia.platform.machine.observation import (
     ObservationState,
 )
-from sofia.machine.persistence import SQLiteMachineInventoryPersistence
-from sofia.machine.inventory_codec import deserialize_inventory, serialize_inventory
-from sofia.machine.refresh import MachineInventoryRefresher
+from sofia.platform.machine.persistence import SQLiteMachineInventoryPersistence
+from sofia.platform.machine.inventory_codec import deserialize_inventory, serialize_inventory
+from sofia.platform.machine.refresh import MachineInventoryRefresher
 
 
 class StubMachineDiscovery:
@@ -236,12 +236,12 @@ def _refresh_contradiction(
     *,
     cpu: str,
 ):
-    from sofia.machine.observation import (
+    from sofia.platform.machine.observation import (
         MachineObservation,
         ObservationProvenance,
         ObservationSource,
     )
-    from sofia.machine.model import MachineProfile, MachineVerification
+    from sofia.platform.machine.model import MachineProfile, MachineVerification
 
     machine = _machine_result()
 

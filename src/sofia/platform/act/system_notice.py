@@ -1,0 +1,621 @@
+from __future__ import annotations
+
+from contextlib import closing
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+import sqlite3
+from typing import Callable
+
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from uuid import uuid4
+
+from sofia.platform.act.history import delivery_history
+from sofia.platform.act.diagnostics import (
+    ensure_outreach_trace_schema,
+    record_outreach_trace,
+)
+from sofia.platform.act.delivery import DeliveryOutcome, DeliveryPayload, SendResult
+from sofia.platform.act.outreach import (
+    Candidate,
+    Decision,
+    Importance,
+    OutreachCategory,
+    Policy,
+    evaluate,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class SystemNotice:
+    notice_id: str
+    recipient_id: str
+    channel: str
+    destination: str
+    evidence_id: str
+    content: str
+    created_at: datetime
+    expires_at: datetime
+    status: str
+    category: OutreachCategory = OutreachCategory.OPERATIONAL
+    importance: Importance = Importance.ROUTINE
+    salience: float = 0.5
+
+
+class SystemNoticeQueue:
+    """Durable ACT queue for operational evidence that is not conversation-derived."""
+
+    def __init__(self, state_path: Path | str) -> None:
+        self.path = Path(state_path)
+        self._guard = CanonicalSQLiteGuard(self.path)
+        with closing(self._connect()) as db:
+            with db:
+                db.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS act_system_notice (
+                        notice_id TEXT PRIMARY KEY,
+                        recipient_id TEXT NOT NULL,
+                        channel TEXT NOT NULL,
+                        destination TEXT NOT NULL,
+                        evidence_id TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        expires_at TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK(
+                            status IN ('queued','delivered','failed','outcome_unknown')
+                        ),
+                        attempt_count INTEGER NOT NULL DEFAULT 0,
+                        receipt_id TEXT,
+                        error_type TEXT,
+                        finished_at TEXT,
+                        category TEXT NOT NULL DEFAULT 'operational',
+                        importance TEXT NOT NULL DEFAULT 'routine',
+                        salience REAL NOT NULL DEFAULT 0.5
+                    );
+                    CREATE INDEX IF NOT EXISTS act_system_notice_pending
+                        ON act_system_notice(status, created_at);
+                    CREATE INDEX IF NOT EXISTS act_system_notice_category_time
+                        ON act_system_notice(category, finished_at);
+                    """
+                )
+                ensure_outreach_trace_schema(db)
+                columns = {
+                    row[1]
+                    for row in db.execute(
+                        "PRAGMA table_info(act_system_notice)"
+                    )
+                }
+                for name, declaration in (
+                    ("category", "TEXT NOT NULL DEFAULT 'operational'"),
+                    ("importance", "TEXT NOT NULL DEFAULT 'routine'"),
+                    ("salience", "REAL NOT NULL DEFAULT 0.5"),
+                ):
+                    if name not in columns:
+                        db.execute(
+                            f"ALTER TABLE act_system_notice "
+                            f"ADD COLUMN {name} {declaration}"
+                        )
+
+    def _connect(self) -> sqlite3.Connection:
+        db = self._guard.connect(timeout=10)
+        db.row_factory = sqlite3.Row
+        db.execute("PRAGMA busy_timeout=10000")
+        return db
+
+    def has_pending(self) -> bool:
+        with closing(self._connect()) as db:
+            return db.execute(
+                "SELECT 1 FROM act_system_notice WHERE status='queued' LIMIT 1"
+            ).fetchone() is not None
+
+    @staticmethod
+    def _time(value: datetime) -> datetime:
+        if not isinstance(value, datetime):
+            raise TypeError("timestamp must be a datetime")
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("timestamp must be timezone-aware")
+        return value.astimezone(timezone.utc)
+
+    def enqueue(
+        self,
+        *,
+        notice_id: str,
+        recipient_id: str,
+        channel: str,
+        destination: str,
+        evidence_id: str,
+        content: str,
+        created_at: datetime,
+        expires_at: datetime,
+        category: OutreachCategory = OutreachCategory.OPERATIONAL,
+        importance: Importance = Importance.ROUTINE,
+        salience: float = 0.5,
+    ) -> SystemNotice:
+        for name, value in (
+            ("notice_id", notice_id),
+            ("recipient_id", recipient_id),
+            ("channel", channel),
+            ("destination", destination),
+            ("evidence_id", evidence_id),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} must be nonempty")
+        if not isinstance(content, str) or not content.strip() or len(content) > 640:
+            raise ValueError("content must be bounded nonempty text")
+        if not isinstance(category, OutreachCategory):
+            raise TypeError("category must be OutreachCategory")
+        if not isinstance(importance, Importance):
+            raise TypeError("importance must be Importance")
+        if not isinstance(salience, (int, float)) or isinstance(salience, bool):
+            raise TypeError("salience must be numeric")
+        if not 0.0 <= salience <= 1.0:
+            raise ValueError("salience must be in [0,1]")
+        created = self._time(created_at)
+        expires = self._time(expires_at)
+        if expires <= created:
+            raise ValueError("notice must expire after creation")
+
+        # Build the same Candidate that delivery will later evaluate so invalid
+        # ACT identifiers fail at enqueue time instead of poisoning the queue.
+        Candidate(
+            candidate_id=notice_id,
+            recipient_id=recipient_id,
+            evidence_ids=(evidence_id,),
+            created_at=created,
+            expires_at=expires,
+            category=category,
+            importance=importance,
+            salience=float(salience),
+        )
+
+        desired = (
+            notice_id,
+            recipient_id,
+            channel,
+            destination,
+            evidence_id,
+            content.strip(),
+            created.isoformat(),
+            expires.isoformat(),
+            category.value,
+            importance.value,
+            float(salience),
+        )
+        durable_status = "queued"
+        with closing(self._connect()) as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                old = db.execute(
+                    """
+                    SELECT notice_id,recipient_id,channel,destination,evidence_id,
+                           content,created_at,expires_at,category,importance,salience,
+                           status
+                    FROM act_system_notice
+                    WHERE notice_id=?
+                    """,
+                    (notice_id,),
+                ).fetchone()
+                if old is not None:
+                    if tuple(old[:-1]) != desired:
+                        raise ValueError("notice_id reused for different evidence")
+                    durable_status = str(old["status"])
+                else:
+                    db.execute(
+                        """
+                        INSERT INTO act_system_notice(
+                            notice_id,recipient_id,channel,destination,evidence_id,
+                            content,created_at,expires_at,status,attempt_count,
+                            category,importance,salience
+                        )
+                        VALUES(?,?,?,?,?,?,?,?,'queued',0,?,?,?)
+                        """,
+                        desired,
+                    )
+                    record_outreach_trace(
+                        db,
+                        notice_id=notice_id,
+                        stage="queued",
+                        reason="candidate_enqueued",
+                        recorded_at=created,
+                        channel=channel,
+                        destination=destination,
+                    )
+        return SystemNotice(
+            notice_id,
+            recipient_id,
+            channel,
+            destination,
+            evidence_id,
+            content.strip(),
+            created,
+            expires,
+            durable_status,
+            category,
+            importance,
+            float(salience),
+        )
+
+    def _finish_delivery(
+        self,
+        *,
+        payload: DeliveryPayload,
+        result: SendResult,
+        at: datetime,
+        max_attempts: int,
+    ) -> None:
+        status = {
+            DeliveryOutcome.DELIVERED: "delivered",
+            DeliveryOutcome.FAILED: "failed",
+            DeliveryOutcome.OUTCOME_UNKNOWN: "outcome_unknown",
+        }[result.outcome]
+
+        with closing(self._connect()) as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                row = db.execute(
+                    """
+                    SELECT status,attempt_count
+                    FROM act_system_notice
+                    WHERE notice_id=?
+                    """,
+                    (payload.message_id,),
+                ).fetchone()
+                if row is None:
+                    raise RuntimeError("claimed system notice disappeared")
+                if row["status"] != "outcome_unknown":
+                    raise RuntimeError(
+                        "system notice is no longer in its claimed state"
+                    )
+
+                if status == "failed":
+                    final_status = (
+                        "failed"
+                        if int(row["attempt_count"]) >= max_attempts
+                        else "queued"
+                    )
+                else:
+                    final_status = status
+
+                changed = db.execute(
+                    """
+                    UPDATE act_system_notice
+                    SET status=?,receipt_id=?,error_type=?,finished_at=?
+                    WHERE notice_id=? AND status='outcome_unknown'
+                    """,
+                    (
+                        final_status,
+                        result.receipt_id,
+                        result.error_type,
+                        at.isoformat(),
+                        payload.message_id,
+                    ),
+                )
+                if changed.rowcount != 1:
+                    raise RuntimeError(
+                        "system notice delivery claim was lost"
+                    )
+                record_outreach_trace(
+                    db,
+                    notice_id=payload.message_id,
+                    stage=(
+                        "transport_accepted"
+                        if result.outcome is DeliveryOutcome.DELIVERED
+                        else "failed"
+                        if result.outcome is DeliveryOutcome.FAILED
+                        else "outcome_unknown"
+                    ),
+                    reason=(
+                        "transport_receipt_recorded"
+                        if result.outcome is DeliveryOutcome.DELIVERED
+                        else result.error_type or result.outcome.value
+                    ),
+                    recorded_at=at,
+                    channel=payload.channel,
+                    destination=payload.destination,
+                    receipt_id=result.receipt_id,
+                    # Transport acceptance is not proof the recipient saw it.
+                    recipient_confirmed=False,
+                )
+
+    def _release_claim_before_send(
+        self, *, payload: DeliveryPayload, reason: str, at: datetime,
+    ) -> None:
+        """Restore a claim when a fresh owner policy vetoed before the send.
+
+        Do not burn an attempt or produce an outcome-unknown receipt when the
+        trusted host KNOWS the sender was never invoked.
+        """
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            changed = db.execute(
+                """
+                UPDATE act_system_notice
+                SET status='queued',
+                    attempt_count=attempt_count-1,
+                    receipt_id=NULL,
+                    error_type=NULL,
+                    finished_at=NULL
+                WHERE notice_id=? AND status='outcome_unknown'
+                  AND error_type='DeliveryInProgress'
+                  AND attempt_count > 0
+                """,
+                (payload.message_id,),
+            )
+            if changed.rowcount != 1:
+                raise RuntimeError("ACT pre-send claim cannot be safely released")
+            record_outreach_trace(
+                db,
+                notice_id=payload.message_id,
+                stage="deferred",
+                reason=reason,
+                recorded_at=at,
+                channel=payload.channel,
+                destination=payload.destination,
+            )
+
+    def _suppress_owner_declined_claim(
+        self, *, payload: DeliveryPayload, at: datetime,
+    ) -> None:
+        """Permanently close an unsent notice after explicit owner rejection."""
+        with closing(self._connect()) as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                changed = db.execute(
+                    """UPDATE act_system_notice
+                       SET status='failed',
+                           attempt_count=attempt_count-1,
+                           receipt_id=NULL,
+                           error_type='OwnerDeclinedProject',
+                           finished_at=?
+                       WHERE notice_id=? AND status='outcome_unknown'
+                         AND error_type='DeliveryInProgress'
+                         AND attempt_count > 0""",
+                    (at.isoformat(), payload.message_id),
+                )
+                if changed.rowcount != 1:
+                    raise RuntimeError("owner-declined ACT claim cannot be suppressed")
+                record_outreach_trace(
+                    db, notice_id=payload.message_id, stage="suppressed",
+                    reason=Decision.USER_DECLINED.value, recorded_at=at,
+                    channel=payload.channel, destination=payload.destination,
+                )
+
+    def deliver_one(
+        self,
+        *,
+        sender,
+        policy: Policy,
+        now: datetime,
+        busy: bool = False,
+        max_attempts: int = 3,
+        pre_send_decision: Callable[[], Decision] | None = None,
+        pre_send_payload_decision: Callable[[DeliveryPayload], Decision] | None = None,
+    ) -> SendResult | None:
+        if not callable(sender):
+            raise TypeError("sender must be callable")
+        if pre_send_decision is not None and not callable(pre_send_decision):
+            raise TypeError("pre_send_decision must be callable")
+        if pre_send_payload_decision is not None and not callable(pre_send_payload_decision):
+            raise TypeError("pre_send_payload_decision must be callable")
+        if not isinstance(policy, Policy):
+            raise TypeError("policy must be a Policy")
+        if not isinstance(busy, bool):
+            raise TypeError("busy must be boolean")
+        if type(max_attempts) is not int or not 1 <= max_attempts <= 10:
+            raise ValueError("max_attempts must be in 1..10")
+        moment = self._time(now)
+
+        payload = None
+        with closing(self._connect()) as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                rows = db.execute(
+                    """
+                    SELECT *
+                    FROM act_system_notice
+                    WHERE status='queued'
+                      AND attempt_count < ?
+                    ORDER BY created_at,notice_id
+                    """,
+                    (max_attempts,),
+                ).fetchall()
+                for row in rows:
+                    created = datetime.fromisoformat(
+                        row["created_at"]
+                    ).astimezone(timezone.utc)
+                    expires = datetime.fromisoformat(
+                        row["expires_at"]
+                    ).astimezone(timezone.utc)
+                    if moment >= expires:
+                        db.execute(
+                            """
+                            UPDATE act_system_notice
+                            SET status='failed',error_type='Expired',finished_at=?
+                            WHERE notice_id=? AND status='queued'
+                            """,
+                            (moment.isoformat(), row["notice_id"]),
+                        )
+                        record_outreach_trace(
+                            db,
+                            notice_id=row["notice_id"],
+                            stage="expired",
+                            reason="candidate_expired_before_delivery",
+                            recorded_at=moment,
+                            channel=row["channel"],
+                            destination=row["destination"],
+                        )
+                        continue
+
+                    candidate = Candidate(
+                        candidate_id=row["notice_id"],
+                        recipient_id=row["recipient_id"],
+                        evidence_ids=(row["evidence_id"],),
+                        created_at=created,
+                        expires_at=expires,
+                        category=OutreachCategory(row["category"]),
+                        importance=Importance(row["importance"]),
+                        salience=float(row["salience"]),
+                    )
+                    history = delivery_history(
+                        db,
+                        recipient_id=row["recipient_id"],
+                        channel=row["channel"],
+                        destination=row["destination"],
+                        now=moment,
+                    )
+                    decision = evaluate(
+                        candidate,
+                        policy,
+                        history,
+                        moment,
+                        busy=busy,
+                    )
+                    if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                        deferred = decision in {
+                            Decision.BUSY,
+                            Decision.QUIET_HOURS,
+                            Decision.TOO_SOON,
+                            Decision.DAILY_LIMIT,
+                            Decision.CLOCK_UNCERTAIN,
+                        }
+                        record_outreach_trace(
+                            db,
+                            notice_id=row["notice_id"],
+                            stage="deferred" if deferred else "suppressed",
+                            reason=decision.value,
+                            recorded_at=moment,
+                            channel=row["channel"],
+                            destination=row["destination"],
+                        )
+                        continue
+
+                    record_outreach_trace(
+                        db,
+                        notice_id=row["notice_id"],
+                        stage="eligible",
+                        reason="act_policy_eligible",
+                        recorded_at=moment,
+                        channel=row["channel"],
+                        destination=row["destination"],
+                    )
+
+                    attempt_id = str(uuid4())
+                    changed = db.execute(
+                        """
+                        UPDATE act_system_notice
+                        SET attempt_count=attempt_count+1,
+                            status='outcome_unknown',
+                            receipt_id=NULL,
+                            error_type='DeliveryInProgress',
+                            finished_at=NULL
+                        WHERE notice_id=? AND status='queued'
+                        """,
+                        (row["notice_id"],),
+                    )
+                    if changed.rowcount != 1:
+                        continue
+
+                    payload = DeliveryPayload(
+                        attempt_id=attempt_id,
+                        message_id=row["notice_id"],
+                        recipient_id=row["recipient_id"],
+                        channel=row["channel"],
+                        destination=row["destination"],
+                        evidence_id=row["evidence_id"],
+                        content=row["content"],
+                    )
+                    break
+
+        if payload is None:
+            return None
+
+        # The policy used for claim may be stale by the time a transport is
+        # invoked. The application rechecks owner stop/mute from canonical
+        # storage here, AFTER claim but BEFORE a sender can create an effect.
+        if pre_send_decision is not None:
+            try:
+                decision = pre_send_decision()
+                if not isinstance(decision, Decision):
+                    raise TypeError("pre_send_decision must return Decision")
+            except Exception:
+                # No transport has been invoked. Unknown or unreadable owner
+                # authority is a refusal, not an uncertain external effect.
+                decision = Decision.AUTHORIZATION_UNAVAILABLE
+            if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                self._release_claim_before_send(
+                    payload=payload, reason=decision.value, at=moment,
+                )
+                return None
+
+        if pre_send_payload_decision is not None:
+            try:
+                decision = pre_send_payload_decision(payload)
+                if not isinstance(decision, Decision):
+                    raise TypeError("pre_send_payload_decision must return Decision")
+            except Exception:
+                decision = Decision.AUTHORIZATION_UNAVAILABLE
+            if decision is Decision.USER_DECLINED:
+                self._suppress_owner_declined_claim(
+                    payload=payload, at=moment,
+                )
+                return None
+            if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                self._release_claim_before_send(
+                    payload=payload, reason=decision.value, at=moment,
+                )
+                return None
+
+        # The project-specific callback may perform database I/O while
+        # owner mute/stop changes. Recheck global consent AFTER that work,
+        # as close as possible to the actual sender boundary.
+        if pre_send_decision is not None:
+            try:
+                final_decision = pre_send_decision()
+                if not isinstance(final_decision, Decision):
+                    raise TypeError("pre_send_decision must return Decision")
+            except Exception:
+                final_decision = Decision.AUTHORIZATION_UNAVAILABLE
+            if final_decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                self._release_claim_before_send(
+                    payload=payload, reason=final_decision.value, at=moment,
+                )
+                return None
+
+        # Only a notice that passed both project and final global authority
+        # checks may enter the transport-attempt trace. Suppression never
+        # reports an actual send attempt.
+        with closing(self._connect()) as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                record_outreach_trace(
+                    db,
+                    notice_id=payload.message_id,
+                    stage="transport_attempt",
+                    reason="sender_invoked",
+                    recorded_at=moment,
+                    channel=payload.channel,
+                    destination=payload.destination,
+                )
+        try:
+            result = sender(payload)
+            if not isinstance(result, SendResult):
+                raise TypeError("ACT sender must return SendResult")
+        except Exception as exc:
+            self._finish_delivery(
+                payload=payload,
+                result=SendResult(
+                    DeliveryOutcome.OUTCOME_UNKNOWN,
+                    error_type=type(exc).__name__,
+                ),
+                at=moment,
+                max_attempts=max_attempts,
+            )
+            raise
+
+        self._finish_delivery(
+            payload=payload,
+            result=result,
+            at=moment,
+            max_attempts=max_attempts,
+        )
+        return result

@@ -2,7 +2,7 @@
 import json
 
 import pytest
-from sofia.verify.v18_memory_benchmark import (
+from sofia.platform.verify.v18_memory_benchmark import (
     ABLATIONS, FAMILIES, evaluate, main, scenarios,
 )
 

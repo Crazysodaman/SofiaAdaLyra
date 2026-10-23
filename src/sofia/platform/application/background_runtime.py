@@ -15,7 +15,7 @@ import socket
 from typing import TYPE_CHECKING
 
 from sofia.platform.application.background import ApplicationBackgroundCoordinator
-from sofia.act.outreach import Importance, OutreachCategory
+from sofia.platform.act.outreach import Importance, OutreachCategory
 from sofia.platform.application.presence import (
     InitiativeEvent, PresenceInitiativeEngine, WorldAvailability,
     WorldEpistemicState, WorldObservation,
@@ -25,15 +25,15 @@ from sofia.platform.application.fleet_runtime import (
     create_fleet_bootstrap_coordinator, create_fleet_candidate_notifier,
     create_fleet_reconciliation_notifier,
 )
-from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
-from sofia.ops.activity import ActivityMode, HostActivityStore
-from sofia.ops.backup_topology import (
+from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.platform.ops.activity import ActivityMode, HostActivityStore
+from sofia.platform.ops.backup_topology import (
     backup_topology_enabled,
     backup_topology_interval_seconds,
     create_backup_topology_from_environment,
 )
-from sofia.ops.discovery import FleetDiscoveryCoordinator, FleetDiscoveryEnrollmentReconciler
+from sofia.platform.ops.discovery import FleetDiscoveryCoordinator, FleetDiscoveryEnrollmentReconciler
 from sofia.personality.influence import ContinuityInfluence
 from sofia.platform.run.heartbeat import ApplicationHeartbeat
 
@@ -175,7 +175,7 @@ def bridge_voluntary_life_outreach(
         # A destination changed during cognitive latency. Reassess on the
         # next background tick rather than sending private context elsewhere.
         return 0
-    from sofia.safe.operator_stop import OperatorStopStore
+    from sofia.platform.safe.operator_stop import OperatorStopStore
     if OperatorStopStore(act_service.state_path).current().active:
         return 0
     refreshed_outreach = RuntimeUserSettingsStore(
@@ -430,7 +430,7 @@ def create_background_coordinator(
     # CA-6109: publish bounded read-only storage pressure through the existing
     # PRESENCE owner. The STOP-gated RUN coordinator schedules this as ordinary
     # maintenance, not an independent worker or a database authority.
-    from sofia.ops.capacity_runtime import record_local_capacity
+    from sofia.platform.ops.capacity_runtime import record_local_capacity
 
     def observe_local_capacity(now):
         return record_local_capacity(
@@ -499,7 +499,7 @@ def create_background_coordinator(
     # budget. No new independent polling thread or approval source exists.
     from sofia.platform.config.cognitive_models import CognitiveModelSelection
     from sofia.cognition.model_inventory import refresh_local_model_inventory
-    from sofia.machine.discovery import create_machine_discovery
+    from sofia.platform.machine.discovery import create_machine_discovery
 
     configured_model_providers = CognitiveModelSelection.from_configuration(
         application._configuration
@@ -539,7 +539,7 @@ def create_background_coordinator(
     from sofia.neuro.connectome.association_store import ReviewedAssociationStore
 
     def association_decay_ready():
-        from sofia.safe.operator_stop import OperatorStopStore
+        from sofia.platform.safe.operator_stop import OperatorStopStore
         return (
             not OperatorStopStore(application._configuration.state_path)
             .current().active

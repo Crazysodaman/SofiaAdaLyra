@@ -7,7 +7,7 @@ from test.owner_auth_fixture import (
     private_with_signed_owner,
 )
 
-from sofia.safe.permissions import (
+from sofia.platform.safe.permissions import (
     AdultPrivateAuthority,
     PermissionLevel,
     PermissionStore,

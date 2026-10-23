@@ -2,9 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.act.delivery import DeliveryOutcome, SendResult
-from sofia.act.diagnostics import OutreachTraceStore
-from sofia.act.outreach import Importance, OutreachCategory, Policy
+from sofia.platform.act.delivery import DeliveryOutcome, SendResult
+from sofia.platform.act.diagnostics import OutreachTraceStore
+from sofia.platform.act.outreach import Importance, OutreachCategory, Policy
 from sofia.platform.application.act_service import SofiaActService
 from sofia.platform.application.presence import (
     InitiativeEvent,
@@ -13,7 +13,7 @@ from sofia.platform.application.presence import (
     WorldEpistemicState,
     WorldObservation,
 )
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 
 
 NOW = datetime(2026, 10, 9, 15, 0, tzinfo=timezone.utc)
@@ -1527,7 +1527,7 @@ def test_owner_decline_terminates_queued_update_before_sender(tmp_path):
     """An already queued project note cannot reach Desktop or Discord after no."""
     from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
     from sofia.social.principals import local_sparks_principal
-    from sofia.act.diagnostics import OutreachTraceStore
+    from sofia.platform.act.diagnostics import OutreachTraceStore
     import sqlite3
 
     life, project, now = _verified_private_project_for_unprompted_sharing(tmp_path)
@@ -1585,7 +1585,7 @@ def test_owner_stop_during_project_check_vetoes_transport_at_final_global_gate(
     state, monkeypatch,
 ):
     """A project check cannot keep using a now-revoked global send grant."""
-    from sofia.act.outreach import Decision
+    from sofia.platform.act.outreach import Decision
 
     sent = []
     service = configured(state, sent)
@@ -1626,7 +1626,7 @@ def test_missing_original_life_presence_observation_refuses_queued_transport(
 ):
     """Losing the original private event must not authorize an old ACT notice."""
     from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
-    from sofia.act.diagnostics import OutreachTraceStore
+    from sofia.platform.act.diagnostics import OutreachTraceStore
     import sqlite3
 
     life, project, now = _verified_private_project_for_unprompted_sharing(tmp_path)

@@ -4,8 +4,8 @@ from uuid import UUID
 
 import pytest
 
-from sofia.ops.bootstrap import AgentPackage, BootstrapCandidate
-from sofia.ops.windows_bootstrap import (
+from sofia.platform.ops.bootstrap import AgentPackage, BootstrapCandidate
+from sofia.platform.ops.windows_bootstrap import (
     WindowsCimBootstrapInstaller,
     _safe_windows_path,
     render_installer,
@@ -84,12 +84,12 @@ def test_rendered_installer_is_hash_pinned_and_exact_controller_scoped():
     assert "if ($FirewallCreated)" in script
     assert "if ($TouchedService -and $AgentPython" in script
     assert "if ($TouchedService)" in script
-    assert "sofia.distributed.agent_main" in script
+    assert "sofia.platform.distributed.agent_main" in script
     assert "bootstrap-receipt.json" in script
     assert "Get-CimInstance Win32_Process" in script
     assert '$_ .CommandLine' not in script
     assert 'SofiaAdaLyraFleetAgent' in script
-    assert 'sofia.distributed.windows_agent_service_admin' in script
+    assert 'sofia.platform.distributed.windows_agent_service_admin' in script
     assert ' install --config $ConfigPath' in script
     assert ' start 2>&1' in script
     assert ' validate --config $ConfigPath' in script

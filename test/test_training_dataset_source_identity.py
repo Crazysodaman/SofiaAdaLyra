@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.evolve.training_sources import inspect_public_dataset
+from sofia.platform.evolve.training_sources import inspect_public_dataset
 
 pytestmark = pytest.mark.pkg_core
 NOW = datetime(2026, 10, 11, 18, tzinfo=timezone.utc)

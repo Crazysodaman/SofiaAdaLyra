@@ -1,6 +1,6 @@
 """Deterministic action executor fixture; production always composes a real boundary."""
-from sofia.action.executor import ActionExecutor, ActionExecutorError
-from sofia.action.model import ActionExecutionResult, ActionProposal, ActionStatus
+from sofia.platform.action.executor import ActionExecutor, ActionExecutorError
+from sofia.platform.action.model import ActionExecutionResult, ActionProposal, ActionStatus
 
 
 class TestActionExecutor(ActionExecutor):

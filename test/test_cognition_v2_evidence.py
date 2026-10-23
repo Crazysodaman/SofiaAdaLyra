@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from sofia.platform.application import SofiaApplication
-from sofia.capability.model import CapabilityResult, CapabilityResultKind
+from sofia.platform.capability.model import CapabilityResult, CapabilityResultKind
 from sofia.cognition.v2 import (
     AcquisitionState,
     CapabilityEvidencePayload,

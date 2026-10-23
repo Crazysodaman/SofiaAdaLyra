@@ -9,10 +9,10 @@ import json
 import pytest
 
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.evolve.training_sources import (
+from sofia.platform.evolve.training_sources import (
     TrainingDatasetStore, inspect_public_dataset,
 )
-from sofia.evolve.training_policy import (
+from sofia.platform.evolve.training_policy import (
     AdaptationPlan, assess_registered_adaptation,
 )
 

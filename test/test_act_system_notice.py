@@ -4,9 +4,9 @@ from threading import Event, Thread
 
 import pytest
 
-from sofia.act.delivery import DeliveryOutcome, SendResult
-from sofia.act.outreach import Decision, Importance, OutreachCategory, Policy
-from sofia.act.system_notice import SystemNoticeQueue
+from sofia.platform.act.delivery import DeliveryOutcome, SendResult
+from sofia.platform.act.outreach import Decision, Importance, OutreachCategory, Policy
+from sofia.platform.act.system_notice import SystemNoticeQueue
 
 
 NOW = datetime(2026, 9, 28, 15, 0, tzinfo=timezone.utc)

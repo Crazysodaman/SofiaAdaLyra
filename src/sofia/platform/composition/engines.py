@@ -25,9 +25,9 @@ from sofia.platform.config.cognitive_models import CognitiveModelSelection
 from sofia.platform.config.model import SofiaConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.integrations.ollama import OllamaAdapter
-from sofia.ops.capability import OpsToolService
-from sofia.ops.local_telemetry import collect_local_telemetry
-from sofia.ops.activity import ActivityMode
+from sofia.platform.ops.capability import OpsToolService
+from sofia.platform.ops.local_telemetry import collect_local_telemetry
+from sofia.platform.ops.activity import ActivityMode
 from sofia.platform.composition.split_topology import (
     selected_split_deployment,
     validate_split_inference_runtime,

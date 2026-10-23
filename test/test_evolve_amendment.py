@@ -4,7 +4,7 @@ from hashlib import sha256
 
 import pytest
 
-from sofia.evolve import (
+from sofia.platform.evolve import (
     AmendmentApproval,
     AmendmentProposal,
     ApprovalAction,
@@ -125,6 +125,6 @@ def test_proposal_is_immutable():
 def test_approval_verifier_is_abstract_and_no_self_approval_implementation():
     with pytest.raises(TypeError):
         ApprovalVerifier()
-    import sofia.evolve as module
+    import sofia.platform.evolve as module
     assert not hasattr(module, "approve")
     assert not hasattr(module, "self_approve")

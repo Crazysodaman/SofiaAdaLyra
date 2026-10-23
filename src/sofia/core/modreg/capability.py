@@ -7,7 +7,7 @@ matching the house pattern of `sofia.codebase.capability`.
 """
 from __future__ import annotations
 
-from sofia.capability.model import (
+from sofia.platform.capability.model import (
     Capability,
     CapabilityRequest,
 )

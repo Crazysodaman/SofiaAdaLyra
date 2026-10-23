@@ -4,12 +4,12 @@ import os
 from pathlib import Path
 
 from sofia.platform.config.model import CURRENT_CONFIGURATION_SCHEMA_VERSION, SofiaConfiguration
-from sofia.dev.release_store import ReleaseStateStore
-from sofia.distributed.version import CURRENT_FLEET_PROTOCOL_VERSION
+from sofia.platform.dev.release_store import ReleaseStateStore
+from sofia.platform.distributed.version import CURRENT_FLEET_PROTOCOL_VERSION
 from sofia.platform.run.release import ReleaseManager
-from sofia.safe.audit import AuditChain
-from sofia.safe.release import ReleaseActivationGuard
-from sofia.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
+from sofia.platform.safe.audit import AuditChain
+from sofia.platform.safe.release import ReleaseActivationGuard
+from sofia.platform.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
 from sofia.platform.state.plane import StatePlane
 
 

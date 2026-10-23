@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sofia.safe.operator_stop import OperatorStopStore
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.permissions import PermissionStore
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 

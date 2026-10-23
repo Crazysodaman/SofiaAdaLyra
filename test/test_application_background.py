@@ -180,7 +180,7 @@ def test_operator_pause_prevents_all_optional_background_dispatch(tmp_path):
     """Central scheduler must not wake reflection, LIFE, ACT or Fleet on PAUSE."""
     from types import SimpleNamespace
 
-    from sofia.safe.operator_stop import OperatorStopStore
+    from sofia.platform.safe.operator_stop import OperatorStopStore
 
     state = tmp_path / "sofia.db"
     coordinator = ApplicationBackgroundCoordinator.__new__(
@@ -250,7 +250,7 @@ def _assert_no_live_claims(state):
 
 def test_operator_pause_between_act_readiness_and_dispatch_fails_closed(tmp_path):
     """CA-1907: the start-of-tick STOP check must not be a stale token."""
-    from sofia.safe.operator_stop import OperatorStopStore
+    from sofia.platform.safe.operator_stop import OperatorStopStore
 
     coordinator, state = _coordinator_with_stop_race(tmp_path)
     stop = OperatorStopStore(state)
@@ -274,7 +274,7 @@ def test_operator_pause_between_act_readiness_and_dispatch_fails_closed(tmp_path
 
 def test_operator_pause_between_life_readiness_and_dispatch_fails_closed(tmp_path):
     """Optional LIFE/Fleet tasks recheck STOP after budget admission."""
-    from sofia.safe.operator_stop import OperatorStopStore
+    from sofia.platform.safe.operator_stop import OperatorStopStore
 
     coordinator, state = _coordinator_with_stop_race(tmp_path)
     stop = OperatorStopStore(state)
@@ -302,7 +302,7 @@ def test_operator_pause_between_life_readiness_and_dispatch_fails_closed(tmp_pat
 def test_operator_pause_after_reflection_opportunity_claim_fails_closed(tmp_path):
     """The pending reflection claim is settled without invoking the LLM."""
     from types import SimpleNamespace
-    from sofia.safe.operator_stop import OperatorStopStore
+    from sofia.platform.safe.operator_stop import OperatorStopStore
 
     coordinator, state = _coordinator_with_stop_race(tmp_path)
     stop = OperatorStopStore(state)

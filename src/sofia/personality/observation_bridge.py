@@ -11,7 +11,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
-from sofia.filesystem.changes import FilesystemChangeEvent
+from sofia.platform.filesystem.changes import FilesystemChangeEvent
 from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.reflection import ReflectionJournal
 

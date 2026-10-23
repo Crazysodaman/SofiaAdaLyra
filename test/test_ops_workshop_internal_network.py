@@ -6,12 +6,12 @@ from datetime import datetime,timedelta,timezone
 from dataclasses import replace
 import pytest
 
-from sofia.ops.workshop_network import (
+from sofia.platform.ops.workshop_network import (
     HOST_ADAPTER,HOST_ADDRESS,GUEST_ADDRESS,SWITCH_NAME,
     MODE,decode_host_internal_isolation,review_internal_network,
     guest_network_contract,
 )
-from sofia.ops.workshop_handoff import (
+from sofia.platform.ops.workshop_handoff import (
     WorkshopBlankVMHandoff,observed_owner_vm,inspect_blank_vm_handoff,
 )
 from sofia.integrations.hyperv import HyperVAdapter

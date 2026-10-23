@@ -8,7 +8,7 @@ import json
 from typing import Callable
 from uuid import uuid4
 
-from sofia.capability.model import CapabilityProposal
+from sofia.platform.capability.model import CapabilityProposal
 from sofia.neuro.model import NeuralActivation
 from sofia.social.model import PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID

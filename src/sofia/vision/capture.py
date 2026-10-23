@@ -91,8 +91,8 @@ class ScreenCaptureService:
             raise PermissionError("capture permit not bound to current OS host and target")
         if permit.principal_id != "person:sparks" or permit.audience_id != "local:text":
             raise PermissionError("capture can be released only to original local owner")
-        from sofia.safe.operator_stop import OperatorStopStore
-        from sofia.safe.execution_approval import ExecutionApprovalVerifier
+        from sofia.platform.safe.operator_stop import OperatorStopStore
+        from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
         from sofia.vision.desktop_control import require_workstation_clear
         stop = OperatorStopStore(self.state_path)
 

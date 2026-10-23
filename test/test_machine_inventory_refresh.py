@@ -2,18 +2,18 @@
 
 import pytest
 
-from sofia.machine.discovery import MachineDiscoveryResult
-from sofia.machine.hardware import HardwareDiscoveryResult
-from sofia.machine.inventory import MachineInventory
-from sofia.machine.model import (
+from sofia.platform.machine.discovery import MachineDiscoveryResult
+from sofia.platform.machine.hardware import HardwareDiscoveryResult
+from sofia.platform.machine.inventory import MachineInventory
+from sofia.platform.machine.model import (
     HardwareProfile,
     MachineIdentity,
     OperatingSystemInfo,
     PlatformFamily,
     VirtualizationInfo,
 )
-from sofia.machine.observation import ObservationState
-from sofia.machine.refresh import MachineInventoryRefresher
+from sofia.platform.machine.observation import ObservationState
+from sofia.platform.machine.refresh import MachineInventoryRefresher
 
 
 class StubMachineDiscovery:

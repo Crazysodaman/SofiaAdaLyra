@@ -9,7 +9,7 @@ from uuid import UUID
 import pytest
 
 from sofia.memory.deletion_ledger import MemoryDeletionLedger
-from sofia.ops.backup import BackupCipher
+from sofia.platform.ops.backup import BackupCipher
 
 
 CANDIDATE = UUID("aaaaaaaa-1111-4111-8111-111111111111")

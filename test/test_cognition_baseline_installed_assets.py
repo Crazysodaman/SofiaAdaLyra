@@ -7,7 +7,7 @@ import tomllib
 
 import pytest
 
-import sofia.verify.cognition_v2_baseline as baseline
+import sofia.platform.verify.cognition_v2_baseline as baseline
 
 
 def test_baseline_uses_actual_installed_distribution_resources(tmp_path):

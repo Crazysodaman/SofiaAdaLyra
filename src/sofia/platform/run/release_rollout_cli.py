@@ -9,17 +9,17 @@ import sys
 from uuid import UUID, uuid4
 
 from sofia.platform.config.defaults import production_state_path
-from sofia.distributed.authorization import RemoteGrant
-from sofia.distributed.capability import create_configured_remote_fleet_service
-from sofia.distributed.durable import DurableRemoteAuthorization
-from sofia.ops.state_registry import StatePlaneFleetRegistry
+from sofia.platform.distributed.authorization import RemoteGrant
+from sofia.platform.distributed.capability import create_configured_remote_fleet_service
+from sofia.platform.distributed.durable import DurableRemoteAuthorization
+from sofia.platform.ops.state_registry import StatePlaneFleetRegistry
 from sofia.platform.run.release_rollout import (
     ReleaseRolloutCoordinator,
     ReleaseRolloutTarget,
     RemoteFleetReleaseOperator,
     RolloutRing,
 )
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.state.factory import create_state_plane
 
 

@@ -1,7 +1,7 @@
 """Deferred signed backup restore destination symlink safety contracts."""
 import pytest
 
-from sofia.ops.backup import BackupCipher, BackupEngine, BackupError
+from sofia.platform.ops.backup import BackupCipher, BackupEngine, BackupError
 from test.test_ops_backup_restore import NOW, make_state, make_erasure_journal
 
 

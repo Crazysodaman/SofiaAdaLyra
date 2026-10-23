@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.verify.v18_roadmap import (
+from sofia.platform.verify.v18_roadmap import (
     LEDGER_RELATIVE, MASTER_RELATIVE, MASTER_SHA256,
     RoadmapIntegrityError, original_tasks, validate_repository,
 )

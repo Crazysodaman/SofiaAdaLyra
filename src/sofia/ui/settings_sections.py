@@ -56,7 +56,7 @@ class SettingsSections:
         from uuid import UUID, uuid4
         from sofia.social.principals import local_sparks_principal
         from sofia.neuro.connectome.association_store import ReviewedAssociationStore
-        from sofia.safe.operator_stop import OperatorStopStore
+        from sofia.platform.safe.operator_stop import OperatorStopStore
 
         association_target = tk.StringVar(root, value="")
         association_query = tk.StringVar(root, value="")
@@ -341,7 +341,7 @@ class SettingsSections:
         from queue import Empty, Queue
         from threading import Thread
         from sofia.cognition.model_inventory import ModelInventoryStore
-        from sofia.machine.discovery import create_machine_discovery
+        from sofia.platform.machine.discovery import create_machine_discovery
         from sofia.platform.config import create_production_configuration
         from sofia.platform.config.cognitive_models import CognitiveModelSelection
         from sofia.integrations.ollama import OllamaAdapter
@@ -807,8 +807,8 @@ class SettingsSections:
         # auto-provision route; only pinned Fleet read-only VM/media operations.
         from queue import Empty, Queue
         from threading import Thread
-        from sofia.distributed.capability import create_configured_remote_fleet_service
-        from sofia.ops.workshop_handoff import (
+        from sofia.platform.distributed.capability import create_configured_remote_fleet_service
+        from sofia.platform.ops.workshop_handoff import (
             WorkshopHandoffStore, preview_owner_created_vm,
         )
 
@@ -869,10 +869,10 @@ class SettingsSections:
         # The initial owner-created VM may still be on the old Private
         # switch. This is a distinct, non-model, Level-4 host network action,
         # explicitly reviewed before a one-use SAFE + Fleet request.
-        from sofia.ops.workshop_network import (
+        from sofia.platform.ops.workshop_network import (
             guest_network_contract,network_policy_digest,
         )
-        from sofia.ops.workshop_network_stage import (
+        from sofia.platform.ops.workshop_network_stage import (
             WorkshopNetworkStageStore,stage_approved_internal_network,
         )
         network_stage_busy={"active":False}
@@ -1012,8 +1012,8 @@ class SettingsSections:
                 ),parent=root,
             ):
                 return
-            from sofia.safe.owner_approval_ui import select_security_key_for_settings
-            from sofia.safe.owner_browser import authorize_exact_action
+            from sofia.platform.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.platform.safe.owner_browser import authorize_exact_action
             exact={
                 "artemis_node_id":node,
                 "vm_id":vm,
@@ -1183,8 +1183,8 @@ class SettingsSections:
         # appears as a model-facing tool and is never invoked by RUN.
         from datetime import timedelta
         from uuid import uuid4
-        from sofia.safe.operator_stop import OperatorStopStore
-        from sofia.ops.workshop_guest_bootstrap import (
+        from sofia.platform.safe.operator_stop import OperatorStopStore
+        from sofia.platform.ops.workshop_guest_bootstrap import (
             reviewed_handoff_from_store,
             start_owner_approved_installer,
             WorkshopInstallerBootStore,
@@ -1250,8 +1250,8 @@ class SettingsSections:
                 review,parent=root,
             ):
                 return
-            from sofia.safe.owner_approval_ui import select_security_key_for_settings
-            from sofia.safe.owner_browser import authorize_exact_action
+            from sofia.platform.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.platform.safe.owner_browser import authorize_exact_action
             credential_id=select_security_key_for_settings(
                 config.state_path,parent=root,
             )
@@ -1331,7 +1331,7 @@ class SettingsSections:
 
         root.after(350,poll_boot)
 
-        from sofia.ops.workshop_guest_bootstrap import (
+        from sofia.platform.ops.workshop_guest_bootstrap import (
             inspect_existing_vm_installer,
         )
         installer_observation_queue=Queue()
@@ -1405,11 +1405,11 @@ class SettingsSections:
         # Synthetic homelab twin uses ONLY existing OPS hosts and owner-
         # declared dependencies. No network scan, VM launch or simulated
         # result may become an authorization for a real operation.
-        from sofia.ops.digital_twin import (
+        from sofia.platform.ops.digital_twin import (
             TwinDependencyStore,TwinReviewedDependency,
             read_digital_twin_fleet,run_digital_twin_scenario,
         )
-        from sofia.ops.capability import OpsToolService
+        from sofia.platform.ops.capability import OpsToolService
         from uuid import uuid4
         dependency_store=TwinDependencyStore(config.state_path)
         ttk.Label(
@@ -1609,7 +1609,7 @@ class SettingsSections:
         ttk.Label(frames["EVOLVE"], text="Inspect recorded revision evidence and configuration authority above. Changes to governed configuration continue through the reviewed EVOLVE approval workflow.", wraplength=660).pack(anchor="w", pady=8)
         # Actual owner-only data-use review, NOT training permission.
         # File paths and dataset rows never flow into the cognitive tool.
-        from sofia.evolve.training_sources import (
+        from sofia.platform.evolve.training_sources import (
             TrainingDatasetStore,inspect_public_dataset,TRAINING_METHODS,
             SOURCE_CLASSES,LICENSES,
         )
@@ -1947,7 +1947,7 @@ class SettingsSections:
         # Owner-reviewed Hephaestus training lab is a NON-EXECUTING PLAN.
         # The owner's VM is currently OS-less and Artemis has no verified
         # independent GPU training lease. This UI must not start a trainer.
-        from sofia.evolve.training_lab import (
+        from sofia.platform.evolve.training_lab import (
             TrainingLabPlan,TrainingLabReviewStore,assess_training_lab,
         )
         from datetime import timedelta
@@ -2515,7 +2515,7 @@ class SettingsSections:
         ).pack(side="left", padx=4)
 
     def safety_panel(self, parent):
-        from sofia.safe.operator_stop import OperatorStopStore
+        from sofia.platform.safe.operator_stop import OperatorStopStore
         store = OperatorStopStore(self.config.state_path)
         self.viewer(parent, "Operator stop", lambda: str(store.current()))
         reason = self.tk.StringVar(self.root, value="Owner request from Settings")
@@ -2528,8 +2528,8 @@ class SettingsSections:
         for active, label in ((True, "Pause actions"), (False, "Resume actions")):
             self.ttk.Button(parent, text=label, command=self.guarded(lambda active=active: change(active))).pack(anchor="w", pady=4)
         self.viewer(parent, "Standing inspected capabilities", lambda: "\n".join(self.config.standing_allowed_capabilities))
-        from sofia.safe.review import compact_policy_review
-        from sofia.safe.permissions import PermissionStore, grantable_capabilities
+        from sofia.platform.safe.review import compact_policy_review
+        from sofia.platform.safe.permissions import PermissionStore, grantable_capabilities
         self.viewer(
             parent, "SAFE declared capability and standing-grant audit",
             lambda: compact_policy_review(
@@ -2545,7 +2545,7 @@ class SettingsSections:
         from pathlib import Path
         from tkinter import filedialog
         self.viewer(parent, "Database diagnostics", lambda: database_diagnostics(self.config.state_path))
-        from sofia.ops.state_mobility import describe_state_candidates
+        from sofia.platform.ops.state_mobility import describe_state_candidates
         self.viewer(
             parent, "Known local state candidates (not verified canonical homes)",
             lambda: describe_state_candidates(Path(self.config.state_path)),
@@ -2556,7 +2556,7 @@ class SettingsSections:
             # Choose an existing parent, then preview a distinct new child;
             # no directory, file, grant or state pointer is created here.
             from tkinter import simpledialog
-            from sofia.ops.state_mobility import (
+            from sofia.platform.ops.state_mobility import (
                 relocation_preflight_text, proposed_state_home_from_parent,
             )
 

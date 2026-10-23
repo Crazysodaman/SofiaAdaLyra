@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
-from sofia.authority.model import Authority
+from sofia.platform.authority.model import Authority
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
 
 

@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("exact inspected HWND, PID and enrolled FIDO2 key required")
         if backend.foreground() != (args.window_handle, args.process_id):
             raise PermissionError("original target is not currently foreground")
-        from sofia.safe.owner_browser import authorize_exact_action
+        from sofia.platform.safe.owner_browser import authorize_exact_action
         state_path = args.state_path or production_state_path()
         if args.capture:
             if args.key or args.x != -1 or args.y != -1:

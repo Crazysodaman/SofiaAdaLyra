@@ -12,16 +12,16 @@ from cryptography.hazmat.primitives import hashes,serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID,NameOID
 
-from sofia.distributed.agent import RemoteAgentConfig,RemoteAgentDispatcher,RemoteAgentServer
-from sofia.distributed.https_transport import PinnedHttpsRemoteTransport
-from sofia.distributed.capability import RemoteFleetToolService
-from sofia.distributed.operator import enroll_node,approve_endpoint,grant_operation,retire_node
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.model import DistributedNode,NodeEndpoint,NodeTransport
-from sofia.distributed.operations import RemoteOperationRequest,RemoteOutcome
-from sofia.distributed.tls import public_key_fingerprint_from_pem_certificate
-from sofia.ops.model import FleetHost,HostLifecycle
-from sofia.ops.state_registry import StatePlaneFleetRegistry
+from sofia.platform.distributed.agent import RemoteAgentConfig,RemoteAgentDispatcher,RemoteAgentServer
+from sofia.platform.distributed.https_transport import PinnedHttpsRemoteTransport
+from sofia.platform.distributed.capability import RemoteFleetToolService
+from sofia.platform.distributed.operator import enroll_node,approve_endpoint,grant_operation,retire_node
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.model import DistributedNode,NodeEndpoint,NodeTransport
+from sofia.platform.distributed.operations import RemoteOperationRequest,RemoteOutcome
+from sofia.platform.distributed.tls import public_key_fingerprint_from_pem_certificate
+from sofia.platform.ops.model import FleetHost,HostLifecycle
+from sofia.platform.ops.state_registry import StatePlaneFleetRegistry
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
@@ -228,8 +228,8 @@ def test_operator_provisions_exact_node_endpoint_grant_and_retirement(tmp_path:P
 
 
 def test_agent_replay_id_cannot_be_rebound_to_different_operation(tmp_path:Path):
-    from sofia.distributed.agent import AgentRequestLedger
-    from sofia.distributed.operations import RemoteOutcome
+    from sofia.platform.distributed.agent import AgentRequestLedger
+    from sofia.platform.distributed.operations import RemoteOutcome
     node_id=uuid4(); request_id=uuid4()
     ledger=AgentRequestLedger(tmp_path/"ledger.db")
     try:
@@ -242,7 +242,7 @@ def test_agent_replay_id_cannot_be_rebound_to_different_operation(tmp_path:Path)
 
 
 def test_agent_parameter_firewall_rejects_execution_and_secret_fields():
-    from sofia.distributed.agent import _bounded_parameters
+    from sofia.platform.distributed.agent import _bounded_parameters
     import pytest
     for key in ("command","shell","argv","token","private_key"):
         with pytest.raises(ValueError):

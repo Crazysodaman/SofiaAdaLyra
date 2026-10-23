@@ -9,7 +9,7 @@ import re
 from typing import Any
 from uuid import uuid4
 
-from sofia.capability.model import CapabilityResult, CapabilityResultKind
+from sofia.platform.capability.model import CapabilityResult, CapabilityResultKind
 from sofia.cognition.model import CognitiveResponse, CognitiveToolCall
 from sofia.cognition.tools import CognitiveToolDispatcher
 from sofia.social.model import PrincipalContext

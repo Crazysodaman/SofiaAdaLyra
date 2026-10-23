@@ -1,7 +1,7 @@
 """Fixtures using the production durable remote authorization owner."""
 import pytest
 
-from sofia.distributed.durable import DurableRemoteAuthorization
+from sofia.platform.distributed.durable import DurableRemoteAuthorization
 
 
 @pytest.fixture

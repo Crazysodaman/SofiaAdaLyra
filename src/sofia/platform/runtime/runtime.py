@@ -11,14 +11,14 @@ from sofia.avatar.presentation import (
 )
 from sofia.avatar.self_fact_query import AvatarSelfFactResolver
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
-from sofia.authority.model import Authority
-from sofia.authorization.model import (
+from sofia.platform.authority.model import Authority
+from sofia.platform.authorization.model import (
     AuthorizationDecision,
     AuthorizationDomain,
     FilesystemAuthorization,
     FilesystemAuthorizationOperation,
 )
-from sofia.capability.system import CapabilitySystem
+from sofia.platform.capability.system import CapabilitySystem
 from sofia.cognition.matrix import ContextPlan, EvidenceRecord, EvidenceState, PrivacyProjectionPlan
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.model_lifecycle import ModelLifecycleManager
@@ -35,26 +35,26 @@ from sofia.continuity.model import (
     create_continuity_event,
 )
 from sofia.embodiment.model import Embodiment
-from sofia.distributed.authorization import remote_host_capability_name
-from sofia.distributed.durable import DurableRemoteAuthorization
+from sofia.platform.distributed.authorization import remote_host_capability_name
+from sofia.platform.distributed.durable import DurableRemoteAuthorization
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.query import EnvironmentQueryResolver
 from sofia.environment.service import EnvironmentService
-from sofia.filesystem.changes import (
+from sofia.platform.filesystem.changes import (
     FilesystemChangeEvent,
     detect_changes,
 )
-from sofia.filesystem.inspector import FilesystemInspector
-from sofia.filesystem.model import FilesystemResult
-from sofia.filesystem.observation import (
+from sofia.platform.filesystem.inspector import FilesystemInspector
+from sofia.platform.filesystem.model import FilesystemResult
+from sofia.platform.filesystem.observation import (
     FilesystemObservationStore,
     FilesystemObserver,
 )
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
-from sofia.ops.capability import OpsToolService
+from sofia.platform.ops.capability import OpsToolService
 from sofia.platform.operational.model import (
     OperationalState,
     RuntimeContinuity,
@@ -73,10 +73,10 @@ from sofia.self_model.model import (
     SofiaCoreState,
     create_core_state,
 )
-from sofia.safe.dev_approval import DevApprovalVerifier
-from sofia.safe.evolve_approval import DurableEvolutionApprovalVerifier
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
-from sofia.safe.permissions import PermissionStore, automatic_capabilities
+from sofia.platform.safe.dev_approval import DevApprovalVerifier
+from sofia.platform.safe.evolve_approval import DurableEvolutionApprovalVerifier
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.permissions import PermissionStore, automatic_capabilities
 from sofia.self_model.operational import (
     SofiaOperationalSelfModel,
 )

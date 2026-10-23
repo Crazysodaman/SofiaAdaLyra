@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from sofia.verify.drift import (
+from sofia.platform.verify.drift import (
     Direction,
     DriftError,
     MetricSpec,

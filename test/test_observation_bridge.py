@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
+from sofia.platform.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
 from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.observation_bridge import (
     record_workspace_observation,

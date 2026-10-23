@@ -8,8 +8,8 @@ from sofia.cognition.model import CognitiveRole
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import EmbodimentStore
 from sofia.identity.store import IdentityStore
-from sofia.verify.interaction.ab_probe import build_pair
-from sofia.verify.interaction.focused_probe import focused_variant
+from sofia.platform.verify.interaction.ab_probe import build_pair
+from sofia.platform.verify.interaction.focused_probe import focused_variant
 from sofia.personality.store import PersonalityStore
 
 ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'

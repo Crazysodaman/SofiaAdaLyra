@@ -6,7 +6,7 @@ import runpy
 
 import pytest
 
-from sofia.ops.recovery_export import export_portable_conversations
+from sofia.platform.ops.recovery_export import export_portable_conversations
 from test.test_recovery_portable_conversations import _fixture
 
 @pytest.fixture(autouse=True)
@@ -15,7 +15,7 @@ def _synthetic_verified_local_media(monkeypatch):
     # authorized as a durable production home. These tests exercise JSONL
     # behavior in isolated synthetic paths, not actual host disk admission.
     monkeypatch.setattr(
-        "sofia.ops.recovery_export._filesystem_kind",
+        "sofia.platform.ops.recovery_export._filesystem_kind",
         lambda _path: "local",
     )
 

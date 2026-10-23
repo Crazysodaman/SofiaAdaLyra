@@ -8,11 +8,11 @@ import sys
 
 import pytest
 
-import sofia.ops.state_promotion as promotion
-from sofia.ops.state_promotion import (
+import sofia.platform.ops.state_promotion as promotion
+from sofia.platform.ops.state_promotion import (
     PendingHomePointerUncertain, prepare_pending_state_pointer,
 )
-from sofia.ops.state_relocation import RelocationAuthorization, StagedStateHome
+from sofia.platform.ops.state_relocation import RelocationAuthorization, StagedStateHome
 
 
 def _plan(tmp_path):

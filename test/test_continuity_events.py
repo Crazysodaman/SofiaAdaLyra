@@ -6,8 +6,8 @@ from sofia.continuity.model import (
     ContinuityEventKind,
     create_continuity_event,
 )
-from sofia.filesystem.changes import detect_changes
-from sofia.filesystem.observation import (
+from sofia.platform.filesystem.changes import detect_changes
+from sofia.platform.filesystem.observation import (
     FilesystemEntry,
     FilesystemObservation,
 )

@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 
-from sofia.ops.desired import DesiredHostState, DesiredWorkloadPlacement
-from sofia.ops.desired_store import DesiredFleetStateStore
-from sofia.ops.model import HostLifecycle
+from sofia.platform.ops.desired import DesiredHostState, DesiredWorkloadPlacement
+from sofia.platform.ops.desired_store import DesiredFleetStateStore
+from sofia.platform.ops.model import HostLifecycle
 
 
 NOW = datetime(2026, 10, 3, 15, 30, tzinfo=timezone.utc)

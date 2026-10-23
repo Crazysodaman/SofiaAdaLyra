@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import pytest
-from sofia.ops import FleetHost,FleetRegistry,FleetRemovalApproval,FleetRemovalApprovalRequired,HostLifecycle,HostTelemetry,PlacementEngine,WorkloadContract
+from sofia.platform.ops import FleetHost,FleetRegistry,FleetRemovalApproval,FleetRemovalApprovalRequired,HostLifecycle,HostTelemetry,PlacementEngine,WorkloadContract
 
 def host(state=HostLifecycle.CANDIDATE,trusted=True,cpu=10):
     return FleetHost("venus","windows","x86_64",state,trusted,HostTelemetry(datetime.now(timezone.utc),cpu_percent=cpu,ram_used_bytes=4,ram_total_bytes=16,storage_free_bytes=100))

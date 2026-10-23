@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import pytest
 
-from sofia.verify.v18_memory_dataset import FixtureError, evaluate, evaluate_file, main
+from sofia.platform.verify.v18_memory_dataset import FixtureError, evaluate, evaluate_file, main
 
 pytestmark = pytest.mark.pkg_verify
 DATA = Path(__file__).parent / "fixtures" / "v18-memory-multisession-v1.json"

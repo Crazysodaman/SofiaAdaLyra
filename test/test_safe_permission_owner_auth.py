@@ -10,10 +10,10 @@ import sqlite3
 
 import pytest
 
-from sofia.safe.execution_approval import (
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
-from sofia.safe.permissions import (
+from sofia.platform.safe.permissions import (
     PermissionStore, private_authority_parameters, standing_grant_parameters,
 )
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite

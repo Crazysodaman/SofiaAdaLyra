@@ -12,7 +12,7 @@ from time import perf_counter, process_time
 
 from sofia.emotion.model import CurrentEmotionalState
 from sofia.environment.model import EnvironmentSnapshot
-from sofia.ops.model import HostTelemetry
+from sofia.platform.ops.model import HostTelemetry
 from sofia.voice import TTSStatus
 from sofia.platform.state.plane import StatePlane
 from sofia.platform.state.sqlite_uri import sqlite_file_uri

@@ -22,7 +22,7 @@ from sofia.platform.config.model_catalog import (
 )
 from sofia.environment.model import LocationSubject
 from sofia.platform.config.model import FleetCognitionConfiguration, FleetBootstrapConfiguration
-from sofia.act.outreach import Policy
+from sofia.platform.act.outreach import Policy
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 

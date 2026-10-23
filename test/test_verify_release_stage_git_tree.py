@@ -7,7 +7,7 @@ import subprocess
 
 import pytest
 
-from sofia.verify.stage_release_source import stage_reviewed_git_tree
+from sofia.platform.verify.stage_release_source import stage_reviewed_git_tree
 
 
 def git(root: Path, *args):

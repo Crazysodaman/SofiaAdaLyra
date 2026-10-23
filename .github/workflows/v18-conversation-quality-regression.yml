@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/sofia/platform.application/conversation_service.py'
+      - 'src/sofia/platform/application/conversation_service.py'
       - 'src/sofia/cognition/repetition_guard.py'
       - 'src/sofia/avatar/self_fact_query.py'
       - 'src/sofia/cognition/quality_repair.py'
@@ -43,7 +43,7 @@ jobs:
       - name: Compile edited production modules
         run: >-
           python -m compileall -q
-          src/sofia/platform.application/conversation_service.py
+          src/sofia/platform/application/conversation_service.py
           src/sofia/cognition/repetition_guard.py
           src/sofia/avatar/self_fact_query.py
           src/sofia/cognition/quality_repair.py

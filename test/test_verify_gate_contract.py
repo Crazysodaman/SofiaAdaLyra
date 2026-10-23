@@ -1,4 +1,4 @@
-from sofia.verify.gate import GateCommandEvidence, VerificationEvidence, _PHASES
+from sofia.platform.verify.gate import GateCommandEvidence, VerificationEvidence, _PHASES
 
 
 def test_static_gate_compiles_all_python_surfaces_and_checks_dependencies():
@@ -138,7 +138,7 @@ def test_release_gate_rejects_dirty_start_even_when_tree_later_cleans():
 
 def test_git_tree_cleanliness_detects_untracked_source(monkeypatch, tmp_path):
     from types import SimpleNamespace
-    import sofia.verify.gate as gate
+    import sofia.platform.verify.gate as gate
 
     def git_status(argv, **kwargs):
         assert tuple(argv) == (
@@ -153,7 +153,7 @@ def test_git_tree_cleanliness_detects_untracked_source(monkeypatch, tmp_path):
 
 def test_git_tree_cleanliness_fails_closed_on_git_error(monkeypatch, tmp_path):
     from types import SimpleNamespace
-    import sofia.verify.gate as gate
+    import sofia.platform.verify.gate as gate
     import pytest
 
     monkeypatch.setattr(
@@ -167,10 +167,10 @@ def test_git_tree_cleanliness_fails_closed_on_git_error(monkeypatch, tmp_path):
 def test_candidate_and_full_use_isolated_semantic_proof_but_prelive_is_live():
     for phase in ("full", "candidate"):
         assert dict(_PHASES[phase])["semantic"] == (
-            "-m", "sofia.verify.semantic", "--isolated-fixture",
+            "-m", "sofia.platform.verify.semantic", "--isolated-fixture",
         )
     assert dict(_PHASES["prelive"])["semantic"] == (
-        "-m", "sofia.verify.semantic",
+        "-m", "sofia.platform.verify.semantic",
     )
 
 

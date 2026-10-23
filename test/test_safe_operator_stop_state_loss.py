@@ -9,7 +9,7 @@ import pytest
 
 from test.owner_auth_fixture import resume_with_signed_owner_proof
 
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -65,7 +65,7 @@ def test_stop_state_persists_on_real_canonical_database(tmp_path):
 
 
 def test_stop_resume_writes_tamper_evident_audit_in_same_transaction(tmp_path):
-    from sofia.safe.audit import AuditChain
+    from sofia.platform.safe.audit import AuditChain
 
     path = _canonical_db(tmp_path)
     stop = OperatorStopStore(path)

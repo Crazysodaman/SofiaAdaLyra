@@ -10,8 +10,8 @@ import sys
 from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.platform.state.sqlite_uri import sqlite_file_uri
-from sofia.ops.activity import ActivityMode, HostActivityStore
-from sofia.safe.secret_store import ProtectedSecretStore
+from sofia.platform.ops.activity import ActivityMode, HostActivityStore
+from sofia.platform.safe.secret_store import ProtectedSecretStore
 from sofia.mobile.provisioning import mobile_companion_ready
 from .control_center import DesktopControlSettings, DesktopControlSettingsStore, GameMode
 from .windows_startup import configure_windows_startup
@@ -174,8 +174,8 @@ def install_approved_configured_model(
     from sofia.platform.config import create_production_configuration
     from sofia.platform.config.cognitive_models import CognitiveModelSelection
     from sofia.integrations.ollama import OllamaAdapter
-    from sofia.safe.execution_approval import ExecutionApprovalVerifier
-    from sofia.safe.operator_stop import OperatorStopStore
+    from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+    from sofia.platform.safe.operator_stop import OperatorStopStore
 
     if type(role) is not str or role not in {"primary", "secondary"}:
         raise ValueError("only named configured model roles can be installed")
@@ -189,7 +189,7 @@ def install_approved_configured_model(
     ):
         raise ValueError("exact model, local host, and owner approval required")
     canonical_path = Path(path)
-    from sofia.machine.discovery import create_machine_discovery
+    from sofia.platform.machine.discovery import create_machine_discovery
     actual_host_id = (
         create_machine_discovery().discover().identity.machine_id
     )
@@ -252,7 +252,7 @@ def install_approved_configured_model(
         )
         return True
 
-    from sofia.safe.audit import AuditChain
+    from sofia.platform.safe.audit import AuditChain
 
     def record_outcome(event_type: str, reason: str) -> None:
         AuditChain(canonical_path).append(

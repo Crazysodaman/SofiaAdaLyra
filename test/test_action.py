@@ -3,17 +3,17 @@ from uuid import UUID
 
 import pytest
 
-from sofia.action.executor import ActionExecutorError, FailClosedActionExecutor
+from sofia.platform.action.executor import ActionExecutorError, FailClosedActionExecutor
 from test.action_support import TestActionExecutor
-from sofia.action.model import (
+from sofia.platform.action.model import (
     Action,
     ActionExecutionResult,
     ActionProposal,
     ActionRisk,
     ActionStatus,
 )
-from sofia.action.system import ActionSystem, ActionSystemError
-from sofia.authority.model import Authority
+from sofia.platform.action.system import ActionSystem, ActionSystemError
+from sofia.platform.authority.model import Authority
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveRequest
 from sofia.cognition.operation import CognitiveOperation

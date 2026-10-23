@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.ops.latency import FleetLatencyStore
+from sofia.platform.ops.latency import FleetLatencyStore
 
 
 NOW = datetime(2026, 10, 18, 12, tzinfo=timezone.utc)

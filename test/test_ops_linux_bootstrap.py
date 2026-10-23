@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from sofia.ops.linux_bootstrap import LinuxBootstrapBundle, render_linux_rollback
+from sofia.platform.ops.linux_bootstrap import LinuxBootstrapBundle, render_linux_rollback
 
 
 pytestmark = pytest.mark.pkg_ops

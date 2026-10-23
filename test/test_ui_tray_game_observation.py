@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.ops.activity import ActivityMode
+from sofia.platform.ops.activity import ActivityMode
 from sofia.platform.system.model import (
     ProcessInspection,
     SystemCapability,

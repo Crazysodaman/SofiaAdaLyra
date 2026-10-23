@@ -12,7 +12,7 @@ import sys
 import uuid
 import venv
 
-from sofia.dev.release_store import ReleaseStateStore
+from sofia.platform.dev.release_store import ReleaseStateStore
 from sofia.platform.run.release import directory_sha256
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 

@@ -12,39 +12,39 @@ from test.owner_auth_fixture import record_verified_owner_approval
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sofia.capability.catalog import ToolCatalogCapability
-from sofia.capability.model import Capability, CapabilityRequest
-from sofia.capability.system import CapabilitySystem
+from sofia.platform.capability.catalog import ToolCatalogCapability
+from sofia.platform.capability.model import Capability, CapabilityRequest
+from sofia.platform.capability.system import CapabilitySystem
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix.privacy import MatrixPrivacyPlanner
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.integrations.capabilities import create_configured_integration_tools
-from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
-from sofia.dev.capability import (
+from sofia.platform.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
+from sofia.platform.dev.capability import (
     DevCandidateStore,
     DevToolService,
     create_dev_tool_bindings,
 )
-from sofia.dev.workflow import EngineeringCandidate
+from sofia.platform.dev.workflow import EngineeringCandidate
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.knowledge.capability import KnowledgeCapabilitySet
-from sofia.safe.dev_approval import (
+from sofia.platform.safe.dev_approval import (
     DevApprovalVerifier,
     dev_approval_signature_payload,
 )
-from sofia.safe.execution_approval import (
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
     execution_fingerprint,
 )
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.composition.authorization import create_capability_authorizer
 from sofia.platform.composition.root import compose
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.safe.permissions import PermissionStore
-from sofia.safe.permissions_cli import main as permissions_cli_main
-from sofia.safe.permission_capability import PermissionInspectionCapability
+from sofia.platform.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions_cli import main as permissions_cli_main
+from sofia.platform.safe.permission_capability import PermissionInspectionCapability
 from sofia.social.principals import local_sparks_principal
 from sofia.ui.control_center import MASTER_SETTINGS_SECTIONS
 from sofia.ui.settings_window import (
@@ -612,7 +612,7 @@ def test_dev_candidate_history_round_trips_from_durable_state(tmp_path):
 
 
 def test_dev_candidate_history_tools_are_level_one_read_only():
-    from sofia.safe.permissions import (
+    from sofia.platform.safe.permissions import (
         PermissionLevel,
         capability_permission_policy,
     )
@@ -770,7 +770,7 @@ def test_tool_catalog_reads_live_authority_provider():
 
 
 def test_named_domain_permission_contract_is_locked():
-    from sofia.safe.permissions import (
+    from sofia.platform.safe.permissions import (
         PermissionLevel,
         capability_permission_policy,
     )

@@ -1,9 +1,9 @@
-﻿from sofia.capability.model import (
+﻿from sofia.platform.capability.model import (
     Capability,
     CapabilityRequest,
     CapabilityResultKind,
 )
-from sofia.capability.system import (
+from sofia.platform.capability.system import (
     CapabilityResolutionError,
     CapabilitySystem,
 )
@@ -285,8 +285,8 @@ def test_exact_registered_capability_remains_executable():
 
 
 def test_capability_system_uses_canonical_exported_resolution_error():
-    from sofia.capability import CapabilityResolutionError as ExportedResolutionError
-    from sofia.capability.model import CapabilityResolutionError as ModelResolutionError
+    from sofia.platform.capability import CapabilityResolutionError as ExportedResolutionError
+    from sofia.platform.capability.model import CapabilityResolutionError as ModelResolutionError
 
     assert CapabilityResolutionError is ExportedResolutionError
     assert CapabilityResolutionError is ModelResolutionError

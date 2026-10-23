@@ -6,7 +6,7 @@ privileged processes and are not implied by these tests.
 """
 import pytest
 
-from sofia.ops.workshop_policy import LaboratoryExperiment, review_lab_experiment
+from sofia.platform.ops.workshop_policy import LaboratoryExperiment, review_lab_experiment
 
 
 def _spec(guest_name: str) -> LaboratoryExperiment:
@@ -54,7 +54,7 @@ def test_workshop_network_and_exact_operator_approval_still_required():
     "workshop.vm.plan",
 ])
 def test_hyperv_workshop_read_only_scopes_are_level_one(capability):
-    from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+    from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
     policy=capability_permission_policy(capability)
     assert policy.level is PermissionLevel.OBSERVE_READ
 
@@ -67,13 +67,13 @@ def test_hyperv_workshop_read_only_scopes_are_level_one(capability):
     "workshop.guest.bootstrap",
 ])
 def test_hyperv_workshop_mutations_are_protected_not_standing_grants(capability):
-    from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+    from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
     policy=capability_permission_policy(capability)
     assert policy.level is PermissionLevel.PROTECTED
     assert policy.standing_grant_allowed is False
 
 
 def test_workshop_enrollment_still_requires_separate_protected_owner_review():
-    from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+    from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
     assert capability_permission_policy("fleet.enroll").level is PermissionLevel.PROTECTED
     assert capability_permission_policy("permissions.grant").level is PermissionLevel.NEVER_SELF_AUTHORIZED

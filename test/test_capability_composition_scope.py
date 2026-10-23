@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from sofia.authorization.evaluator import (
+from sofia.platform.authorization.evaluator import (
     FilesystemAuthorizationEvaluator,
 )
-from sofia.capability.gateway import CapabilityGateway
-from sofia.capability.model import CapabilityResultKind
-from sofia.capability.model import CapabilityProposal
+from sofia.platform.capability.gateway import CapabilityGateway
+from sofia.platform.capability.model import CapabilityResultKind
+from sofia.platform.capability.model import CapabilityProposal
 from sofia.codebase.capability import CODEBASE_INSPECT_CAPABILITY
 from sofia.platform.composition.root import compose
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite

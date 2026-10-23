@@ -373,7 +373,7 @@ class ApplicationBackgroundCoordinator:
         # PAUSE must gate the whole scheduler, not only selected callbacks.
         # Individual consequential effects still require their own fresh
         # SAFE checks because PAUSE may arrive during a running callback.
-        from sofia.safe.operator_stop import OperatorStopStore
+        from sofia.platform.safe.operator_stop import OperatorStopStore
         # Keep one canonical STOP reader throughout the dispatch; a pause can
         # arrive after the initial check while readiness/budget callbacks run.
         operator_stop = OperatorStopStore(self.budget.path)

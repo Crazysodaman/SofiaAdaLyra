@@ -5,16 +5,16 @@ from uuid import UUID, uuid4
 
 import pytest
 
-import sofia.distributed.fleet_probe as probe_module
-from sofia.distributed.authorization import RemoteGrant
-from sofia.distributed.durable import DurableRemoteAuthorization
-from sofia.distributed.model import ApprovedEndpoint
-from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.fleet_probe import FleetNodeProbe, _parameters, _paths
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
-from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
-from sofia.distributed.operations import RemoteOutcome
+import sofia.platform.distributed.fleet_probe as probe_module
+from sofia.platform.distributed.authorization import RemoteGrant
+from sofia.platform.distributed.durable import DurableRemoteAuthorization
+from sofia.platform.distributed.model import ApprovedEndpoint
+from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.platform.distributed.fleet_probe import FleetNodeProbe, _parameters, _paths
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.platform.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
+from sofia.platform.distributed.operations import RemoteOutcome
 
 
 NODE_ID = UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")

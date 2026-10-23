@@ -49,7 +49,7 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
         shell: bash
         run: >-
-          python -m sofia.verify.v18_next50_audit
+          python -m sofia.platform.verify.v18_next50_audit
           --repo .
           --expected-revision "$EXPECTED_SHA"
           --output v18-next50-source-proof.json

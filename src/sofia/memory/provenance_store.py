@@ -56,7 +56,7 @@ class DurableMemoryCandidateStore:
                     "erasure-enabled runtime requires existing canonical state"
                 )
             from sofia.memory.deletion_ledger import MemoryDeletionLedger
-            from sofia.ops.backup import BackupCipher, load_backup_key
+            from sofia.platform.ops.backup import BackupCipher, load_backup_key
             MemoryDeletionLedger(
                 Path(journal_path).absolute(),
                 BackupCipher(load_backup_key(Path(key_path))),

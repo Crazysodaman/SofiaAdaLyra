@@ -17,8 +17,8 @@ from uuid import uuid4
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from sofia.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint
-from sofia.safe.owner_webauthn import OwnerWebAuthnVerifier
+from sofia.platform.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint
+from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
 
 
 def _b64(raw: bytes) -> str:
@@ -85,8 +85,8 @@ def record_verified_owner_approval(
 def resume_with_signed_owner_proof(store, *, reason: str, now=None):
     """Use a genuine synthetic FIDO2 challenge to clear a test-only stop."""
     from datetime import datetime, timezone
-    from sofia.safe.execution_approval import execution_fingerprint
-    from sofia.safe.operator_stop import OperatorStopStore
+    from sofia.platform.safe.execution_approval import execution_fingerprint
+    from sofia.platform.safe.operator_stop import OperatorStopStore
 
     if not isinstance(store, OperatorStopStore):
         raise TypeError("durable operator stop store required")
@@ -133,7 +133,7 @@ def grant_with_signed_owner(
     store, capability, *, scope=None, expires_at=None, grant_id=None,
     now=None, **kwargs,
 ):
-    from sofia.safe.permissions import standing_grant_parameters
+    from sofia.platform.safe.permissions import standing_grant_parameters
     from datetime import datetime, timezone
     from uuid import uuid4
     moment = now or datetime.now(timezone.utc)
@@ -168,7 +168,7 @@ def private_with_signed_owner(
     store, *, private_chat, adult_chat, adult_avatar,
     adult_external_delivery, now=None, **kwargs,
 ):
-    from sofia.safe.permissions import private_authority_parameters
+    from sofia.platform.safe.permissions import private_authority_parameters
     from datetime import datetime, timezone
     moment = now or datetime.now(timezone.utc)
     values = private_authority_parameters(

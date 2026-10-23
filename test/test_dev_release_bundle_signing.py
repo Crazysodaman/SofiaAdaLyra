@@ -6,10 +6,10 @@ import zipfile
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sofia.dev.release import ReleaseManifest
-from sofia.dev.release_cli import sign_release_bundle
+from sofia.platform.dev.release import ReleaseManifest
+from sofia.platform.dev.release_cli import sign_release_bundle
 from sofia.platform.run.release import directory_sha256
-from sofia.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
+from sofia.platform.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
 
 
 def test_sign_release_bundle_writes_host_verifiable_signature(tmp_path):

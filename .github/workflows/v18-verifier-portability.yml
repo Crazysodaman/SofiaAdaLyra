@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/v18-verifier-portability.yml'
-      - 'src/sofia/verify/v18_g1_readiness.py'
+      - 'src/sofia/platform/verify/v18_g1_readiness.py'
       - 'test/test_v18_g1_readiness.py'
       - 'test/conftest.py'
       - 'test/test_comfyui_bridge.py'

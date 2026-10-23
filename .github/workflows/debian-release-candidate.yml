@@ -57,7 +57,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python src/sofia/verify/stage_release_source.py \
+          python src/sofia/platform/verify/stage_release_source.py \
             --checkout "$GITHUB_WORKSPACE" --target "$SOFIA_RELEASE_SOURCE"
 
       - name: Build two exact-source wheels and require reproducibility
@@ -100,13 +100,13 @@ jobs:
         run: |
           set -euo pipefail
           PY="$SOFIA_RELEASE_VENV/bin/python"
-          "$PY" -m sofia.verify.source_provenance \
+          "$PY" -m sofia.platform.verify.source_provenance \
             --checkout "$GITHUB_WORKSPACE" \
             --archive "$SOFIA_RELEASE_SOURCE" \
             --venv "$SOFIA_RELEASE_VENV" \
             --evidence "$RUNNER_TEMP/sofia-debian-source-provenance.json"
           set +e
-          "$PY" -m sofia.verify.gate \
+          "$PY" -m sofia.platform.verify.gate \
             --phase full --installed-wheel-only \
             --repo "$GITHUB_WORKSPACE" \
             --evidence-path "$SOFIA_VERIFICATION_EVIDENCE" \
@@ -144,7 +144,7 @@ jobs:
           set -euo pipefail
           PY="$SOFIA_RELEASE_VENV/bin/python"
           args=(
-            -m sofia.dev.release_cli construct
+            -m sofia.platform.dev.release_cli construct
             --git-revision "${{ github.sha }}"
             --lock requirements.lock.linux-py313.txt
             --wheel "$SOFIA_RELEASE_WHEEL"
@@ -159,7 +159,7 @@ jobs:
             args+=(--parent-release-id "$PARENT_RELEASE_ID" --parent-manifest-sha256 "$PARENT_MANIFEST_SHA256")
           fi
           "$PY" "${args[@]}"
-          "$PY" -m sofia.dev.release_cli verify --release-dir release-evidence
+          "$PY" -m sofia.platform.dev.release_cli verify --release-dir release-evidence
 
       - name: Upload Linux release evidence (unsigned until approved promotion)
         uses: actions/upload-artifact@v7

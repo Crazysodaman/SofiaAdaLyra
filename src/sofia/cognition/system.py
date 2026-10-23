@@ -1,5 +1,5 @@
-﻿from sofia.action.model import ActionProposal
-from sofia.action.system import ActionSystem
+﻿from sofia.platform.action.model import ActionProposal
+from sofia.platform.action.system import ActionSystem
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.engine import (
     CognitiveEngine,
@@ -14,7 +14,7 @@ from sofia.cognition.model import (
 from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.output_guard import contains_internal_reasoning_leak
 from sofia.cognition.tools import CognitiveToolDispatcher
-from sofia.capability.model import CapabilityResultKind
+from sofia.platform.capability.model import CapabilityResultKind
 
 
 class CognitiveSystemError(Exception):

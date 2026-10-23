@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
-from sofia.ops.workload import WorkloadInstance, WorkloadPhase
-from sofia.ops.workload_store import WorkloadInstanceStore
+from sofia.platform.ops.workload import WorkloadInstance, WorkloadPhase
+from sofia.platform.ops.workload_store import WorkloadInstanceStore
 
 
 NOW = datetime(2026, 10, 3, 15, 45, tzinfo=timezone.utc)

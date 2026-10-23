@@ -11,9 +11,9 @@ from hashlib import sha256
 
 import pytest
 
-from sofia.ops.activity import ActivityMode
-from sofia.ops.saga import Escalation, PartialOutcome, plan_compensation
-from sofia.verify.v18_acceptance_matrix import EXAMPLES
+from sofia.platform.ops.activity import ActivityMode
+from sofia.platform.ops.saga import Escalation, PartialOutcome, plan_compensation
+from sofia.platform.verify.v18_acceptance_matrix import EXAMPLES
 from sofia.vision.consent import (
     propose_screen_permit,
     receipt_from_permitted_bytes,
@@ -37,7 +37,7 @@ def test_gaming_blocks_venus_input_despite_fresh_normal_tray(monkeypatch, tmp_pa
     """Real desk-control gate rejects a running game even with normal tray status."""
     row = _case("Game blocks desktop input but not read-only chat")
     assert row["selectors"]["busy_state"] == "gaming"
-    from sofia.ops import activity
+    from sofia.platform.ops import activity
 
     class State:
         override = ActivityMode.AUTO
@@ -61,7 +61,7 @@ def test_gaming_blocks_venus_input_despite_fresh_normal_tray(monkeypatch, tmp_pa
 
 def test_manual_tray_override_cannot_bypass_game_protection(monkeypatch, tmp_path):
     """Even manually overriding the tray never authorizes desktop automation."""
-    from sofia.ops import activity
+    from sofia.platform.ops import activity
 
     class State:
         override = ActivityMode.NORMAL
@@ -197,7 +197,7 @@ def test_untrusted_fleet_host_cannot_mint_approval_from_tool_payload():
     row = _case("Untrusted fleet tool call is not an operator grant")
     assert row["selectors"]["principal"] == "untrusted"
     from uuid import uuid4
-    from sofia.distributed.capability import RemoteFleetToolService
+    from sofia.platform.distributed.capability import RemoteFleetToolService
 
     class UntrustedHostProbe:
         def _ops_host_for_node(self, _node_id):

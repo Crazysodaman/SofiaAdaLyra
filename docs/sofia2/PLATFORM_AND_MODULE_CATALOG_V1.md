@@ -302,12 +302,12 @@ The owner has accepted **all 41 existing entries plus all 14 below** for design 
 | `MOD-AVATAR-STUDIO` | Avatar Studio | OPTIONAL | Creative/Avatar | Wardrobe and scene authoring, layered rig compatibility, review of public/private assets | `src/sofia/avatar/authoring.py; avatar/scene_editor.py` |
 | `MOD-INTERACTION` | Avatar Interaction | SUBMODULE | RM-AVATAR2D + MOD-AVATAR3D (also Virtual World) | Pointer hit tests, user-offered virtual interactions and gesture event parsing; Core chooses its own response | `src/sofia/interaction/; avatar/vtuber_hit_test.py` |
 | `MOD-VTUBER-BRIDGE` | VTube Studio Bridge | ADAPTER | RM-AVATAR2D | Owner-paired external 2D renderer adapter; no independent personality or render claims | `src/sofia/avatar/vtube_studio_bridge.py` |
-| `MOD-WORKSHOP` | Hephaestus Workshop | OPTIONAL | Homelab/Science | Isolated VM experiments, guest preparation and signed lab artifacts | `src/sofia/ops/workshop_provision.py; ops/workshop_policy.py` |
-| `MOD-DIGITAL-TWIN` | Digital Twin | OPTIONAL | Homelab/Simulation | Hypothetical infrastructure dependency and failure scenarios, not live effects | `src/sofia/ops/digital_twin.py` |
+| `MOD-WORKSHOP` | Hephaestus Workshop | OPTIONAL | Homelab/Science | Isolated VM experiments, guest preparation and signed lab artifacts | `src/sofia/platform/ops/workshop_provision.py; ops/workshop_policy.py` |
+| `MOD-DIGITAL-TWIN` | Digital Twin | OPTIONAL | Homelab/Simulation | Hypothetical infrastructure dependency and failure scenarios, not live effects | `src/sofia/platform/ops/digital_twin.py` |
 | `MOD-KNOWLEDGE-LIBRARY` | Knowledge Library | OPTIONAL | Research/Documents | External indexed references, bounded retrieval and source revisions, not autobiographical memory | `src/sofia/knowledge/service.py` |
 | `MOD-MEMORY-IMPORT` | Memory Import | ADAPTER | PLAT-02 + Core MEM admission | Reviewed foreign memory/conversation imports; candidate promotion stays with canonical memory owner | `src/sofia/memory/chatgpt_import.py; memory/chatgpt_migration.py` |
 | `MOD-PROJECT-FORGE` | Project Forge | OPTIONAL | Creative/Productivity | Artifact generation, run management, evaluation and delivery; Core owns personal goals | `src/sofia/life/draft_agent.py; creative/service.py` |
-| `MOD-FILE-WATCH` | File Watch | OPTIONAL | IT/Observation | Approved directory-change observation and permitted workflow triggers | `src/sofia/filesystem/changes.py; filesystem/orchestrator.py` |
+| `MOD-FILE-WATCH` | File Watch | OPTIONAL | IT/Observation | Approved directory-change observation and permitted workflow triggers | `src/sofia/platform/filesystem/changes.py; filesystem/orchestrator.py` |
 | `MOD-HOUSEHOLD` | Household | OPTIONAL | Home/Productivity | Grocy, Mealie, Homebox and consented inventory/meal workflows | Specific domain provider unverified; generic integration framework exists |
 | `MOD-FINANCE` | Personal Finance | OPTIONAL | Private productivity | Firefly III and budget analysis with distinct sensitive-data grants; no unapproved transfers | Dedicated finance provider not yet verified |
 | `MOD-DATA-ANALYTICS` | Data Analytics | OPTIONAL | Research/Productivity | CSV/structured data, statistics, reports and charts | Dedicated analytics provider not yet verified |
@@ -388,7 +388,7 @@ This is an **architecture specification draft**. It must not be used to overwrit
 
 **Owner-approved maintenance addition:** PLAT-05 registers and validates signed maintenance profiles; PLAT-01 uses recovery limits; PLAT-08 checks evidence and exposes maintenance status; PLAT-07 provides destination/device facts. Core can propose and evaluate, never sidestep SAFE/RUN.
 
-**First implementation seam:** PLAT-05 manifest/SDK uses existing `src/sofia/capability/{system,gateway,model}.py` and SAFE/RUN canonical owners, not a parallel permission or execution engine. Ensure PLAT-01/02/03/04 interfaces are contractually stable before feature-module registration can perform effects.
+**First implementation seam:** PLAT-05 manifest/SDK uses existing `src/sofia/platform/capability/{system,gateway,model}.py` and SAFE/RUN canonical owners, not a parallel permission or execution engine. Ensure PLAT-01/02/03/04 interfaces are contractually stable before feature-module registration can perform effects.
 
 ## 8. Additional platform extensions to consider (recommendations, **not yet owner-approved**)
 

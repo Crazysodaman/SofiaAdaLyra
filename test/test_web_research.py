@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from sofia.net import HTTPExchange, PublicHTTPSClient, WebResearchService
+from sofia.platform.net import HTTPExchange, PublicHTTPSClient, WebResearchService
 
 
 def response(body=b"ok", *, status=200, content_type="text/plain", **headers):

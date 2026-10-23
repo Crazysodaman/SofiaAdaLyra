@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 import sys
 
-from sofia.machine import location_cli
-from sofia.machine.discovery import MachineDiscoveryResult
-from sofia.machine.location import MachineLocationRegistry
+from sofia.platform.machine import location_cli
+from sofia.platform.machine.discovery import MachineDiscoveryResult
+from sofia.platform.machine.location import MachineLocationRegistry
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.machine.model import (
+from sofia.platform.machine.model import (
     MachineIdentity,
     OperatingSystemInfo,
     PlatformFamily,

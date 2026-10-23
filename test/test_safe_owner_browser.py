@@ -15,9 +15,9 @@ import pytest
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from sofia.safe.owner_browser import authorize_exact_action
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
-from sofia.safe.owner_webauthn import OwnerWebAuthnVerifier
+from sofia.platform.safe.owner_browser import authorize_exact_action
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -26,7 +26,7 @@ def _b64(raw):
 
 
 def test_browser_request_shows_exact_action_and_uses_signed_passkey(tmp_path, monkeypatch):
-    from sofia.safe import owner_browser
+    from sofia.platform.safe import owner_browser
     monkeypatch.setattr(
         owner_browser, "require_owner_windows_account",
         lambda state_path: "S-1-5-21-TEST-OWNER",
@@ -98,7 +98,7 @@ def test_browser_request_shows_exact_action_and_uses_signed_passkey(tmp_path, mo
 
 
 def test_browser_cannot_bootstrap_an_unknown_owner_credential(tmp_path, monkeypatch):
-    from sofia.safe import owner_browser
+    from sofia.platform.safe import owner_browser
     monkeypatch.setattr(
         owner_browser, "require_owner_windows_account",
         lambda state_path: "S-1-5-21-TEST-OWNER",
@@ -116,7 +116,7 @@ def test_browser_cannot_bootstrap_an_unknown_owner_credential(tmp_path, monkeypa
 
 
 def test_browser_denies_wrong_windows_owner_before_any_challenge(tmp_path, monkeypatch):
-    from sofia.safe import owner_browser
+    from sofia.platform.safe import owner_browser
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     monkeypatch.setattr(
         owner_browser, "require_owner_windows_account",

@@ -11,16 +11,16 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.distributed.https_transport import (
+from sofia.platform.distributed.https_transport import (
     HttpsTransportError,
     PinnedHttpsRemoteTransport,
 )
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.inference import (
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.inference import (
     RemoteInferenceRequest,
     RemoteInferenceResponse,
 )
-from sofia.distributed.model import DistributedNode
+from sofia.platform.distributed.model import DistributedNode
 
 
 NOW=datetime(2026,9,29,tzinfo=timezone.utc)

@@ -9,8 +9,8 @@ import sys
 
 import pytest
 
-import sofia.ops.backup as backup
-from sofia.ops.backup import (
+import sofia.platform.ops.backup as backup
+from sofia.platform.ops.backup import (
     BackupCipher, BackupEngine, BackupPublicationUncertain,
 )
 from test.test_ops_backup_restore import make_state

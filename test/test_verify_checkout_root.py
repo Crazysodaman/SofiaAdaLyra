@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from sofia.verify import gate
-from sofia.verify.package_selection import expected_packages
-from sofia.verify.v18_roadmap import validate_repository
+from sofia.platform.verify import gate
+from sofia.platform.verify.package_selection import expected_packages
+from sofia.platform.verify.v18_roadmap import validate_repository
 
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -4,7 +4,7 @@ Source regressions only. Execute in the final user-approved test campaign.
 """
 import pytest
 
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

@@ -7,8 +7,8 @@ import pytest
 from cryptography import x509
 from cryptography.x509.oid import ExtendedKeyUsageOID
 
-from sofia.distributed.pki import _refuse_network_secret_root, bootstrap_pair
-from sofia.distributed.tls import public_key_fingerprint_from_pem_certificate
+from sofia.platform.distributed.pki import _refuse_network_secret_root, bootstrap_pair
+from sofia.platform.distributed.tls import public_key_fingerprint_from_pem_certificate
 
 
 @pytest.fixture

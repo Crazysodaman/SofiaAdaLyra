@@ -22,12 +22,12 @@ from sofia.environment.factory import (
 )
 from sofia.environment.model import LocationSubject
 from sofia.environment.nws import NwsEnvironmentProvider
-from sofia.machine.location import (
+from sofia.platform.machine.location import (
     MachineLocationRegistry,
     new_machine_location,
 )
-from sofia.machine.model import MachineIdentity, OperatingSystemInfo, PlatformFamily
-from sofia.machine.discovery import MachineDiscoveryResult
+from sofia.platform.machine.model import MachineIdentity, OperatingSystemInfo, PlatformFamily
+from sofia.platform.machine.discovery import MachineDiscoveryResult
 
 
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=timezone.utc)

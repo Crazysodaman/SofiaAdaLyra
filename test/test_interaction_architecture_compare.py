@@ -6,10 +6,10 @@ import pytest
 
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole, CognitiveToolCall
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.verify.interaction.architecture_compare import _samples, compare_once
+from sofia.platform.verify.interaction.architecture_compare import _samples, compare_once
 from sofia.interaction.offer_route import OFFER, routed_choice_request
 from sofia.interaction.decision_expression import choice_request, from_reviewed_action
-from sofia.verify.interaction.prototype import real_sensor_fixture
+from sofia.platform.verify.interaction.prototype import real_sensor_fixture
 
 
 def _inputs():

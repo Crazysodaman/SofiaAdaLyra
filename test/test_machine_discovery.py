@@ -3,15 +3,15 @@ from pathlib import Path
 
 import pytest
 
-import sofia.machine.discovery as discovery_module
-from sofia.machine.discovery import (
+import sofia.platform.machine.discovery as discovery_module
+from sofia.platform.machine.discovery import (
     LinuxMachineDiscovery,
     MachineDiscoveryResult,
     UnsupportedMachineDiscovery,
     WindowsMachineDiscovery,
     create_machine_discovery,
 )
-from sofia.machine.model import PlatformFamily
+from sofia.platform.machine.model import PlatformFamily
 
 
 def test_discovery_result_is_structured_and_immutable() -> None:
@@ -241,7 +241,7 @@ def test_factory_selects_unsupported_discovery(
 
 
 def test_discovery_result_requires_timezone_aware_observation() -> None:
-    from sofia.machine.model import (
+    from sofia.platform.machine.model import (
         MachineIdentity,
         OperatingSystemInfo,
     )

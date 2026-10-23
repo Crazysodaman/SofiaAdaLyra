@@ -5,10 +5,10 @@ from types import SimpleNamespace
 import pytest
 from test import conftest
 
-from sofia.verify.package_selection import (
+from sofia.platform.verify.package_selection import (
     PackageSelectionProbe, expected_packages,
 )
-from sofia.verify.v18_roadmap import RoadmapIntegrityError
+from sofia.platform.verify.v18_roadmap import RoadmapIntegrityError
 
 
 ROOT = Path(__file__).resolve().parents[1]

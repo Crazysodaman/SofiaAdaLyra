@@ -4,20 +4,20 @@ from enum import Enum
 import json
 from typing import Any
 
-from sofia.authority.model import Authority
-from sofia.capability.gateway import CapabilityGateway
-from sofia.capability.model import CapabilityResult
-from sofia.capability.model import CapabilityResultKind
-from sofia.capability.model import CapabilityProposal
+from sofia.platform.authority.model import Authority
+from sofia.platform.capability.gateway import CapabilityGateway
+from sofia.platform.capability.model import CapabilityResult
+from sofia.platform.capability.model import CapabilityResultKind
+from sofia.platform.capability.model import CapabilityProposal
 from sofia.cognition.model import (
     CognitiveToolCall,
     CognitiveToolDefinition,
 )
 from sofia.codebase.evidence import format_codebase_evidence
 from sofia.codebase.model import CodebaseInspectionEvidence
-from sofia.filesystem.model import FilesystemResult
+from sofia.platform.filesystem.model import FilesystemResult
 from sofia.social.model import PrincipalContext
-from sofia.safe.permissions import (
+from sofia.platform.safe.permissions import (
     PermissionLevel,
     capability_permission_policy,
 )

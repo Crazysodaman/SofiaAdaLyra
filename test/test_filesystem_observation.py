@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.filesystem.observation import (
+from sofia.platform.filesystem.observation import (
     FilesystemObservationStore,
     FilesystemObserver,
 )

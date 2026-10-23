@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from sofia.verify.v18_phase00_audit import (
+from sofia.platform.verify.v18_phase00_audit import (
     BATCH_RELATIVE, SCHEMA, audit_phase00_batch,
 )
-from sofia.verify.v18_roadmap import RoadmapIntegrityError
+from sofia.platform.verify.v18_roadmap import RoadmapIntegrityError
 
 pytestmark = pytest.mark.pkg_verify
 ROOT = Path(__file__).resolve().parents[1]
@@ -89,10 +89,10 @@ def test_audit_does_not_change_canonical_ledger_or_bootstrap_state():
 
 
 def test_act_graph_contract_requires_real_turn_neuro_key_guard_not_literal_false():
-    code = (ROOT / "src/sofia/platform.application/decision_trace.py").read_text(
+    code = (ROOT / "src/sofia/platform/application/decision_trace.py").read_text(
         encoding="utf-8",
     )
-    service = (ROOT / "src/sofia/platform.application/conversation_service.py").read_text(
+    service = (ROOT / "src/sofia/platform/application/conversation_service.py").read_text(
         encoding="utf-8",
     )
     assert "neuro_turn_correlated=neuro_turn_snapshot is not None" in code

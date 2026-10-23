@@ -6,7 +6,7 @@ coding workstream does not execute this test file.
 from pathlib import Path
 import pytest
 
-from sofia.ops.backup import BackupError, rotate_backups
+from sofia.platform.ops.backup import BackupError, rotate_backups
 
 
 def _backup(root: Path, name: str) -> Path:

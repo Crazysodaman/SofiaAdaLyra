@@ -13,9 +13,9 @@ from sofia.platform.application.fleet_runtime import (
     create_fleet_reconciliation_notifier,
 )
 from sofia.platform.config.model import FleetBootstrapConfiguration
-from sofia.ops import InstallAuthority
-from sofia.ops.capability import OpsToolService
-from sofia.ops.reconciliation_journal import FleetReconciliationRecord
+from sofia.platform.ops import InstallAuthority
+from sofia.platform.ops.capability import OpsToolService
+from sofia.platform.ops.reconciliation_journal import FleetReconciliationRecord
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

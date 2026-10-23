@@ -11,7 +11,7 @@ import pytest
 
 import sofia.memory.deletion_ledger as journal_module
 from sofia.memory.deletion_ledger import MemoryDeletionLedger, MemoryErasureError
-from sofia.ops.backup import BackupCipher
+from sofia.platform.ops.backup import BackupCipher
 
 
 def _journal(tmp_path):

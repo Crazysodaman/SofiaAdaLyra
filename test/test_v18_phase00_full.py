@@ -8,8 +8,8 @@ from sofia.platform.application.conversation_service import (
     _MAX_SPECIFIC_RETRIEVAL_CHARACTERS, _retrieve_specific_conversation,
 )
 from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.verify.v18_phase00_full import all_phase00_snapshot, markdown_summary
-from sofia.verify.v18_roadmap import RoadmapIntegrityError
+from sofia.platform.verify.v18_phase00_full import all_phase00_snapshot, markdown_summary
+from sofia.platform.verify.v18_roadmap import RoadmapIntegrityError
 
 pytestmark = pytest.mark.pkg_verify
 ROOT = Path(__file__).resolve().parents[1]

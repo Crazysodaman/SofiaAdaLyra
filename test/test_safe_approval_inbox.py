@@ -15,9 +15,9 @@ import pytest
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from sofia.safe.approval_inbox import ApprovalInbox
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
-from sofia.safe.owner_webauthn import OwnerWebAuthnVerifier
+from sofia.platform.safe.approval_inbox import ApprovalInbox
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = pytest.mark.pkg_safe
@@ -65,7 +65,7 @@ def _signed_browser(private_key, credential_id: str, *, after_sign=None):
 
 
 def _setup(tmp_path, monkeypatch):
-    from sofia.safe import owner_browser, owner_enroll_browser
+    from sofia.platform.safe import owner_browser, owner_enroll_browser
 
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     monkeypatch.setattr(
@@ -171,7 +171,7 @@ def test_real_verified_webauthn_is_required_and_bound_to_exact_action(tmp_path, 
 
 
 def test_review_does_not_start_without_authenticated_owner(tmp_path, monkeypatch):
-    from sofia.safe import owner_enroll_browser
+    from sofia.platform.safe import owner_enroll_browser
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     inbox = ApprovalInbox(state)
     pending = inbox.create("fleet.enroll", {"host_id": "Artemis"})

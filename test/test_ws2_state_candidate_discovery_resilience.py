@@ -4,7 +4,7 @@ All paths and SQLite databases are synthetic. No tests or live recovery run.
 """
 import sqlite3
 
-from sofia.ops.state_mobility import discover_local_state_candidates
+from sofia.platform.ops.state_mobility import discover_local_state_candidates
 
 
 def _db(path):

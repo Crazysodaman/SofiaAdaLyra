@@ -1,8 +1,8 @@
 from datetime import datetime,timezone
-from sofia.capability.model import CapabilityRequest, CapabilityResultKind
+from sofia.platform.capability.model import CapabilityRequest, CapabilityResultKind
 
-from sofia.capability import Capability,CapabilitySystem
-from sofia.ops import FleetHost,FleetRegistry,HostLifecycle,HostTelemetry,PlacementEngine,WorkloadContract
+from sofia.platform.capability import Capability,CapabilitySystem
+from sofia.platform.ops import FleetHost,FleetRegistry,HostLifecycle,HostTelemetry,PlacementEngine,WorkloadContract
 
 NOW=datetime.now(timezone.utc)
 

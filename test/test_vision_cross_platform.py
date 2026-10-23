@@ -62,7 +62,7 @@ def signed_request():
 
 
 def installed_capture(monkeypatch, *, stop=False, switched=False):
-    from sofia.safe import execution_approval, operator_stop
+    from sofia.platform.safe import execution_approval, operator_stop
     import sofia.vision.capture as cap
     import sofia.vision.linux_desktop as linux
     monkeypatch.setattr(cap.sys, "platform", "linux")

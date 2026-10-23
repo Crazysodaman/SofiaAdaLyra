@@ -8,7 +8,7 @@ import sqlite3
 
 import pytest
 
-from sofia.ops.backup import BackupCipher, BackupEngine
+from sofia.platform.ops.backup import BackupCipher, BackupEngine
 from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
 

@@ -2,17 +2,17 @@
 
 from sofia.platform.application import SofiaApplication
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.authorization.evaluator import FilesystemAuthorizationEvaluator
+from sofia.platform.authorization.evaluator import FilesystemAuthorizationEvaluator
 from sofia.social.principals import local_sparks_principal
 from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.filesystem.model import (
+from sofia.platform.filesystem.model import (
     FilesystemOperation,
     FilesystemResultKind,
 )
-from sofia.filesystem.orchestrator import (
+from sofia.platform.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
 
@@ -178,7 +178,7 @@ def test_read_file_is_authorized_after_explicit_grant(
     authorize_runtime(application)
 
     results = orchestrator.process(
-        "read src/sofia/filesystem/model.py"
+        "read src/sofia/platform/filesystem/model.py"
     )
 
     assert len(results) == 1
@@ -292,7 +292,7 @@ def test_explicit_path_inspection_uses_central_level1_permission(
     application.start()
     orchestrator = FilesystemOrchestrator(application.runtime)
     try:
-        result = orchestrator.process("inspect src/sofia/filesystem/model.py")
+        result = orchestrator.process("inspect src/sofia/platform/filesystem/model.py")
         assert len(result) == 1
         assert result[0].operation is FilesystemOperation.INSPECT_PATH
         assert result[0].kind is FilesystemResultKind.SUCCESS

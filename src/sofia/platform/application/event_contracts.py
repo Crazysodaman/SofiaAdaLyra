@@ -223,7 +223,7 @@ def project_run_expected_effect(job) -> ExpectedEffectProjection:
 
 def project_act_expected_effect(message, *, send_result=None) -> ExpectedEffectProjection:
     """Settle only ACT transport acceptance, never human observation."""
-    from sofia.act.delivery import BoundMessage, DeliveryOutcome, SendResult
+    from sofia.platform.act.delivery import BoundMessage, DeliveryOutcome, SendResult
 
     if not isinstance(message, BoundMessage):
         raise TypeError("canonical BoundMessage required")
@@ -393,7 +393,7 @@ def project_run_job(job) -> EventOwnershipProjection:
 
 def project_act_delivery(message, *, send_result=None) -> EventOwnershipProjection:
     """Adapt an ACT envelope and its transport result without claiming receipt."""
-    from sofia.act.delivery import BoundMessage, SendResult, DeliveryOutcome
+    from sofia.platform.act.delivery import BoundMessage, SendResult, DeliveryOutcome
 
     if not isinstance(message, BoundMessage):
         raise TypeError("canonical BoundMessage required")

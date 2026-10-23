@@ -24,7 +24,7 @@ from uuid import UUID
 
 from sofia.platform.state.sqlite_uri import sqlite_file_uri
 
-from sofia.ops.backup import BackupCipher
+from sofia.platform.ops.backup import BackupCipher
 
 
 class MemoryErasureError(RuntimeError):

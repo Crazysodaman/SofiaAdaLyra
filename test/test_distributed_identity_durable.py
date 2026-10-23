@@ -4,9 +4,9 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
-from sofia.distributed.model import DistributedNode
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.platform.distributed.model import DistributedNode
 
 
 def enrollment(node_id=None, key=b"artemis-key"):

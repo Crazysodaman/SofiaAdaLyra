@@ -13,7 +13,7 @@ import sqlite3
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.conversation.lifelong import LifelongThreadStore
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionStore
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.social.principals import SPARKS_PRINCIPAL_ID

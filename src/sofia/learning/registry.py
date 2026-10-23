@@ -621,7 +621,7 @@ def create_candidate_registry_from_environment(
     from cryptography.exceptions import InvalidSignature
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-    from sofia.safe.execution_approval import ExecutionApprovalVerifier
+    from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 
     key_path = os.environ.get("SOFIA_ML_TRUSTED_PUBLIC_KEY", "").strip()
     key_id = os.environ.get("SOFIA_ML_TRUSTED_KEY_ID", "").strip()

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import sofia.ops.state_mobility as mobility
+import sofia.platform.ops.state_mobility as mobility
 
 
 def _paths(tmp_path):

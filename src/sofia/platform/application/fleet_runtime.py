@@ -7,14 +7,14 @@ from sofia.platform.application.act_service import (
     SofiaActService,
     notification_route_from_environment,
 )
-from sofia.ops.bootstrap import (
+from sofia.platform.ops.bootstrap import (
     AgentPackage,
     BootstrapDisposition,
     InstallAuthority,
 )
-from sofia.ops.capability import OpsToolService
-from sofia.ops.reconciliation_journal import FleetReconciliationRecord
-from sofia.ops.discovery import FleetDiscoveryBootstrapCoordinator
+from sofia.platform.ops.capability import OpsToolService
+from sofia.platform.ops.reconciliation_journal import FleetReconciliationRecord
+from sofia.platform.ops.discovery import FleetDiscoveryBootstrapCoordinator
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
 

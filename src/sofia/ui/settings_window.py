@@ -23,17 +23,17 @@ from sofia.platform.config.user_settings import (
 )
 from sofia.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.environment.model import LocationSubject
-from sofia.machine.discovery import create_machine_discovery
-from sofia.ops.activity import ActivityMode, HostActivityStore
-from sofia.ops.capability import OpsToolService
-from sofia.safe.execution_approval import (
+from sofia.platform.machine.discovery import create_machine_discovery
+from sofia.platform.ops.activity import ActivityMode, HostActivityStore
+from sofia.platform.ops.capability import OpsToolService
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
     execution_fingerprint,
 )
-from sofia.safe.secret_store import ProtectedSecretStore
-from sofia.safe.operator_stop import OperatorStopStore
-from sofia.safe.permissions import (
+from sofia.platform.safe.secret_store import ProtectedSecretStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.permissions import (
     PermissionStore,
     capability_permission_policy,
     grantable_capabilities,
@@ -665,7 +665,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         try:
             from sofia.platform.config.cognitive_models import CognitiveModelSelection
             from sofia.cognition.model_lifecycle import CognitiveModelRole
-            from sofia.safe.operator_stop import OperatorStopStore
+            from sofia.platform.safe.operator_stop import OperatorStopStore
 
             if OperatorStopStore(config.state_path).current().active:
                 raise PermissionError("operator stop forbids model installation")
@@ -713,8 +713,8 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 parent=root,
             ):
                 return
-            from sofia.safe.owner_approval_ui import select_security_key_for_settings
-            from sofia.safe.owner_browser import authorize_exact_action
+            from sofia.platform.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.platform.safe.owner_browser import authorize_exact_action
 
             credential_id = select_security_key_for_settings(
                 config.state_path, parent=root,
@@ -1035,7 +1035,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
 
     def poll_owner_approval_count() -> None:
         try:
-            from sofia.safe.approval_inbox import ApprovalInbox
+            from sofia.platform.safe.approval_inbox import ApprovalInbox
             inbox = ApprovalInbox(config.state_path)
             inbox.recover()
             pending = inbox.list_requests(status="pending", limit=200)
@@ -1096,8 +1096,8 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 status.set("Operator stop: pause recorded in canonical state.")
                 return
 
-            from sofia.safe.owner_approval_ui import select_security_key_for_settings
-            from sofia.safe.owner_browser import authorize_exact_action
+            from sofia.platform.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.platform.safe.owner_browser import authorize_exact_action
 
             credential_id = select_security_key_for_settings(
                 config.state_path, parent=root,
@@ -1393,9 +1393,9 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 ),
             )
 
-    from sofia.safe.permissions import standing_grant_parameters
-    from sofia.safe.owner_approval_ui import select_security_key_for_settings
-    from sofia.safe.owner_browser import authorize_exact_action
+    from sofia.platform.safe.permissions import standing_grant_parameters
+    from sofia.platform.safe.owner_approval_ui import select_security_key_for_settings
+    from sofia.platform.safe.owner_browser import authorize_exact_action
 
     permission_feedback = Queue()
     permission_busy = {"active": False}
@@ -1674,8 +1674,8 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         ):
             return
         try:
-            from sofia.safe.owner_approval_ui import select_security_key_for_settings
-            from sofia.safe.owner_browser import authorize_exact_action
+            from sofia.platform.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.platform.safe.owner_browser import authorize_exact_action
 
             credential_id = select_security_key_for_settings(
                 config.state_path, parent=root,
@@ -2012,9 +2012,9 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                     parent=root,
                 ):
                     return
-                from sofia.safe.owner_approval_ui import select_security_key_for_settings
-                from sofia.safe.owner_browser import authorize_exact_action
-                from sofia.safe.permissions import private_authority_parameters
+                from sofia.platform.safe.owner_approval_ui import select_security_key_for_settings
+                from sofia.platform.safe.owner_browser import authorize_exact_action
+                from sofia.platform.safe.permissions import private_authority_parameters
 
                 credential = select_security_key_for_settings(
                     config.state_path, parent=root,

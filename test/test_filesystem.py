@@ -1,7 +1,7 @@
 ﻿from pathlib import Path
 
-from sofia.filesystem.inspector import FilesystemInspector
-from sofia.filesystem.model import (
+from sofia.platform.filesystem.inspector import FilesystemInspector
+from sofia.platform.filesystem.model import (
     FilesystemOperation,
     FilesystemResultKind,
 )

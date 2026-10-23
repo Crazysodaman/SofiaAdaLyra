@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.verify import v18_live_resource_probe as probe
+from sofia.platform.verify import v18_live_resource_probe as probe
 
 pytestmark = pytest.mark.pkg_verify
 SHA = "a" * 40

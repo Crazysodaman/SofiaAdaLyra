@@ -2,7 +2,7 @@
 
 import pytest
 
-from sofia.machine.model import (
+from sofia.platform.machine.model import (
     HardwareProfile,
     MachineIdentity,
     MachineProfile,

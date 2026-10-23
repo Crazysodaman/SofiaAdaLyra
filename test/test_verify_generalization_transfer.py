@@ -13,7 +13,7 @@ from hashlib import sha256
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sofia.verify.generalization_transfer import (
+from sofia.platform.verify.generalization_transfer import (
     SCHEMA, TransferEvidenceError, assess_signed_transfer, canonical,
 )
 

@@ -8,7 +8,7 @@ import pytest
 
 from sofia.platform.config.defaults import production_storage_layout
 from sofia.memory.deletion_ledger import MemoryDeletionLedger
-from sofia.ops.backup import (
+from sofia.platform.ops.backup import (
     BackupCipher,
     BackupEngine,
     BackupError,
@@ -118,7 +118,7 @@ def test_restore_requires_explicit_overwrite_and_recreates_state(
     target.write_bytes(b"existing")
 
     monkeypatch.setattr(
-        "sofia.ops.backup.verify_production_component_schemas",
+        "sofia.platform.ops.backup.verify_production_component_schemas",
         lambda _path: None,
     )
 
@@ -181,7 +181,7 @@ def test_rotation_keeps_newest_directories(tmp_path):
 
 
 def test_manifest_entry_rejects_path_traversal():
-    from sofia.ops.backup import BackupEntry
+    from sofia.platform.ops.backup import BackupEntry
 
     with pytest.raises(ValueError, match="safe relative path"):
         BackupEntry(

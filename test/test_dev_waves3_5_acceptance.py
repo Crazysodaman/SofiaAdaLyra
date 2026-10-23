@@ -3,7 +3,7 @@ import subprocess
 from types import SimpleNamespace
 import pytest
 
-from sofia.dev import (
+from sofia.platform.dev import (
     ChangeScopeError,
     EngineeringCandidate,
     EngineeringExecutionRequest,
@@ -40,8 +40,8 @@ def _repo(tmp_path:Path)->tuple[Path,str]:
     return root,_git(root,"rev-parse","HEAD")
 
 def test_directory_scope_matches_children():
-    assert path_in_scope("src/sofia/dev/x.py",("src/sofia/dev",))
-    assert not path_in_scope("src/sofia/ops/x.py",("src/sofia/dev",))
+    assert path_in_scope("src/sofia/platform/dev/x.py",("src/sofia/platform/dev",))
+    assert not path_in_scope("src/sofia/platform/ops/x.py",("src/sofia/platform/dev",))
 
 def test_git_workspace_detects_out_of_scope_change(tmp_path:Path):
     root,sha=_repo(tmp_path)
@@ -57,7 +57,7 @@ def test_isolated_build_does_not_touch_real_workspace(tmp_path:Path,monkeypatch)
     def fake_execute(self,req):
         (self.workspace/"src"/"allowed.py").write_text("VALUE = 2\n",encoding="utf-8")
         return EngineeringExecutionResult(req.proposal_id,0,"","",req.base_sha,("src/allowed.py",),None,False)
-    monkeypatch.setattr("sofia.dev.workflow.OpenCodeAdapter.execute",fake_execute)
+    monkeypatch.setattr("sofia.platform.dev.workflow.OpenCodeAdapter.execute",fake_execute)
     candidate=EngineeringWorkflow(root).build(request)
     assert candidate.changed_paths==("src/allowed.py",)
     assert "VALUE = 2" in candidate.patch
@@ -89,7 +89,7 @@ def test_engineering_build_routes_failed_tests_back_to_opencode_for_repair(
         SimpleNamespace(returncode=1,stdout="expected 3, got 2",stderr=""),
         SimpleNamespace(returncode=0,stdout="1 passed",stderr=""),
     ))
-    monkeypatch.setattr("sofia.dev.workflow.OpenCodeAdapter.execute",fake_execute)
+    monkeypatch.setattr("sofia.platform.dev.workflow.OpenCodeAdapter.execute",fake_execute)
     monkeypatch.setattr(
         EngineeringWorkflow,"_verification",
         staticmethod(lambda sandbox,request: next(verifications)),
@@ -118,7 +118,7 @@ def test_engineering_build_stops_at_bounded_iteration_limit(tmp_path:Path,monkey
         (self.workspace/"src"/"allowed.py").write_text("VALUE = 2\n",encoding="utf-8")
         return EngineeringExecutionResult(req.proposal_id,0,"","",req.base_sha)
 
-    monkeypatch.setattr("sofia.dev.workflow.OpenCodeAdapter.execute",fake_execute)
+    monkeypatch.setattr("sofia.platform.dev.workflow.OpenCodeAdapter.execute",fake_execute)
     monkeypatch.setattr(
         EngineeringWorkflow,"_verification",
         staticmethod(lambda sandbox,request: SimpleNamespace(

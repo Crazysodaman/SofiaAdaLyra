@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-import sofia.ops.discovery_canary as canary
-from sofia.ops.discovery import FleetDiscoveryEvidence
+import sofia.platform.ops.discovery_canary as canary
+from sofia.platform.ops.discovery import FleetDiscoveryEvidence
 
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)

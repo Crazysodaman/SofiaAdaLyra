@@ -4,7 +4,7 @@ from threading import Event
 
 import pytest
 
-from sofia.net import (
+from sofia.platform.net import (
     CloudflareTunnelConfiguration,
     CloudflareTunnelStatusStore,
     CloudflareTunnelSupervisor,

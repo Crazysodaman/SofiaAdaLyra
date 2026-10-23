@@ -1,4 +1,4 @@
-from sofia.ops import (
+from sofia.platform.ops import (
     AgentPackage,
     BootstrapCandidate,
     BootstrapDisposition,

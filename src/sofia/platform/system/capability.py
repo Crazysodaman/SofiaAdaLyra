@@ -2,7 +2,7 @@
 from __future__ import annotations
 import sys
 from typing import Any
-from sofia.capability.model import Capability,CapabilityRequest
+from sofia.platform.capability.model import Capability,CapabilityRequest
 from .backend import SystemCapabilityBackend
 from .linux import LinuxSystemCapabilityBackend
 from .model import SystemCapability,SystemCapabilityName,SystemCapabilityRequest

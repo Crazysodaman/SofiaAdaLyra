@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from sofia.ops.recovery import (
+from sofia.platform.ops.recovery import (
     BackupEvidence,
     DEFAULT_RECOVERY_OBJECTIVES,
     RecoveryObjectives,

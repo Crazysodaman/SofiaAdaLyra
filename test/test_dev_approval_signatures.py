@@ -4,9 +4,9 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
+from sofia.platform.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.safe.dev_approval import (
+from sofia.platform.safe.dev_approval import (
     DevApprovalVerifier,
     dev_approval_signature_payload,
 )

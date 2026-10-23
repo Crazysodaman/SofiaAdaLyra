@@ -2,9 +2,9 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.distributed.model import ApprovedEndpoint
-from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.model import NodeEndpoint, NodeTransport
+from sofia.platform.distributed.model import ApprovedEndpoint
+from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.platform.distributed.model import NodeEndpoint, NodeTransport
 
 
 def endpoint(host="artemis.local", port=443):

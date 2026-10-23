@@ -1,6 +1,6 @@
 ﻿from dataclasses import dataclass
 
-from sofia.authority.model import Authority
+from sofia.platform.authority.model import Authority
 from sofia.cognition.context import CognitiveContext
 
 

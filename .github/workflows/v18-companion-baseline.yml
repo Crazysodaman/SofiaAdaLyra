@@ -45,7 +45,7 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.sha }}
         run: >-
-          python -m sofia.verify.v18_companion_baseline
+          python -m sofia.platform.verify.v18_companion_baseline
           --repo .
           --expected-revision "$EXPECTED_SHA"
           --output v18-companion-baseline.json

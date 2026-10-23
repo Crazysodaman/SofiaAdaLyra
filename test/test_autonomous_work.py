@@ -12,21 +12,21 @@ from sofia.platform.application.autonomous_work import AutonomousWorkCoordinator
 from sofia.platform.application.evolution import SofiaEvolutionService
 from sofia.platform.application.presence import PresenceInitiativeEngine
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.dev.capability import DevToolService
-from sofia.dev.opencode import (
+from sofia.platform.dev.capability import DevToolService
+from sofia.platform.dev.opencode import (
     EngineeringExecutionResult, EngineeringExecutionRequest, OpenCodeAdapter,
     OpenCodeConfigurationError, OpenCodeMissingExecutableError,
     engineering_worker_environment,
 )
-from sofia.evolve.lifecycle import EvolutionProposalStatus
-from sofia.evolve.orchestrator import CodeEvolutionOrchestrator
+from sofia.platform.evolve.lifecycle import EvolutionProposalStatus
+from sofia.platform.evolve.orchestrator import CodeEvolutionOrchestrator
 from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkOverloadError,
     WorkResult, WorkStatus,
 )
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.safe.dev_approval import DevApprovalVerifier
+from sofia.platform.safe.dev_approval import DevApprovalVerifier
 
 
 # These integration tests exercise a real EVOLVE proposal whose production
@@ -381,6 +381,6 @@ def test_opencode_configuration_and_worker_secret_isolation_are_explicit(tmp_pat
         proposal_id="p1", base_sha="a" * 40, prompt="fix fixture",
         allowed_paths=("src",), authorized=True,
     )
-    monkeypatch.setattr("sofia.dev.opencode.shutil.which", lambda value: None)
+    monkeypatch.setattr("sofia.platform.dev.opencode.shutil.which", lambda value: None)
     with pytest.raises(OpenCodeMissingExecutableError):
         adapter.command(request)

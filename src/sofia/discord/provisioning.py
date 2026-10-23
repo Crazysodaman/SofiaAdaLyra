@@ -13,7 +13,7 @@ import os
 from sofia.platform.config.model import SofiaConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.discord.access import SingleUserDiscordConfig, _snowflake
-from sofia.safe.secret_store import ProtectedSecretStore
+from sofia.platform.safe.secret_store import ProtectedSecretStore
 
 
 def _enabled(value: str | None) -> bool:

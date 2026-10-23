@@ -5,8 +5,8 @@ from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import json
 import sqlite3
 
-from sofia.capability import Capability, CapabilitySystem
-from sofia.capability.gateway import CapabilityGateway
+from sofia.platform.capability import Capability, CapabilitySystem
+from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.goals import (
     CompletionKind, GoalCompletionCondition, GoalEvidenceIndex,
     GoalEvidenceLedger, GoalService, GoalStatus, GoalStore,
@@ -19,7 +19,7 @@ from sofia.goals.model import GoalRunState
 from sofia.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 from sofia.social.principals import local_sparks_principal
 from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
 

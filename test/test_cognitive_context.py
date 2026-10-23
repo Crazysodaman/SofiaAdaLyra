@@ -15,7 +15,7 @@ from sofia.memory.model import MemoryRecord
 from sofia.personality.model import PersonalityProfile
 from pathlib import Path
 
-from sofia.filesystem.model import (
+from sofia.platform.filesystem.model import (
     FilesystemOperation,
     FilesystemResult,
     FilesystemResultKind,

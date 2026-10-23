@@ -62,8 +62,8 @@ from sofia.platform.application.expression_runtime import ExpressionIntent, Expr
 from sofia.platform.application.act_service import (
     SofiaActService, configure_act_delivery_from_environment,
 )
-from sofia.act.outreach import Importance, OutreachCategory
-from sofia.capability.gateway import CapabilityGateway
+from sofia.platform.act.outreach import Importance, OutreachCategory
+from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.platform.application.evolution import SofiaEvolutionService
 from sofia.platform.application.beliefs import BeliefsService
 from sofia.beliefs.model import BeliefHolder
@@ -137,16 +137,16 @@ from sofia.life import LifeProject, SelfDirectedLifeCoordinator
 from sofia.learning import FleetPressurePilot, LearningService
 from sofia.generalization import ExplorationAdmission, GeneralizationService
 from sofia.learning.registry import create_candidate_registry_from_environment
-from sofia.ops.dependencies import DependencyEvidenceStore, default_dependency_registry
+from sofia.platform.ops.dependencies import DependencyEvidenceStore, default_dependency_registry
 from sofia.platform.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.platform.run.heartbeat import ApplicationHeartbeatStore
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
-from sofia.ops.backup_topology import backup_topology_enabled
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.ops.backup_topology import backup_topology_enabled
 from sofia.neuro import NeuralSignal, NeuroRuntime
 from sofia.neuro import BodyReflexObservation, VoiceSensoryObservation
 from sofia.neuro.coordinator import NeuroInputCoordinator
 from sofia.neuro.store import NeuroObservabilityStore
-from sofia.ops.local_telemetry import collect_local_telemetry
+from sofia.platform.ops.local_telemetry import collect_local_telemetry
 from sofia.habits.pattern_store import HabitPatternStore
 from sofia.rel.store import RelationshipStore
 from sofia.goals import (
@@ -157,10 +157,10 @@ from sofia.goals import (
 )
 from sofia.goals.conversation import GoalConversationResolver
 from sofia.goals.coordinator import GoalProductionCoordinator
-from sofia.ops.agent_discovery import (
+from sofia.platform.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
-from sofia.distributed.state_paths import migrate_legacy_fleet_sidecars
+from sofia.platform.distributed.state_paths import migrate_legacy_fleet_sidecars
 from sofia.personality.influence import ContinuityInfluence
 from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.platform.runtime.runtime import SofiaRuntime, SofiaRuntimeError
@@ -718,7 +718,7 @@ class SofiaApplication:
 
     def commitments(self, principal) -> tuple:
         """Return scoped promise projections; GOALS remains authoritative."""
-        from sofia.ops.commitment import commitment_from_goal
+        from sofia.platform.ops.commitment import commitment_from_goal
         return tuple(
             record
             for goal in self._goals.list_visible(principal)
@@ -895,7 +895,7 @@ class SofiaApplication:
     def _generalization_admission_state(self) -> ExplorationAdmission:
         """Project existing foreground and observed host pressure; grant nothing."""
         import socket
-        from sofia.ops.activity import ActivityMode, HostActivityStore
+        from sofia.platform.ops.activity import ActivityMode, HostActivityStore
 
         activity = HostActivityStore(self._configuration.state_path).state(
             socket.gethostname()

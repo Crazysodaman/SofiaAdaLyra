@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.distributed.capabilities import (
+from sofia.platform.distributed.capabilities import (
     CapabilityInventory, RemoteCapability, inventory_is_current,
 )
 

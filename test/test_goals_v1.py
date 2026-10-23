@@ -3,8 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.capability import Capability, CapabilityResultKind, CapabilitySystem
-from sofia.capability.gateway import CapabilityGateway
+from sofia.platform.capability import Capability, CapabilityResultKind, CapabilitySystem
+from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.goals import (
     CompletionKind,
     GoalCompletionCondition,

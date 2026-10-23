@@ -37,10 +37,10 @@ def test_sqlite_file_uri_accepts_paths_and_optional_modes():
         "file:////Artemis/Hestia/state.db?mode=rw"
     )
 
-    local = Path("C:/Users/sofia/platform.state.db")
+    local = Path("C:/Users/sofia/platform/state/db")
 
     assert sqlite_file_uri(local, read_only=True) == (
-        "file:///C:/Users/sofia/platform.state.db?mode=ro"
+        "file:///C:/Users/sofia/platform/state/db?mode=ro"
     )
 
     with pytest.raises(TypeError):

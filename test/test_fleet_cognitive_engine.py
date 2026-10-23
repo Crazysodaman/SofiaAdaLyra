@@ -15,8 +15,8 @@ from sofia.cognition.model import (
     CognitiveToolCall,
 )
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.ops.capability import OpsToolService
-from sofia.ops.model import FleetHost, HostLifecycle, HostTelemetry
+from sofia.platform.ops.capability import OpsToolService
+from sofia.platform.ops.model import FleetHost, HostLifecycle, HostTelemetry
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 

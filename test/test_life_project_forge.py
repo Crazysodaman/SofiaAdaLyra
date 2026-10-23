@@ -10,8 +10,8 @@ import pytest
 
 from test.owner_auth_fixture import resume_with_signed_owner_proof
 
-from sofia.capability import CapabilityProposal, CapabilityResultKind, CapabilitySystem
-from sofia.capability.gateway import CapabilityGateway
+from sofia.platform.capability import CapabilityProposal, CapabilityResultKind, CapabilitySystem
+from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.creative import (
     ArtifactKind, CreativeArtifactCapability, CreativeExplorer, CreativeService,
     CreativeStore, CreativeWorkspaceManager, CreativeWorldBridge,
@@ -31,7 +31,7 @@ from sofia.personality.preferences import (
 )
 from sofia.rel.nicknames import NicknameRegistry, NicknameStatus
 from sofia.platform.run.work import WorkStatus
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.social.principals import local_sparks_principal
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 

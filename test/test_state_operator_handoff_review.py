@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from sofia.ops.state_promotion import (
+from sofia.platform.ops.state_promotion import (
     OperatorHandoffEvidence,
     OperatorHandoffKind,
     PendingHomePointer,
     review_operator_handoff,
 )
-from sofia.ops.state_relocation import RelocationAuthorization, StagedStateHome
+from sofia.platform.ops.state_relocation import RelocationAuthorization, StagedStateHome
 
 
 NOW = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)

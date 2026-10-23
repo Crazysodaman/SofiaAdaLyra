@@ -11,11 +11,11 @@ import re
 import sqlite3
 from typing import Callable
 
-from sofia.capability.gateway import CapabilityGateway
-from sofia.capability.model import CapabilityResultKind
+from sofia.platform.capability.gateway import CapabilityGateway
+from sofia.platform.capability.model import CapabilityResultKind
 from sofia.neuro.model import NeuralActivation, NeuroStateSnapshot, NeuroWakeMode
-from sofia.safe.permissions import PermissionLevel, capability_permission_policy
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
+from sofia.platform.safe.permissions import PermissionStore
 from sofia.social.model import PrincipalContext
 
 from .evidence import GoalEvidenceLedger

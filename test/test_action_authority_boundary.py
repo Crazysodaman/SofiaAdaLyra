@@ -1,9 +1,9 @@
 import pytest
 
 from test.action_support import TestActionExecutor
-from sofia.action.model import Action, ActionProposal, ActionRisk
-from sofia.action.system import ActionSystem, ActionSystemError
-from sofia.authority.model import Authority
+from sofia.platform.action.model import Action, ActionProposal, ActionRisk
+from sofia.platform.action.system import ActionSystem, ActionSystemError
+from sofia.platform.authority.model import Authority
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveRequest
 from sofia.cognition.operation import CognitiveOperation

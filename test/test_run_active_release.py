@@ -6,15 +6,15 @@ import zipfile
 
 import pytest
 
-from sofia.dev.release import ReleaseManifest
-from sofia.dev.release_store import ReleaseStateStore
+from sofia.platform.dev.release import ReleaseManifest
+from sofia.platform.dev.release_store import ReleaseStateStore
 from sofia.platform.run.active_release import (
     ActiveReleaseError,
     ActiveReleaseResolver,
     ReleaseEnvironmentManager,
 )
 from sofia.platform.run.release import directory_sha256
-from sofia.safe.release import ReleaseActivationEvidence
+from sofia.platform.safe.release import ReleaseActivationEvidence
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 

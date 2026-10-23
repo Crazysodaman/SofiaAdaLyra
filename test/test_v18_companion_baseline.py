@@ -3,7 +3,7 @@ from copy import deepcopy
 
 import pytest
 
-from sofia.verify.v18_companion_baseline import (
+from sofia.platform.verify.v18_companion_baseline import (
     BaselineIntegrityError, SCENARIOS,
     capture_v18_baseline, summarize_control_baseline,
 )
@@ -80,7 +80,7 @@ def test_baseline_rejects_wrong_git_revision_before_any_capture(tmp_path, monkey
     (repo / ".git").mkdir()
     calls = []
     monkeypatch.setattr(
-        "sofia.verify.v18_companion_baseline._exact_revision",
+        "sofia.platform.verify.v18_companion_baseline._exact_revision",
         lambda path: "a" * 40,
     )
     with pytest.raises(BaselineIntegrityError, match="differs"):
@@ -97,7 +97,7 @@ def test_baseline_rejects_git_change_during_capture(tmp_path, monkeypatch):
     (repo / ".git").mkdir()
     revisions = iter(("a" * 40, "b" * 40))
     monkeypatch.setattr(
-        "sofia.verify.v18_companion_baseline._exact_revision",
+        "sofia.platform.verify.v18_companion_baseline._exact_revision",
         lambda path: next(revisions),
     )
     with pytest.raises(BaselineIntegrityError, match="changed"):
@@ -108,7 +108,7 @@ def test_baseline_rejects_git_change_during_capture(tmp_path, monkeypatch):
 
 
 def test_phase00_baseline_runs_real_isolated_application_path(monkeypatch, tmp_path):
-    from sofia.verify import v18_companion_baseline as module
+    from sofia.platform.verify import v18_companion_baseline as module
 
     repo = tmp_path / "checkout"
     repo.mkdir()
@@ -116,12 +116,12 @@ def test_phase00_baseline_runs_real_isolated_application_path(monkeypatch, tmp_p
     monkeypatch.setattr(module, "_exact_revision", lambda _: "a" * 40)
     # Existing Cognition V2 harness is the sole source of measured control
     # behavior. No mock engine, parallel database, or fabricated receipts.
-    from sofia.verify.cognition_v2_baseline import capture_baseline
+    from sofia.platform.verify.cognition_v2_baseline import capture_baseline
     monkeypatch.setattr(
-        "sofia.verify.cognition_v2_baseline.PROJECT_ROOT", repo,
+        "sofia.platform.verify.cognition_v2_baseline.PROJECT_ROOT", repo,
     )
     monkeypatch.setattr(
-        "sofia.verify.cognition_v2_baseline._revision", lambda: "a" * 40,
+        "sofia.platform.verify.cognition_v2_baseline._revision", lambda: "a" * 40,
     )
     result = capture_v18_baseline(
         repo=repo, expected_revision="a" * 40,
@@ -135,7 +135,7 @@ def test_phase00_baseline_runs_real_isolated_application_path(monkeypatch, tmp_p
 
 
 def test_repeated_control_baseline_percentiles_are_observed_not_inferred(tmp_path, monkeypatch):
-    from sofia.verify import v18_companion_baseline as module
+    from sofia.platform.verify import v18_companion_baseline as module
     repo = tmp_path / "checkout"
     repo.mkdir()
     (repo / ".git").mkdir()

@@ -78,7 +78,7 @@ jobs:
 
       - name: Verify candidate before signing
         shell: pwsh
-        run: python -m sofia.dev.release_cli verify --release-dir release-evidence
+        run: python -m sofia.platform.dev.release_cli verify --release-dir release-evidence
 
       - name: Sign immutable manifest
         shell: pwsh
@@ -95,7 +95,7 @@ jobs:
               $KeyPath,
               [Convert]::FromBase64String($env:SOFIA_RELEASE_SIGNING_KEY_PEM_B64)
             )
-            python -m sofia.dev.release_cli sign-bundle --release-dir release-evidence --private-key $KeyPath --signer-key-id $env:SIGNER_KEY_ID
+            python -m sofia.platform.dev.release_cli sign-bundle --release-dir release-evidence --private-key $KeyPath --signer-key-id $env:SIGNER_KEY_ID
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           finally {
@@ -104,7 +104,7 @@ jobs:
 
       - name: Verify immutable evidence after signing
         shell: pwsh
-        run: python -m sofia.dev.release_cli verify --release-dir release-evidence
+        run: python -m sofia.platform.dev.release_cli verify --release-dir release-evidence
 
       - name: Upload signed release bundle
         uses: actions/upload-artifact@v7

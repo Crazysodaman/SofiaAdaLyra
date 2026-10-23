@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import replace
 import re
 
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 
 from .presentation import AppearanceState, PresentationError
 from .presentation_runtime import PresentationRuntimeBundle

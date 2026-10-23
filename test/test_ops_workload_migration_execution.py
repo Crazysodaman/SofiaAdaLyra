@@ -2,10 +2,10 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.distributed.operations import RemoteOperationUncertain
-from sofia.ops.model import WorkloadContract
-from sofia.ops.migration import MigrationJournal, WorkloadMigrationExecutor
-from sofia.ops.workload import (
+from sofia.platform.distributed.operations import RemoteOperationUncertain
+from sofia.platform.ops.model import WorkloadContract
+from sofia.platform.ops.migration import MigrationJournal, WorkloadMigrationExecutor
+from sofia.platform.ops.workload import (
     ManagedWorkload,
     MigrationPlan,
     MigrationStage,
@@ -13,7 +13,7 @@ from sofia.ops.workload import (
     WorkloadInstance,
     WorkloadPhase,
 )
-from sofia.ops.workload_backend import (
+from sofia.platform.ops.workload_backend import (
     HostWorkloadProfile,
     TypedWorkloadBackend,
     WorkloadBackendError,
@@ -21,7 +21,7 @@ from sofia.ops.workload_backend import (
     WorkloadOutcomeUncertain,
     WorkloadOperationBinding,
 )
-from sofia.ops.workload_store import WorkloadInstanceStore
+from sofia.platform.ops.workload_store import WorkloadInstanceStore
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 

@@ -11,7 +11,7 @@ import pytest
 from sofia.platform.application.background import BackgroundBudget
 from sofia.conversation.store import ConversationStore
 from sofia.platform.run.work import DurableWorkStore
-from sofia.safe.audit import AuditChain
+from sofia.platform.safe.audit import AuditChain
 from sofia.platform.state.canonical_sqlite import (
     CanonicalSQLiteGuard,
     CanonicalStateUnavailable,

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.ops.dependencies import (
+from sofia.platform.ops.dependencies import (
     DependencyEvidenceStore, DependencyHealth, DependencyObservation,
     DependencyTier, default_dependency_registry,
 )

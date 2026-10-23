@@ -1,6 +1,6 @@
 ﻿from dataclasses import dataclass
 
-from sofia.filesystem.changes import FilesystemChangeEvent
+from sofia.platform.filesystem.changes import FilesystemChangeEvent
 from sofia.platform.operational.model import (
     OperationalState,
     RuntimeContinuity,

@@ -5,11 +5,11 @@ on:
     branches: [main]
     paths:
       - 'src/sofia/vision/**'
-      - 'src/sofia/platform.application/presence.py'
-      - 'src/sofia/platform.application/background_runtime.py'
+      - 'src/sofia/platform/application/presence.py'
+      - 'src/sofia/platform/application/background_runtime.py'
       - 'src/sofia/life/**'
-      - 'src/sofia/ops/workshop_*.py'
-      - 'src/sofia/ops/digital_twin.py'
+      - 'src/sofia/platform/ops/workshop_*.py'
+      - 'src/sofia/platform/ops/digital_twin.py'
       - 'test/test_vision_*.py'
       - 'test/test_screen_capability_authority.py'
       - 'test/test_presence_initiative.py'

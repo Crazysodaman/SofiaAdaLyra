@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import pytest
 
-from sofia.act import (
+from sofia.platform.act import (
     Candidate,
     Decision,
     History,

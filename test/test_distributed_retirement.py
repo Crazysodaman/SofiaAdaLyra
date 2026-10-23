@@ -1,12 +1,12 @@
 from hashlib import sha256
 from datetime import datetime, timezone
 from uuid import uuid4
-from sofia.distributed.model import ApprovedEndpoint
-from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.model import NodeEnrollment
-from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
-from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
-from sofia.distributed.operator import retire_node
+from sofia.platform.distributed.model import ApprovedEndpoint
+from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.platform.distributed.model import NodeEnrollment
+from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.platform.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
+from sofia.platform.distributed.operator import retire_node
 
 
 def test_retirement_disables_identity_and_endpoint(tmp_path):

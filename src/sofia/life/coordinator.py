@@ -10,8 +10,8 @@ import sqlite3
 from typing import Callable, Mapping
 from uuid import uuid4
 
-from sofia.capability.gateway import CapabilityGateway
-from sofia.capability.model import CapabilityProposal, CapabilityResultKind
+from sofia.platform.capability.gateway import CapabilityGateway
+from sofia.platform.capability.model import CapabilityProposal, CapabilityResultKind
 from sofia.creative import (
     ArtifactKind, CreativeExplorer, CreativeProject, CreativeStore,
     CreativeWorldBridge, NativeCreativeAdapter, creative_request_digest,
@@ -29,7 +29,7 @@ from sofia.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )
 from sofia.rel.nicknames import NicknameProposal, NicknameRegistry
-from sofia.safe.operator_stop import OperatorStopStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkJob, WorkResult, WorkStatus,
 )

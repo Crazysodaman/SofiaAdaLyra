@@ -17,7 +17,7 @@ from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
+from sofia.platform.verify.semantic_integrity import SemanticIntegrityVerifier
 
 
 PAYLOAD = """{

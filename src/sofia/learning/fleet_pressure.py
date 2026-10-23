@@ -15,7 +15,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.goals.evidence import GoalEvidenceLedger
-from sofia.ops.activity import ActivityMode
+from sofia.platform.ops.activity import ActivityMode
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .contracts import DataUse, OutcomeClass, Prediction, PredictionMode, SourceClass

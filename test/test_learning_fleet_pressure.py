@@ -8,11 +8,11 @@ from sofia.learning.contracts import DataUse, DataUseGrant, PredictionMode
 from sofia.learning.fleet_pressure import FleetPressurePilot
 from sofia.learning.fleet_advisory import FleetAdvisoryEngine
 from sofia.learning.service import LearningService
-from sofia.ops.activity import ActivityMode, HostActivityStore
-from sofia.ops.history import SQLiteTelemetryHistory
-from sofia.ops.model import FleetHost, HostLifecycle, HostTelemetry, WorkloadContract
-from sofia.ops.latency import FleetLatencyStore
-from sofia.ops.placement import PlacementEngine
+from sofia.platform.ops.activity import ActivityMode, HostActivityStore
+from sofia.platform.ops.history import SQLiteTelemetryHistory
+from sofia.platform.ops.model import FleetHost, HostLifecycle, HostTelemetry, WorkloadContract
+from sofia.platform.ops.latency import FleetLatencyStore
+from sofia.platform.ops.placement import PlacementEngine
 
 
 NOW = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)

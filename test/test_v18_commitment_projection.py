@@ -13,7 +13,7 @@ from sofia.goals.model import (
     GoalRunState,
     GoalStatus,
 )
-from sofia.ops.commitment import CommitmentError, commitment_from_goal
+from sofia.platform.ops.commitment import CommitmentError, commitment_from_goal
 
 NOW = datetime(2026, 10, 15, 12, 0, tzinfo=timezone.utc)
 
@@ -135,14 +135,14 @@ def test_approval_block_run_state_adds_a_precondition():
 
 def test_commitment_rejects_naive_deadline_and_bad_uncertainty():
     with pytest.raises(CommitmentError):
-        from sofia.ops.commitment import CommitmentRecord
+        from sofia.platform.ops.commitment import CommitmentRecord
         CommitmentRecord(
             commitment_id="c1", requested_by_principal_id="user:owner",
             promised="x", due_at=datetime(2026, 1, 1), preconditions=(),
             uncertainty=0.1, cancellable=True, active=True, follow_up_after=None,
         )
     with pytest.raises(CommitmentError):
-        from sofia.ops.commitment import CommitmentRecord
+        from sofia.platform.ops.commitment import CommitmentRecord
         CommitmentRecord(
             commitment_id="c1", requested_by_principal_id="user:owner",
             promised="x", due_at=None, preconditions=(), uncertainty=1.5,

@@ -3,14 +3,14 @@ from uuid import UUID
 import pytest
 
 from test.action_support import TestActionExecutor
-from sofia.action.model import (
+from sofia.platform.action.model import (
     Action,
     ActionProposal,
     ActionRisk,
     ActionStatus,
 )
-from sofia.action.system import ActionSystem
-from sofia.authority.model import Authority
+from sofia.platform.action.system import ActionSystem
+from sofia.platform.authority.model import Authority
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveRequest

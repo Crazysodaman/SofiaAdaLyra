@@ -13,7 +13,7 @@ from sofia.platform.config.user_settings import RuntimeUserSettings
 from sofia.cognition.model_lifecycle import (
     CognitiveModelRole, ModelLifecycleManager, ModelResidencyMode,
 )
-from sofia.ops.activity import (
+from sofia.platform.ops.activity import (
     ActivityMode, observed_desktop_activity,
 )
 from test.test_model_lifecycle import Backend, _selection, NOW

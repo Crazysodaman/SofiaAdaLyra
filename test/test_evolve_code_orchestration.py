@@ -5,11 +5,11 @@ import pytest
 
 from sofia.platform.application.evolution import SofiaEvolutionService
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.dev.capability import DevToolService
-from sofia.evolve.code import CodeEvolutionProposal
-from sofia.evolve.lifecycle import EvolutionOutcome, EvolutionProposalStatus
-from sofia.evolve.lifecycle import EvolutionLifecycleStore
-from sofia.evolve.orchestrator import CodeEvolutionOrchestrator
+from sofia.platform.dev.capability import DevToolService
+from sofia.platform.evolve.code import CodeEvolutionProposal
+from sofia.platform.evolve.lifecycle import EvolutionOutcome, EvolutionProposalStatus
+from sofia.platform.evolve.lifecycle import EvolutionLifecycleStore
+from sofia.platform.evolve.orchestrator import CodeEvolutionOrchestrator
 from sofia.platform.run.release_rollout import ReleaseRolloutJournal, ReleaseRolloutResult
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
@@ -45,7 +45,7 @@ class FakeDevService(DevToolService):
         return {
             "proposal_id": parameters["proposal_id"],
             "base_sha": parameters["base_sha"],
-            "changed_paths": ("src/sofia/evolve/example.py",),
+            "changed_paths": ("src/sofia/platform/evolve/example.py",),
             "allowed_paths": tuple(parameters["allowed_paths"]),
             "tests_passed": True,
             "patch": "diff --git a/example b/example\n",
@@ -53,7 +53,7 @@ class FakeDevService(DevToolService):
 
     def apply(self, parameters):
         self.calls.append(("apply", parameters))
-        return {"proposal_id": parameters["proposal_id"], "changed_paths": ("src/sofia/evolve/example.py",)}
+        return {"proposal_id": parameters["proposal_id"], "changed_paths": ("src/sofia/platform/evolve/example.py",)}
 
     def commit(self, parameters):
         self.calls.append(("commit", parameters))
@@ -102,7 +102,7 @@ def service_with_evidence(tmp_path):
     return service
 
 
-def propose(service, proposal_id="code-1", allowed_paths=("src/sofia/evolve",)):
+def propose(service, proposal_id="code-1", allowed_paths=("src/sofia/platform/evolve",)):
     return service.propose_code(
         proposal_id=proposal_id,
         base_sha="a" * 40,
@@ -124,12 +124,12 @@ def test_code_proposal_is_canonical_and_rejects_overlapping_open_scope(tmp_path)
     restored = service.lifecycle.proposal_object(record.proposal_id)
 
     assert isinstance(restored, CodeEvolutionProposal)
-    assert restored.allowed_paths == ("src/sofia/evolve",)
+    assert restored.allowed_paths == ("src/sofia/platform/evolve",)
     with pytest.raises(RuntimeError, match="overlaps"):
         propose(
             service,
             proposal_id="code-2",
-            allowed_paths=("src/sofia/evolve/lifecycle.py",),
+            allowed_paths=("src/sofia/platform/evolve/lifecycle.py",),
         )
 
 

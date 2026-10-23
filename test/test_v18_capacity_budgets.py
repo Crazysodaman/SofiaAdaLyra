@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from sofia.ops.capacity import (
+from sofia.platform.ops.capacity import (
     DEFAULT_BUDGETS,
     CapacityBudget,
     CapacityError,

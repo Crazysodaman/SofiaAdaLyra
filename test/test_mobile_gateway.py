@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
 from sofia.mobile.gateway import MobileCompanionGateway
 from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
-from sofia.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionStore
 from sofia.social.model import AudienceKind
 
 

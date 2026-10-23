@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from sofia.capability.model import CapabilityResultKind
+from sofia.platform.capability.model import CapabilityResultKind
 from sofia.cognition.model import CognitiveResponse, CognitiveToolCall
 from sofia.cognition.tools import CognitiveToolDispatcher
 from sofia.cognition.v2.contracts import (

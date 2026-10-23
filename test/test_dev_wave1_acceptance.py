@@ -1,6 +1,6 @@
 from pathlib import Path
 import pytest
-from sofia.dev import EngineeringExecutionRequest, OpenCodeAdapter, WorkspaceGuard, WorkspaceViolation
+from sofia.platform.dev import EngineeringExecutionRequest, OpenCodeAdapter, WorkspaceGuard, WorkspaceViolation
 
 def test_opencode_refuses_unauthorized_execution(tmp_path):
     req=EngineeringExecutionRequest("p1","a"*40,"fix the bug",("src/a.py",),False)

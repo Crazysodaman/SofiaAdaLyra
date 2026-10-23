@@ -6,7 +6,7 @@ ceremony occurred.
 """
 import pytest
 
-from sofia.safe.permissions import (
+from sofia.platform.safe.permissions import (
     PermissionLevel, PrivacyClass, automatic_capabilities,
     capability_permission_policy, explicitly_classified_capabilities,
     grantable_capabilities,

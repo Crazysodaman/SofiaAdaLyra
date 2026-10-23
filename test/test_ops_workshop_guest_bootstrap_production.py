@@ -13,17 +13,17 @@ from test.owner_auth_fixture import record_verified_owner_approval
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.distributed.capability import RemoteFleetToolService
+from sofia.platform.distributed.capability import RemoteFleetToolService
 from sofia.integrations.hyperv import HyperVAdapter
-from sofia.ops.workshop_handoff import (
+from sofia.platform.ops.workshop_handoff import (
     WorkshopBlankVMHandoff, WorkshopHandoffPreview,
     WorkshopHandoffStore, inspect_blank_vm_handoff, observed_owner_vm,
 )
-from sofia.ops.workshop_guest_bootstrap import (
+from sofia.platform.ops.workshop_guest_bootstrap import (
     WorkshopInstallerBootStore, reviewed_handoff_from_store,
     start_owner_approved_installer,
 )
-from sofia.safe.execution_approval import (
+from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
 
@@ -294,7 +294,7 @@ def test_replayed_or_missing_owner_approval_cannot_boot(tmp_path):
 
 
 def test_host_side_installer_status_is_observed_without_claiming_debian_installed():
-    from sofia.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
+    from sofia.platform.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
     commands=[]
     result={
         "VmId":str(VM),"Name":"Hephaestus","Generation":2,
@@ -318,7 +318,7 @@ def test_host_side_installer_status_is_observed_without_claiming_debian_installe
 
 
 def test_postboot_observation_preserves_unknown_guest_os_and_isolated_internal_receipt(tmp_path):
-    from sofia.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
+    from sofia.platform.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
     state,plan,approval,at,_=reviewed_state(tmp_path)
     service,calls=fake_service(state,at)
     # The fake Artemis boot receipt is observed at at+2s; avoid making
@@ -363,7 +363,7 @@ def test_postboot_observation_preserves_unknown_guest_os_and_isolated_internal_r
 
 
 def test_wrong_host_or_guest_vm_cannot_fake_installer_completion(tmp_path):
-    from sofia.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
+    from sofia.platform.ops.workshop_guest_bootstrap import inspect_existing_vm_installer
     state,plan,approval,at,_=reviewed_state(tmp_path)
     service,_=fake_service(state,at)
     start_owner_approved_installer(

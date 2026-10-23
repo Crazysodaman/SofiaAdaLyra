@@ -19,8 +19,8 @@ import sys
 import tempfile
 from typing import Callable
 
-from sofia.dev.supply_chain import verify_release_evidence
-from sofia.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
+from sofia.platform.dev.supply_chain import verify_release_evidence
+from sofia.platform.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
 
 
 REPOSITORY = "https://github.com/Crazysodaman/SofiaAdaLyra.git"
