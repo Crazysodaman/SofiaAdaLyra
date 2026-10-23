@@ -367,7 +367,7 @@ def test_need_evaluation_and_proposal_flow(tmp_path):
         need(), capability_terms=("locomotive", "power"),
     )
     assert evaluation_down.candidate_matches == ()
-    assert evaluation_down.unavailable_matches == ()
+    assert evaluation_down.unavailable_matches == ("sofia.trains",)
     proposal = proposals_down.propose(
         sparks,
         need=need(),
@@ -428,8 +428,10 @@ def test_need_evaluation_and_proposal_flow(tmp_path):
     healthy_evaluation = proposals.evaluate_need(
         need(), capability_terms=("locomotive", "power"),
     )
+    extra_db = tmp_path / "sofia3.db"
+    bootstrap_canonical_sqlite(extra_db)
     healthy_service = ModuleProposalService(
-        ModuleProposalStore(tmp_path / "sofia3.db"), model,
+        ModuleProposalStore(extra_db), model,
     )
     with pytest.raises(ValueError, match="dispenses"):
         healthy_service.propose(
@@ -511,7 +513,7 @@ def test_workshop_request_generation(tmp_path):
     )
     assert retired.status is WorkshopRequestStatus.RETIRED
     assert requests.store.open_requests() == ()
-    with pytest.raises(WorkshopRequestError):
+    with pytest.raises(ValueError, match="isolated"):
         requests.prepare(
             sparks,
             manifest=manifest_for("sofia.trains.checklist"),
@@ -600,3 +602,53 @@ def test_bootstrap_wiring_and_conversation_reach(
         assert "jmri-adapter@athena(host_pinned)" in block
     finally:
         app.shutdown()
+
+
+def test_capability_system_gate(tmp_path):
+    from sofia.capability.model import (
+        Capability,
+        CapabilityRequest,
+        CapabilityResultKind,
+    )
+    from sofia.capability.system import CapabilitySystem
+    from sofia.modules.capability import (
+        MODULE_AWARENESS_CAPABILITY,
+        ModuleAwarenessCapability,
+    )
+
+    adapter = ModuleAwarenessCapability(CapabilitySelfModel(None, fake_platform()))
+    system = CapabilitySystem(authorization_checker=lambda request: True)
+    system.register(MODULE_AWARENESS_CAPABILITY, adapter.execute)
+    result = system.execute(
+        CapabilityRequest(
+            capability=MODULE_AWARENESS_CAPABILITY,
+            parameters={},
+            requested_scope=None,
+            rationale='Sofia wants an honest inventory before answering.',
+        )
+    )
+    assert result.kind is CapabilityResultKind.SUCCESS
+    rows, summary = result.evidence
+    assert rows and summary.startswith('SOF')
+
+    locked = CapabilitySystem(authorization_checker=lambda request: False)
+    locked.register(MODULE_AWARENESS_CAPABILITY, adapter.execute)
+    denied = locked.execute(
+        CapabilityRequest(
+            capability=MODULE_AWARENESS_CAPABILITY,
+            parameters={},
+            requested_scope=None,
+            rationale='No authorization here.',
+        )
+    )
+    assert denied.kind is CapabilityResultKind.UNAUTHORIZED
+    lookalike = Capability(name=MODULE_AWARENESS_CAPABILITY.name, description='different')
+    mismatch = system.execute(
+        CapabilityRequest(
+            capability=lookalike,
+            parameters={},
+            requested_scope=None,
+            rationale='Replacing flexible.',
+        )
+    )
+    assert mismatch.kind is CapabilityResultKind.DENIED

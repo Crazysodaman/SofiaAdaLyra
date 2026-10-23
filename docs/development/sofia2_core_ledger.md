@@ -798,7 +798,7 @@ bootstrap wiring with an end-to-end offer row.
 
 ## B07 — Modules and self-maintenance (CORE-35, CORE-36, CORE-37, CORE-38, CORE-39, CORE-40)
 
-Status: **in progress** (slices 1–3 implemented this session; remaining
+Status: **in progress** (slices 1–8 implemented; remaining
 plan below). Existing: codebase inspector/analyzer (read-only,
 one-shot), filesystem change observation capability, DEV/EVOLVE governed
 candidate pipeline (detached worktree, verified gates, no self-approval),
@@ -869,16 +869,109 @@ diffs (unknown→observed, observed→suspect) + digest-format guard,
 two-module cycle refused at registration, bootstrap wiring with
 start/shutdown.
 
+### Slice 4 — Typed Platform observation contracts (SMBA) (implemented, tests pass)
+
+Per the owner's SMBA directive (Core = logical CPU; Platform =
+backplane; modules = capability cards), `src/sofia/modules/platform.py`
+mirrors the owner-approved Platform shapes WITHOUT importing or
+reimplementing Codex's Platform: `ModuleDescribeObservation`
+(module.describe: capabilities, requires_permission, active_profile,
+simulated_only), `ModuleHealthObservation` (health V1: instance/host/
+lifecycle/reason codes/freshness; no invented green when unobserved),
+`PlacementObservation` (per-component host placement with
+PORTABLE_STATELESS / CHECKPOINT_RESTART / HOST_PINNED / CANONICAL_PINNED
+modes and device affinity), `OutcomeObservation` (Result V1 statuses
+incl. SUCCEEDED_VERIFIED vs SUCCEEDED_REPORTED_UNVERIFIED, DENIED,
+OUTCOME_UNKNOWN). `PlatformModuleObserver` is the read-only seam for
+Codex's module manager; `FakePlatformModuleObserver` (+ FakeCapabilitySpec)
+serves Core tests until real Platform integration (documented: fake
+adapter ≠ Platform integration claim).
+
+### Slice 5 — Capability self-model (implemented, tests pass)
+
+`src/sofia/modules/self_model.py`: `CapabilitySelfModel(registry,
+platform=None)` projects `ModuleAwarenessRow`s whose aspects stay
+sharply distinct (directive §8): discovered (registry), compatible
+(registry compat report: candidate-only/major-version-mismatch/
+unregistered), installed, active, healthy, available (kept separate;
+quarantine means unavailable), authorized (per-capability tri-state:
+permission_required from describe; grant state only from settled
+OutcomeObservations — VERIFIED→observed-yes, DENIED→observed-no,
+else unknown), verified-vs-unverified outcome counts, simulated-only
+capabilities, multi-host placement rows (JMRI example: pinned
+controller on Athena + portable planner on Artemis in ONE logical row).
+No Platform observer ⇒ installed/active/healthy/available/authorized
+are UNKNOWN, never invented. `awareness_summary(limit≤2000)` produces
+the bounded honest block ("availability never implies authority;
+unknowns stay unknown") used by conversation wiring. Composition seam:
+`set_platform_observer()`.
+
+### Slice 6 — Bounded need→proposal flow (implemented, tests pass)
+
+`src/sofia/modules/proposals.py`: `ModuleNeed` (origin
+goal/interest/repeated-task/broken-module/maintenance/curiosity,
+motivation ≤600, ≥1 registered evidence ref), `evaluate_need(need,
+capability_terms)` — installed-first comparison over observed rows only
+(available installed alternatives, unavailable matches, candidate-only
+matches; she can conclude no module is necessary), `ModuleProposalRecord`
+(canonical store `modules_proposal_revision/_current`, CAS; actions
+install/improve/develop/replace/maintain; statuses
+proposed/deferred/abandoned/no_module_needed/superseded).
+`propose(INSTALL)` REFUSED when a verified installed alternative exists
+("dispenses with a new installation"). Resolution is explicit and never
+reports installation — Platform results arrive as observations.
+Sparks-gated writes.
+
+### Slice 7 — Workshop development request (implemented, tests pass)
+
+`src/sofia/modules/workshop.py`: `WorkshopDevelopmentRequest`
+(canonical `modules_workshop_revision/_current` with CAS): validated
+manifest draft, 1..24 pytest targets, mandatory isolated-sandbox
+requirement, independent code/security/release review requirements,
+optional proposal link; statuses prepared→submitted→retired. Documentary
+boundary: Core never executes modules, signs packages, approves releases
+or grants privileges; failed candidates are retired honestly and
+revised, not bypassed (directive §5).
+
+### Slice 8 — Wiring + capability gate (implemented, tests pass)
+
+Bootstrap: `module_registry`, `module_awareness`, `module_proposals`,
+`workshop_requests` properties; `update_platform_module_observer()` for
+composition-time Platform injection; provider
+`_module_awareness_context_for_principal`. Conversation:
+`set_module_awareness_context_provider` +
+`_module_awareness_context_message` (WORKSPACE class admission as
+`modules:awareness`; gates: context plan must include DEV/MACHINE/OPS/
+COGNITION; graceful failure like all optional providers). Read-only
+capability adapter `sofia/modules/capability.py`
+(`modules.awareness.inspect` + `ModuleAwarenessCapability`) exercised
+through CapabilitySystem: success with authorization, UNAUTHORIZED with
+checker denying, DENIED for a look-alike capability object.
+
+Tests (`test/test_module_awareness.py`, 9 passed): unknown-without-
+evidence honesty, eight-state distinctions, outcome-grounded grant
+tri-states + multi-host assembly, stale/quarantined health, registry↔
+platform merge with compatibility notes + honest summary language,
+need→proposal flow incl. installed-first refusal + CAS + resolutions,
+workshop request lifecycle incl. sandbox refusal + duplication guard,
+bootstrap wiring with conversation reach ("Check the software modules
+and the host hardware adapter availability…" reaches the model with
+"SOFÍA'S MODULE AWARENESS…" block), CapabilitySystem gate.
+
 ### B07 remaining (planned next for this batch)
 
-- Capability adapter over module inspection via CapabilitySystem/Safe/
-  Gateway classification (observation-only, owner-auth-bound), DEV/
-  EVOLVE correlation (manifest-driven candidate intake instead of raw
-  grep), in-process subsystem restart supervision and in-repo OPS drift
+- DEV/EVOLVE correlation: manifest-driven candidate intake feeding
+  EngineeringWorkflow/evolution lifecycle instead of raw grep (workshop
+  requests provide the typed handoff already); real Outcome-driven
+  personal learning into existing memory admission (untrusted module
+  output stays OUT of beliefs by construction); placement assessment
+  requests and interactive proposal narration; supervised maintenance
   hooks beyond the existing control-plane stores.
-- Regression: after slices 1–3, combined targeted run (B06 suites +
-  modules registry: items above) showed 106 passed; ruff clean. No
-  commit (owner authorization required).
+- Regression status: after SMBA slices 4–8 the combined targeted run
+  (B06 suites + modules registry + module awareness) showed 114 passed
+  (asserted 114 in final ledger line); ruff clean across
+  src/sofia/modules + touched application files. No commit (owner
+  authorization required).
 
 ## B08 — Full system integration and acceptance
 
