@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import re
 
-from sofia.embodiment.model import Embodiment
+from sofia.core.embodiment.model import Embodiment
 
 REGISTRY_VERSION = "human-fox-interaction-v1"
 GESTURES = frozenset({"pat", "tap", "touch", "stroke", "rub", "hold", "release", "poke"})

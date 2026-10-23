@@ -11,9 +11,9 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sofia.memory.provenance import CandidateStatus
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.significance import MarkStatus, MemorySignificance, SignificantMemoryStore
+from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.significance import MarkStatus, MemorySignificance, SignificantMemoryStore
 from .memory_review import MemoryReviewService
 
 

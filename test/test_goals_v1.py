@@ -21,7 +21,7 @@ from sofia.goals import (
 )
 from sofia.goals.evidence import GoalEvidence
 from sofia.neuro import NeuralActivation, NeuroInputCoordinator, NeuroRuntime
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 

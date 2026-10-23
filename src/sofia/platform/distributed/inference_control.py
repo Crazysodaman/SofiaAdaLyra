@@ -14,7 +14,7 @@ import sqlite3
 from typing import Protocol
 from uuid import UUID, uuid4
 
-from sofia.cognition.model import CognitiveRequest, CognitiveResponse
+from sofia.core.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.distributed.capabilities import (
     CapabilityInventory,

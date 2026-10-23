@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.offer_route import OFFER
 from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply

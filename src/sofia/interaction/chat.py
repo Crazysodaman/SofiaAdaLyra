@@ -14,8 +14,8 @@ from time import monotonic
 from uuid import uuid4
 
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from sofia.interaction.body_discussion import body_discussion_prompt
 from sofia.interaction.core import InteractionDecision, _DISCUSSION
 from sofia.interaction.grammar import NaturalInteractionEngine
@@ -29,7 +29,7 @@ from sofia.interaction.world import LabWorld
 from sofia.interaction.world_observation import lab_observation_prompt
 from sofia.interaction.world_setup import lab_state_path, provision_starter_lab
 from sofia.interaction.world_text import handle_lab_command, world_prompt
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 
 _LAB_COMMAND = re.compile(
     r"^sof[ií]a\s*,?\s+(?:enter|go to|leave|pick up|put down|work on|finish work on)\b",

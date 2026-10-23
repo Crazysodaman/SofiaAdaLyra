@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.emotion.catalog import EMOTIONS
-from sofia.emotion.journal import EmotionalJournal
+from sofia.core.emotion.catalog import EMOTIONS
+from sofia.core.emotion.journal import EmotionalJournal
 
 NOW = datetime(2026, 9, 20, tzinfo=timezone.utc)
 

@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.cognition.model import (
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
     CognitiveResponse,
 )
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     AuthorityPlan,
     CognitionExecutionStep,
     CognitionExecutionTrace,
@@ -46,8 +46,8 @@ from sofia.cognition.matrix import (
     TurnEnvelope,
     TurnMatrix,
 )
-from sofia.cognition.v2 import ActionRequirement, ReasoningRequirement, TurnPlan
-from sofia.social.model import PrincipalContext
+from sofia.core.cognition.v2 import ActionRequirement, ReasoningRequirement, TurnPlan
+from sofia.core.social.model import PrincipalContext
 from sofia.neuro import NeuroWakeMode
 from sofia.voice.tts import TTSStatus
 from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy

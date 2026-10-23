@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from dataclasses import asdict
 from sofia.platform.capability.model import Capability,CapabilityRequest
-from sofia.cognition.model import CognitiveToolDefinition
-from sofia.cognition.tools import CognitiveToolBinding
+from sofia.core.cognition.model import CognitiveToolDefinition
+from sofia.core.cognition.tools import CognitiveToolBinding
 from .changes import detect_changes
 from .observation import FilesystemObserver,FilesystemObservationStore
 

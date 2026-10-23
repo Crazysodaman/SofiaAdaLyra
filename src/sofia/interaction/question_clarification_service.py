@@ -12,15 +12,15 @@ from pathlib import Path
 from time import monotonic
 from uuid import uuid4
 
-from sofia.cognition.model import CognitiveResponse
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply
 from sofia.interaction.decision_expression import CandidateChoice
 from sofia.interaction.reviewed_hug_question import (
     CLARIFICATION, is_reviewed_hug_question,
 )
 from sofia.interaction.trusted_offer_gate import GuardedOfferResult, _policy_gate
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 
 
 def respond_reviewed_hug_question(

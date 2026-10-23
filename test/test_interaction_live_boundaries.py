@@ -6,9 +6,9 @@ import sqlite3
 
 import pytest
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.expanded_service import ExpandedConversationService
 from sofia.interaction.grammar import NaturalInteractionEngine
@@ -17,7 +17,7 @@ from sofia.interaction.registry import catalog_for_engine
 from sofia.interaction.source_link import VerifiedInteractionState
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core' / 'embodiment" / 'avatar.json'
 
 
 @pytest.fixture

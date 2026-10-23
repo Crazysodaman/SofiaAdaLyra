@@ -21,8 +21,8 @@ import sqlite3
 from uuid import uuid4
 
 from sofia.core.modreg.manifest import ModuleManifest
-from sofia.social.model import PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.model import PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 

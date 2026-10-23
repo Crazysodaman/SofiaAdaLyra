@@ -6,8 +6,8 @@ import sqlite3
 import pytest
 
 from sofia.platform.application.idle_reflection import IdleReflectionWorker
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.reflection import ReflectionJournal
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.reflection import ReflectionJournal
 
 NOW = datetime(2026, 9, 20, 14, tzinfo=timezone.utc)
 

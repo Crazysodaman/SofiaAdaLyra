@@ -10,8 +10,8 @@ from sofia.platform.authorization import (
 from sofia.platform.authorization.evaluator import (
     FilesystemAuthorizationEvaluator,
 )
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import (
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import (
     discord_sparks_principal,
     local_sparks_principal,
 )

@@ -25,15 +25,15 @@ from sofia.goals.service import audience_scope
 from sofia.interaction.world_model import ObjectKind, SpaceKind, Transform
 from sofia.interaction.world_store import VirtualWorldStore
 from sofia.neuro.model import NeuralActivation
-from sofia.personality.preferences import (
+from sofia.core.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )
-from sofia.rel.nicknames import NicknameProposal, NicknameRegistry
+from sofia.core.rel.nicknames import NicknameProposal, NicknameRegistry
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkJob, WorkResult, WorkStatus,
 )
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 
 from .model import (
     PROJECT_TRANSITIONS, ArtifactEvaluation, ExperienceRecord, InterestRecord,

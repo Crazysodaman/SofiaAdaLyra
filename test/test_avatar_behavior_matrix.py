@@ -22,8 +22,8 @@ from sofia.avatar.wardrobe_planner import (
     WeatherObservation,
     wardrobe_emotion_influences,
 )
-from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
+from sofia.core.personality.influence import ContinuityInfluence
 
 
 UTC = timezone.utc

@@ -1,7 +1,7 @@
 """Production-reviewed routing for the canonical represented hug offer."""
 from __future__ import annotations
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.interaction.decision_expression import ReviewedFrame, choice_request
 
 OFFER = "I ask to hug you"

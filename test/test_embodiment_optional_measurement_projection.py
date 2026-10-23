@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from sofia.cognition.self_state import AuthoritativeSelfState
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.cognition.self_state import AuthoritativeSelfState
+from sofia.core.embodiment.store import EmbodimentStore
 
 
-SEED = Path(__file__).resolve().parents[1] / "src/sofia/embodiment/avatar.json"
+SEED = Path(__file__).resolve().parents[1] / "src/sofia/core.embodiment/avatar.json"
 
 
 def test_unknown_dimensions_are_truthful_and_private_anatomy_is_excluded():

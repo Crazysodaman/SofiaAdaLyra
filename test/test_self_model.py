@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sofia.constitution.store import Constitution
-from sofia.identity.model import SofiaIdentity
-from sofia.self_model.model import (
+from sofia.core.constitution.store import Constitution
+from sofia.core.identity.model import SofiaIdentity
+from sofia.core.self_model.model import (
     Relationship,
     SelfConcept,
     SofiaCoreState,

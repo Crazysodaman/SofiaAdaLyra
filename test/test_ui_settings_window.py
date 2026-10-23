@@ -7,11 +7,11 @@ import pytest
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.platform.config.defaults import production_storage_layout
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.emotion.journal import EmotionalJournal
-from sofia.social.model import SocialScope
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.social.model import SocialScope
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.ui.wardrobe_panel import current_mood
 
 

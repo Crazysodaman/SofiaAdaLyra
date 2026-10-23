@@ -36,7 +36,7 @@ class PersonalityReviewError(ValueError):
 
 def _read_profile(repo: Path | str) -> tuple[str, str]:
     root = Path(repo).resolve(strict=True)
-    relative = Path("src/sofia/personality/personality.json")
+    relative = Path("src/sofia/core/personality/personality.json")
     path = root / relative
     if (not path.is_file() or path.is_symlink()
             or root not in path.resolve().parents):

@@ -1,7 +1,7 @@
 """Synthetic reviewed gesture/sensor fixtures and state-free staging experiments."""
 from __future__ import annotations
 from dataclasses import dataclass
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.interaction.avatar_world import gesture_provider_view
 from sofia.interaction.chat import interaction_prompt
 from sofia.interaction.core import InteractionDecision

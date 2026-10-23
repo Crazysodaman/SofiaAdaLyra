@@ -8,14 +8,14 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.cognition.model import CognitiveResponse
-from sofia.conversation.lifelong import (
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.conversation.lifelong import (
     CanonicalTurnConflict, CanonicalTurnUncertain, LifelongThreadStore,
 )
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.conversation.store import ConversationStore
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.store import SocialSessionStore
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.store import ConversationStore
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.store import SocialSessionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

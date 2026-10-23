@@ -19,26 +19,26 @@ from sofia.platform.authorization.model import (
     FilesystemAuthorizationOperation,
 )
 from sofia.platform.capability.system import CapabilitySystem
-from sofia.cognition.matrix import ContextPlan, EvidenceRecord, EvidenceState, PrivacyProjectionPlan
-from sofia.cognition.model import CognitiveRequest, CognitiveResponse
-from sofia.cognition.model_lifecycle import ModelLifecycleManager
-from sofia.cognition.routing import RoutingCognitiveEngine, RoutingExecution
-from sofia.cognition.system import CognitiveSystem
+from sofia.core.cognition.matrix import ContextPlan, EvidenceRecord, EvidenceState, PrivacyProjectionPlan
+from sofia.core.cognition.model import CognitiveRequest, CognitiveResponse
+from sofia.core.cognition.model_lifecycle import ModelLifecycleManager
+from sofia.core.cognition.routing import RoutingCognitiveEngine, RoutingExecution
+from sofia.core.cognition.system import CognitiveSystem
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
 from sofia.platform.config.model import SofiaConfiguration
-from sofia.constitution.store import ConstitutionIntegrityError, ConstitutionIntegrityVerifier
-from sofia.constitution.store import Constitution
-from sofia.constitution.store import ConstitutionStore
+from sofia.core.constitution.store import ConstitutionIntegrityError, ConstitutionIntegrityVerifier
+from sofia.core.constitution.store import Constitution
+from sofia.core.constitution.store import ConstitutionStore
 from sofia.continuity.model import (
     ContinuityEvent,
     ContinuityEventKind,
     create_continuity_event,
 )
-from sofia.embodiment.model import Embodiment
+from sofia.core.embodiment.model import Embodiment
 from sofia.platform.distributed.authorization import remote_host_capability_name
 from sofia.platform.distributed.durable import DurableRemoteAuthorization
-from sofia.embodiment.measurement_query import MeasurementQueryResolver
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.measurement_query import MeasurementQueryResolver
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.environment.query import EnvironmentQueryResolver
 from sofia.environment.service import EnvironmentService
 from sofia.platform.filesystem.changes import (
@@ -51,9 +51,9 @@ from sofia.platform.filesystem.observation import (
     FilesystemObservationStore,
     FilesystemObserver,
 )
-from sofia.identity.model import SofiaIdentity
-from sofia.identity.store import IdentityStore
-from sofia.memory.system import MemorySystem
+from sofia.core.identity.model import SofiaIdentity
+from sofia.core.identity.store import IdentityStore
+from sofia.core.memory.system import MemorySystem
 from sofia.platform.ops.capability import OpsToolService
 from sofia.platform.operational.model import (
     OperationalState,
@@ -61,15 +61,15 @@ from sofia.platform.operational.model import (
 )
 from sofia.platform.operational.store import OperationalStore
 from sofia.platform.operational.status_queries import OperationalStatusQueryResolver
-from sofia.personality.influence import ContinuityInfluence
-from sofia.personality.model import PersonalityProfile
-from sofia.personality.reflection_query import ReflectionQueryResolver
-from sofia.personality.store import PersonalityStore
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.personality.model import PersonalityProfile
+from sofia.core.personality.reflection_query import ReflectionQueryResolver
+from sofia.core.personality.store import PersonalityStore
 from sofia.platform.runtime.evidence import project_matrix_evidence
 from sofia.platform.runtime.hot_state import HotState, HotStateEntry
 from sofia.platform.runtime.response import respond_with_runtime_context
 from sofia.platform.runtime.model import RuntimeState
-from sofia.self_model.model import (
+from sofia.core.self_model.model import (
     SofiaCoreState,
     create_core_state,
 )
@@ -77,10 +77,10 @@ from sofia.platform.safe.dev_approval import DevApprovalVerifier
 from sofia.platform.safe.evolve_approval import DurableEvolutionApprovalVerifier
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.safe.permissions import PermissionStore, automatic_capabilities
-from sofia.self_model.operational import (
+from sofia.core.self_model.operational import (
     SofiaOperationalSelfModel,
 )
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 from sofia.platform.state.plane import StatePlane
 
 

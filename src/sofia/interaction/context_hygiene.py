@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 
 _LEGACY_DESCRIPTION = 'User initiated an affectionate or playful conversational cue.'
 _TRUSTED_HEADINGS = (

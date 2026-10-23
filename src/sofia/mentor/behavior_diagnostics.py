@@ -18,7 +18,7 @@ def diagnose_behavior(*, root: Path | str = ".",
                       history_path: Path | str | None = None) -> dict[str, Any]:
     """Return configuration/preflight facts scoped ONLY to this CLI process."""
     root = Path(root).resolve(strict=True)
-    source = root / "src" / "sofia" / "personality" / "personality.json"
+    source = root / "src" / "sofia" / "core" / "personality" / "personality.json"
     local = default_local_path() if history_path is None else Path(history_path)
     try:
         enabled = behavior_monitor_enabled()
@@ -42,7 +42,7 @@ def diagnose_behavior(*, root: Path | str = ".",
     )
     try:
         configured_profile = configured_root.resolve(strict=True) / (
-            "src/sofia/personality/personality.json"
+            "src/sofia/core/personality/personality.json"
         )
         configured_root_valid = (
             configured_profile.is_file() and not configured_profile.is_symlink()

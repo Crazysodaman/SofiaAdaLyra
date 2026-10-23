@@ -5,16 +5,16 @@ from uuid import uuid4
 import pytest
 
 from sofia.platform.application.memory_significance import MemorySignificanceService
-from sofia.memory.autobiography import AutobiographyTimeline
-from sofia.memory.originals import SourceMessage
-from sofia.memory.provenance import MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.significance import (
+from sofia.core.memory.autobiography import AutobiographyTimeline
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.provenance import MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.significance import (
     MarkStatus, MemorySignificance, SignificantMemoryStore,
 )
 from sofia.life.model import ExperienceRecord
 from sofia.life.store import LifeStore
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 
 BASE = datetime(2026, 3, 1, 12, 0, tzinfo=timezone.utc)
 

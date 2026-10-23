@@ -6,7 +6,7 @@ from sofia.avatar.generated_decision import GeneratedGarmentDecisionService
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_design import GraphicDesign
 from sofia.avatar.wardrobe_generated_store import SofiaGarmentDecision
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.cognition.model import CognitiveResponse
 
 
 def _blueprint():

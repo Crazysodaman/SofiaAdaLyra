@@ -10,9 +10,9 @@ from sofia.platform.capability.model import (
     CapabilityResultKind,
 )
 from sofia.platform.capability.system import CapabilitySystem
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.engine import CognitiveEngine
-from sofia.cognition.model import (
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.engine import CognitiveEngine
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
@@ -20,9 +20,9 @@ from sofia.cognition.model import (
     CognitiveToolCall,
     CognitiveToolDefinition,
 )
-from sofia.cognition.operation import CognitiveOperation
-from sofia.cognition.system import CognitiveSystem
-from sofia.cognition.tools import (
+from sofia.core.cognition.operation import CognitiveOperation
+from sofia.core.cognition.system import CognitiveSystem
+from sofia.core.cognition.tools import (
     CognitiveToolBinding,
     CognitiveToolDispatcher,
     CognitiveToolError,
@@ -93,7 +93,7 @@ def create_default_dispatcher(tmp_path: Path):
         capability_system=capability_system,
     )
 
-    from sofia.cognition.tools import create_default_tool_bindings
+    from sofia.core.cognition.tools import create_default_tool_bindings
 
     return CognitiveToolDispatcher(
         gateway=gateway,
@@ -325,7 +325,7 @@ def test_cognitive_system_executes_authorized_tool_and_continues():
     response = system.respond(
         CognitiveOperation(
             context=__import__(
-                "sofia.cognition.context",
+                "sofia.core.cognition.context",
                 fromlist=["CognitiveContext"],
             ).CognitiveContext(
                 request=CognitiveRequest(
@@ -457,7 +457,7 @@ def test_cognitive_system_does_not_expose_unauthorized_tool():
     response = system.respond(
         CognitiveOperation(
             context=__import__(
-                "sofia.cognition.context",
+                "sofia.core.cognition.context",
                 fromlist=["CognitiveContext"],
             ).CognitiveContext(
                 request=CognitiveRequest(messages=()),
@@ -497,7 +497,7 @@ def test_cognitive_system_rejects_tool_loop_without_dispatcher():
         system.respond(
             CognitiveOperation(
                 context=__import__(
-                    "sofia.cognition.context",
+                    "sofia.core.cognition.context",
                     fromlist=["CognitiveContext"],
                 ).CognitiveContext(
                     request=CognitiveRequest(messages=()),
@@ -540,7 +540,7 @@ def test_cognitive_system_enforces_tool_round_limit():
         system.respond(
             CognitiveOperation(
                 context=__import__(
-                    "sofia.cognition.context",
+                    "sofia.core.cognition.context",
                     fromlist=["CognitiveContext"],
                 ).CognitiveContext(
                     request=CognitiveRequest(messages=()),
@@ -601,7 +601,7 @@ def test_tool_call_message_is_preserved_for_followup_provider_request():
     result = system.respond(
         CognitiveOperation(
             context=__import__(
-                "sofia.cognition.context",
+                "sofia.core.cognition.context",
                 fromlist=["CognitiveContext"],
             ).CognitiveContext(
                 request=CognitiveRequest(messages=()),
@@ -1105,7 +1105,7 @@ def test_untrusted_tool_logs_are_truncated_before_model_context():
     """Large external logs must not crowd out the instruction/authority boundary."""
     from types import SimpleNamespace
 
-    from sofia.cognition.tools import MAX_FORMATTED_TOOL_RESULT_CHARS
+    from sofia.core.cognition.tools import MAX_FORMATTED_TOOL_RESULT_CHARS
 
     call = CognitiveToolCall(
         name="inspect_test", arguments={"value": "external log"},
@@ -1333,7 +1333,7 @@ def test_filesystem_tool_evidence_is_bounded_before_context_join(tmp_path):
     from sofia.platform.filesystem.model import (
         FilesystemOperation, FilesystemResult, FilesystemResultKind,
     )
-    from sofia.cognition.tools import MAX_FORMATTED_TOOL_RESULT_CHARS
+    from sofia.core.cognition.tools import MAX_FORMATTED_TOOL_RESULT_CHARS
 
     result = FilesystemResult(
         operation=FilesystemOperation.READ_FILE,

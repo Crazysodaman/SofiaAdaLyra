@@ -5,7 +5,7 @@ from pathlib import Path
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 
-from sofia.cognition.model_inventory import (
+from sofia.core.cognition.model_inventory import (
     ModelInventoryStore, collect_local_model_inventory,
 )
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
@@ -167,7 +167,7 @@ def test_run_owned_readonly_discovery_uses_reviewed_local_ollama_roles(
     tmp_path, monkeypatch,
 ):
     from sofia.platform.config.user_settings import RuntimeUserSettings
-    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    from sofia.core.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(
         RuntimeUserSettings(
@@ -196,7 +196,7 @@ def test_run_owned_readonly_discovery_uses_reviewed_local_ollama_roles(
 
 def test_failed_unattended_scan_keeps_prior_confirmed_inventory(tmp_path):
     from sofia.platform.config.user_settings import RuntimeUserSettings
-    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    from sofia.core.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(
         RuntimeUserSettings(
@@ -224,7 +224,7 @@ def test_failed_unattended_scan_keeps_prior_confirmed_inventory(tmp_path):
 
 def test_unreviewed_model_never_gets_a_rank_or_role_from_discovery(tmp_path):
     from sofia.platform.config.user_settings import RuntimeUserSettings
-    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    from sofia.core.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(
         RuntimeUserSettings(
@@ -247,7 +247,7 @@ def test_old_or_future_inventory_does_not_offer_models_for_current_role_review(
     tmp_path,
 ):
     from sofia.platform.config.user_settings import RuntimeUserSettings
-    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    from sofia.core.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
         cognitive_primary_model="primary:stable",
@@ -279,7 +279,7 @@ def test_old_or_future_inventory_does_not_offer_models_for_current_role_review(
 
 def test_model_without_content_address_is_only_historical_inventory(tmp_path):
     from sofia.platform.config.user_settings import RuntimeUserSettings
-    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    from sofia.core.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
         cognitive_primary_model="primary:stable",
@@ -308,7 +308,7 @@ def test_model_without_content_address_is_only_historical_inventory(tmp_path):
 
 def test_out_of_order_inventory_scan_cannot_rewind_host_snapshot(tmp_path):
     from sofia.platform.config.user_settings import RuntimeUserSettings
-    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    from sofia.core.cognition.model_inventory import refresh_local_model_inventory
     state=_trusted_test_state(tmp_path)
     RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
         cognitive_primary_model="primary:stable",

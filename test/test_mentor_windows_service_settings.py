@@ -23,7 +23,7 @@ class MentorServiceSettingsTests(TestCase):
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name) / "checkout"
-        profile = self.root / "src/sofia/personality/personality.json"
+        profile = self.root / "src/sofia/core/personality/personality.json"
         monitor = self.root / "src/sofia/mentor/behavior_monitor.py"
         profile.parent.mkdir(parents=True)
         monitor.parent.mkdir(parents=True)

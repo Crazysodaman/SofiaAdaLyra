@@ -6,10 +6,10 @@ import pytest
 from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.platform.capability.model import Capability
 from sofia.platform.capability.system import CapabilitySystem
-from sofia.cognition.model import CognitiveToolDefinition
+from sofia.core.cognition.model import CognitiveToolDefinition
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.cognition.tools import CognitiveToolBinding, CognitiveToolDispatcher
-from sofia.cognition.v2 import (
+from sofia.core.cognition.tools import CognitiveToolBinding, CognitiveToolDispatcher
+from sofia.core.cognition.v2 import (
     ActionRequirement,
     CognitiveBudget,
     CognitiveSchedule,
@@ -156,7 +156,7 @@ def test_v2_coordinator_cannot_bypass_matrix_tool_exposure(tmp_path):
 
 
 def test_matrix_routes_cpu_load_to_fleet_telemetry_not_cpu_model():
-    from sofia.cognition.v2 import MatrixV2Planner, TurnKernelInput
+    from sofia.core.cognition.v2 import MatrixV2Planner, TurnKernelInput
 
     turn = TurnKernelInput(
         "turn:load", "session:test", "What is Artemis CPU load?", NOW,

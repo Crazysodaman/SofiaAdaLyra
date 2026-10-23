@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from sofia.cognition.model import CognitiveMessage
+from sofia.core.cognition.model import CognitiveMessage
 
 
 class ContextClass(str, Enum):

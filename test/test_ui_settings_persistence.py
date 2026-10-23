@@ -10,7 +10,7 @@ import pytest
 
 from sofia.platform.config import create_production_configuration
 from sofia.platform.config.defaults import production_storage_layout
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 from sofia.platform.config.model import FleetCognitionConfiguration, FleetDiscoveryConfiguration
 from sofia.platform.config.user_settings import OutreachSettings, RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.platform.ops.activity import ActivityMode, HostActivityStore

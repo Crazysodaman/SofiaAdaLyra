@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 import sqlite3
 
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.cognition.model import CognitiveResponse
 from sofia.ui.desktop_controller import DesktopWorkbenchController
 from sofia.ui.text import UITextMessage
 

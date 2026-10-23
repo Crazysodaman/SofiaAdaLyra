@@ -12,11 +12,11 @@ import re
 import sqlite3
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
-from sofia.conversation.lifelong import LifelongThreadStore
+from sofia.core.conversation.lifelong import LifelongThreadStore
 from sofia.platform.safe.permissions import PermissionStore
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.store import SocialSessionStore
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.store import SocialSessionStore
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 
 from .pairing import MobileDeviceCredentialStore

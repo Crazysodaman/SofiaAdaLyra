@@ -168,7 +168,7 @@ def install_approved_configured_model(
     """
     from datetime import datetime, timezone
 
-    from sofia.cognition.model_lifecycle import (
+    from sofia.core.cognition.model_lifecycle import (
         CognitiveModelRole, ModelLifecycleManager, ModelLifecycleStatus,
     )
     from sofia.platform.config import create_production_configuration
@@ -220,7 +220,7 @@ def install_approved_configured_model(
     )
     # An already-present model needs neither a pull nor an installation
     # approval consumption. Do not write a misleading installation receipt.
-    from sofia.cognition.model_lifecycle import ModelResidency
+    from sofia.core.cognition.model_lifecycle import ModelResidency
     before = manager.status(selected)
     if before.state in {
         ModelResidency.UNLOADED, ModelResidency.READY, ModelResidency.BUSY,

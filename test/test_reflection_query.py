@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
-from sofia.personality.reflection import RecordedThought
-from sofia.personality.reflection_query import ReflectionQueryResolver
+from sofia.core.personality.reflection import RecordedThought
+from sofia.core.personality.reflection_query import ReflectionQueryResolver
 
 
 NOW = datetime(2026, 10, 3, 7, 0, tzinfo=timezone.utc)

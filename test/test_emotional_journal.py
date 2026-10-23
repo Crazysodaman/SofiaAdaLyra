@@ -3,11 +3,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.emotion.journal import EmotionalJournal
+from sofia.core.emotion.journal import EmotionalJournal
 from sofia.life.model import ExperienceRecord
-from sofia.personality.expression import personality_expression_guidance
-from sofia.social.model import AudienceKind, PrincipalContext, SocialScope
-from sofia.social.principals import local_sparks_principal
+from sofia.core.personality.expression import personality_expression_guidance
+from sofia.core.social.model import AudienceKind, PrincipalContext, SocialScope
+from sofia.core.social.principals import local_sparks_principal
 
 NOW = datetime(2026, 9, 20, 16, 0, tzinfo=timezone.utc)
 

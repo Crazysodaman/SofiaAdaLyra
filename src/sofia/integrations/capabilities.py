@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any,Callable
 from sofia.platform.capability.model import Capability,CapabilityRequest
-from sofia.cognition.model import CognitiveToolDefinition
-from sofia.cognition.tools import CognitiveToolBinding
+from sofia.core.cognition.model import CognitiveToolDefinition
+from sofia.core.cognition.tools import CognitiveToolBinding
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.safe.permissions import PermissionLevel, PermissionStore, capability_permission_policy

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from test.matrix_v2_support import V2TurnClassifier as BaselineTurnClassifier
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
     ContextualInfluenceMatrix,
@@ -25,8 +25,8 @@ from sofia.cognition.matrix import (
     TurnEnvelope,
     TurnMatrix,
 )
-from sofia.cognition.matrix.influence import ContinuityInfluence
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.cognition.matrix.influence import ContinuityInfluence
+from sofia.core.cognition.model import CognitiveResponse
 
 
 NOW = datetime(2026, 10, 4, 20, 0, tzinfo=timezone.utc)

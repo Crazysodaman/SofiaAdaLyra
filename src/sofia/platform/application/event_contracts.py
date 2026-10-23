@@ -13,7 +13,7 @@ import math
 import re
 
 from sofia.platform.application.decision_persistence import CompanionTurnPersistence
-from sofia.cognition.matrix.model import MatrixTrace
+from sofia.core.cognition.matrix.model import MatrixTrace
 
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,199}$")

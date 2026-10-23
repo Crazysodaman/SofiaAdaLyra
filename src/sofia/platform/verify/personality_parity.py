@@ -12,8 +12,8 @@ import re
 from typing import Iterable
 
 from sofia.platform.application.expression_runtime import ExpressionIntent
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
-from sofia.cognition.repetition_guard import response_quality_issue
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.core.cognition.repetition_guard import response_quality_issue
 
 
 # Fixed input prompts prevent operators from cherry-picking easier questions

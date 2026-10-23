@@ -22,13 +22,13 @@ from time import perf_counter_ns, process_time_ns
 from uuid import uuid4
 
 from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
-from sofia.memory.originals import SourceMessage
-from sofia.memory.provenance import MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.system import MemorySystem
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.provenance import MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.system import MemorySystem
 from sofia.neuro import NeuralSignal, NeuroRuntime
 from sofia.neuro.connectome.association_store import ReviewedAssociationStore
-from sofia.social.principals import discord_sparks_principal, local_sparks_principal
+from sofia.core.social.principals import discord_sparks_principal, local_sparks_principal
 
 # Controlled synthetic facts with unique source evidence, never private chat.
 EXPECTED = "Reviewed factual model trains diagnosis B"

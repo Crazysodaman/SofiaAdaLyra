@@ -10,7 +10,7 @@ from pathlib import Path
 import sqlite3
 from time import perf_counter, process_time
 
-from sofia.emotion.model import CurrentEmotionalState
+from sofia.core.emotion.model import CurrentEmotionalState
 from sofia.environment.model import EnvironmentSnapshot
 from sofia.platform.ops.model import HostTelemetry
 from sofia.voice import TTSStatus

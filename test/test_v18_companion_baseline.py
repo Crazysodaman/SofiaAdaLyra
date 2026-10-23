@@ -13,7 +13,7 @@ pytestmark = pytest.mark.pkg_verify
 
 def _measured(revision="a" * 40):
     return {
-        "schema": "sofia.cognition-v2.baseline-v1",
+        "schema": "sofia.core.cognition-v2.baseline-v1",
         "revision": revision,
         "environment": {"provider": "test", "model": "test"},
         "database": {"conversation_messages": 8, "matrix_traces": 4},

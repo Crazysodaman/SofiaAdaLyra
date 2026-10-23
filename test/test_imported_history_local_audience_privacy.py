@@ -5,12 +5,12 @@ private transport alone never authorizes original ChatGPT archive exposure.
 """
 from datetime import datetime, timezone
 
-from sofia.memory.chatgpt_export import parse_chatgpt_export_archive
-from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.system import MemorySystem
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import (
+from sofia.core.memory.chatgpt_export import parse_chatgpt_export_archive
+from sofia.core.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.system import MemorySystem
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import (
     SPARKS_PRINCIPAL_ID,
     discord_sparks_principal,
     local_sparks_principal,

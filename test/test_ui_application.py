@@ -12,16 +12,16 @@ from test.owner_auth_fixture import private_with_signed_owner
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
-    PROJECT_ROOT / "src" / "sofia" / "constitution" / "constitution.md"
+    PROJECT_ROOT / "src" / "sofia" / "core" / "constitution" / "constitution.md"
 )
 HASH_PATH = (
-    PROJECT_ROOT / "src" / "sofia" / "constitution" / "constitution.sha256"
+    PROJECT_ROOT / "src" / "sofia" / "core" / "constitution" / "constitution.sha256"
 )
 IDENTITY_PATH = (
-    PROJECT_ROOT / "src" / "sofia" / "identity" / "identity.json"
+    PROJECT_ROOT / "src" / "sofia" / "core" / "identity" / "identity.json"
 )
 AVATAR_PATH = (
-    PROJECT_ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+    PROJECT_ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 )
 
 

@@ -9,9 +9,9 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.memory.provenance import CandidateStatus
-from sofia.social.principals import local_sparks_principal
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.social.principals import local_sparks_principal
 from test.test_memory_review_source_revalidation import _setup
 
 

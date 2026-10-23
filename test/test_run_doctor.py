@@ -8,7 +8,7 @@ import sqlite3
 
 import pytest
 
-from sofia.constitution.store import canonical_constitution_text
+from sofia.core.constitution.store import canonical_constitution_text
 from sofia.platform.run import doctor
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
@@ -16,18 +16,16 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SEED_CONSTITUTION = (
     REPOSITORY_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.md"
 )
 SEED_PERSONALITY = (
     REPOSITORY_ROOT
     / "src"
-    / "sofia"
-    / "personality"
+    / "sofia" / "core" / "personality"
     / "personality.json"
 )
-SEED_AVATAR = REPOSITORY_ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+SEED_AVATAR = REPOSITORY_ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 FIXTURE_INSTANCE_ID = "00000000-0000-4000-8000-000000000001"
 EXPECTED_CHECK_IDS = (
     "storage_layout",

@@ -6,10 +6,10 @@ import pytest
 
 from sofia.platform.application.conversation_service import ConversationService
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
-from sofia.emotion.journal import EmotionalJournal
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 
 def _service(monkeypatch, tmp_path, *, personality=True):
@@ -158,7 +158,7 @@ def test_emotional_projection_does_not_reinject_excluded_environment(
     tmp_path,
     history_policy_name,
 ):
-    from sofia.cognition.matrix import ContextPlan, HistoryPolicy, MatrixDomain
+    from sofia.core.cognition.matrix import ContextPlan, HistoryPolicy, MatrixDomain
 
     class EnvironmentMustNotBeRead:
         def snapshot(self, **_kwargs):
@@ -192,7 +192,7 @@ def test_emotional_projection_is_absent_when_emotion_domain_is_excluded(
     monkeypatch,
     tmp_path,
 ):
-    from sofia.cognition.matrix import ContextPlan, HistoryPolicy, MatrixDomain
+    from sofia.core.cognition.matrix import ContextPlan, HistoryPolicy, MatrixDomain
 
     service, original = _service(monkeypatch, tmp_path)
     service._current_context_plan = ContextPlan(

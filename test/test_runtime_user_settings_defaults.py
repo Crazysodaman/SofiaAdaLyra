@@ -1,7 +1,7 @@
 from dataclasses import replace
 
 from sofia.platform.config.defaults import production_storage_layout
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 from sofia.platform.config import (
     create_default_configuration,
     create_production_configuration,

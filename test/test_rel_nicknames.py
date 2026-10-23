@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.rel.nicknames import NicknameRegistry, NicknameStatus
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.rel.nicknames import NicknameRegistry, NicknameStatus
+from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
 NOW = datetime(2026, 10, 10, 12, tzinfo=timezone.utc)

@@ -6,7 +6,7 @@ import sqlite3
 
 import pytest
 
-from sofia.cognition.model_switch_plan import (
+from sofia.core.cognition.model_switch_plan import (
     ModelPromotionUncertain, PreparedModelRoleChange,
     promote_prepared_model_role,
 )

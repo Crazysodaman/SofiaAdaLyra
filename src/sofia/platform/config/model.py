@@ -7,7 +7,7 @@ CURRENT_CONFIGURATION_SCHEMA_VERSION = 1
 
 from sofia.platform.distributed.version import FleetProtocolVersion
 from sofia.environment.config import EnvironmentConfiguration
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 
 
 @dataclass(frozen=True)

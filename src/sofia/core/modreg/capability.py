@@ -3,7 +3,7 @@
 This adapter exposes only the awareness projection through the existing
 CapabilitySystem. It performs no writes, executes no module code, grants
 no privilege, and requires the caller's authorization before running,
-matching the house pattern of `sofia.codebase.capability`.
+matching the house pattern of `sofia.core.codebase.capability`.
 """
 from __future__ import annotations
 

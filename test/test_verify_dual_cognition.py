@@ -1,4 +1,4 @@
-from sofia.cognition.routing import (
+from sofia.core.cognition.routing import (
     CognitiveRoute,
     RoutingExecution,
     RoutingExecutionStep,

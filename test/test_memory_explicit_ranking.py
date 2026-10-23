@@ -5,13 +5,13 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.memory.model import MemoryRecord
-from sofia.memory.originals import SourceMessage
-from sofia.memory.provenance import MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.ranking import MemoryRankingService, RelevanceJudgment
-from sofia.memory.system import MemorySystem
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.memory.model import MemoryRecord
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.provenance import MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.ranking import MemoryRankingService, RelevanceJudgment
+from sofia.core.memory.system import MemorySystem
+from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
 NOW = datetime(2026, 10, 18, 12, tzinfo=timezone.utc)

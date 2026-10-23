@@ -8,11 +8,11 @@ import pytest
 
 from sofia.platform.application.decision_persistence import inspect_turn_persistence
 from sofia.platform.application.decision_trace import project_companion_decision
-from sofia.cognition.matrix.model import (
+from sofia.core.cognition.matrix.model import (
     HistoryPolicy, MatrixConfidence, MatrixIntent, MatrixTrace,
     ResponseStrategy, TurnEnvelope, TurnMatrix,
 )
-from sofia.cognition.matrix.trace import MatrixTraceStore
+from sofia.core.cognition.matrix.trace import MatrixTraceStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_verify]
@@ -602,7 +602,7 @@ def test_matrix_execution_history_rejects_unbounded_limits(tmp_path, limit):
 
 
 def test_matrix_scoped_execution_history_filters_all_identity_axes(tmp_path):
-    from sofia.cognition.matrix.model import CognitionExecutionTrace
+    from sofia.core.cognition.matrix.model import CognitionExecutionTrace
     path, trace = _fixture(tmp_path)
     store = MatrixTraceStore(path)
     with_execution = replace(
@@ -759,7 +759,7 @@ def test_matrix_legacy_row_without_source_time_cannot_gain_false_provenance(tmp_
 
 
 def test_scoped_execution_anonymous_cannot_see_authenticated_trace(tmp_path):
-    from sofia.cognition.matrix.model import CognitionExecutionTrace
+    from sofia.core.cognition.matrix.model import CognitionExecutionTrace
     path, initial = _fixture(tmp_path)
     store = MatrixTraceStore(path)
     execution = CognitionExecutionTrace(serial=1, actual_route="fast")
@@ -790,7 +790,7 @@ def test_scoped_execution_anonymous_cannot_see_authenticated_trace(tmp_path):
 
 
 def test_scoped_execution_skips_newer_nonexecution_and_wrong_audience(tmp_path):
-    from sofia.cognition.matrix.model import CognitionExecutionTrace
+    from sofia.core.cognition.matrix.model import CognitionExecutionTrace
     path, initial = _fixture(tmp_path)
     store = MatrixTraceStore(path)
     execution = CognitionExecutionTrace(serial=1, actual_route="fast")

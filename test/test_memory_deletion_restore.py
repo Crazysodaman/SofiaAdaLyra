@@ -10,7 +10,7 @@ import sqlite3
 
 import pytest
 
-from sofia.memory.deletion_ledger import MemoryDeletionLedger, MemoryErasureError
+from sofia.core.memory.deletion_ledger import MemoryDeletionLedger, MemoryErasureError
 from sofia.platform.ops.backup import BackupCipher, BackupEngine, BackupError
 from test.test_ops_backup_restore import make_state
 
@@ -254,7 +254,7 @@ def test_configured_memory_runtime_replays_journal_after_interrupted_delete(
     tmp_path, monkeypatch,
 ):
     """A crash between journal fsync and live SQL removal heals on startup."""
-    from sofia.memory.provenance_store import DurableMemoryCandidateStore
+    from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 
     state, ledger, _engine = _prepare(tmp_path)
     _erase(ledger)
@@ -280,7 +280,7 @@ def test_configured_memory_runtime_replays_journal_after_interrupted_delete(
 def test_memory_runtime_fails_closed_when_erasures_configured_without_key(
     tmp_path, monkeypatch,
 ):
-    from sofia.memory.provenance_store import DurableMemoryCandidateStore
+    from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 
     state, ledger, _engine = _prepare(tmp_path)
     _erase(ledger)

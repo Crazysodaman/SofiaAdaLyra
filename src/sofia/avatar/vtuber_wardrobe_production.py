@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import Iterable
 
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 from .private_grant import PrivatePresentationGrantResolver
 from .wardrobe_catalog import build_starter_wardrobe
 from .vtuber_art_fidelity import brief_from_blueprint

@@ -14,14 +14,14 @@ import pytest
 from sofia.platform.application.personality_evolution import (
     PersonalityEvolutionService,
 )
-from sofia.personality.evolution import (
+from sofia.core.personality.evolution import (
     TraitChangeKind,
     TraitDriftEntry,
     TraitEvolutionError,
     TraitEvolutionStore,
 )
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 EVIDENCE = ("memory:session-2026-02-01",)
@@ -425,27 +425,26 @@ def test_evolved_traits_reach_the_model_request(
     from pathlib import Path as _Path
 
     from sofia.platform.application import SofiaApplication
-    from sofia.cognition.model import CognitiveResponse, CognitiveRole
+    from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
     from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
     from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
     project_root = _Path(__file__).parent.parent
 
     configuration = SofiaConfiguration(
         constitution_path=str(
-            project_root / "src" / "sofia" / "constitution" / "constitution.md"
+            project_root / "src" / "sofia" / "core" / "constitution" / "constitution.md"
         ),
         constitution_hash_path=str(
             project_root
             / "src"
-            / "sofia"
-            / "constitution"
+            / "sofia" / "core" / "constitution"
             / "constitution.sha256"
         ),
-        identity_path=str(project_root / "src" / "sofia" / "identity" / "identity.json"),
+        identity_path=str(project_root / "src" / "sofia" / "core" / "identity" / "identity.json"),
         personality_path=str(tmp_path / "personality.json"),
-        avatar_path=str(project_root / "src" / "sofia" / "embodiment" / "avatar.json"),
+        avatar_path=str(project_root / "src" / "sofia" / "core" / "embodiment" / "avatar.json"),
         state_path=str(tmp_path / "sofia.db"),
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=project_root,

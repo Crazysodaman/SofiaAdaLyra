@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Callable
 
-from sofia.beliefs.model import (
+from sofia.core.beliefs.model import (
     BeliefChangeKind,
     BeliefHolder,
     BeliefMatch,
@@ -24,9 +24,9 @@ from sofia.beliefs.model import (
     BeliefStance,
     BeliefVisibility,
 )
-from sofia.beliefs.store import BeliefReconsideration, ConvictionStore
-from sofia.social.model import PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.beliefs.store import BeliefReconsideration, ConvictionStore
+from sofia.core.social.model import PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 EvidenceVerifier = Callable[[str], bool]
 

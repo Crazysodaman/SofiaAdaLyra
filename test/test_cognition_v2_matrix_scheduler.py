@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sofia.platform.application import SofiaApplication
-from sofia.cognition.v2 import (
+from sofia.core.cognition.v2 import (
     ActionRequirement,
     ConversationFocus,
     EvidenceNeed,
@@ -284,13 +284,13 @@ def _configuration(tmp_path: Path) -> SofiaConfiguration:
         encoding="utf-8",
     )
     return SofiaConfiguration(
-        constitution_path=PROJECT_ROOT / "src/sofia/constitution/constitution.md",
+        constitution_path=PROJECT_ROOT / "src/sofia/core/constitution/constitution.md",
         constitution_hash_path=(
-            PROJECT_ROOT / "src/sofia/constitution/constitution.sha256"
+            PROJECT_ROOT / "src/sofia/core/constitution/constitution.sha256"
         ),
-        identity_path=PROJECT_ROOT / "src/sofia/identity/identity.json",
+        identity_path=PROJECT_ROOT / "src/sofia/core/identity/identity.json",
         personality_path=personality_path,
-        avatar_path=PROJECT_ROOT / "src/sofia/embodiment/avatar.json",
+        avatar_path=PROJECT_ROOT / "src/sofia/core.embodiment/avatar.json",
         state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=PROJECT_ROOT,

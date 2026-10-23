@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import replace
 
-from sofia.cognition.model import CognitiveRequest, CognitiveRole
+from sofia.core.cognition.model import CognitiveRequest, CognitiveRole
 from sofia.platform.verify.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.platform.verify.interaction.architecture_compare import _samples, compare_once
@@ -82,13 +82,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Imported only by the real CLI, never by pure/stubbed tests.
-    from sofia.cognition.providers.ollama_provider import OllamaProvider
+    from sofia.core.cognition.providers.ollama_provider import OllamaProvider
     from sofia.platform.config.defaults import create_production_configuration
-    from sofia.constitution.store import ConstitutionIntegrityVerifier
-    from sofia.constitution.store import ConstitutionStore
-    from sofia.embodiment.store import EmbodimentStore
-    from sofia.identity.store import IdentityStore
-    from sofia.personality.store import PersonalityStore
+    from sofia.core.constitution.store import ConstitutionIntegrityVerifier
+    from sofia.core.constitution.store import ConstitutionStore
+    from sofia.core.embodiment.store import EmbodimentStore
+    from sofia.core.identity.store import IdentityStore
+    from sofia.core.personality.store import PersonalityStore
 
     config = create_production_configuration()
     if config.provider.provider != 'ollama':

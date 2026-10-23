@@ -6,13 +6,13 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import CognitiveRequest, CognitiveResponse
-from sofia.conversation.model import ConversationRole
-from sofia.emotion.appraisal import ConversationEmotionAppraiser
-from sofia.emotion.catalog import EMOTIONS
-from sofia.emotion.journal import EmotionalJournal
-from sofia.emotion.model import CurrentEmotionalState
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.cognition.model import CognitiveRequest, CognitiveResponse
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.emotion.appraisal import ConversationEmotionAppraiser
+from sofia.core.emotion.catalog import EMOTIONS
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.emotion.model import CurrentEmotionalState
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc)

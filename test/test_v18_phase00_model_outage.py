@@ -6,7 +6,7 @@ import pytest
 from sofia.platform.application.background_runtime import (
     _consider_life_idea_without_wedging_worker,
 )
-from sofia.cognition.engine import CognitiveEngineError
+from sofia.core.cognition.engine import CognitiveEngineError
 from sofia.life.idea_agent import ProjectIdeaGenerationError
 
 pytestmark = pytest.mark.pkg_core

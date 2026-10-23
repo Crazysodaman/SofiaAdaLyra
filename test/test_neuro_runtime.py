@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     DomainContribution,
     HistoryPolicy,
     MatrixConfidence,

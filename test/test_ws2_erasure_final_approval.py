@@ -8,7 +8,7 @@ from uuid import UUID
 
 import pytest
 
-from sofia.memory.deletion_ledger import MemoryDeletionLedger
+from sofia.core.memory.deletion_ledger import MemoryDeletionLedger
 from sofia.platform.ops.backup import BackupCipher
 
 

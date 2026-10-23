@@ -7,8 +7,8 @@ from typing import Any, Callable
 from uuid import UUID
 
 from sofia.platform.capability.model import Capability,CapabilityRequest
-from sofia.cognition.model import CognitiveToolDefinition
-from sofia.cognition.tools import CognitiveToolBinding
+from sofia.core.cognition.model import CognitiveToolDefinition
+from sofia.core.cognition.tools import CognitiveToolBinding
 from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.platform.distributed.model import (

@@ -6,8 +6,8 @@ rewritten and no tests are run during the coding phase.
 from datetime import timedelta
 import sqlite3
 
-from sofia.memory.provenance import CandidateStatus
-from sofia.social.principals import local_sparks_principal
+from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.social.principals import local_sparks_principal
 from test.test_memory_review_source_revalidation import _setup
 
 

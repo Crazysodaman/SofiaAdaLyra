@@ -4,11 +4,11 @@ import json
 
 import pytest
 
-from sofia.cognition.model import CognitiveResponse, CognitiveToolCall, CognitiveRole
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.influence import ContinuityInfluence
-from sofia.personality.reflection import ReflectionJournal
-from sofia.personality.thought_agent import ThoughtAgent, ThoughtGenerationError
+from sofia.core.cognition.model import CognitiveResponse, CognitiveToolCall, CognitiveRole
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.personality.reflection import ReflectionJournal
+from sofia.core.personality.thought_agent import ThoughtAgent, ThoughtGenerationError
 
 NOW = datetime(2026, 9, 20, 18, tzinfo=timezone.utc)
 

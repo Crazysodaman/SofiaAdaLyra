@@ -10,12 +10,12 @@ import pytest
 
 from sofia.platform.application.conversation_learning import ConversationLearningCoordinator
 from sofia.platform.application.memory_review import MemoryReviewService
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.conversation.store import ConversationStore
-from sofia.memory.provenance import CandidateStatus
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.social.principals import local_sparks_principal
-from sofia.social.store import SocialSessionStore
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.store import ConversationStore
+from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.social.principals import local_sparks_principal
+from sofia.core.social.store import SocialSessionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

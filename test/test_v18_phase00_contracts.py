@@ -18,7 +18,7 @@ from sofia.platform.application.event_contracts import (
     project_run_job,
 )
 from sofia.platform.act.delivery import BoundMessage, DeliveryOutcome, SendResult
-from sofia.cognition.matrix.model import (
+from sofia.core.cognition.matrix.model import (
     AuthorityDecision,
     AuthorityPlan,
     CognitionExecutionStep,

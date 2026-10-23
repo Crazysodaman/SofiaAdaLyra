@@ -15,7 +15,7 @@ from sofia.platform.application.optional_budget import OptionalAutonomyBudget
 from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.learning.contracts import DataUse
 from sofia.platform.safe.operator_stop import OperatorStopStore
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .contracts import (

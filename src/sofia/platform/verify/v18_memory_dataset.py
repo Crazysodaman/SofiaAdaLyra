@@ -13,7 +13,7 @@ import re
 import sys
 
 from sofia.platform.application.conversation_service import _retrieve_specific_conversation
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 
 SCHEMA = "sofia.v18-memory-multisession-v1"
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$")

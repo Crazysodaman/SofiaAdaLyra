@@ -18,9 +18,9 @@ from sofia.platform.state.canonical_sqlite import require_existing_sqlite
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
 from sofia.platform.config.model import ModelLifecycleConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.cognition.runtime_state import CognitionRuntimeStateStore
-from sofia.cognition.model_lifecycle import CognitiveModelRole
-from sofia.cognition.matrix import MatrixTraceStore
+from sofia.core.cognition.runtime_state import CognitionRuntimeStateStore
+from sofia.core.cognition.model_lifecycle import CognitiveModelRole
+from sofia.core.cognition.matrix import MatrixTraceStore
 from sofia.platform.machine.discovery import create_machine_discovery
 from sofia.platform.ops.activity import (
     ActivityMode,

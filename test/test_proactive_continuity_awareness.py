@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from sofia.platform.application import SofiaApplication
-from sofia.cognition.engine import CognitiveEngineError
+from sofia.core.cognition.engine import CognitiveEngineError
 from sofia.platform.config import ProviderConfiguration, SofiaConfiguration
 from sofia.continuity.model import ContinuityEventKind
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
@@ -15,32 +15,28 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.md"
 )
 
 HASH_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.sha256"
 )
 
 IDENTITY_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "identity"
+    / "sofia" / "core" / "identity"
     / "identity.json"
 )
 
 AVATAR_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "embodiment"
+    / "sofia" / "core" / "embodiment"
     / "avatar.json"
 )
 

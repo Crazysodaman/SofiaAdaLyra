@@ -1,9 +1,9 @@
-﻿from sofia.embodiment.measurement_query import (
+﻿from sofia.core.embodiment.measurement_query import (
     MeasurementFact,
     MeasurementQueryResolver,
     MeasurementQueryResult,
 )
-from sofia.embodiment.model import (
+from sofia.core.embodiment.model import (
     Embodiment,
     Measurement,
     PhysicalSelf,

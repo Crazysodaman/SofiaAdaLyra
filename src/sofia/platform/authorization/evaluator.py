@@ -1,7 +1,7 @@
 ﻿from pathlib import Path
 
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.platform.authorization.model import (
     AuthorizationDecision,
     AuthorizationDomain,

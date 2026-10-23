@@ -8,7 +8,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 

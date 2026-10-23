@@ -3,13 +3,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     ContextualInfluencePlan,
     InfluenceMode,
     InfluenceSignal,
     InfluenceSurface,
 )
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.personality.influence import ContinuityInfluence
 
 from .clothing_intent import ClothingActionIntent
 from .wardrobe_planner import OutfitPlan, WardrobeContext

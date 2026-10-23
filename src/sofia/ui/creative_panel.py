@@ -16,7 +16,7 @@ from sofia.creative import (
     ManagedAssetStore,
     NativeCreativeAdapter,
 )
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 
 class CreativePanel:

@@ -2,24 +2,22 @@ import pytest
 from hashlib import sha256
 from pathlib import Path
 
-from sofia.constitution.store import ConstitutionIntegrityError, ConstitutionIntegrityVerifier
-from sofia.constitution.store import Constitution
-from sofia.constitution.store import ConstitutionStore
+from sofia.core.constitution.store import ConstitutionIntegrityError, ConstitutionIntegrityVerifier
+from sofia.core.constitution.store import Constitution
+from sofia.core.constitution.store import ConstitutionStore
 
 
 CONSTITUTION_PATH = (
     Path(__file__).parent.parent
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.md"
 )
 
 EXPECTED_HASH_PATH = (
     Path(__file__).parent.parent
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.sha256"
 )
 

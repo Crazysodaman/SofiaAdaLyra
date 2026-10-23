@@ -5,12 +5,12 @@ import json
 from pathlib import Path
 from zipfile import ZipFile
 
-from sofia.memory.chatgpt_export import parse_chatgpt_export_archive
-from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
-from sofia.memory.import_chatgpt import main as import_chatgpt_main
-from sofia.memory.provenance import CandidateStatus
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.memory.chatgpt_export import parse_chatgpt_export_archive
+from sofia.core.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
+from sofia.core.memory.import_chatgpt import main as import_chatgpt_main
+from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

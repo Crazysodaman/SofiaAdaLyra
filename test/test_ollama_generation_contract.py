@@ -1,11 +1,11 @@
 ﻿import pytest
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.model import ProviderConfiguration
 
 

@@ -6,7 +6,7 @@ import sqlite3
 import pytest
 
 from sofia.platform.application.presence import PresenceInitiativeEngine
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from test.test_presence_initiative import event, configured, policy
 
 

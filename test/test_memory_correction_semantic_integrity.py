@@ -5,7 +5,7 @@ from contextlib import closing
 
 import pytest
 
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable, bootstrap_canonical_sqlite
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.verify.semantic_integrity import SemanticIntegrityVerifier

@@ -4,15 +4,15 @@ These deterministic tests do NOT assert a language model will obey the prompt.
 """
 from pathlib import Path
 
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.personality.store import PersonalityStore
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.personality.store import PersonalityStore
 
 
 PERSONALITY_PATH = (
     Path(__file__).resolve().parents[1]
-    / "src" / "sofia" / "personality" / "personality.json"
+    / "src" / "sofia" / "core" / "personality" / "personality.json"
 )
 
 
@@ -54,7 +54,7 @@ def test_absent_profile_does_not_invent_a_personality():
 
 
 def test_personality_does_not_require_stage_directions_or_system_metaphors():
-    from sofia.personality.expression import personality_expression_guidance
+    from sofia.core.personality.expression import personality_expression_guidance
 
     guidance = "\n".join(personality_expression_guidance()).casefold()
 
@@ -64,7 +64,7 @@ def test_personality_does_not_require_stage_directions_or_system_metaphors():
 
 
 def test_casual_style_guidance_stays_shared_and_evidence_grounded():
-    from sofia.personality.expression import personality_expression_guidance
+    from sofia.core.personality.expression import personality_expression_guidance
 
     guidance = "\\n".join(personality_expression_guidance()).casefold()
     assert "casual turn calibration" in guidance

@@ -2,12 +2,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.personality.preferences import (
+from sofia.core.personality.preferences import (
     CommunicationPreferenceService, PreferenceDisposition,
     PreferenceRegistry, PreferenceSubject,
 )
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import local_sparks_principal
 
 
 NOW = datetime(2026, 10, 10, 12, tzinfo=timezone.utc)

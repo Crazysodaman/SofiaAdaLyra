@@ -3,9 +3,9 @@
 from datetime import datetime, timezone
 from threading import Thread
 
-from sofia.emotion.clarification import ClarificationJournal
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.reflection import ReflectionJournal
+from sofia.core.emotion.clarification import ClarificationJournal
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.reflection import ReflectionJournal
 
 
 NOW = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)

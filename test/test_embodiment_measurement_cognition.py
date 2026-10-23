@@ -1,12 +1,12 @@
-﻿from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import (
+﻿from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.embodiment.measurement_query import MeasurementQueryResolver
-from sofia.embodiment.model import (
+from sofia.core.embodiment.measurement_query import MeasurementQueryResolver
+from sofia.core.embodiment.model import (
     Embodiment,
     Measurement,
     PhysicalSelf,

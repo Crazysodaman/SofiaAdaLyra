@@ -4,9 +4,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sofia.platform.capability.model import Capability, CapabilityRequest
-from sofia.cognition.model import CognitiveToolDefinition
-from sofia.cognition.tools import CognitiveToolBinding
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.cognition.model import CognitiveToolDefinition
+from sofia.core.cognition.tools import CognitiveToolBinding
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 from .permissions import (
     PermissionLevel,

@@ -7,10 +7,10 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.memory.originals import SourceMessage
-from sofia.memory.provenance import MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.promoted_retrieval import retrieve_promoted
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.provenance import MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.promoted_retrieval import retrieve_promoted
 
 
 BASE = datetime(2026, 1, 1, tzinfo=timezone.utc)

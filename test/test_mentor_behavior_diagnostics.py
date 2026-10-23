@@ -21,7 +21,7 @@ class BehaviorDiagnosisTests(TestCase):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / "checkout"
-        profile = self.root / "src/sofia/personality/personality.json"
+        profile = self.root / "src/sofia/core/personality/personality.json"
         profile.parent.mkdir(parents=True)
         profile.write_text('{"name":"Sofía","traits":[]}', encoding="utf-8")
         self.history = Path(self.temp.name) / "outside" / "scores.json"

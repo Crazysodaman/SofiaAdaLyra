@@ -9,11 +9,11 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.memory.originals import SourceMessage
-from sofia.memory.provenance import MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.system import MemorySystem
-from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.provenance import MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.system import MemorySystem
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 
 
 def _setup(tmp_path):

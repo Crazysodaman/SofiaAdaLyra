@@ -2,7 +2,7 @@
 
 import pytest
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.offer_route import OFFER
 from sofia.interaction.conversation_offer_context import (

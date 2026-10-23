@@ -5,7 +5,7 @@ Synthetic encrypted archives only; never run against an active state home.
 from contextlib import contextmanager
 import os
 
-import sofia.memory.deletion_ledger as journal_module
+import sofia.core.memory.deletion_ledger as journal_module
 import sofia.platform.ops.backup as backup_module
 from sofia.platform.ops.backup import BackupCipher, BackupEngine
 from test.test_ops_backup_restore import make_erasure_journal, make_state

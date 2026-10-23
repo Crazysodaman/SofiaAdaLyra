@@ -8,11 +8,11 @@ from uuid import uuid4
 import pytest
 
 from sofia.platform.application.memory_review import MemoryReviewService
-from sofia.memory.provenance import CandidateStatus
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.promoted_retrieval import retrieve_promoted
-from sofia.memory.system import MemorySystem
-from sofia.social.principals import local_sparks_principal
+from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.promoted_retrieval import retrieve_promoted
+from sofia.core.memory.system import MemorySystem
+from sofia.core.social.principals import local_sparks_principal
 from test.test_memory_reviewed_corrections import _candidate
 
 

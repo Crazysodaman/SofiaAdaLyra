@@ -1,15 +1,14 @@
 ﻿import hashlib
 from pathlib import Path
 
-from sofia.constitution.store import ConstitutionStore, canonical_constitution_text
+from sofia.core.constitution.store import ConstitutionStore, canonical_constitution_text
 
 
 def test_constitution_store_loads_constitution():
     constitution_path = (
         Path(__file__).parent.parent
         / "src"
-        / "sofia"
-        / "constitution"
+        / "sofia" / "core" / "constitution"
         / "constitution.md"
     )
 

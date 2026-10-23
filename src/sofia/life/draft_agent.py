@@ -8,8 +8,8 @@ from __future__ import annotations
 import json
 from typing import Callable
 
-from sofia.cognition.strict_json import loads_strict_model_json
-from sofia.cognition.model import (
+from sofia.core.cognition.strict_json import loads_strict_model_json
+from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
 from sofia.creative.model import ArtifactKind

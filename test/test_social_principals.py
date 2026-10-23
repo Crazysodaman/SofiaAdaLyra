@@ -1,6 +1,6 @@
 import pytest
 
-from sofia.social.principals import remote_sparks_principal
+from sofia.core.social.principals import remote_sparks_principal
 
 
 @pytest.mark.parametrize("digest", [None, 64, "a" * 63, "g" * 64, " " * 64, "é" * 64])

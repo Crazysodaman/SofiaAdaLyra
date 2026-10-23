@@ -23,7 +23,7 @@ from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.goals.service import GoalService
 from sofia.learning.contracts import DataUse
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.platform.verify.generalization_transfer import assess_signed_transfer
 

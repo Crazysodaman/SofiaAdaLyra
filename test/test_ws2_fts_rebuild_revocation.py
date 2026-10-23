@@ -8,7 +8,7 @@ import sqlite3
 
 import pytest
 
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from test.test_ws2_fts_count_triggers import _source, _rebuild
 
 

@@ -3,13 +3,13 @@
 import pytest
 
 from sofia.platform.authority.model import Authority
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import (
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.cognition.operation import CognitiveOperation
+from sofia.core.cognition.operation import CognitiveOperation
 
 
 def make_context() -> CognitiveContext:

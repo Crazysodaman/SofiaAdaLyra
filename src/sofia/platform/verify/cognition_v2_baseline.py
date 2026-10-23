@@ -21,7 +21,7 @@ from time import perf_counter, process_time, sleep
 from typing import Callable
 
 from sofia.platform.application import SofiaApplication
-from sofia.cognition.performance import efficiency_snapshot
+from sofia.core.cognition.performance import efficiency_snapshot
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
@@ -187,7 +187,7 @@ def capture_baseline() -> dict[str, object]:
         "verify_inference": "live VERIFY route was not invoked",
     }
     return {
-        "schema": "sofia.cognition-v2.baseline-v1",
+        "schema": "sofia.core.cognition-v2.baseline-v1",
         "captured_at": datetime.now(timezone.utc).isoformat(),
         "revision": _revision(),
         "environment": {

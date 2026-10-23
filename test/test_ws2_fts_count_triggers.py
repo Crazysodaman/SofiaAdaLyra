@@ -6,13 +6,13 @@ independently fenced owner approval. No real index is rebuilt or tests run.
 from datetime import datetime, timedelta, timezone
 import sqlite3
 
-from sofia.conversation.fulltext_search import (
+from sofia.core.conversation.fulltext_search import (
     ConversationFullTextSearch, OfflineIndexAuthorization,
 )
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.conversation.store import ConversationStore
-from sofia.social.principals import local_sparks_principal
-from sofia.social.store import SocialSessionStore
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.store import ConversationStore
+from sofia.core.social.principals import local_sparks_principal
+from sofia.core.social.store import SocialSessionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
@@ -10,7 +10,7 @@ from sofia.cognition.model import (
     CognitiveToolCall,
     CognitiveToolDefinition,
 )
-from sofia.cognition.provider import LLMProvider
+from sofia.core.cognition.provider import LLMProvider
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.distributed.inference import RemoteInferenceRequest
 from sofia.platform.distributed.inference_service import (

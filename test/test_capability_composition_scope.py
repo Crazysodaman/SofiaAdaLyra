@@ -10,7 +10,7 @@ from sofia.platform.authorization.evaluator import (
 from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.platform.capability.model import CapabilityResultKind
 from sofia.platform.capability.model import CapabilityProposal
-from sofia.codebase.capability import CODEBASE_INSPECT_CAPABILITY
+from sofia.core.codebase.capability import CODEBASE_INSPECT_CAPABILITY
 from sofia.platform.composition.root import compose
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.platform.config.model import (
@@ -18,7 +18,7 @@ from sofia.platform.config.model import (
     SofiaConfiguration,
 )
 from sofia.platform.runtime.model import RuntimeState
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 
 
 def create_configuration(

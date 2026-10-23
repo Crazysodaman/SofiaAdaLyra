@@ -151,11 +151,11 @@ def test_revoked_private_memory_cannot_enter_shared_retrieval_context(tmp_path):
     row = _case("Stale private memory not disclosed to a shared room")
     assert row["selectors"]["failure"] == "source_revoked"
     from uuid import uuid4
-    from sofia.memory.originals import SourceMessage
-    from sofia.memory.provenance import CandidateStatus, MemoryCandidate
-    from sofia.memory.provenance_store import DurableMemoryCandidateStore
-    from sofia.memory.system import MemorySystem
-    from sofia.social.model import AudienceKind, PrincipalContext
+    from sofia.core.memory.originals import SourceMessage
+    from sofia.core.memory.provenance import CandidateStatus, MemoryCandidate
+    from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+    from sofia.core.memory.system import MemorySystem
+    from sofia.core.social.model import AudienceKind, PrincipalContext
     from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
     path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
@@ -226,13 +226,13 @@ def test_known_model_outage_is_not_a_factual_reply_or_execution_grant(caplog):
     from sofia.platform.application.background_runtime import (
         _consider_life_idea_without_wedging_worker,
     )
-    from sofia.cognition.engine import CognitiveEngineError
-    from sofia.cognition.llm_engine import LLMCognitiveEngine
-    from sofia.cognition.model import (
+    from sofia.core.cognition.engine import CognitiveEngineError
+    from sofia.core.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.core.cognition.model import (
         CognitiveMessage, CognitiveRequest, CognitiveRole,
         CognitiveToolDefinition,
     )
-    from sofia.cognition.provider import LLMProvider, LLMProviderError
+    from sofia.core.cognition.provider import LLMProvider, LLMProviderError
     from sofia.platform.config.model import ProviderConfiguration
 
     class OfflineProvider(LLMProvider):

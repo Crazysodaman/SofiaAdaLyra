@@ -6,7 +6,7 @@ import sqlite3
 
 import pytest
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole, CognitiveToolCall,
 )
 from sofia.interaction.action_grammar import parse_user_action

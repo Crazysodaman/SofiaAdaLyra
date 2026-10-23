@@ -5,7 +5,7 @@ import sqlite3
 import pytest
 
 from sofia.platform.authority.model import Authority
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
@@ -25,7 +25,7 @@ from sofia.platform.application.conversation_matrix import (
     _inherit_last_turn_domains,
     _inherit_last_turn_read_tools,
 )
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
     CognitionExecutionStep,
@@ -225,7 +225,7 @@ def test_privacy_matrix_fails_closed_without_authenticated_principal():
 
 
 def test_privacy_matrix_allows_private_scope_only_for_private_audience():
-    from sofia.social.model import AudienceKind, PrincipalContext
+    from sofia.core.social.model import AudienceKind, PrincipalContext
 
     private = MatrixPrivacyPlanner().plan(
         PrincipalContext(
@@ -1462,7 +1462,7 @@ def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
 
 
 def test_trace_round_trips_privacy_projection(tmp_path):
-    from sofia.social.model import AudienceKind, PrincipalContext
+    from sofia.core.social.model import AudienceKind, PrincipalContext
 
     store = MatrixTraceStore(tmp_path / "sofia.db")
     env = envelope("Hru", message_id="privacy-1")
@@ -1675,7 +1675,7 @@ def test_tool_exposure_is_channel_invariant_for_equivalent_authenticated_turns()
 
 
 def test_privacy_projection_uses_authenticated_principal_not_user_prose():
-    from sofia.social.model import AudienceKind, PrincipalContext
+    from sofia.core.social.model import AudienceKind, PrincipalContext
 
     authenticated = PrincipalContext(
         principal_id="sparks",

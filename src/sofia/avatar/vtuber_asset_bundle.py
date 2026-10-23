@@ -19,7 +19,7 @@ import stat
 from typing import Mapping
 import zlib
 
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 
 from .presentation import (
     AttireMode, AudienceScope, PresentationAuthority, PresentationProjection,

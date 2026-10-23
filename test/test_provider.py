@@ -1,15 +1,15 @@
 ﻿import pytest
-from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.cognition.model import (
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.cognition.provider import LLMProviderError
-from sofia.cognition.providers.test_provider import TestLLMProvider
+from sofia.core.cognition.provider import LLMProviderError
+from sofia.core.cognition.providers.test_provider import TestLLMProvider
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.cognition.providers.factory import create_llm_provider
+from sofia.core.cognition.providers.factory import create_llm_provider
 
 
 def test_test_llm_provider_is_configured_with_a_response():

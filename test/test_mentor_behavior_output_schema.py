@@ -30,7 +30,7 @@ class TestBehaviorOutputSchema(TestCase):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.repo = Path(self.temp.name)
-        profile = self.repo / "src/sofia/personality/personality.json"
+        profile = self.repo / "src/sofia/core/personality/personality.json"
         profile.parent.mkdir(parents=True)
         profile.write_text(json.dumps({
             "name": "Sofía", "traits": ["skeptical", "warm", "precise"],

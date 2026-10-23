@@ -1,8 +1,8 @@
 """Decision-premise and state-free stubbed probe tests; no real Ollama or SQLite."""
 import pytest
 
-from sofia.cognition.model import CognitiveResponse
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.interaction.decision_expression import CandidateChoice, ReviewedFrame
 from sofia.platform.verify.interaction import decision_expression_probe
 from sofia.platform.verify.interaction.decision_expression_probe import main

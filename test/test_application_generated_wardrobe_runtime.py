@@ -12,12 +12,12 @@ from sofia.avatar.wardrobe_generated_store import (
     SofiaGarmentAcceptance,
     SofiaGarmentDecision,
 )
-from sofia.embodiment.store import EmbodimentStore
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.embodiment.store import EmbodimentStore
+from sofia.core.cognition.model import CognitiveResponse
 
 
 ROOT = Path(__file__).resolve().parents[1]
-AVATAR_PATH = ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+AVATAR_PATH = ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 
 
 class _Runtime:

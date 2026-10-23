@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.platform.application import SofiaApplication
-from sofia.cognition.model import CognitiveResponse, CognitiveRole
+from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.interaction.ledger import InteractionLedger
@@ -13,18 +13,18 @@ from sofia.interaction.registry import InteractionCatalog
 from sofia.interaction.reviewed_hug_question import CLARIFICATION
 from sofia.interaction.source_link import VerifiedInteractionState
 from sofia.neuro import NeuralSignal
-from sofia.emotion.model import CurrentEmotionalState
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import local_sparks_principal
+from sofia.core.emotion.model import CurrentEmotionalState
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import local_sparks_principal
 from sofia.goals import CompletionKind, GoalCompletionCondition
 
 
 pytestmark = pytest.mark.pkg_core
 PROJECT_ROOT = Path(__file__).parent.parent
-CONSTITUTION_PATH = PROJECT_ROOT / "src" / "sofia" / "constitution" / "constitution.md"
-HASH_PATH = PROJECT_ROOT / "src" / "sofia" / "constitution" / "constitution.sha256"
-IDENTITY_PATH = PROJECT_ROOT / "src" / "sofia" / "identity" / "identity.json"
-AVATAR_PATH = PROJECT_ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+CONSTITUTION_PATH = PROJECT_ROOT / "src" / "sofia" / "core" / "constitution" / "constitution.md"
+HASH_PATH = PROJECT_ROOT / "src" / "sofia" / "core" / "constitution" / "constitution.sha256"
+IDENTITY_PATH = PROJECT_ROOT / "src" / "sofia" / "core" / "identity" / "identity.json"
+AVATAR_PATH = PROJECT_ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 
 
 def configuration(tmp_path: Path) -> SofiaConfiguration:

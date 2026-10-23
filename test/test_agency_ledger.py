@@ -3,15 +3,15 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.agency import (
+from sofia.core.agency import (
     AgencyService,
     AnticipationStore,
     ConcurrencyError,
     DilemmaStore,
     DilemmaStatus,
 )
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 6, 10, 8, 15, tzinfo=timezone.utc)

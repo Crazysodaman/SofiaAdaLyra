@@ -10,7 +10,7 @@ from sofia.platform.action.model import (
     ActionProposal,
     ActionStatus,
 )
-from sofia.cognition.operation import CognitiveOperation
+from sofia.core.cognition.operation import CognitiveOperation
 
 
 class ActionSystemError(Exception):

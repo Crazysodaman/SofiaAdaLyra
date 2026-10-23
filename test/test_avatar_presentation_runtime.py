@@ -11,11 +11,11 @@ from sofia.avatar.presentation_store import (
     PresentationStoreError,
 )
 from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 
 
 ROOT = Path(__file__).resolve().parents[1]
-AVATAR_PATH = ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+AVATAR_PATH = ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 
 
 def embodiment():

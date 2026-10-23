@@ -1,13 +1,13 @@
 ﻿from pathlib import Path
 
-from sofia.cognition.llm_engine import LLMCognitiveEngine
-from sofia.cognition.model import (
+from sofia.core.cognition.llm_engine import LLMCognitiveEngine
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.cognition.provider import LLMProvider
+from sofia.core.cognition.provider import LLMProvider
 from sofia.platform.composition.root import compose
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.platform.config.model import (
@@ -20,24 +20,21 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.md"
 )
 
 HASH_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.sha256"
 )
 
 AVATAR_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "embodiment"
+    / "sofia" / "core" / "embodiment"
     / "avatar.json"
 )
 

@@ -6,7 +6,7 @@ from hashlib import sha256
 import math
 import re
 
-from sofia.emotion.model import CurrentEmotionalState
+from sofia.core.emotion.model import CurrentEmotionalState
 from sofia.environment.model import EnvironmentFreshness, EnvironmentSnapshot
 from sofia.platform.ops.model import HostTelemetry
 from sofia.voice import TTSStatus

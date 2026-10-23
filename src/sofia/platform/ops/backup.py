@@ -32,14 +32,14 @@ from uuid import uuid4
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from sofia.platform.config.defaults import production_storage_layout
-from sofia.identity.model import IdentityBootstrapMode
-from sofia.identity.store import IdentityStore
+from sofia.core.identity.model import IdentityBootstrapMode
+from sofia.core.identity.store import IdentityStore
 from sofia.platform.ops.recovery import BackupEvidence, RestoreVerification
 from sofia.platform.state.component_schema import verify_production_component_schemas
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.sqlite_uri import sqlite_file_uri
-from sofia.constitution.store import (
+from sofia.core.constitution.store import (
     ConstitutionStore,
     canonical_constitution_text,
 )
@@ -651,7 +651,7 @@ class BackupEngine:
         # A backup can predate a live deletion by years. No restore may
         # publish state without the operator-held current deletion journal,
         # which is intentionally not embedded in older encrypted snapshots.
-        from sofia.memory.deletion_ledger import (
+        from sofia.core.memory.deletion_ledger import (
             MemoryDeletionLedger, MemoryErasureError,
         )
         if not isinstance(erasure_journal, Path) or not erasure_journal.is_absolute():

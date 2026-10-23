@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 
 from sofia.platform.application import SofiaApplication
-from sofia.cognition.model import CognitiveResponse, CognitiveRole
-from sofia.codebase.model import (
+from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
+from sofia.core.codebase.model import (
     CodebaseEvidenceKind,
     CodebaseInspectionEvidence,
     PythonModule,
@@ -46,8 +46,8 @@ from sofia.core.modreg.workshop import (
     WorkshopRequestStatus,
     WorkshopRequestStore,
 )
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 7, 5, 9, 30, tzinfo=timezone.utc)
@@ -547,19 +547,19 @@ def test_bootstrap_wiring_and_conversation_reach(
     app = SofiaApplication(
         SofiaConfiguration(
             constitution_path=(
-                PROJECT_ROOT / "src" / "sofia" / "constitution" /
+                PROJECT_ROOT / "src" / "sofia" / "core" / "constitution" /
                 "constitution.md"
             ),
             constitution_hash_path=(
-                PROJECT_ROOT / "src" / "sofia" / "constitution" /
+                PROJECT_ROOT / "src" / "sofia" / "core" / "constitution" /
                 "constitution.sha256"
             ),
             identity_path=(
-                PROJECT_ROOT / "src" / "sofia" / "identity" / "identity.json"
+                PROJECT_ROOT / "src" / "sofia" / "core" / "identity" / "identity.json"
             ),
             personality_path=personality,
             avatar_path=(
-                PROJECT_ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+                PROJECT_ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
             ),
             state_path=tmp_path / "sofia.db",
             provider=ProviderConfiguration(provider="test", model="test"),

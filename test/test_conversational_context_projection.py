@@ -1,16 +1,16 @@
 """In-memory context tests; no user database, Ollama or persistent source edits."""
 from datetime import datetime, timezone
 
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.conversation_assembler import ConversationalContextAssembler
-from sofia.cognition.model import (
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.conversation_assembler import ConversationalContextAssembler
+from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveRole, CognitiveToolDefinition,
 )
-from sofia.constitution.store import Constitution
-from sofia.identity.model import SofiaIdentity
-from sofia.personality.model import PersonalityProfile
-from sofia.self_model.model import create_core_state
+from sofia.core.constitution.store import Constitution
+from sofia.core.identity.model import SofiaIdentity
+from sofia.core.personality.model import PersonalityProfile
+from sofia.core.self_model.model import create_core_state
 
 _SENTINEL = 'COMPLETE_CONSTITUTION_CONTENT_MUST_NOT_LEAK_IN_SHORT_DIALOGUE'
 

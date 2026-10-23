@@ -4,12 +4,12 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.memory.originals import SourceMessage
-from sofia.memory.provenance import CandidateStatus, MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.system import MemorySystem
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.provenance import CandidateStatus, MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.system import MemorySystem
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 
 
 NOW = datetime(2026, 10, 11, tzinfo=timezone.utc)

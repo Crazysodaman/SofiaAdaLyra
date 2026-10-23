@@ -7,9 +7,9 @@ import json
 from uuid import uuid4
 
 from sofia.avatar.wardrobe_review import WardrobeReviewStore, document
-from sofia.emotion.journal import EmotionalJournal
-from sofia.social.model import SocialScope
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.social.model import SocialScope
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 
 def current_mood(state_path) -> str:

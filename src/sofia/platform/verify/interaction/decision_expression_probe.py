@@ -11,19 +11,19 @@ import argparse
 from collections import Counter
 from datetime import datetime, timezone
 
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_production_configuration
-from sofia.constitution.store import ConstitutionIntegrityVerifier
-from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import EmbodimentStore
-from sofia.identity.store import IdentityStore
+from sofia.core.constitution.store import ConstitutionIntegrityVerifier
+from sofia.core.constitution.store import ConstitutionStore
+from sofia.core.embodiment.store import EmbodimentStore
+from sofia.core.identity.store import IdentityStore
 from sofia.platform.verify.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.decision_expression import from_reviewed_action
 from sofia.platform.verify.interaction.prototype import from_reviewed_gesture, real_sensor_fixture, run_prototype
 from sofia.interaction.decision_reason_audit import audit_decision_reason
 from sofia.interaction.grammar import NaturalInteractionEngine
-from sofia.personality.store import PersonalityStore
+from sofia.core.personality.store import PersonalityStore
 
 _CASES = (
     ('offer', 'I ask to hug you', 'offer'),

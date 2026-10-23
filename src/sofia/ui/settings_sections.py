@@ -54,7 +54,7 @@ class SettingsSections:
             runtime.neuro_association_enabled,
         )
         from uuid import UUID, uuid4
-        from sofia.social.principals import local_sparks_principal
+        from sofia.core.social.principals import local_sparks_principal
         from sofia.neuro.connectome.association_store import ReviewedAssociationStore
         from sofia.platform.safe.operator_stop import OperatorStopStore
 
@@ -84,8 +84,8 @@ class SettingsSections:
             raw_query = association_query.get().strip()
             if not raw_query or len(raw_query) > 500:
                 raise ValueError("bounded review query of 1..500 characters required")
-            from sofia.memory.provenance_store import DurableMemoryCandidateStore
-            from sofia.memory.provenance import CandidateStatus
+            from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+            from sofia.core.memory.provenance import CandidateStatus
             candidate_store = DurableMemoryCandidateStore(config.state_path)
             try:
                 candidate = candidate_store.get(candidate_id)
@@ -340,7 +340,7 @@ class SettingsSections:
         # provisions, accepts licenses or changes a configured model role.
         from queue import Empty, Queue
         from threading import Thread
-        from sofia.cognition.model_inventory import ModelInventoryStore
+        from sofia.core.cognition.model_inventory import ModelInventoryStore
         from sofia.platform.machine.discovery import create_machine_discovery
         from sofia.platform.config import create_production_configuration
         from sofia.platform.config.cognitive_models import CognitiveModelSelection
@@ -448,7 +448,7 @@ class SettingsSections:
                 daemon=False,
             ).start()
 
-        from sofia.cognition.model_inventory import collect_local_model_inventory
+        from sofia.core.cognition.model_inventory import collect_local_model_inventory
         inventory_button = ttk.Button(
             frames["Models"],
             text="Refresh local Ollama inventory (read only)",
@@ -2282,11 +2282,11 @@ class SettingsSections:
         self.viewer(parent, "Public wardrobe presets", lambda: "\n\n".join(f"{plan.outfit_id}\nGarments: {', '.join(plan.item_ids)}" for plan in catalog.presets if not plan.private_only))
 
     def memory_panel(self, parent):
-        from sofia.memory.provenance import CandidateStatus
-        from sofia.memory.provenance_store import DurableMemoryCandidateStore
+        from sofia.core.memory.provenance import CandidateStatus
+        from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
         from sofia.platform.application.memory_review import MemoryReviewService
-        from sofia.conversation.store import ConversationStore
-        from sofia.social.principals import (
+        from sofia.core.conversation.store import ConversationStore
+        from sofia.core.social.principals import (
             SPARKS_PRINCIPAL_ID, local_sparks_principal,
         )
         from uuid import UUID

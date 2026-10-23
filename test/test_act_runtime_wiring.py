@@ -7,11 +7,11 @@ from sofia.platform.act.system_notice import SystemNoticeQueue
 from sofia.platform.act.outreach import Decision
 from sofia.platform.application.act_service import SofiaActService
 from sofia.platform.act.outreach import Policy
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.platform.safe.operator_stop import OperatorStopStore
-from sofia.personality.reflection import ReflectionJournal
-from sofia.personality.influence import ContinuityInfluence
-from sofia.social.model import SocialScope, ScopeKind
+from sofia.core.personality.reflection import ReflectionJournal
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.social.model import SocialScope, ScopeKind
 from sofia.platform.config.user_settings import (
     OutreachSettings,
     RuntimeUserSettings,

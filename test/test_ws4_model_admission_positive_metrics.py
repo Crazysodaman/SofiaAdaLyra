@@ -3,7 +3,7 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.cognition.model_admission import (
+from sofia.core.cognition.model_admission import (
     ModelTrialEvidence, compare_models,
 )
 

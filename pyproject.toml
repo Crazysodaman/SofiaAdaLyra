@@ -26,16 +26,17 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 # Required production identity and constitution assets must ship in an
-# installed wheel, not only in an editable Git checkout.
-"sofia" = [
-    "constitution/constitution.md",
-    "constitution/constitution.sha256",
-    "identity/identity.json",
-    "embodiment/avatar.json",
-    "personality/personality.json",
+# installed wheel, not only in an editable Git checkout. Since the
+# Core 1.0 restructure they live with their owning Core packages.
+"sofia.core.constitution" = [
+    "constitution.md",
+    "constitution.sha256",
 ]
-"sofia.ui" = ["assets/*.ico"]
-"sofia.avatar" = [
+"sofia.core.identity" = ["identity.json"]
+"sofia.core.embodiment" = ["avatar.json"]
+"sofia.core.personality" = ["personality.json"]
+"sofia.modules.ui" = ["assets/*.ico"]
+"sofia.modules.avatar" = [
     "wardrobe_data/*.json",
     "assets/sofia2d_public_illustrated_candidates_v1.zip",
 ]

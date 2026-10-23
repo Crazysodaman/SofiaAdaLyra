@@ -14,12 +14,12 @@ from sofia.avatar.presentation import AudienceScope
 from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.avatar.vtuber_starter_art import generate_public_outfit_art
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.ui.avatar_renderer import AvatarRenderRequest
 from sofia.ui.avatar2d_renderer import TkLayered2DRenderer
 
 
-SEED=Path(__file__).resolve().parents[1]/"src/sofia/embodiment/avatar.json"
+SEED=Path(__file__).resolve().parents[1]/"src/sofia/core.embodiment/avatar.json"
 
 
 class Root:

@@ -5,9 +5,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from sofia.platform.application import SofiaApplication
-from sofia.cognition.model import CognitiveResponse, CognitiveRole
+from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.rel.impressions import (
+from sofia.core.rel.impressions import (
     ImpressionChangeKind,
     ImpressionError,
     ImpressionKind,
@@ -16,24 +16,24 @@ from sofia.rel.impressions import (
     ImpressionStatus,
     ImpressionStore,
 )
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 6, 4, 12, 0, tzinfo=timezone.utc)
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
-    PROJECT_ROOT / "src" / "sofia" / "constitution" / "constitution.md"
+    PROJECT_ROOT / "src" / "sofia" / "core" / "constitution" / "constitution.md"
 )
 HASH_PATH = (
-    PROJECT_ROOT / "src" / "sofia" / "constitution" / "constitution.sha256"
+    PROJECT_ROOT / "src" / "sofia" / "core" / "constitution" / "constitution.sha256"
 )
 IDENTITY_PATH = (
-    PROJECT_ROOT / "src" / "sofia" / "identity" / "identity.json"
+    PROJECT_ROOT / "src" / "sofia" / "core" / "identity" / "identity.json"
 )
 AVATAR_PATH = (
-    PROJECT_ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+    PROJECT_ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 )
 
 

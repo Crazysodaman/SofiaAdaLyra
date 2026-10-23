@@ -7,7 +7,7 @@ from test.matrix_v2_support import (
     V2MatrixCoordinator as MatrixCoordinator,
     v2_registry as default_matrix_registry,
 )
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
     MatrixDomain,

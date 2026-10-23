@@ -1,16 +1,16 @@
 """Batch G2 offline acceptance; no model-output fidelity is asserted."""
 from datetime import datetime, timezone
 
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.personality.expression import personality_expression_guidance
-from sofia.personality.model import PersonalityProfile
-from sofia.personality.influence import ContinuityInfluence
-from sofia.personality.modulation import derive_expression_modulation
-from sofia.personality.preferences import CommunicationStylePreferences
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.personality.expression import personality_expression_guidance
+from sofia.core.personality.model import PersonalityProfile
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.personality.modulation import derive_expression_modulation
+from sofia.core.personality.preferences import CommunicationStylePreferences
 from test.matrix_v2_support import V2MatrixCoordinator as MatrixCoordinator, v2_registry as default_matrix_registry
-from sofia.cognition.matrix import TurnEnvelope
+from sofia.core.cognition.matrix import TurnEnvelope
 from sofia.neuro.model import (
     HomeostaticState,
     NeuralActivation,

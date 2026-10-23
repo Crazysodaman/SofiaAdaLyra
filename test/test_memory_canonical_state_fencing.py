@@ -10,9 +10,9 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.memory.originals import SourceMessage
-from sofia.memory.provenance import MemoryCandidate, CandidateStatus
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.provenance import MemoryCandidate, CandidateStatus
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable, bootstrap_canonical_sqlite
 
 

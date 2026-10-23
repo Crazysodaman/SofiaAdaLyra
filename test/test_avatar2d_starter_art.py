@@ -19,10 +19,10 @@ from sofia.avatar.vtuber_starter_art import (
     generate_public_wardrobe_library, main,
 )
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 
 
-SEED = Path(__file__).resolve().parents[1] / "src/sofia/embodiment/avatar.json"
+SEED = Path(__file__).resolve().parents[1] / "src/sofia/core.embodiment/avatar.json"
 
 
 @pytest.mark.parametrize("outfit_id", [

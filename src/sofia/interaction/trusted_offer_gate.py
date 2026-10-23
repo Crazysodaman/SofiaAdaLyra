@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import sqlite3
 
-from sofia.cognition.model import CognitiveRequest
+from sofia.core.cognition.model import CognitiveRequest
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.platform.state.sqlite_uri import sqlite_file_uri
 from sofia.interaction.offer_route import OFFER

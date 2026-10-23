@@ -17,13 +17,13 @@ from sofia.platform.application.context_budget import (
     ContextClass,
 )
 from sofia.platform.application.expression_runtime import ExpressionRuntime
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     EmbodiedExpressionPlan,
     EmbodiedExpressionPlanner,
     restrict_expression_for_audience,
@@ -31,25 +31,25 @@ from sofia.cognition.matrix import (
     MatrixDomain,
     ResponseValidationDisposition,
 )
-from sofia.cognition.performance import (
+from sofia.core.cognition.performance import (
     efficiency_snapshot, emit_performance, performance_trace_enabled,
 )
-from sofia.conversation.model import ConversationRole
-from sofia.conversation.store import ConversationStore
-from sofia.emotion.clarification import ClarificationJournal
-from sofia.emotion.appraisal import ConversationEmotionAppraiser
-from sofia.emotion.model import CurrentEmotionalState
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.influence import ContinuityInfluence
-from sofia.personality.modulation import derive_expression_modulation
-from sofia.personality.preferences import CommunicationStylePreferences
-from sofia.personality.observation_bridge import record_workspace_observation
-from sofia.personality.reflection import ReflectionJournal
-from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.conversation.store import ConversationStore
+from sofia.core.emotion.clarification import ClarificationJournal
+from sofia.core.emotion.appraisal import ConversationEmotionAppraiser
+from sofia.core.emotion.model import CurrentEmotionalState
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.personality.modulation import derive_expression_modulation
+from sofia.core.personality.preferences import CommunicationStylePreferences
+from sofia.core.personality.observation_bridge import record_workspace_observation
+from sofia.core.personality.reflection import ReflectionJournal
+from sofia.core.personality.thought_agent import ReflectionOutcome, ThoughtAgent
 from sofia.platform.runtime.runtime import SofiaRuntime
-from sofia.social.model import AudienceKind, PrincipalContext, SocialScope
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
-from sofia.social.affect import (
+from sofia.core.social.model import AudienceKind, PrincipalContext, SocialScope
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.affect import (
     UserAffectAppraiser,
     UserAffectObservation,
     UserAffectTracker,

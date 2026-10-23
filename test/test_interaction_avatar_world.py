@@ -6,16 +6,16 @@ import json
 import pytest
 
 from sofia.platform.application.bootstrap import SofiaApplication
-from sofia.cognition.model import CognitiveResponse, CognitiveRole
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_default_configuration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.interaction.avatar_world import avatar_world_guidance, gesture_provider_view
 from sofia.interaction.chat import interaction_prompt
 from sofia.interaction.expanded_service import _without_prescribed_gesture_reactions
 from sofia.interaction.grammar import NaturalInteractionEngine
-from sofia.personality.expression import personality_expression_guidance
+from sofia.core.personality.expression import personality_expression_guidance
 
 ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'
 
@@ -78,7 +78,7 @@ def test_provider_view_passes_unrelated_prompts_and_rejects_bad_trusted_data():
 
 
 def test_provider_view_does_not_change_unrelated_request():
-    from sofia.cognition.model import CognitiveMessage, CognitiveRequest
+    from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest
     request = CognitiveRequest(messages=(CognitiveMessage(
         role=CognitiveRole.USER, content='Can you physically sense my hand?'),))
     assert _without_prescribed_gesture_reactions(request) is request

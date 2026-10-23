@@ -8,8 +8,8 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.conversation.lifelong import LifelongThreadStore
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.lifelong import LifelongThreadStore
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from test.test_mobile_main_history import _setup, _allow_private_main
 
 NOW = datetime(2026, 10, 11, tzinfo=timezone.utc)

@@ -23,7 +23,7 @@ class SystemQualityTests(TestCase):
         self.folder = TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.root = Path(self.folder.name)
-        profile = self.root / "src/sofia/personality/personality.json"
+        profile = self.root / "src/sofia/core/personality/personality.json"
         profile.parent.mkdir(parents=True)
         profile.write_text(json.dumps({
             "name": "Sofía", "traits": [
@@ -158,7 +158,7 @@ class SystemQualityTests(TestCase):
         self.assertEqual(score["owner_selected_responses_reviewed"], 1)
         self.assertEqual(score["actual_responses_reviewed"], 0)
         self.assertEqual(score["provisional_scores"]["factual_grounding"], 3)
-        profile_file = self.root / "src/sofia/personality/personality.json"
+        profile_file = self.root / "src/sofia/core/personality/personality.json"
         profile_file.write_text(json.dumps({
             "name": "Sofía", "traits": ["profile changed"], "communication_style": "updated"
         }), encoding="utf-8")

@@ -1,7 +1,7 @@
 """Headless canonical application service: source contracts, not host deployment."""
 from pathlib import Path, PurePosixPath
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 from threading import Event
 from types import SimpleNamespace
 

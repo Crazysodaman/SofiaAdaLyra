@@ -14,8 +14,8 @@ from typing import Protocol
 from uuid import uuid4
 
 from sofia.discord.binding import BindingState, DiscordBindingStore
-from sofia.social.model import PrincipalContext
-from sofia.social.principals import discord_sparks_principal
+from sofia.core.social.model import PrincipalContext
+from sofia.core.social.principals import discord_sparks_principal
 from sofia.discord.store import (
     DiscordInboxStore,
     DiscordOutboxRecord,

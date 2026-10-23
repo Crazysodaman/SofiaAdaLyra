@@ -14,9 +14,9 @@ from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguratio
 from sofia.environment.model import WeatherObservation
 from sofia.environment.provider import EnvironmentProviderObservation
 from sofia.environment.service import EnvironmentService
-from sofia.emotion.journal import EmotionalJournal
-from sofia.emotion.model import ReturnExpectation
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.emotion.model import ReturnExpectation
+from sofia.core.personality.influence import ContinuityInfluence
 
 
 NOW = datetime(2026, 9, 28, 3, 30, tzinfo=timezone.utc)

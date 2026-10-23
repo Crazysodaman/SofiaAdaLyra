@@ -16,7 +16,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 
 from .vtuber_starter_art import Sprite, WIDTH, HEIGHT, _shade
 

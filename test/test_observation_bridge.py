@@ -6,11 +6,11 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.platform.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.observation_bridge import (
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.observation_bridge import (
     record_workspace_observation,
 )
-from sofia.personality.reflection import ReflectionJournal
+from sofia.core.personality.reflection import ReflectionJournal
 
 UTC = timezone.utc
 NOW = datetime(2026, 9, 20, 12, tzinfo=UTC)

@@ -1,19 +1,19 @@
 ﻿import pytest
 
 from sofia.platform.authority.model import Authority
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.engine import (
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.engine import (
     CognitiveEngine,
     CognitiveEngineError,
 )
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.cognition.operation import CognitiveOperation
-from sofia.cognition.system import (
+from sofia.core.cognition.operation import CognitiveOperation
+from sofia.core.cognition.system import (
     CognitiveSystem,
     CognitiveSystemError,
 )

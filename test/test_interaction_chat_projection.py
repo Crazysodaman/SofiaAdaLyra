@@ -6,20 +6,20 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import (
     InteractiveConversationService,
     representational_experience_followup_prompt,
 )
 
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 
 
 def _service(
@@ -103,7 +103,7 @@ def test_empty_tool_surface_does_not_skip_interaction_projection(monkeypatch):
 
 
 def test_real_exposed_tool_surface_is_preserved(monkeypatch):
-    from sofia.cognition.model import CognitiveToolDefinition
+    from sofia.core.cognition.model import CognitiveToolDefinition
 
     tool = CognitiveToolDefinition(
         name="hardware.inspect",

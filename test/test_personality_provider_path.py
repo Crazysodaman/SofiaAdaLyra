@@ -1,11 +1,11 @@
 """G3: deterministic assembler-to-LLM-provider evidence, NOT LLM fidelity."""
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.llm_engine import LLMCognitiveEngine
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
-from sofia.cognition.provider import LLMProvider
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.llm_engine import LLMCognitiveEngine
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.core.cognition.provider import LLMProvider
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.personality.model import PersonalityProfile
+from sofia.core.personality.model import PersonalityProfile
 
 
 class RecordingProvider(LLMProvider):

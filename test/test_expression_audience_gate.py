@@ -4,15 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     EmbodiedExpressionPlan,
     EmbodiedExpressionPlanner,
     restrict_expression_for_audience,
 )
 from sofia.platform.application.expression_runtime import ExpressionRuntime
-from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
-from sofia.personality.influence import ContinuityInfluence
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 10, 18, 20, 30, tzinfo=timezone.utc)

@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sofia.cognition.self_state import (
+from sofia.core.cognition.self_state import (
     AuthoritativeSelfState,
 )
-from sofia.embodiment.model import (
+from sofia.core.embodiment.model import (
     AvatarEmbodiment,
     ClothingItem,
     ClothingSpecification,
@@ -12,9 +12,9 @@ from sofia.embodiment.model import (
     Measurement,
     PhysicalSelf,
 )
-from sofia.identity.model import SofiaIdentity
+from sofia.core.identity.model import SofiaIdentity
 from sofia.platform.operational.model import OperationalState
-from sofia.self_model.model import SelfConcept, SofiaCoreState
+from sofia.core.self_model.model import SelfConcept, SofiaCoreState
 
 
 def create_core_state() -> SofiaCoreState:

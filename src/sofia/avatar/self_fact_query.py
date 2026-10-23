@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
-from sofia.embodiment.model import Embodiment
+from sofia.core.embodiment.model import Embodiment
 
 from .presentation import AttireMode, PresentationProjection
 from .wardrobe_matrix import WardrobeSlotMatrix

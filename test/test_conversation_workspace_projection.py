@@ -3,15 +3,15 @@ from dataclasses import replace
 from datetime import datetime, timezone
 import json
 
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.conversation_assembler import ConversationalContextAssembler
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.constitution.store import Constitution
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.conversation_assembler import ConversationalContextAssembler
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.constitution.store import Constitution
 from sofia.platform.filesystem.changes import FilesystemChangeEvent
-from sofia.identity.model import SofiaIdentity
-from sofia.personality.model import PersonalityProfile
-from sofia.self_model.model import create_core_state
+from sofia.core.identity.model import SofiaIdentity
+from sofia.core.personality.model import PersonalityProfile
+from sofia.core.self_model.model import create_core_state
 
 TIME = datetime(2026, 9, 21, tzinfo=timezone.utc)
 STARTUP = ('I noticed a previous runtime was active, and 23 changes were '

@@ -1,11 +1,11 @@
 """Provider-side regressions for canned assistant and emotion fallbacks."""
 from types import SimpleNamespace
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
-from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.cognition.repetition_guard import response_quality_issue
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.repetition_guard import response_quality_issue
 from sofia.platform.config.model import ProviderConfiguration
 
 
@@ -880,7 +880,7 @@ def test_unrelated_why_has_no_outfit_reason_fallback():
         CognitiveMessage(role=CognitiveRole.SYSTEM, content="context"),
         CognitiveMessage(role=CognitiveRole.USER, content="Why is Artemis offline?"),
     ))
-    from sofia.cognition.quality_repair import grounded_quality_fallback
+    from sofia.core.cognition.quality_repair import grounded_quality_fallback
 
     response = grounded_quality_fallback(request, issue="user_directed_contempt")
     assert response is not None

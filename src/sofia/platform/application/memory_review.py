@@ -3,15 +3,15 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sofia.conversation.store import ConversationStore
-from sofia.memory.originals import ConversationOriginalRetriever, OriginalRetrievalRequest
-from sofia.memory.provenance import CandidateStatus, MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.reviewed_workflow import ReviewedMemoryWorkflow
-from sofia.memory.ranking import MemoryRankingService, RelevanceJudgment
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
-from sofia.social.store import SocialSessionStore
+from sofia.core.conversation.store import ConversationStore
+from sofia.core.memory.originals import ConversationOriginalRetriever, OriginalRetrievalRequest
+from sofia.core.memory.provenance import CandidateStatus, MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.reviewed_workflow import ReviewedMemoryWorkflow
+from sofia.core.memory.ranking import MemoryRankingService, RelevanceJudgment
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.store import SocialSessionStore
 
 
 class MemoryReviewService:

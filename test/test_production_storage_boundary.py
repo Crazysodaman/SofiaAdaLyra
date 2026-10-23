@@ -8,7 +8,7 @@ from sofia.platform.config import (
     production_state_path,
 )
 from sofia.platform.config.layout import RuntimeStorageLayout
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 import sofia.platform.config.layout as layout_module
 

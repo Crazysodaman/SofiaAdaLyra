@@ -8,7 +8,7 @@ from math import isfinite
 from types import MappingProxyType
 from typing import Mapping
 
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 
 
 class DataUse(str, Enum):

@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from sofia.life.model import ProjectStatus
 from sofia.platform.run.work import WorkStatus
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 from test.test_life_project_forge import infrastructure, active_project
 
 

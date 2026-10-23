@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from sofia.cognition.matrix import EvidenceRecord, EvidenceState
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.cognition.matrix import EvidenceRecord, EvidenceState
+from sofia.core.cognition.model import CognitiveResponse
 from sofia.environment.model import EnvironmentFreshness
 
 if TYPE_CHECKING:

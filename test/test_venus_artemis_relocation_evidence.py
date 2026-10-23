@@ -84,7 +84,7 @@ def _stage(
     # does not provision a real external deletion journal. Mock the existing
     # independently tested journal reader only for this staging integration
     # fixture; production must use the real authenticated replay verifier.
-    from sofia.memory.deletion_ledger import MemoryDeletionLedger, MemoryErasureError
+    from sofia.core.memory.deletion_ledger import MemoryDeletionLedger, MemoryErasureError
 
     journal_reads = 0
 

@@ -33,7 +33,7 @@ Sofía 2.0 is the new product generation. Sofía V18 and earlier code are the pr
 - [Five-level evidence standard](../development/V18_TASK_STATUS_STANDARD.md), governing source/test/CI claims.
 - [Existing companion autonomy contract](../development/companion-autonomy-contract.md), specifying the sole canonical writer, Cognition V2, audience separation and execution receipts.
 - [Existing OpenCode integration](../development/opencode.md), specifying development-adapter authority boundaries.
-- [Constitution](../../src/sofia/constitution/constitution.md), which is not amended by these plans.
+- [Constitution](../../src/sofia/core/constitution/constitution.md), which is not amended by these plans.
 
 ## Development control
 

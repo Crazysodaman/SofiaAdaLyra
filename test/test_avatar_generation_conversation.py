@@ -6,8 +6,8 @@ from sofia.avatar.generation_conversation import (
 from sofia.avatar.generated_proposal import GarmentGenerationBrief
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_design import ContentRating, GraphicDesign
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import local_sparks_principal
 from sofia.avatar.wardrobe_generated_store import (
     GarmentAcceptanceResult,
     SofiaGarmentDecision,

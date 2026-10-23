@@ -71,7 +71,7 @@ def event(event_id="event-1", *, recipient="sparks"):
 
 
 def ordinary_event(event_id: str, *, trigger_kind: str = "reflection"):
-    from sofia.social.principals import SPARKS_PRINCIPAL_ID
+    from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
     observation = WorldObservation(
         observation_id=f"observation:{event_id}",
         subject_id="sofia:ordinary-update",
@@ -98,8 +98,8 @@ def ordinary_event(event_id: str, *, trigger_kind: str = "reflection"):
 
 def _bound_focus(state, *, unresolved=True, audience="local:text"):
     import sqlite3
-    from sofia.cognition.v2.contracts import ConversationFocus, UnresolvedRequest
-    from sofia.social.principals import SPARKS_PRINCIPAL_ID
+    from sofia.core.cognition.v2.contracts import ConversationFocus, UnresolvedRequest
+    from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
     created = NOW - timedelta(hours=7)
     with sqlite3.connect(state) as db:
@@ -149,7 +149,7 @@ def _bound_focus(state, *, unresolved=True, audience="local:text"):
 
 
 def test_pending_conversation_projection_is_scoped_restart_safe_and_decline_terminal(state):
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
 
     service = configured(state, [])
     owner = local_sparks_principal()
@@ -178,8 +178,8 @@ def test_pending_conversation_projection_is_scoped_restart_safe_and_decline_term
 
 
 def test_due_pending_thread_uses_presence_act_once_and_resolves_with_focus(state):
-    from sofia.cognition.v2.focus import SQLiteConversationFocusStore
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.cognition.v2.focus import SQLiteConversationFocusStore
+    from sofia.core.social.principals import local_sparks_principal
 
     sent = []
     service = configured(state, sent)
@@ -221,8 +221,8 @@ def test_due_pending_thread_uses_presence_act_once_and_resolves_with_focus(state
 
 
 def test_pending_projection_rejects_wrong_audience_and_memory_alone_creates_nothing(state):
-    from sofia.social.model import AudienceKind, PrincipalContext
-    from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
+    from sofia.core.social.model import AudienceKind, PrincipalContext
+    from sofia.core.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 
     presence = PresenceInitiativeEngine(
         state_path=state, act_service=configured(state, []),
@@ -242,7 +242,7 @@ def test_pending_projection_rejects_wrong_audience_and_memory_alone_creates_noth
 
 
 def test_owner_ordinary_update_feedback_is_explicit_reversible_and_restart_safe(state):
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
     import sqlite3
 
     sent = []
@@ -309,7 +309,7 @@ def test_owner_ordinary_update_feedback_is_explicit_reversible_and_restart_safe(
 
 def test_negative_usefulness_suppresses_only_scoped_optional_updates(state):
     """Explicit negative usefulness is a restraint, never authority to send."""
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
 
     service = configured(state, [])
     presence = PresenceInitiativeEngine(state_path=state, act_service=service)
@@ -340,7 +340,7 @@ def test_negative_usefulness_suppresses_only_scoped_optional_updates(state):
 
 
 def test_explicit_outreach_outcomes_are_bounded_and_silence_stays_unknown(state):
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
 
     service = configured(state, [])
     owner = local_sparks_principal()
@@ -376,8 +376,8 @@ def test_explicit_outreach_outcomes_are_bounded_and_silence_stays_unknown(state)
 
 
 def test_ordinary_update_feedback_rejects_fabricated_and_cross_audience_events(state):
-    from sofia.social.model import AudienceKind, PrincipalContext
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.model import AudienceKind, PrincipalContext
+    from sofia.core.social.principals import local_sparks_principal
 
     service = configured(state, [])
     presence = PresenceInitiativeEngine(state_path=state, act_service=service)
@@ -717,7 +717,7 @@ def test_presence_notice_expires_with_original_observation(state):
 
 def _choose_to_share(request):
     """The bounded cognition chooses, while Presence/ACT owns the facts."""
-    from sofia.cognition.model import CognitiveResponse
+    from sofia.core.cognition.model import CognitiveResponse
 
     assert request.allow_tools is False
     assert request.route_hint == "standard"
@@ -729,7 +729,7 @@ def _choose_to_share(request):
 
 def _choose_silence(request):
     """The optional model may decline to talk after genuine verified work."""
-    from sofia.cognition.model import CognitiveResponse
+    from sofia.core.cognition.model import CognitiveResponse
 
     assert request.allow_tools is False
     return CognitiveResponse(content=(
@@ -765,7 +765,7 @@ def _verified_private_project_for_unprompted_sharing(
 
 
 def _owner_only_outreach(life):
-    from sofia.social.principals import SPARKS_PRINCIPAL_ID
+    from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
     sent = []
     service = SofiaActService(life.path)
@@ -1158,7 +1158,7 @@ def test_life_outreach_does_not_pass_through_untrusted_project_mentions(tmp_path
 def test_life_social_update_uses_owner_bound_discord_route(tmp_path):
     """A production-configured owner DM route retains private Sparks scope."""
     from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
-    from sofia.social.principals import SPARKS_PRINCIPAL_ID
+    from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
     import sqlite3
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
@@ -1223,7 +1223,7 @@ def test_life_chooses_silence_without_spawning_notice(tmp_path):
 def test_life_refuses_invalid_model_outreach_choice_without_sending(tmp_path):
     """Invalid model JSON is a failed optional choice, never assumed approval."""
     from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
-    from sofia.cognition.model import CognitiveResponse
+    from sofia.core.cognition.model import CognitiveResponse
 
     life, _project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -1359,7 +1359,7 @@ def test_life_outreach_operator_stop_after_model_choice_is_honored(tmp_path):
 def test_explicit_project_decline_prevents_future_model_wakeup(tmp_path, monkeypatch):
     """A user's reviewed no stops new outreach, but not the creative project."""
     from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -1413,8 +1413,8 @@ def test_life_owner_feedback_rejects_cross_scope_and_fabricated_opportunities(
     tmp_path,
 ):
     """Neither foreign principals nor imagined notifications supply preferences."""
-    from sofia.social.model import AudienceKind, PrincipalContext
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.model import AudienceKind, PrincipalContext
+    from sofia.core.social.principals import local_sparks_principal
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -1449,7 +1449,7 @@ def test_life_owner_feedback_rejects_cross_scope_and_fabricated_opportunities(
 def test_owner_life_decline_is_explicit_not_inferred_from_silence(tmp_path):
     """No recipient reply must never be recorded as dislike or rejection."""
     from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
         tmp_path,
@@ -1472,7 +1472,7 @@ def test_owner_life_decline_is_explicit_not_inferred_from_silence(tmp_path):
 def test_owner_can_change_project_feedback_with_audited_history(tmp_path):
     """Authenticated owner may reverse an old choice; model cannot do so."""
     from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
     import sqlite3
 
     life, project, now = _verified_private_project_for_unprompted_sharing(
@@ -1526,7 +1526,7 @@ def test_owner_can_change_project_feedback_with_audited_history(tmp_path):
 def test_owner_decline_terminates_queued_update_before_sender(tmp_path):
     """An already queued project note cannot reach Desktop or Discord after no."""
     from sofia.platform.application.background_runtime import bridge_voluntary_life_outreach
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
     from sofia.platform.act.diagnostics import OutreachTraceStore
     import sqlite3
 
@@ -1793,8 +1793,8 @@ def test_presence_delivery_refuses_source_grounding_change_after_queue(
 
 
 def _queued_real_pending_followup(state):
-    from sofia.cognition.v2.focus import SQLiteConversationFocusStore
-    from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
+    from sofia.core.cognition.v2.focus import SQLiteConversationFocusStore
+    from sofia.core.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
     sent = []
     service = configured(
         state, sent, outreach_policy=policy(recipient_id=SPARKS_PRINCIPAL_ID),
@@ -1822,7 +1822,7 @@ def test_pending_followup_declined_after_queue_cannot_deliver(state):
 
 
 def test_pending_followup_resolved_after_queue_cannot_deliver(state):
-    from sofia.cognition.v2.focus import SQLiteConversationFocusStore
+    from sofia.core.cognition.v2.focus import SQLiteConversationFocusStore
     engine, service, owner, thread, decision, sent = _queued_real_pending_followup(state)
     focus = _bound_focus(state, unresolved=False)
     focus = type(focus)(session_id=focus.session_id, audience_id=focus.audience_id, revision=2)
@@ -1855,8 +1855,8 @@ def test_pending_followup_valid_original_delivers_once(state):
 
 
 def test_suppressed_pending_followup_retries_only_in_later_six_hour_window(state):
-    from sofia.cognition.v2.focus import SQLiteConversationFocusStore
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.cognition.v2.focus import SQLiteConversationFocusStore
+    from sofia.core.social.principals import local_sparks_principal
     owner = local_sparks_principal()
     unconfigured_service = SofiaActService(state)
     engine = PresenceInitiativeEngine(state_path=state, act_service=unconfigured_service)

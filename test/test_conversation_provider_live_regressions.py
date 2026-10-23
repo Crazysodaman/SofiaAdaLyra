@@ -4,8 +4,8 @@ from dataclasses import replace
 from datetime import datetime, timezone
 
 from sofia.platform.application.bootstrap import SofiaApplication
-from sofia.cognition.model import CognitiveResponse
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_default_configuration
 
 
@@ -214,7 +214,7 @@ def test_live_model_status_uses_configured_primary_not_generated_avatar_prose(
 def test_discord_hru_turn_excludes_previous_unrelated_assistant_history(
     monkeypatch, tmp_path
 ):
-    from sofia.cognition.model import CognitiveRole
+    from sofia.core.cognition.model import CognitiveRole
 
     application, captured = _application(
         monkeypatch, tmp_path,
@@ -440,7 +440,7 @@ def test_live_sofia_matrix_term_gets_project_architecture_context(
 def test_live_tell_me_the_why_keeps_immediate_touch_context(
     monkeypatch, tmp_path
 ):
-    from sofia.cognition.model import CognitiveRole
+    from sofia.core.cognition.model import CognitiveRole
 
     application, captured = _application(
         monkeypatch,
@@ -651,7 +651,7 @@ def test_live_night_outfit_exclusion_proposal_never_falls_back_to_provider(
 def test_live_avatar_why_followup_stays_on_presentation_state(
     monkeypatch, tmp_path
 ):
-    from sofia.cognition.matrix import MatrixDomain, MatrixRelevance
+    from sofia.core.cognition.matrix import MatrixDomain, MatrixRelevance
 
     application, captured = _application(
         monkeypatch,
@@ -860,7 +860,7 @@ def test_live_generic_what_is_your_outfit_bypasses_provider(
 def test_live_system_inspection_preflights_read_only_host_tool(
     monkeypatch, tmp_path
 ):
-    from sofia.cognition.model import CognitiveRole
+    from sofia.core.cognition.model import CognitiveRole
 
     application, captured = _application(
         monkeypatch,
@@ -890,7 +890,7 @@ def test_live_system_inspection_preflights_read_only_host_tool(
 def test_live_network_inspection_is_not_hijacked_by_filesystem_parser(
     monkeypatch, tmp_path
 ):
-    from sofia.cognition.model import CognitiveRole
+    from sofia.core.cognition.model import CognitiveRole
 
     application, captured = _application(
         monkeypatch,

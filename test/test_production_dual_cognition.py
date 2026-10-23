@@ -1,10 +1,10 @@
 from dataclasses import replace
 
 from sofia.platform.config.model import FleetCognitionConfiguration
-from sofia.cognition.model_lifecycle import (
+from sofia.core.cognition.model_lifecycle import (
     LifecycleManagedCognitiveEngine,
 )
-from sofia.cognition.routing import RoutingCognitiveEngine
+from sofia.core.cognition.routing import RoutingCognitiveEngine
 from sofia.platform.composition.engines import (
     create_cognitive_engine,
     create_model_lifecycle,
@@ -15,7 +15,7 @@ from sofia.platform.config.user_settings import (
     RuntimeUserSettingsStore,
 )
 from sofia.platform.config.defaults import production_storage_layout
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 
 
 def bootstrapped(path):

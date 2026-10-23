@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     ContextualInfluenceMatrix,
     InfluenceMode,
     InfluenceSignal,
@@ -28,7 +28,7 @@ from sofia.environment.model import (
 from sofia.environment.provider import EnvironmentProviderObservation
 from sofia.environment.query import EnvironmentQueryResolver
 from sofia.environment.service import EnvironmentService
-from sofia.personality.influence import ContinuityInfluence, daypart
+from sofia.core.personality.influence import ContinuityInfluence, daypart
 
 
 NOW = datetime(2026, 10, 3, 18, 0, tzinfo=timezone.utc)

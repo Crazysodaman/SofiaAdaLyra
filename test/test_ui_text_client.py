@@ -5,14 +5,14 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.cognition.model import CognitiveResponse
-from sofia.conversation.model import (
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.conversation.model import (
     ConversationMessage,
     ConversationRole,
 )
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 
 
 class FakeConversation:

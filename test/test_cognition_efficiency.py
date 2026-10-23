@@ -4,10 +4,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Thread
 
-from sofia.cognition.budgets import model_token_budget
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.cognition.performance import efficiency_snapshot
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.budgets import model_token_budget
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.performance import efficiency_snapshot
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.runtime.hot_state import HotState, HotStateEntry
 from sofia.platform.state.sqlite_access import shared_sqlite_access
@@ -105,7 +105,7 @@ def test_shared_sqlite_access_enables_wal_verifies_indexes_and_counts(tmp_path: 
 
 
 def test_long_quality_repair_bounds_dialogue_but_preserves_system_grounding():
-    from sofia.cognition.quality_repair import build_rephrase_request
+    from sofia.core.cognition.quality_repair import build_rephrase_request
 
     system = CognitiveMessage(CognitiveRole.SYSTEM, "grounding")
     dialogue = tuple(

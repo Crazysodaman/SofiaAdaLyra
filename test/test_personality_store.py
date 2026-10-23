@@ -2,8 +2,8 @@
 
 import pytest
 
-from sofia.personality.model import PersonalityProfile
-from sofia.personality.store import (
+from sofia.core.personality.model import PersonalityProfile
+from sofia.core.personality.store import (
     PersonalityStore,
     PersonalityStoreError,
 )

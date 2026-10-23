@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from sofia.environment.model import EnvironmentSnapshot, EnvironmentFreshness
 from sofia.habits.engine import HabitPatternEngine
 from sofia.habits.expectations import (
@@ -15,7 +15,7 @@ from sofia.habits.model import ObservationCoverage, SourceQuality
 from sofia.habits.pattern_store import HabitPatternStore
 from sofia.habits.patterns import CadenceKind, HabitCategory
 from sofia.habits.store import HabitObservationRecorder, HabitObservationStore
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 from sofia.platform.state.plane import StatePlane
 
 

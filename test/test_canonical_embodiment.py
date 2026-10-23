@@ -1,19 +1,18 @@
 import json
 from pathlib import Path
 
-from sofia.embodiment.model import (
+from sofia.core.embodiment.model import (
     ClothingItem,
     ClothingSpecification,
 )
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CANONICAL_AVATAR = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "embodiment"
+    / "sofia" / "core" / "embodiment"
     / "avatar.json"
 )
 

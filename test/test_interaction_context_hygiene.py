@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 import json
 from types import SimpleNamespace
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.conversation.model import ConversationRole
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.context_hygiene import without_legacy_auto_affection

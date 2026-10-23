@@ -11,11 +11,11 @@ def _disposable_knowledge_state(tmp_path):
 from types import SimpleNamespace
 
 from sofia.platform.capability.model import CapabilityResult, CapabilityResultKind
-from sofia.cognition.v2.contracts import (
+from sofia.core.cognition.v2.contracts import (
     ActionRequirement, ConversationFocus, EvidenceNeed, TurnKernelInput,
 )
-from sofia.cognition.v2.matrix import MatrixV2Planner
-from sofia.cognition.v2.evidence import CognitiveEvidenceLedger, EvidenceAcquisitionCoordinator
+from sofia.core.cognition.v2.matrix import MatrixV2Planner
+from sofia.core.cognition.v2.evidence import CognitiveEvidenceLedger, EvidenceAcquisitionCoordinator
 from sofia.knowledge.evidence import KnowledgeEvidenceCoordinator
 from sofia.knowledge.index import KnowledgeIndex
 from sofia.knowledge.lifecycle import DocumentDisposition, SQLiteKnowledgeLifecycle

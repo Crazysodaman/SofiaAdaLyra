@@ -11,8 +11,8 @@ from pathlib import Path
 import sqlite3
 from typing import Protocol
 
-from sofia.cognition.model import CognitiveResponse
-from sofia.cognition.runtime_state import CognitionRuntimeStateStore
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.ui.text import UITextClient, UITextMessage
 from sofia.ui.direct_tools import (
     DirectToolOutcome,

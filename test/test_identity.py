@@ -3,8 +3,8 @@ from uuid import UUID
 
 import pytest
 
-from sofia.identity.model import SofiaIdentity
-from sofia.identity.store import IdentityStore, IdentityStoreError
+from sofia.core.identity.model import SofiaIdentity
+from sofia.core.identity.store import IdentityStore, IdentityStoreError
 
 
 def create_identity(

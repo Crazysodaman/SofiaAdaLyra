@@ -24,11 +24,11 @@ def _configuration(tmp_path):
         encoding="utf-8",
     )
     return SofiaConfiguration(
-        constitution_path=ROOT / "src/sofia/constitution/constitution.md",
-        constitution_hash_path=ROOT / "src/sofia/constitution/constitution.sha256",
-        identity_path=ROOT / "src/sofia/identity/identity.json",
+        constitution_path=ROOT / "src/sofia/core/constitution/constitution.md",
+        constitution_hash_path=ROOT / "src/sofia/core/constitution/constitution.sha256",
+        identity_path=ROOT / "src/sofia/core/identity/identity.json",
         personality_path=personality,
-        avatar_path=ROOT / "src/sofia/embodiment/avatar.json",
+        avatar_path=ROOT / "src/sofia/core.embodiment/avatar.json",
         state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=ROOT,
@@ -48,7 +48,7 @@ def test_live_source_does_not_import_retired_semantic_planners():
             offenders.append(str(path.relative_to(ROOT)))
     assert offenders == []
     for filename in retired_files:
-        assert not (ROOT / "src/sofia/cognition/matrix" / filename).exists()
+        assert not (ROOT / "src/sofia/core/cognition/matrix" / filename).exists()
 
 
 def test_application_uses_v2_plan_and_writes_one_completed_trace(tmp_path):

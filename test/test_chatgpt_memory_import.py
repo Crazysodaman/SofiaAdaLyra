@@ -6,15 +6,15 @@ import sqlite3
 
 import pytest
 
-from sofia.memory.chatgpt_import import parse_chatgpt_memory_dump
-from sofia.memory.chatgpt_import_store import ChatGPTMemoryImportStore
-from sofia.memory.chatgpt_migration import ChatGPTMemoryMigrationService
-from sofia.memory.import_chatgpt import main as import_chatgpt_main
-from sofia.memory.provenance import CandidateStatus
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.system import MemorySystem
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
+from sofia.core.memory.chatgpt_import import parse_chatgpt_memory_dump
+from sofia.core.memory.chatgpt_import_store import ChatGPTMemoryImportStore
+from sofia.core.memory.chatgpt_migration import ChatGPTMemoryMigrationService
+from sofia.core.memory.import_chatgpt import main as import_chatgpt_main
+from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.system import MemorySystem
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.platform.verify.semantic_integrity import SemanticIntegrityVerifier

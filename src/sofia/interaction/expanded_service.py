@@ -11,8 +11,8 @@ from datetime import datetime, timezone
 import json
 import re
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.conversation.model import ConversationRole
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.avatar_world import gesture_provider_view
 from sofia.interaction.chat import InteractiveConversationService
@@ -20,7 +20,7 @@ from sofia.interaction.context_hygiene import without_legacy_auto_affection
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.preference_context import read_interaction_context
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 
 _ACTION_COMPOUND = re.compile(
     r"^\s*(?:sof[ií]a,\s*)?(?:i\s+)?"

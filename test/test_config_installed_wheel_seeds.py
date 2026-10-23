@@ -9,7 +9,7 @@ import tomllib
 import pytest
 
 from sofia.platform.config.layout import RuntimeStorageLayout
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 import sofia.platform.config.layout as layout_module
 from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable, require_existing_sqlite
 
@@ -33,11 +33,11 @@ def test_missing_checkout_layout_uses_imported_wheel_seeds(tmp_path, monkeypatch
     layout.provision_from_source()
     require_existing_sqlite(layout.state_path)
     for name, seed in (
-        ("constitution.md", expected / "constitution" / "constitution.md"),
-        ("constitution.sha256", expected / "constitution" / "constitution.sha256"),
-        ("identity.json", expected / "identity" / "identity.json"),
-        ("personality.json", expected / "personality" / "personality.json"),
-        ("avatar.json", expected / "embodiment" / "avatar.json"),
+        ("constitution.md", expected / "core" / "constitution" / "constitution.md"),
+        ("constitution.sha256", expected / "core" / "constitution" / "constitution.sha256"),
+        ("identity.json", expected / "core" / "identity" / "identity.json"),
+        ("personality.json", expected / "core" / "personality" / "personality.json"),
+        ("avatar.json", expected / "core" / "embodiment" / "avatar.json"),
     ):
         destination = (
             layout.protected_root / name
@@ -68,14 +68,14 @@ def test_wheel_manifest_includes_every_first_install_seed():
     manifest = tomllib.loads(
         (root / "pyproject.toml").read_text(encoding="utf-8")
     )
-    included = set(manifest["tool"]["setuptools"]["package-data"]["sofia"])
-    assert {
-        "constitution/constitution.md",
-        "constitution/constitution.sha256",
-        "identity/identity.json",
-        "personality/personality.json",
-        "embodiment/avatar.json",
-    }.issubset(included)
+    data = manifest["tool"]["setuptools"]["package-data"]
+    assert data["sofia.core.constitution"] == [
+        "constitution.md",
+        "constitution.sha256",
+    ]
+    assert data["sofia.core.identity"] == ["identity.json"]
+    assert data["sofia.core.personality"] == ["personality.json"]
+    assert data["sofia.core.embodiment"] == ["avatar.json"]
 
 def _existing_layout_after_bootstrap(tmp_path, monkeypatch):
     monkeypatch.setenv("SOFIA_STATE_ROOT", str(tmp_path / "state"))

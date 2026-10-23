@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole, CognitiveToolCall
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole, CognitiveToolCall
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.platform.verify.interaction.architecture_compare import _samples, compare_once
 from sofia.interaction.offer_route import OFFER, routed_choice_request

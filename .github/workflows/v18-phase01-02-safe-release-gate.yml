@@ -8,7 +8,7 @@ on:
     paths:
       - 'src/sofia/platform/safe/**'
       - 'src/sofia/platform/application/background.py'
-      - 'src/sofia/cognition/tools.py'
+      - 'src/sofia/core/cognition/tools.py'
       - 'src/sofia/platform/verify/**'
       - 'test/test_safe_*.py'
       - 'test/test_application_background.py'

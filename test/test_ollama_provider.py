@@ -1,14 +1,14 @@
 ﻿import pytest
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
     CognitiveToolCall,
     CognitiveToolDefinition,
 )
-from sofia.cognition.provider import LLMProviderError
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.provider import LLMProviderError
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.model import ProviderConfiguration
 
 
@@ -249,7 +249,7 @@ def test_ollama_provider_translates_tool_call_response():
                 FakeOllamaToolCall(
                     name="inspect_file",
                     arguments={
-                        "path": "src/sofia/cognition/model.py",
+                        "path": "src/sofia/core/cognition/model.py",
                     },
                     call_id="call-1",
                 ),
@@ -288,7 +288,7 @@ def test_ollama_provider_translates_tool_call_response():
 
     assert tool_call.name == "inspect_file"
     assert tool_call.arguments == {
-        "path": "src/sofia/cognition/model.py",
+        "path": "src/sofia/core/cognition/model.py",
     }
     assert tool_call.call_id == "call-1"
 
@@ -412,7 +412,7 @@ def test_ollama_provider_translates_assistant_tool_call_message():
                         CognitiveToolCall(
                             name="inspect_file",
                             arguments={
-                                "path": "src/sofia/cognition/model.py",
+                                "path": "src/sofia/core/cognition/model.py",
                             },
                             call_id="call-9",
                         ),
@@ -437,7 +437,7 @@ def test_ollama_provider_translates_assistant_tool_call_message():
                     "function": {
                         "name": "inspect_file",
                         "arguments": {
-                            "path": "src/sofia/cognition/model.py",
+                            "path": "src/sofia/core/cognition/model.py",
                         },
                     },
                 }

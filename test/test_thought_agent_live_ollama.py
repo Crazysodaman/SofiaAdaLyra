@@ -12,11 +12,11 @@ import os
 from ollama import Client
 import pytest
 
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.reflection import ReflectionJournal
-from sofia.personality.thought_agent import ThoughtAgent
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.reflection import ReflectionJournal
+from sofia.core.personality.thought_agent import ThoughtAgent
 
 
 @pytest.mark.integration

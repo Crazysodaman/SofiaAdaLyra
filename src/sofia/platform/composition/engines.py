@@ -2,25 +2,25 @@
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 import os
-from sofia.cognition.activity import CognitiveModelActivityStore
-from sofia.cognition.llm_engine import LLMCognitiveEngine
-from sofia.cognition.fleet_engine import (
+from sofia.core.cognition.activity import CognitiveModelActivityStore
+from sofia.core.cognition.llm_engine import LLMCognitiveEngine
+from sofia.core.cognition.fleet_engine import (
     FleetCognitionPolicy,
     FleetPlacedCognitiveEngine,
 )
-from sofia.cognition.model_lifecycle import (
+from sofia.core.cognition.model_lifecycle import (
     CognitiveModelRole,
     LifecycleManagedCognitiveEngine,
     ModelLifecycleManager,
 )
-from sofia.cognition.providers.factory import create_llm_provider
-from sofia.cognition.routing import (
+from sofia.core.cognition.providers.factory import create_llm_provider
+from sofia.core.cognition.routing import (
     CognitiveEngineRegistry,
     RoutingCognitiveEngine,
 )
-from sofia.cognition.runtime_state import CognitionRuntimeStateStore
-from sofia.cognition.rules import RuleEngine
-from sofia.cognition.test_engine import TestCognitiveEngine
+from sofia.core.cognition.runtime_state import CognitionRuntimeStateStore
+from sofia.core.cognition.rules import RuleEngine
+from sofia.core.cognition.test_engine import TestCognitiveEngine
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
 from sofia.platform.config.model import SofiaConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore

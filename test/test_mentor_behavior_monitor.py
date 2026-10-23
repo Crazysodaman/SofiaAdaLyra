@@ -43,7 +43,7 @@ class BehaviorMonitorTests(TestCase):
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        p = self.root / "src/sofia/personality/personality.json"
+        p = self.root / "src/sofia/core/personality/personality.json"
         p.parent.mkdir(parents=True)
         p.write_text(json.dumps({
             "name": "Sofía",

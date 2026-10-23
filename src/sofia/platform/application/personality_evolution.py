@@ -11,14 +11,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Callable
 
-from sofia.personality.evolution import (
+from sofia.core.personality.evolution import (
     TraitChangeKind,
     TraitDriftEntry,
     TraitEvolutionRecord,
     TraitEvolutionStore,
 )
-from sofia.social.model import PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.model import PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 EvidenceVerifier = Callable[[str], bool]
 

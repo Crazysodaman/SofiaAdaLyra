@@ -10,7 +10,7 @@ import pytest
 
 from sofia.platform.config.model import ModelLifecycleConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettings
-from sofia.cognition.model_lifecycle import (
+from sofia.core.cognition.model_lifecycle import (
     CognitiveModelRole, ModelLifecycleManager, ModelResidencyMode,
 )
 from sofia.platform.ops.activity import (

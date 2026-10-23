@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sofia.personality.preferences import (
+from sofia.core.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )
 

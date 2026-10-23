@@ -3,16 +3,16 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import (
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.constitution.store import Constitution
-from sofia.identity.model import SofiaIdentity
-from sofia.memory.model import MemoryRecord
-from sofia.personality.model import PersonalityProfile
+from sofia.core.constitution.store import Constitution
+from sofia.core.identity.model import SofiaIdentity
+from sofia.core.memory.model import MemoryRecord
+from sofia.core.personality.model import PersonalityProfile
 from pathlib import Path
 
 from sofia.platform.filesystem.model import (

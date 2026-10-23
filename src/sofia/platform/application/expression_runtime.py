@@ -12,12 +12,12 @@ from uuid import uuid4
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     EmbodiedExpressionPlan,
     restrict_expression_for_audience,
 )
-from sofia.personality.influence import ContinuityInfluence
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.voice.prosody_matrix import VoiceProsodyMatrix, VoiceProsodyProfile
 
 

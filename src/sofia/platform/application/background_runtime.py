@@ -20,7 +20,7 @@ from sofia.platform.application.presence import (
     InitiativeEvent, PresenceInitiativeEngine, WorldAvailability,
     WorldEpistemicState, WorldObservation,
 )
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.platform.application.fleet_runtime import (
     create_fleet_bootstrap_coordinator, create_fleet_candidate_notifier,
     create_fleet_reconciliation_notifier,
@@ -34,7 +34,7 @@ from sofia.platform.ops.backup_topology import (
     create_backup_topology_from_environment,
 )
 from sofia.platform.ops.discovery import FleetDiscoveryCoordinator, FleetDiscoveryEnrollmentReconciler
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.personality.influence import ContinuityInfluence
 from sofia.platform.run.heartbeat import ApplicationHeartbeat
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ def _consider_life_idea_without_wedging_worker(
     or unrelated code errors. The normal LIFE tick must still reconcile
     existing work, previously approved goals and durable RUN receipts.
     """
-    from sofia.cognition.engine import CognitiveEngineError
+    from sofia.core.cognition.engine import CognitiveEngineError
     from sofia.life.idea_agent import ProjectIdeaGenerationError
     try:
         return life.consider_new_project(
@@ -106,7 +106,7 @@ def bridge_voluntary_life_outreach(
         return 0
     if presence.recent_life_project_outreach(now=now):
         return 0
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
     owner = local_sparks_principal()
     moments = tuple(
         item for item in life.voluntary_project_updates(now=now, limit=16)
@@ -297,7 +297,7 @@ def bridge_voluntary_life_outreach(
 
 def _generate_private_life_outreach(application, request):
     """Use the same authenticated owner model and application-wide lock."""
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
     with application._model_lock:
         return application._runtime.respond(
             request, principal=local_sparks_principal(),
@@ -452,7 +452,7 @@ def create_background_coordinator(
             interval_seconds=60.0,
         )
     from sofia.avatar.wardrobe_review import WardrobeReviewStore, review_next
-    from sofia.social.principals import local_sparks_principal
+    from sofia.core.social.principals import local_sparks_principal
     review_store = WardrobeReviewStore(application._configuration.state_path)
 
     def review_wardrobe(now):
@@ -498,7 +498,7 @@ def create_background_coordinator(
     # canonical cognition_model_inventory, and RUN's existing single-flight
     # budget. No new independent polling thread or approval source exists.
     from sofia.platform.config.cognitive_models import CognitiveModelSelection
-    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    from sofia.core.cognition.model_inventory import refresh_local_model_inventory
     from sofia.platform.machine.discovery import create_machine_discovery
 
     configured_model_providers = CognitiveModelSelection.from_configuration(
@@ -596,7 +596,7 @@ def create_background_coordinator(
                 ActivityMode.DO_NOT_DISTURB,
             }:
                 return None
-            from sofia.social.principals import local_sparks_principal
+            from sofia.core.social.principals import local_sparks_principal
             decision = application._presence.offer_due_pending_conversation(
                 principal=local_sparks_principal(), now=now,
             )
@@ -708,7 +708,7 @@ def create_background_coordinator(
     life = getattr(application, "_life", None)
     if life is not None:
         def run_independent_life(now):
-            from sofia.social.principals import local_sparks_principal
+            from sofia.core.social.principals import local_sparks_principal
             activity = activity_store.state(host_id).effective
             busy = activity in {
                 ActivityMode.GAMING,

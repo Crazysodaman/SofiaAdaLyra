@@ -66,31 +66,31 @@ from sofia.platform.act.outreach import Importance, OutreachCategory
 from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.platform.application.evolution import SofiaEvolutionService
 from sofia.platform.application.beliefs import BeliefsService
-from sofia.beliefs.model import BeliefHolder
-from sofia.beliefs.store import ConvictionStore
+from sofia.core.beliefs.model import BeliefHolder
+from sofia.core.beliefs.store import ConvictionStore
 from sofia.platform.application.personality_evolution import PersonalityEvolutionService
-from sofia.personality.evolution import TraitEvolutionStore
+from sofia.core.personality.evolution import TraitEvolutionStore
 from sofia.platform.application.memory_significance import MemorySignificanceService
-from sofia.memory.autobiography import AutobiographyTimeline
-from sofia.memory.significance import SignificantMemoryStore
-from sofia.communication import CommunicationLearningService, ShorthandStore
-from sofia.rel.impressions import ImpressionService, ImpressionStore
-from sofia.rel.repair import RepairService, RepairStore
+from sofia.core.memory.autobiography import AutobiographyTimeline
+from sofia.core.memory.significance import SignificantMemoryStore
+from sofia.core.communication import CommunicationLearningService, ShorthandStore
+from sofia.core.rel.impressions import ImpressionService, ImpressionStore
+from sofia.core.rel.repair import RepairService, RepairStore
 from sofia.core.modreg.platform import PlatformModuleObserver
 from sofia.core.modreg.proposals import ModuleProposalService, ModuleProposalStore
 from sofia.core.modreg.registry import ModuleRegistryService, ModuleRegistryStore
 from sofia.core.modreg.self_model import CapabilitySelfModel
 from sofia.core.modreg.workshop import WorkshopRequestService, WorkshopRequestStore
-from sofia.agency import AgencyService, AnticipationStore, DilemmaStore
-from sofia.personality.boundaries import BoundaryService, BoundaryStore
-from sofia.personality.preferences import RomancePreferenceService
+from sofia.core.agency import AgencyService, AnticipationStore, DilemmaStore
+from sofia.core.personality.boundaries import BoundaryService, BoundaryStore
+from sofia.core.personality.preferences import RomancePreferenceService
 from sofia.platform.application.fleet_runtime import (
     configure_fleet_enrollment_notices,
 )
 from sofia.platform.application.memory_review import MemoryReviewService
 from sofia.platform.application.conversation_learning import ConversationLearningCoordinator
 from sofia.platform.application.release_runtime import create_release_manager
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     ContextualInfluenceMatrix,
     InfluenceSurface,
 )
@@ -103,11 +103,11 @@ from sofia.platform.config.user_settings import (
     RuntimeUserSettingsStore,
 )
 from sofia.environment.factory import create_environment_service
-from sofia.conversation.store import ConversationStore
-from sofia.cognition.engine import CognitiveEngineError
-from sofia.cognition.model import CognitiveResponse
-from sofia.cognition.model_lifecycle import ModelLifecycleWorker
-from sofia.cognition.v2 import (
+from sofia.core.conversation.store import ConversationStore
+from sofia.core.cognition.engine import CognitiveEngineError
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.cognition.model_lifecycle import ModelLifecycleWorker
+from sofia.core.cognition.v2 import (
     CognitiveEvidenceLedger,
     EntityCandidate,
     EvidenceAcquisitionCoordinator,
@@ -122,12 +122,12 @@ from sofia.cognition.v2 import (
 from sofia.knowledge.evidence import KnowledgeEvidenceCoordinator
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.interaction.world_store import VirtualWorldStore
-from sofia.personality.preferences import (
+from sofia.core.personality.preferences import (
     CommunicationPreferenceService,
     PreferenceRecord,
     PreferenceRegistry,
 )
-from sofia.rel.nicknames import NicknameRegistry
+from sofia.core.rel.nicknames import NicknameRegistry
 from sofia.creative import (
     CreativeArtifactCapability, CreativeExplorer, CreativeService,
     CreativeStore, CreativeWorkspaceManager, CreativeWorldBridge,
@@ -148,7 +148,7 @@ from sofia.neuro.coordinator import NeuroInputCoordinator
 from sofia.neuro.store import NeuroObservabilityStore
 from sofia.platform.ops.local_telemetry import collect_local_telemetry
 from sofia.habits.pattern_store import HabitPatternStore
-from sofia.rel.store import RelationshipStore
+from sofia.core.rel.store import RelationshipStore
 from sofia.goals import (
     GoalEvidenceIndex,
     GoalService,
@@ -161,11 +161,11 @@ from sofia.platform.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
 from sofia.platform.distributed.state_paths import migrate_legacy_fleet_sidecars
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.personality.influence import ContinuityInfluence
 from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.platform.runtime.runtime import SofiaRuntime, SofiaRuntimeError
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import local_sparks_principal, SPARKS_PRINCIPAL_ID
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import local_sparks_principal, SPARKS_PRINCIPAL_ID
 from sofia.platform.state.component_schema import verify_production_component_schemas
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
@@ -766,8 +766,8 @@ class SofiaApplication:
         A trusted desktop/Discord/mobile adapter MUST supply its own verified
         PrincipalContext. No text from an LLM is an authenticated identity.
         """
-        from sofia.social.model import PrincipalContext
-        from sofia.conversation.lifelong import LifelongThreadStore
+        from sofia.core.social.model import PrincipalContext
+        from sofia.core.conversation.lifelong import LifelongThreadStore
 
         if not isinstance(principal, PrincipalContext):
             raise TypeError("authenticated client principal required")
@@ -785,8 +785,8 @@ class SofiaApplication:
         Reading this projection never merges private Discord and desktop
         visibility, grants permission or delivers a message on any channel.
         """
-        from sofia.social.model import PrincipalContext
-        from sofia.conversation.lifelong import LifelongThreadStore
+        from sofia.core.social.model import PrincipalContext
+        from sofia.core.conversation.lifelong import LifelongThreadStore
 
         if not isinstance(principal, PrincipalContext):
             raise TypeError("authenticated client principal required")

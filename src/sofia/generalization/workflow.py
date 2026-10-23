@@ -21,7 +21,7 @@ from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.goals.model import GoalStatus
 from sofia.goals.service import GoalService
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 

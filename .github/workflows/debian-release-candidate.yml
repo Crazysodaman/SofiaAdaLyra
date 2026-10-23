@@ -149,7 +149,7 @@ jobs:
             --lock requirements.lock.linux-py313.txt
             --wheel "$SOFIA_RELEASE_WHEEL"
             --source "$SOFIA_RELEASE_SOURCE"
-            --constitution-hash "$SOFIA_RELEASE_SOURCE/src/sofia/constitution/constitution.sha256"
+            --constitution-hash "$SOFIA_RELEASE_SOURCE/src/sofia/core/constitution/constitution.sha256"
             --verification-evidence "$SOFIA_VERIFICATION_EVIDENCE"
             --output release-evidence
           )

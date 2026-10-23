@@ -9,8 +9,8 @@ from uuid import UUID
 
 import pytest
 
-import sofia.memory.deletion_ledger as journal_module
-from sofia.memory.deletion_ledger import MemoryDeletionLedger, MemoryErasureError
+import sofia.core.memory.deletion_ledger as journal_module
+from sofia.core.memory.deletion_ledger import MemoryDeletionLedger, MemoryErasureError
 from sofia.platform.ops.backup import BackupCipher
 
 

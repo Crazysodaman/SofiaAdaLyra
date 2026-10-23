@@ -6,7 +6,7 @@ from sofia.platform.verify.cognition_v2_baseline import capture_baseline
 def test_cognition_v2_control_path_baseline_is_measured_without_fake_metrics():
     baseline = capture_baseline()
 
-    assert baseline["schema"] == "sofia.cognition-v2.baseline-v1"
+    assert baseline["schema"] == "sofia.core.cognition-v2.baseline-v1"
     assert baseline["environment"]["provider"] == "test"
     assert baseline["startup"]["wall_ms"] >= 0
     assert set(baseline["scenarios"]) == {

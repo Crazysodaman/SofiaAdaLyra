@@ -18,7 +18,7 @@ from sofia.learning.contracts import (
 )
 from sofia.learning.registry import CandidateArtifact, CandidateRegistry
 from sofia.learning.service import GroundedSample, LearningService
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
 NOW = datetime(2026, 10, 16, 12, tzinfo=timezone.utc)
@@ -53,11 +53,11 @@ def _application_configuration(tmp_path: Path) -> SofiaConfiguration:
     from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
-        constitution_path=project / "src/sofia/constitution/constitution.md",
-        constitution_hash_path=project / "src/sofia/constitution/constitution.sha256",
-        identity_path=project / "src/sofia/identity/identity.json",
+        constitution_path=project / "src/sofia/core/constitution/constitution.md",
+        constitution_hash_path=project / "src/sofia/core/constitution/constitution.sha256",
+        identity_path=project / "src/sofia/core/identity/identity.json",
         personality_path=personality,
-        avatar_path=project / "src/sofia/embodiment/avatar.json",
+        avatar_path=project / "src/sofia/core.embodiment/avatar.json",
         state_path=state,
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=project,

@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 from threading import Barrier
 
-from sofia.cognition.engine import CognitiveEngine
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
-from sofia.cognition.routing import CognitiveEngineRegistry, RoutingCognitiveEngine
-from sofia.cognition.runtime_state import CognitionRuntimeStateStore
+from sofia.core.cognition.engine import CognitiveEngine
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.core.cognition.routing import CognitiveEngineRegistry, RoutingCognitiveEngine
+from sofia.core.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.platform.config.model import ProviderConfiguration
 
 

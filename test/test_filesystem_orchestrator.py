@@ -3,7 +3,7 @@
 from sofia.platform.application import SofiaApplication
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.platform.authorization.evaluator import FilesystemAuthorizationEvaluator
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -22,32 +22,28 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.md"
 )
 
 HASH_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.sha256"
 )
 
 IDENTITY_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "identity"
+    / "sofia" / "core" / "identity"
     / "identity.json"
 )
 
 AVATAR_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "embodiment"
+    / "sofia" / "core" / "embodiment"
     / "avatar.json"
 )
 

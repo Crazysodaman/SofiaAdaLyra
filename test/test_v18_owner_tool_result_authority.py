@@ -8,7 +8,7 @@ from sofia.platform.application.conversation_service import (
     ConversationService, _owner_direct_tool_result_context,
     _MAX_OWNER_TOOL_SOURCE_BYTES,
 )
-from sofia.cognition.model import CognitiveRole
+from sofia.core.cognition.model import CognitiveRole
 
 pytestmark = pytest.mark.pkg_verify
 

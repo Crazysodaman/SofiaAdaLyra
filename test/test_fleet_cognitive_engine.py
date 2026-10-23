@@ -4,12 +4,12 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.cognition.engine import CognitiveEngine, CognitiveEngineError
-from sofia.cognition.fleet_engine import (
+from sofia.core.cognition.engine import CognitiveEngine, CognitiveEngineError
+from sofia.core.cognition.fleet_engine import (
     FleetCognitionPolicy,
     FleetPlacedCognitiveEngine,
 )
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveRequest,
     CognitiveResponse,
     CognitiveToolCall,

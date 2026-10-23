@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from threading import Condition, RLock
 from typing import Generic, TypeVar
 
-from sofia.cognition.performance import record_cache
+from sofia.core.cognition.performance import record_cache
 
 
 T = TypeVar("T")

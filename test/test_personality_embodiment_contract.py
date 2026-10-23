@@ -1,17 +1,17 @@
-﻿from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import (
+﻿from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.embodiment.model import (
+from sofia.core.embodiment.model import (
     ClothingItem,
     ClothingSpecification,
     Embodiment,
     PhysicalSelf,
 )
-from sofia.personality.model import PersonalityProfile
+from sofia.core.personality.model import PersonalityProfile
 
 
 def make_context() -> CognitiveContext:

@@ -15,25 +15,25 @@ from types import SimpleNamespace
 
 from sofia.platform.application.conversation_service import ConversationService
 from sofia.avatar.wardrobe_planner import wardrobe_emotion_influences
-from sofia.cognition.matrix.expression_plan import EmbodiedExpressionPlanner
+from sofia.core.cognition.matrix.expression_plan import EmbodiedExpressionPlanner
 from sofia.avatar.presentation import AppearanceState, PresentationAuthority
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner, WardrobeContext
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
 from sofia.environment.astronomy import season_for
 from sofia.environment.model import EnvironmentFreshness, Season, WeatherObservation
 from sofia.environment.provider import EnvironmentProviderObservation
 from sofia.environment.service import EnvironmentService
 from sofia.interaction.expanded_service import ExpandedConversationService
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.influence import ContinuityInfluence, daypart
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.influence import ContinuityInfluence, daypart
 
 
 ROOT = Path(__file__).resolve().parents[1]
-AVATAR = ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+AVATAR = ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 # 03:30 UTC is 22:30 local on the previous date in America/Chicago here.
 NOW = datetime(2026, 9, 28, 3, 30, tzinfo=timezone.utc)
 

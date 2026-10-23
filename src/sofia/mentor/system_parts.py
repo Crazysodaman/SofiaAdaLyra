@@ -29,13 +29,13 @@ PARTS = (
     SystemPart("identity", "Identity and Constitution",
                "Consistent identity across model, host and channel; integrity and authority boundaries.",
                ("identity", "constitution"),
-               ("src/sofia/personality/personality.json",),
+               ("src/sofia/core/personality/personality.json",),
                ("test/test_personality_pipeline.py",), ("00","02","08"),
                ("Identity invariants survive restart/model changes", "No authority granted by style or prompts")),
     SystemPart("personality", "Personality and response quality",
                "How real responses match documented traits, technical skepticism, warmth, humor and context.",
                ("personality", "social"),
-               ("src/sofia/personality/personality.json",),
+               ("src/sofia/core/personality/personality.json",),
                ("test/test_personality_pipeline.py", "test/test_personality_expression_g9.py"),
                ("05","08"),
                ("Score owner-approved actual replies against an explicit rubric", "Correct unsupported assumptions without aggression", "Personality never replaces facts")),
@@ -163,9 +163,9 @@ def system_parts_summary(repo: Path | str, *, audit: dict | None = None) -> dict
                 "No actual behavior, host telemetry or live delivery tested",
             ],
         })
-    profile = root / "src" / "sofia" / "personality" / "personality.json"
+    profile = root / "src" / "sofia" / "core" / "personality" / "personality.json"
     profile_sha = sha256(profile.read_bytes()).hexdigest() if _is_regular(
-        root, "src/sofia/personality/personality.json"
+        root, "src/sofia/core/personality/personality.json"
     ) else None
     from .personality_review import load_public_personality_summary
     try:
@@ -193,7 +193,7 @@ def system_parts_summary(repo: Path | str, *, audit: dict | None = None) -> dict
         "parts": out,
         "personality": {
             "profile_sha256": profile_sha,
-            "source_profile": "src/sofia/personality/personality.json",
+            "source_profile": "src/sofia/core/personality/personality.json",
             "response_match": (
                 "PROVISIONAL_LOCAL_LLM_REVIEW" if review_current else "UNASSESSED"
             ),

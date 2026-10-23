@@ -21,11 +21,11 @@ def configuration(tmp_path):
     )
     bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     return SofiaConfiguration(
-        constitution_path=project / "src/sofia/constitution/constitution.md",
-        constitution_hash_path=project / "src/sofia/constitution/constitution.sha256",
-        identity_path=project / "src/sofia/identity/identity.json",
+        constitution_path=project / "src/sofia/core/constitution/constitution.md",
+        constitution_hash_path=project / "src/sofia/core/constitution/constitution.sha256",
+        identity_path=project / "src/sofia/core/identity/identity.json",
         personality_path=personality,
-        avatar_path=project / "src/sofia/embodiment/avatar.json",
+        avatar_path=project / "src/sofia/core.embodiment/avatar.json",
         state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=project,

@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sofia.memory.promoted_retrieval import retrieve_promoted
-from sofia.memory.provenance import MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.originals import SourceMessage
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.memory.promoted_retrieval import retrieve_promoted
+from sofia.core.memory.provenance import MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.personality.influence import ContinuityInfluence
 
 
 def add(store, text, promote=True):

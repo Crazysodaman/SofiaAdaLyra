@@ -9,7 +9,7 @@ from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.safe.permissions import PermissionStore
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 
 
 @pytest.fixture(autouse=True)

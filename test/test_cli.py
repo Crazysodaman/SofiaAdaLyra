@@ -14,32 +14,28 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.md"
 )
 
 HASH_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.sha256"
 )
 
 IDENTITY_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "identity"
+    / "sofia" / "core" / "identity"
     / "identity.json"
 )
 
 AVATAR_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "embodiment"
+    / "sofia" / "core" / "embodiment"
     / "avatar.json"
 )
 

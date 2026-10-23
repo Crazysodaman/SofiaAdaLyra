@@ -3,15 +3,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
     CognitiveToolCall, CognitiveToolDefinition,
 )
-from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.cognition.repetition_guard import (
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.repetition_guard import (
     is_near_duplicate_reply,
 )
-from sofia.cognition.quality_repair import (
+from sofia.core.cognition.quality_repair import (
     build_rephrase_request,
 )
 from sofia.platform.config.model import ProviderConfiguration

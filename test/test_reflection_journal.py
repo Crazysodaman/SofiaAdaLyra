@@ -5,8 +5,8 @@ import sqlite3
 
 import pytest
 
-from sofia.personality.reflection import ReflectionJournal, _period
-from sofia.social.model import SocialScope
+from sofia.core.personality.reflection import ReflectionJournal, _period
+from sofia.core.social.model import SocialScope
 
 UTC = timezone.utc
 

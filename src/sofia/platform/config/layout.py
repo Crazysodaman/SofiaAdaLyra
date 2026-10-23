@@ -7,7 +7,7 @@ import shutil
 import stat
 import tempfile
 
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 from sofia.platform.state.canonical_sqlite import (
     bootstrap_canonical_sqlite,
     CanonicalStateUnavailable,
@@ -176,27 +176,27 @@ class RuntimeStorageLayout:
 
         seeds = (
             (
-                self.source_root / "constitution" / "constitution.md",
+                self.source_root / "core" / "constitution" / "constitution.md",
                 self.constitution_path,
                 True,
             ),
             (
-                self.source_root / "constitution" / "constitution.sha256",
+                self.source_root / "core" / "constitution" / "constitution.sha256",
                 self.constitution_hash_path,
                 True,
             ),
             (
-                self.source_root / "identity" / "identity.json",
+                self.source_root / "core" / "identity" / "identity.json",
                 self.identity_path,
                 True,
             ),
             (
-                self.source_root / "personality" / "personality.json",
+                self.source_root / "core" / "personality" / "personality.json",
                 self.personality_path,
                 False,
             ),
             (
-                self.source_root / "embodiment" / "avatar.json",
+                self.source_root / "core" / "embodiment" / "avatar.json",
                 self.avatar_path,
                 False,
             ),

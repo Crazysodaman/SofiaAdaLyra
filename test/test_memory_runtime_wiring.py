@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from sofia.cognition.engine import CognitiveEngine
-from sofia.cognition.matrix import ContextPlan, HistoryPolicy, MatrixDomain
-from sofia.cognition.model import (
+from sofia.core.cognition.engine import CognitiveEngine
+from sofia.core.cognition.matrix import ContextPlan, HistoryPolicy, MatrixDomain
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
@@ -14,19 +14,19 @@ from sofia.cognition.model import (
 )
 from sofia.platform.composition.root import compose
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.memory.chatgpt_export import (
+from sofia.core.memory.chatgpt_export import (
     ChatGPTExportBatch,
     ChatGPTExportConversation,
     ChatGPTExportMessage,
 )
-from sofia.memory.model import MemoryRecord
-from sofia.memory.provenance import MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.originals import SourceMessage
-from sofia.memory.system import MemorySystem
-from sofia.personality.influence import ContinuityInfluence
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
+from sofia.core.memory.model import MemoryRecord
+from sofia.core.memory.provenance import MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.system import MemorySystem
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 
 
 

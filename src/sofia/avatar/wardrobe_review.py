@@ -189,7 +189,7 @@ class WardrobeReviewStore:
 
 def review_next(store: WardrobeReviewStore, respond, *, now: datetime):
     """A model decides wardrobe preference, never grants execution authority."""
-    from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+    from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
     from sofia.platform.safe.operator_stop import OperatorStopStore
     from .generated_decision import GeneratedGarmentDecisionService
     from .wardrobe_generated_store import SofiaGarmentDecision

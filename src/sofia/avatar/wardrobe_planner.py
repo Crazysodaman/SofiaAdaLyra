@@ -16,7 +16,7 @@ from sofia.environment.model import (
     EnvironmentSnapshot,
     Season,
 )
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.personality.influence import ContinuityInfluence
 
 from .wardrobe import Wardrobe, WardrobeError, Outfit
 from .wardrobe_design import GarmentDesign, Suitability

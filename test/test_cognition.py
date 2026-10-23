@@ -1,23 +1,23 @@
 ﻿import pytest
 from sofia.platform.authority.model import Authority
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.operation import CognitiveOperation
-from sofia.cognition.engine import (
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.operation import CognitiveOperation
+from sofia.core.cognition.engine import (
     CognitiveEngine,
     CognitiveEngineError,
 )
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.cognition.provider import (
+from sofia.core.cognition.provider import (
     LLMProvider,
     LLMProviderError,
 )
-from sofia.cognition.rules import RuleEngine
-from sofia.cognition.system import CognitiveSystem
+from sofia.core.cognition.rules import RuleEngine
+from sofia.core.cognition.system import CognitiveSystem
 from sofia.platform.config.model import ProviderConfiguration
 
 
@@ -444,7 +444,7 @@ def test_cognitive_engine_adapter_is_provider_neutral():
 
 
 def test_test_cognitive_engine_is_a_cognitive_engine():
-    from sofia.cognition.test_engine import TestCognitiveEngine
+    from sofia.core.cognition.test_engine import TestCognitiveEngine
 
     configuration = ProviderConfiguration(
         provider="test",
@@ -459,7 +459,7 @@ def test_test_cognitive_engine_is_a_cognitive_engine():
 
 
 def test_llm_cognitive_engine_is_a_cognitive_engine():
-    from sofia.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.core.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
         provider="test-llm",
@@ -481,7 +481,7 @@ def test_llm_cognitive_engine_is_a_cognitive_engine():
 
 
 def test_llm_cognitive_engine_preserves_provider_configuration():
-    from sofia.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.core.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
         provider="test-llm",
@@ -516,7 +516,7 @@ def test_llm_provider_error_is_an_exception():
 
 
 def test_llm_cognitive_engine_requires_an_llm_provider():
-    from sofia.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.core.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
         provider="test-llm",
@@ -531,7 +531,7 @@ def test_llm_cognitive_engine_requires_an_llm_provider():
 
 
 def test_llm_cognitive_engine_passes_exact_request_to_provider():
-    from sofia.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.core.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
         provider="test-llm",
@@ -570,7 +570,7 @@ def test_llm_cognitive_engine_passes_exact_request_to_provider():
 
 
 def test_llm_cognitive_engine_returns_provider_response():
-    from sofia.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.core.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
         provider="test-llm",
@@ -605,7 +605,7 @@ def test_llm_cognitive_engine_returns_provider_response():
 
 
 def test_llm_cognitive_engine_translates_provider_failure():
-    from sofia.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.core.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
         provider="test-llm",
@@ -644,7 +644,7 @@ def test_llm_cognitive_engine_translates_provider_failure():
 
 
 def test_llm_cognitive_engine_does_not_swallow_provider_failure():
-    from sofia.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.core.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
         provider="test-llm",
@@ -671,7 +671,7 @@ def test_llm_cognitive_engine_does_not_swallow_provider_failure():
 
 
 def test_cognitive_system_uses_fallback_after_llm_provider_failure():
-    from sofia.cognition.llm_engine import LLMCognitiveEngine
+    from sofia.core.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
         provider="test-llm",

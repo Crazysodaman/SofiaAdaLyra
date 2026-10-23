@@ -7,10 +7,10 @@ import pytest
 from sofia.avatar.presentation import AudienceScope
 from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.avatar.vtuber_character_selection import select_character_parts
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 
 
-SEED=Path(__file__).resolve().parents[1]/"src/sofia/embodiment/avatar.json"
+SEED=Path(__file__).resolve().parents[1]/"src/sofia/core.embodiment/avatar.json"
 
 
 def projection(tmp_path):

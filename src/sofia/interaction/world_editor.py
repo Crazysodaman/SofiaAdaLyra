@@ -5,7 +5,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 
 from .world_model import (
     Transform, WorldInteractionDecision, WorldInteractionReceipt,

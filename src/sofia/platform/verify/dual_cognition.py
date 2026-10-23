@@ -12,12 +12,12 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.cognition.routing import (
+from sofia.core.cognition.routing import (
     CognitiveRoute,
     RoutingCognitiveEngine,
     RoutingExecution,

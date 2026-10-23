@@ -345,7 +345,7 @@ def stage_verified_state_home(
         # that EVERY signed deletion is absent from this candidate, then pin
         # that exact observed journal sequence for the final rename gate.
         # This is an offline recovery check, not an authority to erase data.
-        from sofia.memory.deletion_ledger import (
+        from sofia.core.memory.deletion_ledger import (
             MemoryDeletionLedger, MemoryErasureError,
         )
         ledger = MemoryDeletionLedger(erasure_journal_path, backup_engine.cipher)

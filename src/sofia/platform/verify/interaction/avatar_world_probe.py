@@ -20,7 +20,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from sofia.platform.application.bootstrap import SofiaApplication
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.platform.config.defaults import create_production_configuration
 from sofia.interaction.expanded_service import ExpandedConversationService
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite

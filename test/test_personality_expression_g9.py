@@ -1,5 +1,5 @@
 """G9 contract: natural identity and fox style never outrank evidence."""
-from sofia.personality.expression import personality_expression_guidance
+from sofia.core.personality.expression import personality_expression_guidance
 
 
 def test_identity_prompt_is_conversational_not_constitution_recitation():

@@ -5,7 +5,7 @@ context is bounded. Tests intentionally not executed in coding campaign.
 """
 from datetime import datetime, timedelta, timezone
 
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from test.test_conversation_service import create_application
 
 

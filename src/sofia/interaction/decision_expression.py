@@ -11,13 +11,13 @@ import json
 import re
 from typing import Protocol
 
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     ContextualInfluenceMatrix,
     InfluenceMode,
     InfluenceSignal,
     InfluenceSurface,
 )
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
 from sofia.interaction.action_grammar import ActionIntent

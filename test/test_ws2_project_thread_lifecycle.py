@@ -8,7 +8,7 @@ import sqlite3
 
 import pytest
 
-from sofia.conversation.lifelong import LifelongThreadStore
+from sofia.core.conversation.lifelong import LifelongThreadStore
 from test.test_lifelong_historical_reviewed_import import _identity, _source
 
 

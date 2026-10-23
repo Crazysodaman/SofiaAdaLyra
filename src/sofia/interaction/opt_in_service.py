@@ -14,7 +14,7 @@ from sofia.interaction.live_offer_service import (
 )
 from sofia.interaction.question_clarification_service import respond_reviewed_hug_question
 from sofia.interaction.reviewed_hug_question import is_reviewed_hug_question
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 
 
 class OptInInteractionConversationService(ExpandedConversationService):

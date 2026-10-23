@@ -14,7 +14,7 @@ from sofia.environment.model import (
     Season,
     WeatherObservation,
 )
-from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
+from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
 from sofia.ui.theme import (
     AdaptiveThemePolicy,
     ThemeSignals,

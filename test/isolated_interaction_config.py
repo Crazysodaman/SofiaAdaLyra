@@ -6,7 +6,7 @@ model installation or production database lookup is performed here.
 from pathlib import Path
 
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.model import IdentityBootstrapMode
 
 
 def isolated_interaction_configuration(disposable_root: Path) -> SofiaConfiguration:

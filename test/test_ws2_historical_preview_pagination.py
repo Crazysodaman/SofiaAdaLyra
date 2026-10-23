@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import pytest
 
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from test.test_lifelong_historical_reviewed_import import (
     NOW, _identity, _source,
 )

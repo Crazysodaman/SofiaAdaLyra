@@ -3,9 +3,9 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.memory.provenance import CandidateStatus, MemoryCandidate
-from sofia.memory.originals import SourceMessage
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.provenance import CandidateStatus, MemoryCandidate
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 
 
 def source(mid="m1", session="s1"):

@@ -8,7 +8,7 @@ on:
       - 'src/sofia/life/**'
       - 'src/sofia/learning/**'
       - 'src/sofia/platform/distributed/**'
-      - 'src/sofia/memory/**'
+      - 'src/sofia/core/memory/**'
       - 'test/test_life_*.py'
       - 'test/test_distributed_capability_lifecycle.py'
       - 'test/test_memory_review_source_revalidation.py'

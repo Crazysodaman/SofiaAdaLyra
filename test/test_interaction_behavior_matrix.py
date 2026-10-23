@@ -13,7 +13,7 @@ import sqlite3
 
 import pytest
 
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
@@ -21,7 +21,7 @@ from sofia.interaction.registry import catalog_for_engine
 
 
 ROOT = Path(__file__).resolve().parents[1]
-AVATAR = ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+AVATAR = ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 NOW = datetime(2026, 9, 27, 22, 0, tzinfo=timezone.utc)
 
 

@@ -6,7 +6,7 @@ import pytest
 
 from sofia.avatar.wardrobe_review import WardrobeReviewStore, document, review_next
 from sofia.avatar.wardrobe import WardrobeConflict, WardrobeError
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.cognition.model import CognitiveResponse
 from sofia.platform.safe.operator_stop import OperatorStopStore
 
 NOW = datetime(2026, 10, 5, 12, tzinfo=timezone.utc)

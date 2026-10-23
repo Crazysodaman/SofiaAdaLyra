@@ -8,11 +8,11 @@ import pytest
 from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner
 from types import SimpleNamespace
 
-from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
+from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
 from sofia.mobile.gateway import MobileCompanionGateway
 from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
 from sofia.platform.safe.permissions import PermissionStore
-from sofia.social.model import AudienceKind
+from sofia.core.social.model import AudienceKind
 
 
 NOW = datetime(2026, 10, 5, 20, 0, tzinfo=timezone.utc)

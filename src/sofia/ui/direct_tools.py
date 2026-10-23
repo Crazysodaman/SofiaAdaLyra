@@ -10,15 +10,15 @@ from typing import Any
 from uuid import uuid4
 
 from sofia.platform.capability.model import CapabilityResult
-from sofia.cognition.model import CognitiveResponse, CognitiveToolCall
-from sofia.cognition.tools import CognitiveToolDispatcher
+from sofia.core.cognition.model import CognitiveResponse, CognitiveToolCall
+from sofia.core.cognition.tools import CognitiveToolDispatcher
 from sofia.platform.safe.permissions import (
     PermissionLevel,
     PrivacyClass,
     capability_permission_policy,
 )
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 
 
 @dataclass(frozen=True, slots=True)

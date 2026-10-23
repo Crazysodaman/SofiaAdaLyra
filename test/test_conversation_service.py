@@ -15,13 +15,13 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.conversation.model import (
+from sofia.core.conversation.model import (
     ConversationRole,
 )
-from sofia.cognition.model import CognitiveResponse
-from sofia.cognition.llm_engine import LLMCognitiveEngine
-from sofia.cognition.providers.test_provider import TestLLMProvider
-from sofia.cognition.routing import (
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.cognition.llm_engine import LLMCognitiveEngine
+from sofia.core.cognition.providers.test_provider import TestLLMProvider
+from sofia.core.cognition.routing import (
     CognitiveEngineRegistry,
     RoutingCognitiveEngine,
 )
@@ -29,9 +29,9 @@ from sofia.platform.safe.permissions import (
     PermissionLevel,
     capability_permission_policy,
 )
-from sofia.social.principals import local_sparks_principal
-from sofia.social.store import SocialSessionStore
-from sofia.cognition.matrix import (
+from sofia.core.social.principals import local_sparks_principal
+from sofia.core.social.store import SocialSessionStore
+from sofia.core.cognition.matrix import (
     AuthorityDecision,
     EvidenceState,
     HistoryPolicy,
@@ -47,32 +47,28 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.md"
 )
 
 HASH_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.sha256"
 )
 
 IDENTITY_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "identity"
+    / "sofia" / "core" / "identity"
     / "identity.json"
 )
 
 AVATAR_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "embodiment"
+    / "sofia" / "core" / "embodiment"
     / "avatar.json"
 )
 
@@ -629,7 +625,7 @@ def test_normal_reply_finalizes_before_assistant_message_is_persisted(
     tmp_path, monkeypatch
 ):
     """A rejected or rewritten interaction cannot leak into durable history."""
-    from sofia.cognition.model import CognitiveResponse
+    from sofia.core.cognition.model import CognitiveResponse
 
     application = create_application(tmp_path)
     application.start()
@@ -673,7 +669,7 @@ def test_standalone_question_does_not_replay_prior_clothing_chat(
     from sofia.platform.application.conversation_service import (
         _conversation_cognitive_window,
     )
-    from sofia.conversation.model import ConversationMessage
+    from sofia.core.conversation.model import ConversationMessage
     from datetime import datetime, timezone
 
     session = "discord-session"
@@ -700,7 +696,7 @@ def test_followup_keeps_recent_history_but_has_bounded_window():
     from sofia.platform.application.conversation_service import (
         _conversation_cognitive_window,
     )
-    from sofia.conversation.model import ConversationMessage
+    from sofia.core.conversation.model import ConversationMessage
     from datetime import datetime, timezone
 
     history = tuple(
@@ -734,7 +730,7 @@ def test_followup_keeps_recent_history_but_has_bounded_window():
 def test_conversation_records_active_matrix_trace_before_persistence(
     tmp_path: Path,
 ):
-    from sofia.cognition.matrix import (
+    from sofia.core.cognition.matrix import (
         HistoryPolicy,
         MatrixDomain,
         MatrixIntent,
@@ -816,12 +812,12 @@ def test_matrix_context_window_applies_typed_history_limits():
     from datetime import datetime, timezone
 
     from sofia.platform.application.conversation_service import _matrix_context_window
-    from sofia.cognition.matrix import (
+    from sofia.core.cognition.matrix import (
         ContextPlan,
         HistoryPolicy,
         MatrixDomain,
     )
-    from sofia.conversation.model import ConversationMessage
+    from sofia.core.conversation.model import ConversationMessage
 
     history = tuple(
         ConversationMessage(
@@ -1196,8 +1192,8 @@ def test_matrix_context_window_filters_excluded_domains_across_history_policies(
     from datetime import datetime, timezone
 
     from sofia.platform.application.conversation_service import _matrix_context_window
-    from sofia.cognition.matrix import ContextPlan, MatrixDomain
-    from sofia.conversation.model import ConversationMessage
+    from sofia.core.cognition.matrix import ContextPlan, MatrixDomain
+    from sofia.core.conversation.model import ConversationMessage
 
     now = datetime(2026, 10, 2, 23, 0, tzinfo=timezone.utc)
     history = (
@@ -1275,7 +1271,7 @@ def test_last_turn_followup_inherits_prior_semantic_domains_as_context_only():
         V2MatrixCoordinator as MatrixCoordinator,
         v2_registry as default_matrix_registry,
     )
-    from sofia.cognition.matrix import (
+    from sofia.core.cognition.matrix import (
         MatrixContextPlanner,
         MatrixDomain,
         MatrixRelevance,
@@ -1464,8 +1460,8 @@ def test_outfit_why_scope_uses_only_the_eligible_immediate_exchange():
 def test_outfit_why_scope_reaches_real_provider_request_without_cross_domain_leak(tmp_path):
     """CA-5704/CA-506: host build_request includes only eligible outfit context."""
     from datetime import datetime, timedelta, timezone
-    from sofia.conversation.model import ConversationMessage
-    from sofia.cognition.matrix import ContextPlan
+    from sofia.core.conversation.model import ConversationMessage
+    from sofia.core.cognition.matrix import ContextPlan
 
     application = create_application(tmp_path)
     application.start()

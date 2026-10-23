@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.cognition.model import CognitiveResponse
-from sofia.cognition.strict_json import loads_strict_model_json
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.cognition.strict_json import loads_strict_model_json
 from sofia.creative.model import ArtifactKind
 from sofia.life.outreach_agent import (
     ProjectOutreachChoiceAgent, ProjectOutreachChoiceError,

@@ -3,7 +3,7 @@ import json
 import sqlite3
 from types import SimpleNamespace
 
-from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
+from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
 from sofia.environment.model import (
     DaylightObservation,
     DaylightState,

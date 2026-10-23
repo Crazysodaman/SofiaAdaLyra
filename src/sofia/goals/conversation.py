@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from datetime import timedelta
 import re
 
-from sofia.cognition.matrix import MatrixIntent, TurnMatrix
-from sofia.conversation.model import ConversationMessage
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.cognition.matrix import MatrixIntent, TurnMatrix
+from sofia.core.conversation.model import ConversationMessage
+from sofia.core.social.model import AudienceKind, PrincipalContext
 
 from .model import (
     CompletionKind, Goal, GoalCompletionCondition, GoalOrigin, GoalRunState, GoalStatus,

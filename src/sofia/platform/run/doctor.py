@@ -18,14 +18,14 @@ import sys
 
 from sofia.platform.config.defaults import production_storage_layout
 from sofia.platform.config.layout import RuntimeStorageLayout
-from sofia.constitution.store import (
+from sofia.core.constitution.store import (
     ConstitutionIntegrityVerifier,
     ConstitutionStore,
 )
-from sofia.embodiment.store import EmbodimentStore
-from sofia.identity.model import IdentityBootstrapMode
-from sofia.identity.store import IdentityStore
-from sofia.personality.store import PersonalityStore
+from sofia.core.embodiment.store import EmbodimentStore
+from sofia.core.identity.model import IdentityBootstrapMode
+from sofia.core.identity.store import IdentityStore
+from sofia.core.personality.store import PersonalityStore
 from sofia.platform.run.process_lock import StateProcessLock
 from sofia.platform.state.canonical_sqlite import (
     CanonicalSQLiteGuard,

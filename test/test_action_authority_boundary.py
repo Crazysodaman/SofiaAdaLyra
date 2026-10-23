@@ -4,9 +4,9 @@ from test.action_support import TestActionExecutor
 from sofia.platform.action.model import Action, ActionProposal, ActionRisk
 from sofia.platform.action.system import ActionSystem, ActionSystemError
 from sofia.platform.authority.model import Authority
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import CognitiveRequest
-from sofia.cognition.operation import CognitiveOperation
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import CognitiveRequest
+from sofia.core.cognition.operation import CognitiveOperation
 
 
 def make_operation(authority: Authority) -> CognitiveOperation:

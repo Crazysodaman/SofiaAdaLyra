@@ -16,22 +16,22 @@ from sofia.platform.authorization.model import (
     AuthorizationDecision as FilesystemAuthorizationDecision,
 )
 from sofia.continuity.model import ContinuityEvent
-from sofia.conversation.model import (
+from sofia.core.conversation.model import (
     ConversationMessage,
     ConversationRole,
     ConversationSession,
 )
-from sofia.conversation.store import ConversationStore
-from sofia.conversation.lifelong import (
+from sofia.core.conversation.store import ConversationStore
+from sofia.core.conversation.lifelong import (
     CanonicalTurnAdmission, LifelongThreadStore,
 )
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
     CognitiveResponse,
 )
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     HistoryPolicy,
     MatrixDomain,
     MatrixRelevance,
@@ -50,11 +50,11 @@ from sofia.platform.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
 from sofia.platform.runtime.runtime import SofiaRuntime
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.store import SocialSessionStore
-from sofia.rel.store import RelationshipStore
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.store import SocialSessionStore
+from sofia.core.rel.store import RelationshipStore
 from sofia.neuro import NeuroRuntime, NeuroStateSnapshot, NeuroWakeMode
-from sofia.cognition.v2 import (
+from sofia.core.cognition.v2 import (
     CoordinatedTurn,
     ProductionTurnKernel,
     SQLiteConversationFocusStore,
@@ -1416,7 +1416,7 @@ class ConversationService(ConversationMatrixMixin):
         if principal is None:
             return
         try:
-            from sofia.conversation.lifelong import LifelongThreadStore
+            from sofia.core.conversation.lifelong import LifelongThreadStore
             store = getattr(self, "_lifelong_thread_store", None)
             if store is None:
                 store = LifelongThreadStore(self._conversation_store.database_path)
@@ -2201,7 +2201,7 @@ class ConversationService(ConversationMatrixMixin):
         # merely the preceding user turn. This metadata never affects the
         # reply, authority, retained Main thread or memory eligibility.
         try:
-            from sofia.cognition.reply_origin import ReplyModelOriginStore
+            from sofia.core.cognition.reply_origin import ReplyModelOriginStore
             origin_store = self._reply_model_origin_store
             if origin_store is None:
                 origin_store = ReplyModelOriginStore(
@@ -2290,7 +2290,7 @@ class ConversationService(ConversationMatrixMixin):
             raise TypeError("authenticated PrincipalContext required")
         if self._session is None:
             raise RuntimeError("ConversationService must be started")
-        from sofia.conversation.lifelong import LifelongThreadStore
+        from sofia.core.conversation.lifelong import LifelongThreadStore
 
         store = getattr(self, "_lifelong_thread_store", None)
         if store is None:
@@ -2416,7 +2416,7 @@ class ConversationService(ConversationMatrixMixin):
             bound_search_principal = self._social_store.get(self._session.id)
             if terms and bound_search_principal is not None:
                 try:
-                    from sofia.conversation.fulltext_search import (
+                    from sofia.core.conversation.fulltext_search import (
                         ConversationFullTextSearch,
                     )
                     fulltext = ConversationFullTextSearch(

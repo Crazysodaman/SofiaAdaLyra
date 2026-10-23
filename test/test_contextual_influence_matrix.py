@@ -5,13 +5,13 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     ContextualInfluenceMatrix,
     InfluenceMode,
     InfluenceSignal,
     InfluenceSurface,
 )
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.personality.influence import ContinuityInfluence
 
 
 def influence() -> ContinuityInfluence:

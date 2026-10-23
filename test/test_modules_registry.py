@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from sofia.codebase.model import (
+from sofia.core.codebase.model import (
     CodebaseEvidenceKind,
     CodebaseInspectionEvidence,
     PythonModule,
@@ -25,8 +25,8 @@ from sofia.core.modreg.registry import (
     ModuleRegistryStore,
     TrustState,
 )
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 NOW = datetime(2026, 7, 3, 12, 0, tzinfo=timezone.utc)
@@ -41,7 +41,7 @@ MANIFEST = {
         " reminders."
     ),
     "declared_capabilities": ["notes.read", "notes.schedule"],
-    "declared_dependencies": ["sofia.rel"],
+    "declared_dependencies": ["sofia.core.rel"],
     "authority_boundary": ("owner-session:sparks"),
 }
 
@@ -159,7 +159,7 @@ def test_registry_owner_and_trust_lifecycle(tmp_path):
         recorded_at=NOW,
     )
     assert candidate.trust_state is TrustState.CANDIDATE
-    assert "sofia.rel" in candidate.manifest.declared_dependencies
+    assert "sofia.core.rel" in candidate.manifest.declared_dependencies
     insulinpection = observed_noteevidence()
     with pytest.raises(ModuleRegistryError, match="cannot verify"):
         service.verify(
@@ -205,7 +205,7 @@ def test_compatibility_and_health_projection(tmp_path):
     rel = parse_manifest(
         {
             **MANIFEST,
-            "name": "sofia.rel",
+            "name": "sofia.core.rel",
             "version": "1.7.0",
             "declared_dependencies": [],
         }
@@ -215,7 +215,7 @@ def test_compatibility_and_health_projection(tmp_path):
             **MANIFEST,
             "name": "sofia.notesched.next",
             "version": "2.0.0",
-            "declared_dependencies": ["sofia.rel"],
+            "declared_dependencies": ["sofia.core.rel"],
         }
     )
     service.record_candidate(
@@ -226,17 +226,17 @@ def test_compatibility_and_health_projection(tmp_path):
         sparks, manifest=rel, source_path="p/rel.json", recorded_at=NOW,
     )
     entries = service.compatibility_report("sofia.notesched")
-    assert dict(entries) == {"sofia.rel": "candidate-only"}
+    assert dict(entries) == {"sofia.core.rel": "candidate-only"}
     service.verify(
         sparks,
-        name="sofia.rel",
+        name="sofia.core.rel",
         expected_revision=rel_candidate.revision,
-        inspection=inspection((py("sofia.rel.store"),)),
+        inspection=inspection((py("sofia.core.rel.store"),)),
         recorded_at=NOW,
     )
     assert dict(
         service.compatibility_report("sofia.notesched")
-    ) == {"sofia.rel": "compatible"}
+    ) == {"sofia.core.rel": "compatible"}
     future_ok = service.record_candidate(
         sparks, manifest=future, source_path="p/rel2.json", recorded_at=NOW,
     )
@@ -249,7 +249,7 @@ def test_compatibility_and_health_projection(tmp_path):
     )
     assert dict(
         service.compatibility_report("sofia.notesched.next")
-    ) == {"sofia.rel": "major-version-mismatch"}
+    ) == {"sofia.core.rel": "major-version-mismatch"}
     notesched_registration = store.current("sofia.notesched")
     assert notesched_registration is not None
     service.verify(
@@ -268,7 +268,7 @@ def test_compatibility_and_health_projection(tmp_path):
         r.name: r for r in service.health_projection(degraded)
     }
     assert reports["sofia.notesched"].health is ModuleHealth.DEGRADED
-    absent = inspection((py("sofia.memory.store"),))
+    absent = inspection((py("sofia.core.memory.store"),))
     reports = {
         r.name: r for r in service.health_projection(absent)
     }
@@ -361,19 +361,19 @@ def test_bootstrap_wires_module_registry(tmp_path):
     app = SofiaApplication(
         SofiaConfiguration(
             constitution_path=(
-                project_root / "src" / "sofia" / "constitution" /
+                project_root / "src" / "sofia" / "core" / "constitution" /
                 "constitution.md"
             ),
             constitution_hash_path=(
-                project_root / "src" / "sofia" / "constitution" /
+                project_root / "src" / "sofia" / "core" / "constitution" /
                 "constitution.sha256"
             ),
             identity_path=(
-                project_root / "src" / "sofia" / "identity" / "identity.json"
+                project_root / "src" / "sofia" / "core" / "identity" / "identity.json"
             ),
             personality_path=personality,
             avatar_path=(
-                project_root / "src" / "sofia" / "embodiment" / "avatar.json"
+                project_root / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
             ),
             state_path=tmp_path / "sofia.db",
             provider=ProviderConfiguration(provider="test", model="test"),

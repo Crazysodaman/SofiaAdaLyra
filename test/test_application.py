@@ -6,16 +6,16 @@ import pytest
 import sofia.platform.application.bootstrap as bootstrap
 from sofia.platform.application import SofiaApplication, SofiaApplicationError
 from sofia.platform.application.act_service import SofiaActService
-from sofia.cognition.engine import CognitiveEngineError
+from sofia.core.cognition.engine import CognitiveEngineError
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettings
 from sofia.platform.runtime.model import RuntimeState
-from sofia.social.principals import (
+from sofia.core.social.principals import (
     discord_sparks_principal,
     local_sparks_principal,
 )
-from sofia.social.store import SocialSessionStore
+from sofia.core.social.store import SocialSessionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -30,32 +30,28 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.md"
 )
 
 HASH_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.sha256"
 )
 
 IDENTITY_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "identity"
+    / "sofia" / "core" / "identity"
     / "identity.json"
 )
 
 AVATAR_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "embodiment"
+    / "sofia" / "core" / "embodiment"
     / "avatar.json"
 )
 
@@ -132,7 +128,7 @@ def test_production_application_composes_live_interact_memory_act_environment_an
         application.conversation,
         OptInInteractionConversationService,
     )
-    from sofia.memory.provenance_store import DurableMemoryCandidateStore
+    from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
     assert isinstance(application.runtime.memory_system.candidate_store, DurableMemoryCandidateStore)
     assert isinstance(application.act, SofiaActService)
     assert application.runtime.environment_service is not None

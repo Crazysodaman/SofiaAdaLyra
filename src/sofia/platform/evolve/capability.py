@@ -7,8 +7,8 @@ from enum import Enum
 from typing import Any
 
 from sofia.platform.capability.model import Capability, CapabilityRequest
-from sofia.cognition.model import CognitiveToolDefinition
-from sofia.cognition.tools import CognitiveToolBinding
+from sofia.core.cognition.model import CognitiveToolDefinition
+from sofia.core.cognition.tools import CognitiveToolBinding
 
 from .amendment import ProtectedTarget
 from .orchestrator import CodeEvolutionOrchestrator

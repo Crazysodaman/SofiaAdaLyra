@@ -4,10 +4,10 @@ from types import SimpleNamespace
 
 from sofia.platform.application.conversation_service import ConversationService
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.reflection import ReflectionJournal
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.reflection import ReflectionJournal
 
 
 def test_completed_reflection_reaches_conversation_once(monkeypatch, tmp_path):

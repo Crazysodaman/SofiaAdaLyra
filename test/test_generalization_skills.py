@@ -14,7 +14,7 @@ from sofia.goals.evidence import GoalEvidenceLedger
 from sofia.learning.contracts import DataUse, DataUseGrant
 from sofia.life.procedures import ProcedureRecord
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
 NOW = datetime(2026, 10, 18, 12, tzinfo=timezone.utc)

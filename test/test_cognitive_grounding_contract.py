@@ -2,14 +2,14 @@
 
 import pytest
 
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.grounding import (
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.grounding import (
     CognitiveGroundingContract,
     CognitiveGroundingSource,
     DEFAULT_COGNITIVE_GROUNDING_CONTRACT,
 )
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,

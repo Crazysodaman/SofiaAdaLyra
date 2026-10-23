@@ -12,9 +12,9 @@ from datetime import datetime
 from typing import Protocol
 from uuid import uuid4
 
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from sofia.ui.drafts import UIDraft, UIDraftStore
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 
 
 class ConversationPort(Protocol):

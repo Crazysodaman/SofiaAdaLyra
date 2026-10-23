@@ -17,7 +17,7 @@ from sofia.creative import (
     CreativeStore, CreativeWorkspaceManager, CreativeWorldBridge,
     ManagedAssetStore,
 )
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.cognition.model import CognitiveResponse
 from sofia.goals import GoalEvidenceIndex, GoalService, GoalStatus, GoalStore
 from sofia.interaction.world_model import ObjectKind, Transform
 from sofia.interaction.world_store import VirtualWorldStore
@@ -26,13 +26,13 @@ from sofia.life import (
     ProjectIdea, ProjectScope, ProjectStatus, SelfDirectedLifeCoordinator,
     TechnicalOutcome,
 )
-from sofia.personality.preferences import (
+from sofia.core.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )
-from sofia.rel.nicknames import NicknameRegistry, NicknameStatus
+from sofia.core.rel.nicknames import NicknameRegistry, NicknameStatus
 from sofia.platform.run.work import WorkStatus
 from sofia.platform.safe.operator_stop import OperatorStopStore
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
@@ -1503,7 +1503,7 @@ def test_subjective_artifact_review_remains_visible_after_evaluation(tmp_path):
 
 def test_life_ideation_keeps_interest_evidence_out_of_system_instruction(tmp_path):
     """A retrieved interest or experience is data, not a new cognitive policy."""
-    from sofia.cognition.model import CognitiveRole
+    from sofia.core.cognition.model import CognitiveRole
     from sofia.life.idea_agent import ProjectIdeaAgent
 
     life, _goals, now = infrastructure(tmp_path)

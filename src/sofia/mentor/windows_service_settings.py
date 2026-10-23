@@ -18,7 +18,7 @@ from typing import Callable
 SERVICE = "SofiaAdaLyra"
 FLAG_OPTION = "MentorBehaviorEnabled"
 ROOT_OPTION = "MentorSourceRoot"
-PROFILE = Path("src/sofia/personality/personality.json")
+PROFILE = Path("src/sofia/core/personality/personality.json")
 
 
 class MentorServiceSettingsError(ValueError):

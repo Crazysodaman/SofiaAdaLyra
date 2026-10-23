@@ -9,12 +9,12 @@ import pytest
 pytestmark = pytest.mark.pkg_mem
 
 from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
-from sofia.memory.originals import SourceMessage
-from sofia.memory.provenance import CandidateStatus, MemoryCandidate
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.system import MemorySystem
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.memory.provenance import CandidateStatus, MemoryCandidate
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.system import MemorySystem
 from sofia.neuro.connectome.association_store import ReviewedAssociationStore
-from sofia.social.principals import local_sparks_principal, discord_sparks_principal
+from sofia.core.social.principals import local_sparks_principal, discord_sparks_principal
 
 
 NOW = datetime(2026, 10, 11, 18, tzinfo=timezone.utc)

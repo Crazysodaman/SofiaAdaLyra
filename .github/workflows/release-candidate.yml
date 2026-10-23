@@ -161,7 +161,7 @@ jobs:
             "--lock","requirements.lock.windows-py312.txt",
             "--wheel",$env:RELEASE_WHEEL,
             "--source",$env:SOFIA_RELEASE_SOURCE,
-            "--constitution-hash",(Join-Path $env:SOFIA_RELEASE_SOURCE "src\sofia\constitution\constitution.sha256"),
+            "--constitution-hash",(Join-Path $env:SOFIA_RELEASE_SOURCE "src\sofia\core\constitution\constitution.sha256"),
             "--verification-evidence",$env:SOFIA_VERIFICATION_EVIDENCE,
             "--output","release-evidence"
           )

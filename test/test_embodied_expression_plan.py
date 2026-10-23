@@ -1,11 +1,11 @@
 """Regression coverage for contextual embodied-expression planning."""
 import pytest
 
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     EmbodiedExpressionPlanner,
     InfluenceSignal,
 )
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.personality.influence import ContinuityInfluence
 
 
 def _influence(

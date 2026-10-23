@@ -10,7 +10,7 @@ from sofia.creative import ArtifactKind
 from sofia.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
 from sofia.life.model import ProjectStatus
 from sofia.platform.run.work import WorkStatus
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 from test.test_life_project_forge import infrastructure, active_project
 
 
@@ -252,7 +252,7 @@ def test_background_draft_handles_atomic_project_revision_race_without_crash(
 ):
     """A lost LIFE admission CAS is deferred, never retried as a fresh effect."""
     from test.test_life_autonomous_followthrough import typed_active_project
-    from sofia.cognition.model import CognitiveResponse
+    from sofia.core.cognition.model import CognitiveResponse
     import json
 
     life, _goals, now = infrastructure(tmp_path)

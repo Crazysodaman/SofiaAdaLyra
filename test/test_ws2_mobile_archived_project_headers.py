@@ -7,7 +7,7 @@ import sqlite3
 
 import pytest
 
-from sofia.conversation.lifelong import LifelongThreadStore
+from sofia.core.conversation.lifelong import LifelongThreadStore
 from test.test_mobile_project_thread_history import _project, _dispatch
 from test.test_mobile_main_history import _setup
 

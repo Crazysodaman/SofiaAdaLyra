@@ -5,13 +5,13 @@ from sofia.platform.application.expression_runtime import AvatarExpressionState,
 from sofia.avatar.presentation import (
     AppearanceState, AttireMode, AudienceScope, PresentationProjection,
 )
-from sofia.cognition.matrix import EmbodiedExpressionPlan
-from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
-from sofia.personality.influence import ContinuityInfluence
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.cognition.matrix import EmbodiedExpressionPlan
+from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
 from sofia.platform.application import SofiaApplication
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from pathlib import Path
@@ -182,11 +182,11 @@ def test_production_conversation_records_expression_and_restores_it_after_restar
         encoding="utf-8",
     )
     configuration = SofiaConfiguration(
-        constitution_path=project / "src/sofia/constitution/constitution.md",
-        constitution_hash_path=project / "src/sofia/constitution/constitution.sha256",
-        identity_path=project / "src/sofia/identity/identity.json",
+        constitution_path=project / "src/sofia/core/constitution/constitution.md",
+        constitution_hash_path=project / "src/sofia/core/constitution/constitution.sha256",
+        identity_path=project / "src/sofia/core/identity/identity.json",
         personality_path=personality,
-        avatar_path=project / "src/sofia/embodiment/avatar.json",
+        avatar_path=project / "src/sofia/core.embodiment/avatar.json",
         state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=project,

@@ -12,7 +12,7 @@ from math import isfinite
 from typing import Any, Mapping
 from uuid import UUID
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,

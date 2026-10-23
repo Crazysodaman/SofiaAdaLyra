@@ -6,7 +6,7 @@ import pytest
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 from test.owner_auth_fixture import private_with_signed_owner
 from sofia.avatar.vtuber_wardrobe_production import (
     canonical_json_wardrobe_records,

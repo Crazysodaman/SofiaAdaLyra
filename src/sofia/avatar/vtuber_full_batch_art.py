@@ -28,7 +28,7 @@ from .wardrobe_design import resolve_color
 from .wardrobe import Layer, normalize_slots
 from .vtuber_layer_stack import WAIST_UP_SLOTS
 from .private_grant import PrivatePresentationGrantResolver
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 
 
 SCHEMA = "sofia.avatar2d.wardrobe_candidate_batch.v1"

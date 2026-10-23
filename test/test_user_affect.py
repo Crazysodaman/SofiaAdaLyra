@@ -6,20 +6,20 @@ import pytest
 
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
 from sofia.platform.application.conversation_service import ConversationService
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     ResponseValidation,
     ResponseValidationDisposition,
 )
-from sofia.cognition.model import CognitiveRequest, CognitiveResponse
-from sofia.conversation.model import ConversationRole
-from sofia.social.affect import (
+from sofia.core.cognition.model import CognitiveRequest, CognitiveResponse
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.social.affect import (
     USER_AFFECTS,
     UserAffectAppraiser,
     UserAffectAssessment,
     UserAffectObservation,
     UserAffectTracker,
 )
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)

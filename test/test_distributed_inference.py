@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,

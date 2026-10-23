@@ -6,13 +6,13 @@ import sqlite3
 import pytest
 
 from sofia.platform.application.conversation_service import ConversationService
-from sofia.cognition.matrix.model import CognitionExecutionStep, CognitionExecutionTrace
-from sofia.cognition.model import CognitiveResponse
-from sofia.cognition.reply_origin import ReplyModelOriginStore
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.conversation.store import ConversationStore
+from sofia.core.cognition.matrix.model import CognitionExecutionStep, CognitionExecutionTrace
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.cognition.reply_origin import ReplyModelOriginStore
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.store import ConversationStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.social.principals import local_sparks_principal, discord_sparks_principal
+from sofia.core.social.principals import local_sparks_principal, discord_sparks_principal
 
 pytestmark = pytest.mark.pkg_core
 NOW=datetime(2026,10,11,tzinfo=timezone.utc)

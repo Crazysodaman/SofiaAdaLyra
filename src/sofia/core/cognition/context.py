@@ -1,0 +1,301 @@
+from dataclasses import dataclass
+
+from sofia.avatar.presentation import PresentationProjection
+from sofia.core.cognition.grounding import (
+    CognitiveGroundingContract,
+    DEFAULT_COGNITIVE_GROUNDING_CONTRACT,
+)
+from sofia.core.cognition.model import CognitiveRequest
+from sofia.core.cognition.self_state import AuthoritativeSelfState
+from sofia.core.constitution.store import Constitution
+from sofia.continuity.model import (
+    ContinuityEvent,
+    create_continuity_event,
+)
+from sofia.core.embodiment.model import Embodiment
+from sofia.environment.model import EnvironmentSnapshot
+from sofia.core.embodiment.measurement_query import MeasurementQueryResult
+from sofia.platform.filesystem.changes import FilesystemChangeEvent
+from sofia.platform.filesystem.model import FilesystemResult
+from sofia.core.identity.model import SofiaIdentity
+from sofia.core.memory.historical import HistoricalConversationEvidence
+from sofia.core.memory.model import MemoryRecord
+from sofia.platform.operational.model import (
+    OperationalState,
+    RuntimeContinuity,
+)
+from sofia.core.personality.model import PersonalityProfile
+from sofia.platform.safe.permissions import AdultPrivateAuthority
+from sofia.core.social.model import PrincipalContext
+from sofia.core.self_model.model import SofiaCoreState
+from sofia.core.self_model.operational import SofiaOperationalSelfModel
+
+
+@dataclass(frozen=True)
+class CognitiveContext:
+    """
+    Immutable projection of persistent Sofía state and operational
+    information for one cognitive operation.
+    """
+
+    request: CognitiveRequest
+    grounding: CognitiveGroundingContract = (
+        DEFAULT_COGNITIVE_GROUNDING_CONTRACT
+    )
+    identity: SofiaIdentity | None = None
+    personality: PersonalityProfile | None = None
+    memories: tuple[MemoryRecord, ...] = ()
+    historical_conversation_evidence: tuple[
+        HistoricalConversationEvidence, ...
+    ] = ()
+    constitution: Constitution | None = None
+    embodiment: Embodiment | None = None
+    measurement_query: MeasurementQueryResult | None = None
+    core_state: SofiaCoreState | None = None
+    operational_state: OperationalState | None = None
+    runtime_continuity: RuntimeContinuity | None = None
+    filesystem_results: tuple[FilesystemResult, ...] = ()
+    workspace_changes: FilesystemChangeEvent | None = None
+    operational_self_model: SofiaOperationalSelfModel | None = None
+    avatar_presentation: PresentationProjection | None = None
+    environment_snapshot: EnvironmentSnapshot | None = None
+    principal: PrincipalContext | None = None
+    private_adult_authority: AdultPrivateAuthority | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.request, CognitiveRequest):
+            raise TypeError(
+                "CognitiveContext request must be a CognitiveRequest."
+            )
+
+        if not isinstance(
+            self.grounding,
+            CognitiveGroundingContract,
+        ):
+            raise TypeError(
+                "CognitiveContext grounding must be a "
+                "CognitiveGroundingContract."
+            )
+
+        if (
+            self.identity is not None
+            and not isinstance(self.identity, SofiaIdentity)
+        ):
+            raise TypeError(
+                "CognitiveContext identity must be a SofiaIdentity."
+            )
+
+        if (
+            self.personality is not None
+            and not isinstance(self.personality, PersonalityProfile)
+        ):
+            raise TypeError(
+                "CognitiveContext personality must be a PersonalityProfile."
+            )
+
+        if not isinstance(self.memories, tuple):
+            raise TypeError(
+                "CognitiveContext memories must be a tuple."
+            )
+
+        for memory in self.memories:
+            if not isinstance(memory, MemoryRecord):
+                raise TypeError(
+                    "CognitiveContext memories must contain "
+                    "MemoryRecord instances."
+                )
+
+        if not isinstance(
+            self.historical_conversation_evidence,
+            tuple,
+        ):
+            raise TypeError(
+                "CognitiveContext historical_conversation_evidence "
+                "must be a tuple."
+            )
+
+        for evidence in self.historical_conversation_evidence:
+            if not isinstance(
+                evidence,
+                HistoricalConversationEvidence,
+            ):
+                raise TypeError(
+                    "CognitiveContext historical_conversation_evidence "
+                    "must contain HistoricalConversationEvidence instances."
+                )
+
+        if (
+            self.constitution is not None
+            and not isinstance(self.constitution, Constitution)
+        ):
+            raise TypeError(
+                "CognitiveContext constitution must be a Constitution."
+            )
+
+        if (
+            self.embodiment is not None
+            and not isinstance(self.embodiment, Embodiment)
+        ):
+            raise TypeError(
+                "CognitiveContext embodiment must be an Embodiment."
+            )
+
+        if (
+            self.measurement_query is not None
+            and not isinstance(
+                self.measurement_query,
+                MeasurementQueryResult,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext measurement_query must be a "
+                "MeasurementQueryResult or None."
+            )
+
+        if (
+            self.core_state is not None
+            and not isinstance(self.core_state, SofiaCoreState)
+        ):
+            raise TypeError(
+                "CognitiveContext core_state must be a SofiaCoreState."
+            )
+
+        if (
+            self.operational_state is not None
+            and not isinstance(
+                self.operational_state,
+                OperationalState,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext operational_state must be "
+                "an OperationalState."
+            )
+
+        if (
+            self.runtime_continuity is not None
+            and not isinstance(
+                self.runtime_continuity,
+                RuntimeContinuity,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext runtime_continuity must be "
+                "a RuntimeContinuity."
+            )
+
+        if not isinstance(self.filesystem_results, tuple):
+            raise TypeError(
+                "CognitiveContext filesystem_results must be a tuple."
+            )
+
+        for result in self.filesystem_results:
+            if not isinstance(result, FilesystemResult):
+                raise TypeError(
+                    "CognitiveContext filesystem_results must contain "
+                    "FilesystemResult instances."
+                )
+
+        if (
+            self.workspace_changes is not None
+            and not isinstance(
+                self.workspace_changes,
+                FilesystemChangeEvent,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext workspace_changes must be a "
+                "FilesystemChangeEvent or None."
+            )
+
+        if (
+            self.operational_self_model is not None
+            and not isinstance(
+                self.operational_self_model,
+                SofiaOperationalSelfModel,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext operational_self_model must be a "
+                "SofiaOperationalSelfModel or None."
+            )
+
+
+        if (
+            self.avatar_presentation is not None
+            and not isinstance(self.avatar_presentation, PresentationProjection)
+        ):
+            raise TypeError(
+                "CognitiveContext avatar_presentation must be a "
+                "PresentationProjection or None."
+            )
+
+        if (
+            self.environment_snapshot is not None
+            and not isinstance(
+                self.environment_snapshot,
+                EnvironmentSnapshot,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext environment_snapshot must be an "
+                "EnvironmentSnapshot or None."
+            )
+
+
+        if (
+            self.principal is not None
+            and not isinstance(self.principal, PrincipalContext)
+        ):
+            raise TypeError(
+                "CognitiveContext principal must be a PrincipalContext or None."
+            )
+
+        if (
+            self.private_adult_authority is not None
+            and not isinstance(
+                self.private_adult_authority,
+                AdultPrivateAuthority,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext private_adult_authority must be "
+                "AdultPrivateAuthority or None."
+            )
+
+
+    @property
+    def authoritative_self_state(self) -> AuthoritativeSelfState:
+        """
+        Return the deterministic authoritative self-state projection for
+        this cognitive operation.
+
+        The projection is derived only from authoritative typed state
+        already present in this context. It does not inspect the
+        filesystem, invoke tools, query the LLM, or infer missing facts.
+        """
+
+        return AuthoritativeSelfState(
+            core_state=self.core_state,
+            embodiment=self.embodiment,
+            operational_state=self.operational_state,
+        )
+
+
+    @property
+    def continuity_event(self) -> ContinuityEvent | None:
+        """
+        Return one aggregate continuity event when runtime continuity
+        evidence is available.
+
+        The event is derived from deterministic evidence already present
+        in this context. It does not create additional observations.
+        """
+
+        if self.runtime_continuity is None:
+            return None
+
+        return create_continuity_event(
+            runtime_continuity=self.runtime_continuity,
+            workspace_changes=self.workspace_changes,
+        )

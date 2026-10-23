@@ -6,7 +6,7 @@ import json
 import re
 from collections.abc import Callable
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,

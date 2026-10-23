@@ -4,9 +4,9 @@ from __future__ import annotations
 from collections.abc import Callable
 import re
 
-from sofia.cognition.matrix.multi_question import split_multi_question
-from sofia.social.model import PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.cognition.matrix.multi_question import split_multi_question
+from sofia.core.social.model import PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 from .generated_proposal import GarmentGenerationBrief
 from .wardrobe import WardrobeError

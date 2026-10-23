@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.conversation.model import ConversationRole
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.expanded_service import ExpandedConversationService
 from sofia.interaction.ledger import InteractionLedger

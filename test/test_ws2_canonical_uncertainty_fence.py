@@ -8,7 +8,7 @@ import sqlite3
 
 import pytest
 
-from sofia.conversation.lifelong import CanonicalTurnUncertain
+from sofia.core.conversation.lifelong import CanonicalTurnUncertain
 from test.test_canonical_conversation_ordering import (
     infrastructure, persist_settled_turn,
 )

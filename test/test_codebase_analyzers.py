@@ -2,7 +2,7 @@
 
 import pytest
 
-from sofia.codebase import (
+from sofia.core.codebase import (
     CodebaseAnalyzerRegistry,
     CodebaseInspector,
     PythonAnalyzer,
@@ -13,7 +13,7 @@ from sofia.codebase import (
 
 
 def test_default_registry_contains_python_analyzer():
-    from sofia.codebase import (
+    from sofia.core.codebase import (
         create_default_analyzer_registry,
     )
 

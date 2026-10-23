@@ -2,14 +2,14 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.cognition.engine import CognitiveEngine
-from sofia.cognition.model import (
+from sofia.core.cognition.engine import CognitiveEngine
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.cognition.model_lifecycle import (
+from sofia.core.cognition.model_lifecycle import (
     CognitiveModelRole,
     LifecycleManagedCognitiveEngine,
     ModelLifecycleManager,
@@ -17,7 +17,7 @@ from sofia.cognition.model_lifecycle import (
     ModelResidencyMode,
     ModelUnavailableError,
 )
-from sofia.cognition.routing import (
+from sofia.core.cognition.routing import (
     CognitiveEngineRegistry,
     CognitiveRoute,
     RoutingCognitiveEngine,
@@ -584,7 +584,7 @@ def test_shared_model_kept_for_secondary_is_not_unloaded_as_primary():
 
 
 def test_missing_model_inventory_has_no_reported_sizes():
-    from sofia.cognition.model_lifecycle import _model_sizes
+    from sofia.core.cognition.model_lifecycle import _model_sizes
 
     assert _model_sizes(None) == {}
     assert _model_sizes({"models": None}) == {}

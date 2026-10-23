@@ -11,10 +11,10 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.conversation.lifelong import LifelongThreadStore
+from sofia.core.conversation.lifelong import LifelongThreadStore
 from sofia.goals.evidence import GoalEvidenceIndex, GoalEvidenceLedger
 from sofia.life.store import LifeStore
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
 OWNERS = (LifeStore, LifelongThreadStore, GoalEvidenceLedger, GoalEvidenceIndex)

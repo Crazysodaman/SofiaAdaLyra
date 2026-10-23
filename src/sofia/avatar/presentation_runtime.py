@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 
-from sofia.embodiment.model import Embodiment
+from sofia.core.embodiment.model import Embodiment
 
 from .presentation import AppearanceState, PresentationAuthority
 from .presentation_store import PresentationStore, PresentationStoreError

@@ -7,7 +7,7 @@ from contextlib import contextmanager
 
 import pytest
 
-from sofia.memory.deletion_ledger import MemoryErasureError
+from sofia.core.memory.deletion_ledger import MemoryErasureError
 from test.test_memory_deletion_restore import (
     _erase, _prepare, _assert_no_deleted_candidate,
 )

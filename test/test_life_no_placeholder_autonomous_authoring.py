@@ -8,7 +8,7 @@ from datetime import timedelta
 
 import pytest
 
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.cognition.model import CognitiveResponse
 from sofia.life import ProjectIdea
 from test.test_life_project_forge import infrastructure, active_project
 

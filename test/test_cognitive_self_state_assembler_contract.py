@@ -1,23 +1,23 @@
 ﻿from datetime import datetime, timezone
 from uuid import uuid4
 
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import (
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.embodiment.model import (
+from sofia.core.embodiment.model import (
     ClothingItem,
     ClothingSpecification,
     Embodiment,
     Measurement,
     PhysicalSelf,
 )
-from sofia.identity.model import SofiaIdentity
+from sofia.core.identity.model import SofiaIdentity
 from sofia.platform.operational.model import OperationalState
-from sofia.self_model.model import SelfConcept, SofiaCoreState
+from sofia.core.self_model.model import SelfConcept, SofiaCoreState
 
 
 def make_request() -> CognitiveRequest:

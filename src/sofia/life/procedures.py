@@ -21,7 +21,7 @@ from sofia.creative import (
 )
 from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 
 from .model import LifeProject, ProjectScope, ProjectStatus, TechnicalOutcome
 from .store import LifeStore

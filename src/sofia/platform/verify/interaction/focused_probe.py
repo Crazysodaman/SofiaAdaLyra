@@ -13,15 +13,15 @@ import argparse
 
 import json
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_production_configuration
-from sofia.constitution.store import ConstitutionIntegrityVerifier
-from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import EmbodimentStore
-from sofia.identity.store import IdentityStore
+from sofia.core.constitution.store import ConstitutionIntegrityVerifier
+from sofia.core.constitution.store import ConstitutionStore
+from sofia.core.embodiment.store import EmbodimentStore
+from sofia.core.identity.store import IdentityStore
 from sofia.platform.verify.interaction.ab_probe import build_pair
-from sofia.personality.store import PersonalityStore
+from sofia.core.personality.store import PersonalityStore
 
 _CASES = (
     ('ear', '*pats your left ear*'),

@@ -2,8 +2,8 @@
 from dataclasses import replace
 
 from sofia.platform.application.bootstrap import SofiaApplication
-from sofia.cognition.model import CognitiveResponse
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_default_configuration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 

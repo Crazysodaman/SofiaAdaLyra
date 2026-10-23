@@ -1,9 +1,9 @@
-from sofia.cognition.matrix import EvidenceRecord
+from sofia.core.cognition.matrix import EvidenceRecord
 from datetime import datetime,timezone
 from sofia.platform.authority.model import Authority
 from test.matrix_v2_support import V2MatrixCoordinator as MatrixCoordinator, v2_evidence, v2_registry as default_matrix_registry
-from sofia.cognition.matrix import AuthorityDecision,EvidenceKind,EvidenceState,MatrixAuthorityPlanner,MatrixDomain,MatrixEvidenceResolver,MatrixIntent,MatrixRelevance,MatrixResponsePlanner,MatrixResponseValidator,ResponseValidationDisposition,TurnEnvelope
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.cognition.matrix import AuthorityDecision,EvidenceKind,EvidenceState,MatrixAuthorityPlanner,MatrixDomain,MatrixEvidenceResolver,MatrixIntent,MatrixRelevance,MatrixResponsePlanner,MatrixResponseValidator,ResponseValidationDisposition,TurnEnvelope
+from sofia.core.cognition.model import CognitiveResponse
 NOW=datetime(2026,10,2,18,0,tzinfo=timezone.utc)
 def env(c): return TurnEnvelope(message_id="voice-matrix",session_id="voice-session",content=c,created_at=NOW,principal_id="sparks",channel="desktop")
 def test_voice_runtime_question_activates_voice_domain():

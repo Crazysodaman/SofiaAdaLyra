@@ -6,10 +6,10 @@ import pytest
 
 from sofia.platform.application.conversation_service import ConversationService
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
-from sofia.emotion.clarification import ClarificationJournal
-from sofia.emotion.journal import EmotionalJournal
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.emotion.clarification import ClarificationJournal
+from sofia.core.emotion.journal import EmotionalJournal
 
 NOW = datetime(2026, 9, 20, 12, tzinfo=timezone.utc)
 

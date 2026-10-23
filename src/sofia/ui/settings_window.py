@@ -21,7 +21,7 @@ from sofia.platform.config.user_settings import (
     OutreachSettings,
     RuntimeUserSettingsStore,
 )
-from sofia.cognition.runtime_state import CognitionRuntimeStateStore
+from sofia.core.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.environment.model import LocationSubject
 from sofia.platform.machine.discovery import create_machine_discovery
 from sofia.platform.ops.activity import ActivityMode, HostActivityStore
@@ -664,7 +664,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
             return
         try:
             from sofia.platform.config.cognitive_models import CognitiveModelSelection
-            from sofia.cognition.model_lifecycle import CognitiveModelRole
+            from sofia.core.cognition.model_lifecycle import CognitiveModelRole
             from sofia.platform.safe.operator_stop import OperatorStopStore
 
             if OperatorStopStore(config.state_path).current().active:

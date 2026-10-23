@@ -15,7 +15,7 @@ from sofia.platform.ops.bootstrap import (
 from sofia.platform.ops.capability import OpsToolService
 from sofia.platform.ops.reconciliation_journal import FleetReconciliationRecord
 from sofia.platform.ops.discovery import FleetDiscoveryBootstrapCoordinator
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
 
 

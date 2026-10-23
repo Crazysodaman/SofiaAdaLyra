@@ -22,12 +22,12 @@ from sofia.platform.act.outreach import (
     Importance, OutreachCategory, social_content_safety_reason,
 )
 from sofia.platform.application.act_service import SofiaActService
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 if TYPE_CHECKING:
-    from sofia.cognition.v2.contracts import ConversationFocus
+    from sofia.core.cognition.v2.contracts import ConversationFocus
 
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
@@ -1019,7 +1019,7 @@ class PresenceInitiativeEngine:
         create a topic by themselves. A decline is terminal for the exact
         focus item, and a later restart or projection cannot reopen it.
         """
-        from sofia.cognition.v2.contracts import ConversationFocus
+        from sofia.core.cognition.v2.contracts import ConversationFocus
 
         if not isinstance(focus, ConversationFocus):
             raise TypeError("focus must be canonical ConversationFocus")

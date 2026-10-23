@@ -1,9 +1,9 @@
 from datetime import datetime
 from pathlib import Path
 import pytest
-from sofia.memory.model import MemoryRecord
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.system import MemorySystem
+from sofia.core.memory.model import MemoryRecord
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.system import MemorySystem
 
 
 def test_memory_record_stores_content():

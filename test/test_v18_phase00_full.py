@@ -7,7 +7,7 @@ import pytest
 from sofia.platform.application.conversation_service import (
     _MAX_SPECIFIC_RETRIEVAL_CHARACTERS, _retrieve_specific_conversation,
 )
-from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from sofia.platform.verify.v18_phase00_full import all_phase00_snapshot, markdown_summary
 from sofia.platform.verify.v18_roadmap import RoadmapIntegrityError
 
@@ -128,7 +128,7 @@ def test_non_topical_recall_can_still_use_recent_bounded_source():
 def test_phase00_route_output_never_exceeds_configured_context(
     context, expected_output,
 ):
-    from sofia.cognition.budgets import model_token_budget
+    from sofia.core.cognition.budgets import model_token_budget
     budget = model_token_budget(
         "verify", configured_context=context, configured_output=5000,
     )

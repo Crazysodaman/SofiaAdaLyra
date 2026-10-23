@@ -13,11 +13,11 @@ from sofia.avatar.vtuber_asset_bundle import (
 from sofia.avatar.vtuber_layer_stack import (
     WAIST_UP_SLOTS, assemble_avatar2d_layers,
 )
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SEED = ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
+SEED = ROOT / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 
 
 def environment(tmp_path):

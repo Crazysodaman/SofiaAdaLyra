@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.interaction.core import GESTURES as LIVE_GESTURES, InteractionEngine
 from sofia.interaction.registry import (
     ACTION_DEFINITIONS, CATALOG_VERSION,
@@ -11,7 +11,7 @@ from sofia.interaction.registry import (
     catalog_for_engine, normalize_alias,
 )
 
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 
 
 @pytest.fixture

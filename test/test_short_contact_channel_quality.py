@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
-from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.cognition.repetition_guard import response_quality_issue
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.repetition_guard import response_quality_issue
 from sofia.platform.config.model import ProviderConfiguration
 
 

@@ -5,7 +5,7 @@ from sofia.platform.application.context_budget import (
     CompanionContextBudget,
     ContextClass,
 )
-from sofia.cognition.model import CognitiveMessage, CognitiveRole
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRole
 
 
 pytestmark = pytest.mark.pkg_core

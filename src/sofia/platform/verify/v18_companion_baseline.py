@@ -81,7 +81,7 @@ def summarize_control_baseline(
     if not isinstance(measured, dict) or not _SHA.fullmatch(expected_revision):
         raise BaselineIntegrityError("canonical revision and baseline required")
     if (
-        measured.get("schema") != "sofia.cognition-v2.baseline-v1"
+        measured.get("schema") != "sofia.core.cognition-v2.baseline-v1"
         or measured.get("revision") != expected_revision
     ):
         raise BaselineIntegrityError("measured baseline was not bound to exact HEAD")

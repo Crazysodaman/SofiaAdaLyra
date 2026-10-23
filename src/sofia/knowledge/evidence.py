@@ -5,15 +5,15 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from sofia.platform.capability.model import CapabilityResultKind
-from sofia.cognition.model import CognitiveResponse, CognitiveToolCall
-from sofia.cognition.tools import CognitiveToolDispatcher
-from sofia.cognition.v2.contracts import (
+from sofia.core.cognition.model import CognitiveResponse, CognitiveToolCall
+from sofia.core.cognition.tools import CognitiveToolDispatcher
+from sofia.core.cognition.v2.contracts import (
     ActionRequirement, AnswerPlan, ClaimPlan, ConversationFocus, TurnPlan,
 )
-from sofia.cognition.v2.claims import EvidenceClaimPlanner, EvidenceClaimValidator
-from sofia.cognition.v2.evidence import CapabilityEvidencePayload, EvidenceAcquisitionCoordinator
-from sofia.cognition.v2.rendering import ValidatedAnswerDraft
-from sofia.social.model import PrincipalContext
+from sofia.core.cognition.v2.claims import EvidenceClaimPlanner, EvidenceClaimValidator
+from sofia.core.cognition.v2.evidence import CapabilityEvidencePayload, EvidenceAcquisitionCoordinator
+from sofia.core.cognition.v2.rendering import ValidatedAnswerDraft
+from sofia.core.social.model import PrincipalContext
 
 
 class KnowledgeEvidenceCoordinator:

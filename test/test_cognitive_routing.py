@@ -4,9 +4,9 @@ from time import monotonic, sleep
 
 import pytest
 
-from sofia.cognition.engine import CognitiveEngine, CognitiveEngineError
-from sofia.cognition.fleet_engine import FleetPlacedCognitiveEngine
-from sofia.cognition.model import (
+from sofia.core.cognition.engine import CognitiveEngine, CognitiveEngineError
+from sofia.core.cognition.fleet_engine import FleetPlacedCognitiveEngine
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
@@ -14,7 +14,7 @@ from sofia.cognition.model import (
     CognitiveToolCall,
     CognitiveToolDefinition,
 )
-from sofia.cognition.routing import (
+from sofia.core.cognition.routing import (
     CognitiveEngineRegistry,
     CognitiveRoute,
     CognitiveRoutingPolicy,

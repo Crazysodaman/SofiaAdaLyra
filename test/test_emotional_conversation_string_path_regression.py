@@ -6,9 +6,9 @@ from types import SimpleNamespace
 from sofia.platform.application.conversation_service import ConversationService
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
 from sofia.platform.filesystem.changes import FilesystemChangeEvent
-from sofia.emotion.clarification import ClarificationJournal
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.reflection import ReflectionJournal
+from sofia.core.emotion.clarification import ClarificationJournal
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.reflection import ReflectionJournal
 
 
 def test_string_state_path_opens_emotional_journals_and_observation_bridge(

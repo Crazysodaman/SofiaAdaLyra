@@ -453,7 +453,7 @@ def test_original_life_draft_cites_only_current_twice_verified_procedure(
     tmp_path,
 ):
     """The third creative project sees source proof, never implicit tool rights."""
-    from sofia.cognition.model import CognitiveResponse
+    from sofia.core.cognition.model import CognitiveResponse
     from sofia.life.draft_agent import ProjectDraftAgent
 
     life, _goals, now = infrastructure(tmp_path)

@@ -10,8 +10,8 @@ from typing import Any,Callable
 from uuid import UUID,uuid4
 
 from sofia.platform.capability.model import Capability,CapabilityRequest
-from sofia.cognition.model import CognitiveToolDefinition
-from sofia.cognition.tools import CognitiveToolBinding
+from sofia.core.cognition.model import CognitiveToolDefinition
+from sofia.core.cognition.tools import CognitiveToolBinding
 from sofia.platform.ops.model import HostLifecycle
 from sofia.platform.ops.latency import FleetLatencyStore
 from sofia.platform.ops.state_registry import StatePlaneFleetRegistry

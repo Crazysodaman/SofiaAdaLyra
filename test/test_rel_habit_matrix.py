@@ -10,7 +10,7 @@ from test.matrix_v2_support import (
     V2MatrixCoordinator as MatrixCoordinator,
     v2_registry as default_matrix_registry,
 )
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     ContextPlan,
     EvidenceKind,
     HistoryPolicy,
@@ -20,7 +20,7 @@ from sofia.cognition.matrix import (
     MatrixRelevance,
     TurnEnvelope,
 )
-from sofia.conversation.model import (
+from sofia.core.conversation.model import (
     ConversationMessage,
     ConversationRole,
 )
@@ -30,8 +30,8 @@ from sofia.habits.patterns import (
     HabitLifecycle,
     HabitPattern,
 )
-from sofia.rel.model import RelationshipContact
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.rel.model import RelationshipContact
+from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
 NOW = datetime(2026, 10, 2, 20, 0, tzinfo=timezone.utc)

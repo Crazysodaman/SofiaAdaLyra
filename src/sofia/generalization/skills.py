@@ -16,7 +16,7 @@ import sqlite3
 from sofia.goals.evidence import GoalEvidenceIndex
 from sofia.life.procedures import LifeProcedureCatalog, ProcedureRecord
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 

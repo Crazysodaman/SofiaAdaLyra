@@ -7,7 +7,7 @@ import hashlib
 import re
 from threading import RLock
 
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     MatrixConfidence,
     MatrixRelevance,
     TurnMatrix,

@@ -1,11 +1,11 @@
 ﻿from datetime import datetime, timedelta
 
-from sofia.conversation.model import (
+from sofia.core.conversation.model import (
     ConversationMessage,
     ConversationRole,
     ConversationSession,
 )
-from sofia.conversation.store import ConversationStore
+from sofia.core.conversation.store import ConversationStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

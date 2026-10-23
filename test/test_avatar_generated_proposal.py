@@ -7,7 +7,7 @@ from sofia.avatar.generated_proposal import (
 )
 from sofia.avatar.wardrobe import WardrobeError
 from sofia.avatar.wardrobe_design import ContentRating
-from sofia.cognition.model import CognitiveResponse
+from sofia.core.cognition.model import CognitiveResponse
 
 
 VALID_TEE = """{

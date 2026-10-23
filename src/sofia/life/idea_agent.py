@@ -8,8 +8,8 @@ from hashlib import sha256
 from math import isfinite
 import json
 
-from sofia.cognition.strict_json import loads_strict_model_json
-from sofia.cognition.model import (
+from sofia.core.cognition.strict_json import loads_strict_model_json
+from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
 from sofia.creative.model import ArtifactKind

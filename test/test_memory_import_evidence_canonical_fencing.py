@@ -8,7 +8,7 @@ import sqlite3
 
 import pytest
 
-from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
+from sofia.core.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
 

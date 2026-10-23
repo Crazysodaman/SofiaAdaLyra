@@ -4,14 +4,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.conversation.model import ConversationRole
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.interaction.body_discussion import body_discussion_prompt
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.grammar import NaturalInteractionEngine
 
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core' / 'embodiment" / 'avatar.json'
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 
 

@@ -3,8 +3,8 @@ from sofia.platform.application.conversation_matrix import (
     _v2_evidence_matrix,
     _v2_safeguard_turn,
 )
-from sofia.cognition.matrix import MatrixRoute, RoutingPlan, TurnEnvelope
-from sofia.cognition.v2 import (
+from sofia.core.cognition.matrix import MatrixRoute, RoutingPlan, TurnEnvelope
+from sofia.core.cognition.v2 import (
     ConversationFocus,
     FocusReference,
     MatrixV2Planner,

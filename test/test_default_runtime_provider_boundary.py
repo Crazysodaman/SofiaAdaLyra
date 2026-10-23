@@ -3,13 +3,13 @@
 from dataclasses import replace
 from types import SimpleNamespace
 
-from sofia.cognition.model import (
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.cognition.routing import RoutingCognitiveEngine
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.routing import RoutingCognitiveEngine
 from sofia.platform.composition.root import compose
 from sofia.platform.config import create_default_configuration
 from sofia.platform.config.model import ModelLifecycleConfiguration

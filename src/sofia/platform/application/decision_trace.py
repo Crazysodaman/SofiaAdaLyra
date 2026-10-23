@@ -16,7 +16,7 @@ from sofia.platform.application.event_contracts import (
     CanonicalEventOwner,
     project_matrix_event,
 )
-from sofia.cognition.matrix.model import MatrixTrace, EvidenceState
+from sofia.core.cognition.matrix.model import MatrixTrace, EvidenceState
 from sofia.neuro.model import NeuroStateSnapshot
 
 

@@ -13,22 +13,22 @@ import argparse
 
 from datetime import datetime, timezone
 
-from sofia.cognition.conversation_assembler import ConversationalContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.conversation_assembler import ConversationalContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_production_configuration
-from sofia.constitution.store import ConstitutionIntegrityVerifier
-from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import EmbodimentStore
-from sofia.identity.store import IdentityStore
+from sofia.core.constitution.store import ConstitutionIntegrityVerifier
+from sofia.core.constitution.store import ConstitutionStore
+from sofia.core.embodiment.store import EmbodimentStore
+from sofia.core.identity.store import IdentityStore
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.body_discussion import body_discussion_prompt
 from sofia.interaction.expanded_service import action_prompt
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.chat import interaction_prompt
-from sofia.personality.store import PersonalityStore
-from sofia.self_model.model import create_core_state
+from sofia.core.personality.store import PersonalityStore
+from sofia.core.self_model.model import create_core_state
 
 _CASES = (
     ('ear', '*pats your ear*'),

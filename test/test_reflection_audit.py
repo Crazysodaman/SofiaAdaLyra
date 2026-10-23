@@ -4,7 +4,7 @@ from hashlib import sha256
 import sqlite3
 
 from sofia.platform.verify.reflection_audit import reflection_audit, _sqlite_uri_for_path
-from sofia.personality.reflection import ReflectionJournal
+from sofia.core.personality.reflection import ReflectionJournal
 
 NOW = datetime(2026, 9, 20, 20, tzinfo=timezone.utc)
 

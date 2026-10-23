@@ -26,15 +26,15 @@ from sofia.avatar.wardrobe_planner import (
     WeatherObservation,
 )
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.cognition.matrix import (
+from sofia.core.cognition.matrix import (
     ContextualInfluenceMatrix,
     InfluenceSurface,
 )
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.personality.influence import ContinuityInfluence
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.safe.permissions import PermissionStore
 from test.owner_auth_fixture import private_with_signed_owner
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 
 
 def bundle(tmp_path, *, catalog=None):

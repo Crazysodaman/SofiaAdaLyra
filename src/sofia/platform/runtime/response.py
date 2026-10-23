@@ -4,24 +4,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from dataclasses import replace
 import json
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.matrix import ContextPlan, MatrixDomain, PrivacyProjectionPlan
-from sofia.cognition.matrix.multi_question import split_multi_question
-from sofia.cognition.model import (
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.matrix import ContextPlan, MatrixDomain, PrivacyProjectionPlan
+from sofia.core.cognition.matrix.multi_question import split_multi_question
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.cognition.operation import CognitiveOperation
+from sofia.core.cognition.operation import CognitiveOperation
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
 from sofia.environment.prompt import environment_details_relevant
 from sofia.platform.filesystem.model import FilesystemResult
-from sofia.personality.delivery import grounded_weather_delivery
-from sofia.personality.influence import ContinuityInfluence
-from sofia.personality.reflection import ReflectionJournal
-from sofia.social.model import PrincipalContext, SocialScope
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.personality.delivery import grounded_weather_delivery
+from sofia.core.personality.influence import ContinuityInfluence
+from sofia.core.personality.reflection import ReflectionJournal
+from sofia.core.social.model import PrincipalContext, SocialScope
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 if TYPE_CHECKING:
     from sofia.platform.runtime.runtime import SofiaRuntime

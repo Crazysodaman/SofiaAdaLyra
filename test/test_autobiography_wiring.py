@@ -12,41 +12,37 @@ import pytest
 
 from sofia.platform.application import SofiaApplication
 from sofia.platform.application.memory_significance import MemorySignificanceService
-from sofia.cognition.model import CognitiveResponse, CognitiveRole
+from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.life.model import ExperienceRecord
 from sofia.life.store import LifeStore
-from sofia.memory.autobiography import AutobiographyTimeline
-from sofia.social.principals import local_sparks_principal
+from sofia.core.memory.autobiography import AutobiographyTimeline
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.md"
 )
 HASH_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "constitution"
+    / "sofia" / "core" / "constitution"
     / "constitution.sha256"
 )
 IDENTITY_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "identity"
+    / "sofia" / "core" / "identity"
     / "identity.json"
 )
 AVATAR_PATH = (
     PROJECT_ROOT
     / "src"
-    / "sofia"
-    / "embodiment"
+    / "sofia" / "core" / "embodiment"
     / "avatar.json"
 )
 

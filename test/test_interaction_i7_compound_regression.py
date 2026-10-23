@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.interaction.grammar import NaturalInteractionEngine
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core' / 'embodiment" / 'avatar.json'
 
 
 @pytest.fixture

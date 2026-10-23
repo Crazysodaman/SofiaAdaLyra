@@ -6,10 +6,10 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.platform.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import CognitiveResponse
-from sofia.emotion.journal import EmotionalJournal
-from sofia.personality.reflection import ReflectionJournal
-from sofia.social.model import SocialScope
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.emotion.journal import EmotionalJournal
+from sofia.core.personality.reflection import ReflectionJournal
+from sofia.core.social.model import SocialScope
 
 
 def _service(tmp_path, *, profile=True, active=True, event_age=timedelta(minutes=1)):

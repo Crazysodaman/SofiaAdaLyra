@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.cognition.v2 import (
+from sofia.core.cognition.v2 import (
     AcquisitionState,
     AnswerPlan,
     ClaimPlan,

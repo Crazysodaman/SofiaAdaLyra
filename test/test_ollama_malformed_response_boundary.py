@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.cognition.model import CognitiveRequest
-from sofia.cognition.provider import LLMProviderError
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.model import CognitiveRequest
+from sofia.core.cognition.provider import LLMProviderError
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config import create_default_configuration
 
 
@@ -71,7 +71,7 @@ def test_tool_call_response_does_not_trigger_quality_retry():
     assert result.tool_calls[0].name == "example"
 
 def test_disallowed_tools_are_not_sent_to_ollama():
-    from sofia.cognition.model import CognitiveToolDefinition
+    from sofia.core.cognition.model import CognitiveToolDefinition
 
     class CapturingClient:
         kwargs = None

@@ -1,7 +1,7 @@
 """Bounded prosody planning from trusted contextual influence."""
 from dataclasses import dataclass
-from sofia.cognition.matrix import ContextualInfluenceMatrix,ContextualInfluencePlan,InfluenceMode,InfluenceSignal,InfluenceSurface
-from sofia.personality.influence import ContinuityInfluence
+from sofia.core.cognition.matrix import ContextualInfluenceMatrix,ContextualInfluencePlan,InfluenceMode,InfluenceSignal,InfluenceSurface
+from sofia.core.personality.influence import ContinuityInfluence
 from enum import Enum
 
 class VoiceUrgency(str, Enum):

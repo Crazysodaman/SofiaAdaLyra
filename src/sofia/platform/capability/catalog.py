@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Callable, Iterable
 from sofia.platform.capability.model import Capability,CapabilityRequest
 from sofia.platform.capability.system import CapabilitySystem
-from sofia.cognition.model import CognitiveToolDefinition
-from sofia.cognition.tools import CognitiveToolBinding
+from sofia.core.cognition.model import CognitiveToolDefinition
+from sofia.core.cognition.tools import CognitiveToolBinding
 
 TOOL_CATALOG_CAPABILITY=Capability(
     name="tool.catalog",

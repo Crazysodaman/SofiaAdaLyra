@@ -20,9 +20,9 @@ import sqlite3
 import tempfile
 from uuid import UUID
 
-from sofia.constitution.store import ConstitutionIntegrityVerifier
-from sofia.constitution.store import ConstitutionStore
-from sofia.identity.store import IdentityStore
+from sofia.core.constitution.store import ConstitutionIntegrityVerifier
+from sofia.core.constitution.store import ConstitutionStore
+from sofia.core.identity.store import IdentityStore
 
 from .amendment import (
     AmendmentProposal,

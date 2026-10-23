@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 import sqlite3
 
-from sofia.cognition.matrix.model import MatrixTrace
+from sofia.core.cognition.matrix.model import MatrixTrace
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 

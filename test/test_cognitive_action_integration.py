@@ -11,12 +11,12 @@ from sofia.platform.action.model import (
 )
 from sofia.platform.action.system import ActionSystem
 from sofia.platform.authority.model import Authority
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import CognitiveRequest
-from sofia.cognition.operation import CognitiveOperation
-from sofia.cognition.rules import RuleEngine
-from sofia.cognition.system import CognitiveSystem
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import CognitiveRequest
+from sofia.core.cognition.operation import CognitiveOperation
+from sofia.core.cognition.rules import RuleEngine
+from sofia.core.cognition.system import CognitiveSystem
 
 
 def make_operation(

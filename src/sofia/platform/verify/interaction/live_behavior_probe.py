@@ -20,7 +20,7 @@ from tempfile import TemporaryDirectory
 from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.platform.verify.interaction.disposable import close_disposable_application
 from sofia.platform.config.defaults import create_production_configuration
-from sofia.conversation.model import ConversationRole
+from sofia.core.conversation.model import ConversationRole
 
 
 _CASES = (

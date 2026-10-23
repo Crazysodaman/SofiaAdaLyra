@@ -8,10 +8,10 @@ import sqlite3
 
 import pytest
 
-from sofia.cognition.llm_engine import LLMCognitiveEngine
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
-from sofia.cognition.provider import LLMProvider
-from sofia.conversation.store import ConversationStore
+from sofia.core.cognition.llm_engine import LLMCognitiveEngine
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.core.cognition.provider import LLMProvider
+from sofia.core.conversation.store import ConversationStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.offer_route import OFFER

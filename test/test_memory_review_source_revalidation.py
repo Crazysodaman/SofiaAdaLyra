@@ -10,13 +10,13 @@ from uuid import uuid4
 import pytest
 
 from sofia.platform.application.memory_review import MemoryReviewService
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.conversation.store import ConversationStore
-from sofia.memory.provenance import CandidateStatus
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.social.principals import local_sparks_principal
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.store import SocialSessionStore
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.store import ConversationStore
+from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.social.principals import local_sparks_principal
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.store import SocialSessionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -163,7 +163,7 @@ def test_local_review_candidate_is_listed_without_exposing_foreign_scope(tmp_pat
 
 
 def test_promoted_reviewed_fact_ceases_recall_after_source_deletion(tmp_path):
-    from sofia.memory.system import MemorySystem
+    from sofia.core.memory.system import MemorySystem
 
     state, conversations, candidates, session, source, review, pending = _setup(
         tmp_path,
@@ -200,7 +200,7 @@ def test_promoted_reviewed_fact_ceases_recall_after_source_deletion(tmp_path):
 
 
 def test_original_audience_withdrawal_stops_later_approved_recall(tmp_path):
-    from sofia.memory.system import MemorySystem
+    from sofia.core.memory.system import MemorySystem
 
     state, conversations, candidates, session, source, review, pending = _setup(
         tmp_path,
@@ -225,8 +225,8 @@ def test_original_audience_withdrawal_stops_later_approved_recall(tmp_path):
 
 
 def test_legacy_unattested_candidate_is_not_silently_deleted_by_migration(tmp_path):
-    from sofia.memory.originals import SourceMessage
-    from sofia.memory.provenance import MemoryCandidate
+    from sofia.core.memory.originals import SourceMessage
+    from sofia.core.memory.provenance import MemoryCandidate
 
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = DurableMemoryCandidateStore(state)

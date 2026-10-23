@@ -9,7 +9,7 @@ from uuid import uuid4
 from sofia.goals import GoalEvidenceIndex, GoalEvidenceLedger, GoalService, GoalStore
 from sofia.goals.model import GoalOrigin, GoalRunState, GoalStatus
 from sofia.goals.policy import effective_priority
-from sofia.social.principals import local_sparks_principal
+from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 

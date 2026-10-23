@@ -5,7 +5,7 @@ import pytest
 from sofia.interaction.world_editor import WorldEditor
 from sofia.interaction.world_model import ObjectKind, Transform, WorldObject
 from sofia.interaction.world_store import VirtualWorldStore
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
 NOW = datetime(2026, 10, 10, 11, tzinfo=timezone.utc)

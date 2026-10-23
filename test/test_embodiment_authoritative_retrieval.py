@@ -1,6 +1,6 @@
 ﻿import pytest
 
-from sofia.embodiment.model import (
+from sofia.core.embodiment.model import (
     Embodiment,
     Measurement,
     PhysicalSelf,

@@ -3,10 +3,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.cognition.performance import emit_performance, ollama_metric
-from sofia.cognition.provider import LLMProviderError
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.performance import emit_performance, ollama_metric
+from sofia.core.cognition.provider import LLMProviderError
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.model import ProviderConfiguration
 
 

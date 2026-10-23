@@ -11,11 +11,11 @@ from sofia.avatar.presentation import (
 )
 from sofia.avatar.presentation_store import PresentationStore
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.embodiment.model import Measurement
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.embodiment.model import Measurement
+from sofia.core.embodiment.store import EmbodimentStore
 
 
-SEED = Path(__file__).resolve().parents[1] / "src/sofia/embodiment/avatar.json"
+SEED = Path(__file__).resolve().parents[1] / "src/sofia/core.embodiment/avatar.json"
 
 
 def baseline():

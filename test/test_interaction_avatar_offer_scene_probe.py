@@ -4,8 +4,8 @@ import tempfile
 
 import pytest
 
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
-from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.verify.interaction import avatar_world_probe
 from test.isolated_interaction_config import isolated_interaction_configuration
 from sofia.interaction.action_grammar import parse_user_action

@@ -12,9 +12,9 @@ import re
 from uuid import UUID, NAMESPACE_URL, uuid5
 
 from sofia.platform.application.memory_review import MemoryReviewService
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.memory.provenance import CandidateStatus
-from sofia.social.model import PrincipalContext
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.social.model import PrincipalContext
 
 
 _EXPLICIT_MEMORY = re.compile(

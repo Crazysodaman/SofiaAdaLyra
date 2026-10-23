@@ -1,17 +1,17 @@
 from datetime import datetime, timezone
 
-from sofia.cognition.activity import (
+from sofia.core.cognition.activity import (
     CognitiveActivityState,
     CognitiveModelActivityStore,
 )
-from sofia.cognition.engine import CognitiveEngine
-from sofia.cognition.model import (
+from sofia.core.cognition.engine import CognitiveEngine
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.cognition.routing import (
+from sofia.core.cognition.routing import (
     CognitiveEngineRegistry,
     RoutingCognitiveEngine,
 )

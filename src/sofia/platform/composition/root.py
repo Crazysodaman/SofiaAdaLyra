@@ -9,12 +9,12 @@ from sofia.platform.application.evolution import SofiaEvolutionService
 from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.platform.capability.catalog import ToolCatalogCapability,create_tool_catalog_binding
 from sofia.platform.capability.system import CapabilitySystem
-from sofia.codebase.capability import CodebaseCapability
-from sofia.codebase.inspector import CodebaseInspector
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.conversation_assembler import ConversationalContextAssembler
-from sofia.cognition.system import CognitiveSystem
-from sofia.cognition.tools import (
+from sofia.core.codebase.capability import CodebaseCapability
+from sofia.core.codebase.inspector import CodebaseInspector
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.conversation_assembler import ConversationalContextAssembler
+from sofia.core.cognition.system import CognitiveSystem
+from sofia.core.cognition.tools import (
     CognitiveToolDispatcher,
     create_default_tool_bindings,
     create_system_tool_bindings,
@@ -23,9 +23,9 @@ from sofia.platform.composition.authorization import create_capability_authorize
 from sofia.platform.composition.engines import create_cognitive_engine, create_model_lifecycle
 from sofia.platform.config.model import SofiaConfiguration
 from sofia.platform.config.reviewed_projection import apply_reviewed_configuration
-from sofia.constitution.store import ConstitutionIntegrityVerifier
-from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import EmbodimentStore
+from sofia.core.constitution.store import ConstitutionIntegrityVerifier
+from sofia.core.constitution.store import ConstitutionStore
+from sofia.core.embodiment.store import EmbodimentStore
 from sofia.environment.config import ConfiguredLocation
 from sofia.environment.factory import create_environment_service
 from sofia.environment.model import LocationSubject
@@ -42,19 +42,19 @@ from sofia.platform.dev.capability import DevCapabilitySet,DevToolService,create
 from sofia.platform.filesystem.capability import FilesystemCapability
 from sofia.platform.filesystem.change_capability import FilesystemChangesCapability,create_filesystem_changes_binding
 from sofia.platform.filesystem.observation import FilesystemObservationStore
-from sofia.identity.store import IdentityStore
-from sofia.identity.model import IdentityBootstrapMode
+from sofia.core.identity.store import IdentityStore
+from sofia.core.identity.model import IdentityBootstrapMode
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.platform.net import create_configured_web_tools
-from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.knowledge.access import KnowledgeAccessStore
 from sofia.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
 from sofia.knowledge.lifecycle import SQLiteKnowledgeLifecycle
 from sofia.knowledge.persistence import SQLiteKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
-from sofia.memory.system import MemorySystem
+from sofia.core.memory.system import MemorySystem
 from sofia.platform.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
 from sofia.platform.machine.discovery import create_machine_discovery
 from sofia.platform.machine.location import MachineLocationRegistry
@@ -69,7 +69,7 @@ from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.safe.permission_capability import PermissionInspectionCapability, create_permission_tool_binding
 from sofia.platform.safe.permissions import PermissionStore, automatic_capabilities, is_explicitly_classified
 from sofia.platform.operational.store import OperationalStore
-from sofia.personality.store import PersonalityStore
+from sofia.core.personality.store import PersonalityStore
 from sofia.platform.runtime.runtime import SofiaRuntime
 from sofia.platform.system.capability import create_local_system_capabilities
 from sofia.platform.state.factory import create_state_plane
@@ -170,7 +170,7 @@ def compose(
     # One canonical memory owner, with opt-in association scoring that can
     # only reorder the already-reviewed, audience-scoped MEM shortlist.
     from sofia.neuro.connectome.association_store import ReviewedAssociationStore
-    from sofia.memory.ranking import MemoryRankingService
+    from sofia.core.memory.ranking import MemoryRankingService
     memory_ranking = MemoryRankingService(
         configuration.state_path, memory_candidate_store,
     )

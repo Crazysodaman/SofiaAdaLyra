@@ -1,5 +1,5 @@
 import pytest
-from sofia.personality.model import PersonalityProfile
+from sofia.core.personality.model import PersonalityProfile
 
 
 def test_personality_profile_stores_name():

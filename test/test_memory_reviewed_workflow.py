@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 import pytest
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.conversation.store import ConversationStore
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.store import ConversationStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.memory.originals import ConversationOriginalRetriever
-from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.reviewed_workflow import ReviewedMemoryWorkflow
+from sofia.core.memory.originals import ConversationOriginalRetriever
+from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+from sofia.core.memory.reviewed_workflow import ReviewedMemoryWorkflow
 
 
 def test_workflow_preserves_exact_persisted_source(tmp_path):

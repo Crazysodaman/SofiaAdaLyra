@@ -27,10 +27,10 @@ from sofia.platform.act.outreach import (
 from sofia.platform.act.system_notice import SystemNoticeQueue
 from sofia.platform.act.diagnostics import OutreachTraceStore
 from sofia.interaction.goal_journal import GoalJournal
-from sofia.personality.influence import ContinuityInfluence, outreach_salience
-from sofia.personality.reflection import ReflectionJournal
-from sofia.social.model import ScopeKind, SocialScope
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.personality.influence import ContinuityInfluence, outreach_salience
+from sofia.core.personality.reflection import ReflectionJournal
+from sofia.core.social.model import ScopeKind, SocialScope
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.integrations.home_assistant import HomeAssistantAdapter
 from sofia.ui.notifications import DesktopNotificationStore
 from sofia.discord.binding import BindingState, DiscordBindingStore

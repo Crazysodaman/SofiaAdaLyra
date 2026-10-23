@@ -12,7 +12,7 @@ from sofia.platform.operational.model import (
     OperationalState,
     RuntimeContinuity,
 )
-from sofia.self_model.operational import (
+from sofia.core.self_model.operational import (
     SofiaOperationalSelfModel,
 )
 

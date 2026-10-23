@@ -5,24 +5,24 @@ from pathlib import Path
 
 import pytest
 
-from sofia.memory.model import MemoryRecord
-from sofia.memory.provenance import MemoryCandidate
-from sofia.memory.originals import SourceMessage
-from sofia.social.principals import local_sparks_principal
-from sofia.cognition.engine import CognitiveEngine
-from sofia.cognition.llm_engine import LLMCognitiveEngine
-from sofia.cognition.providers.test_provider import TestLLMProvider
-from sofia.cognition.system import CognitiveSystem
+from sofia.core.memory.model import MemoryRecord
+from sofia.core.memory.provenance import MemoryCandidate
+from sofia.core.memory.originals import SourceMessage
+from sofia.core.social.principals import local_sparks_principal
+from sofia.core.cognition.engine import CognitiveEngine
+from sofia.core.cognition.llm_engine import LLMCognitiveEngine
+from sofia.core.cognition.providers.test_provider import TestLLMProvider
+from sofia.core.cognition.system import CognitiveSystem
 from sofia.platform.composition.root import compose
 from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.constitution.store import ConstitutionIntegrityVerifier
-from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import EmbodimentStore
-from sofia.memory.system import MemorySystem
-from sofia.personality.store import PersonalityStore
+from sofia.core.constitution.store import ConstitutionIntegrityVerifier
+from sofia.core.constitution.store import ConstitutionStore
+from sofia.core.embodiment.store import EmbodimentStore
+from sofia.core.memory.system import MemorySystem
+from sofia.core.personality.store import PersonalityStore
 from sofia.platform.runtime.model import RuntimeState
 from sofia.platform.runtime.runtime import SofiaRuntime
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
@@ -137,7 +137,7 @@ def test_composition_wires_embodiment_store():
 
 
 def test_compose_creates_cognitive_system():
-    from sofia.cognition.test_engine import TestCognitiveEngine
+    from sofia.core.cognition.test_engine import TestCognitiveEngine
 
     configuration = create_configuration()
 
@@ -255,7 +255,7 @@ def test_composition_selects_configured_rule_provider(
 
     runtime = _compose_bootstrapped(configuration)
 
-    from sofia.cognition.rules import RuleEngine
+    from sofia.core.cognition.rules import RuleEngine
 
     assert isinstance(
         runtime.cognitive_system.engine,
@@ -306,7 +306,7 @@ def test_composition_selects_test_provider_engine(
 
     runtime = _compose_bootstrapped(configuration)
 
-    from sofia.cognition.test_engine import TestCognitiveEngine
+    from sofia.core.cognition.test_engine import TestCognitiveEngine
 
     assert isinstance(
         runtime.cognitive_system.engine,
@@ -315,7 +315,7 @@ def test_composition_selects_test_provider_engine(
 
 
 def test_composition_passes_provider_configuration_to_test_engine():
-    from sofia.cognition.test_engine import TestCognitiveEngine
+    from sofia.core.cognition.test_engine import TestCognitiveEngine
 
     configuration = create_configuration()
 

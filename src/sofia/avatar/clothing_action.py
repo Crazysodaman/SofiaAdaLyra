@@ -13,7 +13,7 @@ import re
 from threading import RLock
 
 from sofia.platform.safe.operator_stop import OperatorStopStore
-from sofia.social.model import PrincipalContext
+from sofia.core.social.model import PrincipalContext
 
 from .appearance_action import AppearanceActionService
 from .clothing_intent import (

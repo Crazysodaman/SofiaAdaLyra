@@ -1,10 +1,10 @@
 """Expression is responsive to emotional context, never a fixed stage cue."""
-from sofia.personality.expression import personality_expression_guidance
-from sofia.cognition.matrix.expression_plan import (
+from sofia.core.personality.expression import personality_expression_guidance
+from sofia.core.cognition.matrix.expression_plan import (
     _EMOTION_CANDIDATES,
     _EMOTION_POSES,
 )
-from sofia.emotion.catalog import EMOTIONS
+from sofia.core.emotion.catalog import EMOTIONS
 
 
 def test_gestures_are_preferred_emotion_linked_and_representational():

@@ -8,11 +8,11 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from sofia.platform.application.bootstrap import SofiaApplication
-from sofia.conversation.lifelong import LifelongThreadStore
-from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.conversation.store import ConversationStore
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.store import SocialSessionStore
+from sofia.core.conversation.lifelong import LifelongThreadStore
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.core.conversation.store import ConversationStore
+from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.store import SocialSessionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

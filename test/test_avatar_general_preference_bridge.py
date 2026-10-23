@@ -4,7 +4,7 @@ import pytest
 
 from sofia.avatar.preference_bridge import wardrobe_preferences_from_registry
 from sofia.avatar.wardrobe_planner import PreferenceActor, Sentiment
-from sofia.personality.preferences import (
+from sofia.core.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )
 

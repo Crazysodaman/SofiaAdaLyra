@@ -1,8 +1,8 @@
 ﻿from datetime import datetime, timezone
 from uuid import uuid4
 
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import (
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,

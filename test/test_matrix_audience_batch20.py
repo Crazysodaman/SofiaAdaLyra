@@ -8,11 +8,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.cognition.matrix.model import (
+from sofia.core.cognition.matrix.model import (
     CognitionExecutionTrace, HistoryPolicy, MatrixConfidence, MatrixIntent,
     MatrixTrace, ResponseStrategy, TurnEnvelope, TurnMatrix,
 )
-from sofia.cognition.matrix.trace import MatrixTraceStore
+from sofia.core.cognition.matrix.trace import MatrixTraceStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_verify]

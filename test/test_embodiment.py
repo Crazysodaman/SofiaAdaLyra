@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.model import (
+from sofia.core.embodiment.model import (
     AvatarEmbodiment,
     ComputerEmbodiment,
     CurrentEmbodiment,
@@ -11,7 +11,7 @@ from sofia.embodiment.model import (
     PhysicalSelf,
     RobotEmbodiment,
 )
-from sofia.embodiment.store import (
+from sofia.core.embodiment.store import (
     EmbodimentStore,
     EmbodimentStoreError,
 )
