@@ -23,9 +23,9 @@
     {"task_id":"GA-020","original_requirement":"Track skill provenance, version, revocation, invalidation, supersession, and deprecation.","existing_behavior":"LIFE retains procedure revisions and proof provenance.","missing_requirement":"No skill-specific lifecycle and source recheck existed.","production_caller":"LearnedSkillStore transition/reconcile and application background retention.","regression_tests":"test/test_generalization_skills.py"}
   ],
   "reviewed_existing_paths": {
-    "src/sofia/application/bootstrap.py":{"before":"from sofia.learning import FleetPressurePilot, LearningService","preserved":"Application remains the sole composition owner and GA receives no capability gateway.","reason":"Compose the authority-free evaluation service and expose its property."},
+    "src/sofia/platform/application/bootstrap.py":{"before":"from sofia.learning import FleetPressurePilot, LearningService","preserved":"Application remains the sole composition owner and GA receives no capability gateway.","reason":"Compose the authority-free evaluation service and expose its property."},
     "src/sofia/ui/settings_sections.py":{"before":"self.sql_panel(frames[\"EVOLVE\"], \"Independent ML evaluations\", \"ml_evaluation\")","preserved":"Existing EVOLVE/ML controls and authority warnings remain unchanged.","reason":"Expose read-only GA suite/run/grade evidence through existing diagnostics."},
-    "src/sofia/application/background_runtime.py":{"before":"life = getattr(application, \"_life\", None)","preserved":"The application background coordinator remains the only scheduler; LIFE and learning tasks are unchanged.","reason":"Use the existing bounded scheduler for GA retention and skill-provenance reconciliation."}
+    "src/sofia/platform/application/background_runtime.py":{"before":"life = getattr(application, \"_life\", None)","preserved":"The application background coordinator remains the only scheduler; LIFE and learning tasks are unchanged.","reason":"Use the existing bounded scheduler for GA retention and skill-provenance reconciliation."}
   },
   "approved_removals": []
 }

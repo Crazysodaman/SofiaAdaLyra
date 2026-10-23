@@ -18,8 +18,8 @@
       "production_code_paths": [
         "src/sofia/life/validation.py",
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "workstream": "focused-functional-proof",
       "focused_test_paths": [
@@ -37,9 +37,9 @@
       "production_code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "test/test_life_atomic_admission.py",
-        "src/sofia/application/bootstrap.py"
+        "src/sofia/platform/application/bootstrap.py"
       ],
       "workstream": "focused-functional-proof",
       "focused_test_paths": [
@@ -58,7 +58,7 @@
         "src/sofia/creative/paths.py",
         "src/sofia/creative/service.py",
         "test/test_creative_infrastructure.py",
-        "src/sofia/application/bootstrap.py"
+        "src/sofia/platform/application/bootstrap.py"
       ],
       "workstream": "focused-functional-proof",
       "focused_test_paths": [
@@ -74,10 +74,10 @@
       "ledger_status": "code_present_unverified",
       "production_code_paths": [
         ".github/workflows/release-candidate.yml",
-        "src/sofia/verify/source_provenance.py",
+        "src/sofia/platform/verify/source_provenance.py",
         "pyproject.toml",
-        "src/sofia/verify/gate.py",
-        "src/sofia/verify/v18_roadmap.py"
+        "src/sofia/platform/verify/gate.py",
+        "src/sofia/platform/verify/v18_roadmap.py"
       ],
       "workstream": "focused-functional-proof",
       "focused_test_paths": [
@@ -94,8 +94,8 @@
       "ledger_status": "code_present_unverified",
       "production_code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/store.py"
       ],
       "workstream": "focused-functional-proof",
@@ -114,8 +114,8 @@
       "production_code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/creative/service.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/validation.py"
       ],
       "workstream": "focused-functional-proof",
@@ -146,7 +146,7 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "workstream": "integration-gap-reconciliation",
       "focused_test_paths": [],
@@ -189,7 +189,7 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/store.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -205,7 +205,7 @@
       "production_code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "workstream": "integration-gap-reconciliation",
       "focused_test_paths": [],
@@ -234,7 +234,7 @@
       "production_code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/background_runtime.py",
         "test/test_life_verified_milestone_production.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -262,7 +262,7 @@
       "original_requirement": "- [ ] **CA-914 [VERIFY]** Establish promotion gates per task: focused unit → cross-package integration → full repository → live single-host → multi-day soak → supervised Fleet/hardware. Use real receipts, not claims of completion.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/verify/gate.py",
+        "src/sofia/platform/verify/gate.py",
         "test/test_verify_gate_contract.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -278,7 +278,7 @@
       "production_code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/draft_agent.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "workstream": "integration-gap-reconciliation",
       "focused_test_paths": [],
@@ -292,7 +292,7 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/store.py",
         "test/test_life_run_outcome_reconciliation.py",
         "test/test_run_unstarted_expiration.py"
@@ -323,7 +323,7 @@
       "original_requirement": "- [ ] **CA-2302 P0 [RED CI]** Investigate Release Candidate Build run `38063542675` failing at `Run revision-bound verification gate`; obtain gate output, exact failing check and revision evidence. Do not infer cause from job status alone.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/verify/gate.py",
+        "src/sofia/platform/verify/gate.py",
         ".github/workflows/release-candidate.yml"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -339,7 +339,7 @@
       "production_code_paths": [
         "test/conftest.py",
         ".github/workflows/package-tests.yml",
-        "src/sofia/verify/package_selection.py",
+        "src/sofia/platform/verify/package_selection.py",
         "test/test_package_selection_receipts.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -354,9 +354,9 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         ".github/workflows/release-candidate.yml",
-        "src/sofia/verify/source_provenance.py",
-        "src/sofia/verify/gate.py",
-        "src/sofia/verify/package_selection.py",
+        "src/sofia/platform/verify/source_provenance.py",
+        "src/sofia/platform/verify/gate.py",
+        "src/sofia/platform/verify/package_selection.py",
         "test/conftest.py",
         "test/test_verify_installed_wheel_release.py",
         "requirements.build.lock.windows-py312.txt"
@@ -369,16 +369,16 @@
     {
       "id": "CA-3005",
       "phase": "01",
-      "original_requirement": "- [ ] **CA-3005 P0 [CONFIRMED WINDOWS FAILURE]** Reproduce the `pkg_verify` Windows `WinError 32` from `test_cognition_v2_baseline.py` / `src/sofia/verify/cognition_v2_baseline.py` `TemporaryDirectory` deletion of `sofia.db`. Investigate application shutdown, open SQLite connections, `RUN`/LIFE worker futures, WAL/checkpoint activity, and delayed file handles; close owners deterministically before cleanup. Do not mask by sleeping blindly or ignoring cleanup errors.",
+      "original_requirement": "- [ ] **CA-3005 P0 [CONFIRMED WINDOWS FAILURE]** Reproduce the `pkg_verify` Windows `WinError 32` from `test_cognition_v2_baseline.py` / `src/sofia/platform/verify/cognition_v2_baseline.py` `TemporaryDirectory` deletion of `sofia.db`. Investigate application shutdown, open SQLite connections, `RUN`/LIFE worker futures, WAL/checkpoint activity, and delayed file handles; close owners deterministically before cleanup. Do not mask by sleeping blindly or ignoring cleanup errors.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/state/sqlite_access.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/state/sqlite_access.py",
         "src/sofia/mobile/sensors.py",
         "test/test_mobile_sensors.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/autonomous_work.py",
+        "src/sofia/platform/application/autonomous_work.py",
         "test/test_run_shutdown_sqlite_drain.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -425,7 +425,7 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "Setup-SofiaFleetArtemis.ps1",
-        "src/sofia/ops/discovery_canary.py",
+        "src/sofia/platform/ops/discovery_canary.py",
         "requirements.build.lock.windows-py312.txt"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -441,7 +441,7 @@
       "production_code_paths": [
         "Setup-SofiaFleetArtemis.ps1",
         "test/test_ops_windows_bootstrap.py",
-        "src/sofia/ops/windows_bootstrap.py"
+        "src/sofia/platform/ops/windows_bootstrap.py"
       ],
       "workstream": "integration-gap-reconciliation",
       "focused_test_paths": [],
@@ -454,8 +454,8 @@
       "original_requirement": "- [ ] **CA-3011 P1 [SECURITY]** Replace/parameterize the canary firewall's `-RemoteAddress LocalSubnet -Profile Any` with a **reviewed exact controller source and active profile** when promoted beyond short canary use; add rule expiry/removal on failed or stopped canaries. Test no unintended workstation, NAS, guest or internet endpoints are admitted.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/ops/windows_bootstrap.py",
-        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "src/sofia/platform/ops/windows_bootstrap.py",
+        "src/sofia/platform/ops/windows_rekey_bootstrap.py",
         "test/test_ops_windows_bootstrap.py",
         "Setup-SofiaFleetArtemis.ps1"
       ],
@@ -470,8 +470,8 @@
       "original_requirement": "- [ ] **CA-3012 P1 [SUPPLY CHAIN]** Enforce reviewed dependency hashes/version pins for canary guest agent installation. Present script creates a venv but invokes unpinned `pip install cryptography pywin32` on Artemis; separate reproducibility/agent-integrity gates must confirm approved wheels and local source revision.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/ops/windows_bootstrap.py",
-        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "src/sofia/platform/ops/windows_bootstrap.py",
+        "src/sofia/platform/ops/windows_rekey_bootstrap.py",
         "test/test_ops_windows_bootstrap.py",
         "Setup-SofiaFleetArtemis.ps1",
         "requirements.build.lock.windows-py312.txt",
@@ -491,7 +491,7 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
         "test/test_life_postrun_verification.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/background_runtime.py",
         "test/test_life_verified_milestone_production.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -505,18 +505,18 @@
       "original_requirement": "- [ ] **CA-3015 P1 [INTEGRATION BOUNDARY]** Keep Artemis Fleet canary and **Hephaestus VM provisioning separate**: later typed VM create/guest bootstrap broker requires new protected capabilities, owner approval, host isolation proof, distinct guest identity, and RUN receipts. Do not repurpose the broad SMB/PowerShell canary script as an autonomous hypervisor agent.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/hyperv.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/distributed/agent_tools.py",
-        "src/sofia/distributed/authorization.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/distributed/agent_tools.py",
+        "src/sofia/platform/distributed/authorization.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py",
         "test/test_ops_workshop_vm_separation.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/distributed/capability.py",
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/distributed/capability.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -531,22 +531,22 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/application/decision_trace.py",
+        "src/sofia/platform/application/decision_trace.py",
         "src/sofia/cognition/matrix/model.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/model.py",
-        "src/sofia/run/work.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/run/work.py",
+        "src/sofia/platform/application/act_service.py",
         "src/sofia/social/model.py",
-        "src/sofia/application/decision_persistence.py",
+        "src/sofia/platform/application/decision_persistence.py",
         "src/sofia/cognition/matrix/trace.py",
         "src/sofia/conversation/store.py",
         "src/sofia/social/store.py",
         "test/test_v18_decision_persistence.py",
         ".github/workflows/v18-decision-persistence.yml",
         "docs/development/v18-phase00-ca001-canonical-turn-correlation.md",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "test/test_v18_settled_response_trace.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -560,8 +560,8 @@
       "original_requirement": "- [ ] **CA-002 [VERIFY]** Capture the current baseline: memory correctness, topic continuity, unsolicited outreach quality, real avatar/voice synchronization, idle model wakeups, CPU/GPU/RAM use, p50/p95 latency, and restart behavior on Venus.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/verify/v18_companion_baseline.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/verify/v18_companion_baseline.py",
         "test/test_cognition_v2_baseline.py",
         "test/test_v18_companion_baseline.py",
         ".github/workflows/v18-companion-baseline.yml",
@@ -602,7 +602,7 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -617,13 +617,13 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/application/decision_trace.py",
+        "src/sofia/platform/application/decision_trace.py",
         "src/sofia/cognition/matrix/model.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/model.py",
-        "src/sofia/run/work.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/run/work.py",
+        "src/sofia/platform/application/act_service.py",
         "src/sofia/social/model.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -637,7 +637,7 @@
       "original_requirement": "- [ ] **CA-006 [GAP]** Add a revisioned `CompanionDecisionTrace` projection joining NEURO winner, eligible memories, chosen goal/activity, rejected alternatives, execution/ACT decision, and outcome. Derive it from canonical owners; it must be non-authoritative.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/application/decision_trace.py"
+        "src/sofia/platform/application/decision_trace.py"
       ],
       "workstream": "integration-gap-reconciliation",
       "focused_test_paths": [],
@@ -650,9 +650,9 @@
       "original_requirement": "- [ ] **CA-007 [VERIFY]** Add a reproducible baseline snapshot and test gates per commit. “Coded”, “unit passed”, “CI accepted”, “Venus live accepted” and “multi-host accepted” are separate states; block ambiguous green checkmarks.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/verify/v18_roadmap.py",
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/verify/v18_companion_baseline.py",
+        "src/sofia/platform/verify/v18_roadmap.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/verify/v18_companion_baseline.py",
         "test/test_cognition_v2_baseline.py",
         "test/test_v18_companion_baseline.py",
         ".github/workflows/v18-companion-baseline.yml",
@@ -670,10 +670,10 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/safe/permissions.py",
-        "src/sofia/safe/execution_approval.py",
-        "src/sofia/safe/operator_stop.py",
-        "src/sofia/safe/owner_browser.py",
+        "src/sofia/platform/safe/permissions.py",
+        "src/sofia/platform/safe/execution_approval.py",
+        "src/sofia/platform/safe/operator_stop.py",
+        "src/sofia/platform/safe/owner_browser.py",
         "src/sofia/ui/settings_window.py",
         "src/sofia/ui/tray_agent.py"
       ],
@@ -693,7 +693,7 @@
         "src/sofia/life/model.py",
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/goals/coordinator.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -711,8 +711,8 @@
         "src/sofia/cognition/context_evidence.py",
         "docs/development/companion-autonomy-contract.md",
         "src/sofia/cognition/matrix/context_plan.py",
-        "src/sofia/application/conversation_matrix.py",
-        "src/sofia/application/optional_budget.py"
+        "src/sofia/platform/application/conversation_matrix.py",
+        "src/sofia/platform/application/optional_budget.py"
       ],
       "workstream": "integration-gap-reconciliation",
       "focused_test_paths": [],
@@ -725,7 +725,7 @@
       "original_requirement": "- [ ] **CA-1204 [VERIFY]** Add a governed feedback loop: receipts and user corrections update preference/association proposals after validity checks; never let model self-praise manufacture reinforcement.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/application/conversation_learning.py",
+        "src/sofia/platform/application/conversation_learning.py",
         "test/test_memory_reviewed_corrections.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -771,10 +771,10 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/verify/architecture_inventory.py",
+        "src/sofia/platform/verify/architecture_inventory.py",
         "docs/development/phase00-static-ownership-harness.md",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "workstream": "integration-gap-reconciliation",
       "focused_test_paths": [],
@@ -788,22 +788,22 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py",
         "test/test_tools_completion_acceptance.py",
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/distributed/agent_tools.py",
-        "src/sofia/distributed/authorization.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/distributed/agent_tools.py",
+        "src/sofia/platform/distributed/authorization.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py",
-        "src/sofia/distributed/capability.py"
+        "src/sofia/platform/distributed/capability.py"
       ],
       "workstream": "integration-gap-reconciliation",
       "focused_test_paths": [],
@@ -816,12 +816,12 @@
       "original_requirement": "- [ ] **CA-3103 P0 [DESIGN/RESEARCH]** Resolve the desired **two-location database redundancy** without two independent writers corrupting SQLite. Compare encrypted snapshot replication, SQLite backup/WAL shipping, single-writer replicated storage, and promoted-standby failover; specify RPO/RTO, fencing, reconciliation and failback.",
       "ledger_status": "partial_wiring",
       "production_code_paths": [
-        "src/sofia/state/replication.py",
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/state/replication.py",
+        "src/sofia/platform/ops/backup.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py",
         "test/test_tools_completion_acceptance.py"
@@ -842,7 +842,7 @@
         "src/sofia/life/model.py",
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/goals/coordinator.py"
       ],
       "workstream": "integration-gap-reconciliation",
@@ -857,10 +857,10 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/safe/permissions.py",
-        "src/sofia/safe/execution_approval.py",
-        "src/sofia/safe/operator_stop.py",
-        "src/sofia/safe/owner_browser.py",
+        "src/sofia/platform/safe/permissions.py",
+        "src/sofia/platform/safe/execution_approval.py",
+        "src/sofia/platform/safe/operator_stop.py",
+        "src/sofia/platform/safe/owner_browser.py",
         "src/sofia/ui/settings_window.py",
         "src/sofia/ui/tray_agent.py"
       ],
@@ -876,15 +876,15 @@
       "ledger_status": "partial_wiring",
       "production_code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py",
         "test/test_tools_completion_acceptance.py",
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/distributed/agent_tools.py",
-        "src/sofia/distributed/authorization.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/distributed/agent_tools.py",
+        "src/sofia/platform/distributed/authorization.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py"
       ],

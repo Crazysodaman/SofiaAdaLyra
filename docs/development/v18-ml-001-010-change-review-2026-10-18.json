@@ -13,13 +13,13 @@
     {"task_id":"ML-010","original_requirement":"Exact-revision approved two-week Fleet shadow canary.","existing_behavior":"No live trial evidence existed.","missing_requirement":"The two-week real-host campaign, cold/restart coverage and authorized advancement remain unperformed.","production_caller":"FleetPressurePilot diagnostics provide measurement infrastructure only.","regression_tests":"test/test_learning_fleet_pressure.py does not substitute for the live trial"}
   ],
   "reviewed_existing_paths": {
-    "src/sofia/application/background_runtime.py":{"before":"def enforce_learning_retention(now):","preserved":"Existing application-owned scheduler and shared background budget.","reason":"Register bounded Fleet shadow work and derivative retention in the canonical scheduler."},
-    "src/sofia/application/bootstrap.py":{"before":"from sofia.learning import LearningService","preserved":"Canonical SofiaApplication ownership of LearningService.","reason":"Compose the Fleet pilot with the existing learning and OPS owners."},
+    "src/sofia/platform/application/background_runtime.py":{"before":"def enforce_learning_retention(now):","preserved":"Existing application-owned scheduler and shared background budget.","reason":"Register bounded Fleet shadow work and derivative retention in the canonical scheduler."},
+    "src/sofia/platform/application/bootstrap.py":{"before":"from sofia.learning import LearningService","preserved":"Canonical SofiaApplication ownership of LearningService.","reason":"Compose the Fleet pilot with the existing learning and OPS owners."},
     "src/sofia/learning/__init__.py":{"before":"from .service import LearningService","preserved":"Public learning foundation exports.","reason":"Export the application-owned Fleet pilot."},
     "src/sofia/learning/registry.py":{"before":"def activate(","preserved":"Signed content-addressed load, fallback and rollback.","reason":"Revalidate evaluation/dataset lineage and prevent equal or worse replacement."},
     "src/sofia/learning/service.py":{"before":"def _require_grant(","preserved":"Exact data-use scope, immutable samples and manifests.","reason":"Expose read-only active-grant eligibility and consume SAFE mode approvals."},
-    "src/sofia/ops/history.py":{"before":"class SQLiteTelemetryHistory:","preserved":"Append-only OPS telemetry ownership and legacy migration.","reason":"Add bounded point-in-time reads and fail closed if canonical state disappears."},
-    "src/sofia/safe/permissions.py":{"before":"\"learning.candidate.revoke\",","preserved":"Existing protected learning authority classifications.","reason":"Classify prediction-mode advancement and revocation as protected operations."},
+    "src/sofia/platform/ops/history.py":{"before":"class SQLiteTelemetryHistory:","preserved":"Append-only OPS telemetry ownership and legacy migration.","reason":"Add bounded point-in-time reads and fail closed if canonical state disappears."},
+    "src/sofia/platform/safe/permissions.py":{"before":"\"learning.candidate.revoke\",","preserved":"Existing protected learning authority classifications.","reason":"Classify prediction-mode advancement and revocation as protected operations."},
     "src/sofia/ui/settings_sections.py":{"before":"self.sql_panel(frames[\"EVOLVE\"], \"Independent ML evaluations\", \"ml_evaluation\")","preserved":"Existing ML diagnostic surface.","reason":"Expose scoped Fleet shadow forecast evidence beside existing ML diagnostics."}
   },
   "approved_removals": []

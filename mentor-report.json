@@ -1426,7 +1426,7 @@
     },
     {
       "audited": false,
-      "brief": "Reproduce the pkg_verify Windows WinError 32 from test_cognition_v2_baseline.py / src/sofia/verify/cognition_v2_baseline.py TemporaryDirectory\u2026",
+      "brief": "Reproduce the pkg_verify Windows WinError 32 from test_cognition_v2_baseline.py / src/sofia/platform/verify/cognition_v2_baseline.py TemporaryDirectory\u2026",
       "ci_independently_checked": false,
       "evidence_revision": null,
       "open_clauses": [],
@@ -7096,7 +7096,7 @@
     },
     {
       "audited": false,
-      "brief": "Extend src/sofia/distributed/agent_tools.py and the Fleet operation manifest with pinned, signed/authorized workshop.provision operations.",
+      "brief": "Extend src/sofia/platform/distributed/agent_tools.py and the Fleet operation manifest with pinned, signed/authorized workshop.provision operations.",
       "ci_independently_checked": false,
       "evidence_revision": null,
       "open_clauses": [],

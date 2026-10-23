@@ -169,8 +169,8 @@
       "code_paths": [
         "src/sofia/life/validation.py",
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -194,10 +194,10 @@
       "known_missing": "tests_only",
       "code_paths": [
         ".github/workflows/release-candidate.yml",
-        "src/sofia/verify/source_provenance.py",
+        "src/sofia/platform/verify/source_provenance.py",
         "pyproject.toml",
-        "src/sofia/verify/gate.py",
-        "src/sofia/verify/v18_roadmap.py"
+        "src/sofia/platform/verify/gate.py",
+        "src/sofia/platform/verify/v18_roadmap.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -222,8 +222,8 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/creative/service.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/validation.py"
       ],
       "independent_review_pending": false,
@@ -248,10 +248,10 @@
       "known_missing": "No single witnessed MEM/GOALS/LIFE/SAFE/RUN/ACT chain",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/application/decision_trace.py",
+        "src/sofia/platform/application/decision_trace.py",
         "src/sofia/cognition/matrix/model.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/model.py"
       ],
       "independent_review_pending": false,
@@ -275,8 +275,8 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": "No live Venus GPU, avatar/voice, memory quality or 3-day restart metrics",
       "code_paths": [
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/verify/v18_companion_baseline.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/verify/v18_companion_baseline.py",
         "test/test_cognition_v2_baseline.py",
         "test/test_v18_companion_baseline.py",
         ".github/workflows/v18-companion-baseline.yml",
@@ -332,11 +332,11 @@
       "known_missing": "Dual provider and live startup ABI still need full witnessed coverage",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
         "docs/development/cognition-v2-architecture.md",
         "src/sofia/cognition/v2/kernel.py",
-        "src/sofia/application/conversation_service.py"
+        "src/sofia/platform/application/conversation_service.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -360,10 +360,10 @@
       "known_missing": "Audience-scoped expiry/consent and all effect/transport receipts not joined",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/application/decision_trace.py",
+        "src/sofia/platform/application/decision_trace.py",
         "src/sofia/cognition/matrix/model.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/model.py"
       ],
       "independent_review_pending": false,
@@ -387,10 +387,10 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "No exact goal/selected alternative/MEM/ACT effect provenance",
       "code_paths": [
-        "src/sofia/application/decision_trace.py",
-        "src/sofia/application/decision_persistence.py",
-        "src/sofia/application/event_contracts.py",
-        "src/sofia/application/bootstrap.py",
+        "src/sofia/platform/application/decision_trace.py",
+        "src/sofia/platform/application/decision_persistence.py",
+        "src/sofia/platform/application/event_contracts.py",
+        "src/sofia/platform/application/bootstrap.py",
         "test/test_v18_phase00_contracts.py",
         "test/test_v18_decision_persistence.py"
       ],
@@ -415,9 +415,9 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": "No per-task thresholds or Venus and multi-host acceptance",
       "code_paths": [
-        "src/sofia/verify/v18_roadmap.py",
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/verify/v18_companion_baseline.py",
+        "src/sofia/platform/verify/v18_roadmap.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/verify/v18_companion_baseline.py",
         "test/test_cognition_v2_baseline.py",
         "test/test_v18_companion_baseline.py",
         ".github/workflows/v18-companion-baseline.yml"
@@ -444,10 +444,10 @@
       "known_missing": "DEV/Mobile/Fleet/ACT/WORLD effect adapters not all witnessed",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/safe/permissions.py",
-        "src/sofia/safe/execution_approval.py",
-        "src/sofia/safe/operator_stop.py",
-        "src/sofia/safe/owner_browser.py",
+        "src/sofia/platform/safe/permissions.py",
+        "src/sofia/platform/safe/execution_approval.py",
+        "src/sofia/platform/safe/operator_stop.py",
+        "src/sofia/platform/safe/owner_browser.py",
         "src/sofia/ui/settings_window.py"
       ],
       "independent_review_pending": false,
@@ -476,7 +476,7 @@
         "src/sofia/life/model.py",
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py"
+        "src/sofia/platform/run/work.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -503,8 +503,8 @@
         "src/sofia/cognition/context_evidence.py",
         "docs/development/companion-autonomy-contract.md",
         "src/sofia/cognition/matrix/context_plan.py",
-        "src/sofia/application/conversation_matrix.py",
-        "src/sofia/application/optional_budget.py"
+        "src/sofia/platform/application/conversation_matrix.py",
+        "src/sofia/platform/application/optional_budget.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -527,7 +527,7 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": "No independent quality-graded preference feedback/reward loop",
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
+        "src/sofia/platform/application/conversation_learning.py",
         "test/test_memory_reviewed_corrections.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -603,10 +603,10 @@
       "known_missing": "No real per-owner ABI reachability or multisystem event witness",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/verify/architecture_inventory.py",
+        "src/sofia/platform/verify/architecture_inventory.py",
         "docs/development/phase00-static-ownership-harness.md",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -630,9 +630,9 @@
       "known_missing": "No approved completed guest migration/failover witness",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py"
       ],
@@ -657,12 +657,12 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Does not replicate all direct SQLite legacy tables; RPO/RTO not proven",
       "code_paths": [
-        "src/sofia/state/replication.py",
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/state/replication.py",
+        "src/sofia/platform/ops/backup.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -690,7 +690,7 @@
         "src/sofia/life/model.py",
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py"
+        "src/sofia/platform/run/work.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -716,10 +716,10 @@
       "known_missing": "No single witnessed MEM/GOALS/LIFE/SAFE/RUN/ACT chain",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/application/decision_trace.py",
+        "src/sofia/platform/application/decision_trace.py",
         "src/sofia/cognition/matrix/model.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/model.py"
       ],
       "independent_review_pending": false,
@@ -743,8 +743,8 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": "No live Venus GPU, avatar/voice, memory quality or 3-day restart metrics",
       "code_paths": [
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/verify/v18_companion_baseline.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/verify/v18_companion_baseline.py",
         "test/test_cognition_v2_baseline.py",
         "test/test_v18_companion_baseline.py",
         ".github/workflows/v18-companion-baseline.yml",
@@ -800,11 +800,11 @@
       "known_missing": "Dual provider and live startup ABI still need full witnessed coverage",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
         "docs/development/cognition-v2-architecture.md",
         "src/sofia/cognition/v2/kernel.py",
-        "src/sofia/application/conversation_service.py"
+        "src/sofia/platform/application/conversation_service.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -828,10 +828,10 @@
       "known_missing": "Audience-scoped expiry/consent and all effect/transport receipts not joined",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/application/decision_trace.py",
+        "src/sofia/platform/application/decision_trace.py",
         "src/sofia/cognition/matrix/model.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/model.py"
       ],
       "independent_review_pending": false,
@@ -855,10 +855,10 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "No exact goal/selected alternative/MEM/ACT effect provenance",
       "code_paths": [
-        "src/sofia/application/decision_trace.py",
-        "src/sofia/application/decision_persistence.py",
-        "src/sofia/application/event_contracts.py",
-        "src/sofia/application/bootstrap.py",
+        "src/sofia/platform/application/decision_trace.py",
+        "src/sofia/platform/application/decision_persistence.py",
+        "src/sofia/platform/application/event_contracts.py",
+        "src/sofia/platform/application/bootstrap.py",
         "test/test_v18_phase00_contracts.py",
         "test/test_v18_decision_persistence.py"
       ],
@@ -883,9 +883,9 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": "No per-task thresholds or Venus and multi-host acceptance",
       "code_paths": [
-        "src/sofia/verify/v18_roadmap.py",
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/verify/v18_companion_baseline.py",
+        "src/sofia/platform/verify/v18_roadmap.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/verify/v18_companion_baseline.py",
         "test/test_cognition_v2_baseline.py",
         "test/test_v18_companion_baseline.py",
         ".github/workflows/v18-companion-baseline.yml"
@@ -912,10 +912,10 @@
       "known_missing": "DEV/Mobile/Fleet/ACT/WORLD effect adapters not all witnessed",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/safe/permissions.py",
-        "src/sofia/safe/execution_approval.py",
-        "src/sofia/safe/operator_stop.py",
-        "src/sofia/safe/owner_browser.py",
+        "src/sofia/platform/safe/permissions.py",
+        "src/sofia/platform/safe/execution_approval.py",
+        "src/sofia/platform/safe/operator_stop.py",
+        "src/sofia/platform/safe/owner_browser.py",
         "src/sofia/ui/settings_window.py"
       ],
       "independent_review_pending": false,
@@ -944,7 +944,7 @@
         "src/sofia/life/model.py",
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py"
+        "src/sofia/platform/run/work.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -971,8 +971,8 @@
         "src/sofia/cognition/context_evidence.py",
         "docs/development/companion-autonomy-contract.md",
         "src/sofia/cognition/matrix/context_plan.py",
-        "src/sofia/application/conversation_matrix.py",
-        "src/sofia/application/optional_budget.py"
+        "src/sofia/platform/application/conversation_matrix.py",
+        "src/sofia/platform/application/optional_budget.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -995,7 +995,7 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": "No independent quality-graded preference feedback/reward loop",
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
+        "src/sofia/platform/application/conversation_learning.py",
         "test/test_memory_reviewed_corrections.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -1113,10 +1113,10 @@
       "known_missing": "No real per-owner ABI reachability or multisystem event witness",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/verify/architecture_inventory.py",
+        "src/sofia/platform/verify/architecture_inventory.py",
         "docs/development/phase00-static-ownership-harness.md",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -1140,9 +1140,9 @@
       "known_missing": "No approved completed guest migration/failover witness",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py"
       ],
@@ -1167,12 +1167,12 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Does not replicate all direct SQLite legacy tables; RPO/RTO not proven",
       "code_paths": [
-        "src/sofia/state/replication.py",
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/state/replication.py",
+        "src/sofia/platform/ops/backup.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -1200,7 +1200,7 @@
         "src/sofia/life/model.py",
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py"
+        "src/sofia/platform/run/work.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -1224,10 +1224,10 @@
       "known_missing": "No whole-effect command inventory or all host auth verification",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/safe/permissions.py",
-        "src/sofia/safe/execution_approval.py",
-        "src/sofia/safe/operator_stop.py",
-        "src/sofia/safe/owner_browser.py",
+        "src/sofia/platform/safe/permissions.py",
+        "src/sofia/platform/safe/execution_approval.py",
+        "src/sofia/platform/safe/operator_stop.py",
+        "src/sofia/platform/safe/owner_browser.py",
         "src/sofia/ui/settings_window.py"
       ],
       "independent_review_pending": false,
@@ -1252,11 +1252,11 @@
       "known_missing": "Actual Artemis ACL and guest broker path unproven",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py",
         "test/test_tools_completion_acceptance.py",
-        "src/sofia/ops/sofia_guest_readiness.py"
+        "src/sofia/platform/ops/sofia_guest_readiness.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -1279,7 +1279,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "JEA least privilege and non-reusable approvals not live-verified",
       "code_paths": [
-        "src/sofia/ops/workshop_provision.py",
+        "src/sofia/platform/ops/workshop_provision.py",
         "test/test_ops_workshop_hyperv_production.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -1304,7 +1304,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Key rotation/escrow/image scrubbing across hosts unproven",
       "code_paths": [
-        "src/sofia/distributed/identity_durable.py",
+        "src/sofia/platform/distributed/identity_durable.py",
         "test/test_distributed_identity_durable.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -1329,7 +1329,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Eight epistemic grades and source correction not end-to-end enforced",
       "code_paths": [
-        "src/sofia/application/presence.py",
+        "src/sofia/platform/application/presence.py",
         "src/sofia/cognition/context_evidence.py"
       ],
       "independent_review_pending": false,
@@ -1353,10 +1353,10 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "No measured host vs disposable guest cost/restore comparison",
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/hyperv.py",
         "src/sofia/integrations/capabilities.py"
       ],
@@ -1382,7 +1382,7 @@
       "known_missing": "No complete failure injection for power/DNS/PKI/NAS/NWS/HA",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py"
       ],
       "independent_review_pending": false,
@@ -1431,7 +1431,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "No enforced per-task design readiness rubric yet",
       "code_paths": [
-        "src/sofia/verify/v18_roadmap.py",
+        "src/sofia/platform/verify/v18_roadmap.py",
         "test/test_v18_companion_baseline.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -1456,7 +1456,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Research/design/blocked axes are not fully reconciled",
       "code_paths": [
-        "src/sofia/verify/v18_roadmap.py",
+        "src/sofia/platform/verify/v18_roadmap.py",
         "docs/development/v18-task-evidence.json"
       ],
       "independent_review_pending": false,
@@ -1840,7 +1840,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
       ],
@@ -1886,7 +1886,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
       ],
@@ -2121,7 +2121,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
       ],
@@ -2188,10 +2188,10 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/distributed/capability.py",
+        "src/sofia/platform/distributed/capability.py",
         "test/test_ops_sofia_guest_readiness.py"
       ],
       "independent_review_pending": false,
@@ -2534,7 +2534,7 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/verify/gate.py",
+        "src/sofia/platform/verify/gate.py",
         "test/test_verify_gate_contract.py"
       ],
       "independent_review_pending": false,
@@ -2560,8 +2560,8 @@
       "code_paths": [
         "src/sofia/life/validation.py",
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -2586,7 +2586,7 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/draft_agent.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -2632,9 +2632,9 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "test/test_life_atomic_admission.py",
-        "src/sofia/application/bootstrap.py"
+        "src/sofia/platform/application/bootstrap.py"
       ],
       "independent_review_pending": true,
       "review_readiness": {
@@ -2660,7 +2660,7 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/store.py",
         "test/test_life_run_outcome_reconciliation.py",
         "test/test_run_unstarted_expiration.py"
@@ -2984,7 +2984,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/verify/gate.py",
+        "src/sofia/platform/verify/gate.py",
         ".github/workflows/release-candidate.yml"
       ],
       "independent_review_pending": false,
@@ -3031,7 +3031,7 @@
       "code_paths": [
         "test/conftest.py",
         ".github/workflows/package-tests.yml",
-        "src/sofia/verify/package_selection.py",
+        "src/sofia/platform/verify/package_selection.py",
         "test/test_package_selection_receipts.py"
       ],
       "independent_review_pending": false,
@@ -3164,7 +3164,7 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/verify/v18_ci_receipts.py",
+        "src/sofia/platform/verify/v18_ci_receipts.py",
         "test/test_v18_ci_receipts.py"
       ],
       "independent_review_pending": false,
@@ -3191,7 +3191,7 @@
         "src/sofia/creative/paths.py",
         "src/sofia/creative/service.py",
         "test/test_creative_infrastructure.py",
-        "src/sofia/application/bootstrap.py"
+        "src/sofia/platform/application/bootstrap.py"
       ],
       "independent_review_pending": true,
       "review_readiness": {
@@ -3238,10 +3238,10 @@
       "known_missing": "tests_only",
       "code_paths": [
         ".github/workflows/release-candidate.yml",
-        "src/sofia/verify/source_provenance.py",
+        "src/sofia/platform/verify/source_provenance.py",
         "pyproject.toml",
-        "src/sofia/verify/gate.py",
-        "src/sofia/verify/v18_roadmap.py"
+        "src/sofia/platform/verify/gate.py",
+        "src/sofia/platform/verify/v18_roadmap.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -3265,9 +3265,9 @@
       "known_missing": null,
       "code_paths": [
         ".github/workflows/release-candidate.yml",
-        "src/sofia/verify/source_provenance.py",
-        "src/sofia/verify/gate.py",
-        "src/sofia/verify/package_selection.py",
+        "src/sofia/platform/verify/source_provenance.py",
+        "src/sofia/platform/verify/gate.py",
+        "src/sofia/platform/verify/package_selection.py",
         "test/conftest.py",
         "test/test_verify_installed_wheel_release.py"
       ],
@@ -3285,18 +3285,18 @@
       "phase": "01",
       "kind": "implementation",
       "source_status": "partial_wiring",
-      "original_requirement": "- [ ] **CA-3005 P0 [CONFIRMED WINDOWS FAILURE]** Reproduce the `pkg_verify` Windows `WinError 32` from `test_cognition_v2_baseline.py` / `src/sofia/verify/cognition_v2_baseline.py` `TemporaryDirectory` deletion of `sofia.db`. Investigate application shutdown, open SQLite connections, `RUN`/LIFE worker futures, WAL/checkpoint activity, and delayed file handles; close owners deterministically before cleanup. Do not mask by sleeping blindly or ignoring cleanup errors.",
+      "original_requirement": "- [ ] **CA-3005 P0 [CONFIRMED WINDOWS FAILURE]** Reproduce the `pkg_verify` Windows `WinError 32` from `test_cognition_v2_baseline.py` / `src/sofia/platform/verify/cognition_v2_baseline.py` `TemporaryDirectory` deletion of `sofia.db`. Investigate application shutdown, open SQLite connections, `RUN`/LIFE worker futures, WAL/checkpoint activity, and delayed file handles; close owners deterministically before cleanup. Do not mask by sleeping blindly or ignoring cleanup errors.",
       "gate_with_recorded_proof": 0,
       "gate4": false,
       "next_gate": 1,
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/state/sqlite_access.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/state/sqlite_access.py",
         "src/sofia/mobile/sensors.py",
         "test/test_mobile_sensors.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/coordinator.py"
       ],
       "independent_review_pending": false,
@@ -3399,7 +3399,7 @@
       "known_missing": "Supervised operator preflight and verified exact source SHA attestation beyond the displayed short HEAD need review; re-run into already staged remote TLS key is deliberately rejected rather than idempotently reconciled. Actual Windows/SMB ACL, key lifecycle, fresh start/stop and mTLS acceptance were not performed. Original CA-3009 audit/verification therefore remains incomplete.",
       "code_paths": [
         "Setup-SofiaFleetArtemis.ps1",
-        "src/sofia/ops/discovery_canary.py",
+        "src/sofia/platform/ops/discovery_canary.py",
         "requirements.build.lock.windows-py312.txt"
       ],
       "independent_review_pending": false,
@@ -3425,7 +3425,7 @@
       "code_paths": [
         "Setup-SofiaFleetArtemis.ps1",
         "test/test_ops_windows_bootstrap.py",
-        "src/sofia/ops/windows_bootstrap.py"
+        "src/sofia/platform/ops/windows_bootstrap.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -3448,8 +3448,8 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/windows_bootstrap.py",
-        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "src/sofia/platform/ops/windows_bootstrap.py",
+        "src/sofia/platform/ops/windows_rekey_bootstrap.py",
         "test/test_ops_windows_bootstrap.py",
         "Setup-SofiaFleetArtemis.ps1"
       ],
@@ -3474,8 +3474,8 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/windows_bootstrap.py",
-        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "src/sofia/platform/ops/windows_bootstrap.py",
+        "src/sofia/platform/ops/windows_rekey_bootstrap.py",
         "test/test_ops_windows_bootstrap.py",
         "Setup-SofiaFleetArtemis.ps1",
         "requirements.build.lock.windows-py312.txt",
@@ -3526,7 +3526,7 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
         "test/test_life_postrun_verification.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/background_runtime.py",
         "test/test_life_verified_milestone_production.py"
       ],
       "independent_review_pending": false,
@@ -3550,12 +3550,12 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/hyperv.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/distributed/agent_tools.py",
-        "src/sofia/distributed/authorization.py",
-        "src/sofia/safe/permissions.py"
+        "src/sofia/platform/distributed/agent_tools.py",
+        "src/sofia/platform/distributed/authorization.py",
+        "src/sofia/platform/safe/permissions.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -3794,9 +3794,9 @@
         "src/sofia/life/coordinator.py",
         "test/test_life_project_forge.py",
         "src/sofia/ui/settings_window.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/application/act_service.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/act/system_notice.py"
+        "src/sofia/platform/act/system_notice.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -3845,7 +3845,7 @@
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
         "src/sofia/neuro/connectome/association_store.py",
-        "src/sofia/config/user_settings.py"
+        "src/sofia/platform/config/user_settings.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -3868,9 +3868,9 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/act/system_notice.py",
-        "src/sofia/act/delivery.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/act/system_notice.py",
+        "src/sofia/platform/act/delivery.py",
+        "src/sofia/platform/application/act_service.py",
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
         "test/test_act_runtime_wiring.py"
@@ -4023,11 +4023,11 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/mobile/server.py",
-        "src/sofia/safe/execution_approval.py",
+        "src/sofia/platform/safe/execution_approval.py",
         "test/test_safe_execution_action_fingerprint.py",
-        "src/sofia/composition/authorization.py"
+        "src/sofia/platform/composition/authorization.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -4078,7 +4078,7 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": "Broader original CA-1906 malicious SVG/files, huge Docker logs, hostile memory associations, fabricated receipts, secret-bearing tool outputs and runaway model retries remain unproven. No current-main tests, CI or host proof.",
       "code_paths": [
-        "src/sofia/ops/agent_discovery.py",
+        "src/sofia/platform/ops/agent_discovery.py",
         "test/test_ops_agent_discovery.py",
         "docs/development/v18-ws1-untrusted-input-boundary-inventory-2026-10-11.md",
         "src/sofia/cognition/tools.py",
@@ -4107,10 +4107,10 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/safe/operator_stop.py",
+        "src/sofia/platform/safe/operator_stop.py",
         "test/test_permission_runtime_wiring.py",
-        "src/sofia/dev/capability.py",
-        "src/sofia/capability/system.py",
+        "src/sofia/platform/dev/capability.py",
+        "src/sofia/platform/capability/system.py",
         "test/test_capability_system.py"
       ],
       "independent_review_pending": false,
@@ -4264,11 +4264,11 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/application/act_service.py",
         "src/sofia/ui/settings_window.py",
         "test/test_life_project_forge.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/act/system_notice.py"
+        "src/sofia/platform/act/system_notice.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -4291,11 +4291,11 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/verify/gate.py",
+        "src/sofia/platform/verify/gate.py",
         "test/test_verify_gate_contract.py",
         ".github/workflows/matrix-tests.yml",
         ".github/workflows/v18-phase01-02-safe-release-gate.yml",
-        "src/sofia/verify/v18_ci_receipts.py",
+        "src/sofia/platform/verify/v18_ci_receipts.py",
         "test/test_v18_ci_receipts.py"
       ],
       "independent_review_pending": false,
@@ -4341,7 +4341,7 @@
       "known_missing": null,
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py",
         "test/test_tools_completion_acceptance.py"
@@ -4452,9 +4452,9 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/safe/operator_stop.py",
+        "src/sofia/platform/safe/operator_stop.py",
         "test/test_permission_runtime_wiring.py",
-        "src/sofia/dev/capability.py",
+        "src/sofia/platform/dev/capability.py",
         "src/sofia/life/coordinator.py",
         "test/test_life_project_forge.py"
       ],
@@ -4521,7 +4521,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/store.py"
       ],
       "independent_review_pending": false,
@@ -4545,7 +4545,7 @@
       "next_action": "Historical proof packet requires independently authenticated review of all original requirements and task-specific CI/host evidence.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/saga.py",
+        "src/sofia/platform/ops/saga.py",
         "test/test_v18_saga_contracts.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -4573,9 +4573,9 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/state_relocation.py",
-        "src/sofia/ops/state_promotion.py",
-        "src/sofia/config/state_home_pointer.py"
+        "src/sofia/platform/ops/state_relocation.py",
+        "src/sofia/platform/ops/state_promotion.py",
+        "src/sofia/platform/config/state_home_pointer.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -4598,7 +4598,7 @@
       "next_action": "Historical proof packet requires independently authenticated review of all original requirements and task-specific CI/host evidence.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/commitment.py",
+        "src/sofia/platform/ops/commitment.py",
         "test/test_v18_commitment_projection.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -4626,7 +4626,7 @@
       "next_action": "Historical proof packet requires independently authenticated review of all original requirements and task-specific CI/host evidence.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/saga.py",
+        "src/sofia/platform/ops/saga.py",
         "test/test_v18_saga_contracts.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -4654,7 +4654,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/recovery.py",
+        "src/sofia/platform/ops/recovery.py",
         "test/test_venus_artemis_relocation_evidence.py",
         "test/test_state_relocation_atomic_publish.py"
       ],
@@ -4721,7 +4721,7 @@
       "next_action": "Historical proof packet requires independently authenticated review of all original requirements and task-specific CI/host evidence.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/failure_triage.py",
+        "src/sofia/platform/ops/failure_triage.py",
         "test/test_v18_failure_triage.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -4749,8 +4749,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/config/layout.py",
-        "src/sofia/config/state_home_pointer.py"
+        "src/sofia/platform/config/layout.py",
+        "src/sofia/platform/config/state_home_pointer.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -4773,9 +4773,9 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/ops/backup.py",
         "src/sofia/memory/deletion_ledger.py",
-        "src/sofia/ops/state_relocation.py"
+        "src/sofia/platform/ops/state_relocation.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -4819,8 +4819,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/recovery.py",
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/recovery.py",
         "test/test_memory_deletion_restore.py"
       ],
       "independent_review_pending": false,
@@ -4844,8 +4844,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/recovery_export.py",
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/ops/recovery_export.py",
+        "src/sofia/platform/ops/backup.py",
         "scripts/verify_sofia_portable_export.py",
         "test/test_ws2_portable_export_validator.py"
       ],
@@ -4891,8 +4891,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/state_mobility.py"
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/state_mobility.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -4938,10 +4938,10 @@
       "code_paths": [
         "src/sofia/mobile/sensors.py",
         "src/sofia/mobile/notifications.py",
-        "src/sofia/config/layout.py",
-        "src/sofia/state/canonical_sqlite.py",
-        "src/sofia/ops/state_relocation.py",
-        "src/sofia/config/state_home_pointer.py"
+        "src/sofia/platform/config/layout.py",
+        "src/sofia/platform/state/canonical_sqlite.py",
+        "src/sofia/platform/ops/state_relocation.py",
+        "src/sofia/platform/config/state_home_pointer.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5006,7 +5006,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/recovery_export.py",
+        "src/sofia/platform/ops/recovery_export.py",
         "scripts/verify_sofia_portable_export.py",
         "test/test_ws2_portable_export_validator.py"
       ],
@@ -5031,8 +5031,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/state_relocation.py",
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/state_relocation.py",
         "src/sofia/memory/deletion_ledger.py"
       ],
       "independent_review_pending": false,
@@ -5056,7 +5056,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/ops/backup.py"
+        "src/sofia/platform/ops/backup.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5079,7 +5079,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/ops/backup.py"
+        "src/sofia/platform/ops/backup.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5102,7 +5102,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/ops/backup.py",
         "src/sofia/memory/deletion_ledger.py"
       ],
       "independent_review_pending": false,
@@ -5126,7 +5126,7 @@
       "next_action": "Historical proof packet requires independently authenticated review of all original requirements and task-specific CI/host evidence.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/capacity.py",
+        "src/sofia/platform/ops/capacity.py",
         "test/test_v18_capacity_budgets.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -5175,8 +5175,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/config/state_home_pointer.py",
-        "src/sofia/ops/state_mobility.py"
+        "src/sofia/platform/config/state_home_pointer.py",
+        "src/sofia/platform/ops/state_mobility.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5200,7 +5200,7 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/ui/settings_sections.py",
-        "src/sofia/ops/state_mobility.py",
+        "src/sofia/platform/ops/state_mobility.py",
         "test/test_ws2_state_home_destination_builder.py"
       ],
       "independent_review_pending": false,
@@ -5224,8 +5224,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/state_mobility.py",
-        "src/sofia/ops/state_relocation.py"
+        "src/sofia/platform/ops/state_mobility.py",
+        "src/sofia/platform/ops/state_relocation.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5248,12 +5248,12 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/config/layout.py",
-        "src/sofia/ops/state_mobility.py",
+        "src/sofia/platform/config/layout.py",
+        "src/sofia/platform/ops/state_mobility.py",
         "src/sofia/mobile/sensors.py",
         "src/sofia/mobile/pairing.py",
         "src/sofia/mobile/gateway.py",
-        "src/sofia/safe/execution_approval.py"
+        "src/sofia/platform/safe/execution_approval.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5276,8 +5276,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/config/state_home_pointer.py",
-        "src/sofia/ops/state_promotion.py"
+        "src/sofia/platform/config/state_home_pointer.py",
+        "src/sofia/platform/ops/state_promotion.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5300,7 +5300,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/ops/backup.py"
+        "src/sofia/platform/ops/backup.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5323,11 +5323,11 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/config/layout.py",
-        "src/sofia/ops/state_mobility.py",
+        "src/sofia/platform/config/layout.py",
+        "src/sofia/platform/ops/state_mobility.py",
         "test/test_state_relocation_local_preflight.py",
-        "src/sofia/ops/state_relocation.py",
-        "src/sofia/ops/state_promotion.py"
+        "src/sofia/platform/ops/state_relocation.py",
+        "src/sofia/platform/ops/state_promotion.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5392,8 +5392,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/state_mobility.py"
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/state_mobility.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5437,9 +5437,9 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/state_relocation.py",
-        "src/sofia/ops/state_promotion.py",
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/state_relocation.py",
+        "src/sofia/platform/ops/state_promotion.py",
         "test/test_ws2_partial_bundle_restore_uncertainty.py"
       ],
       "independent_review_pending": false,
@@ -5549,7 +5549,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/ops/state_mobility.py",
+        "src/sofia/platform/ops/state_mobility.py",
         "src/sofia/ui/settings_service.py"
       ],
       "independent_review_pending": false,
@@ -5742,7 +5742,7 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/identity/store.py",
-        "src/sofia/config/state_home_pointer.py"
+        "src/sofia/platform/config/state_home_pointer.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5832,9 +5832,9 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/ops/state_relocation.py",
+        "src/sofia/platform/ops/state_relocation.py",
         "src/sofia/mobile/gateway.py",
-        "src/sofia/ops/state_promotion.py",
+        "src/sofia/platform/ops/state_promotion.py",
         "src/sofia/mobile/notifications.py",
         "src/sofia/conversation/lifelong.py",
         "src/sofia/conversation/fulltext_search.py"
@@ -5881,7 +5881,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/ops/backup.py"
+        "src/sofia/platform/ops/backup.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5946,8 +5946,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/backup_topology.py"
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/backup_topology.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -5972,7 +5972,7 @@
       "code_paths": [
         "src/sofia/mobile/sensors.py",
         "src/sofia/mobile/model.py",
-        "src/sofia/application/presence.py",
+        "src/sofia/platform/application/presence.py",
         "test/test_presence_cross_modal_provenance.py"
       ],
       "independent_review_pending": false,
@@ -6066,7 +6066,7 @@
       "next_action": "Historical proof packet requires independently authenticated review of all original requirements and task-specific CI/host evidence.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/verify/drift.py",
+        "src/sofia/platform/verify/drift.py",
         "test/test_v18_drift_scorecard.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -6116,7 +6116,7 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/conversation/store.py",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/social/store.py"
       ],
       "independent_review_pending": false,
@@ -6461,7 +6461,7 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/conversation/lifelong.py",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/mobile/gateway.py"
       ],
       "independent_review_pending": false,
@@ -6658,7 +6658,7 @@
       "code_paths": [
         "src/sofia/conversation/lifelong.py",
         "src/sofia/social/store.py",
-        "src/sofia/application/conversation_service.py"
+        "src/sofia/platform/application/conversation_service.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -7486,7 +7486,7 @@
       "code_paths": [
         "src/sofia/cognition/v2/contracts.py",
         "src/sofia/cognition/v2/focus.py",
-        "src/sofia/application/conversation_service.py"
+        "src/sofia/platform/application/conversation_service.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -7551,8 +7551,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/conversation_learning.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py"
       ],
       "independent_review_pending": false,
@@ -7597,7 +7597,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/conversation/fulltext_search.py",
         "src/sofia/conversation/store.py",
         "test/test_ws2_memory_scoped_recall_fallback.py"
@@ -7624,7 +7624,7 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/conversation/store.py",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/memory/originals.py"
       ],
       "independent_review_pending": false,
@@ -7818,7 +7818,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py",
         "src/sofia/memory/deletion_ledger.py",
         "test/test_ws2_memory_review_audience_mutations.py"
@@ -7886,7 +7886,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/conversation/fulltext_search.py",
         "src/sofia/conversation/store.py"
       ],
@@ -7912,7 +7912,7 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/conversation/fulltext_search.py",
-        "src/sofia/application/conversation_service.py"
+        "src/sofia/platform/application/conversation_service.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -7998,7 +7998,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/memory/originals.py",
         "src/sofia/conversation/fulltext_search.py"
       ],
@@ -8111,7 +8111,7 @@
         "src/sofia/conversation/fulltext_search.py",
         "src/sofia/memory/originals.py",
         "test/test_memory_conversation_originals.py",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "test/test_ws2_bounded_wardrobe_context.py"
       ],
       "independent_review_pending": false,
@@ -8135,7 +8135,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/conversation/fulltext_search.py",
         "src/sofia/memory/originals.py"
       ],
@@ -8313,8 +8313,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/conversation_learning.py",
+        "src/sofia/platform/application/memory_review.py",
         "test/test_ws2_memory_private_admission.py"
       ],
       "independent_review_pending": false,
@@ -8338,7 +8338,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/application/conversation_learning.py"
+        "src/sofia/platform/application/conversation_learning.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -8361,8 +8361,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/conversation_learning.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py"
       ],
       "independent_review_pending": false,
@@ -8536,8 +8536,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/conversation_learning.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py",
         "test/test_memory_explicit_conversation_correction.py"
       ],
@@ -8648,7 +8648,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
       "code_paths": [
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py",
         "src/sofia/memory/deletion_ledger.py"
       ],
@@ -8968,7 +8968,7 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/memory/archive_segments.py",
-        "src/sofia/state/sqlite_plane.py"
+        "src/sofia/platform/state/sqlite_plane.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -9264,8 +9264,8 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
       "code_paths": [
-        "src/sofia/application/background_runtime.py",
-        "src/sofia/application/presence.py"
+        "src/sofia/platform/application/background_runtime.py",
+        "src/sofia/platform/application/presence.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -9309,8 +9309,8 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
       "code_paths": [
-        "src/sofia/application/background_runtime.py",
-        "src/sofia/application/presence.py"
+        "src/sofia/platform/application/background_runtime.py",
+        "src/sofia/platform/application/presence.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -9333,8 +9333,8 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
       "code_paths": [
-        "src/sofia/application/background_runtime.py",
-        "src/sofia/application/presence.py"
+        "src/sofia/platform/application/background_runtime.py",
+        "src/sofia/platform/application/presence.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -9420,8 +9420,8 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
       "code_paths": [
-        "src/sofia/application/background_runtime.py",
-        "src/sofia/application/presence.py"
+        "src/sofia/platform/application/background_runtime.py",
+        "src/sofia/platform/application/presence.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -10476,7 +10476,7 @@
       "known_missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -10500,8 +10500,8 @@
       "known_missing": "tests_only",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/store.py"
       ],
       "independent_review_pending": true,
@@ -10577,7 +10577,7 @@
       "known_missing": null,
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/store.py"
       ],
       "independent_review_pending": false,
@@ -10666,7 +10666,7 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -10691,8 +10691,8 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/creative/service.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/validation.py"
       ],
       "independent_review_pending": false,
@@ -10742,7 +10742,7 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/background_runtime.py",
         "test/test_life_verified_milestone_production.py"
       ],
       "independent_review_pending": false,
@@ -12456,7 +12456,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/application/optional_budget.py",
+        "src/sofia/platform/application/optional_budget.py",
         "test/test_optional_autonomy_budget_production.py",
         "src/sofia/cognition/model_lifecycle.py",
         "src/sofia/cognition/routing.py",
@@ -12763,7 +12763,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/local_telemetry.py",
+        "src/sofia/platform/ops/local_telemetry.py",
         "test/test_ops_local_telemetry.py",
         "src/sofia/cognition/model_lifecycle.py",
         "src/sofia/cognition/routing.py",
@@ -12791,7 +12791,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/placement.py",
+        "src/sofia/platform/ops/placement.py",
         "src/sofia/cognition/fleet_engine.py",
         "test/test_phase11_fleet_gpu_admission.py",
         "src/sofia/cognition/model_lifecycle.py",
@@ -13447,7 +13447,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/local_telemetry.py",
+        "src/sofia/platform/ops/local_telemetry.py",
         "test/test_ops_local_telemetry.py",
         "src/sofia/cognition/model_lifecycle.py",
         "src/sofia/cognition/routing.py",
@@ -13528,7 +13528,7 @@
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
         "test/test_cognitive_routing.py",
-        "src/sofia/ops/placement.py",
+        "src/sofia/platform/ops/placement.py",
         "src/sofia/cognition/fleet_engine.py",
         "test/test_phase11_fleet_gpu_admission.py",
         "src/sofia/cognition/model_lifecycle.py",
@@ -13845,7 +13845,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Host OS picker, complete screen capture/watching, revocation and remote disclosure proof.",
       "code_paths": [
-        "src/sofia/safe/permissions.py"
+        "src/sofia/platform/safe/permissions.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14012,7 +14012,7 @@
       "code_paths": [
         "src/sofia/vision/desktop_control.py",
         "src/sofia/vision/desktop_control_cli.py",
-        "src/sofia/safe/execution_approval.py"
+        "src/sofia/platform/safe/execution_approval.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14171,7 +14171,7 @@
       "next_action": "Run the original specified independent verification, with receipts.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14258,7 +14258,7 @@
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
         "test/test_ops_workshop_guest_bootstrap_production.py",
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14281,11 +14281,11 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_network_stage.py",
+        "src/sofia/platform/ops/workshop_network_stage.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_stage_report_boundary.py",
         "test/test_ops_workshop_internal_stage.py",
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14308,7 +14308,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14688,7 +14688,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14711,7 +14711,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/workshop_provision.py",
+        "src/sofia/platform/ops/workshop_provision.py",
         "test/test_ops_workshop_hyperv_production.py"
       ],
       "independent_review_pending": false,
@@ -14735,8 +14735,8 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/workshop_provision.py",
-        "src/sofia/ops/capability.py",
+        "src/sofia/platform/ops/workshop_provision.py",
+        "src/sofia/platform/ops/capability.py",
         "test/test_ops_workshop_hyperv_production.py"
       ],
       "independent_review_pending": false,
@@ -14760,7 +14760,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/safe/permissions.py",
         "test/test_ops_workshop_vm_separation.py"
       ],
       "independent_review_pending": false,
@@ -14819,7 +14819,7 @@
       "phase": "13",
       "kind": "implementation",
       "source_status": "unassessed",
-      "original_requirement": "- [ ] **CA-2907 P0 [REMOTE]** Extend `src/sofia/distributed/agent_tools.py` and the Fleet operation manifest with pinned, signed/authorized `workshop.provision` operations. Maintain Artemis node identity and exact bound capability/operation; refuse stale capabilities, wrong node, missing grant and replay.",
+      "original_requirement": "- [ ] **CA-2907 P0 [REMOTE]** Extend `src/sofia/platform/distributed/agent_tools.py` and the Fleet operation manifest with pinned, signed/authorized `workshop.provision` operations. Maintain Artemis node identity and exact bound capability/operation; refuse stale capabilities, wrong node, missing grant and replay.",
       "gate_with_recorded_proof": 0,
       "gate4": false,
       "next_gate": 1,
@@ -14868,11 +14868,11 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_network_stage.py",
+        "src/sofia/platform/ops/workshop_network_stage.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_stage_report_boundary.py",
         "test/test_ops_workshop_internal_stage.py",
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14916,7 +14916,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14939,7 +14939,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14962,7 +14962,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -14985,7 +14985,7 @@
       "next_action": "Close the missing end-to-end production path before full tests.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -15176,7 +15176,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "independent_review_pending": false,
@@ -15200,7 +15200,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "independent_review_pending": false,
@@ -15224,7 +15224,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "independent_review_pending": false,
@@ -15248,7 +15248,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "independent_review_pending": false,
@@ -15272,7 +15272,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "independent_review_pending": false,
@@ -15296,7 +15296,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -15319,7 +15319,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "independent_review_pending": false,
@@ -15343,7 +15343,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "independent_review_pending": false,
@@ -15367,7 +15367,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "independent_review_pending": false,
@@ -15412,7 +15412,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/workshop_handoff.py",
+        "src/sofia/platform/ops/workshop_handoff.py",
         "test/test_ops_workshop_handoff_production.py"
       ],
       "independent_review_pending": false,
@@ -15436,7 +15436,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/workshop_guest_bootstrap.py",
+        "src/sofia/platform/ops/workshop_guest_bootstrap.py",
         "test/test_ops_workshop_guest_bootstrap_production.py"
       ],
       "independent_review_pending": false,
@@ -15460,7 +15460,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/workshop_media_attestation.py",
+        "src/sofia/platform/ops/workshop_media_attestation.py",
         "test/test_ops_workshop_media_attestation_production.py"
       ],
       "independent_review_pending": false,
@@ -15484,7 +15484,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -15507,7 +15507,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/workshop_guest_bootstrap.py",
+        "src/sofia/platform/ops/workshop_guest_bootstrap.py",
         "test/test_ops_workshop_guest_bootstrap_production.py"
       ],
       "independent_review_pending": false,
@@ -15531,7 +15531,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -15554,7 +15554,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
       "code_paths": [
-        "src/sofia/ops/workshop_handoff.py",
+        "src/sofia/platform/ops/workshop_handoff.py",
         "test/test_ops_workshop_handoff_production.py"
       ],
       "independent_review_pending": false,
@@ -15578,8 +15578,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": null,
       "code_paths": [
-        "src/sofia/evolve/training_policy.py",
-        "src/sofia/config/model_catalog.py"
+        "src/sofia/platform/evolve/training_policy.py",
+        "src/sofia/platform/config/model_catalog.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -15602,7 +15602,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/evolve/training_policy.py"
+        "src/sofia/platform/evolve/training_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -15625,9 +15625,9 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/evolve/training_policy.py",
+        "src/sofia/platform/evolve/training_policy.py",
         "test/test_evolve_training_holdout_separation.py",
-        "src/sofia/evolve/training_sources.py",
+        "src/sofia/platform/evolve/training_sources.py",
         "test/test_training_dataset_source_identity.py"
       ],
       "independent_review_pending": false,
@@ -15651,7 +15651,7 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/evolve/training_policy.py"
+        "src/sofia/platform/evolve/training_policy.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -15695,8 +15695,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/evolve/training_lab.py",
-        "src/sofia/evolve/training_policy.py",
+        "src/sofia/platform/evolve/training_lab.py",
+        "src/sofia/platform/evolve/training_policy.py",
         "test/test_evolve_training_holdout_separation.py"
       ],
       "independent_review_pending": false,
@@ -15741,8 +15741,8 @@
       "next_action": "Complete and independently review the research/design deliverable.",
       "known_missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
       "code_paths": [
-        "src/sofia/evolve/training_policy.py",
-        "src/sofia/evolve/training_sources.py"
+        "src/sofia/platform/evolve/training_policy.py",
+        "src/sofia/platform/evolve/training_sources.py"
       ],
       "independent_review_pending": false,
       "review_readiness": {
@@ -17511,7 +17511,7 @@
       "independent_review_pending": false
     }
   ],
-  "warning": "Only owner-approved, externally authenticated signed independent acceptance counts as Gate 4. Historical receipt packets and green CI checks alone do not verify original task requirements. The empty independent-acceptance certificate registry currently means 0/780 accepted. This is a checked-in snapshot; regenerate using python -m sofia.verify.v18_gate4 for fresh progress.",
+  "warning": "Only owner-approved, externally authenticated signed independent acceptance counts as Gate 4. Historical receipt packets and green CI checks alone do not verify original task requirements. The empty independent-acceptance certificate registry currently means 0/780 accepted. This is a checked-in snapshot; regenerate using python -m sofia.platform.verify.v18_gate4 for fresh progress.",
   "supplemental_gate4_verified": 0,
   "overall_gate4_verified": 0,
   "overall_gate4_remaining": 780

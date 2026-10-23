@@ -9,7 +9,7 @@
   "tasks": [
     {
       "id": "CA-001",
-      "source": "src/sofia/application/decision_persistence.py",
+      "source": "src/sofia/platform/application/decision_persistence.py",
       "source_anchor": "def inspect_turn_persistence",
       "related_test": "test/test_v18_settled_response_trace.py",
       "observed_source": "Canonical USER/Matrix/SOCIAL and settled reply read-only joins exist",
@@ -29,7 +29,7 @@
     },
     {
       "id": "CA-002",
-      "source": "src/sofia/verify/v18_companion_baseline.py",
+      "source": "src/sofia/platform/verify/v18_companion_baseline.py",
       "source_anchor": "def capture_v18_baseline",
       "related_test": "test/test_v18_companion_baseline.py",
       "observed_source": "Four-turn isolated control-path timing baseline exists",
@@ -109,7 +109,7 @@
     },
     {
       "id": "CA-006",
-      "source": "src/sofia/application/decision_trace.py",
+      "source": "src/sofia/platform/application/decision_trace.py",
       "source_anchor": "class CompanionDecisionTrace",
       "related_test": "test/test_v18_decision_persistence.py",
       "observed_source": "Revisioned read-only trace and same-turn NEURO association exist",
@@ -129,7 +129,7 @@
     },
     {
       "id": "CA-007",
-      "source": "src/sofia/verify/v18_companion_baseline.py",
+      "source": "src/sofia/platform/verify/v18_companion_baseline.py",
       "source_anchor": "def summarize_control_baseline",
       "related_test": "test/test_v18_companion_baseline.py",
       "observed_source": "Revision-pinned Windows/Linux deterministic baseline implemented",
@@ -209,7 +209,7 @@
     },
     {
       "id": "CA-1204",
-      "source": "src/sofia/application/conversation_learning.py",
+      "source": "src/sofia/platform/application/conversation_learning.py",
       "source_anchor": "class ConversationLearningCoordinator",
       "related_test": "test/test_memory_reviewed_corrections.py",
       "observed_source": "Persisted user text creates proposed memory only",
@@ -229,7 +229,7 @@
     },
     {
       "id": "CA-1205",
-      "source": "src/sofia/verify/cognition_v2_baseline.py",
+      "source": "src/sofia/platform/verify/cognition_v2_baseline.py",
       "source_anchor": "def capture_baseline",
       "related_test": "test/test_cognition_v2_baseline.py",
       "observed_source": "Isolated baseline only; not a named external benchmark",
@@ -249,7 +249,7 @@
     },
     {
       "id": "CA-1206",
-      "source": "src/sofia/verify/package_selection.py",
+      "source": "src/sofia/platform/verify/package_selection.py",
       "source_anchor": "class PackageSelectionProbe",
       "related_test": "test/test_cognition_matrix.py",
       "observed_source": "Package marker coverage checks exist",
@@ -309,7 +309,7 @@
     },
     {
       "id": "CA-3101",
-      "source": "src/sofia/verify/architecture_inventory.py",
+      "source": "src/sofia/platform/verify/architecture_inventory.py",
       "source_anchor": "OWNERS:",
       "related_test": "test/test_v18_decision_persistence.py",
       "observed_source": "Owner inventory and three source-to-sink diagrams available",
@@ -349,7 +349,7 @@
     },
     {
       "id": "CA-3103",
-      "source": "src/sofia/state/replication.py",
+      "source": "src/sofia/platform/state/replication.py",
       "source_anchor": "class SQLiteReplicationWitness",
       "related_test": "test/test_ops_recovery_objectives.py",
       "observed_source": "Partial fenced StatePlane replication available",
@@ -389,7 +389,7 @@
     },
     {
       "id": "CA-3105",
-      "source": "src/sofia/safe/permissions.py",
+      "source": "src/sofia/platform/safe/permissions.py",
       "source_anchor": "class PermissionLevel",
       "related_test": "test/test_safe_permissions.py",
       "observed_source": "SAFE five-level policy and permission checks implemented",
@@ -409,7 +409,7 @@
     },
     {
       "id": "CA-3106",
-      "source": "src/sofia/ops/workshop_provision.py",
+      "source": "src/sofia/platform/ops/workshop_provision.py",
       "source_anchor": "class WorkshopProvisionPlan",
       "related_test": "test/test_ops_workshop_internal_network.py",
       "observed_source": "Immutable workshop plan with internal networking boundary",
@@ -429,7 +429,7 @@
     },
     {
       "id": "CA-3107",
-      "source": "src/sofia/ops/workshop_provision.py",
+      "source": "src/sofia/platform/ops/workshop_provision.py",
       "source_anchor": "fingerprint_sha256",
       "related_test": "test/test_ops_workshop_hyperv_production.py",
       "observed_source": "Immutable plan digest and separate Hyper-V executor present",
@@ -449,7 +449,7 @@
     },
     {
       "id": "CA-3108",
-      "source": "src/sofia/distributed/identity_durable.py",
+      "source": "src/sofia/platform/distributed/identity_durable.py",
       "source_anchor": "class DurableNodeIdentityRegistry",
       "related_test": "test/test_distributed_identity_durable.py",
       "observed_source": "Durable public fingerprint enrollment and retirement exist",
@@ -489,7 +489,7 @@
     },
     {
       "id": "CA-3110",
-      "source": "src/sofia/run/systemd_runtime.py",
+      "source": "src/sofia/platform/run/systemd_runtime.py",
       "source_anchor": "systemd",
       "related_test": "test/test_run_systemd_runtime.py",
       "observed_source": "Debian service runtime configuration implemented",
@@ -549,7 +549,7 @@
     },
     {
       "id": "CA-3301",
-      "source": "src/sofia/verify/v18_roadmap.py",
+      "source": "src/sofia/platform/verify/v18_roadmap.py",
       "source_anchor": "def validate_repository",
       "related_test": "test/test_v18_companion_baseline.py",
       "observed_source": "Original ledger integrity gate present",
@@ -569,7 +569,7 @@
     },
     {
       "id": "CA-3302",
-      "source": "src/sofia/verify/v18_roadmap.py",
+      "source": "src/sofia/platform/verify/v18_roadmap.py",
       "source_anchor": "SOURCE_STATES",
       "related_test": "test/test_v18_companion_baseline.py",
       "observed_source": "Canonical 700-item source-status ledger exists",

@@ -26,7 +26,7 @@
     "src/sofia/generalization/__init__.py":{"before":"from .skills import LearnedSkill, LearnedSkillStore","preserved":"Existing GA exports and ownership remain intact.","reason":"Export typed advanced contracts."},
     "src/sofia/generalization/service.py":{"before":"self.skills = None","preserved":"GeneralizationService remains the sole GA composition owner.","reason":"Attach the advanced projection to existing GOALS, learning and skill owners."},
     "src/sofia/generalization/skills.py":{"before":"    def transition_lifecycle(","preserved":"Existing qualification and lifecycle checks remain unchanged.","reason":"Expose bounded source-revocation invalidation through the skill owner."},
-    "src/sofia/application/background_runtime.py":{"before":"generalization = getattr(application, \"_generalization\", None)","preserved":"The existing coordinator remains the only scheduler.","reason":"Extend its daily GA reconciliation with derived-source propagation."},
+    "src/sofia/platform/application/background_runtime.py":{"before":"generalization = getattr(application, \"_generalization\", None)","preserved":"The existing coordinator remains the only scheduler.","reason":"Extend its daily GA reconciliation with derived-source propagation."},
     "src/sofia/ui/settings_sections.py":{"before":"self.sql_panel(frames[\"EVOLVE\"], \"Learned skill lifecycle\", \"ga_skill_lifecycle\")","preserved":"Existing settings controls remain unchanged.","reason":"Expose read-only advanced GA records."}
   },
   "approved_removals": []

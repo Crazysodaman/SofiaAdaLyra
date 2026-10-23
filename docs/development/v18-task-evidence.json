@@ -15,22 +15,22 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/application/decision_trace.py",
+        "src/sofia/platform/application/decision_trace.py",
         "src/sofia/cognition/matrix/model.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/model.py",
-        "src/sofia/run/work.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/run/work.py",
+        "src/sofia/platform/application/act_service.py",
         "src/sofia/social/model.py",
-        "src/sofia/application/decision_persistence.py",
+        "src/sofia/platform/application/decision_persistence.py",
         "src/sofia/cognition/matrix/trace.py",
         "src/sofia/conversation/store.py",
         "src/sofia/social/store.py",
         "test/test_v18_decision_persistence.py",
         ".github/workflows/v18-decision-persistence.yml",
         "docs/development/v18-phase00-ca001-canonical-turn-correlation.md",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "test/test_v18_settled_response_trace.py"
       ],
       "evidence_commits": [
@@ -59,7 +59,7 @@
         "source_sha": "285e0070c376876e8a984b45f121d604e8ee4390",
         "inspected_at_utc": "2026-10-13",
         "production_entrypoint": "SofiaApplication.latest_companion_decision_trace",
-        "implementation_path": "src/sofia/application/decision_persistence.py",
+        "implementation_path": "src/sofia/platform/application/decision_persistence.py",
         "regression_workflow": "V18 Decision Persistence Proof",
         "regression_run_id": 38489692400,
         "regression_linux": "passed",
@@ -90,7 +90,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/application/decision_persistence.py",
+        "source_observed": "src/sofia/platform/application/decision_persistence.py",
         "source_anchor": "def inspect_turn_persistence",
         "related_test": "test/test_v18_settled_response_trace.py",
         "observed_behavior": "Canonical USER/Matrix/SOCIAL and settled reply read-only joins exist",
@@ -150,8 +150,8 @@
       "master_line": 65,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/verify/v18_companion_baseline.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/verify/v18_companion_baseline.py",
         "test/test_cognition_v2_baseline.py",
         "test/test_v18_companion_baseline.py",
         ".github/workflows/v18-companion-baseline.yml",
@@ -186,7 +186,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/verify/v18_companion_baseline.py",
+        "source_observed": "src/sofia/platform/verify/v18_companion_baseline.py",
         "source_anchor": "def capture_v18_baseline",
         "related_test": "test/test_v18_companion_baseline.py",
         "observed_behavior": "Four-turn isolated control-path timing baseline exists",
@@ -257,7 +257,7 @@
         "test/test_interaction_goal_journal.py",
         "test/test_ui_control_center.py",
         "test/test_ui_desktop_storage_authority.py",
-        "src/sofia/application/event_contracts.py",
+        "src/sofia/platform/application/event_contracts.py",
         "docs/development/companion-autonomy-contract.md",
         "test/test_v18_phase00_contracts.py"
       ],
@@ -368,11 +368,11 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
         "docs/development/cognition-v2-architecture.md",
         "src/sofia/cognition/v2/kernel.py",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "test/test_cognition_v2_turn_kernel.py",
         "test/test_cognition_v2_cutover.py"
       ],
@@ -473,16 +473,16 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/application/decision_trace.py",
+        "src/sofia/platform/application/decision_trace.py",
         "src/sofia/cognition/matrix/model.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/model.py",
-        "src/sofia/run/work.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/run/work.py",
+        "src/sofia/platform/application/act_service.py",
         "src/sofia/social/model.py",
-        "src/sofia/application/event_contracts.py",
-        "src/sofia/application/decision_persistence.py",
+        "src/sofia/platform/application/event_contracts.py",
+        "src/sofia/platform/application/decision_persistence.py",
         "test/test_v18_phase00_contracts.py"
       ],
       "evidence_commits": [
@@ -580,10 +580,10 @@
       "master_line": 69,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/decision_trace.py",
-        "src/sofia/application/decision_persistence.py",
-        "src/sofia/application/event_contracts.py",
-        "src/sofia/application/bootstrap.py",
+        "src/sofia/platform/application/decision_trace.py",
+        "src/sofia/platform/application/decision_persistence.py",
+        "src/sofia/platform/application/event_contracts.py",
+        "src/sofia/platform/application/bootstrap.py",
         "test/test_v18_phase00_contracts.py",
         "test/test_v18_decision_persistence.py",
         "test/test_v18_settled_response_trace.py"
@@ -612,7 +612,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/application/decision_trace.py",
+        "source_observed": "src/sofia/platform/application/decision_trace.py",
         "source_anchor": "class CompanionDecisionTrace",
         "related_test": "test/test_v18_decision_persistence.py",
         "observed_behavior": "Revisioned read-only trace and same-turn NEURO association exist",
@@ -682,9 +682,9 @@
       "master_line": 70,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/v18_roadmap.py",
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/verify/v18_companion_baseline.py",
+        "src/sofia/platform/verify/v18_roadmap.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/verify/v18_companion_baseline.py",
         "test/test_cognition_v2_baseline.py",
         "test/test_v18_companion_baseline.py",
         ".github/workflows/v18-companion-baseline.yml",
@@ -726,7 +726,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/verify/v18_companion_baseline.py",
+        "source_observed": "src/sofia/platform/verify/v18_companion_baseline.py",
         "source_anchor": "def summarize_control_baseline",
         "related_test": "test/test_v18_companion_baseline.py",
         "observed_behavior": "Revision-pinned Windows/Linux deterministic baseline implemented",
@@ -787,10 +787,10 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/safe/permissions.py",
-        "src/sofia/safe/execution_approval.py",
-        "src/sofia/safe/operator_stop.py",
-        "src/sofia/safe/owner_browser.py",
+        "src/sofia/platform/safe/permissions.py",
+        "src/sofia/platform/safe/execution_approval.py",
+        "src/sofia/platform/safe/operator_stop.py",
+        "src/sofia/platform/safe/owner_browser.py",
         "src/sofia/ui/settings_window.py",
         "src/sofia/ui/tray_agent.py"
       ],
@@ -883,7 +883,7 @@
         "src/sofia/life/model.py",
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/goals/coordinator.py"
       ],
       "evidence_commits": [
@@ -975,8 +975,8 @@
         "src/sofia/cognition/context_evidence.py",
         "docs/development/companion-autonomy-contract.md",
         "src/sofia/cognition/matrix/context_plan.py",
-        "src/sofia/application/conversation_matrix.py",
-        "src/sofia/application/optional_budget.py"
+        "src/sofia/platform/application/conversation_matrix.py",
+        "src/sofia/platform/application/optional_budget.py"
       ],
       "evidence_commits": [
         "1925361e1362520c11980987167a410a6635deb0",
@@ -1063,7 +1063,7 @@
       "master_line": 77,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
+        "src/sofia/platform/application/conversation_learning.py",
         "test/test_memory_reviewed_corrections.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -1085,7 +1085,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/application/conversation_learning.py",
+        "source_observed": "src/sofia/platform/application/conversation_learning.py",
         "source_anchor": "class ConversationLearningCoordinator",
         "related_test": "test/test_memory_reviewed_corrections.py",
         "observed_behavior": "Persisted user text creates proposed memory only",
@@ -1161,7 +1161,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/verify/cognition_v2_baseline.py",
+        "source_observed": "src/sofia/platform/verify/cognition_v2_baseline.py",
         "source_anchor": "def capture_baseline",
         "related_test": "test/test_cognition_v2_baseline.py",
         "observed_behavior": "Isolated baseline only; not a named external benchmark",
@@ -1237,7 +1237,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/verify/package_selection.py",
+        "source_observed": "src/sofia/platform/verify/package_selection.py",
         "source_anchor": "class PackageSelectionProbe",
         "related_test": "test/test_cognition_matrix.py",
         "observed_behavior": "Package marker coverage checks exist",
@@ -1462,10 +1462,10 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/verify/architecture_inventory.py",
+        "src/sofia/platform/verify/architecture_inventory.py",
         "docs/development/phase00-static-ownership-harness.md",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "evidence_commits": [
         "2886bb71e71cd7f5b3035b063d6c58796808c617"
@@ -1491,7 +1491,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/verify/architecture_inventory.py",
+        "source_observed": "src/sofia/platform/verify/architecture_inventory.py",
         "source_anchor": "OWNERS:",
         "related_test": "test/test_v18_decision_persistence.py",
         "observed_behavior": "Owner inventory and three source-to-sink diagrams available",
@@ -1552,22 +1552,22 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py",
         "test/test_tools_completion_acceptance.py",
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/distributed/agent_tools.py",
-        "src/sofia/distributed/authorization.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/distributed/agent_tools.py",
+        "src/sofia/platform/distributed/authorization.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py",
-        "src/sofia/distributed/capability.py"
+        "src/sofia/platform/distributed/capability.py"
       ],
       "evidence_commits": [
         "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
@@ -1630,7 +1630,7 @@
             "8095eba0e302f5d97a3483f1067eda48088ba9ed"
           ],
           "source_paths": [
-            "src/sofia/run/systemd_runtime.py",
+            "src/sofia/platform/run/systemd_runtime.py",
             "test/test_run_systemd_runtime.py"
           ],
           "production_route": "Debian 13 systemd ExecStartPre verifies explicit /etc/os-release metadata; real SofiaApplication.start -> check for concurrent SIGTERM -> systemd READY only if still starting normally -> STOPPING and canonical application shutdown.",
@@ -1712,12 +1712,12 @@
       "master_line": 87,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/state/replication.py",
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/state/replication.py",
+        "src/sofia/platform/ops/backup.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py",
         "test/test_tools_completion_acceptance.py"
@@ -1755,7 +1755,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/state/replication.py",
+        "source_observed": "src/sofia/platform/state/replication.py",
         "source_anchor": "class SQLiteReplicationWitness",
         "related_test": "test/test_ops_recovery_objectives.py",
         "observed_behavior": "Partial fenced StatePlane replication available",
@@ -1820,7 +1820,7 @@
         "src/sofia/life/model.py",
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/goals/coordinator.py"
       ],
       "evidence_commits": [
@@ -1909,10 +1909,10 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/companion-autonomy-contract.md",
-        "src/sofia/safe/permissions.py",
-        "src/sofia/safe/execution_approval.py",
-        "src/sofia/safe/operator_stop.py",
-        "src/sofia/safe/owner_browser.py",
+        "src/sofia/platform/safe/permissions.py",
+        "src/sofia/platform/safe/execution_approval.py",
+        "src/sofia/platform/safe/operator_stop.py",
+        "src/sofia/platform/safe/owner_browser.py",
         "src/sofia/ui/settings_window.py",
         "src/sofia/ui/tray_agent.py"
       ],
@@ -1940,7 +1940,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/safe/permissions.py",
+        "source_observed": "src/sofia/platform/safe/permissions.py",
         "source_anchor": "class PermissionLevel",
         "related_test": "test/test_safe_permissions.py",
         "observed_behavior": "SAFE five-level policy and permission checks implemented",
@@ -2001,15 +2001,15 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py",
         "test/test_tools_completion_acceptance.py",
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/distributed/agent_tools.py",
-        "src/sofia/distributed/authorization.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/distributed/agent_tools.py",
+        "src/sofia/platform/distributed/authorization.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py"
       ],
@@ -2053,7 +2053,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/ops/workshop_provision.py",
+        "source_observed": "src/sofia/platform/ops/workshop_provision.py",
         "source_anchor": "class WorkshopProvisionPlan",
         "related_test": "test/test_ops_workshop_internal_network.py",
         "observed_behavior": "Immutable workshop plan with internal networking boundary",
@@ -2113,7 +2113,7 @@
       "master_line": 91,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_provision.py",
+        "src/sofia/platform/ops/workshop_provision.py",
         "test/test_ops_workshop_hyperv_production.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -2135,7 +2135,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/ops/workshop_provision.py",
+        "source_observed": "src/sofia/platform/ops/workshop_provision.py",
         "source_anchor": "fingerprint_sha256",
         "related_test": "test/test_ops_workshop_hyperv_production.py",
         "observed_behavior": "Immutable plan digest and separate Hyper-V executor present",
@@ -2195,7 +2195,7 @@
       "master_line": 92,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/distributed/identity_durable.py",
+        "src/sofia/platform/distributed/identity_durable.py",
         "test/test_distributed_identity_durable.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -2217,7 +2217,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/distributed/identity_durable.py",
+        "source_observed": "src/sofia/platform/distributed/identity_durable.py",
         "source_anchor": "class DurableNodeIdentityRegistry",
         "related_test": "test/test_distributed_identity_durable.py",
         "observed_behavior": "Durable public fingerprint enrollment and retirement exist",
@@ -2277,7 +2277,7 @@
       "master_line": 93,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/presence.py",
+        "src/sofia/platform/application/presence.py",
         "src/sofia/cognition/context_evidence.py"
       ],
       "evidence_commits": [
@@ -2363,15 +2363,15 @@
       "master_line": 94,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/hyperv.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/distributed/agent_tools.py",
-        "src/sofia/distributed/authorization.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/distributed/agent_tools.py",
+        "src/sofia/platform/distributed/authorization.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py",
         "test/test_ops_workshop_vm_separation.py"
@@ -2417,7 +2417,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/run/systemd_runtime.py",
+        "source_observed": "src/sofia/platform/run/systemd_runtime.py",
         "source_anchor": "systemd",
         "related_test": "test/test_run_systemd_runtime.py",
         "observed_behavior": "Debian service runtime configuration implemented",
@@ -2478,7 +2478,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/composition/engines.py",
+        "src/sofia/platform/composition/engines.py",
         "test/test_production_dual_cognition.py"
       ],
       "evidence_commits": [
@@ -2648,7 +2648,7 @@
       "master_line": 100,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/v18_roadmap.py",
+        "src/sofia/platform/verify/v18_roadmap.py",
         "test/test_v18_companion_baseline.py",
         "docs/development/v18-phase00-batch30-report.md"
       ],
@@ -2670,7 +2670,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/verify/v18_roadmap.py",
+        "source_observed": "src/sofia/platform/verify/v18_roadmap.py",
         "source_anchor": "def validate_repository",
         "related_test": "test/test_v18_companion_baseline.py",
         "observed_behavior": "Original ledger integrity gate present",
@@ -2730,7 +2730,7 @@
       "master_line": 101,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/v18_roadmap.py",
+        "src/sofia/platform/verify/v18_roadmap.py",
         "docs/development/v18-task-evidence.json"
       ],
       "evidence_commits": [
@@ -2758,7 +2758,7 @@
         "reviewed_utc": "2026-10-13",
         "evidence_manifest": "docs/development/v18-phase00-batch30-audit.json",
         "audit_report": "docs/development/v18-phase00-batch30-report.md",
-        "source_observed": "src/sofia/verify/v18_roadmap.py",
+        "source_observed": "src/sofia/platform/verify/v18_roadmap.py",
         "source_anchor": "SOURCE_STATES",
         "related_test": "test/test_v18_companion_baseline.py",
         "observed_behavior": "Canonical 700-item source-status ledger exists",
@@ -3811,7 +3811,7 @@
       "master_line": 125,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
       ],
@@ -3940,7 +3940,7 @@
       "master_line": 127,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
       ],
@@ -4585,7 +4585,7 @@
       "master_line": 144,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
       ],
@@ -4774,10 +4774,10 @@
       "master_line": 147,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/distributed/capability.py",
+        "src/sofia/platform/distributed/capability.py",
         "test/test_ops_sofia_guest_readiness.py"
       ],
       "evidence_commits": [
@@ -5736,7 +5736,7 @@
       "master_line": 180,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/gate.py",
+        "src/sofia/platform/verify/gate.py",
         "test/test_verify_gate_contract.py"
       ],
       "evidence_commits": [
@@ -5810,8 +5810,8 @@
       "code_paths": [
         "src/sofia/life/validation.py",
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
@@ -5819,8 +5819,8 @@
       "accepted": false,
       "production_wiring": {
         "entrypoint": "SofiaApplication production LIFE worker",
-        "composition_path": "src/sofia/application/bootstrap.py",
-        "caller_path": "src/sofia/application/background_runtime.py",
+        "composition_path": "src/sofia/platform/application/bootstrap.py",
+        "caller_path": "src/sofia/platform/application/background_runtime.py",
         "implementation_path": "src/sofia/life/coordinator.py",
         "effect_path": "src/sofia/life/validation.py",
         "remaining": "tests_only",
@@ -5884,7 +5884,7 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/draft_agent.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "evidence_commits": [
         "6308b97eb6755f479472e04b9dc87d8f554bf631",
@@ -5935,9 +5935,9 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "test/test_life_atomic_admission.py",
-        "src/sofia/application/bootstrap.py"
+        "src/sofia/platform/application/bootstrap.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
@@ -5946,9 +5946,9 @@
       "accepted": false,
       "production_wiring": {
         "entrypoint": "SelfDirectedLifeCoordinator.schedule_artifact via autonomous LIFE tick",
-        "composition_path": "src/sofia/application/bootstrap.py",
+        "composition_path": "src/sofia/platform/application/bootstrap.py",
         "caller_path": "src/sofia/life/coordinator.py",
-        "implementation_path": "src/sofia/run/work.py",
+        "implementation_path": "src/sofia/platform/run/work.py",
         "effect_path": "src/sofia/life/store.py",
         "remaining": "tests_only",
         "explanation": "RUN durable submit uses an after_enqueue hook to atomically provision the project job and authorization in canonical SQLite; restart/write-boundary tests are deferred.",
@@ -6011,7 +6011,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/store.py",
         "test/test_life_run_outcome_reconciliation.py",
         "test/test_run_unstarted_expiration.py"
@@ -6334,7 +6334,7 @@
       "master_line": 206,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/gate.py",
+        "src/sofia/platform/verify/gate.py",
         ".github/workflows/release-candidate.yml"
       ],
       "evidence_commits": [
@@ -6379,7 +6379,7 @@
       "code_paths": [
         "test/conftest.py",
         ".github/workflows/package-tests.yml",
-        "src/sofia/verify/package_selection.py",
+        "src/sofia/platform/verify/package_selection.py",
         "test/test_package_selection_receipts.py"
       ],
       "evidence_commits": [
@@ -6529,7 +6529,7 @@
       "master_line": 214,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/v18_ci_receipts.py",
+        "src/sofia/platform/verify/v18_ci_receipts.py",
         "test/test_v18_ci_receipts.py"
       ],
       "evidence_commits": [
@@ -6562,7 +6562,7 @@
         "src/sofia/creative/paths.py",
         "src/sofia/creative/service.py",
         "test/test_creative_infrastructure.py",
-        "src/sofia/application/bootstrap.py"
+        "src/sofia/platform/application/bootstrap.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
@@ -6570,7 +6570,7 @@
       "accepted": false,
       "production_wiring": {
         "entrypoint": "CreativeService.create in production application and Project Forge capability",
-        "composition_path": "src/sofia/application/bootstrap.py",
+        "composition_path": "src/sofia/platform/application/bootstrap.py",
         "caller_path": "src/sofia/creative/service.py",
         "implementation_path": "src/sofia/creative/paths.py",
         "effect_path": "src/sofia/creative/service.py",
@@ -6653,10 +6653,10 @@
       "status": "code_present_unverified",
       "code_paths": [
         ".github/workflows/release-candidate.yml",
-        "src/sofia/verify/source_provenance.py",
+        "src/sofia/platform/verify/source_provenance.py",
         "pyproject.toml",
-        "src/sofia/verify/gate.py",
-        "src/sofia/verify/v18_roadmap.py"
+        "src/sofia/platform/verify/gate.py",
+        "src/sofia/platform/verify/v18_roadmap.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
@@ -6667,8 +6667,8 @@
         "entrypoint": "Release Candidate Build workflow on main",
         "composition_path": ".github/workflows/release-candidate.yml",
         "caller_path": ".github/workflows/release-candidate.yml",
-        "implementation_path": "src/sofia/verify/source_provenance.py",
-        "effect_path": "src/sofia/verify/gate.py",
+        "implementation_path": "src/sofia/platform/verify/source_provenance.py",
+        "effect_path": "src/sofia/platform/verify/gate.py",
         "remaining": "tests_only",
         "explanation": "Release workflow archives tracked source outside the checkout and runs isolated installed-package provenance and revision-bound verification; actual CI acceptance remains.",
         "source_review_sha": "157a58fd766e31de529f4e1871c2300dc74040e1"
@@ -6691,9 +6691,9 @@
       "status": "partial_wiring",
       "code_paths": [
         ".github/workflows/release-candidate.yml",
-        "src/sofia/verify/source_provenance.py",
-        "src/sofia/verify/gate.py",
-        "src/sofia/verify/package_selection.py",
+        "src/sofia/platform/verify/source_provenance.py",
+        "src/sofia/platform/verify/gate.py",
+        "src/sofia/platform/verify/package_selection.py",
         "test/conftest.py",
         "test/test_verify_installed_wheel_release.py",
         "requirements.build.lock.windows-py312.txt"
@@ -6764,13 +6764,13 @@
       "master_line": 222,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/cognition_v2_baseline.py",
-        "src/sofia/state/sqlite_access.py",
+        "src/sofia/platform/verify/cognition_v2_baseline.py",
+        "src/sofia/platform/state/sqlite_access.py",
         "src/sofia/mobile/sensors.py",
         "test/test_mobile_sensors.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/autonomous_work.py",
+        "src/sofia/platform/application/autonomous_work.py",
         "test/test_run_shutdown_sqlite_drain.py"
       ],
       "evidence_commits": [
@@ -6915,7 +6915,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "Setup-SofiaFleetArtemis.ps1",
-        "src/sofia/ops/discovery_canary.py",
+        "src/sofia/platform/ops/discovery_canary.py",
         "requirements.build.lock.windows-py312.txt"
       ],
       "evidence_commits": [
@@ -6949,7 +6949,7 @@
       "code_paths": [
         "Setup-SofiaFleetArtemis.ps1",
         "test/test_ops_windows_bootstrap.py",
-        "src/sofia/ops/windows_bootstrap.py"
+        "src/sofia/platform/ops/windows_bootstrap.py"
       ],
       "evidence_commits": [
         "e93941846441119fbd9d66bcdada96cd1921dce8",
@@ -7013,8 +7013,8 @@
       "master_line": 228,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/windows_bootstrap.py",
-        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "src/sofia/platform/ops/windows_bootstrap.py",
+        "src/sofia/platform/ops/windows_rekey_bootstrap.py",
         "test/test_ops_windows_bootstrap.py",
         "Setup-SofiaFleetArtemis.ps1"
       ],
@@ -7049,8 +7049,8 @@
       "master_line": 229,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/windows_bootstrap.py",
-        "src/sofia/ops/windows_rekey_bootstrap.py",
+        "src/sofia/platform/ops/windows_bootstrap.py",
+        "src/sofia/platform/ops/windows_rekey_bootstrap.py",
         "test/test_ops_windows_bootstrap.py",
         "Setup-SofiaFleetArtemis.ps1",
         "requirements.build.lock.windows-py312.txt",
@@ -7124,7 +7124,7 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
         "test/test_life_postrun_verification.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/background_runtime.py",
         "test/test_life_verified_milestone_production.py"
       ],
       "evidence_commits": [
@@ -7162,18 +7162,18 @@
       "master_line": 232,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/hyperv.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/distributed/agent_tools.py",
-        "src/sofia/distributed/authorization.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/distributed/agent_tools.py",
+        "src/sofia/platform/distributed/authorization.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py",
         "test/test_ops_workshop_vm_separation.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/distributed/capability.py",
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/distributed/capability.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py"
       ],
       "evidence_commits": [
@@ -7425,20 +7425,20 @@
         "src/sofia/life/coordinator.py",
         "test/test_life_project_forge.py",
         "src/sofia/ui/settings_window.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/application/act_service.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/act/system_notice.py",
-        "src/sofia/act/delivery.py",
+        "src/sofia/platform/act/system_notice.py",
+        "src/sofia/platform/act/delivery.py",
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
-        "src/sofia/safe/operator_stop.py",
-        "src/sofia/safe/audit.py",
+        "src/sofia/platform/safe/operator_stop.py",
+        "src/sofia/platform/safe/audit.py",
         "test/test_safe_operator_stop_state_loss.py",
-        "src/sofia/safe/operator_stop_cli.py",
+        "src/sofia/platform/safe/operator_stop_cli.py",
         "test/test_permission_runtime_wiring.py",
         "test/owner_auth_fixture.py",
         "test/test_safe_operator_stop_revision.py",
-        "src/sofia/safe/execution_approval.py",
+        "src/sofia/platform/safe/execution_approval.py",
         "docs/development/hybrid-owner-authentication-2026-10-11.md"
       ],
       "evidence_commits": [
@@ -7498,8 +7498,8 @@
             "1cd417e2585c05f7c4da82a94d3b6d77aea2aaa2"
           ],
           "source_paths": [
-            "src/sofia/safe/operator_stop.py",
-            "src/sofia/safe/operator_stop_cli.py",
+            "src/sofia/platform/safe/operator_stop.py",
+            "src/sofia/platform/safe/operator_stop_cli.py",
             "src/sofia/ui/settings_window.py",
             "test/test_safe_operator_stop_state_loss.py",
             "test/test_life_project_forge.py",
@@ -7518,8 +7518,8 @@
             "1a68bb95f964b4b7e29d7210491741a8b74b7dd3"
           ],
           "source_paths": [
-            "src/sofia/safe/operator_stop.py",
-            "src/sofia/safe/operator_stop_cli.py",
+            "src/sofia/platform/safe/operator_stop.py",
+            "src/sofia/platform/safe/operator_stop_cli.py",
             "src/sofia/ui/settings_window.py",
             "test/owner_auth_fixture.py",
             "test/test_safe_operator_stop_revision.py"
@@ -7538,8 +7538,8 @@
             "4ef4b8d69191fa090f9ce54511459e4843e52841"
           ],
           "source_paths": [
-            "src/sofia/safe/execution_approval.py",
-            "src/sofia/safe/operator_stop.py",
+            "src/sofia/platform/safe/execution_approval.py",
+            "src/sofia/platform/safe/operator_stop.py",
             "test/test_safe_operator_stop_revision.py",
             "docs/development/hybrid-owner-authentication-2026-10-11.md"
           ],
@@ -7588,7 +7588,7 @@
         "src/sofia/neuro/runtime.py",
         "src/sofia/neuro/connectome/competition.py",
         "src/sofia/neuro/connectome/association_store.py",
-        "src/sofia/config/user_settings.py",
+        "src/sofia/platform/config/user_settings.py",
         "test/test_neuro_connectome_diagnostics.py"
       ],
       "evidence_commits": [
@@ -7620,13 +7620,13 @@
       "master_line": 266,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/act/system_notice.py",
-        "src/sofia/act/delivery.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/act/system_notice.py",
+        "src/sofia/platform/act/delivery.py",
+        "src/sofia/platform/application/act_service.py",
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/act/outreach.py"
+        "src/sofia/platform/act/outreach.py"
       ],
       "evidence_commits": [
         "2ec9ca1d87eb4ea70b45eb8d9f0a723564e87d30",
@@ -7693,18 +7693,18 @@
         "test/test_ui_desktop_storage_authority.py",
         "test/test_ui_settings_persistence.py",
         "test/test_ui_autonomy_snapshot.py",
-        "src/sofia/ops/sofia_guest_readiness.py",
+        "src/sofia/platform/ops/sofia_guest_readiness.py",
         "src/sofia/integrations/hyperv.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/distributed/agent_tools.py",
-        "src/sofia/distributed/authorization.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/distributed/agent_tools.py",
+        "src/sofia/platform/distributed/authorization.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py",
         "test/test_ops_workshop_vm_separation.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/distributed/capability.py",
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/distributed/capability.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py"
       ],
       "evidence_commits": [
@@ -7861,26 +7861,26 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/safe/permissions.py",
         "src/sofia/mobile/server.py",
-        "src/sofia/safe/execution_approval.py",
+        "src/sofia/platform/safe/execution_approval.py",
         "test/test_safe_execution_action_fingerprint.py",
-        "src/sofia/composition/authorization.py",
+        "src/sofia/platform/composition/authorization.py",
         "test/test_permission_runtime_wiring.py",
         "test/test_safe_permissions.py",
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/capability/system.py",
+        "src/sofia/platform/capability/system.py",
         "test/test_capability_system.py",
-        "src/sofia/act/system_notice.py",
-        "src/sofia/act/delivery.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/act/system_notice.py",
+        "src/sofia/platform/act/delivery.py",
+        "src/sofia/platform/application/act_service.py",
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/act/outreach.py",
-        "src/sofia/safe/owner_webauthn.py",
-        "src/sofia/safe/owner_browser.py",
-        "src/sofia/safe/approve_execution.py",
+        "src/sofia/platform/act/outreach.py",
+        "src/sofia/platform/safe/owner_webauthn.py",
+        "src/sofia/platform/safe/owner_browser.py",
+        "src/sofia/platform/safe/approve_execution.py",
         "test/test_safe_owner_webauthn.py",
         "test/test_safe_owner_browser.py",
         "test/owner_auth_fixture.py",
@@ -7888,18 +7888,18 @@
         "test/test_owner_model_install_production.py",
         "test/test_ops_workshop_guest_bootstrap_production.py",
         "docs/development/hybrid-owner-authentication-2026-10-11.md",
-        "src/sofia/safe/owner_registration.py",
-        "src/sofia/safe/owner_enroll_browser.py",
-        "src/sofia/safe/owner_enroll_cli.py",
+        "src/sofia/platform/safe/owner_registration.py",
+        "src/sofia/platform/safe/owner_enroll_browser.py",
+        "src/sofia/platform/safe/owner_enroll_cli.py",
         "test/test_safe_owner_registration.py",
-        "src/sofia/safe/owner_approval_ui.py",
+        "src/sofia/platform/safe/owner_approval_ui.py",
         "src/sofia/ui/settings_window.py",
         "test/test_ui_owner_fido2_wiring.py",
-        "src/sofia/safe/operator_stop.py",
-        "src/sofia/safe/operator_stop_cli.py",
+        "src/sofia/platform/safe/operator_stop.py",
+        "src/sofia/platform/safe/operator_stop_cli.py",
         "test/test_safe_operator_stop_state_loss.py",
         "test/test_life_project_forge.py",
-        "src/sofia/safe/permissions_cli.py",
+        "src/sofia/platform/safe/permissions_cli.py",
         "test/test_goal_production_wiring.py",
         "test/test_mobile_gateway.py",
         "test/test_avatar_private_grant.py",
@@ -8092,9 +8092,9 @@
             "09acbad83cf449bfc504081a49239425c0a67059"
           ],
           "source_paths": [
-            "src/sofia/safe/owner_webauthn.py",
-            "src/sofia/safe/owner_browser.py",
-            "src/sofia/safe/approve_execution.py",
+            "src/sofia/platform/safe/owner_webauthn.py",
+            "src/sofia/platform/safe/owner_browser.py",
+            "src/sofia/platform/safe/approve_execution.py",
             "test/test_safe_owner_webauthn.py",
             "test/test_safe_owner_browser.py",
             "test/owner_auth_fixture.py",
@@ -8138,17 +8138,17 @@
             "5f5f17d985c7bec4ed8e22db4f915e850db6c660"
           ],
           "source_paths": [
-            "src/sofia/safe/owner_registration.py",
-            "src/sofia/safe/owner_enroll_browser.py",
-            "src/sofia/safe/owner_enroll_cli.py",
+            "src/sofia/platform/safe/owner_registration.py",
+            "src/sofia/platform/safe/owner_enroll_browser.py",
+            "src/sofia/platform/safe/owner_enroll_cli.py",
             "test/test_safe_owner_registration.py",
-            "src/sofia/safe/owner_browser.py",
+            "src/sofia/platform/safe/owner_browser.py",
             "test/test_safe_owner_browser.py",
-            "src/sofia/safe/owner_approval_ui.py",
+            "src/sofia/platform/safe/owner_approval_ui.py",
             "src/sofia/ui/settings_window.py",
             "test/test_ui_owner_fido2_wiring.py",
-            "src/sofia/safe/operator_stop.py",
-            "src/sofia/safe/operator_stop_cli.py",
+            "src/sofia/platform/safe/operator_stop.py",
+            "src/sofia/platform/safe/operator_stop_cli.py",
             "test/owner_auth_fixture.py",
             "test/test_safe_operator_stop_state_loss.py",
             "test/test_life_project_forge.py",
@@ -8169,9 +8169,9 @@
             "09089c21ab4f7e181fe0258b4cc0f2f41e0e7210"
           ],
           "source_paths": [
-            "src/sofia/safe/execution_approval.py",
+            "src/sofia/platform/safe/execution_approval.py",
             "test/test_safe_owner_webauthn.py",
-            "src/sofia/safe/owner_webauthn.py"
+            "src/sofia/platform/safe/owner_webauthn.py"
           ],
           "production_route": "Canonical SAFE approval reader always installs empty WebAuthn schema without registering any key. Auth-bound approved effects require nonrevoked credential at recording, projection, preflight and consume; revocation invalidates outstanding one-use grants signed by the revoked key.",
           "fulfilled_slice": "No missing-table failure on a never-enrolled canonical runtime, and unused protected approvals become invalid immediately when the signing credential is revoked.",
@@ -8209,10 +8209,10 @@
             "13a96eba74c750fde0d45a48ec95a9de3dafd223"
           ],
           "source_paths": [
-            "src/sofia/safe/owner_enroll_browser.py",
+            "src/sofia/platform/safe/owner_enroll_browser.py",
             "test/test_safe_owner_registration.py",
-            "src/sofia/safe/permissions.py",
-            "src/sofia/safe/permissions_cli.py",
+            "src/sofia/platform/safe/permissions.py",
+            "src/sofia/platform/safe/permissions_cli.py",
             "src/sofia/ui/settings_window.py",
             "test/owner_auth_fixture.py",
             "test/test_safe_permissions.py",
@@ -8225,7 +8225,7 @@
             "test/test_mobile_main_history.py",
             "test/test_avatar_clothing_action.py",
             "test/test_safe_permission_owner_auth.py",
-            "src/sofia/safe/owner_approval_ui.py",
+            "src/sofia/platform/safe/owner_approval_ui.py",
             "src/sofia/ui/tray_agent.py",
             "test/test_ui_tray_model_roles.py",
             "test/test_ui_tray_lifecycle.py"
@@ -8241,7 +8241,7 @@
             "dd2236b22526bb5354952fa3f939df5c2d207bff"
           ],
           "source_paths": [
-            "src/sofia/safe/permissions.py",
+            "src/sofia/platform/safe/permissions.py",
             "test/test_safe_permission_owner_auth.py"
           ],
           "fulfilled_slice": "Standing-grant and Level-5 permission readers recompute the original signed approval fingerprint from current canonical scope and flags. Post-approval modifications cannot inherit an otherwise valid credential binding.",
@@ -8256,8 +8256,8 @@
           ],
           "source_paths": [
             "src/sofia/ui/settings_sections.py",
-            "src/sofia/ops/workshop_network_stage.py",
-            "src/sofia/ops/workshop_guest_bootstrap.py",
+            "src/sofia/platform/ops/workshop_network_stage.py",
+            "src/sofia/platform/ops/workshop_guest_bootstrap.py",
             "test/test_ui_workshop_owner_webauthn.py"
           ],
           "production_route": "Human reviewed Hephaestus host network or Debian installer target \u2192 local FIDO2 credential selection on UI thread \u2192 signed exact one-use WebAuthn approval in existing worker \u2192 pinned mTLS Fleet remote inspect/proof \u2192 host-specific handler repeats exact SAFE grant matching \u2192 guarded host effect with uncertain-outcome receipt and no automatic replay.",
@@ -8271,7 +8271,7 @@
             "2c54de66e6d6d7efa985eeb57c35eb6045b36921"
           ],
           "source_paths": [
-            "src/sofia/safe/permissions.py",
+            "src/sofia/platform/safe/permissions.py",
             "test/test_safe_permission_owner_auth.py"
           ],
           "fulfilled_slice": "Fixed mutually exclusive execution approval capability filters in signed standing-grant projection; new source regression asserts signed exact-scope standing grant is active and changed scope is denied.",
@@ -8291,10 +8291,10 @@
             "4ef4b8d69191fa090f9ce54511459e4843e52841"
           ],
           "source_paths": [
-            "src/sofia/safe/permissions.py",
+            "src/sofia/platform/safe/permissions.py",
             "test/test_safe_permission_owner_auth.py",
-            "src/sofia/safe/execution_approval.py",
-            "src/sofia/safe/operator_stop.py",
+            "src/sofia/platform/safe/execution_approval.py",
+            "src/sofia/platform/safe/operator_stop.py",
             "test/test_safe_operator_stop_revision.py",
             "docs/development/hybrid-owner-authentication-2026-10-11.md"
           ],
@@ -8375,7 +8375,7 @@
       "master_line": 277,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/agent_discovery.py",
+        "src/sofia/platform/ops/agent_discovery.py",
         "test/test_ops_agent_discovery.py",
         "docs/development/v18-ws1-untrusted-input-boundary-inventory-2026-10-11.md",
         "src/sofia/cognition/tools.py",
@@ -8420,7 +8420,7 @@
         {
           "source_review_sha": "65468a3af8ba2fb41b5dbb758ef97d4e59b9dea8",
           "source_paths": [
-            "src/sofia/ops/agent_discovery.py",
+            "src/sofia/platform/ops/agent_discovery.py",
             "test/test_ops_agent_discovery.py"
           ],
           "production_route": "Configured approved-scope discovery -> bounded CIDR address enumeration -> immutable probed IP endpoint -> certificate-authenticated mTLS identity and capability reads -> bounded JSON decode -> untrusted discovery evidence.",
@@ -8482,25 +8482,25 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/safe/operator_stop.py",
+        "src/sofia/platform/safe/operator_stop.py",
         "test/test_permission_runtime_wiring.py",
-        "src/sofia/dev/capability.py",
-        "src/sofia/capability/system.py",
+        "src/sofia/platform/dev/capability.py",
+        "src/sofia/platform/capability/system.py",
         "test/test_capability_system.py",
         "src/sofia/life/coordinator.py",
         "test/test_life_project_forge.py",
         "src/sofia/ui/settings_window.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/application/act_service.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/safe/permissions.py",
-        "src/sofia/act/system_notice.py",
-        "src/sofia/act/delivery.py",
+        "src/sofia/platform/safe/permissions.py",
+        "src/sofia/platform/act/system_notice.py",
+        "src/sofia/platform/act/delivery.py",
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
-        "src/sofia/safe/audit.py",
+        "src/sofia/platform/safe/audit.py",
         "test/test_safe_operator_stop_state_loss.py",
-        "src/sofia/act/outreach.py",
-        "src/sofia/application/background.py",
+        "src/sofia/platform/act/outreach.py",
+        "src/sofia/platform/application/background.py",
         "test/test_application_background.py",
         "test/test_safe_operator_stop_revision.py"
       ],
@@ -8560,7 +8560,7 @@
         {
           "source_review_sha": "65468a3af8ba2fb41b5dbb758ef97d4e59b9dea8",
           "source_paths": [
-            "src/sofia/application/background.py",
+            "src/sofia/platform/application/background.py",
             "test/test_application_background.py"
           ],
           "production_route": "SofiaApplication -> ApplicationBackgroundCoordinator.run_once -> canonical OperatorStopStore PAUSE read before reflection, ACT delivery, LIFE/Fleet or other optional task -> no background claim or callback while stopped.",
@@ -8734,15 +8734,15 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/application/act_service.py",
         "src/sofia/ui/settings_window.py",
         "test/test_life_project_forge.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/act/system_notice.py",
-        "src/sofia/act/delivery.py",
+        "src/sofia/platform/act/system_notice.py",
+        "src/sofia/platform/act/delivery.py",
         "test/test_act_system_notice.py",
         "test/test_act_delivery.py",
-        "src/sofia/act/outreach.py"
+        "src/sofia/platform/act/outreach.py"
       ],
       "evidence_commits": [
         "c65ea31e9dc4e81f85f85b1d89efa459e87c1413",
@@ -8786,11 +8786,11 @@
       "master_line": 289,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/gate.py",
+        "src/sofia/platform/verify/gate.py",
         "test/test_verify_gate_contract.py",
         ".github/workflows/matrix-tests.yml",
         ".github/workflows/v18-phase01-02-safe-release-gate.yml",
-        "src/sofia/verify/v18_ci_receipts.py",
+        "src/sofia/platform/verify/v18_ci_receipts.py",
         "test/test_v18_ci_receipts.py",
         ".github/workflows/v18-gate4.yml",
         "docs/development/v18-phase01-02-security-ci-evidence-2026-10-14.md"
@@ -8874,7 +8874,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
-        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/platform/ops/workshop_policy.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_vm_separation.py",
         "test/test_tools_completion_acceptance.py"
@@ -8988,18 +8988,18 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/integrations/capabilities.py",
-        "src/sofia/safe/operator_stop.py",
+        "src/sofia/platform/safe/operator_stop.py",
         "test/test_permission_runtime_wiring.py",
-        "src/sofia/dev/capability.py",
+        "src/sofia/platform/dev/capability.py",
         "src/sofia/life/coordinator.py",
         "test/test_life_project_forge.py",
         "src/sofia/ui/settings_window.py",
-        "src/sofia/application/act_service.py",
+        "src/sofia/platform/application/act_service.py",
         "test/test_act_runtime_wiring.py",
-        "src/sofia/safe/audit.py",
+        "src/sofia/platform/safe/audit.py",
         "test/test_safe_operator_stop_state_loss.py",
-        "src/sofia/distributed/capability.py",
-        "src/sofia/run/systemd_runtime.py",
+        "src/sofia/platform/distributed/capability.py",
+        "src/sofia/platform/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
         "test/test_ops_sofia_guest_readiness.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
@@ -9107,7 +9107,7 @@
       "master_line": 319,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/store.py"
       ],
       "evidence_commits": [
@@ -9133,7 +9133,7 @@
           "Phase 03 item 89: Encrypted backup creation uses durable absence-only directory publication"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/backup.py"
+          "src/sofia/platform/ops/backup.py"
         ]
       }
     },
@@ -9144,7 +9144,7 @@
       "master_line": 320,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/saga.py",
+        "src/sofia/platform/ops/saga.py",
         "test/test_v18_saga_contracts.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -9208,9 +9208,9 @@
       "master_line": 321,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/state_relocation.py",
-        "src/sofia/ops/state_promotion.py",
-        "src/sofia/config/state_home_pointer.py"
+        "src/sofia/platform/ops/state_relocation.py",
+        "src/sofia/platform/ops/state_promotion.py",
+        "src/sofia/platform/config/state_home_pointer.py"
       ],
       "evidence_commits": [
         "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
@@ -9236,8 +9236,8 @@
           "CA-3704 / CA-6809 / CA-6811 / CA-6813: exact offline authority lineage"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_relocation.py",
-          "src/sofia/ops/state_promotion.py"
+          "src/sofia/platform/ops/state_relocation.py",
+          "src/sofia/platform/ops/state_promotion.py"
         ]
       }
     },
@@ -9248,7 +9248,7 @@
       "master_line": 322,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/commitment.py",
+        "src/sofia/platform/ops/commitment.py",
         "test/test_v18_commitment_projection.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -9312,7 +9312,7 @@
       "master_line": 323,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/saga.py",
+        "src/sofia/platform/ops/saga.py",
         "test/test_v18_saga_contracts.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -9376,7 +9376,7 @@
       "master_line": 324,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/recovery.py",
+        "src/sofia/platform/ops/recovery.py",
         "test/test_venus_artemis_relocation_evidence.py",
         "test/test_state_relocation_atomic_publish.py"
       ],
@@ -9443,7 +9443,7 @@
       "master_line": 327,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/failure_triage.py",
+        "src/sofia/platform/ops/failure_triage.py",
         "test/test_v18_failure_triage.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -9507,8 +9507,8 @@
       "master_line": 331,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/config/layout.py",
-        "src/sofia/config/state_home_pointer.py"
+        "src/sofia/platform/config/layout.py",
+        "src/sofia/platform/config/state_home_pointer.py"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
@@ -9547,9 +9547,9 @@
       "master_line": 332,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/ops/backup.py",
         "src/sofia/memory/deletion_ledger.py",
-        "src/sofia/ops/state_relocation.py"
+        "src/sofia/platform/ops/state_relocation.py"
       ],
       "evidence_commits": [
         "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
@@ -9590,9 +9590,9 @@
           "Phase 03 item 93: Plaintext SQLite snapshot never enters encrypted backup destination"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_relocation.py",
-          "src/sofia/ops/state_promotion.py",
-          "src/sofia/ops/backup.py",
+          "src/sofia/platform/ops/state_relocation.py",
+          "src/sofia/platform/ops/state_promotion.py",
+          "src/sofia/platform/ops/backup.py",
           "src/sofia/memory/deletion_ledger.py"
         ]
       }
@@ -9627,8 +9627,8 @@
       "master_line": 334,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/recovery.py",
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/recovery.py",
         "test/test_memory_deletion_restore.py"
       ],
       "evidence_commits": [
@@ -9666,9 +9666,9 @@
           "Phase 03 item 89: Encrypted backup creation uses durable absence-only directory publication"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_relocation.py",
-          "src/sofia/ops/state_promotion.py",
-          "src/sofia/ops/backup.py",
+          "src/sofia/platform/ops/state_relocation.py",
+          "src/sofia/platform/ops/state_promotion.py",
+          "src/sofia/platform/ops/backup.py",
           "src/sofia/memory/deletion_ledger.py"
         ]
       }
@@ -9680,8 +9680,8 @@
       "master_line": 335,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/recovery_export.py",
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/ops/recovery_export.py",
+        "src/sofia/platform/ops/backup.py",
         "scripts/verify_sofia_portable_export.py",
         "test/test_ws2_portable_export_validator.py"
       ],
@@ -9709,7 +9709,7 @@
           "Phase 03 item 94: Verify encrypted backup has no unlisted plaintext or foreign files"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/backup.py"
+          "src/sofia/platform/ops/backup.py"
         ]
       }
     },
@@ -9745,14 +9745,14 @@
       "master_line": 337,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/state_mobility.py"
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/state_mobility.py"
       ],
       "evidence_commits": [],
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/ops/backup.py, src/sofia/ops/state_mobility.py; indexed under Phase 03: Destructive backup retention cannot follow redirected roots. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/ops/backup.py, src/sofia/platform/ops/state_mobility.py; indexed under Phase 03: Destructive backup retention cannot follow redirected roots. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -9773,8 +9773,8 @@
           "CA-5207 / CA-6107 / CA-5203: verified two-snapshot auto-retention"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/backup.py",
-          "src/sofia/ops/state_mobility.py"
+          "src/sofia/platform/ops/backup.py",
+          "src/sofia/platform/ops/state_mobility.py"
         ]
       }
     },
@@ -9810,10 +9810,10 @@
       "code_paths": [
         "src/sofia/mobile/sensors.py",
         "src/sofia/mobile/notifications.py",
-        "src/sofia/config/layout.py",
-        "src/sofia/state/canonical_sqlite.py",
-        "src/sofia/ops/state_relocation.py",
-        "src/sofia/config/state_home_pointer.py"
+        "src/sofia/platform/config/layout.py",
+        "src/sofia/platform/state/canonical_sqlite.py",
+        "src/sofia/platform/ops/state_relocation.py",
+        "src/sofia/platform/config/state_home_pointer.py"
       ],
       "evidence_commits": [
         "ed72d3a728b8820f00946fe68ea7c53e0b74e673",
@@ -9854,8 +9854,8 @@
           "Phase 03 source audit: Eleven original recovery tasks, nine newly partial"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_relocation.py",
-          "src/sofia/ops/state_promotion.py"
+          "src/sofia/platform/ops/state_relocation.py",
+          "src/sofia/platform/ops/state_promotion.py"
         ]
       }
     },
@@ -9904,7 +9904,7 @@
       "master_line": 345,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/recovery_export.py",
+        "src/sofia/platform/ops/recovery_export.py",
         "scripts/verify_sofia_portable_export.py",
         "test/test_ws2_portable_export_validator.py"
       ],
@@ -9936,8 +9936,8 @@
       "master_line": 346,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/state_relocation.py",
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/state_relocation.py",
         "src/sofia/memory/deletion_ledger.py"
       ],
       "evidence_commits": [
@@ -9974,10 +9974,10 @@
           "Original-source audit: CA-6806, CA-5202 and CA-6105"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_relocation.py",
-          "src/sofia/ops/backup.py",
+          "src/sofia/platform/ops/state_relocation.py",
+          "src/sofia/platform/ops/backup.py",
           "src/sofia/memory/deletion_ledger.py",
-          "src/sofia/ops/state_promotion.py"
+          "src/sofia/platform/ops/state_promotion.py"
         ]
       }
     },
@@ -9988,13 +9988,13 @@
       "master_line": 347,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py"
+        "src/sofia/platform/ops/backup.py"
       ],
       "evidence_commits": [],
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/ops/backup.py; indexed under Phase 03 item 93: Plaintext SQLite snapshot never enters encrypted backup destination. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/ops/backup.py; indexed under Phase 03 item 93: Plaintext SQLite snapshot never enters encrypted backup destination. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -10010,7 +10010,7 @@
           "Phase 03 item 93: Plaintext SQLite snapshot never enters encrypted backup destination"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/backup.py"
+          "src/sofia/platform/ops/backup.py"
         ]
       }
     },
@@ -10021,13 +10021,13 @@
       "master_line": 348,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py"
+        "src/sofia/platform/ops/backup.py"
       ],
       "evidence_commits": [],
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/ops/backup.py; indexed under Phase 03 item 89: Encrypted backup creation uses durable absence-only directory publication. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/ops/backup.py; indexed under Phase 03 item 89: Encrypted backup creation uses durable absence-only directory publication. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -10046,7 +10046,7 @@
           "CA-5207 / CA-6107 / CA-5203: verified two-snapshot auto-retention"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/backup.py"
+          "src/sofia/platform/ops/backup.py"
         ]
       }
     },
@@ -10057,7 +10057,7 @@
       "master_line": 349,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py",
+        "src/sofia/platform/ops/backup.py",
         "src/sofia/memory/deletion_ledger.py"
       ],
       "evidence_commits": [
@@ -10083,7 +10083,7 @@
         ],
         "direct_cited_code_paths": [
           "src/sofia/memory/deletion_ledger.py",
-          "src/sofia/ops/backup.py"
+          "src/sofia/platform/ops/backup.py"
         ]
       }
     },
@@ -10094,7 +10094,7 @@
       "master_line": 350,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/capacity.py",
+        "src/sofia/platform/ops/capacity.py",
         "test/test_v18_capacity_budgets.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -10177,8 +10177,8 @@
       "master_line": 355,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/config/state_home_pointer.py",
-        "src/sofia/ops/state_mobility.py"
+        "src/sofia/platform/config/state_home_pointer.py",
+        "src/sofia/platform/ops/state_mobility.py"
       ],
       "evidence_commits": [
         "1925361e1362520c11980987167a410a6635deb0"
@@ -10207,7 +10207,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/ui/settings_sections.py",
-        "src/sofia/ops/state_mobility.py",
+        "src/sofia/platform/ops/state_mobility.py",
         "test/test_ws2_state_home_destination_builder.py"
       ],
       "evidence_commits": [
@@ -10229,7 +10229,7 @@
           "Phase 03 item 92: Settings canonical database diagnostics use read-only SQLite"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_mobility.py",
+          "src/sofia/platform/ops/state_mobility.py",
           "src/sofia/ui/settings_service.py"
         ]
       }
@@ -10241,8 +10241,8 @@
       "master_line": 357,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/state_mobility.py",
-        "src/sofia/ops/state_relocation.py"
+        "src/sofia/platform/ops/state_mobility.py",
+        "src/sofia/platform/ops/state_relocation.py"
       ],
       "evidence_commits": [
         "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
@@ -10265,7 +10265,7 @@
           "Scope and remaining dependency"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_mobility.py"
+          "src/sofia/platform/ops/state_mobility.py"
         ]
       }
     },
@@ -10276,12 +10276,12 @@
       "master_line": 358,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/config/layout.py",
-        "src/sofia/ops/state_mobility.py",
+        "src/sofia/platform/config/layout.py",
+        "src/sofia/platform/ops/state_mobility.py",
         "src/sofia/mobile/sensors.py",
         "src/sofia/mobile/pairing.py",
         "src/sofia/mobile/gateway.py",
-        "src/sofia/safe/execution_approval.py",
+        "src/sofia/platform/safe/execution_approval.py",
         "test/test_safe_execution_action_fingerprint.py"
       ],
       "evidence_commits": [
@@ -10327,7 +10327,7 @@
           "CA-6807 / CA-6804: missing/unreadable source in Settings preflight"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_mobility.py"
+          "src/sofia/platform/ops/state_mobility.py"
         ]
       }
     },
@@ -10338,8 +10338,8 @@
       "master_line": 359,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/config/state_home_pointer.py",
-        "src/sofia/ops/state_promotion.py"
+        "src/sofia/platform/config/state_home_pointer.py",
+        "src/sofia/platform/ops/state_promotion.py"
       ],
       "evidence_commits": [
         "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
@@ -10368,13 +10368,13 @@
       "master_line": 360,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py"
+        "src/sofia/platform/ops/backup.py"
       ],
       "evidence_commits": [],
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/ops/backup.py; indexed under Phase 03 item 93: Plaintext SQLite snapshot never enters encrypted backup destination. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/ops/backup.py; indexed under Phase 03 item 93: Plaintext SQLite snapshot never enters encrypted backup destination. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -10393,7 +10393,7 @@
           "Classification, untested gates and owner decisions"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/backup.py"
+          "src/sofia/platform/ops/backup.py"
         ]
       }
     },
@@ -10404,11 +10404,11 @@
       "master_line": 361,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/config/layout.py",
-        "src/sofia/ops/state_mobility.py",
+        "src/sofia/platform/config/layout.py",
+        "src/sofia/platform/ops/state_mobility.py",
         "test/test_state_relocation_local_preflight.py",
-        "src/sofia/ops/state_relocation.py",
-        "src/sofia/ops/state_promotion.py"
+        "src/sofia/platform/ops/state_relocation.py",
+        "src/sofia/platform/ops/state_promotion.py"
       ],
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
@@ -10448,10 +10448,10 @@
           "CA-6807 / CA-6804: missing/unreadable source in Settings preflight"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_promotion.py",
-          "src/sofia/ops/backup.py",
+          "src/sofia/platform/ops/state_promotion.py",
+          "src/sofia/platform/ops/backup.py",
           "src/sofia/memory/deletion_ledger.py",
-          "src/sofia/ops/state_mobility.py"
+          "src/sofia/platform/ops/state_mobility.py"
         ]
       }
     },
@@ -10504,14 +10504,14 @@
       "master_line": 364,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/state_mobility.py"
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/state_mobility.py"
       ],
       "evidence_commits": [],
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/ops/backup.py, src/sofia/ops/state_mobility.py; indexed under Phase 03 item 58: Hold external memory-erasure append lock across offline restore publication. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/ops/backup.py, src/sofia/platform/ops/state_mobility.py; indexed under Phase 03 item 58: Hold external memory-erasure append lock across offline restore publication. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -10534,8 +10534,8 @@
           "Classification, untested gates and owner decisions"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/backup.py",
-          "src/sofia/ops/state_mobility.py"
+          "src/sofia/platform/ops/backup.py",
+          "src/sofia/platform/ops/state_mobility.py"
         ]
       }
     },
@@ -10569,9 +10569,9 @@
       "master_line": 366,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/state_relocation.py",
-        "src/sofia/ops/state_promotion.py",
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/state_relocation.py",
+        "src/sofia/platform/ops/state_promotion.py",
         "test/test_ws2_partial_bundle_restore_uncertainty.py"
       ],
       "evidence_commits": [
@@ -10595,8 +10595,8 @@
           "Phase 03 original task evidence: Three newly partial, one enriched"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/backup.py",
-          "src/sofia/ops/state_mobility.py"
+          "src/sofia/platform/ops/backup.py",
+          "src/sofia/platform/ops/state_mobility.py"
         ]
       }
     },
@@ -10701,14 +10701,14 @@
       "master_line": 371,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/state_mobility.py",
+        "src/sofia/platform/ops/state_mobility.py",
         "src/sofia/ui/settings_service.py"
       ],
       "evidence_commits": [],
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/ops/state_mobility.py, src/sofia/ui/settings_service.py; indexed under Phase 03 item 90: Storage preview proposes an absent child, never an existing folder. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/ops/state_mobility.py, src/sofia/ui/settings_service.py; indexed under Phase 03 item 90: Storage preview proposes an absent child, never an existing folder. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -10725,7 +10725,7 @@
           "Phase 03 item 92: Settings canonical database diagnostics use read-only SQLite"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_mobility.py",
+          "src/sofia/platform/ops/state_mobility.py",
           "src/sofia/ui/settings_service.py"
         ]
       }
@@ -11034,7 +11034,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/identity/store.py",
-        "src/sofia/config/state_home_pointer.py"
+        "src/sofia/platform/config/state_home_pointer.py"
       ],
       "evidence_commits": [
         "1925361e1362520c11980987167a410a6635deb0"
@@ -11153,9 +11153,9 @@
       "master_line": 400,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/state_relocation.py",
+        "src/sofia/platform/ops/state_relocation.py",
         "src/sofia/mobile/gateway.py",
-        "src/sofia/ops/state_promotion.py",
+        "src/sofia/platform/ops/state_promotion.py",
         "src/sofia/mobile/notifications.py",
         "src/sofia/conversation/lifelong.py",
         "src/sofia/conversation/fulltext_search.py",
@@ -11165,7 +11165,7 @@
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/ops/state_relocation.py, src/sofia/mobile/gateway.py, src/sofia/ops/state_promotion.py, src/sofia/mobile/notifications.py, src/sofia/conversation/lifelong.py, src/sofia/conversation/fulltext_search.py, src/sofia/memory/deletion_ledger.py; indexed under New host-independent source closure: backup inputs, truth in model outages, state home pointer. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/ops/state_relocation.py, src/sofia/mobile/gateway.py, src/sofia/platform/ops/state_promotion.py, src/sofia/mobile/notifications.py, src/sofia/conversation/lifelong.py, src/sofia/conversation/fulltext_search.py, src/sofia/memory/deletion_ledger.py; indexed under New host-independent source closure: backup inputs, truth in model outages, state home pointer. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -11201,9 +11201,9 @@
           "Phase 06 item 86: Deletion replay and journal append share one external lock"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_relocation.py",
+          "src/sofia/platform/ops/state_relocation.py",
           "src/sofia/mobile/gateway.py",
-          "src/sofia/ops/state_promotion.py",
+          "src/sofia/platform/ops/state_promotion.py",
           "src/sofia/mobile/notifications.py",
           "src/sofia/conversation/lifelong.py",
           "src/sofia/conversation/fulltext_search.py",
@@ -11244,13 +11244,13 @@
       "master_line": 405,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py"
+        "src/sofia/platform/ops/backup.py"
       ],
       "evidence_commits": [],
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/ops/backup.py; indexed under Phase 03 item 42: Model-independent, authenticated-backup portable conversation export. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/ops/backup.py; indexed under Phase 03 item 42: Model-independent, authenticated-backup portable conversation export. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -11268,7 +11268,7 @@
           "Phase 03 item 55: Flush restored file and path durability before recovery success"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/backup.py"
+          "src/sofia/platform/ops/backup.py"
         ]
       }
     },
@@ -11321,8 +11321,8 @@
       "master_line": 408,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/backup_topology.py"
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/backup_topology.py"
       ],
       "evidence_commits": [
         "1925361e1362520c11980987167a410a6635deb0"
@@ -11360,8 +11360,8 @@
           "Phase 03 item 82: Preserve post-rename publication uncertainty through staging cleanup"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/ops/state_relocation.py",
-          "src/sofia/ops/backup.py",
+          "src/sofia/platform/ops/state_relocation.py",
+          "src/sofia/platform/ops/backup.py",
           "src/sofia/memory/deletion_ledger.py"
         ]
       }
@@ -11375,7 +11375,7 @@
       "code_paths": [
         "src/sofia/mobile/sensors.py",
         "src/sofia/mobile/model.py",
-        "src/sofia/application/presence.py",
+        "src/sofia/platform/application/presence.py",
         "test/test_presence_cross_modal_provenance.py"
       ],
       "evidence_commits": [
@@ -11513,7 +11513,7 @@
       "master_line": 413,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/verify/drift.py",
+        "src/sofia/platform/verify/drift.py",
         "test/test_v18_drift_scorecard.py",
         "docs/development/v18-phase03-04-executable-contracts-2026-10-15.md",
         ".github/workflows/v18-phase03-04-contracts.yml"
@@ -11597,7 +11597,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/conversation/store.py",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/social/store.py"
       ],
       "evidence_commits": [
@@ -12138,7 +12138,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/conversation/lifelong.py",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/mobile/gateway.py"
       ],
       "evidence_commits": [
@@ -12448,7 +12448,7 @@
       "code_paths": [
         "src/sofia/conversation/lifelong.py",
         "src/sofia/social/store.py",
-        "src/sofia/application/conversation_service.py"
+        "src/sofia/platform/application/conversation_service.py"
       ],
       "evidence_commits": [
         "a3f344abd1bfc53985353f753b3dc70b770f9838"
@@ -13003,7 +13003,7 @@
           "Phase 06 item 67: Explicit fiction cannot become automatic autobiography"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/application/conversation_learning.py"
+          "src/sofia/platform/application/conversation_learning.py"
         ]
       }
     },
@@ -13092,7 +13092,7 @@
           "Phase 06 item 67: Explicit fiction cannot become automatic autobiography"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/application/conversation_learning.py"
+          "src/sofia/platform/application/conversation_learning.py"
         ]
       }
     },
@@ -13382,7 +13382,7 @@
       "code_paths": [
         "src/sofia/cognition/v2/contracts.py",
         "src/sofia/cognition/v2/focus.py",
-        "src/sofia/application/conversation_service.py"
+        "src/sofia/platform/application/conversation_service.py"
       ],
       "evidence_commits": [
         "52667896b70110978e656eaeccd404f705eca57c"
@@ -13448,8 +13448,8 @@
       "master_line": 526,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/conversation_learning.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py"
       ],
       "evidence_commits": [
@@ -13478,8 +13478,8 @@
           "Phase 06 item 81: Recheck reviewed memory originals inside atomic promotion"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/application/conversation_learning.py",
-          "src/sofia/application/memory_review.py",
+          "src/sofia/platform/application/conversation_learning.py",
+          "src/sofia/platform/application/memory_review.py",
           "src/sofia/memory/provenance_store.py"
         ]
       }
@@ -13510,7 +13510,7 @@
       "master_line": 528,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/conversation/fulltext_search.py",
         "src/sofia/conversation/store.py",
         "test/test_ws2_memory_scoped_recall_fallback.py"
@@ -13551,7 +13551,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/conversation/store.py",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/memory/originals.py"
       ],
       "evidence_commits": [
@@ -13757,7 +13757,7 @@
       "master_line": 541,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py",
         "src/sofia/memory/deletion_ledger.py",
         "test/test_ws2_memory_review_audience_mutations.py"
@@ -13782,8 +13782,8 @@
           "Phase 06 item 86: Deletion replay and journal append share one external lock"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/application/conversation_learning.py",
-          "src/sofia/application/memory_review.py",
+          "src/sofia/platform/application/conversation_learning.py",
+          "src/sofia/platform/application/memory_review.py",
           "src/sofia/memory/deletion_ledger.py"
         ]
       }
@@ -13833,7 +13833,7 @@
       "master_line": 547,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/conversation/fulltext_search.py",
         "src/sofia/conversation/store.py"
       ],
@@ -13871,7 +13871,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/conversation/fulltext_search.py",
-        "src/sofia/application/conversation_service.py"
+        "src/sofia/platform/application/conversation_service.py"
       ],
       "evidence_commits": [
         "52667896b70110978e656eaeccd404f705eca57c"
@@ -13962,7 +13962,7 @@
       "master_line": 552,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/memory/originals.py",
         "src/sofia/conversation/fulltext_search.py"
       ],
@@ -14079,7 +14079,7 @@
         "src/sofia/conversation/fulltext_search.py",
         "src/sofia/memory/originals.py",
         "test/test_memory_conversation_originals.py",
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "test/test_ws2_bounded_wardrobe_context.py"
       ],
       "evidence_commits": [
@@ -14133,7 +14133,7 @@
       "master_line": 561,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_service.py",
+        "src/sofia/platform/application/conversation_service.py",
         "src/sofia/conversation/fulltext_search.py",
         "src/sofia/memory/originals.py"
       ],
@@ -14159,7 +14159,7 @@
         ],
         "direct_cited_code_paths": [
           "src/sofia/conversation/store.py",
-          "src/sofia/application/memory_review.py",
+          "src/sofia/platform/application/memory_review.py",
           "src/sofia/conversation/fulltext_search.py",
           "src/sofia/memory/provenance_store.py"
         ]
@@ -14337,8 +14337,8 @@
       "master_line": 572,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/conversation_learning.py",
+        "src/sofia/platform/application/memory_review.py",
         "test/test_ws2_memory_private_admission.py"
       ],
       "evidence_commits": [
@@ -14368,9 +14368,9 @@
           "Phase 06 item 85: Fresh owner consent at the signed erasure journal append"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/application/conversation_learning.py",
+          "src/sofia/platform/application/conversation_learning.py",
           "src/sofia/conversation/store.py",
-          "src/sofia/application/memory_review.py",
+          "src/sofia/platform/application/memory_review.py",
           "src/sofia/memory/provenance_store.py",
           "src/sofia/memory/deletion_ledger.py"
         ]
@@ -14383,13 +14383,13 @@
       "master_line": 573,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_learning.py"
+        "src/sofia/platform/application/conversation_learning.py"
       ],
       "evidence_commits": [],
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/application/conversation_learning.py; indexed under Phase 06 item 64: Privacy-first automatic memory candidate admission. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/application/conversation_learning.py; indexed under Phase 06 item 64: Privacy-first automatic memory candidate admission. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -14406,7 +14406,7 @@
           "Phase 06 item 67: Explicit fiction cannot become automatic autobiography"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/application/conversation_learning.py"
+          "src/sofia/platform/application/conversation_learning.py"
         ]
       }
     },
@@ -14417,8 +14417,8 @@
       "master_line": 574,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/conversation_learning.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py"
       ],
       "evidence_commits": [
@@ -14440,7 +14440,7 @@
           "Phase 06 item 81: Recheck reviewed memory originals inside atomic promotion"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/application/memory_review.py",
+          "src/sofia/platform/application/memory_review.py",
           "src/sofia/memory/provenance_store.py"
         ]
       }
@@ -14609,8 +14609,8 @@
       "master_line": 585,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/conversation_learning.py",
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/conversation_learning.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py",
         "test/test_memory_explicit_conversation_correction.py"
       ],
@@ -14745,7 +14745,7 @@
       "master_line": 590,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/memory_review.py",
+        "src/sofia/platform/application/memory_review.py",
         "src/sofia/memory/provenance_store.py",
         "src/sofia/memory/deletion_ledger.py"
       ],
@@ -14753,7 +14753,7 @@
       "accepted": false,
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/application/memory_review.py, src/sofia/memory/provenance_store.py, src/sofia/memory/deletion_ledger.py; indexed under Phase 06 item 68: Review lifecycle writes retain original audience ownership. These paths were independently confirmed to exist on main.",
+        "observed": "WS2 source report cites a production-source partial implementation in src/sofia/platform/application/memory_review.py, src/sofia/memory/provenance_store.py, src/sofia/memory/deletion_ledger.py; indexed under Phase 06 item 68: Review lifecycle writes retain original audience ownership. These paths were independently confirmed to exist on main.",
         "missing": "Full original task clauses, authoritative end-to-end effects, cross-host/consumer/restore proof and task-specific acceptance still unverified.",
         "acceptance": "Source-only partial evidence. Tests/CI/live operations deferred; not coding-complete or accepted."
       },
@@ -14772,7 +14772,7 @@
           "Phase 06 item 86: Deletion replay and journal append share one external lock"
         ],
         "direct_cited_code_paths": [
-          "src/sofia/application/memory_review.py",
+          "src/sofia/platform/application/memory_review.py",
           "src/sofia/memory/provenance_store.py",
           "src/sofia/memory/deletion_ledger.py"
         ]
@@ -15068,7 +15068,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/memory/archive_segments.py",
-        "src/sofia/state/sqlite_plane.py"
+        "src/sofia/platform/state/sqlite_plane.py"
       ],
       "evidence_commits": [
         "1925361e1362520c11980987167a410a6635deb0"
@@ -15357,8 +15357,8 @@
       "master_line": 659,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/background_runtime.py",
-        "src/sofia/application/presence.py"
+        "src/sofia/platform/application/background_runtime.py",
+        "src/sofia/platform/application/presence.py"
       ],
       "evidence_commits": [
         "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
@@ -15376,7 +15376,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/application/background_runtime.py, src/sofia/application/presence.py. Partial wiring and source review, not all clauses complete.",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/platform/application/background_runtime.py, src/sofia/platform/application/presence.py. Partial wiring and source review, not all clauses complete.",
         "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
         "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
@@ -15408,8 +15408,8 @@
       "master_line": 661,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/background_runtime.py",
-        "src/sofia/application/presence.py"
+        "src/sofia/platform/application/background_runtime.py",
+        "src/sofia/platform/application/presence.py"
       ],
       "evidence_commits": [
         "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
@@ -15427,7 +15427,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/application/background_runtime.py, src/sofia/application/presence.py. Partial wiring and source review, not all clauses complete.",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/platform/application/background_runtime.py, src/sofia/platform/application/presence.py. Partial wiring and source review, not all clauses complete.",
         "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
         "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
@@ -15439,8 +15439,8 @@
       "master_line": 662,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/background_runtime.py",
-        "src/sofia/application/presence.py"
+        "src/sofia/platform/application/background_runtime.py",
+        "src/sofia/platform/application/presence.py"
       ],
       "evidence_commits": [
         "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
@@ -15458,7 +15458,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/application/background_runtime.py, src/sofia/application/presence.py. Partial wiring and source review, not all clauses complete.",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/platform/application/background_runtime.py, src/sofia/platform/application/presence.py. Partial wiring and source review, not all clauses complete.",
         "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
         "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
@@ -15530,8 +15530,8 @@
       "master_line": 666,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/background_runtime.py",
-        "src/sofia/application/presence.py"
+        "src/sofia/platform/application/background_runtime.py",
+        "src/sofia/platform/application/presence.py"
       ],
       "evidence_commits": [
         "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
@@ -15549,7 +15549,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/application/background_runtime.py, src/sofia/application/presence.py. Partial wiring and source review, not all clauses complete.",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/platform/application/background_runtime.py, src/sofia/platform/application/presence.py. Partial wiring and source review, not all clauses complete.",
         "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
         "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
@@ -16552,7 +16552,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "evidence_commits": [
         "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
@@ -16570,7 +16570,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/life/coordinator.py, src/sofia/application/background_runtime.py. Partial wiring and source review, not all clauses complete.",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/life/coordinator.py, src/sofia/platform/application/background_runtime.py. Partial wiring and source review, not all clauses complete.",
         "missing": "Full original task end-to-end and channel/host acceptance, use/consent/quiet/privacy proof or multi-day/restart evidence as applicable.",
         "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
@@ -16583,8 +16583,8 @@
       "status": "code_present_unverified",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/store.py"
       ],
       "evidence_commits": [
@@ -16593,8 +16593,8 @@
       "accepted": false,
       "production_wiring": {
         "entrypoint": "SofiaApplication background independent_life task",
-        "composition_path": "src/sofia/application/bootstrap.py",
-        "caller_path": "src/sofia/application/background_runtime.py",
+        "composition_path": "src/sofia/platform/application/bootstrap.py",
+        "caller_path": "src/sofia/platform/application/background_runtime.py",
         "implementation_path": "src/sofia/life/coordinator.py",
         "effect_path": "src/sofia/life/store.py",
         "remaining": "tests_only",
@@ -16724,7 +16724,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/run/work.py",
+        "src/sofia/platform/run/work.py",
         "src/sofia/life/store.py"
       ],
       "evidence_commits": [
@@ -16818,7 +16818,7 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/application/background_runtime.py"
+        "src/sofia/platform/application/background_runtime.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
@@ -16852,8 +16852,8 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/creative/service.py",
-        "src/sofia/application/bootstrap.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/bootstrap.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/life/validation.py"
       ],
       "evidence_commits": [
@@ -16862,8 +16862,8 @@
       "accepted": false,
       "production_wiring": {
         "entrypoint": "SofiaApplication background independent_life -> LIFE._settle_personal_project",
-        "composition_path": "src/sofia/application/bootstrap.py",
-        "caller_path": "src/sofia/application/background_runtime.py",
+        "composition_path": "src/sofia/platform/application/bootstrap.py",
+        "caller_path": "src/sofia/platform/application/background_runtime.py",
         "implementation_path": "src/sofia/life/coordinator.py",
         "effect_path": "src/sofia/life/validation.py",
         "remaining": "tests_only",
@@ -16915,7 +16915,7 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/background_runtime.py",
         "test/test_life_verified_milestone_production.py"
       ],
       "evidence_commits": [
@@ -18586,7 +18586,7 @@
       "master_line": 898,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/application/optional_budget.py",
+        "src/sofia/platform/application/optional_budget.py",
         "test/test_optional_autonomy_budget_production.py",
         "src/sofia/cognition/model_lifecycle.py",
         "src/sofia/cognition/routing.py",
@@ -18607,7 +18607,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Actual ApplicationBackgroundCoordinator's canonical RUN BackgroundBudget now atomically reserves global daily optional token, CPU, GPU, storage and occupied-latency credits in the exact existing SQLite single-flight claim transaction before all optional LIFE/NEURO/reflection/ACT/maintenance callbacks. Preserves cross-process fencing, UTC-day caps, conservative fallback for new/unclassified tasks, crash recovery, immutable per-attempt consumption, owner-revisioned Limits UI in Models, and model-visible read-only OPS report. Foreground chats never acquire optional claims. Credits are upper-bound reservations, not fabricated actual GPU/CPU/token usage. Deferred production regression tests authored but not executed. Additional optional credit ledger fail-closed guard refuses reserve/settle operations outside a preexisting SQLite transaction and invalid settlement clock/failure flag; production RUN coordinator already uses BEGIN IMMEDIATE for claims. Source src/sofia/application/optional_budget.py and test/test_optional_autonomy_budget_production.py deferred; measured performance unknown.",
+        "observed": "Actual ApplicationBackgroundCoordinator's canonical RUN BackgroundBudget now atomically reserves global daily optional token, CPU, GPU, storage and occupied-latency credits in the exact existing SQLite single-flight claim transaction before all optional LIFE/NEURO/reflection/ACT/maintenance callbacks. Preserves cross-process fencing, UTC-day caps, conservative fallback for new/unclassified tasks, crash recovery, immutable per-attempt consumption, owner-revisioned Limits UI in Models, and model-visible read-only OPS report. Foreground chats never acquire optional claims. Credits are upper-bound reservations, not fabricated actual GPU/CPU/token usage. Deferred production regression tests authored but not executed. Additional optional credit ledger fail-closed guard refuses reserve/settle operations outside a preexisting SQLite transaction and invalid settlement clock/failure flag; production RUN coordinator already uses BEGIN IMMEDIATE for claims. Source src/sofia/platform/application/optional_budget.py and test/test_optional_autonomy_budget_production.py deferred; measured performance unknown.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -18949,7 +18949,7 @@
       "master_line": 914,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/local_telemetry.py",
+        "src/sofia/platform/ops/local_telemetry.py",
         "test/test_ops_local_telemetry.py",
         "src/sofia/cognition/model_lifecycle.py",
         "src/sofia/cognition/routing.py",
@@ -18970,7 +18970,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": " Windows GPU workload admission source now observes NVIDIA GPU utilization and per-card VRAM used/total through bounded read-only nvidia-smi; malformed/unavailable metrics remain unknown. Fleet ranking penalizes stale automatic activity. No real host resource measurements. Sources ops/local_telemetry.py and ops/placement.py, deferred tests. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py.",
+        "observed": " Windows GPU workload admission source now observes NVIDIA GPU utilization and per-card VRAM used/total through bounded read-only nvidia-smi; malformed/unavailable metrics remain unknown. Fleet ranking penalizes stale automatic activity. No real host resource measurements. Sources ops/local_telemetry.py and ops/placement.py, deferred tests. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/platform/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Workstream 4 source review only. Production acceptance false.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -18984,7 +18984,7 @@
       "master_line": 915,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/placement.py",
+        "src/sofia/platform/ops/placement.py",
         "src/sofia/cognition/fleet_engine.py",
         "test/test_phase11_fleet_gpu_admission.py",
         "src/sofia/cognition/model_lifecycle.py",
@@ -19006,7 +19006,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Actual split-runtime/Fleet composition can keep inference on separately enrolled existing hosts and model_lifecycle resource-aware residency operates on local configured Ollama. Same physical model artifact alias accounting and eviction hardened. Guest/host placement cost comparison lacks measured acceptance. Sources composition/engines.py, cognition/model_lifecycle.py.  Existing authenticated Fleet placement already accounts for interactive gaming pressure and eligible remote host resource telemetry. Owner mentioned another GPU PC (VRAM believed ~4-6 GiB), but host name, OS, GPU model, measured VRAM, trust and enrollment are UNKNOWN. No inferred host entry, no model pulled or moved; new hybrid policy applies only to local model lifecycle until actual Fleet enrollment. Source cognition/fleet_engine.py, ops/placement.py; docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Owner confirms third GPU candidate runs Windows with RTX3060 8GB VRAM and 32GB RAM, while hostname, driver, free VRAM, model installation and Fleet identity remain unverified. Authenticated Fleet can use actual GPU telemetry and current activity after separate owner enrollment. No inference routed, no model pulled.",
+        "observed": "Actual split-runtime/Fleet composition can keep inference on separately enrolled existing hosts and model_lifecycle resource-aware residency operates on local configured Ollama. Same physical model artifact alias accounting and eviction hardened. Guest/host placement cost comparison lacks measured acceptance. Sources composition/engines.py, cognition/model_lifecycle.py.  Existing authenticated Fleet placement already accounts for interactive gaming pressure and eligible remote host resource telemetry. Owner mentioned another GPU PC (VRAM believed ~4-6 GiB), but host name, OS, GPU model, measured VRAM, trust and enrollment are UNKNOWN. No inferred host entry, no model pulled or moved; new hybrid policy applies only to local model lifecycle until actual Fleet enrollment. Source cognition/fleet_engine.py, ops/placement.py; docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/platform/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Owner confirms third GPU candidate runs Windows with RTX3060 8GB VRAM and 32GB RAM, while hostname, driver, free VRAM, model installation and Fleet identity remain unverified. Authenticated Fleet can use actual GPU telemetry and current activity after separate owner enrollment. No inference routed, no model pulled.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Workstream 4 source review only. Production acceptance false.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -19757,7 +19757,7 @@
       "master_line": 952,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/local_telemetry.py",
+        "src/sofia/platform/ops/local_telemetry.py",
         "test/test_ops_local_telemetry.py",
         "src/sofia/cognition/model_lifecycle.py",
         "src/sofia/cognition/routing.py",
@@ -19778,7 +19778,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": " Windows NVIDIA local telemetry reads measured utilization and per-card VRAM; unknowns never become claimed free GPU capacity. Live Venus/third GPU cold/warm, gaming, power and inference benchmarks still absent. Source ops/local_telemetry.py, tests deferred. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py.",
+        "observed": " Windows NVIDIA local telemetry reads measured utilization and per-card VRAM; unknowns never become claimed free GPU capacity. Live Venus/third GPU cold/warm, gaming, power and inference benchmarks still absent. Source ops/local_telemetry.py, tests deferred. Follow-up telemetry binding refuses multiple NVIDIA devices until a specific inference device is pinned, otherwise returns unknown GPU/VRAM capacity. No real Windows GPU observed. src/sofia/platform/ops/local_telemetry.py and deferred test/test_ops_local_telemetry.py.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Workstream 4 source review only. Production acceptance false.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -19862,7 +19862,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "test/test_cognitive_routing.py",
-        "src/sofia/ops/placement.py",
+        "src/sofia/platform/ops/placement.py",
         "src/sofia/cognition/fleet_engine.py",
         "test/test_phase11_fleet_gpu_admission.py",
         "src/sofia/cognition/model_lifecycle.py",
@@ -19884,7 +19884,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Model source SAFE controls partial: owner Settings one-time exact local role/host install approval, canonical audit/outcome, operator stop and fail-closed inventory; remote Fleet placement defaults to no silent local failover and remote pulls still require exact grants. Full production role promotion host broker, resource scheduling and all cloud/model source policies remain open. Regression tests authored, not run. Further source guard: cognition/routing.py now permits tool-bearing fallback only for the nine exact source-reviewed read-only CognitiveToolBinding names; no prefix-based authorization from 'inspect/get/search'. Mixed unknown-action tool sets deny replay, independent of SAFE capability approval. Deferred test/test_cognitive_routing.py; no tests or model fallback executed.  Hybrid game/idle model residency still routes via existing configured Ollama roles; it cannot install or pull missing model artifacts and never enables silent role fallback. New 4\u20136GiB GPU machine is explicitly untrusted/unmeasured until separately approved Fleet enrollment. See docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. No host actions or run tests. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Third Windows RTX3060 remains untrusted pending owner-supervised independently authenticated Fleet enrollment and model approval. Stale activity ranking no longer presents outdated NORMAL as better than freshly observed non-gaming; no automatic model move, fallback or authority escalation.",
+        "observed": "Model source SAFE controls partial: owner Settings one-time exact local role/host install approval, canonical audit/outcome, operator stop and fail-closed inventory; remote Fleet placement defaults to no silent local failover and remote pulls still require exact grants. Full production role promotion host broker, resource scheduling and all cloud/model source policies remain open. Regression tests authored, not run. Further source guard: cognition/routing.py now permits tool-bearing fallback only for the nine exact source-reviewed read-only CognitiveToolBinding names; no prefix-based authorization from 'inspect/get/search'. Mixed unknown-action tool sets deny replay, independent of SAFE capability approval. Deferred test/test_cognitive_routing.py; no tests or model fallback executed.  Hybrid game/idle model residency still routes via existing configured Ollama roles; it cannot install or pull missing model artifacts and never enables silent role fallback. New 4\u20136GiB GPU machine is explicitly untrusted/unmeasured until separately approved Fleet enrollment. See docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md. No host actions or run tests. Owner-corrected third GPU PC hardware is **self-reported RTX 3060 8GB VRAM, 32GB RAM**, NOT discovered or enrolled; hostname and OS unknown. OPS PlacementEngine now rejects missing required RAM/GPU/VRAM evidence and expires telemetry after 120 seconds on live inference paths; FleetPlacedCognitiveEngine supplies current clock. No peer enrollment, model install or real GPU benchmark. Sources src/sofia/platform/ops/placement.py, src/sofia/cognition/fleet_engine.py, deferred test/test_phase11_fleet_gpu_admission.py, and docs/development/v18-phase11-hybrid-game-idle-fleet-decision-2026-10-11.md.  Third Windows RTX3060 remains untrusted pending owner-supervised independently authenticated Fleet enrollment and model approval. Stale activity ranking no longer presents outdated NORMAL as better than freshly observed non-gaming; no automatic model move, fallback or authority escalation.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Workstream 4 source review only. Production acceptance false.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -20250,7 +20250,7 @@
       "master_line": 989,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/safe/permissions.py"
+        "src/sofia/platform/safe/permissions.py"
       ],
       "evidence_commits": [
         "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
@@ -20266,12 +20266,12 @@
         "evidence_level": "source_confirmed_partial_2026_10_11",
         "code_ready_for_tests_claimed_by_workstream": false,
         "workstream_tests_executed": false,
-        "workstream_finding": "Explicit production SAFE capability policy classifications: screen.discover / screen.capture_once / screen.watch_scoped are protected, and screen.remote_view / screen.act_exact are never-self-authorized with PROTECTED_PRIVATE privacy and no standing or automatic grant. Source src/sofia/safe/permissions.py and deferred test/test_screen_capability_authority.py. No actual OS capture, watch, remote sharing or GUI executor yet.",
+        "workstream_finding": "Explicit production SAFE capability policy classifications: screen.discover / screen.capture_once / screen.watch_scoped are protected, and screen.remote_view / screen.act_exact are never-self-authorized with PROTECTED_PRIVATE privacy and no standing or automatic grant. Source src/sofia/platform/safe/permissions.py and deferred test/test_screen_capability_authority.py. No actual OS capture, watch, remote sharing or GUI executor yet.",
         "phase_audit_report": null
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/safe/permissions.py. Partial wiring and source review, not all clauses complete.",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/platform/safe/permissions.py. Partial wiring and source review, not all clauses complete.",
         "missing": "Host OS picker, complete screen capture/watching, revocation and remote disclosure proof.",
         "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
@@ -20476,7 +20476,7 @@
       "code_paths": [
         "src/sofia/vision/desktop_control.py",
         "src/sofia/vision/desktop_control_cli.py",
-        "src/sofia/safe/execution_approval.py"
+        "src/sofia/platform/safe/execution_approval.py"
       ],
       "evidence_commits": [
         "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
@@ -20497,7 +20497,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/vision/desktop_control.py, src/sofia/vision/desktop_control_cli.py, src/sofia/safe/execution_approval.py. Partial wiring and source review, not all clauses complete.",
+        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/vision/desktop_control.py, src/sofia/vision/desktop_control_cli.py, src/sofia/platform/safe/execution_approval.py. Partial wiring and source review, not all clauses complete.",
         "missing": "Live Win32 acceptance, OS user-session UX, screen-action pre-capture confirmation and genuine post-action verification; no remote guest agent. Gaming bans cannot be ruled out universally.",
         "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
       }
@@ -20681,7 +20681,7 @@
       "master_line": 1020,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -20781,7 +20781,7 @@
       "status": "partial_wiring",
       "code_paths": [
         "test/test_ops_workshop_guest_bootstrap_production.py",
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -20811,11 +20811,11 @@
       "master_line": 1025,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_network_stage.py",
+        "src/sofia/platform/ops/workshop_network_stage.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_stage_report_boundary.py",
         "test/test_ops_workshop_internal_stage.py",
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -20831,7 +20831,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Owner chose dedicated Internal host-to-guest switch on existing OS-less Hephaestus. Production Artemis opt-in, exact VM GUID pinned Level-4 one-use SAFE+Fleet staging now supports separate read-only original-switch preflight, protected creation/attachment of only Sofia-Hephaestus-Internal, static 172.30.250.1/30 host and guest 172.30.250.2/30, host Public firewall default-deny, no IPv4/IPv6 forwarding, DNS, gateway, overlapping WinNAT or ICS and no sibling VM. Signed Debian firstboot nftables defaults INPUT/OUTPUT/FORWARD drop and configures no guest gateway/DNS. Fresh host observations and rechecks gate installer. Full guest-to-LAN/Internet negative reachability tests impossible until Debian installed, so not code-ready for independent acceptance. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed. Host adapter additionally re-reads exact Gen2/Off Hephaestus identity, one NIC and actual switch type after stage effect; partial receipt cannot assert guest/LAN isolation. See commits 61768b9 / 337fb34 (deferred tests). Follow-up post-attachment Hyper-V success proof re-reads every sibling switch attachment, exact host IP/forwarding, Public firewall, overlapping NAT and ICS; host success never implies guest isolation. Source src/sofia/integrations/hyperv.py; test/test_ops_workshop_internal_stage.py deferred. Further post-stage Artemis host script refuses unexpectedly configured DNS or default gateways after NIC attach, in addition to prior NAT/ICS/forwarding/peer rechecks. Source src/sofia/integrations/hyperv.py, deferred test/test_ops_workshop_internal_stage.py.",
+        "observed": "Owner chose dedicated Internal host-to-guest switch on existing OS-less Hephaestus. Production Artemis opt-in, exact VM GUID pinned Level-4 one-use SAFE+Fleet staging now supports separate read-only original-switch preflight, protected creation/attachment of only Sofia-Hephaestus-Internal, static 172.30.250.1/30 host and guest 172.30.250.2/30, host Public firewall default-deny, no IPv4/IPv6 forwarding, DNS, gateway, overlapping WinNAT or ICS and no sibling VM. Signed Debian firstboot nftables defaults INPUT/OUTPUT/FORWARD drop and configures no guest gateway/DNS. Fresh host observations and rechecks gate installer. Full guest-to-LAN/Internet negative reachability tests impossible until Debian installed, so not code-ready for independent acceptance. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/platform/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed. Host adapter additionally re-reads exact Gen2/Off Hephaestus identity, one NIC and actual switch type after stage effect; partial receipt cannot assert guest/LAN isolation. See commits 61768b9 / 337fb34 (deferred tests). Follow-up post-attachment Hyper-V success proof re-reads every sibling switch attachment, exact host IP/forwarding, Public firewall, overlapping NAT and ICS; host success never implies guest isolation. Source src/sofia/integrations/hyperv.py; test/test_ops_workshop_internal_stage.py deferred. Further post-stage Artemis host script refuses unexpectedly configured DNS or default gateways after NIC attach, in addition to prior NAT/ICS/forwarding/peer rechecks. Source src/sofia/integrations/hyperv.py, deferred test/test_ops_workshop_internal_stage.py.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Workstream 4 source review only. Production acceptance false.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -20845,7 +20845,7 @@
       "master_line": 1026,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -21266,7 +21266,7 @@
       "master_line": 1047,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -21296,7 +21296,7 @@
       "master_line": 1048,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_provision.py",
+        "src/sofia/platform/ops/workshop_provision.py",
         "test/test_ops_workshop_hyperv_production.py"
       ],
       "evidence_commits": [
@@ -21318,7 +21318,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_provision.py, test/test_ops_workshop_hyperv_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/workshop_provision.py, test/test_ops_workshop_hyperv_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -21330,8 +21330,8 @@
       "master_line": 1049,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_provision.py",
-        "src/sofia/ops/capability.py",
+        "src/sofia/platform/ops/workshop_provision.py",
+        "src/sofia/platform/ops/capability.py",
         "test/test_ops_workshop_hyperv_production.py"
       ],
       "evidence_commits": [
@@ -21354,7 +21354,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_provision.py, test/test_ops_workshop_hyperv_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/workshop_provision.py, test/test_ops_workshop_hyperv_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -21366,7 +21366,7 @@
       "master_line": 1050,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/safe/permissions.py",
+        "src/sofia/platform/safe/permissions.py",
         "test/test_ops_workshop_vm_separation.py"
       ],
       "evidence_commits": [
@@ -21388,7 +21388,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/safe/permissions.py, test/test_ops_workshop_vm_separation.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/safe/permissions.py, test/test_ops_workshop_vm_separation.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -21492,11 +21492,11 @@
       "master_line": 1055,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_network_stage.py",
+        "src/sofia/platform/ops/workshop_network_stage.py",
         "src/sofia/integrations/hyperv.py",
         "test/test_ops_workshop_stage_report_boundary.py",
         "test/test_ops_workshop_internal_stage.py",
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -21512,7 +21512,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Owner-selected preexisting VM, not new self-provisioned VM. Exact host-admin opt-in Internal switch stage only; fails target name/type collisions and other VM attachment; read-only old network preflight; separate Level-4 user approval and protected Artemis Fleet. Host Windows Public firewall must default inbound Block, disabled forwarding and NAT/ICS, guest nftables default-deny signed ISO. Guest and actual host ACL traffic observation remains a deferred acceptance gate; original new-VM auto-provision task still not completely implemented. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed. Host adapter additionally re-reads exact Gen2/Off Hephaestus identity, one NIC and actual switch type after stage effect; partial receipt cannot assert guest/LAN isolation. See commits 61768b9 / 337fb34 (deferred tests). Post-attachment source hardening refuses sibling NICs, changed NAT/ICS/forwarding/IP or Public firewall state before host success. The real network/guest isolation proof remains outstanding. Deferred host script tests. Host post-stage success must also re-observe empty DNS and default-route settings after guest NIC mutation, not rely solely on preflight. Still no live proof of host/guest isolation.",
+        "observed": "Owner-selected preexisting VM, not new self-provisioned VM. Exact host-admin opt-in Internal switch stage only; fails target name/type collisions and other VM attachment; read-only old network preflight; separate Level-4 user approval and protected Artemis Fleet. Host Windows Public firewall must default inbound Block, disabled forwarding and NAT/ICS, guest nftables default-deny signed ISO. Guest and actual host ACL traffic observation remains a deferred acceptance gate; original new-VM auto-provision task still not completely implemented. Continuing source safeguard: exact fresh authenticated Fleet host-staging receipt is verified for VM GUID, Off state, dedicated switch/type, IP pair, NAT off and guest-not-configured; incomplete responses remain UNCERTAIN; Artemis checks static /30 and disabled IPv4/IPv6 forwarding after setting them and before Connect-VMNetworkAdapter. Source paths src/sofia/platform/ops/workshop_network_stage.py, src/sofia/integrations/hyperv.py; deferred test/test_ops_workshop_stage_report_boundary.py and test/test_ops_workshop_internal_stage.py. Neither guest reachability nor actual host firewall isolation independently observed. Host adapter additionally re-reads exact Gen2/Off Hephaestus identity, one NIC and actual switch type after stage effect; partial receipt cannot assert guest/LAN isolation. See commits 61768b9 / 337fb34 (deferred tests). Post-attachment source hardening refuses sibling NICs, changed NAT/ICS/forwarding/IP or Public firewall state before host success. The real network/guest isolation proof remains outstanding. Deferred host script tests. Host post-stage success must also re-observe empty DNS and default-route settings after guest NIC mutation, not rely solely on preflight. Still no live proof of host/guest isolation.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Workstream 4 source review only. Production acceptance false.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -21549,7 +21549,7 @@
       "master_line": 1057,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -21579,7 +21579,7 @@
       "master_line": 1058,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -21609,7 +21609,7 @@
       "master_line": 1059,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -21639,7 +21639,7 @@
       "master_line": 1060,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -21853,7 +21853,7 @@
       "master_line": 1072,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "evidence_commits": [
@@ -21875,7 +21875,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -21887,7 +21887,7 @@
       "master_line": 1073,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "evidence_commits": [
@@ -21909,7 +21909,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -21921,7 +21921,7 @@
       "master_line": 1074,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "evidence_commits": [
@@ -21943,7 +21943,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -21955,7 +21955,7 @@
       "master_line": 1075,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "evidence_commits": [
@@ -21977,7 +21977,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -21989,7 +21989,7 @@
       "master_line": 1076,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "evidence_commits": [
@@ -22011,7 +22011,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -22023,7 +22023,7 @@
       "master_line": 1077,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -22053,7 +22053,7 @@
       "master_line": 1078,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "evidence_commits": [
@@ -22075,7 +22075,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -22087,7 +22087,7 @@
       "master_line": 1079,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "evidence_commits": [
@@ -22109,7 +22109,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -22121,7 +22121,7 @@
       "master_line": 1080,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/digital_twin.py",
+        "src/sofia/platform/ops/digital_twin.py",
         "test/test_ops_digital_twin_production.py"
       ],
       "evidence_commits": [
@@ -22143,7 +22143,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -22178,7 +22178,7 @@
       "master_line": 1085,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_handoff.py",
+        "src/sofia/platform/ops/workshop_handoff.py",
         "test/test_ops_workshop_handoff_production.py"
       ],
       "evidence_commits": [
@@ -22200,7 +22200,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_handoff.py, test/test_ops_workshop_handoff_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/workshop_handoff.py, test/test_ops_workshop_handoff_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -22212,7 +22212,7 @@
       "master_line": 1086,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_guest_bootstrap.py",
+        "src/sofia/platform/ops/workshop_guest_bootstrap.py",
         "test/test_ops_workshop_guest_bootstrap_production.py"
       ],
       "evidence_commits": [
@@ -22234,7 +22234,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_guest_bootstrap.py, test/test_ops_workshop_guest_bootstrap_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/workshop_guest_bootstrap.py, test/test_ops_workshop_guest_bootstrap_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -22246,7 +22246,7 @@
       "master_line": 1087,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_media_attestation.py",
+        "src/sofia/platform/ops/workshop_media_attestation.py",
         "test/test_ops_workshop_media_attestation_production.py"
       ],
       "evidence_commits": [
@@ -22268,7 +22268,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_media_attestation.py, test/test_ops_workshop_media_attestation_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/workshop_media_attestation.py, test/test_ops_workshop_media_attestation_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -22280,7 +22280,7 @@
       "master_line": 1088,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -22310,7 +22310,7 @@
       "master_line": 1089,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_guest_bootstrap.py",
+        "src/sofia/platform/ops/workshop_guest_bootstrap.py",
         "test/test_ops_workshop_guest_bootstrap_production.py"
       ],
       "evidence_commits": [
@@ -22332,7 +22332,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_guest_bootstrap.py, test/test_ops_workshop_guest_bootstrap_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/workshop_guest_bootstrap.py, test/test_ops_workshop_guest_bootstrap_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -22344,7 +22344,7 @@
       "master_line": 1090,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_policy.py"
+        "src/sofia/platform/ops/workshop_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -22374,7 +22374,7 @@
       "master_line": 1091,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/ops/workshop_handoff.py",
+        "src/sofia/platform/ops/workshop_handoff.py",
         "test/test_ops_workshop_handoff_production.py"
       ],
       "evidence_commits": [
@@ -22396,7 +22396,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_handoff.py, test/test_ops_workshop_handoff_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/platform/ops/workshop_handoff.py, test/test_ops_workshop_handoff_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
         "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
         "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
@@ -22408,8 +22408,8 @@
       "master_line": 1109,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/evolve/training_policy.py",
-        "src/sofia/config/model_catalog.py"
+        "src/sofia/platform/evolve/training_policy.py",
+        "src/sofia/platform/config/model_catalog.py"
       ],
       "evidence_commits": [
         "1925361e1362520c11980987167a410a6635deb0"
@@ -22441,7 +22441,7 @@
       "master_line": 1110,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/evolve/training_policy.py"
+        "src/sofia/platform/evolve/training_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -22471,9 +22471,9 @@
       "master_line": 1111,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/evolve/training_policy.py",
+        "src/sofia/platform/evolve/training_policy.py",
         "test/test_evolve_training_holdout_separation.py",
-        "src/sofia/evolve/training_sources.py",
+        "src/sofia/platform/evolve/training_sources.py",
         "test/test_training_dataset_source_identity.py"
       ],
       "evidence_commits": [],
@@ -22490,7 +22490,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run. Further production source preflight rejects overlapping train/held-out example prompts, exact SHA-256 changes during second inspection and re-recording permanently revoked datasets. src/sofia/evolve/training_policy.py and training_sources.py, deferred test/test_evolve_training_holdout_separation.py. Not executed; does not prove comprehensive poisoning detection. Additional reviewed local JSONL source proof: disallow redirected path ancestors, UNC source path, changed inode/size/mtime across open/read/close and overlarge streaming intake; align claimed licensed-public/owner-original/synthetic rights with public-source/owner-source provenance and reject whitespace-only examples. src/sofia/evolve/training_sources.py, test/test_training_dataset_source_identity.py deferred. Copyright ownership/license NOT externally verified.",
+        "observed": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run. Further production source preflight rejects overlapping train/held-out example prompts, exact SHA-256 changes during second inspection and re-recording permanently revoked datasets. src/sofia/platform/evolve/training_policy.py and training_sources.py, deferred test/test_evolve_training_holdout_separation.py. Not executed; does not prove comprehensive poisoning detection. Additional reviewed local JSONL source proof: disallow redirected path ancestors, UNC source path, changed inode/size/mtime across open/read/close and overlarge streaming intake; align claimed licensed-public/owner-original/synthetic rights with public-source/owner-source provenance and reject whitespace-only examples. src/sofia/platform/evolve/training_sources.py, test/test_training_dataset_source_identity.py deferred. Copyright ownership/license NOT externally verified.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -22504,7 +22504,7 @@
       "master_line": 1112,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/evolve/training_policy.py"
+        "src/sofia/platform/evolve/training_policy.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -22557,8 +22557,8 @@
       "master_line": 1114,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/evolve/training_lab.py",
-        "src/sofia/evolve/training_policy.py",
+        "src/sofia/platform/evolve/training_lab.py",
+        "src/sofia/platform/evolve/training_policy.py",
         "test/test_evolve_training_holdout_separation.py"
       ],
       "evidence_commits": [],
@@ -22575,7 +22575,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Production source currently supports fixed seed, exact base/data digests, bounded plan lifetime and reviewed resource caps, and now evaluates independent train/held-out instruction sets before accepting dataset eligibility. Actual LoRA/QLoRA training runner, immutable tokenizer/adapter lineage, hyperparameter manifest and measured experiment receipts are still missing. Source src/sofia/evolve/training_lab.py; src/sofia/evolve/training_policy.py; test/test_evolve_training_holdout_separation.py authored not run.",
+        "observed": "Production source currently supports fixed seed, exact base/data digests, bounded plan lifetime and reviewed resource caps, and now evaluates independent train/held-out instruction sets before accepting dataset eligibility. Actual LoRA/QLoRA training runner, immutable tokenizer/adapter lineage, hyperparameter manifest and measured experiment receipts are still missing. Source src/sofia/platform/evolve/training_lab.py; src/sofia/platform/evolve/training_policy.py; test/test_evolve_training_holdout_separation.py authored not run.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Workstream 4 source review only. Production acceptance false.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -22612,8 +22612,8 @@
       "master_line": 1116,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/evolve/training_policy.py",
-        "src/sofia/evolve/training_sources.py"
+        "src/sofia/platform/evolve/training_policy.py",
+        "src/sofia/platform/evolve/training_sources.py"
       ],
       "evidence_commits": [],
       "accepted": false,
@@ -22629,7 +22629,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Production admission now rejects identical or normalized duplicate instructions crossing train/held-out datasets, even where files and responses differ. Canonical rights revocation prevents previously approved dataset being re-recorded as valid. This is not full poisoning/contamination/overfitting or catastrophic forgetting testing; no real model run/benchmark, no code acceptance. Source src/sofia/evolve/training_policy.py; src/sofia/evolve/training_sources.py and deferred regression test.",
+        "observed": "Production admission now rejects identical or normalized duplicate instructions crossing train/held-out datasets, even where files and responses differ. Canonical rights revocation prevents previously approved dataset being re-recorded as valid. This is not full poisoning/contamination/overfitting or catastrophic forgetting testing; no real model run/benchmark, no code acceptance. Source src/sofia/platform/evolve/training_policy.py; src/sofia/platform/evolve/training_sources.py and deferred regression test.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Workstream 4 source review only. Production acceptance false.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",
@@ -23134,7 +23134,7 @@
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Executable python -m sofia.verify.neuro_ablation uses real production NeuroRuntime, MemorySystem and canonical audience-scoped associations with disposable SQLite source fixtures. Four paired conditions compare selection accuracy, false memory eligibility, switches, signal noise, CPU/p50/p95 latency and unknown real GPU/wake data. Owner tests/host acceptance deferred.",
+        "observed": "Executable python -m sofia.platform.verify.neuro_ablation uses real production NeuroRuntime, MemorySystem and canonical audience-scoped associations with disposable SQLite source fixtures. Four paired conditions compare selection accuracy, false memory eligibility, switches, signal noise, CPU/p50/p95 latency and unknown real GPU/wake data. Owner tests/host acceptance deferred.",
         "missing": "Review latest merged source end-to-end; exact current-main CI, cross-platform tests, ownership and deployed hardware/VM acceptance not established.",
         "acceptance": "Source paths and a workstream-reported code candidate exist. Missing verified entrypoint/composition/caller/implementation/effect path, so only partial_wiring is defensible until exact tests and source-to-effect audit.",
         "source_evidence": "docs/development/v18-workstream4-task-evidence.json",

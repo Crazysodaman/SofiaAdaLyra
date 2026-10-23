@@ -214,9 +214,9 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -322,11 +322,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/ops/capability.py",
-        "src/sofia/ops/discovery.py",
-        "src/sofia/safe/__init__.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/ops/capability.py",
+        "src/sofia/platform/ops/discovery.py",
+        "src/sofia/platform/safe/__init__.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -352,11 +352,11 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/review.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/safe/review.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -424,8 +424,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -478,7 +478,7 @@
       ],
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/cognition/v2/rendering.py",
-        "src/sofia/ops/maintenance.py",
+        "src/sofia/platform/ops/maintenance.py",
         "src/sofia/voice/__init__.py",
         "src/sofia/voice/__main__.py",
         "src/sofia/voice/factory.py"
@@ -506,11 +506,11 @@
         "INTEGRATE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/review.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/safe/__init__.py",
-        "src/sofia/safe/approval_inbox_cli.py"
+        "src/sofia/platform/safe/review.py",
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/safe/__init__.py",
+        "src/sofia/platform/safe/approval_inbox_cli.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -560,7 +560,7 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/audit.py",
+        "src/sofia/platform/safe/audit.py",
         "src/sofia/memory/chatgpt_export_store.py",
         "src/sofia/memory/chatgpt_import_store.py",
         "src/sofia/memory/model.py",
@@ -586,8 +586,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "hardware",
@@ -690,11 +690,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/discovery.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/ops/discovery.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -772,9 +772,9 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/review.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/review.py",
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -942,8 +942,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "linux",
@@ -1009,8 +1009,8 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/life/model.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py"
       ],
       "potential_host_trial_cues": [
         "day"
@@ -1034,9 +1034,9 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [
         "hardware"
@@ -1150,11 +1150,11 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/safe/__init__.py",
-        "src/sofia/safe/approval_inbox_cli.py",
-        "src/sofia/safe/approval_inbox.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/safe/__init__.py",
+        "src/sofia/platform/safe/approval_inbox_cli.py",
+        "src/sofia/platform/safe/approval_inbox.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -1177,7 +1177,7 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [
         "windows"
@@ -1329,7 +1329,7 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/personality/model.py",
         "src/sofia/personality/store.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -1429,8 +1429,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -1512,8 +1512,8 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/environment/model.py",
         "src/sofia/environment/service.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
         "src/sofia/environment/__init__.py"
       ],
       "potential_host_trial_cues": [],
@@ -1563,10 +1563,10 @@
         "ACT"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/work.py",
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/work.py",
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -1645,9 +1645,9 @@
       ],
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/integrations/github.py",
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -1670,10 +1670,10 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py",
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -1760,7 +1760,7 @@
         "src/sofia/cognition/matrix/response.py",
         "src/sofia/cognition/matrix/model.py",
         "src/sofia/cognition/model.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [
         "week",
@@ -1840,11 +1840,11 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/discovery.py",
-        "src/sofia/safe/audit.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py"
+        "src/sofia/platform/ops/discovery.py",
+        "src/sofia/platform/safe/audit.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py"
       ],
       "potential_host_trial_cues": [
         "artemis",
@@ -2017,7 +2017,7 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [
         "p50",
@@ -2045,9 +2045,9 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -2140,9 +2140,9 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/cognition/matrix/model.py",
         "src/sofia/cognition/model.py",
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -2319,8 +2319,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -2370,8 +2370,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -2432,11 +2432,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/recovery.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/ops/recovery.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [
         "venus",
@@ -2489,11 +2489,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/backup.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/ops/backup.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -2557,8 +2557,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "hardware"
@@ -2748,9 +2748,9 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [
         "physical"
@@ -2894,9 +2894,9 @@
       ],
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/emotion/model.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -3000,11 +3000,11 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/review.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/safe/review.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -3026,8 +3026,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "windows"
@@ -3109,8 +3109,8 @@
         "src/sofia/ui/desktop.py",
         "src/sofia/rel/model.py",
         "src/sofia/rel/store.py",
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py"
       ],
       "potential_host_trial_cues": [
         "venus",
@@ -3169,11 +3169,11 @@
         "UI"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/act/history.py",
+        "src/sofia/platform/act/history.py",
         "src/sofia/ui/desktop.py",
         "src/sofia/rel/model.py",
         "src/sofia/rel/store.py",
-        "src/sofia/run/runtime_service.py"
+        "src/sofia/platform/run/runtime_service.py"
       ],
       "potential_host_trial_cues": [
         "network"
@@ -3223,8 +3223,8 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/rel/model.py",
         "src/sofia/rel/store.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "venus",
@@ -3338,9 +3338,9 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/environment/model.py",
         "src/sofia/environment/service.py",
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [
         "device"
@@ -3419,8 +3419,8 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/rel/model.py",
         "src/sofia/rel/store.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "device"
@@ -3689,8 +3689,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -3993,8 +3993,8 @@
         "UI"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
         "src/sofia/ui/avatar_mode_store.py",
         "src/sofia/ui/settings_service.py"
       ],
@@ -4018,9 +4018,9 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/review.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/review.py",
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -4046,7 +4046,7 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/cognition/matrix/privacy.py",
         "src/sofia/cognition/rules.py",
-        "src/sofia/verify/semantic.py",
+        "src/sofia/platform/verify/semantic.py",
         "src/sofia/cognition/matrix/model.py",
         "src/sofia/cognition/model.py"
       ],
@@ -4158,11 +4158,11 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
         "src/sofia/memory/historical.py",
-        "src/sofia/safe/__init__.py",
-        "src/sofia/safe/approval_inbox_cli.py"
+        "src/sofia/platform/safe/__init__.py",
+        "src/sofia/platform/safe/approval_inbox_cli.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -4336,9 +4336,9 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -4531,8 +4531,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "device"
@@ -4859,7 +4859,7 @@
         "INTEGRATE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -4881,11 +4881,11 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/safe/__init__.py",
-        "src/sofia/safe/approval_inbox_cli.py",
-        "src/sofia/safe/approval_inbox.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/safe/__init__.py",
+        "src/sofia/platform/safe/approval_inbox_cli.py",
+        "src/sofia/platform/safe/approval_inbox.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -4972,8 +4972,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "latency",
@@ -5167,8 +5167,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -5312,8 +5312,8 @@
         "src/sofia/ui/desktop.py",
         "src/sofia/rel/model.py",
         "src/sofia/rel/store.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "device"
@@ -5885,8 +5885,8 @@
         "SAFE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -5939,8 +5939,8 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/rel/model.py",
         "src/sofia/rel/store.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -6335,8 +6335,8 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/rel/model.py",
         "src/sofia/rel/store.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "physical"
@@ -6475,7 +6475,7 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/cognition/matrix/model.py",
         "src/sofia/cognition/model.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [
         "days"
@@ -6567,9 +6567,9 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -6591,10 +6591,10 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/release.py",
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/release.py",
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -6637,11 +6637,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/safe/__init__.py",
-        "src/sofia/safe/approval_inbox_cli.py",
-        "src/sofia/safe/approval_inbox.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/safe/__init__.py",
+        "src/sofia/platform/safe/approval_inbox_cli.py",
+        "src/sofia/platform/safe/approval_inbox.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -6735,11 +6735,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/fleet.py",
-        "src/sofia/ops/placement.py",
+        "src/sofia/platform/ops/fleet.py",
+        "src/sofia/platform/ops/placement.py",
         "src/sofia/cognition/matrix/model.py",
         "src/sofia/cognition/model.py",
-        "src/sofia/ops/artemis_controller_service.py"
+        "src/sofia/platform/ops/artemis_controller_service.py"
       ],
       "potential_host_trial_cues": [
         "windows"
@@ -6764,10 +6764,10 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/drift.py",
+        "src/sofia/platform/verify/drift.py",
         "src/sofia/personality/model.py",
         "src/sofia/personality/store.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -6813,7 +6813,7 @@
         "src/sofia/avatar/presentation_store.py",
         "src/sofia/avatar/wardrobe_generated_store.py",
         "src/sofia/avatar/wardrobe_pending_store.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [
         "venus"
@@ -7187,9 +7187,9 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -7541,8 +7541,8 @@
         "src/sofia/cognition/matrix/authority.py",
         "src/sofia/cognition/matrix/model.py",
         "src/sofia/cognition/model.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -7564,9 +7564,9 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -7588,11 +7588,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py",
-        "src/sofia/ops/linux_bootstrap.py"
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py",
+        "src/sofia/platform/ops/linux_bootstrap.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -8024,7 +8024,7 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/life/model.py",
         "src/sofia/life/store.py",
-        "src/sofia/safe/capability_policy.py"
+        "src/sofia/platform/safe/capability_policy.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -8071,10 +8071,10 @@
         "INTEGRATE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py",
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -8098,11 +8098,11 @@
         "WORLD"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/safe/__init__.py",
-        "src/sofia/safe/approval_inbox_cli.py",
-        "src/sofia/safe/approval_inbox.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/safe/__init__.py",
+        "src/sofia/platform/safe/approval_inbox_cli.py",
+        "src/sofia/platform/safe/approval_inbox.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -8219,7 +8219,7 @@
         "src/sofia/avatar/presentation_store.py",
         "src/sofia/avatar/wardrobe_generated_store.py",
         "src/sofia/avatar/wardrobe_pending_store.py",
-        "src/sofia/safe/capability_policy.py"
+        "src/sofia/platform/safe/capability_policy.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -8381,7 +8381,7 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -8427,7 +8427,7 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/ui/avatar_mode_store.py",
         "src/sofia/ui/settings_service.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -8831,7 +8831,7 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [
         "cpu"
@@ -8888,11 +8888,11 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/safe/__init__.py",
-        "src/sofia/safe/approval_inbox_cli.py",
-        "src/sofia/safe/approval_inbox.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/safe/__init__.py",
+        "src/sofia/platform/safe/approval_inbox_cli.py",
+        "src/sofia/platform/safe/approval_inbox.py"
       ],
       "potential_host_trial_cues": [
         "windows"
@@ -9037,7 +9037,7 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -9100,7 +9100,7 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/rel/model.py",
         "src/sofia/rel/store.py",
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -9231,11 +9231,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py",
-        "src/sofia/ops/linux_bootstrap.py"
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py",
+        "src/sofia/platform/ops/linux_bootstrap.py"
       ],
       "potential_host_trial_cues": [
         "artemis",
@@ -9268,8 +9268,8 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/life/model.py",
         "src/sofia/life/store.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -9294,9 +9294,9 @@
       "candidate_tracked_source_paths_unverified": [
         "src/sofia/cognition/matrix/model.py",
         "src/sofia/cognition/model.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py"
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py"
       ],
       "potential_host_trial_cues": [
         "hypervisor"
@@ -9322,8 +9322,8 @@
         "INTEGRATE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -9348,11 +9348,11 @@
         "INTEGRATE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/fleet.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/ops/fleet.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -9374,9 +9374,9 @@
         "RUN"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -9398,7 +9398,7 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -9466,11 +9466,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/reconcile.py",
-        "src/sofia/run/host.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py"
+        "src/sofia/platform/ops/reconcile.py",
+        "src/sofia/platform/run/host.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -9498,8 +9498,8 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/life/model.py",
         "src/sofia/life/store.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -9570,11 +9570,11 @@
         "UI"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/activity.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/ops/activity.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [
         "network"
@@ -9599,11 +9599,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py",
-        "src/sofia/ops/linux_bootstrap.py"
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py",
+        "src/sofia/platform/ops/linux_bootstrap.py"
       ],
       "potential_host_trial_cues": [
         "network"
@@ -9629,10 +9629,10 @@
         "INTEGRATE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/run/host.py",
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py",
-        "src/sofia/run/watchdog_service.py"
+        "src/sofia/platform/run/host.py",
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py",
+        "src/sofia/platform/run/watchdog_service.py"
       ],
       "potential_host_trial_cues": [
         "cpu"
@@ -9659,11 +9659,11 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/reconcile.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/ops/reconcile.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [
         "artemis"
@@ -9689,11 +9689,11 @@
         "UI"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/fleet.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/ops/fleet.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [
         "network"
@@ -9718,9 +9718,9 @@
         "FLEET"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/permissions.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py"
+        "src/sofia/platform/safe/permissions.py",
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py"
       ],
       "potential_host_trial_cues": [
         "network"
@@ -9782,11 +9782,11 @@
         "UI"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/review.py",
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
+        "src/sofia/platform/safe/review.py",
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
         "src/sofia/cognition/operation.py",
-        "src/sofia/safe/__init__.py"
+        "src/sofia/platform/safe/__init__.py"
       ],
       "potential_host_trial_cues": [
         "network"
@@ -9811,11 +9811,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py",
-        "src/sofia/ops/linux_bootstrap.py"
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py",
+        "src/sofia/platform/ops/linux_bootstrap.py"
       ],
       "potential_host_trial_cues": [
         "hypervisor"
@@ -9834,17 +9834,17 @@
       "phase": "13",
       "priority": "P0",
       "kind": "implementation",
-      "original_requirement": "Extend `src/sofia/distributed/agent_tools.py` and the Fleet operation manifest with pinned, signed/authorized `workshop.provision` operations. Maintain Artemis node identity and exact bound capability/operation; refuse stale capabilities, wrong node, missing grant and replay.",
+      "original_requirement": "Extend `src/sofia/platform/distributed/agent_tools.py` and the Fleet operation manifest with pinned, signed/authorized `workshop.provision` operations. Maintain Artemis node identity and exact bound capability/operation; refuse stale capabilities, wrong node, missing grant and replay.",
       "owner_candidates_unverified": [
         "FLEET",
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/capability.py",
-        "src/sofia/ops/fleet.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py"
+        "src/sofia/platform/ops/capability.py",
+        "src/sofia/platform/ops/fleet.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py"
       ],
       "potential_host_trial_cues": [
         "artemis"
@@ -9920,7 +9920,7 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [
         "artemis",
@@ -9947,11 +9947,11 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py",
-        "src/sofia/ops/linux_bootstrap.py"
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py",
+        "src/sofia/platform/ops/linux_bootstrap.py"
       ],
       "potential_host_trial_cues": [
         "cpu"
@@ -9978,11 +9978,11 @@
         "UI"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py",
-        "src/sofia/ops/linux_bootstrap.py"
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py",
+        "src/sofia/platform/ops/linux_bootstrap.py"
       ],
       "potential_host_trial_cues": [
         "network"
@@ -10035,11 +10035,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/enrollment.py",
-        "src/sofia/ops/fleet.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py"
+        "src/sofia/platform/ops/enrollment.py",
+        "src/sofia/platform/ops/fleet.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -10062,11 +10062,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py",
-        "src/sofia/ops/linux_bootstrap.py"
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py",
+        "src/sofia/platform/ops/linux_bootstrap.py"
       ],
       "potential_host_trial_cues": [
         "artemis",
@@ -10122,11 +10122,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/enrollment.py",
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py"
+        "src/sofia/platform/ops/enrollment.py",
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -10150,11 +10150,11 @@
         "VOICE"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/safe/__init__.py",
-        "src/sofia/safe/approval_inbox_cli.py",
-        "src/sofia/safe/approval_inbox.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/safe/__init__.py",
+        "src/sofia/platform/safe/approval_inbox_cli.py",
+        "src/sofia/platform/safe/approval_inbox.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -10205,11 +10205,11 @@
         "VM/OPS"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/ops/artemis_controller_service.py",
-        "src/sofia/ops/bootstrap.py",
-        "src/sofia/ops/capacity_runtime.py",
-        "src/sofia/ops/desired_store.py",
-        "src/sofia/ops/linux_bootstrap.py"
+        "src/sofia/platform/ops/artemis_controller_service.py",
+        "src/sofia/platform/ops/bootstrap.py",
+        "src/sofia/platform/ops/capacity_runtime.py",
+        "src/sofia/platform/ops/desired_store.py",
+        "src/sofia/platform/ops/linux_bootstrap.py"
       ],
       "potential_host_trial_cues": [
         "artemis",
@@ -10236,7 +10236,7 @@
         "VERIFY"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/verify/gate.py"
+        "src/sofia/platform/verify/gate.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -10428,8 +10428,8 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/life/model.py",
         "src/sofia/life/store.py",
-        "src/sofia/run/runtime_service.py",
-        "src/sofia/run/systemd_runtime.py"
+        "src/sofia/platform/run/runtime_service.py",
+        "src/sofia/platform/run/systemd_runtime.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",
@@ -10453,11 +10453,11 @@
         "AVATAR"
       ],
       "candidate_tracked_source_paths_unverified": [
-        "src/sofia/safe/capability_policy.py",
-        "src/sofia/safe/secret_store.py",
-        "src/sofia/safe/__init__.py",
-        "src/sofia/safe/approval_inbox_cli.py",
-        "src/sofia/safe/approval_inbox.py"
+        "src/sofia/platform/safe/capability_policy.py",
+        "src/sofia/platform/safe/secret_store.py",
+        "src/sofia/platform/safe/__init__.py",
+        "src/sofia/platform/safe/approval_inbox_cli.py",
+        "src/sofia/platform/safe/approval_inbox.py"
       ],
       "potential_host_trial_cues": [],
       "requirement_audit": "requirement classified; task-specific code/acceptance audit remains open",

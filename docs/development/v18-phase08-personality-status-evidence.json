@@ -31,9 +31,9 @@
       "id": "CA-502",
       "level": 3,
       "source_paths": [
-        "src/sofia/application/background_runtime.py",
+        "src/sofia/platform/application/background_runtime.py",
         "src/sofia/emotion/journal.py",
-        "src/sofia/application/emotional_conversation.py"
+        "src/sofia/platform/application/emotional_conversation.py"
       ],
       "evidence_kind": "source-to-entrypoint audit",
       "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
@@ -43,7 +43,7 @@
       "id": "CA-503",
       "level": 3,
       "source_paths": [
-        "src/sofia/application/emotional_conversation.py",
+        "src/sofia/platform/application/emotional_conversation.py",
         "src/sofia/conversation/store.py",
         "src/sofia/emotion/journal.py"
       ],
@@ -56,8 +56,8 @@
       "level": 3,
       "source_paths": [
         "src/sofia/cognition/matrix/expression_plan.py",
-        "src/sofia/application/expression_runtime.py",
-        "src/sofia/application/emotional_conversation.py"
+        "src/sofia/platform/application/expression_runtime.py",
+        "src/sofia/platform/application/emotional_conversation.py"
       ],
       "evidence_kind": "source-to-entrypoint audit",
       "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
@@ -67,7 +67,7 @@
       "id": "CA-505",
       "level": 3,
       "source_paths": [
-        "src/sofia/application/bootstrap.py",
+        "src/sofia/platform/application/bootstrap.py",
         "src/sofia/ui/desktop.py",
         "src/sofia/ui/avatar2d_renderer.py",
         "src/sofia/ui/avatar3d_renderer.py"
@@ -92,8 +92,8 @@
       "id": "CA-507",
       "level": 3,
       "source_paths": [
-        "src/sofia/application/expression_runtime.py",
-        "src/sofia/application/emotional_conversation.py"
+        "src/sofia/platform/application/expression_runtime.py",
+        "src/sofia/platform/application/emotional_conversation.py"
       ],
       "evidence_kind": "source-to-entrypoint audit",
       "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
@@ -105,7 +105,7 @@
       "source_paths": [
         "src/sofia/personality/preferences.py",
         "src/sofia/personality/modulation.py",
-        "src/sofia/application/bootstrap.py"
+        "src/sofia/platform/application/bootstrap.py"
       ],
       "evidence_kind": "source-to-entrypoint audit",
       "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
@@ -140,7 +140,7 @@
       "level": 3,
       "source_paths": [
         "src/sofia/social/affect.py",
-        "src/sofia/application/emotional_conversation.py"
+        "src/sofia/platform/application/emotional_conversation.py"
       ],
       "evidence_kind": "source-to-entrypoint audit",
       "remaining": "Level 4 integration, focused tests and real provider/host acceptance remain pending",
@@ -150,8 +150,8 @@
       "id": "CA-511",
       "level": 2,
       "source_paths": [
-        "src/sofia/application/expression_runtime.py",
-        "src/sofia/verify/personality_parity.py"
+        "src/sofia/platform/application/expression_runtime.py",
+        "src/sofia/platform/verify/personality_parity.py"
       ],
       "evidence_kind": "source-to-entrypoint audit",
       "remaining": "End-to-end voice-only, renderer absence, delayed acknowledgement and authenticated channel handoff integration",
@@ -161,8 +161,8 @@
       "id": "CA-2508",
       "level": 2,
       "source_paths": [
-        "src/sofia/verify/personality_parity.py",
-        "src/sofia/application/emotional_conversation.py"
+        "src/sofia/platform/verify/personality_parity.py",
+        "src/sofia/platform/application/emotional_conversation.py"
       ],
       "evidence_kind": "source-to-entrypoint audit",
       "remaining": "Canonical live four-mode capture, fixed factual oracles and backend receipt linking",
@@ -172,7 +172,7 @@
       "id": "CA-3805",
       "level": 2,
       "source_paths": [
-        "src/sofia/verify/personality_parity.py",
+        "src/sofia/platform/verify/personality_parity.py",
         "src/sofia/personality/modulation.py"
       ],
       "evidence_kind": "source-to-entrypoint audit",

@@ -259,7 +259,7 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/application/conversation_service.py": true
+          "src/sofia/platform/application/conversation_service.py": true
         },
         "source_packages": {
           "application": true,
@@ -295,7 +295,7 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/application/bootstrap.py": true
+          "src/sofia/platform/application/bootstrap.py": true
         },
         "source_packages": {
           "cognition": true
@@ -430,7 +430,7 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/capability/model.py": true
+          "src/sofia/platform/capability/model.py": true
         },
         "source_packages": {
           "capability": true,
@@ -563,7 +563,7 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/application/background_runtime.py": true
+          "src/sofia/platform/application/background_runtime.py": true
         },
         "source_packages": {
           "cognition": true,
@@ -600,7 +600,7 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/application/bootstrap.py": true
+          "src/sofia/platform/application/bootstrap.py": true
         },
         "source_packages": {
           "distributed": true,

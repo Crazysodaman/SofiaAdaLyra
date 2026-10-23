@@ -11,7 +11,7 @@
     }
   ],
   "reviewed_existing_paths": {
-    "src/sofia/distributed/capability.py": {
+    "src/sofia/platform/distributed/capability.py": {
       "before": "class RemoteFleetToolService:",
       "preserved": "Enrollment, approved endpoint, exact grant, pinned-mTLS identity checks, operator stop and remote result validation remain authoritative.",
       "reason": "Record elapsed time only after an authenticated, identity-matched remote result is returned."

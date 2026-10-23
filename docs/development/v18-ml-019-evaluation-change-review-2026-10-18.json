@@ -5,7 +5,7 @@
   ],
   "reviewed_existing_paths": {
     "src/sofia/memory/ranking.py":{"before":"class MemoryRankingService:","preserved":"Post-eligibility, audience-scoped, no-authority ranking and deterministic fallback.","reason":"Persist paired future retrieval order/model lineage and independently reviewed truth metrics."},
-    "src/sofia/application/memory_review.py":{"before":"class MemoryReviewService:","preserved":"Authenticated private review boundary and canonical MEM lifecycle authority.","reason":"Expose typed truth review without allowing the scorer to establish facts or eligibility."},
+    "src/sofia/platform/application/memory_review.py":{"before":"class MemoryReviewService:","preserved":"Authenticated private review boundary and canonical MEM lifecycle authority.","reason":"Expose typed truth review without allowing the scorer to establish facts or eligibility."},
     "docs/development/ml-foundation-ownership.md":{"before":"ML-019 remains incomplete","preserved":"Honest future-campaign acceptance boundary.","reason":"Document executable evaluation instrumentation while leaving real measurements open."}
   },
   "approved_removals": []
