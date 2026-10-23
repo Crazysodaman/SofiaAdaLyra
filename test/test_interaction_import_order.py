@@ -35,7 +35,7 @@ def test_application_and_interaction_can_import_in_either_order(first):
         ')',
         'assert ExportedApplication is SofiaApplication',
         'assert ExportedError is SofiaApplicationError',
-        'from sofia.__main__ import ConversationLoop as EntrypointLoop',
+        'from sofia.core.launcher import ConversationLoop as EntrypointLoop',
         'assert EntrypointLoop is ConversationLoop',
         "assert ConversationLoop.__module__ == 'sofia.ui.terminal'",
         'assert ExportedService is ConversationService',
