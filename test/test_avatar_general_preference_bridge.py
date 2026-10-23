@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.avatar.preference_bridge import wardrobe_preferences_from_registry
-from sofia.avatar.wardrobe_planner import PreferenceActor, Sentiment
+from sofia.modules.avatar.preference_bridge import wardrobe_preferences_from_registry
+from sofia.modules.avatar.wardrobe_planner import PreferenceActor, Sentiment
 from sofia.core.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )

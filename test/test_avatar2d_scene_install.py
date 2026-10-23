@@ -10,11 +10,11 @@ from zipfile import ZipFile
 import pytest
 from PIL import Image
 
-from sofia.avatar.scene_compositor import SceneSettings, load_public_background
-from sofia.avatar.scene_install import install_public_scene_pack
-from sofia.avatar.vtuber_asset_bundle import Avatar2DAssetError
-from sofia.avatar.vtuber_starter_art import _base
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.scene_compositor import SceneSettings, load_public_background
+from sofia.modules.avatar.scene_install import install_public_scene_pack
+from sofia.modules.avatar.vtuber_asset_bundle import Avatar2DAssetError
+from sofia.modules.avatar.vtuber_starter_art import _base
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 from test.test_ui_avatar2d_renderer import env
 
 

@@ -10,11 +10,11 @@ import zlib
 
 import pytest
 
-from sofia.vision.capture import ScreenCaptureService, local_target_id
-from sofia.vision.desktop_control import DesktopAction, DesktopInputService
-from sofia.vision.journeys import ScreenJourney, propose_owner_screen_journey
-from sofia.vision.linux_desktop import LinuxDesktop
-from sofia.vision.windows_capture import _png_from_bgra
+from sofia.modules.vision.capture import ScreenCaptureService, local_target_id
+from sofia.modules.vision.desktop_control import DesktopAction, DesktopInputService
+from sofia.modules.vision.journeys import ScreenJourney, propose_owner_screen_journey
+from sofia.modules.vision.linux_desktop import LinuxDesktop
+from sofia.modules.vision.windows_capture import _png_from_bgra
 
 
 def one_pixel() -> bytes:
@@ -63,8 +63,8 @@ def signed_request():
 
 def installed_capture(monkeypatch, *, stop=False, switched=False):
     from sofia.platform.safe import execution_approval, operator_stop
-    import sofia.vision.capture as cap
-    import sofia.vision.linux_desktop as linux
+    import sofia.modules.vision.capture as cap
+    import sofia.modules.vision.linux_desktop as linux
     monkeypatch.setattr(cap.sys, "platform", "linux")
     backend = FakeDesktop()
     backend.switch = switched
@@ -210,9 +210,9 @@ def test_linux_click_refuses_out_of_window_before_any_input(monkeypatch):
 
 
 def test_local_only_inference_receives_owner_picked_pixels_without_tools(monkeypatch):
-    from sofia.vision.capture import CapturedFrame
-    from sofia.vision.journeys import accept_actual_picked_frame
-    from sofia.vision.interpret import describe_frame
+    from sofia.modules.vision.capture import CapturedFrame
+    from sofia.modules.vision.journeys import accept_actual_picked_frame
+    from sofia.modules.vision.interpret import describe_frame
     req = signed_request()
     pixels = one_pixel()
     evidence = accept_actual_picked_frame(
@@ -236,9 +236,9 @@ def test_local_only_inference_receives_owner_picked_pixels_without_tools(monkeyp
 
 
 def test_image_model_failure_does_not_fallback_to_other_models():
-    from sofia.vision.capture import CapturedFrame
-    from sofia.vision.journeys import accept_actual_picked_frame
-    from sofia.vision.interpret import describe_frame
+    from sofia.modules.vision.capture import CapturedFrame
+    from sofia.modules.vision.journeys import accept_actual_picked_frame
+    from sofia.modules.vision.interpret import describe_frame
     req = signed_request()
     pixels = one_pixel()
     evidence = accept_actual_picked_frame(

@@ -5,7 +5,7 @@ No HTTP transport, hardware, Android instrumentation or tests are run here.
 """
 import pytest
 
-from sofia.mobile.gateway import MobileCredentialRevoked
+from sofia.modules.mobile.gateway import MobileCredentialRevoked
 from test.test_mobile_main_history import _setup, _record
 
 

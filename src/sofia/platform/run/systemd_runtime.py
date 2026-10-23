@@ -261,13 +261,13 @@ def run_headless(*, stop_event: Event) -> None:
         # The authoritative Debian application, not a Windows desktop copy,
         # hosts the existing per-device authenticated mobile endpoint.
         # Keep all gateway/application work on this same service owner thread.
-        from sofia.mobile.provisioning import MobileProvisioning
+        from sofia.modules.mobile.provisioning import MobileProvisioning
         mobile = MobileProvisioning.from_runtime(configuration)
         mobile_commands: Queue = Queue(maxsize=16)
         mobile_gateway = None
         if mobile.enabled:
-            from sofia.mobile.gateway import MobileCompanionGateway
-            from sofia.mobile.server import MobileCompanionServer
+            from sofia.modules.mobile.gateway import MobileCompanionGateway
+            from sofia.modules.mobile.server import MobileCompanionServer
             mobile_gateway = MobileCompanionGateway(
                 application, state_path=configuration.state_path,
             )

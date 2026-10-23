@@ -5,11 +5,11 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/avatar2d-live-public-pack.yml"
-      - "src/sofia/avatar/vtuber_starter_art.py"
-      - "src/sofia/avatar/vtuber_character_bundle.py"
-      - "src/sofia/avatar/vtuber_character_parts.py"
-      - "src/sofia/avatar/vtuber_layer_stack.py"
-      - "src/sofia/avatar/wardrobe_data/**"
+      - "src/sofia/modules/avatar/vtuber_starter_art.py"
+      - "src/sofia/modules/avatar/vtuber_character_bundle.py"
+      - "src/sofia/modules/avatar/vtuber_character_parts.py"
+      - "src/sofia/modules/avatar/vtuber_layer_stack.py"
+      - "src/sofia/modules/avatar/wardrobe_data/**"
   workflow_dispatch:
 
 permissions:
@@ -30,9 +30,9 @@ jobs:
       - name: Build actual public outfit sprite manifests and character parts
         shell: pwsh
         run: |
-          python -m sofia.avatar.vtuber_starter_art --output "$env:RUNNER_TEMP\sofia2d-live" --outfit all
+          python -m sofia.modules.avatar.vtuber_starter_art --output "$env:RUNNER_TEMP\sofia2d-live" --outfit all
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m sofia.avatar.vtuber_character_parts --output "$env:RUNNER_TEMP\sofia2d-live\character"
+          python -m sofia.modules.avatar.vtuber_character_parts --output "$env:RUNNER_TEMP\sofia2d-live\character"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Check all public outfit image digests and character PNGs
         shell: python
@@ -40,13 +40,13 @@ jobs:
           import json
           import os
           from pathlib import Path
-          from sofia.avatar.presentation import AttireMode, AudienceScope, AppearanceState, PresentationProjection
-          from sofia.avatar.vtuber_asset_bundle import Avatar2DArtSelection, _read_bundle
-          from sofia.avatar.vtuber_character_bundle import load_selected_character_sprites
-          from sofia.avatar.vtuber_character_selection import select_character_parts
-          from sofia.avatar.vtuber_layer_stack import assemble_avatar2d_layers
-          from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-          from sofia.avatar.wardrobe_matrix import build_wardrobe_matrix
+          from sofia.modules.avatar.presentation import AttireMode, AudienceScope, AppearanceState, PresentationProjection
+          from sofia.modules.avatar.vtuber_asset_bundle import Avatar2DArtSelection, _read_bundle
+          from sofia.modules.avatar.vtuber_character_bundle import load_selected_character_sprites
+          from sofia.modules.avatar.vtuber_character_selection import select_character_parts
+          from sofia.modules.avatar.vtuber_layer_stack import assemble_avatar2d_layers
+          from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+          from sofia.modules.avatar.wardrobe_matrix import build_wardrobe_matrix
           root = Path(os.environ["RUNNER_TEMP"]) / "sofia2d-live"
           catalog = build_starter_wardrobe()
           checked = 0

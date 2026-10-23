@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 
-from sofia.interaction.goal_journal import GoalJournal
+from sofia.modules.interaction.goal_journal import GoalJournal
 
 NOW = datetime(2026, 9, 20, tzinfo=timezone.utc)
 

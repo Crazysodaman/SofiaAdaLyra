@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from sofia.avatar.clothing_action import ClothingActionService
-from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
+from sofia.modules.avatar.clothing_action import ClothingActionService
+from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.core.embodiment.store import EmbodimentStore
 
 

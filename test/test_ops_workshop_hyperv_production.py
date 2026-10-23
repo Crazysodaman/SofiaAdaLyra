@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.integrations.hyperv import HyperVAdapter
+from sofia.modules.integrations.hyperv import HyperVAdapter
 from sofia.platform.distributed.capability import RemoteFleetToolService
 from sofia.platform.ops.workshop_provision import (
     EXPECTED_SWITCH,

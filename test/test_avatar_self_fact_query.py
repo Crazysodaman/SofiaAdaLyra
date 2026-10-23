@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AppearanceState,
     AttireMode,
     AudienceScope,
     PresentationAuthority,
 )
-from sofia.avatar.self_fact_query import AvatarSelfFactResolver
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_matrix import build_wardrobe_matrix
+from sofia.modules.avatar.self_fact_query import AvatarSelfFactResolver
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_matrix import build_wardrobe_matrix
 from sofia.core.embodiment.store import EmbodimentStore
 from pathlib import Path
 

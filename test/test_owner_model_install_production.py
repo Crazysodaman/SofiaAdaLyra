@@ -14,7 +14,7 @@ from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
 from sofia.platform.safe.operator_stop import OperatorStopStore
-from sofia.ui.settings_service import install_approved_configured_model
+from sofia.modules.ui.settings_service import install_approved_configured_model
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark = pytest.mark.pkg_safe
@@ -36,7 +36,7 @@ class ObservedOllama:
 
 
 def setup(tmp_path, monkeypatch):
-    import sofia.integrations.ollama as ollama
+    import sofia.modules.integrations.ollama as ollama
     import sofia.platform.machine.discovery as discovery
     from types import SimpleNamespace
     monkeypatch.setattr(

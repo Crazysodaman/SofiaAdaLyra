@@ -1,8 +1,8 @@
 """Nested garment profiles fail closed on invalid runtime values."""
 import pytest
 
-from sofia.avatar.wardrobe import WardrobeError
-from sofia.avatar.wardrobe_design import (
+from sofia.modules.avatar.wardrobe import WardrobeError
+from sofia.modules.avatar.wardrobe_design import (
     ComfortProfile,
     ContextProfile,
     HumidityProfile,

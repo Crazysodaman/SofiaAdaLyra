@@ -8,7 +8,7 @@ from sofia.platform.config import create_production_configuration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
-from sofia.discord.provisioning import DiscordProvisioning
+from sofia.modules.discord.provisioning import DiscordProvisioning
 
 OWNER = "123456789012345678"
 BOT = "987654321098765432"
@@ -122,7 +122,7 @@ def test_runtime_provisioning_loads_saved_ids_and_protected_token(
             return "saved-secret-token"
 
     monkeypatch.setattr(
-        "sofia.discord.provisioning.ProtectedSecretStore.for_state_path",
+        "sofia.modules.discord.provisioning.ProtectedSecretStore.for_state_path",
         staticmethod(lambda path: Secrets()),
     )
 
@@ -158,7 +158,7 @@ def test_runtime_provisioning_allows_saved_channel_to_be_blank(
             return "saved-secret-token"
 
     monkeypatch.setattr(
-        "sofia.discord.provisioning.ProtectedSecretStore.for_state_path",
+        "sofia.modules.discord.provisioning.ProtectedSecretStore.for_state_path",
         staticmethod(lambda path: Secrets()),
     )
 
@@ -243,7 +243,7 @@ def test_production_discord_reads_saved_settings_from_live_state(
             return "production-secret-token"
 
     monkeypatch.setattr(
-        "sofia.discord.provisioning.ProtectedSecretStore.for_state_path",
+        "sofia.modules.discord.provisioning.ProtectedSecretStore.for_state_path",
         staticmethod(lambda path: Secrets()),
     )
 

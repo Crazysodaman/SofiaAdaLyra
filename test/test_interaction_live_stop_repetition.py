@@ -11,10 +11,10 @@ import pytest
 from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from sofia.core.conversation.store import ConversationStore
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.chat import InteractiveConversationService, interaction_prompt
-from sofia.interaction.grammar import NaturalInteractionEngine
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.live_guard import unsupported_composite_gesture
+from sofia.modules.interaction.chat import InteractiveConversationService, interaction_prompt
+from sofia.modules.interaction.grammar import NaturalInteractionEngine
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.live_guard import unsupported_composite_gesture
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core' / 'embodiment' / 'avatar.json'

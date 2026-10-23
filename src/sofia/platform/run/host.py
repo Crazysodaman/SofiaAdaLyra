@@ -14,7 +14,7 @@ from sofia.platform.config import (
     create_production_configuration,
     production_state_path,
 )
-from sofia.integrations.local_maintenance import LocalMaintenanceAdapter
+from sofia.modules.integrations.local_maintenance import LocalMaintenanceAdapter
 from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
 from sofia.platform.run.release import ReleaseRecoveryHook
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane

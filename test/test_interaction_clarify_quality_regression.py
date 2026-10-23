@@ -3,13 +3,13 @@
 import pytest
 
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.offer_route import OFFER
-from sofia.interaction.conversation_offer_context import (
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.offer_route import OFFER
+from sofia.modules.interaction.conversation_offer_context import (
     routed_conversation_expression_request,
 )
-from sofia.interaction.decision_expression import CandidateChoice, from_reviewed_action
-from sofia.interaction.expression_consistency import validate_offer_expression
+from sofia.modules.interaction.decision_expression import CandidateChoice, from_reviewed_action
+from sofia.modules.interaction.expression_consistency import validate_offer_expression
 
 
 _REAL_QWEN_CLARIFY_DRIFT = (

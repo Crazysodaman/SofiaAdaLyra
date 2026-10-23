@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import re
 
 from sofia.core.cognition.matrix.model import MatrixDomain, TurnMatrix
-from sofia.neuro.model import NeuroStateSnapshot
+from sofia.modules.neuro.model import NeuroStateSnapshot
 
 from .influence import ContinuityInfluence
 from .preferences import CommunicationStylePreferences

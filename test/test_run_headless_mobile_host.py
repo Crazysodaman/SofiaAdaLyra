@@ -95,7 +95,7 @@ def _prepare_runtime(tmp_path: Path, monkeypatch):
 def test_debian_mobile_endpoint_starts_after_canonical_application_and_stops_first(
     tmp_path, monkeypatch,
 ):
-    from sofia.mobile import gateway, provisioning, server
+    from sofia.modules.mobile import gateway, provisioning, server
 
     state, stopped, actions = _prepare_runtime(tmp_path, monkeypatch)
     monkeypatch.setattr(
@@ -132,7 +132,7 @@ def test_debian_mobile_endpoint_starts_after_canonical_application_and_stops_fir
 def test_failing_authenticated_endpoint_refuses_ready_and_stops_canonical_app(
     tmp_path, monkeypatch,
 ):
-    from sofia.mobile import gateway, provisioning, server
+    from sofia.modules.mobile import gateway, provisioning, server
 
     _, stopped, actions = _prepare_runtime(tmp_path, monkeypatch)
     monkeypatch.setattr(

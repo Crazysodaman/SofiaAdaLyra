@@ -14,10 +14,10 @@ import sqlite3
 import pytest
 
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.grammar import NaturalInteractionEngine
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import catalog_for_engine
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.grammar import NaturalInteractionEngine
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.registry import catalog_for_engine
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -271,7 +271,7 @@ def test_nonexecuting_language_never_writes_interaction_evidence(
     ),
 )
 def test_telegraphic_social_actions_are_reviewed_user_descriptions(content, action_id):
-    from sofia.interaction.action_grammar import parse_user_action
+    from sofia.modules.interaction.action_grammar import parse_user_action
 
     result = parse_user_action(content, message_id="telegraphic-1")
 

@@ -7,7 +7,7 @@ import sofia.platform.application.bootstrap as bootstrap
 from sofia.platform.application import SofiaApplication, SofiaApplicationError
 from sofia.platform.application.act_service import SofiaActService
 from sofia.core.cognition.engine import CognitiveEngineError
-from sofia.interaction.opt_in_service import OptInInteractionConversationService
+from sofia.modules.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettings
 from sofia.platform.runtime.model import RuntimeState

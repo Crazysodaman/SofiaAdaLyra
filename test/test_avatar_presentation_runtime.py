@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from sofia.avatar.presentation_store import (
+from sofia.modules.avatar.presentation_store import (
     PresentationStore,
     PresentationStoreError,
 )
-from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
+from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.core.embodiment.store import EmbodimentStore
 
 
@@ -35,7 +35,7 @@ def old_snapshot(
         "style_tags": ["canonical", "engineer"],
     }
     return {
-        "schema": "sofia.avatar.presentation.v1",
+        "schema": "sofia.modules.avatar.presentation.v1",
         "canonical_daily_outfit_id": "engineer.signature",
         "current": {
             "revision": 7,

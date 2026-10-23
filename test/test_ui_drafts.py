@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.ui.drafts import UIDraftStore
+from sofia.modules.ui.drafts import UIDraftStore
 
 
 def test_draft_persists_across_store_instances(

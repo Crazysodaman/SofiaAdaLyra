@@ -6,9 +6,9 @@ import pytest
 
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.core.conversation.model import ConversationRole
-from sofia.interaction.chat import InteractiveConversationService
-from sofia.interaction.expanded_service import ExpandedConversationService
-from sofia.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.chat import InteractiveConversationService
+from sofia.modules.interaction.expanded_service import ExpandedConversationService
+from sofia.modules.interaction.ledger import InteractionLedger
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 

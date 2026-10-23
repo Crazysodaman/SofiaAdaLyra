@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.interaction.world_preferences import WorldPreferencePolicy
+from sofia.modules.interaction.world_preferences import WorldPreferencePolicy
 from sofia.core.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )

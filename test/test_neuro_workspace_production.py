@@ -5,9 +5,9 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.platform.application.conversation_service import ConversationService
-from sofia.neuro import NeuralSignal, NeuroRuntime
-from sofia.neuro.store import NeuroObservabilityStore
-from sofia.neuro.workspace import NeuroSharedWorkspace
+from sofia.modules.neuro import NeuralSignal, NeuroRuntime
+from sofia.modules.neuro.store import NeuroObservabilityStore
+from sofia.modules.neuro.workspace import NeuroSharedWorkspace
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 pytestmark=pytest.mark.pkg_core

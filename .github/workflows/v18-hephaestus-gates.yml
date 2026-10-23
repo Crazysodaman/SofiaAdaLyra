@@ -5,7 +5,7 @@ on:
     paths:
       - 'src/sofia/platform/ops/workshop_*.py'
       - 'src/sofia/platform/ops/digital_twin.py'
-      - 'src/sofia/integrations/hyperv.py'
+      - 'src/sofia/modules/integrations/hyperv.py'
       - 'test/test_ops_workshop_*.py'
       - 'test/test_ui_workshop_owner_webauthn.py'
       - 'test/test_ops_digital_twin_production.py'
@@ -31,7 +31,7 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -e . pytest
       - name: Compile production Hephaestus Python modules
-        run: python -m compileall -q src/sofia/platform/ops src/sofia/integrations/hyperv.py
+        run: python -m compileall -q src/sofia/platform/ops src/sofia/modules/integrations/hyperv.py
       - name: Workshop, guest, attestation and synthetic twin tests
         run: >
           python -m pytest -q

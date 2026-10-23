@@ -6,7 +6,7 @@ import pytest
 
 from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner
 
-from sofia.avatar.private_grant import PrivatePresentationGrantResolver
+from sofia.modules.avatar.private_grant import PrivatePresentationGrantResolver
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.core.social.principals import local_sparks_principal

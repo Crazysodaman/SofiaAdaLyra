@@ -14,7 +14,7 @@ from test.owner_auth_fixture import record_verified_owner_approval
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.platform.distributed.capability import RemoteFleetToolService
-from sofia.integrations.hyperv import HyperVAdapter
+from sofia.modules.integrations.hyperv import HyperVAdapter
 from sofia.platform.ops.workshop_handoff import (
     WorkshopBlankVMHandoff, WorkshopHandoffPreview,
     WorkshopHandoffStore, inspect_blank_vm_handoff, observed_owner_vm,

@@ -15,7 +15,7 @@ from sofia.core.environment.model import (
     Season,
     WeatherObservation,
 )
-from sofia.neuro import (
+from sofia.modules.neuro import (
     BodyReflexObservation, NeuralSignal,
     NeuroInputCoordinator,
     NeuroObservabilityStore,
@@ -23,7 +23,7 @@ from sofia.neuro import (
     NeuroWakeMode, VoiceSensoryObservation,
 )
 from sofia.platform.ops.model import HostTelemetry
-from sofia.voice import TTSStatus
+from sofia.modules.voice import TTSStatus
 
 
 NOW = datetime(2026, 10, 6, 18, 0, tzinfo=timezone.utc)

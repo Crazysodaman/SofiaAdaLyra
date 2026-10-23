@@ -7,8 +7,8 @@ import pytest
 import sqlite3
 
 from sofia.platform.application import SofiaApplication
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.presentation import (
     AppearanceState,
     AudienceScope,
     PresentationAuthority,

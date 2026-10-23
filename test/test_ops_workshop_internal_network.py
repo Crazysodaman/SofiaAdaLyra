@@ -14,7 +14,7 @@ from sofia.platform.ops.workshop_network import (
 from sofia.platform.ops.workshop_handoff import (
     WorkshopBlankVMHandoff,observed_owner_vm,inspect_blank_vm_handoff,
 )
-from sofia.integrations.hyperv import HyperVAdapter
+from sofia.modules.integrations.hyperv import HyperVAdapter
 
 AT=datetime(2026,10,11,18,tzinfo=timezone.utc)
 

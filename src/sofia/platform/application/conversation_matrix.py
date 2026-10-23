@@ -48,8 +48,8 @@ from sofia.core.cognition.matrix import (
 )
 from sofia.core.cognition.v2 import ActionRequirement, ReasoningRequirement, TurnPlan
 from sofia.core.social.model import PrincipalContext
-from sofia.neuro import NeuroWakeMode
-from sofia.voice.tts import TTSStatus
+from sofia.modules.neuro import NeuroWakeMode
+from sofia.modules.voice.tts import TTSStatus
 from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 
 

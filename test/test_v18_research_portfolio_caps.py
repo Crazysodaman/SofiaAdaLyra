@@ -9,7 +9,7 @@ import sqlite3
 
 import pytest
 
-from sofia.neuro.research_registry import (
+from sofia.modules.neuro.research_registry import (
     EvaluatedResearchOutcome, ResearchEvidenceRegistry,
     reviewed_baseline_studies,
 )

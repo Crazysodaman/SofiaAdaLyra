@@ -4,15 +4,15 @@ import socket
 
 import pytest
 
-from sofia.vision.action_workflow import (
+from sofia.modules.vision.action_workflow import (
     ReviewedScreenAction, ScreenActionWorkflow,
 )
-from sofia.vision.capture import CapturedFrame, ScreenCaptureService, local_target_id
-from sofia.vision.desktop_control import DesktopAction, DesktopInputService
-from sofia.vision.journeys import (
+from sofia.modules.vision.capture import CapturedFrame, ScreenCaptureService, local_target_id
+from sofia.modules.vision.desktop_control import DesktopAction, DesktopInputService
+from sofia.modules.vision.journeys import (
     ScreenJourney, accept_actual_picked_frame, propose_owner_screen_journey,
 )
-from sofia.vision.windows_capture import _png_from_bgra
+from sofia.modules.vision.windows_capture import _png_from_bgra
 
 
 def prepared():

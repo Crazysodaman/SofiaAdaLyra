@@ -13,7 +13,7 @@ from typing import Callable
 
 from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.platform.capability.model import CapabilityResultKind
-from sofia.neuro.model import NeuralActivation, NeuroStateSnapshot, NeuroWakeMode
+from sofia.modules.neuro.model import NeuralActivation, NeuroStateSnapshot, NeuroWakeMode
 from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.core.social.model import PrincipalContext

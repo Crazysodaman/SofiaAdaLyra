@@ -195,10 +195,10 @@ class FilesystemOrchestrator:
             argument.strip().casefold().replace("_", " ").split()
         )
         aliases = {
-            "avatar wardrobe": "src/sofia/avatar",
-            "avatar/wardrobe": "src/sofia/avatar",
-            "avatar wardrobe folder": "src/sofia/avatar",
-            "wardrobe": "src/sofia/avatar",
+            "avatar wardrobe": "src/sofia/modules/avatar",
+            "avatar/wardrobe": "src/sofia/modules/avatar",
+            "avatar wardrobe folder": "src/sofia/modules/avatar",
+            "wardrobe": "src/sofia/modules/avatar",
         }
         return aliases.get(normalized, argument)
 

@@ -10,7 +10,7 @@ import pytest
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.platform.distributed.capability import RemoteFleetToolService
-from sofia.integrations.hyperv import HyperVAdapter
+from sofia.modules.integrations.hyperv import HyperVAdapter
 from sofia.platform.ops.workshop_network import network_policy_digest,SWITCH_NAME
 from sofia.platform.ops.workshop_network_stage import (
     WorkshopNetworkStageStore,stage_approved_internal_network,

@@ -20,11 +20,11 @@ def test_secret_store_import_does_not_eager_load_dev_capability():
 
 
 def test_discord_provisioning_import_avoids_safe_dev_cycle():
-    _clear_package("sofia.discord.provisioning")
+    _clear_package("sofia.modules.discord.provisioning")
     _clear_package("sofia.platform.safe")
     _clear_package("sofia.platform.dev")
 
-    module = importlib.import_module("sofia.discord.provisioning")
+    module = importlib.import_module("sofia.modules.discord.provisioning")
 
     assert hasattr(module, "DiscordProvisioning")
     assert "sofia.platform.dev.capability" not in sys.modules

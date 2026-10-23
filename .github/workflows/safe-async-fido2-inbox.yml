@@ -9,8 +9,8 @@ on:
       - 'src/sofia/platform/safe/owner_browser.py'
       - 'src/sofia/platform/safe/owner_webauthn.py'
       - 'src/sofia/platform/safe/execution_approval.py'
-      - 'src/sofia/ui/owner_inbox_window.py'
-      - 'src/sofia/ui/settings_window.py'
+      - 'src/sofia/modules/ui/owner_inbox_window.py'
+      - 'src/sofia/modules/ui/settings_window.py'
       - 'test/test_safe_approval_inbox.py'
       - '.github/workflows/safe-async-fido2-inbox.yml'
   workflow_dispatch:
@@ -40,6 +40,6 @@ jobs:
       - name: Install package
         run: python -m pip install -e . pytest
       - name: Compile SAFE and desktop owner window
-        run: python -m compileall -q src/sofia/platform/safe src/sofia/ui/owner_inbox_window.py
+        run: python -m compileall -q src/sofia/platform/safe src/sofia/modules/ui/owner_inbox_window.py
       - name: Verify durable inbox and existing WebAuthn regression
         run: python -m pytest -q test/test_safe_approval_inbox.py test/test_safe_owner_browser.py

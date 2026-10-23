@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.platform.run.active_release import ActiveRelease
-from sofia.ui.notifications import DesktopNotificationStore
+from sofia.modules.ui.notifications import DesktopNotificationStore
 
 
 class UpdateRestartAction(str, Enum):

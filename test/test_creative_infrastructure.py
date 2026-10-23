@@ -9,8 +9,8 @@ from sofia.core.creative import (
     ManagedAssetStore, NativeCreativeAdapter, CreativeExplorer,
     CreativeWorldBridge, path_component,
 )
-from sofia.interaction.world_model import ObjectKind, Transform
-from sofia.interaction.world_store import VirtualWorldStore
+from sofia.modules.interaction.world_model import ObjectKind, Transform
+from sofia.modules.interaction.world_store import VirtualWorldStore
 
 
 NOW = datetime(2026, 10, 10, 13, tzinfo=timezone.utc)

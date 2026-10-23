@@ -1,6 +1,6 @@
-from sofia.discord.access import SingleUserDiscordConfig
-from sofia.discord.binding import DiscordBindingStore
-from sofia.discord.proactive import DiscordProactiveSender
+from sofia.modules.discord.access import SingleUserDiscordConfig
+from sofia.modules.discord.binding import DiscordBindingStore
+from sofia.modules.discord.proactive import DiscordProactiveSender
 
 
 OWNER = 123456789012345678

@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from sofia.avatar.presentation import AttireMode, AudienceScope
-from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
-from sofia.avatar.vtuber_asset_bundle import (
+from sofia.modules.avatar.presentation import AttireMode, AudienceScope
+from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
+from sofia.modules.avatar.vtuber_asset_bundle import (
     Avatar2DArtSelection, Avatar2DAssetError,
     Avatar2DSprite, Verified2DArtBundle,
 )
-from sofia.avatar.vtuber_layer_stack import (
+from sofia.modules.avatar.vtuber_layer_stack import (
     WAIST_UP_SLOTS, assemble_avatar2d_layers,
 )
 from sofia.core.embodiment.store import EmbodimentStore

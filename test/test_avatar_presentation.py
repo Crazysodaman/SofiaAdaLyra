@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AppearanceState,
     AttireMode,
     AudienceScope,
@@ -12,7 +12,7 @@ from sofia.avatar.presentation import (
     PresentationError,
     PrivatePresentationGrant,
 )
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
 def authority() -> PresentationAuthority:

@@ -1,10 +1,10 @@
 """Accessory catalog contracts for Sofía's owned wardrobe."""
 from collections import Counter
 
-from sofia.avatar.wardrobe import Layer
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_design import ContentRating
-from sofia.avatar.wardrobe_types import GarmentFamily, garment_type
+from sofia.modules.avatar.wardrobe import Layer
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_design import ContentRating
+from sofia.modules.avatar.wardrobe_types import GarmentFamily, garment_type
 
 
 PREFIXES = {

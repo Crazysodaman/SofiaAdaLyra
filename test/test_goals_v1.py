@@ -20,7 +20,7 @@ from sofia.core.goals import (
     effective_priority,
 )
 from sofia.core.goals.evidence import GoalEvidence
-from sofia.neuro import NeuralActivation, NeuroInputCoordinator, NeuroRuntime
+from sofia.modules.neuro import NeuralActivation, NeuroInputCoordinator, NeuroRuntime
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite

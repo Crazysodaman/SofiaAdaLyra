@@ -1,7 +1,7 @@
 import pytest
 
-from sofia.discord.process_lock import DiscordProcessLock
-from sofia.ui.process_lock import TrayProcessLock
+from sofia.modules.discord.process_lock import DiscordProcessLock
+from sofia.modules.ui.process_lock import TrayProcessLock
 
 
 def test_discord_excludes_second_owner_and_releases_for_reacquisition(tmp_path):

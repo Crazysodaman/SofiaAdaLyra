@@ -4,11 +4,11 @@ import json
 
 import pytest
 
-from sofia.avatar.vtuber_art_fidelity import (
+from sofia.modules.avatar.vtuber_art_fidelity import (
     authoring_instructions, brief_from_blueprint, export_public_art_briefs,
     public_art_briefs, verify_art_review,
 )
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
 def _blueprint(item_id):

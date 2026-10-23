@@ -7,7 +7,7 @@ import sqlite3
 
 import pytest
 
-from sofia.mobile.gateway import MobileCredentialRevoked
+from sofia.modules.mobile.gateway import MobileCredentialRevoked
 from test.test_mobile_gateway import _gateway
 
 

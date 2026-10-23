@@ -9,8 +9,8 @@ from sofia.platform.system.model import (
     SystemCapabilityName,
     SystemCapabilityResultKind,
 )
-from sofia.ui.control_center import GameMode
-from sofia.ui.tray_agent import TrayAgentApplication
+from sofia.modules.ui.control_center import GameMode
+from sofia.modules.ui.tray_agent import TrayAgentApplication
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

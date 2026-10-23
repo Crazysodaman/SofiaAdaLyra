@@ -12,7 +12,7 @@ import pytest
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.platform.distributed.capability import RemoteFleetToolService
-from sofia.integrations.hyperv import HyperVAdapter
+from sofia.modules.integrations.hyperv import HyperVAdapter
 from sofia.platform.ops.workshop_handoff import (
     WorkshopBlankVMHandoff,
     WorkshopHandoffStore,

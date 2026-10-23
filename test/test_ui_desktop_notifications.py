@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.ui.notifications import DesktopNotificationStore
+from sofia.modules.ui.notifications import DesktopNotificationStore
 
 
 NOW = datetime(2026, 10, 5, 16, 0, tzinfo=timezone.utc)

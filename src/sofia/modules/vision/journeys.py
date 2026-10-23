@@ -1,0 +1,293 @@
+"""Four explicit privacy/authority journeys for a real OS-picked screen target.
+
+The owner-visible journey is NOT the OS picker or a frame. A platform capture
+adapter must return genuine bytes from the exact chosen window. This module
+cannot open windows, read pixels, navigate UI, execute clicks or watch ambient
+screens without independent interactive OS permission.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime,timedelta,timezone
+from enum import Enum
+from hashlib import sha256
+from contextlib import closing
+from pathlib import Path
+from uuid import uuid4
+import json
+
+from sofia.modules.vision.consent import (
+    ScreenObservationPermit,ScreenObservationReceipt,
+    propose_screen_permit,receipt_from_permitted_bytes,
+)
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+
+class ScreenJourney(str,Enum):
+    LOOK_AT_WINDOW="look_at_approved_window"
+    SHOW_CHANGES="show_me_what_changed"
+    WATCH_ONE_APP="watch_one_app_briefly"
+    NAVIGATE_GUIDANCE="help_me_navigate"
+
+@dataclass(frozen=True,slots=True)
+class ScreenJourneyPolicy:
+    journey:ScreenJourney
+    snapshot_only:bool
+    max_seconds:int
+    permits_interactive_watching:bool
+    permits_mouse_keyboard:bool=False
+    permits_background_capture:bool=False
+    permits_unselected_windows:bool=False
+    permits_private_history_in_memory:bool=False
+
+_POLICIES={
+    ScreenJourney.LOOK_AT_WINDOW:ScreenJourneyPolicy(
+        ScreenJourney.LOOK_AT_WINDOW,True,30,False,
+    ),
+    ScreenJourney.SHOW_CHANGES:ScreenJourneyPolicy(
+        ScreenJourney.SHOW_CHANGES,True,45,False,
+    ),
+    ScreenJourney.WATCH_ONE_APP:ScreenJourneyPolicy(
+        ScreenJourney.WATCH_ONE_APP,False,180,True,
+    ),
+    ScreenJourney.NAVIGATE_GUIDANCE:ScreenJourneyPolicy(
+        ScreenJourney.NAVIGATE_GUIDANCE,True,30,False,
+    ),
+}
+
+def journey_policy(journey:ScreenJourney)->ScreenJourneyPolicy:
+    if not isinstance(journey,ScreenJourney):
+        raise TypeError("typed screen journey required")
+    return _POLICIES[journey]
+
+
+@dataclass(frozen=True,slots=True)
+class ScreenJourneyRequest:
+    journey:ScreenJourney
+    permit:ScreenObservationPermit
+    requested_by_owner_ui:bool
+    os_picker_confirmed:bool=False
+    actual_capture_available:bool=False
+
+    def __post_init__(self):
+        if not isinstance(self.journey,ScreenJourney) or not isinstance(
+            self.permit,ScreenObservationPermit,
+        ):
+            raise TypeError("scoped typed screen journey required")
+        if not self.requested_by_owner_ui or self.os_picker_confirmed:
+            raise PermissionError(
+                "user journey request cannot claim OS picker permission"
+            )
+        if self.actual_capture_available:
+            raise PermissionError("proposing capture does not mean pixels exist")
+
+
+def propose_owner_screen_journey(
+    *,journey:ScreenJourney,principal_id:str,audience_id:str,
+    device_id:str,target_id:str,purpose:str,at:datetime,
+)->ScreenJourneyRequest:
+    policy=journey_policy(journey)
+    permit=propose_screen_permit(
+        principal_id=principal_id,audience_id=audience_id,
+        device_id=device_id,target_id=target_id,purpose=purpose,
+        kind="snapshot" if policy.snapshot_only else "bounded_follow",
+        at=at,duration_seconds=policy.max_seconds,
+    )
+    return ScreenJourneyRequest(
+        journey=journey,permit=permit,requested_by_owner_ui=True,
+    )
+
+
+@dataclass(frozen=True,slots=True)
+class ScreenFrameEvidence:
+    journey:ScreenJourney
+    receipt:ScreenObservationReceipt
+    principal_id:str
+    audience_id:str
+    device_id:str
+    observed_at:datetime
+    observation_source:str="os_interactive_picker_genuine_frame"
+    semantic_content_verified:bool=False
+    authorized_action:bool=False
+    pixel_content_persisted:bool=False
+
+    def __post_init__(self):
+        if (
+            self.observation_source!="os_interactive_picker_genuine_frame"
+            or not self.receipt.actual_frame_available
+            or self.semantic_content_verified or self.authorized_action
+            or self.pixel_content_persisted
+            or not isinstance(self.principal_id,str)
+            or not self.principal_id.strip()
+            or not isinstance(self.audience_id,str)
+            or not self.audience_id.strip()
+            or not isinstance(self.device_id,str)
+            or not self.device_id.strip()
+            or not isinstance(self.observed_at,datetime)
+            or self.observed_at.tzinfo is None
+            or self.observed_at.utcoffset() is None
+            or self.receipt.captured_at!=self.observed_at
+            or not isinstance(self.receipt.target_id,str)
+            or not self.receipt.target_id.strip()
+            or not isinstance(self.receipt.permit_id,str)
+            or not self.receipt.permit_id.startswith("screen-permit:")
+            or len(self.receipt.digest_sha256)!=64
+            or any(ch not in "0123456789abcdef"
+                   for ch in self.receipt.digest_sha256)
+        ):
+            raise PermissionError("a frame hash cannot imply scene semantics/actions")
+
+
+def accept_actual_picked_frame(
+    request:ScreenJourneyRequest,*,pixel_bytes:bytes,at:datetime,
+    actual_os_picker_selected_target_id:str,
+    confirmed_interactive_os_picker:bool,
+    protected_surface:bool=False,
+)->ScreenFrameEvidence:
+    """Only host UI and capture backend may provide verified picker facts."""
+    if not isinstance(request,ScreenJourneyRequest):
+        raise TypeError("original owner journey request required")
+    if (
+        not confirmed_interactive_os_picker
+        or actual_os_picker_selected_target_id!=request.permit.target_id
+    ):
+        raise PermissionError("real OS picker target/consent not observed")
+    receipt=receipt_from_permitted_bytes(
+        request.permit,frame=pixel_bytes,at=at,
+        os_picker_consented=True,protected_surface=protected_surface,
+    )
+    return ScreenFrameEvidence(
+        journey=request.journey,receipt=receipt,
+        principal_id=request.permit.principal_id,
+        audience_id=request.permit.audience_id,
+        device_id=request.permit.device_id,
+        observed_at=at,
+    )
+
+
+@dataclass(frozen=True,slots=True)
+class ScreenChangedReceipt:
+    first_receipt_id:str
+    second_receipt_id:str
+    same_selected_window:bool
+    pixel_digest_changed:bool
+    semantic_change_observed:bool=False
+    authorized_action:bool=False
+
+
+def compare_two_approved_observations(
+    first:ScreenFrameEvidence,second:ScreenFrameEvidence,
+)->ScreenChangedReceipt:
+    """Pixel SHA-256 comparison is not proof of meaningful visual change."""
+    if not all(isinstance(x,ScreenFrameEvidence) for x in (first,second)):
+        raise TypeError("two real receipt-backed frames required")
+    if (
+        first.journey!=ScreenJourney.SHOW_CHANGES
+        or second.journey!=ScreenJourney.SHOW_CHANGES
+        or first.audience_id!=second.audience_id
+        or first.principal_id!=second.principal_id
+        or first.device_id!=second.device_id
+        or first.receipt.target_id!=second.receipt.target_id
+        or second.observed_at<=first.observed_at
+    ):
+        raise PermissionError("screen diffs require same approved target and audience")
+    return ScreenChangedReceipt(
+        first_receipt_id=first.receipt.permit_id,
+        second_receipt_id=second.receipt.permit_id,
+        same_selected_window=True,
+        pixel_digest_changed=(
+            first.receipt.digest_sha256!=second.receipt.digest_sha256
+        ),
+    )
+
+
+class ScreenJourneyReceiptStore:
+    """Bounded canonical digest receipts only, never the actual pixels."""
+    def __init__(self,state_path:Path|str):
+        self._guard=CanonicalSQLiteGuard(Path(state_path))
+        with closing(self._guard.connect(timeout=10)) as db,db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS vision_observed_frame("
+                "receipt_id TEXT PRIMARY KEY,permit_id TEXT NOT NULL,"
+                "journey TEXT NOT NULL,"
+                "principal_id TEXT NOT NULL,"
+                "audience_id TEXT NOT NULL,device_id TEXT NOT NULL,"
+                "target_hash TEXT NOT NULL,digest_sha256 TEXT NOT NULL,"
+                "observed_at TEXT NOT NULL,has_pixels INTEGER NOT NULL DEFAULT 0)"
+            )
+            # Legacy audience-only records cannot safely be attributed to a
+            # principal. Keep them quarantined rather than guess an owner.
+            columns={str(row[1]) for row in db.execute(
+                "PRAGMA table_info(vision_observed_frame)"
+            ).fetchall()}
+            if "principal_id" not in columns:
+                db.execute(
+                    "ALTER TABLE vision_observed_frame "
+                    "ADD COLUMN principal_id TEXT NOT NULL DEFAULT ''"
+                )
+    def record(self,evidence:ScreenFrameEvidence)->None:
+        if not isinstance(evidence,ScreenFrameEvidence):
+            raise TypeError("real approved frame receipt required")
+        target_hash=sha256(evidence.receipt.target_id.encode()).hexdigest()
+        receipt_id=sha256((
+            evidence.receipt.permit_id+"|"
+            +evidence.observed_at.astimezone(timezone.utc).isoformat()+"|"
+            +evidence.receipt.digest_sha256
+        ).encode("utf-8")).hexdigest()
+        with closing(self._guard.connect(timeout=10)) as db,db:
+            db.execute("BEGIN IMMEDIATE")
+            existing=db.execute(
+                "SELECT permit_id,journey,principal_id,audience_id,"
+                "device_id,target_hash,digest_sha256,observed_at,has_pixels "
+                "FROM vision_observed_frame WHERE receipt_id=?",
+                (receipt_id,),
+            ).fetchone()
+            if existing is not None:
+                expected=(
+                    evidence.receipt.permit_id,evidence.journey.value,
+                    evidence.principal_id,evidence.audience_id,
+                    evidence.device_id,target_hash,evidence.receipt.digest_sha256,
+                    evidence.observed_at.astimezone(timezone.utc).isoformat(),0,
+                )
+                if tuple(existing)!=expected:
+                    raise PermissionError(
+                        "observation receipt ID is bound to different "
+                        "source, scope or pixel-retention metadata"
+                    )
+                return
+            db.execute(
+                "INSERT INTO vision_observed_frame "
+                "(receipt_id,permit_id,journey,principal_id,audience_id,"
+                "device_id,target_hash,digest_sha256,observed_at,has_pixels) "
+                "VALUES(?,?,?,?,?,?,?,?,?,0)",
+                (receipt_id,evidence.receipt.permit_id,evidence.journey.value,
+                 evidence.principal_id,evidence.audience_id,evidence.device_id,
+                 target_hash,evidence.receipt.digest_sha256,
+                 evidence.observed_at.astimezone(timezone.utc).isoformat()),
+            )
+            db.execute(
+                "DELETE FROM vision_observed_frame WHERE receipt_id NOT IN "
+                "(SELECT receipt_id FROM vision_observed_frame "
+                "ORDER BY observed_at DESC LIMIT 256)"
+            )
+    def status(self,*,principal_id:str,audience_id:str)->dict:
+        if any(
+            not isinstance(v,str) or not v.strip() or len(v)>200
+            for v in (principal_id,audience_id)
+        ):
+            raise ValueError("exact screen principal and audience required")
+        with closing(self._guard.connect(timeout=10)) as db:
+            rows=db.execute(
+                "SELECT journey,observed_at FROM vision_observed_frame "
+                "WHERE principal_id=? AND audience_id=? "
+                "ORDER BY observed_at DESC LIMIT 12",
+                (principal_id,audience_id),
+            ).fetchall()
+        return {
+            "observations":tuple({
+                "journey":kind,"observed_at":when,"actual_frame_receipt":True,
+            } for kind,when in rows),
+            "pixel_storage":False,
+            "raw_screens_as_memory":False,
+            "screen_control_authorized":False,
+            "semantic_changes_proven":False,
+        }

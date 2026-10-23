@@ -8,8 +8,8 @@ from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, Cogni
 from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.verify.interaction import avatar_world_probe
 from test.isolated_interaction_config import isolated_interaction_configuration
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.expanded_service import action_prompt
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.expanded_service import action_prompt
 
 
 def _reviewed_offer_request():

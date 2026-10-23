@@ -2,10 +2,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.interaction.avatar_world import gesture_provider_view
-from sofia.interaction.chat import interaction_prompt
-from sofia.interaction.core import InteractionDecision
-from sofia.interaction.decision_expression import (
+from sofia.modules.interaction.avatar_world import gesture_provider_view
+from sofia.modules.interaction.chat import interaction_prompt
+from sofia.modules.interaction.core import InteractionDecision
+from sofia.modules.interaction.decision_expression import (
     CandidateChoice,
     ExpressionAudit,
     ReviewedFrame,

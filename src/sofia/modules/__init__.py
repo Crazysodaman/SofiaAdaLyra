@@ -1,0 +1,1 @@
+"""Sofía capability cards."""

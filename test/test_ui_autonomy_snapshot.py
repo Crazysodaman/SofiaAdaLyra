@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import sqlite3
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
-from sofia.ui.settings_sections import SettingsSections
+from sofia.modules.ui.settings_sections import SettingsSections
 
 
 def _read_snapshot(path: Path) -> str:

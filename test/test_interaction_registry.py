@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.core import GESTURES as LIVE_GESTURES, InteractionEngine
-from sofia.interaction.registry import (
+from sofia.modules.interaction.core import GESTURES as LIVE_GESTURES, InteractionEngine
+from sofia.modules.interaction.registry import (
     ACTION_DEFINITIONS, CATALOG_VERSION,
     EXPRESSION_DEFINITIONS, GESTURE_DEFINITIONS, InteractionCatalog,
     catalog_for_engine, normalize_alias,

@@ -6,10 +6,10 @@ import os,platform
 from pathlib import Path
 from typing import Any,Mapping
 
-from sofia.integrations.hyperv import HyperVAdapter
-from sofia.integrations.local_maintenance import LocalMaintenanceAdapter
-from sofia.integrations.ollama import OllamaAdapter
-from sofia.integrations.portainer import PortainerAdapter
+from sofia.modules.integrations.hyperv import HyperVAdapter
+from sofia.modules.integrations.local_maintenance import LocalMaintenanceAdapter
+from sofia.modules.integrations.ollama import OllamaAdapter
+from sofia.modules.integrations.portainer import PortainerAdapter
 from sofia.platform.machine.hardware import create_hardware_discovery
 from sofia.platform.ops.local_telemetry import collect_local_telemetry
 from sofia.platform.distributed.release_agent import create_agent_release_service_from_environment

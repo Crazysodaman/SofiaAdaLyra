@@ -1,7 +1,7 @@
 import pytest
 
-from sofia.ui.control_center import ServiceAction, ServiceKind, ServiceTarget
-from sofia.ui.service_control import (
+from sofia.modules.ui.control_center import ServiceAction, ServiceKind, ServiceTarget
+from sofia.modules.ui.service_control import (
     DesktopServiceController,
     RemoteControlUnavailable,
     ServiceControlResult,

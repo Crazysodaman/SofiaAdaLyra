@@ -14,13 +14,13 @@ from typing import Protocol
 
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.platform.verify.interaction.ab_probe import build_pair
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.decision_expression import (
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.decision_expression import (
     CandidateChoice, ReviewedFrame, choice_request, from_reviewed_action, parse_choice,
 )
-from sofia.interaction.decision_reason_audit import audit_decision_reason
+from sofia.modules.interaction.decision_reason_audit import audit_decision_reason
 
-from sofia.interaction.offer_route import OFFER, routed_choice_request
+from sofia.modules.interaction.offer_route import OFFER, routed_choice_request
 
 _BASELINE = 'existing-choice'
 _ROUTED = 'routed-avatar-social-choice'

@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
 from sofia.platform.config.model import ModelLifecycleConfiguration
-from sofia.ui.control_center import GameMode
-from sofia.ui.tray_agent import TrayAgentApplication
+from sofia.modules.ui.control_center import GameMode
+from sofia.modules.ui.tray_agent import TrayAgentApplication
 
 
 def _selection(primary: str, secondary: str | None = None):

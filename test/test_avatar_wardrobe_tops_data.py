@@ -2,17 +2,17 @@
 from importlib.resources import files
 import json
 
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
 def _raw():
-    resource = files("sofia.avatar").joinpath("wardrobe_data", "tops.json")
+    resource = files("sofia.modules.avatar").joinpath("wardrobe_data", "tops.json")
     return json.loads(resource.read_text(encoding="utf-8"))
 
 
 def test_tops_json_defines_20_distinct_owned_tops():
     raw = _raw()
-    assert raw["schema"] == "sofia.avatar.wardrobe.garments.v1"
+    assert raw["schema"] == "sofia.modules.avatar.wardrobe.garments.v1"
     assert raw["category"] == "tops"
     assert len(raw["garments"]) == 20
     assert len({row["item_id"] for row in raw["garments"]}) == 20

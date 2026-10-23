@@ -1,6 +1,6 @@
 """Rich garment environment/context metadata contracts."""
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_design import (
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_design import (
     FabricWeight,
     Suitability,
     TraitLevel,
@@ -79,8 +79,8 @@ def test_manifest_exposes_creator_profiles_and_no_maintenance_block():
 
 
 def test_unprofiled_authored_design_defaults_to_unspecified_not_guesswork():
-    from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
-    from sofia.avatar.wardrobe_design import GraphicDesign
+    from sofia.modules.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+    from sofia.modules.avatar.wardrobe_design import GraphicDesign
 
     catalog = build_starter_wardrobe()
     blueprint = WardrobeStudio(catalog).design_piece(

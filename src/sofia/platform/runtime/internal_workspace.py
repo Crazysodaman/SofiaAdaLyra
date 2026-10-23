@@ -13,7 +13,7 @@ from sofia.core.continuity.model import (
     ContinuityEventKind, create_continuity_event,
 )
 from sofia.platform.filesystem.change_filter import exclude_internal_state_changes
-from sofia.interaction.world_setup import lab_state_path
+from sofia.modules.interaction.world_setup import lab_state_path
 
 _AWARENESS_KINDS = frozenset({
     ContinuityEventKind.RUNTIME_RESUMED,

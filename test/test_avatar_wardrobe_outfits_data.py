@@ -2,18 +2,18 @@
 from importlib.resources import files
 import json
 
-from sofia.avatar.wardrobe import Layer
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_design import ContentRating, ExposureZone
-from sofia.avatar.wardrobe_types import GarmentFamily, garment_type
+from sofia.modules.avatar.wardrobe import Layer
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_design import ContentRating, ExposureZone
+from sofia.modules.avatar.wardrobe_types import GarmentFamily, garment_type
 
 
 def test_outfits_json_contains_twenty_public_and_three_private_presets():
-    resource = files("sofia.avatar").joinpath("wardrobe_data", "outfits.json")
+    resource = files("sofia.modules.avatar").joinpath("wardrobe_data", "outfits.json")
     raw = json.loads(resource.read_text(encoding="utf-8"))
     rows = raw["outfits"]
 
-    assert raw["schema"] == "sofia.avatar.wardrobe.outfits.v1"
+    assert raw["schema"] == "sofia.modules.avatar.wardrobe.outfits.v1"
     assert len(rows) == 23
     assert sum(row["private_only"] for row in rows) == 3
     assert all(

@@ -2,8 +2,8 @@ from urllib.error import URLError
 
 import pytest
 
-import sofia.integrations.http as http_module
-from sofia.integrations.http import JsonHttpClient, ServiceHTTPError
+import sofia.modules.integrations.http as http_module
+from sofia.modules.integrations.http import JsonHttpClient, ServiceHTTPError
 
 
 class Response:

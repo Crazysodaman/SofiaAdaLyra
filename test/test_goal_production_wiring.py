@@ -16,7 +16,7 @@ from sofia.core.generalization.advanced import AdvancedGeneralizationStore, Epis
 from sofia.core.generalization.contracts import ExplorationAdmission
 from sofia.core.learning.contracts import DataUseGrant
 from sofia.core.goals.model import GoalRunState
-from sofia.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
+from sofia.modules.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 from sofia.core.social.principals import local_sparks_principal
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.platform.safe.permissions import PermissionStore

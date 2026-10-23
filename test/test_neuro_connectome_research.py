@@ -1,4 +1,4 @@
-from sofia.neuro.connectome import (
+from sofia.modules.neuro.connectome import (
     CircuitCompetition, SparseAssociativeMemory, selected_circuits,
 )
 

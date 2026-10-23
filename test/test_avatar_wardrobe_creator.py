@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import pytest
 
-from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
-from sofia.avatar.wardrobe import WardrobeError
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_prebuild import DAY_DEFAULT_OUTFIT_ID, NIGHT_LOUNGE_OUTFIT_ID
-from sofia.avatar.wardrobe_design import (
+from sofia.modules.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+from sofia.modules.avatar.wardrobe import WardrobeError
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_prebuild import DAY_DEFAULT_OUTFIT_ID, NIGHT_LOUNGE_OUTFIT_ID
+from sofia.modules.avatar.wardrobe_design import (
     ComfortProfile,
     ContextProfile,
     EnvironmentProfile,
@@ -25,7 +25,7 @@ from sofia.avatar.wardrobe_design import (
     TraitLevel,
     WindProfile,
 )
-from sofia.avatar.wardrobe_planner import Activity, Season
+from sofia.modules.avatar.wardrobe_planner import Activity, Season
 
 
 def test_studio_designs_structured_running_shorts():

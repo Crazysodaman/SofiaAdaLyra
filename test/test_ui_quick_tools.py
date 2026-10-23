@@ -1,6 +1,6 @@
 import pytest
 
-from sofia.ui.quick_tools import (
+from sofia.modules.ui.quick_tools import (
     QUICK_TOOLS,
     quick_tool_by_label,
     quick_tool_labels,

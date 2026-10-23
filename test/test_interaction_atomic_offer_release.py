@@ -4,12 +4,12 @@ import sqlite3
 
 import pytest
 
-from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply
-from sofia.interaction.decision_expression import CandidateChoice
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.source_link import VerifiedInteractionState
-from sofia.interaction.trusted_offer_gate import GuardedOfferResult
+from sofia.modules.interaction.atomic_offer_release import commit_guarded_offer_reply
+from sofia.modules.interaction.decision_expression import CandidateChoice
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.source_link import VerifiedInteractionState
+from sofia.modules.interaction.trusted_offer_gate import GuardedOfferResult
 
 NOW = datetime(2026, 9, 22, tzinfo=timezone.utc)
 SESSION = 'session1'

@@ -2,13 +2,13 @@
 from importlib.resources import files
 import json
 
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_types import garment_type
-from sofia.avatar.wardrobe_design import ContentRating, ExposureZone
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_types import garment_type
+from sofia.modules.avatar.wardrobe_design import ContentRating, ExposureZone
 
 
 def _raw(name):
-    resource = files("sofia.avatar").joinpath("wardrobe_data", name)
+    resource = files("sofia.modules.avatar").joinpath("wardrobe_data", name)
     return json.loads(resource.read_text(encoding="utf-8"))["garments"]
 
 

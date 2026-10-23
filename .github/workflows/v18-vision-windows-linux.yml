@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/sofia/vision/**'
+      - 'src/sofia/modules/vision/**'
       - 'test/test_vision_cross_platform.py'
       - 'test/test_vision_action_workflow.py'
       - 'test/test_vision_desktop_control.py'
@@ -33,7 +33,7 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -e . pytest
       - name: Python source integrity
-        run: python -m compileall -q src/sofia/vision test/test_vision_cross_platform.py test/test_vision_desktop_control.py test/test_vision_action_workflow.py
+        run: python -m compileall -q src/sofia/modules/vision test/test_vision_cross_platform.py test/test_vision_desktop_control.py test/test_vision_action_workflow.py
       - name: Synthetic cross-platform desktop safety contracts
         run: python -m pytest -q test/test_vision_cross_platform.py test/test_vision_desktop_control.py test/test_vision_action_workflow.py
       - name: No real desktop was actuated

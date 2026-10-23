@@ -24,7 +24,7 @@ from sofia.core.cognition.test_engine import TestCognitiveEngine
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
 from sofia.platform.config.model import SofiaConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.integrations.ollama import OllamaAdapter
+from sofia.modules.integrations.ollama import OllamaAdapter
 from sofia.platform.ops.capability import OpsToolService
 from sofia.platform.ops.local_telemetry import collect_local_telemetry
 from sofia.platform.ops.activity import ActivityMode

@@ -31,7 +31,7 @@ if ($ActualSha256 -ne $ExpectedSha256) {
 
 $Art = Join-Path $env:LOCALAPPDATA 'SofiaAdaLyra\Avatar2D\Public-V2'
 if (-not (Test-Path -LiteralPath $Art)) {
-    python -m sofia.avatar.vtuber_public_setup --output "$Art" --all-public
+    python -m sofia.modules.avatar.vtuber_public_setup --output "$Art" --all-public
     if ($LASTEXITCODE -ne 0) { throw 'Public 2D baseline setup failed.' }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $Art 'character\manifest.json'))) {
@@ -77,12 +77,12 @@ Write-Host 'Illustrated public portraits installed and hash-checked:' $Art
 if ($PublishToGit) {
     # The reviewed archive is package-owned so installed-wheel production has
     # the same references as a source checkout. Keep one canonical binary.
-    $Destination = Join-Path $Repository 'src\sofia\avatar\assets'
+    $Destination = Join-Path $Repository 'src\sofia\modules.avatar\assets'
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     $GitZip = Join-Path $Destination 'sofia2d_public_illustrated_candidates_v1.zip'
     if (Test-Path -LiteralPath $GitZip) { throw 'Existing repository asset will not be overwritten.' }
     Copy-Item -LiteralPath $Archive -Destination $GitZip
-    & git -C $Repository add -- 'src/sofia/avatar/assets/sofia2d_public_illustrated_candidates_v1.zip'
+    & git -C $Repository add -- 'src/sofia/modules.avatar/assets/sofia2d_public_illustrated_candidates_v1.zip'
     if ($LASTEXITCODE -ne 0) { throw 'git add failed.' }
     & git -C $Repository commit -m 'assets(avatar2d): add illustrated public static candidate pack'
     if ($LASTEXITCODE -ne 0) { throw 'git commit failed.' }

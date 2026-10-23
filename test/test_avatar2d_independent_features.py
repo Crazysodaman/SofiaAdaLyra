@@ -7,7 +7,7 @@ import json
 import pytest
 
 Image = pytest.importorskip("PIL.Image")
-from sofia.avatar.vtuber_independent_features import (
+from sofia.modules.avatar.vtuber_independent_features import (
     BROW_STATES, EYE_STATES, verify_independent_features,
 )
 

@@ -7,9 +7,9 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-import sofia.ui.tray_agent as tray_agent
-from sofia.ui.control_center import ServiceAction, ServiceKind
-from sofia.ui.tray_agent import TrayAgentApplication
+import sofia.modules.ui.tray_agent as tray_agent
+from sofia.modules.ui.control_center import ServiceAction, ServiceKind
+from sofia.modules.ui.tray_agent import TrayAgentApplication
 
 
 def _configuration(

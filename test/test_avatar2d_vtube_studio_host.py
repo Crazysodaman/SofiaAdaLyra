@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-from sofia.avatar import vtube_studio_host as host
+from sofia.modules.avatar import vtube_studio_host as host
 
 
 def _create_vts(root: Path):

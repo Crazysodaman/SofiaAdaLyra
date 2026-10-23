@@ -9,12 +9,12 @@ import sqlite3
 
 import pytest
 
-from sofia.mobile.gateway import (
+from sofia.modules.mobile.gateway import (
     MobileCompanionGateway, MobileCredentialRevoked, MobileRouteNotFound,
 )
-from sofia.mobile.pairing import MobileDeviceCredentialStore
-from sofia.mobile.provisioning import MobileProvisioning, mobile_companion_ready
-from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
+from sofia.modules.mobile.pairing import MobileDeviceCredentialStore
+from sofia.modules.mobile.provisioning import MobileProvisioning, mobile_companion_ready
+from sofia.modules.mobile.server import MobileCompanionServer, MobileServerConfiguration
 from test.test_mobile_gateway import _gateway
 
 
@@ -251,5 +251,5 @@ def test_authenticated_dispatch_never_trusts_unregistered_device_id(tmp_path):
 
 
 def test_mobile_owner_worker_has_exact_authenticated_dispatch_method():
-    from sofia.ui.desktop_worker import _WorkerMobileGateway
+    from sofia.modules.ui.desktop_worker import _WorkerMobileGateway
     assert callable(getattr(_WorkerMobileGateway, "dispatch_authenticated"))

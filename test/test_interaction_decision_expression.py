@@ -12,11 +12,11 @@ from sofia.core.constitution.store import ConstitutionStore
 from sofia.core.embodiment.store import EmbodimentStore
 from sofia.core.identity.store import IdentityStore
 from sofia.platform.verify.interaction.ab_probe import build_pair
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.decision_expression import CandidateChoice, ExpressionAudit, audit_expression, choice_request, expression_request, from_reviewed_action, parse_choice
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.decision_expression import CandidateChoice, ExpressionAudit, audit_expression, choice_request, expression_request, from_reviewed_action, parse_choice
 from sofia.platform.verify.interaction.prototype import from_reviewed_gesture, real_sensor_fixture, run_prototype
 from sofia.platform.verify.interaction.decision_expression_probe import _sample_count
-from sofia.interaction.grammar import NaturalInteractionEngine
+from sofia.modules.interaction.grammar import NaturalInteractionEngine
 from sofia.core.personality.store import PersonalityStore
 
 ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'

@@ -15,8 +15,8 @@ from sofia.platform.config.model import FleetCognitionConfiguration, FleetDiscov
 from sofia.platform.config.user_settings import OutreachSettings, RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.platform.ops.activity import ActivityMode, HostActivityStore
 from sofia.platform.safe.secret_store import ProtectedSecretStore
-from sofia.ui.control_center import DesktopControlSettings, DesktopControlSettingsStore, GameMode
-from sofia.ui import settings_service
+from sofia.modules.ui.control_center import DesktopControlSettings, DesktopControlSettingsStore, GameMode
+from sofia.modules.ui import settings_service
 
 
 def profile(tmp_path):
@@ -48,7 +48,7 @@ def test_settings_survive_a_new_python_process_and_reach_configuration(tmp_path)
     code = """
 import json, sys
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.ui.control_center import DesktopControlSettingsStore
+from sofia.modules.ui.control_center import DesktopControlSettingsStore
 from sofia.platform.config import create_production_configuration
 from pathlib import Path
 p=Path(sys.argv[1]); u=RuntimeUserSettingsStore(p).load(); d=DesktopControlSettingsStore(p).load()
@@ -209,8 +209,8 @@ def test_quiet_hours_persist_and_project_into_policy(tmp_path):
 
 
 def test_settings_and_tray_do_not_bootstrap_missing_canonical_state(tmp_path):
-    from sofia.ui.settings_window import _ensure_state_database
-    from sofia.ui.tray_agent import _ensure_state
+    from sofia.modules.ui.settings_window import _ensure_state_database
+    from sofia.modules.ui.tray_agent import _ensure_state
     from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     missing = tmp_path / "state" / "sofia.db"
@@ -227,8 +227,8 @@ def test_settings_and_tray_do_not_bootstrap_missing_canonical_state(tmp_path):
 
 
 def test_settings_and_tray_reject_symlinked_state_path(tmp_path):
-    from sofia.ui.settings_window import _ensure_state_database
-    from sofia.ui.tray_agent import _ensure_state
+    from sofia.modules.ui.settings_window import _ensure_state_database
+    from sofia.modules.ui.tray_agent import _ensure_state
     from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
     canonical = tmp_path / "canonical.db"

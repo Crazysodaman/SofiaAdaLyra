@@ -3,11 +3,11 @@ from datetime import datetime, timedelta, timezone
 import sqlite3
 
 from sofia.platform.act.diagnostics import OutreachTraceStore
-import sofia.mobile.notifications as notification_module
+import sofia.modules.mobile.notifications as notification_module
 
 import pytest
 
-from sofia.mobile.notifications import MobileNotificationStore
+from sofia.modules.mobile.notifications import MobileNotificationStore
 
 
 NOW = datetime(2026, 10, 5, 20, 0, tzinfo=timezone.utc)

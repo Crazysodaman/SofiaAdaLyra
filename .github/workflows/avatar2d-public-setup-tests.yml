@@ -5,10 +5,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/avatar2d-public-setup-tests.yml"
-      - "src/sofia/avatar/vtuber_public_setup.py"
-      - "src/sofia/avatar/vtuber_character_selection.py"
-      - "src/sofia/avatar/vtuber_character_bundle.py"
-      - "src/sofia/ui/avatar2d_renderer.py"
+      - "src/sofia/modules/avatar/vtuber_public_setup.py"
+      - "src/sofia/modules/avatar/vtuber_character_selection.py"
+      - "src/sofia/modules/avatar/vtuber_character_bundle.py"
+      - "src/sofia/modules/ui/avatar2d_renderer.py"
       - "test/test_avatar2d_public_setup.py"
       - "test/test_ui_avatar2d_live_parts.py"
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
       - name: Prove owner setup command works end-to-end
         shell: pwsh
         run: |
-          python -m sofia.avatar.vtuber_public_setup --output "$env:RUNNER_TEMP\Avatar2D\Public"
+          python -m sofia.modules.avatar.vtuber_public_setup --output "$env:RUNNER_TEMP\Avatar2D\Public"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload reviewed-status public starter pack
         uses: actions/upload-artifact@v7

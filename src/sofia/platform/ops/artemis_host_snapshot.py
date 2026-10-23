@@ -77,7 +77,7 @@ def export_snapshot(
         raise ArtemisControllerError("host export only permitted on Artemis")
     require_system()
     if inventory is None:
-        from sofia.integrations.hyperv import HyperVAdapter
+        from sofia.modules.integrations.hyperv import HyperVAdapter
         inventory = HyperVAdapter().sofia_guest_inventory
     observed = now()
     if observed.tzinfo is None:

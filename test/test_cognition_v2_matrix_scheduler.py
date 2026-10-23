@@ -15,7 +15,7 @@ from sofia.core.cognition.v2 import (
 )
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
+from sofia.modules.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 
 
 PROJECT_ROOT = Path(__file__).parent.parent

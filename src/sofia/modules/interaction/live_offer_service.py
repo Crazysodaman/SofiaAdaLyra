@@ -1,0 +1,180 @@
+"""Explicitly opt-in live conversation integration for ONE reviewed avatar offer.
+
+Default conversation behavior is unchanged. This host path owns saved USER
+provenance, constructs the canonical provider-bound context, runs a tool-free
+choice/expression through the configured cognitive engine, and atomically
+rechecks policy while saving the ASSISTANT reply. No preference, consent,
+physical action, renderer event or tool authorization is written.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+import os
+from pathlib import Path
+from time import monotonic
+from uuid import uuid4
+
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.engine import CognitiveEngine
+from sofia.core.cognition.model import CognitiveResponse
+from sofia.core.conversation.model import ConversationMessage, ConversationRole
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.offer_route import OFFER
+from sofia.modules.interaction.atomic_offer_release import commit_guarded_offer_reply
+from sofia.modules.interaction.decision_expression import from_reviewed_action
+from sofia.core.social.model import PrincipalContext
+from sofia.modules.interaction.trusted_offer_gate import (
+    GuardedOfferResult, _policy_gate, run_guarded_offer,
+)
+
+
+_ENV = 'SOFIA_INTERACT_STAGED_OFFERS'
+
+
+def staged_offers_enabled() -> bool:
+    """Conservative opt-in; malformed configuration must not silently enable."""
+    value = os.environ.get(_ENV, '').strip().lower()
+    if value in ('', '0', 'false', 'off'):
+        return False
+    if value in ('1', 'true', 'on'):
+        return True
+    raise ValueError(_ENV + ' must be 1 or 0 (also accepts true/false).')
+
+
+def _canonical_offer_request(
+    runtime,
+    conversation_request,
+    *,
+    principal: PrincipalContext | None,
+):
+    """Use the existing runtime's verified state and configured assembler.
+
+    Keep the model setting, canonical self-state, bounded memories, emotional
+    projections and original transcript. Never reuse a synthetic test context.
+    The dispatcher has no role: this interaction route has zero tools.
+    """
+    context = CognitiveContext(
+        request=conversation_request,
+        identity=runtime.identity,
+        personality=runtime.personality,
+        constitution=runtime.constitution,
+        embodiment=runtime.embodiment,
+        core_state=runtime.core_state,
+        memories=(
+            runtime.memory_system.recall_relevant(OFFER)
+            if principal is None
+            else runtime.memory_system.recall_relevant(
+                OFFER,
+                principal=principal,
+            )
+        ),
+        operational_state=runtime.operational_state,
+        runtime_continuity=runtime.runtime_continuity,
+        workspace_changes=runtime.workspace_changes,
+        operational_self_model=runtime.operational_self_model,
+        principal=principal,
+    )
+    assembled = runtime.cognitive_system.context_assembler.assemble(
+        context, tools=(),
+    )
+    if assembled.tools:
+        raise RuntimeError('Avatar offer assembly may not expose tools.')
+    return assembled
+
+
+def respond_staged_offer(
+    service,
+    content: str,
+    *,
+    principal: PrincipalContext | None = None,
+    channel: str = "conversation",
+) -> CognitiveResponse:
+    """Persist one exact USER offer, then only an atomically releasable reply.
+
+    A blocked offer is checked BEFORE ordinary context assembly, which may
+    itself reject known boundaries. The transactional release rechecks policy.
+    Failure keeps the original saved USER turn, never retries unguarded.
+    """
+    if content != OFFER:
+        raise ValueError('Only the exact grammar-reviewed hug offer is supported.')
+    if service._session is None:
+        raise RuntimeError('A started conversation session is required.')
+    principal = service._bind_principal(principal)
+    runtime = service._runtime
+    config = runtime.configuration
+    if not isinstance(runtime.cognitive_system.engine, CognitiveEngine):
+        raise RuntimeError(
+            'Staged avatar offers require a configured cognitive engine.'
+        )
+    service._active_user_requests += 1
+    try:
+        with service._model_lock:
+            session_id = service._session.id
+            admission = getattr(service, "_current_turn_admission", None)
+            user = ConversationMessage(
+                id=(str(uuid4()) if admission is None else admission.user_message_id),
+                session_id=session_id, role=ConversationRole.USER,
+                content=content, created_at=datetime.now(timezone.utc),
+            )
+            service._conversation_store.save(user)
+            after_saved = getattr(
+                service,
+                "_after_user_message_saved",
+                None,
+            )
+            if after_saved is not None:
+                after_saved(
+                    message=user,
+                    principal=principal,
+                )
+            coordinate_turn = getattr(service, "_coordinate_turn", None)
+            if coordinate_turn is not None:
+                coordinate_turn(
+                    message=user,
+                    principal=principal,
+                    channel=channel,
+                )
+            intent = parse_user_action(user.content, message_id=user.id)
+            if (intent is None or intent.modality != 'offered'
+                    or intent.action_id != 'hug'):
+                raise RuntimeError('Saved user turn failed reviewed offer grammar.')
+            frame = from_reviewed_action(user_text=user.content, intent=intent)
+            # ExpandedConversationService._build_request intentionally raises
+            # for an active boundary. Return a source-checked blocked result
+            # instead of building any model request. Commit rechecks under lock.
+            blocked = _policy_gate(state_path=Path(config.state_path), session_id=session_id)
+            if blocked is not None:
+                result = GuardedOfferResult(status=blocked)
+            else:
+                conversation_request = service._build_request()
+                base = _canonical_offer_request(
+                    runtime,
+                    conversation_request,
+                    principal=principal,
+                )
+                result = run_guarded_offer(
+                    provider=runtime.cognitive_system.engine,
+                    base=base, frame=frame, state_path=config.state_path,
+                    session_id=session_id,
+                )
+            reply = commit_guarded_offer_reply(
+                state_path=config.state_path, session_id=session_id,
+                user_message_id=user.id, user_content=user.content, result=result,
+                assistant_message_id=(
+                    None if admission is None else admission.assistant_message_id
+                ),
+            )
+            if admission is not None:
+                service._link_main_lifelong_message(ConversationMessage(
+                    id=admission.assistant_message_id, session_id=session_id,
+                    role=ConversationRole.ASSISTANT, content=reply,
+                    created_at=datetime.now(timezone.utc),
+                ), principal)
+            updated = service._conversation_store.get_session(session_id)
+            if updated is None:
+                raise RuntimeError('Conversation session vanished after reply persistence.')
+            service._session = updated
+            return CognitiveResponse(content=reply)
+    finally:
+        service._last_user_activity = monotonic()
+        service._active_user_requests -= 1

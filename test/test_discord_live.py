@@ -6,16 +6,16 @@ from threading import Event
 
 import pytest
 
-from sofia.discord.binding import BindingState, DiscordBindingStore
-from sofia.discord.discordpy import ensure_verified_binding
-from sofia.discord.live import (
+from sofia.modules.discord.binding import BindingState, DiscordBindingStore
+from sofia.modules.discord.discordpy import ensure_verified_binding
+from sofia.modules.discord.live import (
     DiscordBackgroundService,
     compose_live_discord,
     compose_live_discord_for_conversation,
     discord_bound_session_id,
     run_live_discord,
 )
-from sofia.discord.provisioning import DiscordProvisioning
+from sofia.modules.discord.provisioning import DiscordProvisioning
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

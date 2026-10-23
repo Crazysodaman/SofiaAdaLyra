@@ -9,7 +9,7 @@ import pytest
 from sofia.platform.state.canonical_sqlite import (
     CanonicalStateUnavailable, bootstrap_canonical_sqlite,
 )
-from sofia.ui import settings_service
+from sofia.modules.ui import settings_service
 
 
 def test_storage_diagnostics_opens_only_existing_pinned_read_only_sqlite(

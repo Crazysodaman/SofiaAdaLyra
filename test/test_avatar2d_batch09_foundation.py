@@ -10,7 +10,7 @@ from zipfile import ZipFile
 import pytest
 
 Image = pytest.importorskip("PIL.Image")
-from sofia.avatar.vtuber_batch09_foundation import verify_head_foundation
+from sofia.modules.avatar.vtuber_batch09_foundation import verify_head_foundation
 
 
 @pytest.fixture

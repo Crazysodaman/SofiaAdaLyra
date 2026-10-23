@@ -7,8 +7,8 @@ import pytest
 
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.neuro.consciousness_research import StudyProtocol
-from sofia.neuro.research_registry import (
+from sofia.modules.neuro.consciousness_research import StudyProtocol
+from sofia.modules.neuro.research_registry import (
     EvaluatedResearchOutcome, PreregisteredStudy, ResearchEvidenceRegistry,
     reviewed_baseline_studies,
 )
@@ -123,7 +123,7 @@ def test_unverified_proof_of_subjectivity_and_phenomenal_hypotheses_rejected(tmp
 
 
 def test_scientific_theories_remain_four_distinct_noninterchangeable_questions(tmp_path):
-    from sofia.neuro.research_registry import THEORY_BOUNDARIES
+    from sofia.modules.neuro.research_registry import THEORY_BOUNDARIES
     assert set(THEORY_BOUNDARIES) == {
         "functional_agency", "global_workspace_access",
         "metacognitive_self_model", "phenomenal_subjectivity",

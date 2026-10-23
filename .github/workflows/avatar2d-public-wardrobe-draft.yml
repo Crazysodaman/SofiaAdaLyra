@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/avatar2d-public-wardrobe-draft.yml"
-      - "src/sofia/avatar/wardrobe_public_sprite_batch.py"
-      - "src/sofia/avatar/wardrobe_data/*.json"
+      - "src/sofia/modules/avatar/wardrobe_public_sprite_batch.py"
+      - "src/sofia/modules/avatar/wardrobe_data/*.json"
       - "test/test_avatar2d_public_sprite_batch.py"
   workflow_dispatch:
 
@@ -35,7 +35,7 @@ jobs:
       - name: Render all public PNG draft assets from canonical wardrobe data
         shell: pwsh
         run: |
-          python -m sofia.avatar.wardrobe_public_sprite_batch --output "wardrobe-draft"
+          python -m sofia.modules.avatar.wardrobe_public_sprite_batch --output "wardrobe-draft"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify output counts and exclude all private files
         shell: pwsh

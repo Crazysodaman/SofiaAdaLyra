@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from sofia.avatar.vtuber_public_setup import (
+from sofia.modules.avatar.vtuber_public_setup import (
     prepare_public_avatar2d,
 )
-from sofia.avatar.vtuber_character_selection import (
+from sofia.modules.avatar.vtuber_character_selection import (
     select_character_parts,
 )
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AppearanceState, AttireMode, AudienceScope, PresentationProjection,
 )
-from sofia.ui.avatar2d_renderer import (
+from sofia.modules.ui.avatar2d_renderer import (
     _frame_character_state,
     _gesture_frames,
 )

@@ -6,7 +6,7 @@ from sofia.core.environment.config import (
 )
 from sofia.core.environment.home_assistant import HomeAssistantEnvironmentProvider
 from sofia.core.environment.model import LocationSubject
-from sofia.integrations.home_assistant import HomeAssistantAdapter
+from sofia.modules.integrations.home_assistant import HomeAssistantAdapter
 
 
 NOW = datetime(2026, 9, 25, 18, 0, tzinfo=timezone.utc)

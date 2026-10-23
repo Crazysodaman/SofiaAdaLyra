@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from sofia.avatar.presentation import AudienceScope, PrivatePresentationGrant
-from sofia.avatar.vtuber_hit_test import (
+from sofia.modules.avatar.presentation import AudienceScope, PrivatePresentationGrant
+from sofia.modules.avatar.vtuber_hit_test import (
     LayerTransform, RenderedHitFrame, RenderedHitLayer, hit_test_avatar,
 )
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.core import InteractionEngine
+from sofia.modules.interaction.core import InteractionEngine
 
 
 AVATAR = Path(__file__).resolve().parents[1] / "src/sofia/core/embodiment/avatar.json"

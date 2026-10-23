@@ -10,7 +10,7 @@ from sofia.platform.run.update_restart import (
     configured_update_restart_mode,
     queue_update_restart_request,
 )
-from sofia.ui.notifications import DesktopNotificationStore
+from sofia.modules.ui.notifications import DesktopNotificationStore
 
 
 NOW = datetime(2026, 10, 5, 16, 0, tzinfo=timezone.utc)

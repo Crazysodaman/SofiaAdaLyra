@@ -45,7 +45,7 @@ from sofia.platform.filesystem.observation import FilesystemObservationStore
 from sofia.core.identity.store import IdentityStore
 from sofia.core.identity.model import IdentityBootstrapMode
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
-from sofia.integrations.capabilities import create_configured_integration_tools
+from sofia.modules.integrations.capabilities import create_configured_integration_tools
 from sofia.platform.net import create_configured_web_tools
 from sofia.core.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
@@ -169,7 +169,7 @@ def compose(
 
     # One canonical memory owner, with opt-in association scoring that can
     # only reorder the already-reviewed, audience-scoped MEM shortlist.
-    from sofia.neuro.connectome.association_store import ReviewedAssociationStore
+    from sofia.modules.neuro.connectome.association_store import ReviewedAssociationStore
     from sofia.core.memory.ranking import MemoryRankingService
     memory_ranking = MemoryRankingService(
         configuration.state_path, memory_candidate_store,

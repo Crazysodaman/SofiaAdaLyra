@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from sofia.neuro.store import neuro_connectome_diagnostics, neuro_observability_text
+from sofia.modules.neuro.store import neuro_connectome_diagnostics, neuro_observability_text
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -50,7 +50,7 @@ def test_connectome_aggregation_never_discloses_principal_or_candidate(tmp_path)
 
 
 def test_selection_fallback_does_not_invent_a_circuit_failure(tmp_path, monkeypatch):
-    from sofia.neuro import store as module
+    from sofia.modules.neuro import store as module
 
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     observed = {

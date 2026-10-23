@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.avatar.vtube_studio_bridge import (
+from sofia.modules.avatar.vtube_studio_bridge import (
     VTubeStudioBridge, VTSBridgeError, request, _port,
 )
 
@@ -187,7 +187,7 @@ def test_auth_rejection_is_not_silent():
 
 
 def test_help_has_no_socket_or_dpapi_side_effect(capsys):
-    from sofia.avatar.vtube_studio_bridge import main
+    from sofia.modules.avatar.vtube_studio_bridge import main
     with pytest.raises(SystemExit) as done:
         main(["--help"])
     assert done.value.code == 0
@@ -206,7 +206,7 @@ def test_owner_pairing_allows_time_for_vts_permission_popup():
 
 
 def test_reconnect_reuses_saved_owner_approval_without_token_popup(monkeypatch):
-    from sofia.avatar import vtube_studio_bridge as api
+    from sofia.modules.avatar import vtube_studio_bridge as api
     socket = FakeSocket([
         response("AuthenticationResponse", {"authenticated": True}),
         response("CurrentModelResponse", {
@@ -234,7 +234,7 @@ def test_reconnect_reuses_saved_owner_approval_without_token_popup(monkeypatch):
 def test_saved_authorization_metadata_never_decrypts_or_discloses_token(
     monkeypatch, tmp_path,
 ):
-    from sofia.avatar import vtube_studio_bridge as api
+    from sofia.modules.avatar import vtube_studio_bridge as api
     target = tmp_path / "vts_token.dpapi"
     monkeypatch.setattr(api, "_token_path", lambda: target)
     assert api.saved_authorization_status()["token_saved"] is False
@@ -247,7 +247,7 @@ def test_saved_authorization_metadata_never_decrypts_or_discloses_token(
 def test_watch_reconnects_after_transient_local_failure_without_new_pair(
     monkeypatch,
 ):
-    from sofia.avatar import vtube_studio_bridge as api
+    from sofia.modules.avatar import vtube_studio_bridge as api
     monkeypatch.setattr(api, "load_owner_token", lambda: "previous-owner-consent")
     statuses = []
     attempts = []
@@ -279,7 +279,7 @@ def test_watch_reconnects_after_transient_local_failure_without_new_pair(
 
 
 def test_auto_reconnect_stops_if_plugin_permission_revoked(monkeypatch):
-    from sofia.avatar import vtube_studio_bridge as api
+    from sofia.modules.avatar import vtube_studio_bridge as api
     monkeypatch.setattr(api, "load_owner_token", lambda: "revoked-owner-token")
     socket = FakeSocket([
         response("AuthenticationResponse", {"authenticated": False}),
@@ -298,7 +298,7 @@ def test_auto_reconnect_stops_if_plugin_permission_revoked(monkeypatch):
 
 
 def test_watch_requires_existing_owner_token_and_bounded_interval(monkeypatch):
-    from sofia.avatar import vtube_studio_bridge as api
+    from sofia.modules.avatar import vtube_studio_bridge as api
     monkeypatch.setattr(api, "load_owner_token", lambda: "test-token")
     for seconds in (-1, 1, 121, float("nan"), float("inf"), True):
         with pytest.raises(ValueError, match="interval"):

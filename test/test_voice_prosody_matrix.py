@@ -1,9 +1,9 @@
 from dataclasses import replace
 from sofia.core.cognition.matrix import InfluenceMode,InfluenceSignal,InfluenceSurface
 from sofia.core.personality.influence import ContinuityInfluence
-from sofia.voice import VoiceProsodyMatrix,VoiceUrgency
+from sofia.modules.voice import VoiceProsodyMatrix,VoiceUrgency
 from sofia.core.emotion.catalog import EMOTIONS
-from sofia.voice.prosody_matrix import _TARGETS
+from sofia.modules.voice.prosody_matrix import _TARGETS
 def influence(**x):
     v=dict(
         daypart="evening",

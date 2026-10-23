@@ -6,13 +6,13 @@ import zlib
 
 import pytest
 
-from sofia.avatar.private_grant import PrivatePresentationGrantResolver
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.vtuber_starter_art import PNG_HEADER
-from sofia.avatar.vtuber_full_batch_art import (
+from sofia.modules.avatar.private_grant import PrivatePresentationGrantResolver
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.vtuber_starter_art import PNG_HEADER
+from sofia.modules.avatar.vtuber_full_batch_art import (
     _draft_png, build_draft_batch, _art_color,
 )
-from sofia.avatar.vtuber_wardrobe_production import GARMENT_FILES
+from sofia.modules.avatar.vtuber_wardrobe_production import GARMENT_FILES
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.core.social.principals import local_sparks_principal
@@ -40,7 +40,7 @@ def _rgba_alpha_present(blob):
 def test_each_of_fourteen_source_categories_produces_real_visible_png():
     catalog=build_starter_wardrobe()
     blueprint_by_id={b.garment.item_id:b for b in catalog.blueprints}
-    from sofia.avatar.vtuber_wardrobe_production import canonical_json_wardrobe_records
+    from sofia.modules.avatar.vtuber_wardrobe_production import canonical_json_wardrobe_records
     entries=canonical_json_wardrobe_records()
     for filename in GARMENT_FILES:
         # Some canonical source categories are intentionally protected-only.
@@ -67,8 +67,8 @@ def test_named_colors_match_canonical_hex_palette():
 def test_whole_public_batch_emits_every_unique_public_id_and_required_view(
     monkeypatch,tmp_path,
 ):
-    from sofia.avatar import vtuber_full_batch_art
-    from sofia.avatar.vtuber_starter_art import Sprite
+    from sofia.modules.avatar import vtuber_full_batch_art
+    from sofia.modules.avatar.vtuber_starter_art import Sprite
     placeholder=Sprite()
     placeholder.rectangle((140,160,170,190),(100,100,100,255))
     blob=placeholder.png()
@@ -92,8 +92,8 @@ def test_whole_public_batch_emits_every_unique_public_id_and_required_view(
 def test_private_batch_reuses_durable_safe_authority_and_separate_root(
     monkeypatch,tmp_path,
 ):
-    from sofia.avatar import vtuber_full_batch_art
-    from sofia.avatar.vtuber_starter_art import Sprite
+    from sofia.modules.avatar import vtuber_full_batch_art
+    from sofia.modules.avatar.vtuber_starter_art import Sprite
     src=Sprite()
     src.ellipse((143,166,175,211),(40,30,52,255))
     monkeypatch.setattr(vtuber_full_batch_art,"_draft_png",lambda *args:src.png())

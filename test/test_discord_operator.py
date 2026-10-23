@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from sofia.discord.binding import BindingState, DiscordBindingStore
-from sofia.discord.operator import control_discord, inspect_discord_state
-from sofia.discord.provisioning import DiscordIdentity
+from sofia.modules.discord.binding import BindingState, DiscordBindingStore
+from sofia.modules.discord.operator import control_discord, inspect_discord_state
+from sofia.modules.discord.provisioning import DiscordIdentity
 
 
 OWNER = 123456789012345678

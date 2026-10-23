@@ -1,7 +1,7 @@
 """Headless startup selection: reuse owner-installed PUBLIC assets only."""
 from pathlib import Path
 
-from sofia.ui.avatar2d_installation import discover_public_avatar2d_root
+from sofia.modules.ui.avatar2d_installation import discover_public_avatar2d_root
 
 
 def _pack(local: Path, name: str, *, character: bool = True) -> Path:

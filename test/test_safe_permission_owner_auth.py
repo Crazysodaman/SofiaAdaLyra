@@ -141,7 +141,7 @@ def test_existing_ui_wires_level3_and_level5_to_signed_owner_approval():
     from pathlib import Path
     source = (
         Path(__file__).resolve().parents[1]
-        / "src/sofia/ui/settings_window.py"
+        / "src/sofia/modules/ui/settings_window.py"
     ).read_text(encoding="utf-8")
     grant = source[source.index("def grant_standing_permission()"):
                    source.index("def revoke_standing_permission()")]

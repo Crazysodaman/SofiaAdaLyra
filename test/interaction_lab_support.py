@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from sofia.interaction.core import GESTURES, InteractionDecision, InteractionEngine
+from sofia.modules.interaction.core import GESTURES, InteractionDecision, InteractionEngine
 
 MAX_STEPS = 64
 

@@ -3,16 +3,16 @@ import pytest
 """Pending generated wardrobe state is durable but never owned."""
 from pathlib import Path
 
-from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe import WardrobeError
-from sofia.avatar.wardrobe_design import GraphicDesign
-from sofia.avatar.wardrobe_generated_store import (
+from sofia.modules.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe import WardrobeError
+from sofia.modules.avatar.wardrobe_design import GraphicDesign
+from sofia.modules.avatar.wardrobe_generated_store import (
     SofiaGarmentAcceptance,
     SofiaGarmentDecision,
     generated_wardrobe_path,
 )
-from sofia.avatar.wardrobe_pending_store import (
+from sofia.modules.avatar.wardrobe_pending_store import (
     PendingGeneratedWardrobeStore,
     pending_generated_wardrobe_path,
 )

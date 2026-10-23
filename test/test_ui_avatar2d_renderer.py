@@ -10,13 +10,13 @@ from types import SimpleNamespace
 import sys
 import types
 
-from sofia.avatar.presentation import AudienceScope
-from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
-from sofia.avatar.vtuber_starter_art import generate_public_outfit_art
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.presentation import AudienceScope
+from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
+from sofia.modules.avatar.vtuber_starter_art import generate_public_outfit_art
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.ui.avatar_renderer import AvatarRenderRequest
-from sofia.ui.avatar2d_renderer import TkLayered2DRenderer
+from sofia.modules.ui.avatar_renderer import AvatarRenderRequest
+from sofia.modules.ui.avatar2d_renderer import TkLayered2DRenderer
 
 
 SEED=Path(__file__).resolve().parents[1]/"src/sofia/core/embodiment/avatar.json"
@@ -143,7 +143,7 @@ def test_no_private_asset_resolved_on_missing_public_art(tmp_path,monkeypatch):
 
 def test_public_renderer_never_draws_nude_projection(tmp_path,monkeypatch):
     from dataclasses import replace
-    from sofia.avatar.presentation import AttireMode
+    from sofia.modules.avatar.presentation import AttireMode
 
     monkeypatch.setitem(sys.modules,"tkinter",types.SimpleNamespace(
         PhotoImage=FakePhotoImage,

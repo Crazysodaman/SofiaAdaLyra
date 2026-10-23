@@ -16,7 +16,7 @@ on:
       - 'test/test_ws2_restore*.py'
       - 'test/test_ws2_pending_pointer*.py'
       - 'src/sofia/platform/ops/backup*.py'
-      - 'src/sofia/mobile/**'
+      - 'src/sofia/modules/mobile/**'
       - 'mobile/android/**'
       - 'test/test_ws2_portable_export_validator.py'
       - 'test/test_recovery_portable_verifier.py'

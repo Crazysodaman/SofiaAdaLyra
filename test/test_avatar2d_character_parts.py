@@ -6,10 +6,10 @@ import struct
 
 import pytest
 
-from sofia.avatar.vtuber_character_parts import (
+from sofia.modules.avatar.vtuber_character_parts import (
     character_part_options, generate_public_character_parts,
 )
-from sofia.avatar.vtuber_starter_art import WIDTH, HEIGHT, PNG_HEADER
+from sofia.modules.avatar.vtuber_starter_art import WIDTH, HEIGHT, PNG_HEADER
 
 
 def test_all_character_groups_include_independent_variants(tmp_path):

@@ -14,12 +14,12 @@ import types
 
 import pytest
 
-from sofia.avatar.presentation import AudienceScope
-from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
-from sofia.avatar.vtuber_public_setup import prepare_public_avatar2d
+from sofia.modules.avatar.presentation import AudienceScope
+from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
+from sofia.modules.avatar.vtuber_public_setup import prepare_public_avatar2d
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.ui.avatar2d_renderer import TkLayered2DRenderer
-from sofia.ui.avatar_renderer import AvatarRenderRequest
+from sofia.modules.ui.avatar2d_renderer import TkLayered2DRenderer
+from sofia.modules.ui.avatar_renderer import AvatarRenderRequest
 
 
 SEED = Path(__file__).resolve().parents[1] / "src/sofia/core/embodiment/avatar.json"

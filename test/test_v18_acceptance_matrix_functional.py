@@ -14,11 +14,11 @@ import pytest
 from sofia.platform.ops.activity import ActivityMode
 from sofia.platform.ops.saga import Escalation, PartialOutcome, plan_compensation
 from sofia.platform.verify.v18_acceptance_matrix import EXAMPLES
-from sofia.vision.consent import (
+from sofia.modules.vision.consent import (
     propose_screen_permit,
     receipt_from_permitted_bytes,
 )
-from sofia.vision.desktop_control import require_workstation_clear
+from sofia.modules.vision.desktop_control import require_workstation_clear
 
 pytestmark = pytest.mark.pkg_verify
 _NOW = datetime(2026, 10, 15, 18, 0, tzinfo=timezone.utc)
@@ -54,7 +54,7 @@ def test_gaming_blocks_venus_input_despite_fresh_normal_tray(monkeypatch, tmp_pa
             return State()
 
     monkeypatch.setattr(activity, "HostActivityStore", Store)
-    monkeypatch.setattr("sofia.vision.desktop_control.game_process_clear", lambda: False)
+    monkeypatch.setattr("sofia.modules.vision.desktop_control.game_process_clear", lambda: False)
     with pytest.raises(PermissionError, match="running game"):
         require_workstation_clear(tmp_path / "isolated-not-created.db", "Venus", _NOW)
 
@@ -78,7 +78,7 @@ def test_manual_tray_override_cannot_bypass_game_protection(monkeypatch, tmp_pat
 
     monkeypatch.setattr(activity, "HostActivityStore", Store)
     monkeypatch.setattr(
-        "sofia.vision.desktop_control.game_process_clear",
+        "sofia.modules.vision.desktop_control.game_process_clear",
         lambda: pytest.fail("game scanner should not be invoked after unsafe override"),
     )
     with pytest.raises(PermissionError, match="fresh unoverridden"):

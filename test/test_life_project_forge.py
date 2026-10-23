@@ -19,8 +19,8 @@ from sofia.core.creative import (
 )
 from sofia.core.cognition.model import CognitiveResponse
 from sofia.core.goals import GoalEvidenceIndex, GoalService, GoalStatus, GoalStore
-from sofia.interaction.world_model import ObjectKind, Transform
-from sofia.interaction.world_store import VirtualWorldStore
+from sofia.modules.interaction.world_model import ObjectKind, Transform
+from sofia.modules.interaction.world_store import VirtualWorldStore
 from sofia.core.life import (
     ArtifactEvaluation, ExperienceRecord, MilestoneStatus, PersonalJudgment,
     ProjectIdea, ProjectScope, ProjectStatus, SelfDirectedLifeCoordinator,

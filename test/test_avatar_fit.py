@@ -1,11 +1,11 @@
 """Production wardrobe fit metadata contracts."""
 import pytest
 
-from sofia.avatar.fit import (
+from sofia.modules.avatar.fit import (
     BodyContractError, BodyRegion, DEFAULT_FIT_ANCHORS, FitAnchor, REGION_TO_SLOTS,
 )
-from sofia.avatar.wardrobe import SLOTS
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe import SLOTS
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
 def test_region_to_existing_slots_complete_and_separate():

@@ -4,11 +4,11 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.ui.avatar_mode import (
+from sofia.modules.ui.avatar_mode import (
     AvatarVisualMode, AvatarModeUnavailable, ExclusiveAvatarRenderer,
 )
-from sofia.ui.avatar_mode_store import AvatarModePreferenceStore
-from sofia.ui.avatar_renderer import AvatarRenderRequest
+from sofia.modules.ui.avatar_mode_store import AvatarModePreferenceStore
+from sofia.modules.ui.avatar_renderer import AvatarRenderRequest
 
 
 class FakeRenderer:

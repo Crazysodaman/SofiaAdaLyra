@@ -298,10 +298,10 @@ The owner has accepted **all 41 existing entries plus all 14 below** for design 
 
 | ID | Name | Packaging | Correct parent or domain | Scope and boundary | V18 source pointer / verification |
 | --- | --- | --- | --- | --- | --- |
-| `MOD-AVATAR3D` | 3D Avatar | OPTIONAL | Companion/Avatar | 3D rig, full-body animation, physics and actual frame receipts | `src/sofia/ui/avatar3d_renderer.py` |
-| `MOD-AVATAR-STUDIO` | Avatar Studio | OPTIONAL | Creative/Avatar | Wardrobe and scene authoring, layered rig compatibility, review of public/private assets | `src/sofia/avatar/authoring.py; avatar/scene_editor.py` |
-| `MOD-INTERACTION` | Avatar Interaction | SUBMODULE | RM-AVATAR2D + MOD-AVATAR3D (also Virtual World) | Pointer hit tests, user-offered virtual interactions and gesture event parsing; Core chooses its own response | `src/sofia/interaction/; avatar/vtuber_hit_test.py` |
-| `MOD-VTUBER-BRIDGE` | VTube Studio Bridge | ADAPTER | RM-AVATAR2D | Owner-paired external 2D renderer adapter; no independent personality or render claims | `src/sofia/avatar/vtube_studio_bridge.py` |
+| `MOD-AVATAR3D` | 3D Avatar | OPTIONAL | Companion/Avatar | 3D rig, full-body animation, physics and actual frame receipts | `src/sofia/modules/ui/avatar3d_renderer.py` |
+| `MOD-AVATAR-STUDIO` | Avatar Studio | OPTIONAL | Creative/Avatar | Wardrobe and scene authoring, layered rig compatibility, review of public/private assets | `src/sofia/modules/avatar/authoring.py; avatar/scene_editor.py` |
+| `MOD-INTERACTION` | Avatar Interaction | SUBMODULE | RM-AVATAR2D + MOD-AVATAR3D (also Virtual World) | Pointer hit tests, user-offered virtual interactions and gesture event parsing; Core chooses its own response | `src/sofia/modules/interaction/; avatar/vtuber_hit_test.py` |
+| `MOD-VTUBER-BRIDGE` | VTube Studio Bridge | ADAPTER | RM-AVATAR2D | Owner-paired external 2D renderer adapter; no independent personality or render claims | `src/sofia/modules/avatar/vtube_studio_bridge.py` |
 | `MOD-WORKSHOP` | Hephaestus Workshop | OPTIONAL | Homelab/Science | Isolated VM experiments, guest preparation and signed lab artifacts | `src/sofia/platform/ops/workshop_provision.py; ops/workshop_policy.py` |
 | `MOD-DIGITAL-TWIN` | Digital Twin | OPTIONAL | Homelab/Simulation | Hypothetical infrastructure dependency and failure scenarios, not live effects | `src/sofia/platform/ops/digital_twin.py` |
 | `MOD-KNOWLEDGE-LIBRARY` | Knowledge Library | OPTIONAL | Research/Documents | External indexed references, bounded retrieval and source revisions, not autobiographical memory | `src/sofia/core/knowledge/service.py` |

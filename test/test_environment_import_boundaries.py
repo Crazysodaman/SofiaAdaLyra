@@ -29,7 +29,7 @@ def test_runtime_public_api_still_resolves_lazily():
 
 def test_nws_public_api_resolves_without_eager_runtime_bootstrap():
     from sofia.core.environment import NwsEnvironmentProvider
-    from sofia.integrations import NwsAdapter
+    from sofia.modules.integrations import NwsAdapter
 
     assert NwsEnvironmentProvider is not None
     assert NwsAdapter is not None

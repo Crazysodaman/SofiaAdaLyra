@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.temporal import InteractionStateJournal
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.temporal import InteractionStateJournal
 
 AT = datetime(2026, 9, 20, tzinfo=timezone.utc)
 

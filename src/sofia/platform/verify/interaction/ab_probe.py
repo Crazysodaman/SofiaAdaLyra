@@ -22,11 +22,11 @@ from sofia.core.constitution.store import ConstitutionIntegrityVerifier
 from sofia.core.constitution.store import ConstitutionStore
 from sofia.core.embodiment.store import EmbodimentStore
 from sofia.core.identity.store import IdentityStore
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.body_discussion import body_discussion_prompt
-from sofia.interaction.expanded_service import action_prompt
-from sofia.interaction.grammar import NaturalInteractionEngine
-from sofia.interaction.chat import interaction_prompt
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.body_discussion import body_discussion_prompt
+from sofia.modules.interaction.expanded_service import action_prompt
+from sofia.modules.interaction.grammar import NaturalInteractionEngine
+from sofia.modules.interaction.chat import interaction_prompt
 from sofia.core.personality.store import PersonalityStore
 from sofia.core.self_model.model import create_core_state
 

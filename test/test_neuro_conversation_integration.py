@@ -8,11 +8,11 @@ from sofia.platform.application import SofiaApplication
 from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.reviewed_hug_question import CLARIFICATION
-from sofia.interaction.source_link import VerifiedInteractionState
-from sofia.neuro import NeuralSignal
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.reviewed_hug_question import CLARIFICATION
+from sofia.modules.interaction.source_link import VerifiedInteractionState
+from sofia.modules.neuro import NeuralSignal
 from sofia.core.emotion.model import CurrentEmotionalState
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.principals import local_sparks_principal

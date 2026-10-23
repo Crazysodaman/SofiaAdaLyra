@@ -1,4 +1,4 @@
-from sofia.integrations.ollama import OllamaAdapter
+from sofia.modules.integrations.ollama import OllamaAdapter
 
 
 class Http:

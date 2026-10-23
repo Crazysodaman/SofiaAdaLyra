@@ -2,8 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.avatar.wardrobe import WardrobeError
-from sofia.avatar.wardrobe_planner import (
+from sofia.modules.avatar.wardrobe import WardrobeError
+from sofia.modules.avatar.wardrobe_planner import (
     Activity,
     Season,
     WardrobeContext,

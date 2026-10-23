@@ -6,15 +6,15 @@ import sqlite3
 import pytest
 
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.offer_route import OFFER
-from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply
-from sofia.interaction.decision_expression import CandidateChoice, from_reviewed_action
-from sofia.interaction.expression_consistency import validate_offer_expression
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.source_link import VerifiedInteractionState
-from sofia.interaction.trusted_offer_gate import GuardedOfferResult, run_guarded_offer
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.offer_route import OFFER
+from sofia.modules.interaction.atomic_offer_release import commit_guarded_offer_reply
+from sofia.modules.interaction.decision_expression import CandidateChoice, from_reviewed_action
+from sofia.modules.interaction.expression_consistency import validate_offer_expression
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.source_link import VerifiedInteractionState
+from sofia.modules.interaction.trusted_offer_gate import GuardedOfferResult, run_guarded_offer
 
 CONTRADICTION = (
     '*ears twitch slightly, tail swishing in curiosity*\n'

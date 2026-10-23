@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.grammar import NaturalInteractionEngine
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.live_guard import unsupported_composite_gesture
-from sofia.interaction.registry import CATALOG_VERSION
+from sofia.modules.interaction.grammar import NaturalInteractionEngine
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.live_guard import unsupported_composite_gesture
+from sofia.modules.interaction.registry import CATALOG_VERSION
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core' / 'embodiment' / 'avatar.json'

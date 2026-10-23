@@ -26,8 +26,8 @@ from sofia.core.memory.originals import SourceMessage
 from sofia.core.memory.provenance import MemoryCandidate
 from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.core.memory.system import MemorySystem
-from sofia.neuro import NeuralSignal, NeuroRuntime
-from sofia.neuro.connectome.association_store import ReviewedAssociationStore
+from sofia.modules.neuro import NeuralSignal, NeuroRuntime
+from sofia.modules.neuro.connectome.association_store import ReviewedAssociationStore
 from sofia.core.social.principals import discord_sparks_principal, local_sparks_principal
 
 # Controlled synthetic facts with unique source evidence, never private chat.

@@ -8,7 +8,7 @@ import pytest
 
 Image = pytest.importorskip("PIL.Image")
 from test.test_avatar2d_independent_features import staged as staged_features
-from sofia.avatar.vtuber_mouth_viseme_review import (
+from sofia.modules.avatar.vtuber_mouth_viseme_review import (
     verify_review_mouths, compose_review_frame, create_review_frames,
     _EXTRAS, _ART_FILES,
 )

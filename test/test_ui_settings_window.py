@@ -12,7 +12,7 @@ from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.core.emotion.journal import EmotionalJournal
 from sofia.core.social.model import SocialScope
 from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
-from sofia.ui.wardrobe_panel import current_mood
+from sofia.modules.ui.wardrobe_panel import current_mood
 
 
 def test_mood_shows_owner_emotion_and_time_without_other_principal_data(tmp_path):
@@ -32,9 +32,9 @@ def test_mood_shows_owner_emotion_and_time_without_other_principal_data(tmp_path
 def test_real_settings_save_reopen_and_wardrobe_submission(tmp_path, monkeypatch):
     import tkinter as tk
     from tkinter import messagebox
-    from sofia.ui import settings_window
-    from sofia.avatar.wardrobe_review import WardrobeReviewStore
-    from sofia.ui.control_center import DesktopControlSettingsStore, MASTER_SETTINGS_SECTIONS
+    from sofia.modules.ui import settings_window
+    from sofia.modules.avatar.wardrobe_review import WardrobeReviewStore
+    from sofia.modules.ui.control_center import DesktopControlSettingsStore, MASTER_SETTINGS_SECTIONS
     # The real Tk settings entrypoint requires an already provisioned,
     # protected identity/Constitution, not merely an empty SQLite file.
     layout = replace(

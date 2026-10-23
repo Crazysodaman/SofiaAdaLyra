@@ -2,9 +2,9 @@
 from datetime import datetime, timezone
 import sqlite3
 
-from sofia.interaction.preference_context import read_interaction_context
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.source_link import VerifiedInteractionState
+from sofia.modules.interaction.preference_context import read_interaction_context
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.source_link import VerifiedInteractionState
 
 NOW = datetime(2026, 9, 20, tzinfo=timezone.utc)
 

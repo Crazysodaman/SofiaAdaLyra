@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.interaction.world import LabWorld, WorldAction
+from sofia.modules.interaction.world import LabWorld, WorldAction
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 

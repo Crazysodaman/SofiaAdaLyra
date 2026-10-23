@@ -1,6 +1,6 @@
 """Discord module entry-point dispatch tests. No network is started."""
 
-import sofia.discord.__main__ as entry
+import sofia.modules.discord.__main__ as entry
 
 
 def test_no_argument_runs_live_entrypoint(monkeypatch) -> None:

@@ -1,4 +1,4 @@
-from sofia.voice.sapi import (
+from sofia.modules.voice.sapi import (
     choose_voice,
     sapi_rate,
     sapi_volume,

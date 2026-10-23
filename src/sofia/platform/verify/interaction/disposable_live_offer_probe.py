@@ -19,13 +19,13 @@ from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.platform.verify.interaction.disposable import close_disposable_application
 from sofia.platform.config.defaults import create_production_configuration
 from sofia.core.conversation.model import ConversationMessage, ConversationRole
-from sofia.interaction import live_offer_service
-from sofia.interaction.offer_route import OFFER
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.reviewed_hug_question import CLARIFICATION
-from sofia.interaction.source_link import VerifiedInteractionState
-from sofia.interaction.trusted_offer_gate import GuardedOfferResult, _policy_gate
+from sofia.modules.interaction import live_offer_service
+from sofia.modules.interaction.offer_route import OFFER
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.reviewed_hug_question import CLARIFICATION
+from sofia.modules.interaction.source_link import VerifiedInteractionState
+from sofia.modules.interaction.trusted_offer_gate import GuardedOfferResult, _policy_gate
 
 _SYNTHETIC_BOUNDARY = 'I do not want hugs in this avatar scene.'
 _QUESTION = 'Could I hug you?'

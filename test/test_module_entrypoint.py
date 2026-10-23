@@ -1,4 +1,4 @@
-import runpy
+﻿import runpy
 import sys
 
 import pytest
@@ -26,17 +26,17 @@ def test_module_entrypoint_launches_desktop_by_default(monkeypatch):
         lambda: configuration,
     )
     monkeypatch.setattr(
-        "sofia.ui.desktop.run_desktop",
+        "sofia.modules.ui.desktop.run_desktop",
         run_desktop,
     )
     monkeypatch.setattr(
-        "sofia.ui.tray_launcher.ensure_tray_agent",
+        "sofia.modules.ui.tray_launcher.ensure_tray_agent",
         ensure_tray,
     )
 
     with pytest.raises(SystemExit) as exc_info:
         runpy.run_path(
-            "src/sofia/__main__.py",
+            "src/sofia/core/launcher.py",
             run_name="__main__",
         )
 
@@ -80,13 +80,13 @@ def test_module_entrypoint_cli_preserves_terminal_client(monkeypatch):
         FakeApplication,
     )
     monkeypatch.setattr(
-        "sofia.ui.terminal.ConversationLoop",
+        "sofia.modules.ui.terminal.ConversationLoop",
         FakeConversationLoop,
     )
 
     with pytest.raises(SystemExit) as exc_info:
         runpy.run_path(
-            "src/sofia/__main__.py",
+            "src/sofia/core/launcher.py",
             run_name="__main__",
         )
 
@@ -99,7 +99,7 @@ def test_module_entrypoint_rejects_unknown_argument(monkeypatch, capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         runpy.run_path(
-            "src/sofia/__main__.py",
+            "src/sofia/core/launcher.py",
             run_name="__main__",
         )
 

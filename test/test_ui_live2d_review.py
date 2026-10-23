@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import pytest
 from PIL import Image
-from sofia.ui.live2d_review import FACE_PARTS, create_review_job, review_job_summary
+from sofia.modules.ui.live2d_review import FACE_PARTS, create_review_job, review_job_summary
 
 def test_creates_unapproved_review_manifest(tmp_path):
     source = tmp_path / "source.png"

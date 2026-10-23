@@ -1,5 +1,5 @@
 """Hair/ear registration boxes remain deterministic and non-production."""
-from sofia.avatar.vtuber_hair_ear_review import candidate_boxes
+from sofia.modules.avatar.vtuber_hair_ear_review import candidate_boxes
 
 
 def test_fox_ear_registration_uses_independent_sides_and_valid_canvas_bounds():

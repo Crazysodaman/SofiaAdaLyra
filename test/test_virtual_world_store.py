@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.interaction.world_model import ObjectKind, SpaceKind, Transform, WorldObject
-from sofia.interaction.world_store import VirtualWorldStore
+from sofia.modules.interaction.world_model import ObjectKind, SpaceKind, Transform, WorldObject
+from sofia.modules.interaction.world_store import VirtualWorldStore
 
 
 NOW = datetime(2026, 10, 10, 10, tzinfo=timezone.utc)

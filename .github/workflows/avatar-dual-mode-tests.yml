@@ -5,10 +5,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/avatar-dual-mode-tests.yml"
-      - "src/sofia/ui/avatar_mode.py"
-      - "src/sofia/ui/avatar_mode_store.py"
-      - "src/sofia/ui/avatar3d_renderer.py"
-      - "src/sofia/ui/desktop.py"
+      - "src/sofia/modules/ui/avatar_mode.py"
+      - "src/sofia/modules/ui/avatar_mode_store.py"
+      - "src/sofia/modules/ui/avatar3d_renderer.py"
+      - "src/sofia/modules/ui/desktop.py"
       - "test/test_ui_avatar_modes.py"
       - "test/test_ui_avatar3d_adapter.py"
   workflow_dispatch:
@@ -36,5 +36,5 @@ jobs:
       - name: Byte-compile changed modules
         shell: pwsh
         run: |
-          python -m py_compile src/sofia/ui/avatar_mode.py src/sofia/ui/avatar_mode_store.py src/sofia/ui/avatar3d_renderer.py src/sofia/ui/desktop.py
+          python -m py_compile src/sofia/modules/ui/avatar_mode.py src/sofia/modules/ui/avatar_mode_store.py src/sofia/modules/ui/avatar3d_renderer.py src/sofia/modules/ui/desktop.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

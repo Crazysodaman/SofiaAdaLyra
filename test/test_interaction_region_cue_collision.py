@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.core import InteractionEngine
+from sofia.modules.interaction.core import InteractionEngine
 
 AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core' / 'embodiment' / 'avatar.json'
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)

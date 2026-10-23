@@ -1,9 +1,9 @@
-from sofia.ui.control_center import (
+from sofia.modules.ui.control_center import (
     ServiceAction,
     ServiceKind,
     TrayCommand,
 )
-from sofia.ui.tray_agent import TrayAgentApplication
+from sofia.modules.ui.tray_agent import TrayAgentApplication
 
 
 def test_exit_ui_stops_only_tray_loop_not_runtime_service():

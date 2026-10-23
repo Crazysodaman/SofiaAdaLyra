@@ -9,16 +9,16 @@ from pathlib import Path
 
 import pytest
 
-from sofia.avatar.private_grant import PrivatePresentationGrantResolver
-from sofia.avatar.presentation import AudienceScope
-from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
-from sofia.avatar.vtuber_asset_bundle import Avatar2DAssetGateway
-from sofia.avatar.vtuber_layer_stack import assemble_avatar2d_layers
-from sofia.avatar.vtuber_starter_art import (
+from sofia.modules.avatar.private_grant import PrivatePresentationGrantResolver
+from sofia.modules.avatar.presentation import AudienceScope
+from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
+from sofia.modules.avatar.vtuber_asset_bundle import Avatar2DAssetGateway
+from sofia.modules.avatar.vtuber_layer_stack import assemble_avatar2d_layers
+from sofia.modules.avatar.vtuber_starter_art import (
     WIDTH, HEIGHT, PNG_HEADER, generate_public_outfit_art,
     generate_public_wardrobe_library, main,
 )
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.core.embodiment.store import EmbodimentStore
 
 
@@ -63,8 +63,8 @@ def test_real_public_wardrobe_sprite_assets_roundtrip(tmp_path, outfit_id):
     # The loader checks the *currently selected* outfit. For alternate
     # outfits, test the real checked manifest reader without mutating
     # production state.
-    from sofia.avatar.vtuber_asset_bundle import _read_bundle
-    from sofia.avatar.presentation import AttireMode
+    from sofia.modules.avatar.vtuber_asset_bundle import _read_bundle
+    from sofia.modules.avatar.presentation import AttireMode
     checked = _read_bundle(
         out, audience=AudienceScope.PUBLIC,
         attire=AttireMode.CLOTHED, outfit_id=outfit_id,

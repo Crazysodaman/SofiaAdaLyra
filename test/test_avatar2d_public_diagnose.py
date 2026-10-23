@@ -7,11 +7,11 @@ import json
 import sqlite3
 import zipfile
 
-from sofia.avatar.vtuber_public_diagnose import diagnose_public_avatar2d
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.vtuber_public_diagnose import diagnose_public_avatar2d
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
-_ARCHIVE = files("sofia.avatar").joinpath(
+_ARCHIVE = files("sofia.modules.avatar").joinpath(
     "assets/sofia2d_public_illustrated_candidates_v1.zip"
 )
 

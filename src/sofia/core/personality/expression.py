@@ -1,7 +1,7 @@
 """Conversational expression guidance, never factual or operational authority."""
 from __future__ import annotations
 
-from sofia.interaction.avatar_world import avatar_world_guidance
+from sofia.modules.interaction.avatar_world import avatar_world_guidance
 def personality_expression_guidance() -> tuple[str, ...]:
     """Provider-neutral style instructions, not a canned response or filter."""
     return (

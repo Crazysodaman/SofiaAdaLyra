@@ -165,7 +165,7 @@ def test_delayed_or_stale_voice_receipt_is_not_a_spoken_output():
     from sofia.platform.application.expression_runtime import (
         ExpressionDecision, ExpressionIntent,
     )
-    from sofia.voice.prosody_matrix import VoiceProsodyProfile
+    from sofia.modules.voice.prosody_matrix import VoiceProsodyProfile
 
     row = observation("renderer_truth", "voice")
     now = datetime(2026, 10, 18, tzinfo=timezone.utc)

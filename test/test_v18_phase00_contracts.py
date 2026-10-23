@@ -30,7 +30,7 @@ from sofia.core.cognition.matrix.model import (
     ResponseValidationDisposition,
     ToolExposurePlan,
 )
-from sofia.neuro.model import NeuralActivation, NeuroStateSnapshot
+from sofia.modules.neuro.model import NeuralActivation, NeuroStateSnapshot
 from sofia.platform.run.work import WorkJob, WorkStatus
 from test.test_v18_decision_persistence import NOW, _fixture
 

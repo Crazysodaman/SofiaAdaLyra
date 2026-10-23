@@ -12,7 +12,7 @@ from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_default_configuration
-from sofia.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.ledger import InteractionLedger
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AppearanceState, AudienceScope, PresentationAuthority, PresentationError,
 )
-from sofia.avatar.presentation_store import PresentationStore
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.presentation_store import PresentationStore
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.core.embodiment.model import Measurement
 from sofia.core.embodiment.store import EmbodimentStore
 

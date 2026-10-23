@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from sofia.avatar.vtuber_cohesive_candidate import verify_cohesive_candidate
+from sofia.modules.avatar.vtuber_cohesive_candidate import verify_cohesive_candidate
 
 Image = pytest.importorskip("PIL.Image")
 

@@ -5,8 +5,8 @@ import os
 
 from sofia.platform.config.model import SofiaConfiguration
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-from sofia.integrations.home_assistant import HomeAssistantAdapter
-from sofia.integrations.nws import NwsAdapter
+from sofia.modules.integrations.home_assistant import HomeAssistantAdapter
+from sofia.modules.integrations.nws import NwsAdapter
 from sofia.platform.safe.secret_store import ProtectedSecretStore
 
 from .home_assistant import HomeAssistantEnvironmentProvider

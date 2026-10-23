@@ -5,8 +5,8 @@ from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 
-from sofia.interaction.world_model import ObjectKind, Transform, WorldObject
-from sofia.interaction.world_store import VirtualWorldStore
+from sofia.modules.interaction.world_model import ObjectKind, Transform, WorldObject
+from sofia.modules.interaction.world_store import VirtualWorldStore
 
 from .store import CreativeStore
 

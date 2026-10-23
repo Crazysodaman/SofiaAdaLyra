@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import sofia.discord.discordpy as discordpy
-from sofia.discord.discordpy import (
+import sofia.modules.discord.discordpy as discordpy
+from sofia.modules.discord.discordpy import (
     DiscordPyMessageAdapter,
     build_dm_intents,
 )

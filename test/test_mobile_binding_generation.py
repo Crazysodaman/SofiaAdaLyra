@@ -7,7 +7,7 @@ import sqlite3
 
 import pytest
 
-from sofia.mobile.gateway import MobileDeliveryConflict
+from sofia.modules.mobile.gateway import MobileDeliveryConflict
 from test.test_mobile_main_history import _setup, _record
 
 

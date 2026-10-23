@@ -54,7 +54,7 @@ class MemorySystem:
         self._historical_store = historical_store
         # Non-authoritative NEURO scorer; reviewed MEM owns eligibility.
         if association_store is not None:
-            from sofia.neuro.connectome.association_store import ReviewedAssociationStore
+            from sofia.modules.neuro.connectome.association_store import ReviewedAssociationStore
             if not isinstance(association_store, ReviewedAssociationStore):
                 raise TypeError("association_store must be canonical ReviewedAssociationStore")
         self._association_store = association_store

@@ -2,8 +2,8 @@ import sqlite3
 
 import pytest
 
-import sofia.integrations.sqlite as adapter_module
-from sofia.integrations.sqlite import SQLiteReadAdapter
+import sofia.modules.integrations.sqlite as adapter_module
+from sofia.modules.integrations.sqlite import SQLiteReadAdapter
 
 
 @pytest.mark.parametrize("operation", ["tables", "query", "integrity_check", "wal_checkpoint"])

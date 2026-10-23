@@ -4,20 +4,20 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.avatar.clothing_action import ClothingActionService
-from sofia.avatar.wardrobe_autonomy import (
+from sofia.modules.avatar.clothing_action import ClothingActionService
+from sofia.modules.avatar.wardrobe_autonomy import (
     WardrobeAutonomyContext,
     WardrobeAutonomyDecision,
     WardrobeAutonomyPolicy,
 )
-from sofia.avatar.presentation import AppearanceState, AttireMode, PresentationAuthority
-from sofia.avatar.presentation_store import (
+from sofia.modules.avatar.presentation import AppearanceState, AttireMode, PresentationAuthority
+from sofia.modules.avatar.presentation_store import (
     PresentationStore,
     PresentationStoreError,
 )
-from sofia.avatar.presentation_runtime import PresentationRuntimeBundle
-from sofia.avatar.wardrobe import Layer, Wardrobe, normalize_slots
-from sofia.avatar.wardrobe_planner import (
+from sofia.modules.avatar.presentation_runtime import PresentationRuntimeBundle
+from sofia.modules.avatar.wardrobe import Layer, Wardrobe, normalize_slots
+from sofia.modules.avatar.wardrobe_planner import (
     Activity,
     EmotionStyleInfluence,
     Season,
@@ -25,7 +25,7 @@ from sofia.avatar.wardrobe_planner import (
     Weather,
     WeatherObservation,
 )
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.core.cognition.matrix import (
     ContextualInfluenceMatrix,
     InfluenceSurface,

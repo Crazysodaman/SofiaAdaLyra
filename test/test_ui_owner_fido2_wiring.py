@@ -17,7 +17,7 @@ def test_protected_settings_ui_calls_real_web_authn_without_actor_only_approvals
 
     source = (
         Path(__file__).resolve().parents[1]
-        / "src/sofia/ui/settings_window.py"
+        / "src/sofia/modules/ui/settings_window.py"
     ).read_text(encoding="utf-8")
 
     model_begin = source.index("def approve_model_installation()")

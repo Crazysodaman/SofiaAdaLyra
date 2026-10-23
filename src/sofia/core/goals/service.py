@@ -9,7 +9,7 @@ from typing import Callable
 from uuid import uuid4
 
 from sofia.platform.capability.model import CapabilityProposal
-from sofia.neuro.model import NeuralActivation
+from sofia.modules.neuro.model import NeuralActivation
 from sofia.core.social.model import PrincipalContext
 from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 

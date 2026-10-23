@@ -22,9 +22,9 @@ from sofia.core.goals import (
 )
 from sofia.core.goals.evidence import GoalEvidenceIndex, GoalEvidenceLedger
 from sofia.core.goals.service import audience_scope
-from sofia.interaction.world_model import ObjectKind, SpaceKind, Transform
-from sofia.interaction.world_store import VirtualWorldStore
-from sofia.neuro.model import NeuralActivation
+from sofia.modules.interaction.world_model import ObjectKind, SpaceKind, Transform
+from sofia.modules.interaction.world_store import VirtualWorldStore
+from sofia.modules.neuro.model import NeuralActivation
 from sofia.core.personality.preferences import (
     PreferenceDisposition, PreferenceRegistry, PreferenceSubject,
 )

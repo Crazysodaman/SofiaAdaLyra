@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from sofia.avatar.vtuber_external_core import (
+from sofia.modules.avatar.vtuber_external_core import (
     _FILES, audit_installed_core, stage_review,
 )
 

@@ -1,7 +1,7 @@
 """WardrobeContext keeps raw trusted ENVIRONMENT evidence for clothing scoring."""
 from datetime import datetime, timedelta, timezone
 
-from sofia.avatar.wardrobe_planner import (
+from sofia.modules.avatar.wardrobe_planner import (
     Activity,
     EnvironmentMode,
     Formality,

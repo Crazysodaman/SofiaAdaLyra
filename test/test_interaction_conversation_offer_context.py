@@ -10,16 +10,16 @@ from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
     CognitiveToolCall, CognitiveToolDefinition,
 )
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.offer_route import OFFER
-from sofia.interaction.conversation_offer_context import (
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.offer_route import OFFER
+from sofia.modules.interaction.conversation_offer_context import (
     routed_conversation_choice_request, routed_conversation_expression_request,
 )
-from sofia.interaction.decision_expression import CandidateChoice, from_reviewed_action
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.source_link import VerifiedInteractionState
-from sofia.interaction.trusted_offer_gate import run_guarded_offer
+from sofia.modules.interaction.decision_expression import CandidateChoice, from_reviewed_action
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.source_link import VerifiedInteractionState
+from sofia.modules.interaction.trusted_offer_gate import run_guarded_offer
 
 NOW = datetime(2026, 9, 22, tzinfo=timezone.utc)
 SESSION = 'disposable-session'

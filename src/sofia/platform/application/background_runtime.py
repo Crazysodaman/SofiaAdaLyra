@@ -451,12 +451,12 @@ def create_background_coordinator(
             lambda now: goal_production.tick(now=now),
             interval_seconds=60.0,
         )
-    from sofia.avatar.wardrobe_review import WardrobeReviewStore, review_next
+    from sofia.modules.avatar.wardrobe_review import WardrobeReviewStore, review_next
     from sofia.core.social.principals import local_sparks_principal
     review_store = WardrobeReviewStore(application._configuration.state_path)
 
     def review_wardrobe(now):
-        from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
+        from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
         with application._model_lock:
             key = review_next(
                 review_store,
@@ -536,7 +536,7 @@ def create_background_coordinator(
     # Optional association decay belongs to the existing RUN lifecycle. It
     # does not wake an LLM, store raw conversation, or create memories.
     from sofia.platform.config.user_settings import RuntimeUserSettingsStore
-    from sofia.neuro.connectome.association_store import ReviewedAssociationStore
+    from sofia.modules.neuro.connectome.association_store import ReviewedAssociationStore
 
     def association_decay_ready():
         from sofia.platform.safe.operator_stop import OperatorStopStore

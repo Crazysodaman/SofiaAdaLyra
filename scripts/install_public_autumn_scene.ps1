@@ -25,9 +25,9 @@ if ((& git -C $Repo branch --show-current).Trim() -ne "main") {
 if ($PublishToGit -and (& git -C $Repo status --porcelain)) {
     throw "Working tree must be clean before publishing binary assets."
 }
-& python -m sofia.avatar.scene_install --archive "$Archive" --root "$Art" --verify-only
+& python -m sofia.modules.avatar.scene_install --archive "$Archive" --root "$Art" --verify-only
 if ($LASTEXITCODE -ne 0) { throw "Public scene validation failed before installation." }
-& python -m sofia.avatar.scene_install --archive "$Archive" --root "$Art"
+& python -m sofia.modules.avatar.scene_install --archive "$Archive" --root "$Art"
 if ($LASTEXITCODE -ne 0) { throw "Public scene installation failed." }
 Write-Host "Autumn Cyber illustrated static portrait and independently editable background installed."
 

@@ -3,9 +3,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.neuro import NeuralSignal, NeuroRuntime
-from sofia.neuro.connectome.competition import CircuitCompetition, CompetitionResult
-from sofia.neuro.store import NeuroObservabilityStore
+from sofia.modules.neuro import NeuralSignal, NeuroRuntime
+from sofia.modules.neuro.connectome.competition import CircuitCompetition, CompetitionResult
+from sofia.modules.neuro.store import NeuroObservabilityStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 

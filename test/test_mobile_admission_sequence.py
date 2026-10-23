@@ -72,7 +72,7 @@ def test_unique_server_sequence_index_partitions_audience_and_generation(tmp_pat
 
 
 def test_uncertain_turn_keeps_durable_server_order_and_is_not_replayed(tmp_path):
-    from sofia.mobile.gateway import MobileDeliveryUncertain
+    from sofia.modules.mobile.gateway import MobileDeliveryUncertain
     import pytest
 
     app, gateway = _gateway(tmp_path)

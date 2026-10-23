@@ -12,7 +12,7 @@ import sys
 
 import pytest
 
-from sofia.vision import desktop_control as dc
+from sofia.modules.vision import desktop_control as dc
 
 
 def request(**changes):

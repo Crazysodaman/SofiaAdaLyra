@@ -4,16 +4,16 @@ import sqlite3
 
 import pytest
 
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply
-from sofia.interaction.decision_expression import CandidateChoice
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.reviewed_hug_question import (
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.atomic_offer_release import commit_guarded_offer_reply
+from sofia.modules.interaction.decision_expression import CandidateChoice
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.reviewed_hug_question import (
     CLARIFICATION, is_reviewed_hug_question,
 )
-from sofia.interaction.source_link import VerifiedInteractionState
-from sofia.interaction.trusted_offer_gate import GuardedOfferResult
+from sofia.modules.interaction.source_link import VerifiedInteractionState
+from sofia.modules.interaction.trusted_offer_gate import GuardedOfferResult
 
 
 @pytest.mark.parametrize('question', (

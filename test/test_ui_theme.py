@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AppearanceState,
     AttireMode,
     AudienceScope,
@@ -15,7 +15,7 @@ from sofia.core.environment.model import (
     WeatherObservation,
 )
 from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
-from sofia.ui.theme import (
+from sofia.modules.ui.theme import (
     AdaptiveThemePolicy,
     ThemeSignals,
     canonical_theme,

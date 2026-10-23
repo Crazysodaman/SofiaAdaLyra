@@ -9,7 +9,7 @@ from sofia.platform.application.emotional_conversation import EmotionalConversat
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.core.conversation.model import ConversationRole
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.chat import InteractiveConversationService
+from sofia.modules.interaction.chat import InteractiveConversationService
 
 AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "core" / "embodiment" / "avatar.json"
 NOW = datetime(2026, 9, 23, 22, 0, tzinfo=timezone.utc)

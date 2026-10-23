@@ -9,8 +9,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from sofia.integrations.http import ServiceHTTPError
-from sofia.integrations.nws import NwsAdapter
+from sofia.modules.integrations.http import ServiceHTTPError
+from sofia.modules.integrations.nws import NwsAdapter
 
 from .config import EnvironmentConfiguration
 from .model import (

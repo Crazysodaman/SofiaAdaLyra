@@ -1,7 +1,7 @@
 """Deferred mobile gateway concurrency admission and recovery contract."""
 from http.client import HTTPConnection, HTTPException
 
-from sofia.mobile.server import (
+from sofia.modules.mobile.server import (
     MobileCompanionServer, MobileServerConfiguration, _MAX_INFLIGHT_REQUESTS,
 )
 from test.test_mobile_gateway import _gateway

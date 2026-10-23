@@ -8,37 +8,37 @@ from pathlib import Path
 from threading import RLock
 from uuid import uuid4
 
-from sofia.avatar.clothing_action import ClothingActionService
-from sofia.avatar.generated_decision import GeneratedGarmentDecisionService
-from sofia.avatar.generated_proposal import (
+from sofia.modules.avatar.clothing_action import ClothingActionService
+from sofia.modules.avatar.generated_decision import GeneratedGarmentDecisionService
+from sofia.modules.avatar.generated_proposal import (
     GarmentGenerationBrief,
     GeneratedGarmentProposalService,
 )
-from sofia.avatar.generation_conversation import (
+from sofia.modules.avatar.generation_conversation import (
     WardrobeGenerationConversationService,
 )
-from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
-from sofia.avatar.wardrobe_generated_store import (
+from sofia.modules.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+from sofia.modules.avatar.wardrobe_generated_store import (
     GarmentAcceptanceResult,
     GeneratedWardrobeStore,
     SofiaGarmentAcceptance,
 )
-from sofia.avatar.wardrobe_prebuild import GarmentBlueprint
-from sofia.avatar.wardrobe_pending_store import (
+from sofia.modules.avatar.wardrobe_prebuild import GarmentBlueprint
+from sofia.modules.avatar.wardrobe_pending_store import (
     PendingGeneratedGarment,
     PendingGeneratedWardrobeStore,
 )
-from sofia.avatar.wardrobe_autonomy import WardrobeAutonomyContext
-from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
-from sofia.avatar.presentation_store import PresentationStoreError
-from sofia.avatar.wardrobe_planner import (
+from sofia.modules.avatar.wardrobe_autonomy import WardrobeAutonomyContext
+from sofia.modules.avatar.presentation_routine import HeadlessPresentationRoutine
+from sofia.modules.avatar.presentation_store import PresentationStoreError
+from sofia.modules.avatar.wardrobe_planner import (
     Activity,
     OutfitPlanner,
     WardrobeContext,
     wardrobe_emotion_influences,
 )
-from sofia.avatar.preference_bridge import wardrobe_preferences_from_registry
-from sofia.avatar.presentation_runtime import (
+from sofia.modules.avatar.preference_bridge import wardrobe_preferences_from_registry
+from sofia.modules.avatar.presentation_runtime import (
     PresentationRuntimeBundle,
     load_or_bootstrap_presentation,
 )
@@ -120,8 +120,8 @@ from sofia.core.cognition.v2 import (
     SQLiteConversationFocusStore,
 )
 from sofia.core.knowledge.evidence import KnowledgeEvidenceCoordinator
-from sofia.interaction.opt_in_service import OptInInteractionConversationService
-from sofia.interaction.world_store import VirtualWorldStore
+from sofia.modules.interaction.opt_in_service import OptInInteractionConversationService
+from sofia.modules.interaction.world_store import VirtualWorldStore
 from sofia.core.personality.preferences import (
     CommunicationPreferenceService,
     PreferenceRecord,
@@ -142,10 +142,10 @@ from sofia.platform.runtime.internal_workspace import normalize_runtime_workspac
 from sofia.platform.run.heartbeat import ApplicationHeartbeatStore
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.ops.backup_topology import backup_topology_enabled
-from sofia.neuro import NeuralSignal, NeuroRuntime
-from sofia.neuro import BodyReflexObservation, VoiceSensoryObservation
-from sofia.neuro.coordinator import NeuroInputCoordinator
-from sofia.neuro.store import NeuroObservabilityStore
+from sofia.modules.neuro import NeuralSignal, NeuroRuntime
+from sofia.modules.neuro import BodyReflexObservation, VoiceSensoryObservation
+from sofia.modules.neuro.coordinator import NeuroInputCoordinator
+from sofia.modules.neuro.store import NeuroObservabilityStore
 from sofia.platform.ops.local_telemetry import collect_local_telemetry
 from sofia.core.habits.pattern_store import HabitPatternStore
 from sofia.core.rel.store import RelationshipStore
@@ -167,9 +167,9 @@ from sofia.platform.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.principals import local_sparks_principal, SPARKS_PRINCIPAL_ID
 from sofia.platform.state.component_schema import verify_production_component_schemas
-from sofia.ui.drafts import UIDraftStore
-from sofia.ui.text import UITextClient
-from sofia.voice import (
+from sofia.modules.ui.drafts import UIDraftStore
+from sofia.modules.ui.text import UITextClient
+from sofia.modules.voice import (
     TTSPlaybackReceipt,
     TTSStatus,
     SpeechInputService,

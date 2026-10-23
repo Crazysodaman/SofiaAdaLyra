@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from sofia.avatar.vtuber_asset_bundle import Avatar2DAssetError
-from sofia.avatar.vtuber_character_bundle import load_selected_character_sprites
-from sofia.avatar.vtuber_character_parts import generate_public_character_parts
-from sofia.avatar.vtuber_character_selection import select_character_parts
+from sofia.modules.avatar.vtuber_asset_bundle import Avatar2DAssetError
+from sofia.modules.avatar.vtuber_character_bundle import load_selected_character_sprites
+from sofia.modules.avatar.vtuber_character_parts import generate_public_character_parts
+from sofia.modules.avatar.vtuber_character_selection import select_character_parts
 from test.test_ui_avatar2d_renderer import env
 
 

@@ -3,11 +3,11 @@ import pytest
 
 from sofia.core.cognition.model import CognitiveResponse
 from sofia.core.cognition.providers.ollama_provider import OllamaProvider
-from sofia.interaction.decision_expression import CandidateChoice, ReviewedFrame
+from sofia.modules.interaction.decision_expression import CandidateChoice, ReviewedFrame
 from sofia.platform.verify.interaction import decision_expression_probe
 from sofia.platform.verify.interaction.decision_expression_probe import main
 from test.isolated_interaction_config import isolated_interaction_configuration
-from sofia.interaction.decision_reason_audit import (
+from sofia.modules.interaction.decision_reason_audit import (
     DecisionReasonAudit, audit_decision_reason,
 )
 

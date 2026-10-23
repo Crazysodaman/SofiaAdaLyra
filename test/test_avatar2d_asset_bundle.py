@@ -10,10 +10,10 @@ import pytest
 
 from test.owner_auth_fixture import private_with_signed_owner
 
-from sofia.avatar.private_grant import PrivatePresentationGrantResolver
-from sofia.avatar.presentation import AttireMode
-from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
-from sofia.avatar.vtuber_asset_bundle import (
+from sofia.modules.avatar.private_grant import PrivatePresentationGrantResolver
+from sofia.modules.avatar.presentation import AttireMode
+from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
+from sofia.modules.avatar.vtuber_asset_bundle import (
     Avatar2DAssetError, Avatar2DAssetGateway,
 )
 from sofia.core.embodiment.store import EmbodimentStore

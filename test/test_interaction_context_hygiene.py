@@ -5,10 +5,10 @@ from types import SimpleNamespace
 
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.core.conversation.model import ConversationRole
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.chat import InteractiveConversationService
-from sofia.interaction.context_hygiene import without_legacy_auto_affection
-from sofia.interaction.expanded_service import ExpandedConversationService, action_prompt
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.chat import InteractiveConversationService
+from sofia.modules.interaction.context_hygiene import without_legacy_auto_affection
+from sofia.modules.interaction.expanded_service import ExpandedConversationService, action_prompt
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 LEGACY = 'User initiated an affectionate or playful conversational cue.'

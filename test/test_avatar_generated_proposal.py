@@ -1,12 +1,12 @@
 """Cognitive garment generation stays typed and separate from ownership."""
 import pytest
 
-from sofia.avatar.generated_proposal import (
+from sofia.modules.avatar.generated_proposal import (
     GarmentGenerationBrief,
     GeneratedGarmentProposalService,
 )
-from sofia.avatar.wardrobe import WardrobeError
-from sofia.avatar.wardrobe_design import ContentRating
+from sofia.modules.avatar.wardrobe import WardrobeError
+from sofia.modules.avatar.wardrobe_design import ContentRating
 from sofia.core.cognition.model import CognitiveResponse
 
 

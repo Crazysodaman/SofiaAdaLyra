@@ -1,7 +1,7 @@
 """Whole-body action language is classified but never executed by this parser."""
 import pytest
 
-from sofia.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.action_grammar import parse_user_action
 
 
 @pytest.mark.parametrize('sentence,action,modality', [

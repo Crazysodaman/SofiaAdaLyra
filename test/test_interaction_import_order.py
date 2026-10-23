@@ -14,19 +14,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.mark.parametrize('first', [
-    'from sofia.interaction.chat import InteractiveConversationService',
+    'from sofia.modules.interaction.chat import InteractiveConversationService',
     'from sofia.platform.application.bootstrap import SofiaApplication',
     'from sofia.platform.application import ConversationService, SofiaApplication',
     'from sofia.platform.runtime.runtime import SofiaRuntime',
     'from sofia.core.package_metadata import application_version',
-    'from sofia.ui.terminal import ConversationLoop',
+    'from sofia.modules.ui.terminal import ConversationLoop',
 ])
 def test_application_and_interaction_can_import_in_either_order(first):
     program = '\n'.join((
         first,
-        'from sofia.interaction.chat import InteractiveConversationService',
+        'from sofia.modules.interaction.chat import InteractiveConversationService',
         'from sofia.platform.application.bootstrap import SofiaApplication, SofiaApplicationError',
-        'from sofia.ui.terminal import ConversationLoop',
+        'from sofia.modules.ui.terminal import ConversationLoop',
         'from sofia.platform.application.conversation_service import ConversationService',
         'from sofia.platform.application import (',
         '    SofiaApplication as ExportedApplication,',
@@ -37,7 +37,7 @@ def test_application_and_interaction_can_import_in_either_order(first):
         'assert ExportedError is SofiaApplicationError',
         'from sofia.core.launcher import ConversationLoop as EntrypointLoop',
         'assert EntrypointLoop is ConversationLoop',
-        "assert ConversationLoop.__module__ == 'sofia.ui.terminal'",
+        "assert ConversationLoop.__module__ == 'sofia.modules.ui.terminal'",
         'assert ExportedService is ConversationService',
         'assert issubclass(InteractiveConversationService, ConversationService)',
     ))

@@ -1,10 +1,10 @@
 """Canonical fit and main's creator composition/durability contracts."""
-from sofia.avatar.fit import DEFAULT_FIT_ANCHORS
-from sofia.avatar.authoring import WardrobeStudio
-from sofia.avatar.presentation import AppearanceState, PresentationAuthority
-from sofia.avatar.presentation_store import PresentationStore
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_planner import Activity, Season
+from sofia.modules.avatar.fit import DEFAULT_FIT_ANCHORS
+from sofia.modules.avatar.authoring import WardrobeStudio
+from sofia.modules.avatar.presentation import AppearanceState, PresentationAuthority
+from sofia.modules.avatar.presentation_store import PresentationStore
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_planner import Activity, Season
 
 def test_every_starter_blueprint_uses_declared_body_fit_anchors():
     known = {anchor.name for anchor in DEFAULT_FIT_ANCHORS}

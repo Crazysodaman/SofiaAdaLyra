@@ -5,20 +5,20 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/avatar2d-secondary-expression.yml"
-      - "src/sofia/ui/avatar2d_renderer.py"
-      - "src/sofia/ui/avatar2d_installation.py"
-      - "src/sofia/avatar/vtuber_static_portraits.py"
-      - "src/sofia/avatar/vtuber_public_diagnose.py"
-      - "src/sofia/avatar/scene_compositor.py"
-      - "src/sofia/avatar/scene_editor.py"
-      - "src/sofia/avatar/scene_install.py"
-      - "src/sofia/ui/desktop.py"
+      - "src/sofia/modules/ui/avatar2d_renderer.py"
+      - "src/sofia/modules/ui/avatar2d_installation.py"
+      - "src/sofia/modules/avatar/vtuber_static_portraits.py"
+      - "src/sofia/modules/avatar/vtuber_public_diagnose.py"
+      - "src/sofia/modules/avatar/scene_compositor.py"
+      - "src/sofia/modules/avatar/scene_editor.py"
+      - "src/sofia/modules/avatar/scene_install.py"
+      - "src/sofia/modules/ui/desktop.py"
       - "pyproject.toml"
       - "test/test_avatar2d_scene_compositor.py"
       - "test/test_avatar2d_scene_install.py"
       - "assets/avatar2d/illustrated_public_v1/**"
-      - "src/sofia/ui/desktop.py"
-      - "src/sofia/avatar/vtuber_character_selection.py"
+      - "src/sofia/modules/ui/desktop.py"
+      - "src/sofia/modules/avatar/vtuber_character_selection.py"
       - "test/test_ui_avatar2d_secondary_expression.py"
       - "test/test_avatar2d_installation_discovery.py"
       - "test/test_ui_avatar2d_static_illustrated.py"
@@ -48,5 +48,5 @@ jobs:
       - name: Check source compilation
         shell: pwsh
         run: |
-          python -m py_compile src/sofia/ui/avatar2d_renderer.py src/sofia/avatar/vtuber_character_selection.py src/sofia/ui/avatar2d_installation.py src/sofia/ui/desktop.py src/sofia/avatar/vtuber_static_portraits.py src/sofia/avatar/vtuber_public_diagnose.py src/sofia/avatar/scene_compositor.py src/sofia/avatar/scene_editor.py src/sofia/avatar/scene_install.py
+          python -m py_compile src/sofia/modules/ui/avatar2d_renderer.py src/sofia/modules/avatar/vtuber_character_selection.py src/sofia/modules/ui/avatar2d_installation.py src/sofia/modules/ui/desktop.py src/sofia/modules/avatar/vtuber_static_portraits.py src/sofia/modules/avatar/vtuber_public_diagnose.py src/sofia/modules/avatar/scene_compositor.py src/sofia/modules/avatar/scene_editor.py src/sofia/modules/avatar/scene_install.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

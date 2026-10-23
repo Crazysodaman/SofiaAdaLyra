@@ -2,20 +2,20 @@
 from importlib.resources import files
 import json
 
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_types import garment_type
-from sofia.avatar.wardrobe_design import ContentRating, ExposureZone
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_types import garment_type
+from sofia.modules.avatar.wardrobe_design import ContentRating, ExposureZone
 
 
 DRESS_TYPES = {"dress", "open_bust_dress", "open_crotch_dress"}
 
 
 def _rows():
-    resource = files("sofia.avatar").joinpath(
+    resource = files("sofia.modules.avatar").joinpath(
         "wardrobe_data", "one_pieces.json"
     )
     raw = json.loads(resource.read_text(encoding="utf-8"))
-    assert raw["schema"] == "sofia.avatar.wardrobe.garments.v1"
+    assert raw["schema"] == "sofia.modules.avatar.wardrobe.garments.v1"
     return raw["garments"]
 
 

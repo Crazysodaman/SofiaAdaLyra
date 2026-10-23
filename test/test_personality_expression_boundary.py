@@ -11,7 +11,7 @@ from sofia.core.personality.modulation import derive_expression_modulation
 from sofia.core.personality.preferences import CommunicationStylePreferences
 from test.matrix_v2_support import V2MatrixCoordinator as MatrixCoordinator, v2_registry as default_matrix_registry
 from sofia.core.cognition.matrix import TurnEnvelope
-from sofia.neuro.model import (
+from sofia.modules.neuro.model import (
     HomeostaticState,
     NeuralActivation,
     NeuroStateSnapshot,

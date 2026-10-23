@@ -10,7 +10,7 @@ from uuid import UUID
 
 import pytest
 
-from sofia.integrations.hyperv import HyperVAdapter, HyperVError
+from sofia.modules.integrations.hyperv import HyperVAdapter, HyperVError
 from sofia.platform.ops.sofia_guest_readiness import (
     VM_NAME, review_sofia_guest_inventory,
 )

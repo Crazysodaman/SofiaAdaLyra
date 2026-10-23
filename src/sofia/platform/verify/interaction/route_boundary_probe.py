@@ -13,10 +13,10 @@ from dataclasses import replace
 
 from sofia.core.cognition.model import CognitiveRequest, CognitiveRole
 from sofia.platform.verify.interaction.ab_probe import build_pair
-from sofia.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.action_grammar import parse_user_action
 from sofia.platform.verify.interaction.architecture_compare import _samples, compare_once
-from sofia.interaction.offer_route import OFFER, routed_choice_request
-from sofia.interaction.decision_expression import ReviewedFrame, from_reviewed_action
+from sofia.modules.interaction.offer_route import OFFER, routed_choice_request
+from sofia.modules.interaction.decision_expression import ReviewedFrame, from_reviewed_action
 from sofia.platform.verify.interaction.prototype import PrototypeResult, real_sensor_fixture, run_prototype
 
 AMBIGUOUS_OFFER = 'Could I hug you?'

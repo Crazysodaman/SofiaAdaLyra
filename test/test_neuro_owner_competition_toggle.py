@@ -14,7 +14,7 @@ from sofia.platform.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
-from sofia.neuro import NeuroRuntime, NeuralSignal
+from sofia.modules.neuro import NeuroRuntime, NeuralSignal
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
@@ -114,7 +114,7 @@ def test_canonical_reset_epoch_migration_and_bounds():
 
 
 def test_bounded_salience_features_are_explicit_and_versioned():
-    from sofia.neuro.salience import SalienceNetwork
+    from sofia.modules.neuro.salience import SalienceNetwork
     assert SalienceNetwork.FEATURE_VERSION == "salience-feature-dictionary-v1"
     assert SalienceNetwork.FEATURE_WEIGHTS == (
         ("urgency", 0.30), ("novelty", 0.25),

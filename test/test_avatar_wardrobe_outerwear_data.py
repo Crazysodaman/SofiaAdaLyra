@@ -2,13 +2,13 @@
 from importlib.resources import files
 import json
 
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
 def _rows():
-    resource = files("sofia.avatar").joinpath("wardrobe_data", "outerwear.json")
+    resource = files("sofia.modules.avatar").joinpath("wardrobe_data", "outerwear.json")
     raw = json.loads(resource.read_text(encoding="utf-8"))
-    assert raw["schema"] == "sofia.avatar.wardrobe.garments.v1"
+    assert raw["schema"] == "sofia.modules.avatar.wardrobe.garments.v1"
     return raw["garments"]
 
 

@@ -3,8 +3,8 @@ from dataclasses import FrozenInstanceError
 from datetime import datetime, timedelta, timezone
 import pytest
 
-from sofia.avatar.wardrobe import Garment, Layer, Wardrobe, WardrobeError
-from sofia.avatar.wardrobe_planner import (
+from sofia.modules.avatar.wardrobe import Garment, Layer, Wardrobe, WardrobeError
+from sofia.modules.avatar.wardrobe_planner import (
     Activity, Cadence, EmotionStyleInfluence, OutfitPlan, OutfitPlanner,
     Preference, PreferenceActor, PreferenceTarget, Season, Sentiment, WardrobeContext,
     Weather, WeatherObservation, WornEvidence, period_key,
@@ -276,7 +276,7 @@ def test_duplicate_receipt_denied():
 
 def test_no_real_asset_proof_from_metadata():
     result = OutfitPlanner(wardrobe(), plans()).suggest(ctx())
-    from sofia.avatar.wardrobe import VisibilityDenied
+    from sofia.modules.avatar.wardrobe import VisibilityDenied
     with pytest.raises(VisibilityDenied):
         wardrobe().require_public_ready(result.outfit)
 

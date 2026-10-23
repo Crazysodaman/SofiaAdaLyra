@@ -2,7 +2,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 import sqlite3
 
-from sofia.ui import (
+from sofia.modules.ui import (
     DesktopControlSettings,
     DesktopControlSettingsStore,
     GameMode,

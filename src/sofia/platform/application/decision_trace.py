@@ -17,7 +17,7 @@ from sofia.platform.application.event_contracts import (
     project_matrix_event,
 )
 from sofia.core.cognition.matrix.model import MatrixTrace, EvidenceState
-from sofia.neuro.model import NeuroStateSnapshot
+from sofia.modules.neuro.model import NeuroStateSnapshot
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,8 +2,8 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 from types import SimpleNamespace
 
-import sofia.ui.tray_agent as tray_agent
-from sofia.ui.process_lock import TrayProcessAlreadyRunning
+import sofia.modules.ui.tray_agent as tray_agent
+from sofia.modules.ui.process_lock import TrayProcessAlreadyRunning
 
 
 class _InterruptingApplication:

@@ -6,10 +6,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/avatar2d-public-draft-assets.yml"
-      - "src/sofia/avatar/vtuber_full_batch_art.py"
-      - "src/sofia/avatar/vtuber_wardrobe_production.py"
-      - "src/sofia/avatar/vtuber_starter_art.py"
-      - "src/sofia/avatar/wardrobe_data/**"
+      - "src/sofia/modules/avatar/vtuber_full_batch_art.py"
+      - "src/sofia/modules/avatar/vtuber_wardrobe_production.py"
+      - "src/sofia/modules/avatar/vtuber_starter_art.py"
+      - "src/sofia/modules/avatar/wardrobe_data/**"
 
 permissions:
   contents: read
@@ -28,11 +28,11 @@ jobs:
         run: python -m pip install -e .
       - name: Generate every public garment draft PNG
         run: |
-          python -m sofia.avatar.vtuber_full_batch_art \
+          python -m sofia.modules.avatar.vtuber_full_batch_art \
             --public-root "$RUNNER_TEMP/avatar2d-public"
       - name: Generate public face / hair / ear / tail sprite variants
         run: |
-          python -m sofia.avatar.vtuber_character_parts             --output "$RUNNER_TEMP/avatar2d-character"
+          python -m sofia.modules.avatar.vtuber_character_parts             --output "$RUNNER_TEMP/avatar2d-character"
       - name: Verify actual PNGs match every current public item
         shell: python
         run: |
@@ -41,7 +41,7 @@ jobs:
           import os
           import zlib
           from pathlib import Path
-          from sofia.avatar.vtuber_wardrobe_production import (
+          from sofia.modules.avatar.vtuber_wardrobe_production import (
               wardrobe_production_queue, wardrobe_production_coverage,
           )
           root = Path(os.environ["RUNNER_TEMP"]) / "avatar2d-public"

@@ -4,11 +4,11 @@ from threading import RLock
 from types import SimpleNamespace
 
 from sofia.platform.application.bootstrap import SofiaApplication
-from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
-from sofia.avatar.generated_proposal import GarmentGenerationBrief
-from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
-from sofia.avatar.wardrobe_design import GraphicDesign
-from sofia.avatar.wardrobe_generated_store import (
+from sofia.modules.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+from sofia.modules.avatar.generated_proposal import GarmentGenerationBrief
+from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
+from sofia.modules.avatar.wardrobe_design import GraphicDesign
+from sofia.modules.avatar.wardrobe_generated_store import (
     SofiaGarmentAcceptance,
     SofiaGarmentDecision,
 )

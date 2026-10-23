@@ -1,5 +1,5 @@
 """Graphics are ordinary garment design data, not special-case pieces."""
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
 def _piece(item_id):

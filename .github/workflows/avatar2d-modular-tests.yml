@@ -5,10 +5,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/avatar2d-modular-tests.yml"
-      - "src/sofia/avatar/vtuber_character_bundle.py"
-      - "src/sofia/avatar/vtuber_character_parts.py"
-      - "src/sofia/avatar/vtuber_character_selection.py"
-      - "src/sofia/ui/avatar2d_renderer.py"
+      - "src/sofia/modules/avatar/vtuber_character_bundle.py"
+      - "src/sofia/modules/avatar/vtuber_character_parts.py"
+      - "src/sofia/modules/avatar/vtuber_character_selection.py"
+      - "src/sofia/modules/ui/avatar2d_renderer.py"
       - "test/test_avatar2d_character_bundle.py"
       - "test/test_ui_avatar2d_modular.py"
   workflow_dispatch:
@@ -36,5 +36,5 @@ jobs:
       - name: Compile production modules
         shell: pwsh
         run: |
-          python -m py_compile src/sofia/avatar/vtuber_character_bundle.py src/sofia/avatar/vtuber_character_selection.py src/sofia/ui/avatar2d_renderer.py
+          python -m py_compile src/sofia/modules/avatar/vtuber_character_bundle.py src/sofia/modules/avatar/vtuber_character_selection.py src/sofia/modules/ui/avatar2d_renderer.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

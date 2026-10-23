@@ -11,10 +11,10 @@ from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_default_configuration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.avatar_world import avatar_world_guidance, gesture_provider_view
-from sofia.interaction.chat import interaction_prompt
-from sofia.interaction.expanded_service import _without_prescribed_gesture_reactions
-from sofia.interaction.grammar import NaturalInteractionEngine
+from sofia.modules.interaction.avatar_world import avatar_world_guidance, gesture_provider_view
+from sofia.modules.interaction.chat import interaction_prompt
+from sofia.modules.interaction.expanded_service import _without_prescribed_gesture_reactions
+from sofia.modules.interaction.grammar import NaturalInteractionEngine
 from sofia.core.personality.expression import personality_expression_guidance
 
 ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'
@@ -70,7 +70,7 @@ def test_provider_view_retains_policy_without_prescribing_exact_cue_or_emotion()
 
 def test_provider_view_passes_unrelated_prompts_and_rejects_bad_trusted_data():
     assert gesture_provider_view('ordinary system context') is None
-    from sofia.interaction.avatar_world import _GESTURE_MARKER
+    from sofia.modules.interaction.avatar_world import _GESTURE_MARKER
     with pytest.raises(ValueError, match='Invalid reviewed gesture decision'):
         gesture_provider_view(_GESTURE_MARKER + '\nnot JSON')
     with pytest.raises(ValueError, match='missing policy data'):

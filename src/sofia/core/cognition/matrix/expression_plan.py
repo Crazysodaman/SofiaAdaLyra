@@ -10,7 +10,7 @@ from hashlib import sha256
 import re
 from typing import Iterable
 
-from sofia.interaction.registry import (
+from sofia.modules.interaction.registry import (
     EXPRESSION_DEFINITIONS,
     POSE_DEFINITIONS,
     PRIVATE_SEMANTICS,

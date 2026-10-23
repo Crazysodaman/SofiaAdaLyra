@@ -4,11 +4,11 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.avatar.wardrobe import Layer, VisibilityDenied, WardrobeError
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_design import ContentRating
-from sofia.avatar.wardrobe_planner import Activity, Season
-from sofia.avatar.wardrobe_prebuild import (
+from sofia.modules.avatar.wardrobe import Layer, VisibilityDenied, WardrobeError
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_design import ContentRating
+from sofia.modules.avatar.wardrobe_planner import Activity, Season
+from sofia.modules.avatar.wardrobe_prebuild import (
     DAY_DEFAULT_OUTFIT_ID,
     DRAFT_STATUS,
     FALLBACK_OUTFIT_ID,
@@ -91,7 +91,7 @@ def test_night_lounge_outfit_uses_new_structured_pieces():
 def test_manifest_is_v2_json_serializable_and_modeler_ready():
     manifest = build_starter_wardrobe().manifest()
 
-    assert manifest["schema"] == "sofia.avatar.wardrobe.prebuild.v2"
+    assert manifest["schema"] == "sofia.modules.avatar.wardrobe.prebuild.v2"
     assert manifest["stage"] == DRAFT_STATUS
     assert all(row["asset_ref"] is None for row in manifest["garments"])
     assert all("type" in row for row in manifest["garments"])

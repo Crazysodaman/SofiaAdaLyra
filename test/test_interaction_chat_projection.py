@@ -14,7 +14,7 @@ from sofia.core.cognition.model import (
 )
 from sofia.core.conversation.model import ConversationRole
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.chat import (
+from sofia.modules.interaction.chat import (
     InteractiveConversationService,
     representational_experience_followup_prompt,
 )

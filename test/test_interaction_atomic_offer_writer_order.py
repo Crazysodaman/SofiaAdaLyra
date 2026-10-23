@@ -6,13 +6,13 @@ from threading import Event
 from unittest.mock import patch
 import sqlite3
 
-from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply
-from sofia.interaction.decision_expression import CandidateChoice
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.reviewed_hug_question import CLARIFICATION
-from sofia.interaction.source_link import VerifiedInteractionState
-from sofia.interaction.trusted_offer_gate import GuardedOfferResult
+from sofia.modules.interaction.atomic_offer_release import commit_guarded_offer_reply
+from sofia.modules.interaction.decision_expression import CandidateChoice
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.reviewed_hug_question import CLARIFICATION
+from sofia.modules.interaction.source_link import VerifiedInteractionState
+from sofia.modules.interaction.trusted_offer_gate import GuardedOfferResult
 
 
 def test_committed_stop_from_other_connection_blocks_inflight_question(tmp_path):
@@ -92,7 +92,7 @@ def test_reply_lock_commits_before_later_stop_writer(tmp_path):
     InteractionLedger(path)
     VerifiedInteractionState(path, InteractionCatalog(('head', 'left-hand')))
 
-    import sofia.interaction.atomic_offer_release as release_module
+    import sofia.modules.interaction.atomic_offer_release as release_module
 
     reply_has_lock = Event()
     allow_reply_to_finish = Event()

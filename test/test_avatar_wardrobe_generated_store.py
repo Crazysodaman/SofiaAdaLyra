@@ -1,10 +1,10 @@
 """Generated wardrobe ownership requires Sofía's own acceptance."""
 import json
 
-from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_design import GraphicDesign
-from sofia.avatar.wardrobe_generated_store import (
+from sofia.modules.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_design import GraphicDesign
+from sofia.modules.avatar.wardrobe_generated_store import (
     GeneratedWardrobeStore,
     SofiaGarmentAcceptance,
     SofiaGarmentDecision,

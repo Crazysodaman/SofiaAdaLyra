@@ -5,11 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.avatar.presentation import AttireMode, AudienceScope
-from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
+from sofia.modules.avatar.presentation import AttireMode, AudienceScope
+from sofia.modules.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.ui.avatar3d_renderer import Avatar3DRenderer, Avatar3DRig
-from sofia.ui.avatar_renderer import AvatarRenderRequest
+from sofia.modules.ui.avatar3d_renderer import Avatar3DRenderer, Avatar3DRig
+from sofia.modules.ui.avatar_renderer import AvatarRenderRequest
 
 
 SEED = Path(__file__).resolve().parents[1] / "src/sofia/core/embodiment/avatar.json"

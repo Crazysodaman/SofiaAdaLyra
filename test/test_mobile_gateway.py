@@ -9,8 +9,8 @@ from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_
 from types import SimpleNamespace
 
 from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
-from sofia.mobile.gateway import MobileCompanionGateway
-from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
+from sofia.modules.mobile.gateway import MobileCompanionGateway
+from sofia.modules.mobile.server import MobileCompanionServer, MobileServerConfiguration
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.core.social.model import AudienceKind
 

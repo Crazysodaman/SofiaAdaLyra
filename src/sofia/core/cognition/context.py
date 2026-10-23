@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sofia.avatar.presentation import PresentationProjection
+from sofia.modules.avatar.presentation import PresentationProjection
 from sofia.core.cognition.grounding import (
     CognitiveGroundingContract,
     DEFAULT_COGNITIVE_GROUNDING_CONTRACT,

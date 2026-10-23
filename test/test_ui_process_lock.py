@@ -1,6 +1,6 @@
 import pytest
 
-from sofia.ui.process_lock import TrayProcessAlreadyRunning, TrayProcessLock
+from sofia.modules.ui.process_lock import TrayProcessAlreadyRunning, TrayProcessLock
 
 
 def test_only_one_tray_agent_can_own_one_state_database(tmp_path):

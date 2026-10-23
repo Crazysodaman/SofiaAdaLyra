@@ -10,10 +10,10 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.discord.provisioning import DiscordProvisioning
-from sofia.mobile.notifications import MobileNotificationStore
-from sofia.mobile.pairing import MobileDeviceCredentialStore
-from sofia.ui.desktop_worker import (
+from sofia.modules.discord.provisioning import DiscordProvisioning
+from sofia.modules.mobile.notifications import MobileNotificationStore
+from sofia.modules.mobile.pairing import MobileDeviceCredentialStore
+from sofia.modules.ui.desktop_worker import (
     DesktopApplicationWorker,
 )
 
@@ -181,7 +181,7 @@ def test_worker_initializes_provisioned_discord_on_same_application(
             stops.append(self.channel)
 
     monkeypatch.setattr(
-        "sofia.ui.desktop_worker.DiscordBackgroundService",
+        "sofia.modules.ui.desktop_worker.DiscordBackgroundService",
         FakeDiscordBackgroundService,
     )
 

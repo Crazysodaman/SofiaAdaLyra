@@ -1,5 +1,5 @@
-from sofia.voice.prosody_matrix import VoiceProsodyProfile
-from sofia.voice.tts import (
+from sofia.modules.voice.prosody_matrix import VoiceProsodyProfile
+from sofia.modules.voice.tts import (
     TTSBackendProbe,
     TTSPlaybackReceipt,
     TTSPlaybackState,
@@ -9,7 +9,7 @@ from sofia.voice.tts import (
 from threading import Event
 from dataclasses import replace
 from sofia.platform.config.user_settings import RuntimeUserSettings
-from sofia.voice.factory import create_tts_service_from_environment
+from sofia.modules.voice.factory import create_tts_service_from_environment
 
 
 class FakeBackend:

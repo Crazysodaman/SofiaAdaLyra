@@ -288,7 +288,7 @@ def test_live_application_projection_uses_real_persisted_turn(tmp_path):
 
 def test_turn_neuro_provenance_is_exact_and_ephemeral(tmp_path):
     from sofia.platform.application.conversation_service import ConversationService
-    from sofia.neuro.model import NeuroStateSnapshot
+    from sofia.modules.neuro.model import NeuroStateSnapshot
 
     path, matrix = _fixture(tmp_path)
     snapshot = NeuroStateSnapshot(generated_at=NOW, focus=None)
@@ -328,7 +328,7 @@ def test_turn_neuro_provenance_is_exact_and_ephemeral(tmp_path):
 
 
 def test_neuro_snapshot_cannot_be_claimed_before_it_was_observed(tmp_path):
-    from sofia.neuro.model import NeuroStateSnapshot
+    from sofia.modules.neuro.model import NeuroStateSnapshot
 
     _path, matrix = _fixture(tmp_path)
     future = NeuroStateSnapshot(

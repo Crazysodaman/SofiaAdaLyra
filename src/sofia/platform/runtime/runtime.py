@@ -3,14 +3,14 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from sofia.core.package_metadata import application_name, application_version
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AudienceScope,
     PresentationAuthority,
     PresentationProjection,
     PrivatePresentationGrant,
 )
-from sofia.avatar.self_fact_query import AvatarSelfFactResolver
-from sofia.avatar.private_grant import PrivatePresentationGrantResolver
+from sofia.modules.avatar.self_fact_query import AvatarSelfFactResolver
+from sofia.modules.avatar.private_grant import PrivatePresentationGrantResolver
 from sofia.platform.authority.model import Authority
 from sofia.platform.authorization.model import (
     AuthorizationDecision,

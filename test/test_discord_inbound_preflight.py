@@ -4,8 +4,8 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.discord.access import Denial, DiscordInboundFacts, SingleUserDiscordConfig
-from sofia.discord.inbound import DiscordTextEvent, InboundDenial, screen_text_dm
+from sofia.modules.discord.access import Denial, DiscordInboundFacts, SingleUserDiscordConfig
+from sofia.modules.discord.inbound import DiscordTextEvent, InboundDenial, screen_text_dm
 
 OWNER = 123456789012345678
 BOT = 987654321098765432

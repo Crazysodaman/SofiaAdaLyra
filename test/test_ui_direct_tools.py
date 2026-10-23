@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.ui.direct_tools import validate_tool_parameters
+from sofia.modules.ui.direct_tools import validate_tool_parameters
 
 
 def test_direct_tool_parameters_validate_required_types_and_unknown_keys():

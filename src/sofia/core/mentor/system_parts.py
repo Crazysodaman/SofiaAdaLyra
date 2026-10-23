@@ -77,7 +77,7 @@ PARTS = (
     SystemPart("perception", "Visual perception and computer use",
                "User-approved screen images, local visual grounding, accessibility and separate input control.",
                ("vision",),
-               ("src/sofia/vision/interpret.py",),
+               ("src/sofia/modules/vision/interpret.py",),
                ("test/test_vision_cross_platform.py", "test/test_vision_action_workflow.py"),
                ("12",),
                ("Real owner-device window test", "Vision cannot create click authorization")),

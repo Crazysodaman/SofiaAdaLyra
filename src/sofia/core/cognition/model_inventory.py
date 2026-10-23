@@ -232,7 +232,7 @@ def refresh_local_model_inventory(
     never pulls, loads, performs inference, or changes the configured role.
     """
     from sofia.platform.config import create_production_configuration
-    from sofia.integrations.ollama import OllamaAdapter
+    from sofia.modules.integrations.ollama import OllamaAdapter
 
     config = create_production_configuration(state_path=Path(state_path))
     selection = CognitiveModelSelection.from_configuration(config)

@@ -7,10 +7,10 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 from sofia.platform.application.expression_runtime import AvatarExpressionState
-from sofia.avatar.vtuber_character_bundle import load_selected_character_sprites
-from sofia.avatar.vtuber_character_selection import select_character_parts
-from sofia.ui.avatar2d_renderer import _avatar_channel_cues, _character_expression
-from sofia.ui.avatar_renderer import AvatarRenderRequest
+from sofia.modules.avatar.vtuber_character_bundle import load_selected_character_sprites
+from sofia.modules.avatar.vtuber_character_selection import select_character_parts
+from sofia.modules.ui.avatar2d_renderer import _avatar_channel_cues, _character_expression
+from sofia.modules.ui.avatar_renderer import AvatarRenderRequest
 from test.test_ui_avatar2d_modular import configured
 
 

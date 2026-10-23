@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from sofia.avatar.vtuber_core_alignment_preview import (
+from sofia.modules.avatar.vtuber_core_alignment_preview import (
     HEAD_CROP, REGISTRATION, make_candidate,
 )
 from test.test_avatar2d_external_core import _make
@@ -59,7 +59,7 @@ def test_candidate_never_writes_into_public_or_source(artwork):
 def test_brow_alpha_fringe_is_excluded_from_registration():
     """Nearly invisible outlying pixels must not squeeze the brow shape."""
     from PIL import ImageDraw
-    from sofia.avatar.vtuber_core_alignment_preview import _fit
+    from sofia.modules.avatar.vtuber_core_alignment_preview import _fit
 
     source = Image.new("RGBA", (300, 120))
     source.putpixel((1, 1), (120, 12, 36, 1))

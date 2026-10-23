@@ -4,16 +4,16 @@ from datetime import datetime, timezone
 from threading import Event, RLock, Thread
 
 from sofia.platform.application.bootstrap import SofiaApplication
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AppearanceState,
     PresentationAuthority,
     PrivatePresentationGrant,
 )
-from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
-from sofia.avatar.presentation_runtime import PresentationRuntimeBundle
-from sofia.avatar.presentation_store import PresentationStore
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_planner import (
+from sofia.modules.avatar.presentation_routine import HeadlessPresentationRoutine
+from sofia.modules.avatar.presentation_runtime import PresentationRuntimeBundle
+from sofia.modules.avatar.presentation_store import PresentationStore
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_planner import (
     Activity,
     EmotionStyleInfluence,
     OutfitPlanner,

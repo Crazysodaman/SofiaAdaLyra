@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.core import InteractionEngine
+from sofia.modules.interaction.core import InteractionEngine
 from test.interaction_lab_support import InteractionLab, LabScene, LabStep, MAX_STEPS
 
 AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "core" / "embodiment" / "avatar.json"

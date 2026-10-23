@@ -9,12 +9,12 @@ import json
 import sys
 import types
 
-from sofia.avatar.presentation import AudienceScope, AttireMode
-from sofia.avatar.vtuber_character_bundle import load_selected_character_sprites
-from sofia.avatar.vtuber_character_parts import generate_public_character_parts
-from sofia.avatar.vtuber_character_selection import select_character_parts
-from sofia.ui.avatar_renderer import AvatarRenderRequest
-from sofia.ui.avatar2d_renderer import TkLayered2DRenderer
+from sofia.modules.avatar.presentation import AudienceScope, AttireMode
+from sofia.modules.avatar.vtuber_character_bundle import load_selected_character_sprites
+from sofia.modules.avatar.vtuber_character_parts import generate_public_character_parts
+from sofia.modules.avatar.vtuber_character_selection import select_character_parts
+from sofia.modules.ui.avatar_renderer import AvatarRenderRequest
+from sofia.modules.ui.avatar2d_renderer import TkLayered2DRenderer
 from test.test_ui_avatar2d_renderer import env, Root, Canvas, Symbolic
 
 

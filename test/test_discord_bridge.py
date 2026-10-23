@@ -4,15 +4,15 @@ from dataclasses import dataclass
 
 import pytest
 
-from sofia.discord.access import DiscordInboundFacts, SingleUserDiscordConfig
-from sofia.discord.binding import DiscordBindingStore
-from sofia.discord.bridge import (
+from sofia.modules.discord.access import DiscordInboundFacts, SingleUserDiscordConfig
+from sofia.modules.discord.binding import DiscordBindingStore
+from sofia.modules.discord.bridge import (
     BridgeDisposition,
     DiscordBridgeError,
     DiscordConversationBridge,
 )
-from sofia.discord.inbound import DiscordTextEvent, screen_text_dm
-from sofia.discord.store import DiscordInboxStore, InboxAcceptResult, InboxClaimResult
+from sofia.modules.discord.inbound import DiscordTextEvent, screen_text_dm
+from sofia.modules.discord.store import DiscordInboxStore, InboxAcceptResult, InboxClaimResult
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 OWNER = 123456789012345678

@@ -14,11 +14,11 @@ import pytest
 from types import SimpleNamespace
 
 from sofia.platform.application.conversation_service import ConversationService
-from sofia.avatar.wardrobe_planner import wardrobe_emotion_influences
+from sofia.modules.avatar.wardrobe_planner import wardrobe_emotion_influences
 from sofia.core.cognition.matrix.expression_plan import EmbodiedExpressionPlanner
-from sofia.avatar.presentation import AppearanceState, PresentationAuthority
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner, WardrobeContext
+from sofia.modules.avatar.presentation import AppearanceState, PresentationAuthority
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_planner import Activity, OutfitPlanner, WardrobeContext
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.core.conversation.model import ConversationRole
 from sofia.core.embodiment.store import EmbodimentStore
@@ -27,7 +27,7 @@ from sofia.core.environment.astronomy import season_for
 from sofia.core.environment.model import EnvironmentFreshness, Season, WeatherObservation
 from sofia.core.environment.provider import EnvironmentProviderObservation
 from sofia.core.environment.service import EnvironmentService
-from sofia.interaction.expanded_service import ExpandedConversationService
+from sofia.modules.interaction.expanded_service import ExpandedConversationService
 from sofia.core.emotion.journal import EmotionalJournal
 from sofia.core.personality.influence import ContinuityInfluence, daypart
 

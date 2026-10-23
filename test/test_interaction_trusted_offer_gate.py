@@ -9,13 +9,13 @@ import pytest
 from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole, CognitiveToolCall,
 )
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.offer_route import OFFER
-from sofia.interaction.decision_expression import from_reviewed_action
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.source_link import VerifiedInteractionState
-from sofia.interaction.trusted_offer_gate import run_guarded_offer
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.offer_route import OFFER
+from sofia.modules.interaction.decision_expression import from_reviewed_action
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.source_link import VerifiedInteractionState
+from sofia.modules.interaction.trusted_offer_gate import run_guarded_offer
 
 NOW = datetime(2026, 9, 22, tzinfo=timezone.utc)
 SESSION = 'session1'

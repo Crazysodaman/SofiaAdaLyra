@@ -2,9 +2,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.interaction.world_editor import WorldEditor
-from sofia.interaction.world_model import ObjectKind, Transform, WorldObject
-from sofia.interaction.world_store import VirtualWorldStore
+from sofia.modules.interaction.world_editor import WorldEditor
+from sofia.modules.interaction.world_model import ObjectKind, Transform, WorldObject
+from sofia.modules.interaction.world_store import VirtualWorldStore
 from sofia.core.social.model import AudienceKind, PrincipalContext
 
 

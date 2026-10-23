@@ -11,16 +11,16 @@ import types
 import pytest
 from PIL import Image
 
-from sofia.avatar.presentation import AttireMode, AudienceScope
-from sofia.avatar.scene_compositor import (
+from sofia.modules.avatar.presentation import AttireMode, AudienceScope
+from sofia.modules.avatar.scene_compositor import (
     SceneSettings, compose_public_scene, compose_modular_public_outfit,
     export_scene_png, import_public_background, load_public_background,
     load_scene_preset, save_scene_preset, scene_png_bytes,
 )
-from sofia.avatar.vtuber_asset_bundle import Avatar2DAssetError
-from sofia.avatar.vtuber_starter_art import _base
+from sofia.modules.avatar.vtuber_asset_bundle import Avatar2DAssetError
+from sofia.modules.avatar.vtuber_starter_art import _base
 from test.test_ui_avatar2d_renderer import env, Root, Canvas, Symbolic
-from sofia.ui.avatar2d_renderer import TkLayered2DRenderer
+from sofia.modules.ui.avatar2d_renderer import TkLayered2DRenderer
 
 
 def png_bytes():
@@ -33,7 +33,7 @@ def png_bytes():
 
 def setup(tmp_path):
     root, projection, state = env(tmp_path)
-    from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+    from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
     catalog=build_starter_wardrobe(state_path=state)
     background=png_bytes()
     digest=import_public_background(root, "neon-workshop", background)
@@ -173,7 +173,7 @@ def test_live_idle_displays_saved_scene_not_old_pixel_sprite(tmp_path,monkeypatc
 
 
 def test_editor_imports_independent_background_with_no_db_mutation(tmp_path):
-    from sofia.avatar.scene_editor import _import_local_background, _public_projection
+    from sofia.modules.avatar.scene_editor import _import_local_background, _public_projection
     root, projection, catalog, scene = setup(tmp_path)
     before=(tmp_path/"sofia.db").read_bytes()
     file=tmp_path/"custom-backdrop.jpg"

@@ -3,7 +3,7 @@ from pathlib import Path
 from sofia.platform.application import SofiaApplication
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.ui.desktop_controller import DesktopWorkbenchController
+from sofia.modules.ui.desktop_controller import DesktopWorkbenchController
 
 
 PROJECT_ROOT = Path(__file__).parent.parent

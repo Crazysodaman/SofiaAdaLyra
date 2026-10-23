@@ -44,7 +44,7 @@ def test_representative_cross_package_ownership(tmp_path: Path) -> None:
     assert "pkg_core" in _explicit_package_markers(emotion)
     neuro = tmp_path / "test_neuro_package_grouping_fixture.py"
     neuro.write_text(
-        "from sofia.neuro import NeuroRuntime\n",
+        "from sofia.modules.neuro import NeuroRuntime\n",
         encoding="utf-8",
     )
     assert "pkg_core" in _explicit_package_markers(neuro)

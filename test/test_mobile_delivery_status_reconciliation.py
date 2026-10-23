@@ -9,7 +9,7 @@ from hashlib import sha256
 
 import pytest
 
-from sofia.mobile.gateway import (
+from sofia.modules.mobile.gateway import (
     MobileCredentialRevoked, MobileDeliveryConflict,
 )
 from test.test_mobile_gateway import _gateway

@@ -11,10 +11,10 @@ from sofia.core.conversation.model import ConversationRole
 from sofia.core.conversation.store import ConversationStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.core.embodiment.store import EmbodimentStore
-from sofia.interaction.chat import InteractiveConversationService, interaction_prompt
-from sofia.interaction.grammar import NaturalInteractionEngine
-from sofia.interaction.live_guard import mixed_interaction_control
-from sofia.interaction.ledger import control_command
+from sofia.modules.interaction.chat import InteractiveConversationService, interaction_prompt
+from sofia.modules.interaction.grammar import NaturalInteractionEngine
+from sofia.modules.interaction.live_guard import mixed_interaction_control
+from sofia.modules.interaction.ledger import control_command
 from datetime import datetime, timezone
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)

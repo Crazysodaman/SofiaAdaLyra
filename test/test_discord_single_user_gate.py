@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.discord.access import (
+from sofia.modules.discord.access import (
     Denial,
     DiscordInboundFacts,
     SingleUserDiscordConfig,

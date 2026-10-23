@@ -1,14 +1,14 @@
 """Conversation routing for generated garments."""
-from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
-from sofia.avatar.generation_conversation import (
+from sofia.modules.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+from sofia.modules.avatar.generation_conversation import (
     WardrobeGenerationConversationService,
 )
-from sofia.avatar.generated_proposal import GarmentGenerationBrief
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_design import ContentRating, GraphicDesign
+from sofia.modules.avatar.generated_proposal import GarmentGenerationBrief
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_design import ContentRating, GraphicDesign
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.principals import local_sparks_principal
-from sofia.avatar.wardrobe_generated_store import (
+from sofia.modules.avatar.wardrobe_generated_store import (
     GarmentAcceptanceResult,
     SofiaGarmentDecision,
 )

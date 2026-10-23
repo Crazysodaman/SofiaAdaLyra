@@ -78,7 +78,7 @@ def test_mobile_read_progress_is_durable_monotonic_and_audience_scoped(tmp_path)
 
         # The persistent marker survives gateway restart, but no trans-
         # audience session reuse or source message copy is needed.
-        from sofia.mobile.gateway import MobileCompanionGateway
+        from sofia.modules.mobile.gateway import MobileCompanionGateway
         restart = MobileCompanionGateway(app, state_path=path)
         assert restart.main_history(
             device_id="android-owner", private_mode=False,
@@ -103,7 +103,7 @@ def test_new_device_pairing_epoch_cannot_adopt_old_last_seen(tmp_path):
         assert gateway.main_history(
             device_id="android-owner", private_mode=False,
         )["last_seen"] is None
-        from sofia.mobile.gateway import MobileCredentialRevoked
+        from sofia.modules.mobile.gateway import MobileCredentialRevoked
         with pytest.raises(MobileCredentialRevoked):
             _seen(gateway, first)
         # New credential generations use a new authenticated audience.
@@ -146,7 +146,7 @@ def test_rotated_token_cannot_write_into_new_generation_mid_dispatch(
     tmp_path, monkeypatch,
 ):
     """A queued old-bearer request cannot mark history read after rotation."""
-    from sofia.mobile.gateway import MobileCredentialRevoked
+    from sofia.modules.mobile.gateway import MobileCredentialRevoked
 
     path, source, social, app, gateway = _setup(tmp_path)
     old_token = gateway.credentials.enroll("android-owner")
@@ -192,7 +192,7 @@ def test_rotated_token_cannot_write_into_new_generation_mid_dispatch(
 
 
 def test_raw_main_read_cursor_requires_current_bearer_fingerprint(tmp_path):
-    from sofia.mobile.gateway import MobileCredentialRevoked
+    from sofia.modules.mobile.gateway import MobileCredentialRevoked
 
     path, source, social, app, gateway = _setup(tmp_path)
     token = gateway.credentials.enroll("android-owner")

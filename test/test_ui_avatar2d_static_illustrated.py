@@ -5,10 +5,10 @@ import json
 
 import pytest
 
-from sofia.avatar.presentation import AudienceScope, AttireMode
-from sofia.avatar.vtuber_asset_bundle import Avatar2DAssetError
-from sofia.avatar.vtuber_static_portraits import load_public_static_portrait
-from sofia.avatar.vtuber_starter_art import _base
+from sofia.modules.avatar.presentation import AudienceScope, AttireMode
+from sofia.modules.avatar.vtuber_asset_bundle import Avatar2DAssetError
+from sofia.modules.avatar.vtuber_static_portraits import load_public_static_portrait
+from sofia.modules.avatar.vtuber_starter_art import _base
 from test.test_ui_avatar2d_modular import configured, decision
 
 

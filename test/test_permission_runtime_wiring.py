@@ -19,7 +19,7 @@ from sofia.core.cognition.assembler import CognitiveContextAssembler
 from sofia.core.cognition.context import CognitiveContext
 from sofia.core.cognition.matrix.privacy import MatrixPrivacyPlanner
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.integrations.capabilities import create_configured_integration_tools
+from sofia.modules.integrations.capabilities import create_configured_integration_tools
 from sofia.platform.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
 from sofia.platform.dev.capability import (
     DevCandidateStore,
@@ -46,8 +46,8 @@ from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.safe.permissions_cli import main as permissions_cli_main
 from sofia.platform.safe.permission_capability import PermissionInspectionCapability
 from sofia.core.social.principals import local_sparks_principal
-from sofia.ui.control_center import MASTER_SETTINGS_SECTIONS
-from sofia.ui.settings_window import (
+from sofia.modules.ui.control_center import MASTER_SETTINGS_SECTIONS
+from sofia.modules.ui.settings_window import (
     _csv_values,
     _network_scopes,
     _optional_expiry_minutes,

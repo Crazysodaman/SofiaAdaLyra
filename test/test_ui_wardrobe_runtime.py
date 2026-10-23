@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from test.test_ui_application import configuration
 from sofia.platform.application import SofiaApplication
-from sofia.avatar.wardrobe_review import WardrobeReviewStore, document
+from sofia.modules.avatar.wardrobe_review import WardrobeReviewStore, document
 from sofia.core.cognition.model import CognitiveResponse
 from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 

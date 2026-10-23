@@ -13,15 +13,15 @@ from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, Cogni
 from sofia.core.cognition.provider import LLMProvider
 from sofia.core.conversation.store import ConversationStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.offer_route import OFFER
-from sofia.interaction.decision_expression import from_reviewed_action
-from sofia.interaction.expanded_service import ExpandedConversationService
-from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.opt_in_service import OptInInteractionConversationService
-from sofia.interaction.registry import InteractionCatalog
-from sofia.interaction.reviewed_hug_question import CLARIFICATION
-from sofia.interaction.source_link import VerifiedInteractionState
+from sofia.modules.interaction.action_grammar import parse_user_action
+from sofia.modules.interaction.offer_route import OFFER
+from sofia.modules.interaction.decision_expression import from_reviewed_action
+from sofia.modules.interaction.expanded_service import ExpandedConversationService
+from sofia.modules.interaction.ledger import InteractionLedger
+from sofia.modules.interaction.opt_in_service import OptInInteractionConversationService
+from sofia.modules.interaction.registry import InteractionCatalog
+from sofia.modules.interaction.reviewed_hug_question import CLARIFICATION
+from sofia.modules.interaction.source_link import VerifiedInteractionState
 
 NOW = datetime(2026, 9, 22, tzinfo=timezone.utc)
 

@@ -16,8 +16,8 @@ import pytest
 from sofia.core.conversation.lifelong import LifelongThreadStore
 from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from sofia.core.conversation.store import ConversationStore
-from sofia.mobile.gateway import MobileCompanionGateway
-from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
+from sofia.modules.mobile.gateway import MobileCompanionGateway
+from sofia.modules.mobile.server import MobileCompanionServer, MobileServerConfiguration
 from sofia.platform.safe.permissions import PermissionStore
 from test.owner_auth_fixture import private_with_signed_owner
 from sofia.core.social.model import AudienceKind, PrincipalContext

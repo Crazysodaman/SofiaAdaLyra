@@ -11,7 +11,7 @@ import json
 from typing import Any, Callable, Mapping
 from uuid import UUID
 
-from sofia.integrations.hyperv import HyperVAdapter
+from sofia.modules.integrations.hyperv import HyperVAdapter
 
 
 class ArtemisWmiObservationError(RuntimeError):

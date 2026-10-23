@@ -26,16 +26,16 @@ from sofia.platform.act.outreach import (
 )
 from sofia.platform.act.system_notice import SystemNoticeQueue
 from sofia.platform.act.diagnostics import OutreachTraceStore
-from sofia.interaction.goal_journal import GoalJournal
+from sofia.modules.interaction.goal_journal import GoalJournal
 from sofia.core.personality.influence import ContinuityInfluence, outreach_salience
 from sofia.core.personality.reflection import ReflectionJournal
 from sofia.core.social.model import ScopeKind, SocialScope
 from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
-from sofia.integrations.home_assistant import HomeAssistantAdapter
-from sofia.ui.notifications import DesktopNotificationStore
-from sofia.discord.binding import BindingState, DiscordBindingStore
-from sofia.discord.proactive import DiscordProactiveSender
-from sofia.discord.provisioning import DiscordProvisioning
+from sofia.modules.integrations.home_assistant import HomeAssistantAdapter
+from sofia.modules.ui.notifications import DesktopNotificationStore
+from sofia.modules.discord.binding import BindingState, DiscordBindingStore
+from sofia.modules.discord.proactive import DiscordProactiveSender
+from sofia.modules.discord.provisioning import DiscordProvisioning
 from sofia.platform.safe.operator_stop import OperatorStopStore
 
 
@@ -703,8 +703,8 @@ def configure_act_delivery_from_environment(
         return True
 
     if channel == "mobile":
-        from sofia.mobile.notifications import MobileNotificationStore
-        from sofia.mobile.provisioning import mobile_companion_ready
+        from sofia.modules.mobile.notifications import MobileNotificationStore
+        from sofia.modules.mobile.provisioning import mobile_companion_ready
 
         if not mobile_companion_ready(service.state_path):
             service.disable_delivery()
@@ -843,7 +843,7 @@ def notification_route_from_environment(
                     else ("discord", str(settings.discord_dm_channel_id))
                 )
             if outreach.delivery_channel == "mobile":
-                from sofia.mobile.provisioning import mobile_companion_ready
+                from sofia.modules.mobile.provisioning import mobile_companion_ready
                 return (
                     ("mobile", "paired-phone")
                     if mobile_companion_ready(state_path)

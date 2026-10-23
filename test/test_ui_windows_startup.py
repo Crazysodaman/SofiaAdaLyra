@@ -2,8 +2,8 @@ import sys
 
 import pytest
 
-from sofia.ui import windows_startup
-from sofia.ui.windows_startup import (
+from sofia.modules.ui import windows_startup
+from sofia.modules.ui.windows_startup import (
     WindowsStartupUnavailable,
     configure_windows_startup,
     tray_startup_command,
@@ -14,7 +14,7 @@ def test_startup_command_bootstraps_tray_from_package_root(monkeypatch, tmp_path
     executable = tmp_path / "python.exe"
     monkeypatch.setattr(sys, "executable", str(executable))
     command = tray_startup_command()
-    assert "sofia.ui.tray_agent import main" in command
+    assert "sofia.modules.ui.tray_agent import main" in command
     assert "sys.path.insert(0" in command
     assert repr(str(windows_startup._package_root())) in command
     assert " -c " in command
@@ -38,7 +38,7 @@ def test_startup_command_prefers_available_windowless_python(monkeypatch, tmp_pa
     monkeypatch.setattr(sys, "executable", str(executable))
     command = tray_startup_command()
     assert command.startswith(windows_startup.subprocess.list2cmdline((str(windowless),)))
-    assert "sofia.ui.tray_agent import main" in command
+    assert "sofia.modules.ui.tray_agent import main" in command
 
 
 def test_startup_registration_keeps_the_selected_database(tmp_path, monkeypatch):

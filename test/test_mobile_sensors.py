@@ -7,9 +7,9 @@ import pytest
 from sofia.core.environment import EnvironmentFreshness
 from sofia.core.environment.prompt import environment_prompt
 from sofia.core.environment.service import EnvironmentService
-from sofia.mobile.model import MobileSensorReport
-from sofia.mobile.sensors import MobileSensorProvider, MobileSensorStore
-from sofia.mobile.pairing import MobileDeviceCredentialStore
+from sofia.modules.mobile.model import MobileSensorReport
+from sofia.modules.mobile.sensors import MobileSensorProvider, MobileSensorStore
+from sofia.modules.mobile.pairing import MobileDeviceCredentialStore
 from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 
 

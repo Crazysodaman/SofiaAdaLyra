@@ -5,10 +5,10 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.discord.access import Denial, DiscordInboundFacts, SingleUserDiscordConfig
-from sofia.discord.inbound import DiscordTextEvent, screen_text_dm
-from sofia.discord.ingress import DiscordIngress, IngressDisposition
-from sofia.discord.store import DiscordInboxStore, InboxAcceptResult
+from sofia.modules.discord.access import Denial, DiscordInboundFacts, SingleUserDiscordConfig
+from sofia.modules.discord.inbound import DiscordTextEvent, screen_text_dm
+from sofia.modules.discord.ingress import DiscordIngress, IngressDisposition
+from sofia.modules.discord.store import DiscordInboxStore, InboxAcceptResult
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 

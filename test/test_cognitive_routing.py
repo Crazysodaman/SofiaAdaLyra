@@ -980,7 +980,7 @@ def test_tool_request_falls_back_to_secondary_when_primary_engine_fails():
     )
     tool_call = CognitiveToolCall(
         name="inspect_directory",
-        arguments={"path": "src/sofia/avatar"},
+        arguments={"path": "src/sofia/modules/avatar"},
         call_id="call-fallback",
     )
     primary = QueueEngine(CognitiveEngineError("primary tool parser failed"))

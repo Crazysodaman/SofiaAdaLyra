@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from sofia.platform.config.reviewed_projection import validate_reviewed_configuration_content
 from sofia.platform.evolve.revision import RevisionAdapter, RevisionScope
-from sofia.interaction.evolved_preference import validate_evolved_preference_content
+from sofia.modules.interaction.evolved_preference import validate_evolved_preference_content
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
 from sofia.platform.state.plane import StatePlane
 

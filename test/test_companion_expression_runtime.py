@@ -2,14 +2,14 @@ from datetime import datetime, timezone
 from threading import Event
 
 from sofia.platform.application.expression_runtime import AvatarExpressionState, ExpressionRuntime
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AppearanceState, AttireMode, AudienceScope, PresentationProjection,
 )
 from sofia.core.cognition.matrix import EmbodiedExpressionPlan
 from sofia.core.emotion.model import ActiveEmotion, CurrentEmotionalState
 from sofia.core.personality.influence import ContinuityInfluence
 from sofia.core.social.model import AudienceKind, PrincipalContext
-from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
+from sofia.modules.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
 from sofia.platform.application import SofiaApplication
 from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration

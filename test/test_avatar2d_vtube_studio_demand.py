@@ -5,10 +5,10 @@ from dataclasses import replace
 
 import pytest
 
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AppearanceState, AudienceScope, AttireMode, PresentationProjection,
 )
-from sofia.avatar.vtube_studio_demand import (
+from sofia.modules.avatar.vtube_studio_demand import (
     AvatarDemand, AvatarHostAction, decide_avatar_host_action,
     handle_avatar_demand,
 )

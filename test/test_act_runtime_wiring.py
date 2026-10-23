@@ -17,7 +17,7 @@ from sofia.platform.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
-from sofia.discord.binding import DiscordBindingStore
+from sofia.modules.discord.binding import DiscordBindingStore
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 import pytest
@@ -139,7 +139,7 @@ def test_production_act_delivery_uses_pinned_home_assistant_destination_and_time
 
 
 def test_desktop_outreach_queues_durable_tray_notification(tmp_path, monkeypatch):
-    from sofia.ui.notifications import DesktopNotificationStore
+    from sofia.modules.ui.notifications import DesktopNotificationStore
 
     monkeypatch.delenv("SOFIA_ACT_DELIVERY_CHANNEL", raising=False)
     state_path = tmp_path / "state.db"
@@ -233,8 +233,8 @@ def test_mobile_outreach_queues_for_authenticated_phone(
     tmp_path,
     monkeypatch,
 ):
-    from sofia.mobile.notifications import MobileNotificationStore
-    from sofia.mobile.pairing import MobileDeviceCredentialStore
+    from sofia.modules.mobile.notifications import MobileNotificationStore
+    from sofia.modules.mobile.pairing import MobileDeviceCredentialStore
 
     state_path = tmp_path / "state.db"
     state_path.touch()
@@ -431,7 +431,7 @@ def test_reflection_bridge_suppresses_manipulative_social_wording(tmp_path):
 def test_settings_operator_stop_is_wired_to_existing_permissions_page():
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
-    source = (root / "src/sofia/ui/settings_window.py").read_text(encoding="utf-8")
+    source = (root / "src/sofia/modules/ui/settings_window.py").read_text(encoding="utf-8")
     assert 'permissions = frames["Permissions"]' in source
     assert 'operator_stop_store = OperatorStopStore(config.state_path)' in source
     assert 'command=lambda: change_operator_stop(active=True)' in source
@@ -481,7 +481,7 @@ def test_durable_owner_outreach_mute_applies_without_restarting_sender(tmp_path)
 def test_settings_has_runtime_mute_controls_and_reads_canonical_state():
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
-    source = (root / "src/sofia/ui/settings_window.py").read_text(encoding="utf-8")
+    source = (root / "src/sofia/modules/ui/settings_window.py").read_text(encoding="utf-8")
     assert "runtime_store.load().outreach" in source
     assert 'command=lambda: change_outreach_mute(True)' in source
     assert 'command=lambda: change_outreach_mute(False)' in source

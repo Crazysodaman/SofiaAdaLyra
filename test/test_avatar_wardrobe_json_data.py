@@ -2,12 +2,12 @@
 from importlib.resources import files
 import json
 
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_design import ContentRating, ExposureZone
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_design import ContentRating, ExposureZone
 
 
 def _raw(filename):
-    resource = files("sofia.avatar").joinpath("wardrobe_data", filename)
+    resource = files("sofia.modules.avatar").joinpath("wardrobe_data", filename)
     return json.loads(resource.read_text(encoding="utf-8"))
 
 
@@ -15,8 +15,8 @@ def test_upper_and_lower_underlayer_files_each_define_24_owned_pieces():
     upper = _raw("underlayers_upper.json")
     lower = _raw("underlayers_lower.json")
 
-    assert upper["schema"] == "sofia.avatar.wardrobe.garments.v1"
-    assert lower["schema"] == "sofia.avatar.wardrobe.garments.v1"
+    assert upper["schema"] == "sofia.modules.avatar.wardrobe.garments.v1"
+    assert lower["schema"] == "sofia.modules.avatar.wardrobe.garments.v1"
     assert len(upper["garments"]) == 24
     assert len(lower["garments"]) == 24
 

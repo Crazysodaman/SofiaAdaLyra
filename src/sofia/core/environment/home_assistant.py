@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from sofia.integrations.home_assistant import HomeAssistantAdapter
+from sofia.modules.integrations.home_assistant import HomeAssistantAdapter
 
 from .config import EnvironmentConfiguration
 from .model import (

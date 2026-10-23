@@ -10,7 +10,7 @@ import sqlite3
 import pytest
 
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
-from sofia.vision.journeys import (
+from sofia.modules.vision.journeys import (
     ScreenJourney, ScreenJourneyReceiptStore,
     propose_owner_screen_journey, accept_actual_picked_frame,
     compare_two_approved_observations,

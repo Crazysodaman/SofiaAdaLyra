@@ -8,10 +8,10 @@ from contextlib import closing
 
 import pytest
 
-from sofia.mobile.pairing import MobileDeviceCredentialStore
-from sofia.mobile.sensors import MobileSensorStore
-from sofia.mobile.notifications import MobileNotificationStore
-from sofia.mobile.gateway import MobileCompanionGateway
+from sofia.modules.mobile.pairing import MobileDeviceCredentialStore
+from sofia.modules.mobile.sensors import MobileSensorStore
+from sofia.modules.mobile.notifications import MobileNotificationStore
+from sofia.modules.mobile.gateway import MobileCompanionGateway
 from test.test_mobile_gateway import FakeApplication
 from sofia.platform.state.canonical_sqlite import CanonicalStateUnavailable
 

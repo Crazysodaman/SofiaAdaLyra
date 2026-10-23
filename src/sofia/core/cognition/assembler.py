@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from sofia.avatar.presentation import AttireMode, PresentationProjection
+from sofia.modules.avatar.presentation import AttireMode, PresentationProjection
 from sofia.core.cognition.context import CognitiveContext
 from sofia.core.cognition.context_evidence import (
     format_continuity_event,

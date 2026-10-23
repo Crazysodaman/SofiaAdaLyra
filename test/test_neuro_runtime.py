@@ -12,7 +12,7 @@ from sofia.core.cognition.matrix import (
     ResponseStrategy,
     TurnMatrix,
 )
-from sofia.neuro import (
+from sofia.modules.neuro import (
     HomeostasisController,
     NeuralSignal,
     NeuroRuntime,

@@ -1,11 +1,11 @@
 """Generated wardrobe ownership decisions come from Sofía and fail closed."""
 from pathlib import Path
 
-from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
-from sofia.avatar.generated_decision import GeneratedGarmentDecisionService
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_design import GraphicDesign
-from sofia.avatar.wardrobe_generated_store import SofiaGarmentDecision
+from sofia.modules.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+from sofia.modules.avatar.generated_decision import GeneratedGarmentDecisionService
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.wardrobe_design import GraphicDesign
+from sofia.modules.avatar.wardrobe_generated_store import SofiaGarmentDecision
 from sofia.core.cognition.model import CognitiveResponse
 
 

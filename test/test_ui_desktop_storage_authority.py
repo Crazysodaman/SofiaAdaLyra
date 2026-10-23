@@ -5,11 +5,11 @@ import sqlite3
 
 from sofia.platform.application import SofiaApplication
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
-from sofia.ui.control_center import (
+from sofia.modules.ui.control_center import (
     DesktopControlSettingsStore,
     RemoteChatMode,
 )
-from sofia.ui.desktop_application import create_desktop_application
+from sofia.modules.ui.desktop_application import create_desktop_application
 
 
 def configuration(tmp_path: Path) -> SofiaConfiguration:

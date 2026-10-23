@@ -1,6 +1,6 @@
 from threading import Event
 
-from sofia.voice import (
+from sofia.modules.voice import (
     SpeechInputProbe, SpeechInputReceipt, SpeechInputReceiptStore,
     SpeechInputService, SpeechInputState,
     WindowsSpeechRecognitionBackend,
@@ -46,7 +46,7 @@ def test_push_to_talk_emits_listening_then_typed_transcript():
 
 
 def test_non_windows_probe_is_explicitly_unavailable(monkeypatch):
-    monkeypatch.setattr("sofia.voice.stt.sys.platform", "linux")
+    monkeypatch.setattr("sofia.modules.voice.stt.sys.platform", "linux")
     probe = WindowsSpeechRecognitionBackend().probe()
     assert probe.available is False
     assert probe.healthy is False

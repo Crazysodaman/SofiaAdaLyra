@@ -2,7 +2,7 @@
 
 import pytest
 
-from sofia.discord.binding import BindingState, DiscordBindingStore
+from sofia.modules.discord.binding import BindingState, DiscordBindingStore
 
 OWNER = 123456789012345678
 BOT = 987654321098765432

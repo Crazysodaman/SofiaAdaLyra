@@ -53,7 +53,7 @@ from sofia.platform.runtime.runtime import SofiaRuntime
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.store import SocialSessionStore
 from sofia.core.rel.store import RelationshipStore
-from sofia.neuro import NeuroRuntime, NeuroStateSnapshot, NeuroWakeMode
+from sofia.modules.neuro import NeuroRuntime, NeuroStateSnapshot, NeuroWakeMode
 from sofia.core.cognition.v2 import (
     CoordinatedTurn,
     ProductionTurnKernel,

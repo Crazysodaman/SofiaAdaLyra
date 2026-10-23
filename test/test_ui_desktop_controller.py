@@ -7,8 +7,8 @@ import pytest
 import sqlite3
 
 from sofia.core.cognition.model import CognitiveResponse
-from sofia.ui.desktop_controller import DesktopWorkbenchController
-from sofia.ui.text import UITextMessage
+from sofia.modules.ui.desktop_controller import DesktopWorkbenchController
+from sofia.modules.ui.text import UITextMessage
 
 
 @dataclass

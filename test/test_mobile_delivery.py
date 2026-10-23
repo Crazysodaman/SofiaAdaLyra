@@ -10,10 +10,10 @@ import sqlite3
 
 import pytest
 
-from sofia.mobile.gateway import (
+from sofia.modules.mobile.gateway import (
     MobileCompanionGateway, MobileDeliveryConflict, MobileDeliveryUncertain,
 )
-from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
+from sofia.modules.mobile.server import MobileCompanionServer, MobileServerConfiguration
 from test.test_mobile_gateway import _gateway
 
 

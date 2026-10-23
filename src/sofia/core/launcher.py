@@ -5,7 +5,7 @@ from sofia.platform.application import (
     SofiaApplication,
     SofiaApplicationError,
 )
-from sofia.ui.terminal import ConversationLoop
+from sofia.modules.ui.terminal import ConversationLoop
 from sofia.platform.config import (
     SofiaConfiguration,
     create_production_configuration,
@@ -69,8 +69,8 @@ def main(
         return 2
 
     try:
-        from sofia.ui.desktop import run_desktop
-        from sofia.ui.tray_launcher import ensure_tray_agent
+        from sofia.modules.ui.desktop import run_desktop
+        from sofia.modules.ui.tray_launcher import ensure_tray_agent
 
         desktop_configuration = (
             configuration

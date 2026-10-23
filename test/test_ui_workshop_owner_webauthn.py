@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 _SOURCE = (
-    Path(__file__).resolve().parents[1] / "src/sofia/ui/settings_sections.py"
+    Path(__file__).resolve().parents[1] / "src/sofia/modules/ui/settings_sections.py"
 )
 
 

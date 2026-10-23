@@ -13,7 +13,7 @@ from sofia.core.memory.originals import SourceMessage
 from sofia.core.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.core.memory.system import MemorySystem
-from sofia.neuro.connectome.association_store import ReviewedAssociationStore
+from sofia.modules.neuro.connectome.association_store import ReviewedAssociationStore
 from sofia.core.social.principals import local_sparks_principal, discord_sparks_principal
 
 

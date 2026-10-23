@@ -4,8 +4,8 @@ import sys
 
 import pytest
 
-from sofia.ui.control_center import GameMode, TrayCommand, TrayStatus
-from sofia.ui.windows_tray import WindowsTrayAgent, WindowsTrayUnavailable
+from sofia.modules.ui.control_center import GameMode, TrayCommand, TrayStatus
+from sofia.modules.ui.windows_tray import WindowsTrayAgent, WindowsTrayUnavailable
 
 
 def _status():
@@ -25,8 +25,8 @@ def _status():
 
 
 def test_windows_tray_module_import_is_safe_without_initializing_win32():
-    sys.modules.pop("sofia.ui.windows_tray",None)
-    module=importlib.import_module("sofia.ui.windows_tray")
+    sys.modules.pop("sofia.modules.ui.windows_tray",None)
+    module=importlib.import_module("sofia.modules.ui.windows_tray")
     assert hasattr(module,"WindowsTrayAgent")
 
 

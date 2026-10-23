@@ -18,7 +18,7 @@ from sofia.core.cognition.matrix import (
 )
 from sofia.core.personality.influence import ContinuityInfluence
 from sofia.core.social.model import AudienceKind, PrincipalContext
-from sofia.voice.prosody_matrix import VoiceProsodyMatrix, VoiceProsodyProfile
+from sofia.modules.voice.prosody_matrix import VoiceProsodyMatrix, VoiceProsodyProfile
 
 
 @dataclass(frozen=True, slots=True)

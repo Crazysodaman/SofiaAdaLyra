@@ -1,6 +1,6 @@
 from sofia.platform.ops.activity import ActivityMode
-from sofia.ui.control_center import GameMode
-from sofia.ui.settings_window import _activity_override
+from sofia.modules.ui.control_center import GameMode
+from sofia.modules.ui.settings_window import _activity_override
 
 
 def test_master_settings_game_mode_maps_to_ops_override():

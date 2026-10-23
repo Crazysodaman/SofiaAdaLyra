@@ -9,7 +9,7 @@ from sofia.core.constitution.store import ConstitutionStore
 from sofia.core.embodiment.store import EmbodimentStore
 from sofia.core.identity.store import IdentityStore
 from sofia.platform.verify.interaction.ab_probe import build_pair
-from sofia.interaction.grammar import NaturalInteractionEngine
+from sofia.modules.interaction.grammar import NaturalInteractionEngine
 from sofia.core.personality.store import PersonalityStore
 
 ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'

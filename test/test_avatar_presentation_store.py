@@ -5,15 +5,15 @@ import sqlite3
 
 import pytest
 
-from sofia.avatar.presentation import (
+from sofia.modules.avatar.presentation import (
     AppearanceState,
     AttireMode,
     PresentationAuthority,
     PresentationConflict,
     PrivatePresentationGrant,
 )
-from sofia.avatar.presentation_store import PresentationStore, PresentationStoreError
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.modules.avatar.presentation_store import PresentationStore, PresentationStoreError
+from sofia.modules.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
 def setup_authority():
@@ -82,7 +82,7 @@ def test_store_writes_snapshot_into_canonical_sqlite(tmp_path):
         ).fetchone()
 
     assert row is not None
-    assert json.loads(row[0])["schema"] == "sofia.avatar.presentation.v1"
+    assert json.loads(row[0])["schema"] == "sofia.modules.avatar.presentation.v1"
 
 
 def test_store_refuses_unsettled_transition(tmp_path):

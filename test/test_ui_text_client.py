@@ -10,8 +10,8 @@ from sofia.core.conversation.model import (
     ConversationMessage,
     ConversationRole,
 )
-from sofia.ui.drafts import UIDraftStore
-from sofia.ui.text import UITextClient
+from sofia.modules.ui.drafts import UIDraftStore
+from sofia.modules.ui.text import UITextClient
 from sofia.core.social.principals import local_sparks_principal
 
 
