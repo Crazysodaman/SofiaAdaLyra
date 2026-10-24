@@ -316,3 +316,23 @@ Executed local Linux evidence:
 Readiness is **BETA**: real multi-host resource
 reservations, forecast-informed advisory ranking, failover policy, network
 partition trials, Windows/Debian CI, and enrolled-host acceptance remain open.
+
+## HNF-09 pre-commissioning portability checkpoint — 2026-10-24 UTC
+
+- Split runtime/inference admission now accepts the hardware-neutral
+  `fleet_runtime` role with exact enrolled runtime and GPU-worker IDs. The
+  historical `artemis_runtime` spelling remains an explicit compatibility
+  alias; it no longer defines policy or permits host-name inference.
+- All safety diagnostics and production composition describe roles rather
+  than Venus/Artemis. Exact pinned-mTLS transport, no local fallback, no model
+  auto-provision, one allowed GPU-worker identity, and separation between the
+  runtime and worker remain mandatory.
+- Focused split topology, Fleet cognitive engine, provider boundary, remote
+  inference contract and durable admission tests: **45 passed** locally.
+
+HNF-09 remains **BLOCKED for live acceptance**, not failed or accepted. This
+environment has no owner-authorized disposable Linux VM session, enrolled GPU
+worker, pinned commissioning credentials, approved installed model/digest, or
+Windows/Debian matching-revision CI. No canonical writer migration, Fleet
+enrollment, model pull/switch, network call, host restart, service activation,
+or production configuration change was performed.

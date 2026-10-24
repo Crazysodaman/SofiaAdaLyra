@@ -227,8 +227,8 @@ def create_cognitive_engine(
     local_host_id: str | None = None,
     remote_inference_client=None,
 ):
-    # Explicit future Artemis mode never substitutes local/alternate models
-    # when the pinned mTLS Venus inference worker is down.
+    # An explicit split runtime never substitutes local/alternate models when
+    # its exact pinned-mTLS Fleet inference worker is down.
     validate_split_inference_runtime(
         configuration=configuration,
         local_host_id=local_host_id,

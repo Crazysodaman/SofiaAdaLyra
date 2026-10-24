@@ -60,6 +60,13 @@ def test_split_deployment_is_never_implicitly_enabled():
     with pytest.raises(ValueError, match="unknown"):
         selected_split_deployment({"SOFIA_SPLIT_INFERENCE_ROLE": "auto"})
     assert selected_split_deployment({
+        "SOFIA_SPLIT_INFERENCE_ROLE": "fleet_runtime",
+        "SOFIA_SPLIT_RUNTIME_HOST_ID": "node:runtime-92f1",
+        "SOFIA_SPLIT_GPU_HOST_ID": "node:gpu-11ab",
+    }) == SplitInferenceDeployment("node:runtime-92f1", "node:gpu-11ab")
+    # Historical deployments retain an explicit compatibility alias. New
+    # policy and selection code does not infer either role from these names.
+    assert selected_split_deployment({
         "SOFIA_SPLIT_INFERENCE_ROLE": "artemis_runtime",
         "SOFIA_SPLIT_RUNTIME_HOST_ID": "Artemis",
         "SOFIA_SPLIT_GPU_HOST_ID": "Venus",

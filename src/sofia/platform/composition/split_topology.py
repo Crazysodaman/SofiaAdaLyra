@@ -1,7 +1,8 @@
-"""Operator-selected split runtime / inference topology admission policy.
+"""Operator-selected, hardware-neutral split runtime/inference admission.
 
-Current production remains Venus writer; this does not move or elect state.
-An operator may separately configure the future Artemis runtime as remote-only.
+This policy never moves or elects the canonical writer. Host IDs are exact
+enrolled Fleet identities; display names and current deployment roles carry no
+authority.
 """
 from __future__ import annotations
 
@@ -32,8 +33,9 @@ def selected_split_deployment(
 ) -> SplitInferenceDeployment | None:
     """Load explicit, privileged host launch config, not model-generated text.
 
-    An absent role retains the existing Venus production behavior.
-    An Artemis role without both exact host IDs fails closed.
+    An absent role retains the current production behavior. A Fleet runtime
+    role without both exact host IDs fails closed. The historical
+    ``artemis_runtime`` value remains a compatibility alias only.
     """
     env = os.environ if environ is None else environ
     mode = env.get("SOFIA_SPLIT_INFERENCE_ROLE", "").strip()
@@ -41,7 +43,7 @@ def selected_split_deployment(
         if env.get("SOFIA_SPLIT_RUNTIME_HOST_ID") or env.get("SOFIA_SPLIT_GPU_HOST_ID"):
             raise ValueError("split topology host IDs require explicit role")
         return None
-    if mode != "artemis_runtime":
+    if mode not in {"fleet_runtime", "artemis_runtime"}:
         raise ValueError("unknown explicit split inference runtime role")
     return SplitInferenceDeployment(
         runtime_host_id=env.get("SOFIA_SPLIT_RUNTIME_HOST_ID", ""),
@@ -68,17 +70,17 @@ def validate_split_inference_runtime(
         raise PermissionError("split inference runtime is not the authorized host")
     fleet = configuration.fleet_cognition
     if not fleet.enabled:
-        raise ValueError("Artemis split inference requires Fleet cognition")
+        raise ValueError("split inference requires Fleet cognition")
     if fleet.local_fallback:
-        raise PermissionError("Artemis may not fall back to local inference")
+        raise PermissionError("split runtime may not fall back to local inference")
     if fleet.auto_provision_models:
-        raise PermissionError("Artemis must not install or switch worker models")
+        raise PermissionError("split runtime must not install or switch worker models")
     if not fleet.gpu_required:
-        raise PermissionError("Venus GPU worker must be required for placement")
+        raise PermissionError("a GPU worker must be required for placement")
     if fleet.allowed_host_ids != (deployment.gpu_worker_host_id,):
-        raise PermissionError("Artemis inference must target exactly approved Venus host")
+        raise PermissionError("split inference must target exactly the approved worker host")
     if deployment.runtime_host_id in fleet.allowed_host_ids:
-        raise PermissionError("Artemis cannot select itself for GPU inference")
+        raise PermissionError("split runtime cannot select itself as its GPU worker")
     if require_transport and not isinstance(
         remote_inference_client, ConfiguredRemoteInferenceClient
     ):
@@ -93,4 +95,4 @@ def validate_split_inference_runtime(
     else:
         providers = (configuration.provider,)
     if any(provider is None or provider.provider != "ollama" for provider in providers):
-        raise PermissionError("Artemis split cognition requires approved Ollama models")
+        raise PermissionError("split cognition requires approved Ollama models")
