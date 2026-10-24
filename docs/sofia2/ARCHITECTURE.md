@@ -135,6 +135,14 @@ The target Platform is a long-lived single-authority control plane; independentl
 
 The **Sofía SDK** is a versioned shared development/runtime protocol family with Platform, Core and Module facades plus optional tooling. It is not another state-owning service or an installable module with inherent privileges. An optional developer/Workshop module may expose its tooling to Sofía under pre-existing authorization, but no SDK call can mint permissions, migrate canonical state or directly execute otherwise-protected actions.
 
+## Approved Federated Platforms and Core-to-Core relationships (2026-10-24)
+
+See [Platform Federation and Autonomous Inter-Core Relationships V1](PLATFORM_PEER_FEDERATION_V1.md).
+
+Separate independently acting Core identities on separate enrolled Platform instances may exchange messages, selected source-linked data and proposals via authenticated Platform gates. **Each Core chooses whether and what eligible information to offer, its own evolving interpersonal trust/emotional stances, whether to reply, and whether to collaborate.** Platform remains authoritative for actual identity verification, consent, audience/privacy, recipient, quotas, durable delivery, STOP and SAFE/RUN grants. A Core's feelings never authorize secrets disclosure, model/host promotion or remote tool execution.
+
+A second Platform running the **same** canonical Core identity is not an independent companion: a standby cannot act or write; dual-active instances for one identity remain blocked until externally verified writer/generation fencing and separate owner approval. Untrusted peer messages never become system instructions or automatically merged memories. The plan reuses existing REL, EMOTION, Social, ACT and Fleet owners; CORE-35–38 self-improvement remains on its existing roadmap.
+
 ## Future architecture revisions
 
 Any change to a critical boundary requires: evidence of current behavior; ADR-style decision; compatibility contract; narrow implementation batch; rollback; source-specific tests; explicit approval if protected authority or canonical writer would change. A new version label alone does not justify a rewrite.
