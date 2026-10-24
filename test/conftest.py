@@ -61,6 +61,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
     "ops": ("pkg_ops",),
     "personality": ("pkg_core",),
     "rel": ("pkg_rel",),
+    "resources": ("pkg_ops", "pkg_run"),
     "run": ("pkg_run",),
     "runtime": ("pkg_core",),
     "safe": ("pkg_safe",),

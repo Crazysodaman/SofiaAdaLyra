@@ -856,6 +856,17 @@ def create_background_coordinator(
             finally:
                 identities.close()
                 endpoints.close()
+            # Inventory is a projection over discovery + independently
+            # completed enrollment. It cannot enroll or trust a machine.
+            for observation in result.observed:
+                try:
+                    application._runtime.ops_service.record_discovery_inventory(
+                        observation
+                    )
+                except Exception:
+                    # A malformed/stale inventory projection must not change
+                    # Fleet enrollment or stop the bounded discovery cycle.
+                    continue
             count = (
                 len(result.created_host_ids)
                 + len(result.rejected_host_ids)

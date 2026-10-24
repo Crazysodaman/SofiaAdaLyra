@@ -19,6 +19,13 @@ from sofia.platform.distributed.model import (
     NodeTransport,
 )
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.resources import (
+    CapabilityFact,
+    EvidenceClass,
+    HardwareInventoryStore,
+    HardwareTelemetryStore,
+    ResourceSupply,
+)
 
 from .activity import HostActivityStore
 from .desired import Drift,DesiredHostState,DesiredWorkloadPlacement,detect_drift
@@ -32,7 +39,7 @@ from .enrollment import (
 )
 from .history import SQLiteTelemetryHistory
 from sofia.platform.ops.workload import MigrationPlan
-from .model import HostLifecycle,WorkloadContract
+from .model import HostLifecycle,HostTelemetry,WorkloadContract
 from .state_registry import StatePlaneFleetRegistry
 from .placement import PlacementEngine
 from .reconcile import MaintenanceReceiptStore
@@ -79,6 +86,23 @@ class OpsToolService:
         )
         self.activity=HostActivityStore(state_path)
         self.placement=PlacementEngine()
+        def verify_inventory_enrollment(host_id, enrollment_ref, observed_at):
+            host=self.registry.host(host_id)
+            return bool(
+                host is not None
+                and host.trusted
+                and host.node_id is not None
+                and host.lifecycle in (
+                    HostLifecycle.ENROLLED, HostLifecycle.HEALTHY,
+                    HostLifecycle.DEGRADED, HostLifecycle.MAINTENANCE,
+                )
+                and enrollment_ref == f"fleet-node:{host.node_id}"
+            )
+        self.hardware_inventory=HardwareInventoryStore(
+            self.state_path,
+            enrollment_verifier=verify_inventory_enrollment,
+        )
+        self.resource_telemetry=HardwareTelemetryStore(self.state_path)
         self._placement_advisor:Callable[...,dict[str,Any]|None]|None=None
         self.maintenance_receipts=MaintenanceReceiptStore(state_path)
         self.repair_planner=FleetRepairPlanner()
@@ -149,6 +173,132 @@ class OpsToolService:
 
     def fleet(self)->tuple[dict[str,Any],...]:
         return tuple(self._host(host) for host in self.registry.hosts())
+
+    def record_discovery_inventory(self, observation):
+        """Project bounded discovery evidence into the shared HNF inventory.
+
+        Discovery remains untrusted. If enrollment completed independently,
+        the exact durable Fleet node binding is projected by the verifier.
+        """
+        host=self.registry.host(observation.host_id)
+        enrolled=bool(
+            host is not None and host.trusted and host.node_id is not None
+            and host.lifecycle in (
+                HostLifecycle.ENROLLED, HostLifecycle.HEALTHY,
+                HostLifecycle.DEGRADED, HostLifecycle.MAINTENANCE,
+            )
+        )
+        expiry=observation.observed_at+timedelta(days=1)
+        facts=[
+            CapabilityFact(
+                "os.family",observation.platform.casefold(),None,
+                observation.host_id,f"host:{observation.host_id}",
+                EvidenceClass.OBSERVED,f"fleet-discovery:{observation.source}",
+                observation.observed_at,expiry,False,
+            ),
+            CapabilityFact(
+                "cpu.arch",observation.architecture.casefold(),None,
+                observation.host_id,f"host:{observation.host_id}",
+                EvidenceClass.OBSERVED,f"fleet-discovery:{observation.source}",
+                observation.observed_at,expiry,False,
+            ),
+        ]
+        if observation.installed_agent_version:
+            facts.append(CapabilityFact(
+                "runtime.sofia_agent.version",observation.installed_agent_version,None,
+                observation.host_id,f"host:{observation.host_id}",
+                EvidenceClass.OBSERVED,f"fleet-discovery:{observation.source}",
+                observation.observed_at,expiry,
+                bool(observation.installed_signature_verified),
+            ))
+        current=self.hardware_inventory.current(observation.host_id)
+        return self.hardware_inventory.record(
+            host_id=observation.host_id,
+            display_name=observation.hostname,
+            facts=tuple(facts),
+            observed_at=observation.observed_at,
+            enrolled=enrolled,
+            trusted=enrolled,
+            enrollment_ref=(
+                None if not enrolled else f"fleet-node:{host.node_id}"
+            ),
+            expected_revision=None if current is None else current.revision,
+        )
+
+    def resource_supply(self, host_id:str)->ResourceSupply|None:
+        """Return current static plus latest live facts for deterministic gates."""
+        inventory=self.hardware_inventory.current(host_id)
+        if inventory is None:
+            return None
+        return ResourceSupply(
+            host_id=inventory.host_id,
+            enrolled=inventory.enrolled,
+            trusted=inventory.trusted,
+            inventory_revision=inventory.revision,
+            facts=inventory.facts+self.resource_telemetry.latest(host_id),
+            parent_host_id=inventory.parent_host_id,
+        )
+
+    def record_resource_telemetry(
+        self, host_id:str, telemetry:HostTelemetry, *, source_ref:str,
+        authenticated:bool,
+    )->int:
+        """Normalize legacy Fleet telemetry into HNF facts.
+
+        The legacy GPU fields describe at most one observed device and are
+        never combined with another card. New agents should submit explicit
+        per-device facts through the same telemetry store.
+        """
+        if not isinstance(telemetry,HostTelemetry):
+            raise TypeError("telemetry must be HostTelemetry")
+        if type(authenticated) is not bool:
+            raise TypeError("authenticated must be bool")
+        host=self.registry.host(host_id)
+        verified=bool(
+            authenticated and host is not None and host.trusted
+            and host.node_id is not None
+            and host.lifecycle in (
+                HostLifecycle.ENROLLED,HostLifecycle.HEALTHY,
+                HostLifecycle.DEGRADED,HostLifecycle.MAINTENANCE,
+            )
+        )
+        expiry=telemetry.observed_at+timedelta(minutes=2)
+        facts=[]
+        def add(key,value,unit,resource_id):
+            if value is not None:
+                facts.append(CapabilityFact(
+                    key,value,unit,host_id,resource_id,EvidenceClass.OBSERVED,
+                    source_ref,telemetry.observed_at,expiry,verified,
+                ))
+        add("cpu.utilization_percent",telemetry.cpu_percent,"percent",f"host:{host_id}")
+        if (
+            telemetry.ram_total_bytes is not None
+            and telemetry.ram_used_bytes is not None
+            and telemetry.ram_used_bytes<=telemetry.ram_total_bytes
+        ):
+            add("memory.allocatable_bytes",
+                telemetry.ram_total_bytes-telemetry.ram_used_bytes,"bytes",f"host:{host_id}")
+        add("gpu.utilization_percent",telemetry.gpu_percent,"percent",f"gpu:{host_id}:0")
+        if (
+            telemetry.vram_total_bytes is not None
+            and telemetry.vram_used_bytes is not None
+            and telemetry.vram_used_bytes<=telemetry.vram_total_bytes
+        ):
+            add("gpu.vram.allocatable_bytes",
+                telemetry.vram_total_bytes-telemetry.vram_used_bytes,"bytes",f"gpu:{host_id}:0")
+        add("storage.allocatable_bytes",telemetry.storage_free_bytes,"bytes",f"storage:{host_id}:root")
+        add("health.temperature_c",telemetry.temperature_c,"celsius",f"host:{host_id}")
+        add("health.throttled",telemetry.throttled,None,f"host:{host_id}")
+        if not facts:
+            raise ValueError("telemetry contains no supported observations")
+        observation_id=self.resource_telemetry.record(
+            host_id=host_id,facts=tuple(facts),source_ref=source_ref,
+            observed_at=telemetry.observed_at,
+        )
+        self.history.append(host_id,telemetry)
+        if host is not None:
+            self.registry.update_telemetry(host_id,telemetry)
+        return observation_id
 
     def optional_autonomy_budget(self) -> dict[str,Any]:
         from sofia.platform.application.optional_budget import OptionalAutonomyBudget

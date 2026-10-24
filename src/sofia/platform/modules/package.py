@@ -11,6 +11,11 @@ import re
 from typing import Any, Mapping
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from sofia.platform.resources import (
+    CapabilityRequirement,
+    requirement_from_document,
+    requirement_to_document,
+)
 
 
 _MODULE = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$")
@@ -101,6 +106,7 @@ class ModuleOperationProfile:
     allowed_host_classes: tuple[str, ...]
     allowed_device_classes: tuple[str, ...]
     required_approval_class: str
+    resource_requirements: tuple[CapabilityRequirement, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.profile_id, OperationProfileKind):
@@ -123,6 +129,13 @@ class ModuleOperationProfile:
             raise PackageManifestError("invalid resource envelope")
         if not isinstance(self.required_approval_class, str) or not self.required_approval_class:
             raise PackageManifestError("required approval class required")
+        if type(self.resource_requirements) is not tuple or any(
+            not isinstance(item, CapabilityRequirement)
+            for item in self.resource_requirements
+        ) or len(self.resource_requirements) > 128 or len({
+            item.requirement_id for item in self.resource_requirements
+        }) != len(self.resource_requirements):
+            raise PackageManifestError("invalid resource requirements")
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,7 +211,7 @@ class SignedModuleManifest:
     maintenance_profile: ModuleMaintenanceProfile
 
     def __post_init__(self) -> None:
-        if type(self.schema_version) is not int or self.schema_version != 1:
+        if type(self.schema_version) is not int or self.schema_version not in {1, 2}:
             raise PackageManifestError("unsupported manifest schema_version")
         _module_id(self.module_id)
         _version(self.version)
@@ -264,6 +277,12 @@ class SignedModuleManifest:
             not isinstance(item, ModuleOperationProfile) for item in self.profiles
         ) or len({item.profile_id for item in self.profiles}) != len(self.profiles):
             raise PackageManifestError("operation profiles must be nonempty and unique")
+        if self.schema_version == 1 and any(
+            item.resource_requirements for item in self.profiles
+        ):
+            raise PackageManifestError(
+                "resource capability requirements require manifest schema_version 2"
+            )
         declared = {name for name, _ in self.capability_schemas}
         if any(not set(item.available_capability_ids).issubset(declared) for item in self.profiles):
             raise PackageManifestError("profile exposes undeclared capability")
@@ -292,7 +311,7 @@ class SignedModuleManifest:
 
     def unsigned_document(self) -> dict[str, object]:
         def profile(item: ModuleOperationProfile) -> dict[str, object]:
-            return {
+            document = {
                 "allowed_device_classes": list(item.allowed_device_classes),
                 "allowed_host_classes": list(item.allowed_host_classes),
                 "available_capability_ids": list(item.available_capability_ids),
@@ -303,6 +322,12 @@ class SignedModuleManifest:
                 "required_approval_class": item.required_approval_class,
                 "resource_envelope": [list(pair) for pair in item.resource_envelope],
             }
+            if self.schema_version >= 2:
+                document["resource_requirements"] = [
+                    requirement_to_document(requirement)
+                    for requirement in item.resource_requirements
+                ]
+            return document
         maintenance = self.maintenance_profile
         return {
             "api_maximum_exclusive": self.api_maximum_exclusive,
@@ -404,12 +429,16 @@ def parse_signed_manifest(document: object) -> SignedModuleManifest:
             "supported_versions", "update_policy",
         }),
     )
-    profile_keys = frozenset({
+    schema_version = top["schema_version"]
+    profile_keys = {
         "allowed_device_classes", "allowed_host_classes",
         "available_capability_ids", "data_classes", "permission_ceiling",
         "profile_id", "profile_version", "required_approval_class",
         "resource_envelope",
-    })
+    }
+    if schema_version == 2:
+        profile_keys.add("resource_requirements")
+    profile_keys = frozenset(profile_keys)
     try:
         profiles = tuple(
             ModuleOperationProfile(
@@ -422,6 +451,13 @@ def parse_signed_manifest(document: object) -> SignedModuleManifest:
                 _list(profile["allowed_host_classes"], label="profile hosts"),
                 _list(profile["allowed_device_classes"], label="profile devices"),
                 profile["required_approval_class"],
+                tuple(
+                    requirement_from_document(item)
+                    for item in (
+                        _list(profile["resource_requirements"], label="resource requirements")
+                        if schema_version == 2 else ()
+                    )
+                ),
             )
             for profile in (
                 _object(item, label="operation profile", keys=profile_keys)

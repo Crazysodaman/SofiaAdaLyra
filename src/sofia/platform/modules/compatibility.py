@@ -4,8 +4,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import field
 import re
+from datetime import datetime
 
 from .package import OperationProfileKind, SignedModuleManifest
+from sofia.platform.resources import (
+    ResourceSupply,
+    evaluate_resource_requirements,
+)
 
 
 _VERSION = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
@@ -25,6 +30,7 @@ class ModulePlatformTarget:
     available_devices: tuple[str, ...]
     resource_capacity: tuple[tuple[str, int], ...]
     allowed_isolation_profiles: tuple[str, ...]
+    resource_supply: ResourceSupply | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.os_arch, str) or not self.os_arch.strip():
@@ -41,6 +47,10 @@ class ModulePlatformTarget:
             for name, amount in self.resource_capacity
         ) or len({name for name, _ in self.resource_capacity}) != len(self.resource_capacity):
             raise ValueError("resource_capacity must be unique nonnegative pairs")
+        if self.resource_supply is not None and not isinstance(
+            self.resource_supply, ResourceSupply
+        ):
+            raise TypeError("resource_supply must be ResourceSupply or None")
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +76,7 @@ def evaluate_module_compatibility(
     manifest: SignedModuleManifest, *, profile: OperationProfileKind,
     target: ModulePlatformTarget,
     installed_dependencies: tuple[SignedModuleManifest, ...] = (),
+    now: datetime | None = None,
 ) -> ModuleCompatibilityReport:
     if not isinstance(manifest, SignedModuleManifest):
         raise TypeError("manifest must be SignedModuleManifest")
@@ -106,6 +117,21 @@ def evaluate_module_compatibility(
         for name, amount in selected.resource_envelope:
             if name not in capacity or capacity[name] < amount:
                 reasons.append(f"profile resource unavailable: {name}")
+        if selected.resource_requirements:
+            if target.resource_supply is None or now is None:
+                reasons.append("typed resource capability evidence is unavailable")
+            else:
+                assessment = evaluate_resource_requirements(
+                    target.resource_supply, selected.resource_requirements, now=now,
+                )
+                reasons.extend(
+                    f"resource requirement rejected: {identifier}: {reason}"
+                    for identifier, reason in assessment.rejected
+                )
+                reasons.extend(
+                    f"resource requirement unknown: {identifier}: {reason}"
+                    for identifier, reason in assessment.unknown
+                )
     by_id = {item.module_id: item for item in installed_dependencies}
     if len(by_id) != len(installed_dependencies):
         reasons.append("installed dependency identity is ambiguous")

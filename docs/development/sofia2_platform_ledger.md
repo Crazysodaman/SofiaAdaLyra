@@ -200,3 +200,39 @@ and remote Ollama integration paths remain executable but were not run because
 this environment has no approved installed model, enrolled worker, or mTLS
 credentials. HNF-08 remains **BETA** pending real-model equivalence, Windows,
 matching-revision CI, and independent review.
+
+## HNF-01 through HNF-04 resource contract checkpoint — 2026-10-24 UTC
+
+Canonical owners: `sofia.platform.resources`, existing OPS Fleet registry,
+existing signed module package/compatibility services, and canonical
+`sofia.db`. No second scheduler, trust registry, or state database was added.
+
+- Resource Capability Contract V1 uses typed capability keys, canonical units,
+  explicit manufacturer/observed/benchmark provenance, per-resource IDs,
+  freshness and UNKNOWN semantics. Deterministic predicates support equality,
+  minima/maxima/ranges, versions, sets, alternatives and same-device matching.
+  Two GPUs' VRAM is never summed to satisfy one-device demand.
+- Canonical inventory revisions preserve display identity separately from
+  immutable Fleet identity, parent VM/host relationships, enrollment/trust,
+  provenance facts and historical semantic changes. Discovery projects an
+  untrusted record; only the existing enrolled Fleet node binding can project
+  trusted inventory.
+- Live telemetry is bounded and restart durable. The existing OPS service
+  normalizes its legacy host metrics into the shared contract while treating
+  unsupported values as absent/UNKNOWN and representing legacy GPU telemetry
+  as one device only.
+- Signed manifest schema v1 remains byte-compatible. Schema v2 can bind typed
+  resource requirements to each operation profile; the reviewed compatibility
+  evaluator consumes current `ResourceSupply` evidence. Compatibility remains
+  advisory and creates no permission or lease.
+- Production Fleet discovery now updates the inventory projection after the
+  existing enrollment reconciler, without changing enrollment authority.
+
+Executed local Linux evidence:
+
+- HNF contract/inventory/telemetry, signed package/compatibility, OPS resource,
+  Fleet/background integration and package ownership: **72 passed**.
+
+Readiness is **BETA**. Complete authenticated per-device agent inventory,
+automatic benchmark scheduling/results, typed placement reservations, real
+multi-host trials, Windows, CI and independent review remain open.
