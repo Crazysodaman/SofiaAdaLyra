@@ -9,6 +9,7 @@ from .lifecycle import (
     ModuleChangePlan,
     ModuleInstallPlan,
     ModuleLifecycle,
+    ModuleLifecycleAuthorization,
     ModuleLifecycleHealth,
     ModuleLifecycleManager,
     ModuleLifecycleRecord,
@@ -38,7 +39,8 @@ from .observer import CanonicalPlatformModuleObserver
 
 __all__ = [
     "DependencyRequirement", "ModuleChangePlan", "ModuleCompatibilityReport",
-    "ModuleInstallPlan", "ModuleLifecycle", "ModuleLifecycleHealth",
+    "ModuleInstallPlan", "ModuleLifecycle", "ModuleLifecycleAuthorization",
+    "ModuleLifecycleHealth",
     "ModuleLifecycleManager", "ModuleLifecycleRecord",
     "ModuleMaintenanceProfile", "ModuleOperationProfile",
     "ModulePlatformTarget", "ModuleReadinessReport", "OperationProfileKind",

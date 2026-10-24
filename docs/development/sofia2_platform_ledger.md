@@ -15,7 +15,10 @@ is not a release certificate or permission to deploy.
   overwritten
 - Production state and hosts: not opened, changed, restarted, enrolled, or
   migrated
-- Publication: no commit or push; owner authorization remains required
+- First reconciled publication: commit `e8f062ea` was pushed to `origin/main`
+  on 2026-10-24 after explicit owner instruction. GitHub Actions status could
+  not be queried because the available GitHub API credential returned
+  `Forbidden`; no matching-revision CI claim is made.
 
 ## Reconciled implementation slices
 
@@ -66,9 +69,24 @@ Windows service, and real-provider host acceptance remain open.
 
 ## Next eligible work
 
-Wire the verified module lifecycle through an application-owned Platform
-facade using existing SAFE and RUN receipts, then project signed manifest
-capabilities/components into the Core observer. After that, complete the
-remaining component supervision/recovery integration and the Platform Control
-Center views. Keep effectful transitions inert until an authenticated approval
-and existing execution boundary admit them.
+The application-owned module command boundary is now implemented in the
+working tree. It constructs the canonical lifecycle manager during
+`SofiaApplication` composition, classifies every lifecycle mutation as a
+protected SAFE capability, and consumes an exact FIDO2-bound one-use approval
+containing module identity, version, digest, revision, target lifecycle and
+profile. Operator STOP blocks authority-increasing transitions; discovery
+remains inert. Focused evidence: **25 passed** across lifecycle, command
+boundary and application module-awareness tests, plus **64 passed** across
+execution fingerprints, STOP revision handling, runtime authorization wiring
+and permission-store tests. The broader Platform selection passed **100/100**.
+The full non-integration SAFE marker completed with **1,805 passed, 2 skipped,
+8 failed** solely because its first sandbox run denied loopback sockets; the
+four affected mobile/WebAuthn files then passed **36/36** after bounded network
+permission was granted. This slice is not yet a pushed checkpoint and has no
+CI evidence.
+
+Next, project signed manifest capabilities/components into the Core observer
+without importing untrusted module code. After that, complete remaining
+component supervision/recovery integration and Platform Control Center views.
+Keep effectful transitions inert until authenticated approval and the existing
+execution boundary admit them.

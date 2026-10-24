@@ -61,8 +61,11 @@ def manager(path, store_root, system, *, allowed=True):
     calls = []
     instance = ModuleLifecycleManager(
         state_path=path, store_root=store_root, capability_system=system,
-        authorizer=lambda action, module_id, operation_ref, now: (
-            calls.append((action, module_id, operation_ref)) or allowed
+        authorizer=lambda request: (
+            calls.append(
+                (request.operation, request.module_id, request.operation_ref)
+            )
+            or allowed
         ),
     )
     return instance, calls
@@ -114,7 +117,7 @@ def test_signed_package_stages_immutably_and_activates_reviewed_adapter(
     )
     assert active.lifecycle is ModuleLifecycle.ACTIVE
     assert system.capability_names() == ("research.search",)
-    assert [item[0] for item in calls] == ["approved", "staged", "active"]
+    assert [item[0] for item in calls] == ["approve", "stage", "activate"]
 
 
 def test_unauthorized_stage_creates_no_package_files(canonical_state_path, tmp_path):
@@ -175,7 +178,7 @@ def test_incompatible_target_cannot_activate_signed_package(
             operation_ref="approval:activate", actor="principal:sparks", now=NOW,
         )
     assert system.capability_names() == ()
-    assert calls[-1][0] == "staged"
+    assert calls[-1][0] == "stage"
 
 
 def test_pause_removes_exact_module_capabilities(canonical_state_path, tmp_path):
@@ -329,7 +332,7 @@ def test_pause_resume_quarantine_disable_and_remove_are_authorized_and_bounded(
     assert system.capability_names() == ()
     assert (tmp_path / "store" / package.package_digest).is_dir()
     assert [call[0] for call in calls][-6:] == [
-        "active", "paused", "active", "quarantined", "installed_disabled", "removed",
+        "activate", "pause", "resume", "quarantine", "disable", "remove",
     ]
 
 
@@ -361,7 +364,7 @@ def test_verified_update_and_rollback_preserve_history_without_auto_activation(
     )
     assert rolled_back.version == "9.0.0"
     assert rolled_back.lifecycle is ModuleLifecycle.STAGED
-    assert [item[0] for item in calls][-2:] == ["updating", "rolling_back"]
+    assert [item[0] for item in calls][-2:] == ["update", "rollback"]
 
 
 def test_dependency_aware_removal_refuses_installed_dependents(

@@ -53,6 +53,9 @@ from sofia.core.social.principals import (
 )
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.platform.modules import CanonicalPlatformModuleObserver
+from sofia.platform.application.module_lifecycle import (
+    ModuleLifecycleCommandService,
+)
 
 NOW = datetime(2026, 7, 5, 9, 30, tzinfo=timezone.utc)
 
@@ -628,6 +631,11 @@ def test_bootstrap_wiring_and_conversation_reach(
 
     monkeypatch.setattr(app.runtime, "respond", respond)
     assert isinstance(app.module_awareness, CapabilitySelfModel)
+    assert isinstance(app.module_lifecycle, ModuleLifecycleCommandService)
+    assert (
+        app.module_lifecycle.manager.capability_system
+        is app.runtime.capability_system
+    )
     assert isinstance(
         app.module_awareness._platform, CanonicalPlatformModuleObserver
     )

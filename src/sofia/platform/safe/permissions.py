@@ -278,6 +278,16 @@ _REVERSIBLE = frozenset({
 })
 
 _PROTECTED = frozenset({
+    "module.approve",
+    "module.stage",
+    "module.activate",
+    "module.resume",
+    "module.pause",
+    "module.disable",
+    "module.quarantine",
+    "module.update",
+    "module.rollback",
+    "module.remove",
     "fleet.enroll",
     "workshop.vm.provision",
     "workshop.vm.quarantine",

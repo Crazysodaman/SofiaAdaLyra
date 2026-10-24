@@ -78,6 +78,9 @@ from sofia.core.rel.impressions import ImpressionService, ImpressionStore
 from sofia.core.rel.repair import RepairService, RepairStore
 from sofia.core.modreg.platform import PlatformModuleObserver
 from sofia.platform.modules.observer import CanonicalPlatformModuleObserver
+from sofia.platform.application.module_lifecycle import (
+    ModuleLifecycleCommandService,
+)
 from sofia.core.modreg.proposals import ModuleProposalService, ModuleProposalStore
 from sofia.core.modreg.registry import ModuleRegistryService, ModuleRegistryStore
 from sofia.core.modreg.self_model import CapabilitySelfModel
@@ -356,6 +359,11 @@ class SofiaApplication:
         self._repair = RepairService(self._repair_store)
         self._module_registry = ModuleRegistryService(
             ModuleRegistryStore(configuration.state_path)
+        )
+        self._module_lifecycle = ModuleLifecycleCommandService(
+            state_path=Path(configuration.state_path),
+            store_root=Path(configuration.state_path).parent / "module-store",
+            capability_system=self._runtime.capability_system,
         )
         self._module_awareness = CapabilitySelfModel(
             self._module_registry,
@@ -658,6 +666,11 @@ class SofiaApplication:
     def module_registry(self) -> ModuleRegistryService:
         """Owner-session registry for Sofía's own module manifests."""
         return self._module_registry
+
+    @property
+    def module_lifecycle(self) -> ModuleLifecycleCommandService:
+        """Platform-owned signed module lifecycle and exact SAFE boundary."""
+        return self._module_lifecycle
 
     @property
     def module_awareness(self) -> CapabilitySelfModel:

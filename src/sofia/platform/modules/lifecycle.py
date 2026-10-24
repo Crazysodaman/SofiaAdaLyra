@@ -81,7 +81,68 @@ class ModuleLifecycleHealth:
     revision: int
 
 
-LifecycleAuthorizer = Callable[[str, str, str, datetime], bool]
+@dataclass(frozen=True, slots=True)
+class ModuleLifecycleAuthorization:
+    """Exact, inert lifecycle operation presented to the authority boundary."""
+
+    operation: str
+    module_id: str
+    version: str
+    package_digest: str
+    expected_revision: int
+    target_lifecycle: ModuleLifecycle
+    operation_ref: str
+    actor: str
+    occurred_at: datetime
+    profile: OperationProfileKind | None = None
+
+    def __post_init__(self) -> None:
+        if self.operation not in {
+            "approve", "stage", "activate", "resume", "pause", "disable",
+            "quarantine", "update", "rollback", "remove",
+        }:
+            raise ValueError("unsupported module lifecycle operation")
+        for label, value in (
+            ("module_id", self.module_id),
+            ("version", self.version),
+            ("package_digest", self.package_digest),
+            ("operation_ref", self.operation_ref),
+            ("actor", self.actor),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{label} must be nonempty")
+        if type(self.expected_revision) is not int or self.expected_revision < 1:
+            raise ValueError("expected_revision must be a positive integer")
+        if not isinstance(self.target_lifecycle, ModuleLifecycle):
+            raise TypeError("target_lifecycle must be ModuleLifecycle")
+        if (
+            not isinstance(self.occurred_at, datetime)
+            or self.occurred_at.tzinfo is None
+            or self.occurred_at.utcoffset() is None
+        ):
+            raise ValueError("occurred_at must be timezone-aware")
+        if self.profile is not None and not isinstance(
+            self.profile, OperationProfileKind
+        ):
+            raise TypeError("profile must be OperationProfileKind or None")
+
+    @property
+    def capability(self) -> str:
+        return f"module.{self.operation}"
+
+    @property
+    def parameters(self) -> dict[str, object]:
+        return {
+            "module_id": self.module_id,
+            "version": self.version,
+            "package_digest": self.package_digest,
+            "expected_revision": self.expected_revision,
+            "target_lifecycle": self.target_lifecycle.value,
+            "profile": None if self.profile is None else self.profile.value,
+        }
+
+
+LifecycleAuthorizer = Callable[[ModuleLifecycleAuthorization], bool]
 
 
 class ModuleLifecycleManager:
@@ -287,15 +348,49 @@ class ModuleLifecycleManager:
             current.revision,
         )
 
+    def _authorize(
+        self, *, operation: str, current: ModuleLifecycleRecord,
+        expected_revision: int, target: ModuleLifecycle, operation_ref: str,
+        actor: str, now: datetime, profile: OperationProfileKind | None = None,
+        package: VerifiedModulePackage | None = None,
+    ) -> None:
+        selected = package.manifest if package is not None else None
+        request = ModuleLifecycleAuthorization(
+            operation=operation,
+            module_id=current.module_id,
+            version=current.version if selected is None else selected.version,
+            package_digest=(
+                current.package_digest
+                if package is None else package.package_digest
+            ),
+            expected_revision=expected_revision,
+            target_lifecycle=target,
+            operation_ref=operation_ref,
+            actor=actor,
+            occurred_at=now.astimezone(timezone.utc),
+            profile=profile,
+        )
+        if not self.authorizer(request):
+            raise PermissionError("module lifecycle operation is not authorized")
+
     def _transition(self, module_id: str, *, expected_revision: int,
                     allowed: tuple[ModuleLifecycle, ...], target: ModuleLifecycle,
                     operation_ref: str, actor: str, reason: str, now: datetime,
                     staged_path: str | None = None,
                     active_profile: OperationProfileKind | None = None,
+                    authorization_operation: str | None = None,
                     authorized: bool = True) -> ModuleLifecycleRecord:
         moment = now.astimezone(timezone.utc)
-        if authorized and not self.authorizer(target.value, module_id, operation_ref, moment):
-            raise PermissionError("module lifecycle operation is not authorized")
+        current = self.describe(module_id)
+        if current is None:
+            raise LookupError("unknown module")
+        if authorized:
+            self._authorize(
+                operation=authorization_operation or target.value,
+                current=current, expected_revision=expected_revision,
+                target=target, operation_ref=operation_ref, actor=actor,
+                now=moment, profile=active_profile,
+            )
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -333,6 +428,7 @@ class ModuleLifecycleManager:
             allowed=(ModuleLifecycle.VALIDATED, ModuleLifecycle.REVIEW_PENDING),
             target=ModuleLifecycle.APPROVED, operation_ref=operation_ref,
             actor=actor, reason="package approved for staging", now=now,
+            authorization_operation="approve",
         )
 
     def _store_package(self, package: VerifiedModulePackage) -> tuple[Path, bool]:
@@ -395,8 +491,11 @@ class ModuleLifecycleManager:
         current = self.describe(package.manifest.module_id)
         if current is None or current.package_digest != package.package_digest:
             raise RuntimeError("verified package differs from lifecycle record")
-        if not self.authorizer("staged", current.module_id, operation_ref, now):
-            raise PermissionError("module staging is not authorized")
+        self._authorize(
+            operation="stage", current=current,
+            expected_revision=expected_revision, target=ModuleLifecycle.STAGED,
+            operation_ref=operation_ref, actor=actor, now=now, package=package,
+        )
         destination, newly_created = self._store_package(package)
         try:
             return self._transition(
@@ -419,13 +518,17 @@ class ModuleLifecycleManager:
                  operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
         self._validate_compatibility(package, profile, compatibility)
         self._validate_registrations(package, profile, registrations)
-        if not self.authorizer("active", package.manifest.module_id, operation_ref, now):
-            raise PermissionError("module activation is not authorized")
         current = self.describe(package.manifest.module_id)
         if current is None or current.package_digest != package.package_digest:
             raise RuntimeError("verified package differs from lifecycle record")
         if current.lifecycle is not ModuleLifecycle.STAGED:
             raise RuntimeError("only staged modules may activate")
+        self._authorize(
+            operation="activate", current=current,
+            expected_revision=expected_revision, target=ModuleLifecycle.ACTIVE,
+            operation_ref=operation_ref, actor=actor, now=now,
+            profile=profile, package=package,
+        )
         self.capability_system.register_batch(registrations)
         try:
             result = self._transition(
@@ -487,8 +590,12 @@ class ModuleLifecycleManager:
             raise RuntimeError("verified package differs from lifecycle record")
         if current.lifecycle is not ModuleLifecycle.PAUSED:
             raise RuntimeError("only paused modules may resume")
-        if not self.authorizer("active", current.module_id, operation_ref, now):
-            raise PermissionError("module resume is not authorized")
+        self._authorize(
+            operation="resume", current=current,
+            expected_revision=expected_revision, target=ModuleLifecycle.ACTIVE,
+            operation_ref=operation_ref, actor=actor, now=now,
+            profile=profile, package=package,
+        )
         self.capability_system.register_batch(registrations)
         try:
             result = self._transition(
@@ -509,8 +616,14 @@ class ModuleLifecycleManager:
         batch = self._active_batches.get(module_id)
         if batch is None:
             raise RuntimeError("active adapter batch is unavailable")
-        if not self.authorizer("paused", module_id, operation_ref, now):
-            raise PermissionError("module pause is not authorized")
+        current = self.describe(module_id)
+        if current is None:
+            raise LookupError("unknown module")
+        self._authorize(
+            operation="pause", current=current,
+            expected_revision=expected_revision, target=ModuleLifecycle.PAUSED,
+            operation_ref=operation_ref, actor=actor, now=now,
+        )
         self.capability_system.unregister_batch(batch)
         try:
             result = self._transition(
@@ -537,14 +650,22 @@ class ModuleLifecycleManager:
             target=ModuleLifecycle.INSTALLED_DISABLED,
             operation_ref=operation_ref, actor=actor,
             reason="module disabled; no capabilities registered", now=now,
+            authorization_operation="disable",
         )
 
     def quarantine(self, module_id: str, *, expected_revision: int,
                    operation_ref: str, actor: str, reason: str,
                    now: datetime) -> ModuleLifecycleRecord:
         batch = self._active_batches.get(module_id)
-        if not self.authorizer("quarantined", module_id, operation_ref, now):
-            raise PermissionError("module quarantine is not authorized")
+        current = self.describe(module_id)
+        if current is None:
+            raise LookupError("unknown module")
+        self._authorize(
+            operation="quarantine", current=current,
+            expected_revision=expected_revision,
+            target=ModuleLifecycle.QUARANTINED,
+            operation_ref=operation_ref, actor=actor, now=now,
+        )
         if batch is not None:
             self.capability_system.unregister_batch(batch)
         try:
@@ -584,10 +705,13 @@ class ModuleLifecycleManager:
             raise RuntimeError("module must be inactive before update")
         if _authorization_action not in {"updating", "rolling_back"}:
             raise ValueError("unsupported package replacement action")
-        if not self.authorizer(
-            _authorization_action, current.module_id, operation_ref, now,
-        ):
-            raise PermissionError("module update is not authorized")
+        operation = "rollback" if _authorization_action == "rolling_back" else "update"
+        self._authorize(
+            operation=operation, current=current,
+            expected_revision=expected_revision, target=ModuleLifecycle.STAGED,
+            operation_ref=operation_ref, actor=actor, now=now,
+            profile=profile, package=package,
+        )
         moment = now.astimezone(timezone.utc)
         destination, newly_created = self._store_package(package)
         try:
@@ -699,5 +823,5 @@ class ModuleLifecycleManager:
             target=ModuleLifecycle.REMOVED,
             operation_ref=operation_ref, actor=actor,
             reason="module removed from service; immutable evidence retained",
-            now=now,
+            now=now, authorization_operation="remove",
         )
