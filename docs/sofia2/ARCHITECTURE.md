@@ -127,6 +127,14 @@ The [hardware-neutral Fleet, near-1:1 resource contract, idle benchmarking and i
 - Initial benchmark jobs are queued as soon as supported hardware is discovered and run automatically on the **earliest verified idle, safe, bounded and resource-reservable window**. Gaming, owner activity, thermal risk, outdated observations, STOP and higher-priority work defer/preempt tests. No download, unsafe device action or extra privilege follows from benchmarking.
 - **No canonical writer migration**, automatic model substitution or unauthorized worker fallback is implied. Actual deployments require separate host-level commissioning evidence.
 
+## Approved component isolation and unified SDK (2026-10-24)
+
+See [Component-isolated updates and unified SDK V1](COMPONENT_UPDATES_AND_UNIFIED_SDK_V1.md).
+
+The target Platform is a long-lived single-authority control plane; independently hosted Core, inference and optional-module workers are replaceable under its existing SAFE/RUN supervisor and signed release authority. An update to Core restarts only the Core worker, and an update to one module restarts only that module, **once real IPC/process boundaries and generation fencing have been implemented and tested**. Platform executable/ABI changes require coordinated restart when necessary. The current single Python application composition is not yet proof of this behavior.
+
+The **Sofía SDK** is a versioned shared development/runtime protocol family with Platform, Core and Module facades plus optional tooling. It is not another state-owning service or an installable module with inherent privileges. An optional developer/Workshop module may expose its tooling to Sofía under pre-existing authorization, but no SDK call can mint permissions, migrate canonical state or directly execute otherwise-protected actions.
+
 ## Future architecture revisions
 
 Any change to a critical boundary requires: evidence of current behavior; ADR-style decision; compatibility contract; narrow implementation batch; rollback; source-specific tests; explicit approval if protected authority or canonical writer would change. A new version label alone does not justify a rewrite.
