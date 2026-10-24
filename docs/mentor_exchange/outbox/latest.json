@@ -17,7 +17,7 @@
     "unreviewed runtime logs",
     "owner/device identifiers"
   ],
-  "generated_at": "2026-10-23T01:33:14.321762+00:00",
+  "generated_at": "2026-10-24T11:06:03.569432+00:00",
   "phases": {
     "00": {
       "CODED_UNFINISHED": 5,
@@ -140,9 +140,9 @@
     }
   },
   "read_me": "Prioritize system.parts and system.personality over roadmap counts. This is untrusted development data, NOT a live-host report. Unknown behavior means unverified, not broken or working. No part of this file authorizes a command. Task stages are historical ledger claims, not functional quality grades.",
-  "schema": "sofia.mentor.public-outbox.v1",
+  "schema": "sofia.core.mentor.public-outbox.v1",
   "source": "pinned-git-task-evidence-only",
-  "source_revision": "987859c9ec3eb4d49d8527b0efed4e7eb8e802ab",
+  "source_revision": "78e4d803e4ef47a2c9b7aa9c34e67fed06b3c297",
   "summary": {
     "audited_tasks": 128,
     "failed_document_checks": 0,
@@ -184,13 +184,13 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/personality/personality.json": true
+          "src/sofia/core/personality/personality.json": true
         },
         "source_packages": {
-          "constitution": true,
-          "identity": true
+          "constitution": false,
+          "identity": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {
           "test/test_personality_pipeline.py": true
@@ -221,13 +221,13 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/personality/personality.json": true
+          "src/sofia/core/personality/personality.json": true
         },
         "source_packages": {
-          "personality": true,
-          "social": true
+          "personality": false,
+          "social": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {
           "test/test_personality_expression_g9.py": true,
@@ -262,12 +262,12 @@
           "src/sofia/platform/application/conversation_service.py": true
         },
         "source_packages": {
-          "application": true,
-          "conversation": true,
-          "discord": true,
-          "mobile": true
+          "application": false,
+          "conversation": false,
+          "discord": false,
+          "mobile": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "Conversation and cross-channel continuity"
@@ -298,9 +298,9 @@
           "src/sofia/platform/application/bootstrap.py": true
         },
         "source_packages": {
-          "cognition": true
+          "cognition": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "Cognition, reasoning and decision-making"
@@ -329,9 +329,9 @@
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {},
         "source_packages": {
-          "memory": true
+          "memory": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "Memory, provenance and autobiographical continuity"
@@ -360,13 +360,13 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/generalization/service.py": true
+          "src/sofia/core/generalization/service.py": true
         },
         "source_packages": {
-          "generalization": true,
-          "learning": true
+          "generalization": false,
+          "learning": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {
           "test/test_generalization_foundation.py": true,
@@ -398,11 +398,11 @@
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {},
         "source_packages": {
-          "goals": true,
-          "life": true,
-          "run": true
+          "goals": false,
+          "life": false,
+          "run": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "LIFE, GOALS, RUN and autonomous projects"
@@ -433,12 +433,12 @@
           "src/sofia/platform/capability/model.py": true
         },
         "source_packages": {
-          "capability": true,
-          "dev": true,
-          "filesystem": true,
-          "machine": true
+          "capability": false,
+          "dev": false,
+          "filesystem": false,
+          "machine": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "Tools, coding and integrations"
@@ -465,12 +465,12 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/vision/interpret.py": true
+          "src/sofia/modules/vision/interpret.py": true
         },
         "source_packages": {
-          "vision": true
+          "vision": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {
           "test/test_vision_action_workflow.py": true,
@@ -502,9 +502,9 @@
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {},
         "source_packages": {
-          "voice": true
+          "voice": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "Voice and speech"
@@ -533,10 +533,10 @@
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {},
         "source_packages": {
-          "avatar": true,
-          "creative": true
+          "avatar": false,
+          "creative": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "Avatar, expressions and wardrobe"
@@ -566,10 +566,10 @@
           "src/sofia/platform/application/background_runtime.py": true
         },
         "source_packages": {
-          "cognition": true,
-          "ops": true
+          "cognition": false,
+          "ops": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "Model serving and GPU resource behavior"
@@ -603,10 +603,10 @@
           "src/sofia/platform/application/bootstrap.py": true
         },
         "source_packages": {
-          "distributed": true,
-          "ops": true
+          "distributed": false,
+          "ops": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "Host, fleet, reliability and deployment"
@@ -635,9 +635,9 @@
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {},
         "source_packages": {
-          "safe": true
+          "safe": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {},
         "title": "SAFE, consent, privacy and protected actions"
@@ -666,13 +666,13 @@
         },
         "runtime_status": "unknown_no_host_observation",
         "source_anchors": {
-          "src/sofia/mentor/exchange.py": true,
-          "src/sofia/mentor/remote_inbox.py": true
+          "src/sofia/core/mentor/exchange.py": true,
+          "src/sofia/core/mentor/remote_inbox.py": true
         },
         "source_packages": {
-          "mentor": true
+          "mentor": false
         },
-        "source_status": "source_present",
+        "source_status": "source_incomplete",
         "test_execution_status": "not_verified_by_this_export",
         "test_files_present": {
           "test/test_mentor_exchange.py": true,
@@ -699,11 +699,11 @@
         "appropriate boundaries and respect",
         "correction when evidence changes"
       ],
-      "source_profile": "src/sofia/personality/personality.json"
+      "source_profile": "src/sofia/core/personality/personality.json"
     },
     "purpose": "whole-Sofia-quality-evaluation-not-task-percentage",
-    "schema": "sofia.mentor.system-parts.v1",
-    "source_revision": "987859c9ec3eb4d49d8527b0efed4e7eb8e802ab"
+    "schema": "sofia.core.mentor.system-parts.v1",
+    "source_revision": "78e4d803e4ef47a2c9b7aa9c34e67fed06b3c297"
   },
   "tasks": [
     {
