@@ -15,6 +15,10 @@ from sofia.core.modreg.platform import (
     PlatformModuleObserver,
 )
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.safe.permissions import (
+    PermissionLevel,
+    capability_permission_policy,
+)
 
 from .lifecycle import ModuleLifecycle
 
@@ -56,7 +60,9 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
         self.max_active_age = max_active_age
         self.host_identity = host_identity
 
-    def _rows(self) -> tuple[sqlite3.Row, ...]:
+    def _snapshot(
+        self,
+    ) -> tuple[tuple[sqlite3.Row, ...], dict[str, tuple[str, ...]]]:
         with closing(
             self._guard.connect(timeout=10.0, read_only=True)
         ) as db:
@@ -66,30 +72,71 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
                 "AND name='platform_module_lifecycle'"
             ).fetchone()
             if exists is None:
-                return ()
+                return (), {}
             rows = db.execute(
                 "SELECT module_id,version,lifecycle,active_profile,updated_at "
                 "FROM platform_module_lifecycle ORDER BY module_id"
             ).fetchall()
-        return tuple(rows)
+            capability_table = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='platform_module_capability'"
+            ).fetchone()
+            capability_rows = (
+                ()
+                if capability_table is None
+                else db.execute(
+                    "SELECT module_id,capability_id "
+                    "FROM platform_module_capability "
+                    "ORDER BY module_id,capability_id"
+                ).fetchall()
+            )
+        capabilities: dict[str, list[str]] = {}
+        for row in capability_rows:
+            capabilities.setdefault(str(row["module_id"]), []).append(
+                str(row["capability_id"])
+            )
+        return tuple(rows), {
+            module_id: tuple(names)
+            for module_id, names in capabilities.items()
+        }
+
+    def _rows(self) -> tuple[sqlite3.Row, ...]:
+        return self._snapshot()[0]
 
     def described(self) -> tuple[ModuleDescribeObservation, ...]:
         now = datetime.now(timezone.utc)
-        return tuple(
-            ModuleDescribeObservation(
-                module_id=str(row["module_id"]),
-                version=str(row["version"]),
-                capabilities=(),
-                requires_permission=frozenset(),
-                active_profile=(
-                    "DISABLED" if row["active_profile"] is None
-                    else str(row["active_profile"])
-                ),
-                simulated_only=frozenset(),
-                observed_at=now,
+        rows, declared = self._snapshot()
+        result = []
+        for row in rows:
+            if str(row["lifecycle"]) not in _INSTALLED:
+                continue
+            module_id = str(row["module_id"])
+            capabilities = declared.get(module_id, ())
+            profile = (
+                "DISABLED" if row["active_profile"] is None
+                else str(row["active_profile"])
             )
-            for row in self._rows()
-            if str(row["lifecycle"]) in _INSTALLED
+            requires_permission = frozenset(
+                capability
+                for capability in capabilities
+                if capability_permission_policy(capability).level
+                > PermissionLevel.SAFE_AUTONOMOUS
+            )
+            simulated_only = (
+                frozenset(capabilities)
+                if profile == "simulate" else frozenset()
+            )
+            result.append(ModuleDescribeObservation(
+                module_id=module_id,
+                version=str(row["version"]),
+                capabilities=capabilities,
+                requires_permission=requires_permission,
+                active_profile=profile,
+                simulated_only=simulated_only,
+                observed_at=now,
+            ))
+        return tuple(
+            result
         )
 
     def health(self) -> tuple[ModuleHealthObservation, ...]:

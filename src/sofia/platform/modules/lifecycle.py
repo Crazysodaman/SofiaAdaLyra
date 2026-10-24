@@ -192,6 +192,10 @@ class ModuleLifecycleManager:
                     module_id TEXT NOT NULL,dependency_id TEXT NOT NULL,
                     minimum_version TEXT NOT NULL,maximum_version_exclusive TEXT,
                     PRIMARY KEY(module_id,dependency_id));
+                CREATE TABLE IF NOT EXISTS platform_module_capability(
+                    module_id TEXT NOT NULL,capability_id TEXT NOT NULL,
+                    schema_ref TEXT NOT NULL,
+                    PRIMARY KEY(module_id,capability_id));
                 """
             )
             rows = db.execute(
@@ -298,6 +302,14 @@ class ModuleLifecycleManager:
                 tuple((package.manifest.module_id, item.module_id,
                        item.minimum_version, item.maximum_version_exclusive)
                       for item in package.manifest.dependencies),
+            )
+            db.executemany(
+                "INSERT INTO platform_module_capability VALUES(?,?,?)",
+                tuple(
+                    (package.manifest.module_id, capability_id, schema_ref)
+                    for capability_id, schema_ref
+                    in package.manifest.capability_schemas
+                ),
             )
         return self.describe(package.manifest.module_id)  # type: ignore[return-value]
 
@@ -752,6 +764,18 @@ class ModuleLifecycleManager:
                     tuple((current.module_id, item.module_id, item.minimum_version,
                            item.maximum_version_exclusive)
                           for item in package.manifest.dependencies),
+                )
+                db.execute(
+                    "DELETE FROM platform_module_capability WHERE module_id=?",
+                    (current.module_id,),
+                )
+                db.executemany(
+                    "INSERT INTO platform_module_capability VALUES(?,?,?)",
+                    tuple(
+                        (current.module_id, capability_id, schema_ref)
+                        for capability_id, schema_ref
+                        in package.manifest.capability_schemas
+                    ),
                 )
                 db.execute(
                     "INSERT INTO platform_module_lifecycle_event VALUES(NULL,?,?,?,?,?,?,?,?)",

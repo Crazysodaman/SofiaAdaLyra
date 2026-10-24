@@ -82,11 +82,20 @@ and permission-store tests. The broader Platform selection passed **100/100**.
 The full non-integration SAFE marker completed with **1,805 passed, 2 skipped,
 8 failed** solely because its first sandbox run denied loopback sockets; the
 four affected mobile/WebAuthn files then passed **36/36** after bounded network
-permission was granted. This slice is not yet a pushed checkpoint and has no
-CI evidence.
+permission was granted. The slice was published as commit `914ed766` on
+`origin/main` after owner instruction; it has no matching-revision CI evidence.
 
-Next, project signed manifest capabilities/components into the Core observer
-without importing untrusted module code. After that, complete remaining
-component supervision/recovery integration and Platform Control Center views.
-Keep effectful transitions inert until authenticated approval and the existing
-execution boundary admit them.
+Signed capability projection is implemented in the next working-tree slice.
+The lifecycle manager persists capability IDs and schema references from the
+already verified manifest in canonical SQLite, including atomic replacement on
+update/rollback. The Core observer reads those declarations as data without
+importing package code, derives only whether a capability's Platform policy
+requires authority, and never reports a current grant. Focused lifecycle,
+observer, Core-awareness and SAFE-policy evidence: **60 passed**. This slice is
+not yet a pushed checkpoint or matching-revision CI evidence.
+
+Next, complete remaining component supervision/recovery integration and the
+Platform Control Center views. Lifecycle commands still need durable RUN
+envelopes before asynchronous/external module operations can be considered
+complete. Keep effectful transitions inert until authenticated approval and
+the existing execution boundary admit them.
