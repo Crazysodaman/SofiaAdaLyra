@@ -77,6 +77,7 @@ from sofia.core.communication import CommunicationLearningService, ShorthandStor
 from sofia.core.rel.impressions import ImpressionService, ImpressionStore
 from sofia.core.rel.repair import RepairService, RepairStore
 from sofia.core.modreg.platform import PlatformModuleObserver
+from sofia.platform.modules.observer import CanonicalPlatformModuleObserver
 from sofia.core.modreg.proposals import ModuleProposalService, ModuleProposalStore
 from sofia.core.modreg.registry import ModuleRegistryService, ModuleRegistryStore
 from sofia.core.modreg.self_model import CapabilitySelfModel
@@ -268,9 +269,12 @@ class SofiaApplication:
         self._neuro_telemetry = None
         self._neuro_telemetry_at: datetime | None = None
         self._last_neuro_input_error: str | None = None
+        self._goal_evidence_index = GoalEvidenceIndex(
+            configuration.state_path
+        )
         self._goals = GoalService(
             GoalStore(self._runtime.state_plane),
-            evidence_verifier=GoalEvidenceIndex(configuration.state_path),
+            evidence_verifier=self._goal_evidence_index,
         )
         self._cognitive_evidence = CognitiveEvidenceLedger(
             configuration.state_path
@@ -353,7 +357,10 @@ class SofiaApplication:
         self._module_registry = ModuleRegistryService(
             ModuleRegistryStore(configuration.state_path)
         )
-        self._module_awareness = CapabilitySelfModel(self._module_registry, None)
+        self._module_awareness = CapabilitySelfModel(
+            self._module_registry,
+            CanonicalPlatformModuleObserver(configuration.state_path),
+        )
         self._module_proposals = ModuleProposalService(
             ModuleProposalStore(configuration.state_path),
             self._module_awareness,
@@ -388,12 +395,16 @@ class SofiaApplication:
             self._preference_registry
         )
         self._conviction_store = ConvictionStore(configuration.state_path)
-        self._beliefs = BeliefsService(self._conviction_store)
+        self._beliefs = BeliefsService(
+            self._conviction_store,
+            evidence_verifier=self._goal_evidence_index,
+        )
         self._trait_evolution_store = TraitEvolutionStore(
             configuration.state_path
         )
         self._personality_evolution = PersonalityEvolutionService(
-            self._trait_evolution_store
+            self._trait_evolution_store,
+            evidence_verifier=self._goal_evidence_index,
         )
         self._nickname_registry = NicknameRegistry(configuration.state_path)
         self._world_store = VirtualWorldStore(configuration.state_path)

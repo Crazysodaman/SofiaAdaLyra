@@ -222,9 +222,9 @@ def test_production_discord_reads_saved_settings_from_live_state(
     seed_root = Path(__file__).resolve().parents[1] / "src" / "sofia"
     protected_root.mkdir(parents=True)
     for target, source in (
-        ("constitution.md", seed_root / "constitution" / "constitution.md"),
-        ("constitution.sha256", seed_root / "constitution" / "constitution.sha256"),
-        ("identity.json", seed_root / "identity" / "identity.json"),
+        ("constitution.md", seed_root / "core" / "constitution" / "constitution.md"),
+        ("constitution.sha256", seed_root / "core" / "constitution" / "constitution.sha256"),
+        ("identity.json", seed_root / "core" / "identity" / "identity.json"),
     ):
         (protected_root / target).write_bytes(source.read_bytes())
     bootstrap_canonical_sqlite(state_root / "sofia.db")

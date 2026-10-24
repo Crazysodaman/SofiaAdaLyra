@@ -29,7 +29,7 @@ from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 # Git checkout metadata comes from the caller's exact working checkout.
 # Installed runtime data must instead come from the actual imported wheel.
 PROJECT_ROOT = Path.cwd().resolve()
-INSTALLED_SOFIA_ROOT = Path(__file__).resolve().parents[1]
+INSTALLED_SOFIA_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _rss_peak_bytes() -> int | None:
@@ -71,8 +71,9 @@ def _configuration(root: Path) -> SofiaConfiguration:
     )
     source = INSTALLED_SOFIA_ROOT
     for relative in (
-        "constitution/constitution.md", "constitution/constitution.sha256",
-        "identity/identity.json", "embodiment/avatar.json",
+        "core/constitution/constitution.md",
+        "core/constitution/constitution.sha256",
+        "core/identity/identity.json", "core/embodiment/avatar.json",
     ):
         path = source / relative
         if not path.is_file():
@@ -80,13 +81,15 @@ def _configuration(root: Path) -> SofiaConfiguration:
                 f"installed Sofía distribution lacks required {relative}"
             )
     return SofiaConfiguration(
-        constitution_path=str(source / "constitution" / "constitution.md"),
-        constitution_hash_path=str(
-            source / "constitution" / "constitution.sha256"
+        constitution_path=str(
+            source / "core" / "constitution" / "constitution.md"
         ),
-        identity_path=str(source / "identity" / "identity.json"),
+        constitution_hash_path=str(
+            source / "core" / "constitution" / "constitution.sha256"
+        ),
+        identity_path=str(source / "core" / "identity" / "identity.json"),
         personality_path=str(personality),
-        avatar_path=str(source / "embodiment" / "avatar.json"),
+        avatar_path=str(source / "core" / "embodiment" / "avatar.json"),
         state_path=str(root / "sofia.db"),
         provider=ProviderConfiguration(provider="test", model="test"),
         filesystem_root=root,

@@ -7,6 +7,7 @@ evidence. Discovery, validation, and health projection never execute
 candidate code and never grant authority.
 """
 from sofia.core.modreg.manifest import (
+    DependencyRequirement,
     ManifestCandidate,
     ModuleManifest,
     ModuleManifestError,
@@ -64,6 +65,7 @@ from sofia.core.modreg.registry import (
 )
 
 __all__ = [
+    "DependencyRequirement",
     "ManifestCandidate",
     "ModuleManifest",
     "ModuleManifestError",

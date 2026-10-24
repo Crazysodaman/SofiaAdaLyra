@@ -6,6 +6,17 @@ import os
 import sqlite3
 
 
+def _path_order_key(path: Path) -> tuple[str, str, str]:
+    """Return a deterministic total order for case-distinct paths.
+
+    Case-folding alone is not a total order on case-sensitive filesystems.
+    The additional keys preserve the legacy lowercase-before-uppercase tie
+    behavior while ensuring two distinct spellings never compare equal.
+    """
+    value = str(path)
+    return value.casefold(), value.swapcase(), value
+
+
 class FilesystemObservationError(Exception):
     """Raised when filesystem observation cannot be completed."""
 
@@ -102,7 +113,7 @@ class FilesystemObservation:
                 )
 
             if previous_path is not None:
-                if str(entry.path).casefold() <= str(previous_path).casefold():
+                if _path_order_key(entry.path) <= _path_order_key(previous_path):
                     raise ValueError(
                         "FilesystemObservation entries must be sorted "
                         "by path."
@@ -160,7 +171,7 @@ class FilesystemObserver:
 
         for path in sorted(
             self._collect_candidate_paths(),
-            key=lambda path: str(path).casefold(),
+            key=_path_order_key,
         ):
             if len(entries) >= self.MAX_FILES:
                 break

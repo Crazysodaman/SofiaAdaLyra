@@ -1,12 +1,32 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from sofia.platform.state.model import StateKey, StateRecord
 
 
 class StatePlaneConflictError(RuntimeError):
     """Raised when optimistic revision checks fail."""
+
+
+@dataclass(frozen=True, slots=True)
+class StateWrite:
+    """One compare-and-swap mutation in an atomic State Plane transaction."""
+
+    record: StateRecord
+    expected_revision: int | None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.record, StateRecord):
+            raise TypeError("record must be StateRecord")
+        if self.expected_revision is not None and (
+            type(self.expected_revision) is not int
+            or self.expected_revision < 1
+        ):
+            raise ValueError(
+                "expected_revision must be None or a positive integer"
+            )
 
 
 class StatePlane(ABC):
@@ -63,3 +83,11 @@ class StatePlane(ABC):
         fail closed. This method returns scope identifiers, never record data.
         """
         raise NotImplementedError("State Plane backend does not enumerate scopes")
+
+    def write_transaction(
+        self, writes: tuple[StateWrite, ...],
+    ) -> tuple[StateRecord, ...]:
+        """Atomically apply related CAS writes when the backend supports it."""
+        raise NotImplementedError(
+            "State Plane backend does not support atomic batches"
+        )

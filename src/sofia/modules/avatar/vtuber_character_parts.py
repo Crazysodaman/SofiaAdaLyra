@@ -201,7 +201,10 @@ def generate_public_character_parts(
     if destination.exists() and any(destination.iterdir()):
         raise FileExistsError("existing character art must not be overwritten")
     if embodiment_seed is None:
-        embodiment_seed = Path(__file__).resolve().parents[1] / "embodiment" / "avatar.json"
+        embodiment_seed = (
+            Path(__file__).resolve().parents[2]
+            / "core" / "embodiment" / "avatar.json"
+        )
     embodiment = EmbodimentStore(embodiment_seed).load()
     # Validate fixed fox anatomy in canonical source, not from a model prompt.
     if "fox ears" not in embodiment.physical_self.additional_features or "fox tail" not in embodiment.physical_self.additional_features:

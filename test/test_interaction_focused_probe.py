@@ -12,8 +12,7 @@ from sofia.platform.verify.interaction.ab_probe import build_pair
 from sofia.platform.verify.interaction.focused_probe import focused_variant
 from sofia.core.personality.store import PersonalityStore
 
-ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'
-
+ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core'
 
 @pytest.mark.parametrize('case,text', (
     ('ear', '*pats your left ear*'),

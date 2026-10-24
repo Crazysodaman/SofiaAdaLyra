@@ -148,6 +148,16 @@ class ModuleRegistryStore:
             "boundary_notes": m.boundary_notes,
             "declared_capabilities": list(m.declared_capabilities),
             "declared_dependencies": list(m.declared_dependencies),
+            "dependency_requirements": [
+                {
+                    "name": requirement.name,
+                    "minimum_version": requirement.minimum_version,
+                    "maximum_version_exclusive": (
+                        requirement.maximum_version_exclusive
+                    ),
+                }
+                for requirement in m.dependency_requirements
+            ],
             "authority_boundary": m.authority_boundary,
         }
 
@@ -456,6 +466,11 @@ class ModuleRegistryService:
         )
 
     @staticmethod
+    def _owns_python_module(package: str, observed: str) -> bool:
+        """Match an exact package boundary, never a lexical prefix."""
+        return observed == package or observed.startswith(package + ".")
+
+    @staticmethod
     def _require_code_observation(
         name: str, inspection: CodebaseInspectionEvidence,
     ) -> None:
@@ -464,7 +479,9 @@ class ModuleRegistryService:
                 f"cannot verify {name}: no code observation available"
             )
         if not any(
-            python_module.module_name.startswith(name)
+            ModuleRegistryService._owns_python_module(
+                name, python_module.module_name,
+            )
             for python_module in inspection.python_modules
         ):
             raise ModuleRegistryError(
@@ -526,6 +543,10 @@ class ModuleRegistryService:
     ) -> tuple[tuple[str, str], ...]:
         """Typed compatibility entries: (dependency, assessment)."""
         by_name = {reg.manifest.name: reg for reg in registrations}
+        requirements = {
+            requirement.name: requirement
+            for requirement in manifest.dependency_requirements
+        }
         entries: list[tuple[str, str]] = []
         for dependency in manifest.declared_dependencies:
             other = by_name.get(dependency)
@@ -534,11 +555,28 @@ class ModuleRegistryService:
             elif other.trust_state is not TrustState.VERIFIED:
                 entries.append((dependency, "candidate-only"))
             elif (
-                other.manifest.version_parts[0]
-                != manifest.version_parts[0]
+                dependency in requirements
+                and not requirements[dependency].accepts(
+                    other.manifest.version
+                )
             ):
-                entries.append((dependency, "major-version-mismatch"))
+                requirement = requirements[dependency]
+                interval = f">={requirement.minimum_version}"
+                if requirement.maximum_version_exclusive is not None:
+                    interval += (
+                        f",<{requirement.maximum_version_exclusive}"
+                    )
+                entries.append(
+                    (
+                        dependency,
+                        "incompatible-version:"
+                        f"installed={other.manifest.version};required={interval}",
+                    )
+                )
             else:
+                # A bare dependency declares identity only. Comparing the
+                # dependency's version to the requesting module's unrelated
+                # major version was never a valid compatibility rule.
                 entries.append((dependency, "compatible"))
         return tuple(entries)
 
@@ -559,7 +597,9 @@ class ModuleRegistryService:
             matches = tuple(
                 python_module
                 for python_module in inspection.python_modules
-                if python_module.module_name.startswith(manifest.name)
+                if self._owns_python_module(
+                    manifest.name, python_module.module_name,
+                )
             )
             if registration.trust_state is not TrustState.VERIFIED:
                 health = ModuleHealth.UNKNOWN

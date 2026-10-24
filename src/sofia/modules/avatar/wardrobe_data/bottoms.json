@@ -1,5 +1,5 @@
 {
-  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "schema": "sofia.modules.avatar.wardrobe.garments.v1",
   "category": "bottoms",
   "profiles": {
     "technical": {

@@ -126,6 +126,10 @@ class OpsToolService:
                 state_plane=plane,
                 instance_store=self.workloads,
             )
+            # Never replay an interrupted external effect after restart.
+            # Durable nonterminal migrations become operator-reviewable
+            # OUTCOME_UNCERTAIN records before the service accepts new work.
+            self.migration_executor.reconcile_startup()
 
     @staticmethod
     def _host(host)->dict[str,Any]:

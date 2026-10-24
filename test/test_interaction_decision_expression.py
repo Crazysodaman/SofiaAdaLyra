@@ -19,7 +19,7 @@ from sofia.platform.verify.interaction.decision_expression_probe import _sample_
 from sofia.modules.interaction.grammar import NaturalInteractionEngine
 from sofia.core.personality.store import PersonalityStore
 
-ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'
+ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core'
 OFFER = 'I ask to hug you'
 EAR = '*pats your left ear*'
 SENSOR = 'Can you physically feel my hand through a real sensor?'

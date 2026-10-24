@@ -1,0 +1,703 @@
+"""Canonical, revisioned lifecycle for verified Sofía module packages."""
+from __future__ import annotations
+
+from contextlib import closing
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
+from hashlib import sha256
+import json
+import os
+from pathlib import Path
+import sqlite3
+from typing import Callable
+
+from sofia.platform.capability.model import Capability
+from sofia.platform.capability.system import CapabilityHandler, CapabilitySystem
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+
+from .compatibility import ModuleCompatibilityReport
+from .package import OperationProfileKind, VerifiedModulePackage
+
+
+class ModuleLifecycle(str, Enum):
+    DISCOVERED = "discovered"
+    VALIDATED = "validated"
+    REVIEW_PENDING = "review_pending"
+    APPROVED = "approved"
+    STAGED = "staged"
+    INSTALLED_DISABLED = "installed_disabled"
+    ACTIVATING = "activating"
+    ACTIVE = "active"
+    DRAINING = "draining"
+    PAUSED = "paused"
+    QUARANTINED = "quarantined"
+    UPDATING = "updating"
+    ROLLING_BACK = "rolling_back"
+    REMOVED = "removed"
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleLifecycleRecord:
+    module_id: str
+    version: str
+    package_digest: str
+    lifecycle: ModuleLifecycle
+    revision: int
+    active_profile: OperationProfileKind | None
+    staged_path: str | None
+    reason: str
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleInstallPlan:
+    module_id: str
+    version: str
+    package_digest: str
+    dependencies: tuple[str, ...]
+    target_profile: OperationProfileKind
+    required_authority: str
+    executable: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleChangePlan:
+    module_id: str
+    current_version: str
+    target_version: str | None
+    operation: str
+    required_authority: str
+    executable: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleLifecycleHealth:
+    module_id: str
+    lifecycle: ModuleLifecycle
+    healthy: bool
+    ready: bool
+    reason: str
+    revision: int
+
+
+LifecycleAuthorizer = Callable[[str, str, str, datetime], bool]
+
+
+class ModuleLifecycleManager:
+    """Persist module state and register capabilities only after authorization."""
+
+    def __init__(self, *, state_path: Path, store_root: Path,
+                 capability_system: CapabilitySystem,
+                 authorizer: LifecycleAuthorizer) -> None:
+        if not isinstance(state_path, Path) or not isinstance(store_root, Path):
+            raise TypeError("state_path and store_root must be Path")
+        if not isinstance(capability_system, CapabilitySystem):
+            raise TypeError("capability_system must be CapabilitySystem")
+        if not callable(authorizer):
+            raise TypeError("authorizer must be callable")
+        self._guard = CanonicalSQLiteGuard(state_path)
+        self.store_root = store_root.absolute()
+        self.capability_system = capability_system
+        self.authorizer = authorizer
+        self._active_batches: dict[
+            str, tuple[tuple[Capability, CapabilityHandler], ...]
+        ] = {}
+        for component in (self.store_root, *self.store_root.parents):
+            if component.is_symlink() or getattr(component, "is_junction", lambda: False)():
+                raise RuntimeError("module store path cannot be redirected")
+        self.store_root.mkdir(parents=True, exist_ok=True)
+        if self.store_root.is_symlink():
+            raise RuntimeError("module store root cannot be redirected")
+        with closing(self._connect()) as db, db:
+            db.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS platform_module_lifecycle(
+                    module_id TEXT PRIMARY KEY,version TEXT NOT NULL,
+                    package_digest TEXT NOT NULL,lifecycle TEXT NOT NULL,
+                    revision INTEGER NOT NULL,active_profile TEXT,staged_path TEXT,
+                    reason TEXT NOT NULL,updated_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS platform_module_lifecycle_event(
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,module_id TEXT NOT NULL,
+                    from_lifecycle TEXT,to_lifecycle TEXT NOT NULL,
+                    revision INTEGER NOT NULL,operation_ref TEXT NOT NULL,
+                    actor TEXT NOT NULL,reason TEXT NOT NULL,occurred_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS platform_module_release_history(
+                    module_id TEXT NOT NULL,package_digest TEXT NOT NULL,
+                    version TEXT NOT NULL,staged_path TEXT,
+                    recorded_at TEXT NOT NULL,
+                    PRIMARY KEY(module_id,package_digest));
+                CREATE TABLE IF NOT EXISTS platform_module_dependency(
+                    module_id TEXT NOT NULL,dependency_id TEXT NOT NULL,
+                    minimum_version TEXT NOT NULL,maximum_version_exclusive TEXT,
+                    PRIMARY KEY(module_id,dependency_id));
+                """
+            )
+            rows = db.execute(
+                """SELECT module_id,lifecycle,revision FROM platform_module_lifecycle
+                WHERE lifecycle IN ('active','activating','draining','updating','rolling_back')"""
+            ).fetchall()
+            moment = datetime.now(timezone.utc).isoformat()
+            for row in rows:
+                target = (
+                    ModuleLifecycle.PAUSED
+                    if row["lifecycle"] == ModuleLifecycle.ACTIVE.value
+                    else ModuleLifecycle.QUARANTINED
+                )
+                revision = int(row["revision"]) + 1
+                db.execute(
+                    """UPDATE platform_module_lifecycle SET lifecycle=?,revision=?,
+                    reason='runtime restarted; adapter requires reconciliation',
+                    updated_at=? WHERE module_id=? AND revision=?""",
+                    (target.value, revision, moment, row["module_id"], row["revision"]),
+                )
+                db.execute(
+                    "INSERT INTO platform_module_lifecycle_event VALUES(NULL,?,?,?,?,?,?,?,?)",
+                    (row["module_id"], row["lifecycle"], target.value, revision,
+                     "startup:reconcile", "platform:runtime",
+                     "adapter authority was not assumed across restart", moment),
+                )
+
+    def _connect(self) -> sqlite3.Connection:
+        db = self._guard.connect(timeout=10)
+        db.row_factory = sqlite3.Row
+        db.execute("PRAGMA busy_timeout=10000")
+        return db
+
+    @staticmethod
+    def _assert_unredirected(path: Path, root: Path) -> None:
+        current = path
+        while True:
+            if current.is_symlink() or getattr(current, "is_junction", lambda: False)():
+                raise RuntimeError("immutable module path is redirected")
+            if current == root:
+                return
+            if root not in current.parents:
+                raise RuntimeError("immutable module path escapes store root")
+            current = current.parent
+
+    @classmethod
+    def _stored_files(cls, destination: Path) -> frozenset[str]:
+        result: set[str] = set()
+        pending = [destination]
+        while pending:
+            directory = pending.pop()
+            cls._assert_unredirected(directory, destination)
+            for child in directory.iterdir():
+                cls._assert_unredirected(child, destination)
+                if child.is_dir():
+                    pending.append(child)
+                elif child.is_file():
+                    result.add(child.relative_to(destination).as_posix())
+                else:
+                    raise RuntimeError("immutable module store contains unsupported entry")
+        return frozenset(result)
+
+    @staticmethod
+    def _record(row: sqlite3.Row) -> ModuleLifecycleRecord:
+        return ModuleLifecycleRecord(
+            row["module_id"], row["version"], row["package_digest"],
+            ModuleLifecycle(row["lifecycle"]), int(row["revision"]),
+            None if row["active_profile"] is None else OperationProfileKind(row["active_profile"]),
+            row["staged_path"], row["reason"], datetime.fromisoformat(row["updated_at"]),
+        )
+
+    def describe(self, module_id: str) -> ModuleLifecycleRecord | None:
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT * FROM platform_module_lifecycle WHERE module_id=?",
+                (module_id,),
+            ).fetchone()
+        return None if row is None else self._record(row)
+
+    def discover(self, package: VerifiedModulePackage, *, now: datetime) -> ModuleLifecycleRecord:
+        if not isinstance(package, VerifiedModulePackage):
+            raise TypeError("verified package required")
+        moment = now.astimezone(timezone.utc)
+        current = self.describe(package.manifest.module_id)
+        if current is not None:
+            if current.package_digest != package.package_digest:
+                raise RuntimeError("module identity already refers to another package")
+            return current
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "INSERT INTO platform_module_lifecycle VALUES(?,?,?,?,1,NULL,NULL,?,?)",
+                (package.manifest.module_id, package.manifest.version,
+                 package.package_digest, ModuleLifecycle.VALIDATED.value,
+                 "signature and artifacts verified", moment.isoformat()),
+            )
+            db.execute(
+                "INSERT INTO platform_module_lifecycle_event VALUES(NULL,?,?,?,?,?,?,?,?)",
+                (package.manifest.module_id, None, ModuleLifecycle.VALIDATED.value,
+                 1, "verification:package", "platform:verifier",
+                 "signature and artifacts verified", moment.isoformat()),
+            )
+            db.executemany(
+                "INSERT INTO platform_module_dependency VALUES(?,?,?,?)",
+                tuple((package.manifest.module_id, item.module_id,
+                       item.minimum_version, item.maximum_version_exclusive)
+                      for item in package.manifest.dependencies),
+            )
+        return self.describe(package.manifest.module_id)  # type: ignore[return-value]
+
+    def plan_install(self, package: VerifiedModulePackage,
+                     *, profile: OperationProfileKind) -> ModuleInstallPlan:
+        if profile not in {item.profile_id for item in package.manifest.profiles}:
+            raise ValueError("profile is not declared by signed manifest")
+        return ModuleInstallPlan(
+            package.manifest.module_id, package.manifest.version,
+            package.package_digest,
+            tuple(item.module_id for item in package.manifest.dependencies),
+            profile, "module.install", False,
+        )
+
+    def plan_update(self, current_module_id: str,
+                    package: VerifiedModulePackage) -> ModuleChangePlan:
+        current = self.describe(current_module_id)
+        if current is None:
+            raise LookupError("unknown module")
+        if package.manifest.module_id != current_module_id:
+            raise ValueError("update package identity differs from installed module")
+        if package.package_digest == current.package_digest:
+            raise ValueError("update package is identical to installed package")
+        return ModuleChangePlan(
+            current_module_id, current.version, package.manifest.version,
+            "update", "module.update", False,
+        )
+
+    def plan_remove(self, module_id: str) -> ModuleChangePlan:
+        current = self.describe(module_id)
+        if current is None:
+            raise LookupError("unknown module")
+        return ModuleChangePlan(
+            module_id, current.version, None, "remove", "module.remove", False,
+        )
+
+    def health(self, module_id: str) -> ModuleLifecycleHealth:
+        current = self.describe(module_id)
+        if current is None:
+            raise LookupError("unknown module")
+        healthy = current.lifecycle in {
+            ModuleLifecycle.STAGED, ModuleLifecycle.INSTALLED_DISABLED,
+            ModuleLifecycle.ACTIVE, ModuleLifecycle.PAUSED,
+        }
+        return ModuleLifecycleHealth(
+            module_id, current.lifecycle, healthy,
+            current.lifecycle is ModuleLifecycle.ACTIVE, current.reason,
+            current.revision,
+        )
+
+    def _transition(self, module_id: str, *, expected_revision: int,
+                    allowed: tuple[ModuleLifecycle, ...], target: ModuleLifecycle,
+                    operation_ref: str, actor: str, reason: str, now: datetime,
+                    staged_path: str | None = None,
+                    active_profile: OperationProfileKind | None = None,
+                    authorized: bool = True) -> ModuleLifecycleRecord:
+        moment = now.astimezone(timezone.utc)
+        if authorized and not self.authorizer(target.value, module_id, operation_ref, moment):
+            raise PermissionError("module lifecycle operation is not authorized")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT * FROM platform_module_lifecycle WHERE module_id=?",
+                (module_id,),
+            ).fetchone()
+            if row is None:
+                raise LookupError("unknown module")
+            current = self._record(row)
+            if current.revision != expected_revision or current.lifecycle not in allowed:
+                raise RuntimeError("module lifecycle revision/state changed")
+            revision = expected_revision + 1
+            changed = db.execute(
+                """UPDATE platform_module_lifecycle SET lifecycle=?,revision=?,
+                active_profile=?,staged_path=COALESCE(?,staged_path),reason=?,updated_at=?
+                WHERE module_id=? AND revision=?""",
+                (target.value, revision,
+                 None if active_profile is None else active_profile.value,
+                 staged_path, reason[:500], moment.isoformat(), module_id,
+                 expected_revision),
+            )
+            if changed.rowcount != 1:
+                raise RuntimeError("module lifecycle compare-and-swap failed")
+            db.execute(
+                "INSERT INTO platform_module_lifecycle_event VALUES(NULL,?,?,?,?,?,?,?,?)",
+                (module_id, current.lifecycle.value, target.value, revision,
+                 operation_ref, actor, reason[:500], moment.isoformat()),
+            )
+        return self.describe(module_id)  # type: ignore[return-value]
+
+    def approve(self, module_id: str, *, expected_revision: int,
+                operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
+        return self._transition(
+            module_id, expected_revision=expected_revision,
+            allowed=(ModuleLifecycle.VALIDATED, ModuleLifecycle.REVIEW_PENDING),
+            target=ModuleLifecycle.APPROVED, operation_ref=operation_ref,
+            actor=actor, reason="package approved for staging", now=now,
+        )
+
+    def _store_package(self, package: VerifiedModulePackage) -> tuple[Path, bool]:
+        destination = self.store_root / package.package_digest
+        if destination.is_symlink():
+            raise RuntimeError("immutable module destination is redirected")
+        newly_created = not destination.exists()
+        if newly_created:
+            destination.mkdir()
+        try:
+            self._assert_unredirected(destination, self.store_root)
+            expected_files = {
+                relative for relative, _ in package.manifest.artifact_digests
+            } | {"manifest.v1.json"}
+            existing_files = self._stored_files(destination)
+            if not existing_files.issubset(expected_files):
+                raise RuntimeError("staged package contains undeclared files")
+            for relative, expected in package.manifest.artifact_digests:
+                source = package.package_root / relative
+                target = destination / relative
+                data = source.read_bytes()
+                if sha256(data).hexdigest() != expected:
+                    raise RuntimeError("source package changed after verification")
+                if target.exists():
+                    if target.is_symlink() or sha256(target.read_bytes()).hexdigest() != expected:
+                        raise RuntimeError("staged package conflicts with verified identity")
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    self._assert_unredirected(target.parent, destination)
+                    with target.open("xb") as handle:
+                        handle.write(data)
+                        handle.flush()
+                        os.fsync(handle.fileno())
+            manifest_path = destination / "manifest.v1.json"
+            document = dict(package.manifest.unsigned_document())
+            document["signature_b64"] = package.manifest.signature_b64
+            manifest_bytes = json.dumps(
+                document, sort_keys=True, separators=(",", ":"),
+            ).encode("utf-8")
+            if not manifest_path.exists():
+                with manifest_path.open("xb") as handle:
+                    handle.write(manifest_bytes)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            elif manifest_path.is_symlink():
+                raise RuntimeError("staged manifest is redirected")
+            elif manifest_path.read_bytes() != manifest_bytes:
+                raise RuntimeError("staged manifest conflicts with verified identity")
+            if self._stored_files(destination) != frozenset(expected_files):
+                raise RuntimeError("staged package file set is incomplete")
+        except BaseException:
+            if newly_created:
+                import shutil
+                shutil.rmtree(destination, ignore_errors=True)
+            raise
+        return destination, newly_created
+
+    def stage(self, package: VerifiedModulePackage, *, expected_revision: int,
+              operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
+        current = self.describe(package.manifest.module_id)
+        if current is None or current.package_digest != package.package_digest:
+            raise RuntimeError("verified package differs from lifecycle record")
+        if not self.authorizer("staged", current.module_id, operation_ref, now):
+            raise PermissionError("module staging is not authorized")
+        destination, newly_created = self._store_package(package)
+        try:
+            return self._transition(
+                current.module_id, expected_revision=expected_revision,
+                allowed=(ModuleLifecycle.APPROVED,), target=ModuleLifecycle.STAGED,
+                operation_ref=operation_ref, actor=actor,
+                reason="immutable verified package staged", now=now,
+                staged_path=str(destination), authorized=False,
+            )
+        except BaseException:
+            if newly_created:
+                import shutil
+                shutil.rmtree(destination, ignore_errors=True)
+            raise
+
+    def activate(self, package: VerifiedModulePackage, *, expected_revision: int,
+                 profile: OperationProfileKind,
+                 compatibility: ModuleCompatibilityReport,
+                 registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+                 operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
+        self._validate_compatibility(package, profile, compatibility)
+        self._validate_registrations(package, profile, registrations)
+        if not self.authorizer("active", package.manifest.module_id, operation_ref, now):
+            raise PermissionError("module activation is not authorized")
+        current = self.describe(package.manifest.module_id)
+        if current is None or current.package_digest != package.package_digest:
+            raise RuntimeError("verified package differs from lifecycle record")
+        if current.lifecycle is not ModuleLifecycle.STAGED:
+            raise RuntimeError("only staged modules may activate")
+        self.capability_system.register_batch(registrations)
+        try:
+            result = self._transition(
+                current.module_id, expected_revision=expected_revision,
+                allowed=(ModuleLifecycle.STAGED,),
+                target=ModuleLifecycle.ACTIVE, operation_ref=operation_ref,
+                actor=actor, reason="reviewed adapter capabilities activated",
+                now=now, active_profile=profile, authorized=False,
+            )
+        except BaseException:
+            self.capability_system.unregister_batch(registrations)
+            raise
+        self._active_batches[current.module_id] = registrations
+        return result
+
+    @staticmethod
+    def _validate_compatibility(
+        package: VerifiedModulePackage, profile: OperationProfileKind,
+        compatibility: ModuleCompatibilityReport,
+    ) -> None:
+        if not isinstance(compatibility, ModuleCompatibilityReport):
+            raise TypeError("compatibility report required")
+        if (
+            compatibility.module_id != package.manifest.module_id
+            or compatibility.version != package.manifest.version
+            or compatibility.package_digest != package.package_digest
+            or compatibility.profile is not profile
+        ):
+            raise PermissionError("compatibility report is for another package/profile")
+        if not compatibility.compatible:
+            raise PermissionError("module package is incompatible with target Platform")
+
+    @staticmethod
+    def _validate_registrations(
+        package: VerifiedModulePackage, profile: OperationProfileKind,
+        registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+    ) -> None:
+        declared = {name for name, _ in package.manifest.capability_schemas}
+        profile_contract = next(
+            (item for item in package.manifest.profiles if item.profile_id is profile), None,
+        )
+        if profile_contract is None:
+            raise ValueError("profile is not declared")
+        names = {item.name for item, _ in registrations}
+        if len(names) != len(registrations):
+            raise ValueError("adapter capability registrations must be unique")
+        if names != set(profile_contract.available_capability_ids) or not names.issubset(declared):
+            raise PermissionError("adapter capabilities differ from signed profile")
+
+    def resume(self, package: VerifiedModulePackage, *, expected_revision: int,
+               profile: OperationProfileKind,
+               compatibility: ModuleCompatibilityReport,
+               registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+               operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
+        self._validate_compatibility(package, profile, compatibility)
+        self._validate_registrations(package, profile, registrations)
+        current = self.describe(package.manifest.module_id)
+        if current is None or current.package_digest != package.package_digest:
+            raise RuntimeError("verified package differs from lifecycle record")
+        if current.lifecycle is not ModuleLifecycle.PAUSED:
+            raise RuntimeError("only paused modules may resume")
+        if not self.authorizer("active", current.module_id, operation_ref, now):
+            raise PermissionError("module resume is not authorized")
+        self.capability_system.register_batch(registrations)
+        try:
+            result = self._transition(
+                current.module_id, expected_revision=expected_revision,
+                allowed=(ModuleLifecycle.PAUSED,), target=ModuleLifecycle.ACTIVE,
+                operation_ref=operation_ref, actor=actor,
+                reason="reviewed adapter capabilities resumed", now=now,
+                active_profile=profile, authorized=False,
+            )
+        except BaseException:
+            self.capability_system.unregister_batch(registrations)
+            raise
+        self._active_batches[current.module_id] = registrations
+        return result
+
+    def pause(self, module_id: str, *, expected_revision: int,
+              operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
+        batch = self._active_batches.get(module_id)
+        if batch is None:
+            raise RuntimeError("active adapter batch is unavailable")
+        if not self.authorizer("paused", module_id, operation_ref, now):
+            raise PermissionError("module pause is not authorized")
+        self.capability_system.unregister_batch(batch)
+        try:
+            result = self._transition(
+                module_id, expected_revision=expected_revision,
+                allowed=(ModuleLifecycle.ACTIVE,), target=ModuleLifecycle.PAUSED,
+                operation_ref=operation_ref, actor=actor,
+                reason="capabilities drained and paused", now=now,
+                authorized=False,
+            )
+        except BaseException:
+            self.capability_system.register_batch(batch)
+            raise
+        self._active_batches.pop(module_id, None)
+        return result
+
+    def disable(self, module_id: str, *, expected_revision: int,
+                operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
+        if module_id in self._active_batches:
+            raise RuntimeError("active module must be paused before disable")
+        return self._transition(
+            module_id, expected_revision=expected_revision,
+            allowed=(ModuleLifecycle.STAGED, ModuleLifecycle.PAUSED,
+                     ModuleLifecycle.QUARANTINED),
+            target=ModuleLifecycle.INSTALLED_DISABLED,
+            operation_ref=operation_ref, actor=actor,
+            reason="module disabled; no capabilities registered", now=now,
+        )
+
+    def quarantine(self, module_id: str, *, expected_revision: int,
+                   operation_ref: str, actor: str, reason: str,
+                   now: datetime) -> ModuleLifecycleRecord:
+        batch = self._active_batches.get(module_id)
+        if not self.authorizer("quarantined", module_id, operation_ref, now):
+            raise PermissionError("module quarantine is not authorized")
+        if batch is not None:
+            self.capability_system.unregister_batch(batch)
+        try:
+            result = self._transition(
+                module_id, expected_revision=expected_revision,
+                allowed=(ModuleLifecycle.ACTIVE, ModuleLifecycle.PAUSED,
+                         ModuleLifecycle.STAGED,
+                         ModuleLifecycle.INSTALLED_DISABLED),
+                target=ModuleLifecycle.QUARANTINED,
+                operation_ref=operation_ref, actor=actor,
+                reason=reason or "module quarantined", now=now,
+                authorized=False,
+            )
+        except BaseException:
+            if batch is not None:
+                self.capability_system.register_batch(batch)
+            raise
+        self._active_batches.pop(module_id, None)
+        return result
+
+    def update(self, package: VerifiedModulePackage, *, expected_revision: int,
+               profile: OperationProfileKind,
+               compatibility: ModuleCompatibilityReport,
+               operation_ref: str, actor: str, now: datetime,
+               _authorization_action: str = "updating") -> ModuleLifecycleRecord:
+        """Switch a disabled package pointer; never activate the new adapter."""
+        self._validate_compatibility(package, profile, compatibility)
+        current = self.describe(package.manifest.module_id)
+        if current is None:
+            raise LookupError("unknown module")
+        if current.package_digest == package.package_digest:
+            raise ValueError("update package is identical to current package")
+        if current.lifecycle not in {
+            ModuleLifecycle.STAGED, ModuleLifecycle.PAUSED,
+            ModuleLifecycle.INSTALLED_DISABLED, ModuleLifecycle.QUARANTINED,
+        } or current.module_id in self._active_batches:
+            raise RuntimeError("module must be inactive before update")
+        if _authorization_action not in {"updating", "rolling_back"}:
+            raise ValueError("unsupported package replacement action")
+        if not self.authorizer(
+            _authorization_action, current.module_id, operation_ref, now,
+        ):
+            raise PermissionError("module update is not authorized")
+        moment = now.astimezone(timezone.utc)
+        destination, newly_created = self._store_package(package)
+        try:
+            with closing(self._connect()) as db, db:
+                db.execute("BEGIN IMMEDIATE")
+                row = db.execute(
+                    "SELECT * FROM platform_module_lifecycle WHERE module_id=?",
+                    (current.module_id,),
+                ).fetchone()
+                observed = self._record(row) if row is not None else None
+                if observed is None or observed.revision != expected_revision or (
+                    observed.package_digest != current.package_digest
+                ):
+                    raise RuntimeError("module lifecycle revision/state changed")
+                db.execute(
+                    "INSERT OR IGNORE INTO platform_module_release_history VALUES(?,?,?,?,?)",
+                    (current.module_id, current.package_digest, current.version,
+                     current.staged_path, moment.isoformat()),
+                )
+                revision = expected_revision + 1
+                changed = db.execute(
+                    """UPDATE platform_module_lifecycle SET version=?,package_digest=?,
+                    lifecycle='staged',revision=?,active_profile=NULL,staged_path=?,
+                    reason='verified update staged; activation pending',updated_at=?
+                    WHERE module_id=? AND revision=?""",
+                    (package.manifest.version, package.package_digest, revision,
+                     str(destination), moment.isoformat(), current.module_id,
+                     expected_revision),
+                )
+                if changed.rowcount != 1:
+                    raise RuntimeError("module update compare-and-swap failed")
+                db.execute(
+                    "DELETE FROM platform_module_dependency WHERE module_id=?",
+                    (current.module_id,),
+                )
+                db.executemany(
+                    "INSERT INTO platform_module_dependency VALUES(?,?,?,?)",
+                    tuple((current.module_id, item.module_id, item.minimum_version,
+                           item.maximum_version_exclusive)
+                          for item in package.manifest.dependencies),
+                )
+                db.execute(
+                    "INSERT INTO platform_module_lifecycle_event VALUES(NULL,?,?,?,?,?,?,?,?)",
+                    (current.module_id, current.lifecycle.value,
+                     ModuleLifecycle.STAGED.value, revision, operation_ref,
+                     actor, "verified update staged; activation pending",
+                     moment.isoformat()),
+                )
+        except BaseException:
+            if newly_created:
+                import shutil
+                shutil.rmtree(destination, ignore_errors=True)
+            raise
+        return self.describe(current.module_id)  # type: ignore[return-value]
+
+    def rollback(self, package: VerifiedModulePackage, *, expected_revision: int,
+                 profile: OperationProfileKind,
+                 compatibility: ModuleCompatibilityReport,
+                 operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
+        """Restore an exact retained package as STAGED; activation remains separate."""
+        self._validate_compatibility(package, profile, compatibility)
+        current = self.describe(package.manifest.module_id)
+        if current is None or current.module_id in self._active_batches:
+            raise RuntimeError("inactive current module required for rollback")
+        if current.lifecycle not in {
+            ModuleLifecycle.STAGED, ModuleLifecycle.PAUSED,
+            ModuleLifecycle.INSTALLED_DISABLED, ModuleLifecycle.QUARANTINED,
+        }:
+            raise RuntimeError("module lifecycle cannot rollback")
+        with closing(self._connect()) as db:
+            prior = db.execute(
+                """SELECT 1 FROM platform_module_release_history
+                WHERE module_id=? AND package_digest=? AND version=?""",
+                (current.module_id, package.package_digest, package.manifest.version),
+            ).fetchone()
+        if prior is None:
+            raise PermissionError("rollback target is not retained module history")
+        # The update mechanism has the exact desired semantics: preserve the
+        # current release as history and switch only the inactive staged pointer.
+        return self.update(
+            package, expected_revision=expected_revision, profile=profile,
+            compatibility=compatibility, operation_ref=operation_ref,
+            actor=actor, now=now, _authorization_action="rolling_back",
+        )
+
+    def remove(self, module_id: str, *, expected_revision: int,
+               operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
+        if module_id in self._active_batches:
+            raise RuntimeError("active module must be paused before removal")
+        with closing(self._connect()) as db:
+            dependent = db.execute(
+                """SELECT d.module_id FROM platform_module_dependency d
+                JOIN platform_module_lifecycle l ON l.module_id=d.module_id
+                WHERE d.dependency_id=? AND l.lifecycle NOT IN
+                    ('discovered','validated','review_pending','removed')
+                ORDER BY d.module_id LIMIT 1""",
+                (module_id,),
+            ).fetchone()
+        if dependent is not None:
+            raise RuntimeError(
+                f"module is required by installed dependent {dependent[0]}"
+            )
+        # Package bytes are retained for audit/rollback. Physical deletion is a
+        # separate reviewed retention operation, never an activation side effect.
+        return self._transition(
+            module_id, expected_revision=expected_revision,
+            allowed=(ModuleLifecycle.INSTALLED_DISABLED,
+                     ModuleLifecycle.QUARANTINED),
+            target=ModuleLifecycle.REMOVED,
+            operation_ref=operation_ref, actor=actor,
+            reason="module removed from service; immutable evidence retained",
+            now=now,
+        )

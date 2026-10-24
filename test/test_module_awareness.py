@@ -47,8 +47,12 @@ from sofia.core.modreg.workshop import (
     WorkshopRequestStore,
 )
 from sofia.core.social.model import AudienceKind, PrincipalContext
-from sofia.core.social.principals import local_sparks_principal
+from sofia.core.social.principals import (
+    local_sparks_principal,
+    sofia_core_principal,
+)
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.modules import CanonicalPlatformModuleObserver
 
 NOW = datetime(2026, 7, 5, 9, 30, tzinfo=timezone.utc)
 
@@ -200,7 +204,7 @@ def test_self_model_distinguishes_the_eight_states(tmp_path):
     assert row.verified_outcomes == 0
 
 
-def test_outcomes_and_placement_ground_grant_and_assembly(tmp_path):
+def test_outcomes_and_placement_do_not_reuse_historical_authority(tmp_path):
     outcomes = (
         OutcomeObservation(
             request_id="req-1",
@@ -238,8 +242,8 @@ def test_outcomes_and_placement_ground_grant_and_assembly(tmp_path):
         aspect.capability: aspect.grant_state
         for aspect in row.permission_aspects
     }
-    assert grants["power.read"] is Grounding.YES
-    assert grants["locomotive.list"] is Grounding.NO
+    assert grants["power.read"] is Grounding.UNKNOWN
+    assert grants["locomotive.list"] is Grounding.UNKNOWN
     assert grants["train.simulate"] is Grounding.UNKNOWN
     assert row.verified_outcomes == 1
     assert row.denied_outcomes == 1
@@ -254,6 +258,27 @@ def test_outcomes_and_placement_ground_grant_and_assembly(tmp_path):
     assert (
         "dispatcher-planner@artemis(portable_stateless)" in summary
     )
+
+
+def test_one_healthy_component_cannot_hide_failed_distributed_component(tmp_path):
+    platform = fake_platform(
+        health_rows=(
+            (
+                "sofia.trains@planner", "artemis",
+                ModuleObservationKind.HEALTHY,
+            ),
+            (
+                "sofia.trains@jmri", "athena",
+                ModuleObservationKind.FAILED,
+            ),
+        ),
+    )
+
+    [row] = CapabilitySelfModel(None, platform).project(now=NOW)
+
+    assert row.active is Grounding.YES
+    assert row.healthy is Grounding.NO
+    assert row.available is Grounding.NO
 
 
 def test_stale_and_quarantined_health_stays_unknown_and_noted(tmp_path):
@@ -311,12 +336,9 @@ def test_registry_and_platform_merge_and_compatibility(tmp_path):
     assert merged.discovered is Grounding.YES
     assert merged.compatible is Grounding.YES
     ui = rows["sofia.trains.ui"]
-    assert ui.compatible is Grounding.NO
-    assert any(
-        note.startswith("dependency:sofia.trains:")
-        and "major-version-mismatch" in note
-        for note in ui.notes
-    ), ui.notes
+    # Bare dependency identity has no version range; an unrelated requester
+    # major version is not a compatibility rule.
+    assert ui.compatible is Grounding.YES
     summary = model.awareness_summary()
     assert "sofia.trains 1.4.0" in summary
     assert "manifest verified" in summary
@@ -369,7 +391,7 @@ def test_need_evaluation_and_proposal_flow(tmp_path):
     assert evaluation_down.candidate_matches == ()
     assert evaluation_down.unavailable_matches == ("sofia.trains",)
     proposal = proposals_down.propose(
-        sparks,
+        sofia_core_principal(),
         need=need(),
         target_module="sofia.trains",
         action=ProposalAction.IMPROVE,
@@ -379,12 +401,30 @@ def test_need_evaluation_and_proposal_flow(tmp_path):
         recorded_at=NOW,
     )
     assert proposal.status is ProposalStatus.PROPOSED
+    assert proposal.proposer_principal_id == "sofia"
+    assert proposal.audience_id == "system:core"
+    restarted = ModuleProposalStore(tmp_path / "sofia.db").current(
+        need_id=proposal.need_id, target_module=proposal.target_module,
+    )
+    assert restarted is not None
+    assert restarted.proposer_principal_id == "sofia"
     assert "sofia.trains" in proposal.alternatives
     with pytest.raises(PermissionError, match="authenticated owner"):
         proposals_down.propose(
             PrincipalContext(
                 "person:another", "local:text", AudienceKind.PRIVATE,
                 "Another",
+            ),
+            need=need(),
+            target_module="other.module",
+            action=ProposalAction.IMPROVE,
+            evaluation=evaluation_down,
+            benefits="b", risks="r",
+        )
+    with pytest.raises(PermissionError, match="invalid Sofía Core"):
+        proposals_down.propose(
+            PrincipalContext(
+                "sofia", "local:text", AudienceKind.PRIVATE, "Sofía",
             ),
             need=need(),
             target_module="other.module",
@@ -460,7 +500,7 @@ def test_workshop_request_generation(tmp_path):
     )
     sparks = local_sparks_principal()
     prepared = requests.prepare(
-        sparks,
+        sofia_core_principal(),
         manifest=manifest_for("sofia.trains.checklist"),
         test_targets=(
             "test/test_trains_checklist_unit.py",
@@ -469,12 +509,26 @@ def test_workshop_request_generation(tmp_path):
         recorded_at=NOW,
     )
     assert prepared.status is WorkshopRequestStatus.PREPARED
+    assert prepared.requester_principal_id == "sofia"
+    assert prepared.audience_id == "system:core"
+    restarted_request = WorkshopRequestStore(
+        tmp_path / "sofia.db"
+    ).current("sofia.trains.checklist")
+    assert restarted_request is not None
+    assert restarted_request.requester_principal_id == "sofia"
     assert "isolated" in prepared.sandbox_requirement.lower()
     assert prepared.review_requirements == (
         "independent code review",
         "independent security review",
         "independent release certification",
     )
+    with pytest.raises(PermissionError, match="authenticated owner"):
+        requests.mark_submitted(
+            sofia_core_principal(),
+            manifest_name="sofia.trains.checklist",
+            expected_revision=prepared.revision,
+            submission_ref="workshop:unverified-self-submission",
+        )
     with pytest.raises(PermissionError, match="authenticated owner"):
         requests.prepare(
             PrincipalContext(
@@ -574,6 +628,10 @@ def test_bootstrap_wiring_and_conversation_reach(
 
     monkeypatch.setattr(app.runtime, "respond", respond)
     assert isinstance(app.module_awareness, CapabilitySelfModel)
+    assert isinstance(
+        app.module_awareness._platform, CanonicalPlatformModuleObserver
+    )
+    assert app.module_awareness.project(now=NOW) == ()
     assert isinstance(app.module_proposals, ModuleProposalService)
     assert isinstance(app.workshop_requests, WorkshopRequestService)
     app.update_platform_module_observer(fake_platform())

@@ -30,6 +30,60 @@ class ModuleManifestError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class DependencyRequirement:
+    """An explicit compatible version interval for one dependency.
+
+    Bare entries in ``declared_dependencies`` remain valid and mean only
+    "this verified module identity must exist".  A requirement narrows that
+    identity to a half-open semantic-version interval.
+    """
+
+    name: str
+    minimum_version: str
+    maximum_version_exclusive: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or _NAME.fullmatch(self.name) is None:
+            raise ModuleManifestError(
+                "dependency requirement name must be a sofia.* name"
+            )
+        if (
+            not isinstance(self.minimum_version, str)
+            or _VERSION.fullmatch(self.minimum_version) is None
+        ):
+            raise ModuleManifestError(
+                "dependency minimum_version must be semver X.Y.Z"
+            )
+        if self.maximum_version_exclusive is not None:
+            if (
+                not isinstance(self.maximum_version_exclusive, str)
+                or _VERSION.fullmatch(self.maximum_version_exclusive) is None
+            ):
+                raise ModuleManifestError(
+                    "dependency maximum_version_exclusive must be semver X.Y.Z"
+                )
+            if self._parts(self.maximum_version_exclusive) <= self._parts(
+                self.minimum_version
+            ):
+                raise ModuleManifestError(
+                    "dependency maximum_version_exclusive must exceed minimum"
+                )
+
+    @staticmethod
+    def _parts(value: str) -> tuple[int, int, int]:
+        return tuple(int(part) for part in value.split("."))  # type: ignore[return-value]
+
+    def accepts(self, version: str) -> bool:
+        if not isinstance(version, str) or _VERSION.fullmatch(version) is None:
+            return False
+        candidate = self._parts(version)
+        return candidate >= self._parts(self.minimum_version) and (
+            self.maximum_version_exclusive is None
+            or candidate < self._parts(self.maximum_version_exclusive)
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ModuleManifest:
     """A validated module manifest (still verification-agnostic)."""
 
@@ -40,6 +94,7 @@ class ModuleManifest:
     declared_capabilities: tuple[str, ...]
     declared_dependencies: tuple[str, ...]
     authority_boundary: str
+    dependency_requirements: tuple[DependencyRequirement, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or _NAME.fullmatch(self.name) is None:
@@ -91,6 +146,24 @@ class ModuleManifest:
             )
         if self.name in self.declared_dependencies:
             raise ModuleManifestError("a module cannot depend on itself")
+        if type(self.dependency_requirements) is not tuple or any(
+            not isinstance(item, DependencyRequirement)
+            for item in self.dependency_requirements
+        ):
+            raise ModuleManifestError(
+                "dependency_requirements must be a tuple of requirements"
+            )
+        requirement_names = tuple(
+            item.name for item in self.dependency_requirements
+        )
+        if len(requirement_names) != len(set(requirement_names)):
+            raise ModuleManifestError(
+                "dependency requirements must have unique names"
+            )
+        if not set(requirement_names).issubset(self.declared_dependencies):
+            raise ModuleManifestError(
+                "dependency requirements must name declared dependencies"
+            )
         if not isinstance(self.authority_boundary, str) or not (
             self.authority_boundary.strip()
         ) or len(self.authority_boundary.strip()) > 160:
@@ -112,6 +185,7 @@ def parse_manifest(document: object) -> ModuleManifest:
         boundary_notes = document["boundary_notes"]
         capabilities = document["declared_capabilities"]
         dependencies = document["declared_dependencies"]
+        requirements = document.get("dependency_requirements", [])
         authority_boundary = document["authority_boundary"]
     except KeyError as exc:
         raise ModuleManifestError(
@@ -125,6 +199,7 @@ def parse_manifest(document: object) -> ModuleManifest:
         "declared_capabilities",
         "declared_dependencies",
         "authority_boundary",
+        "dependency_requirements",
     }
     if unexpected:
         raise ModuleManifestError(
@@ -135,6 +210,36 @@ def parse_manifest(document: object) -> ModuleManifest:
             not isinstance(item, str) for item in list_field
         ):
             raise ModuleManifestError("manifest lists must be arrays of strings")
+    if not isinstance(requirements, list) or any(
+        not isinstance(item, dict) for item in requirements
+    ):
+        raise ModuleManifestError(
+            "dependency_requirements must be an array of objects"
+        )
+    typed_requirements: list[DependencyRequirement] = []
+    for item in requirements:
+        unexpected_requirement = set(item) - {
+            "name", "minimum_version", "maximum_version_exclusive",
+        }
+        if unexpected_requirement:
+            raise ModuleManifestError(
+                "unexpected dependency requirement fields: "
+                f"{sorted(unexpected_requirement)}"
+            )
+        try:
+            typed_requirements.append(
+                DependencyRequirement(
+                    name=item["name"],
+                    minimum_version=item["minimum_version"],
+                    maximum_version_exclusive=item.get(
+                        "maximum_version_exclusive"
+                    ),
+                )
+            )
+        except KeyError as exc:
+            raise ModuleManifestError(
+                f"dependency requirement field missing: {exc.args[0]}"
+            ) from exc
     document_name = document.get("name")
     document_version = document.get("version")
     if not isinstance(document_name, str):
@@ -149,17 +254,19 @@ def parse_manifest(document: object) -> ModuleManifest:
         declared_capabilities=tuple(capabilities),
         declared_dependencies=tuple(dependencies),
         authority_boundary=authority_boundary,
+        dependency_requirements=tuple(typed_requirements),
     )
 
 
 def _candidate_files(root: Path) -> Iterator[Path]:
-    packages = Path(root) / "src" / "sofia"
+    packages = Path(root) / "src" / "sofia" / "modules"
     if not packages.is_dir():
         return
     yield from sorted(
         path
         for path in packages.glob("*/module_manifest.json")
         if path.is_file()
+        and path.resolve().is_relative_to(packages.resolve())
     )
 
 

@@ -17,8 +17,7 @@ from sofia.modules.interaction.expanded_service import _without_prescribed_gestu
 from sofia.modules.interaction.grammar import NaturalInteractionEngine
 from sofia.core.personality.expression import personality_expression_guidance
 
-ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'
-
+ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core'
 
 def _left_ear_decision():
     from datetime import datetime, timezone

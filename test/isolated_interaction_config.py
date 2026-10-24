@@ -13,11 +13,11 @@ def isolated_interaction_configuration(disposable_root: Path) -> SofiaConfigurat
     checkout = Path(__file__).resolve().parents[1]
     source = checkout / "src" / "sofia"
     return SofiaConfiguration(
-        constitution_path=source / "constitution" / "constitution.md",
-        constitution_hash_path=source / "constitution" / "constitution.sha256",
-        identity_path=source / "identity" / "identity.json",
-        personality_path=source / "personality" / "personality.json",
-        avatar_path=source / "embodiment" / "avatar.json",
+        constitution_path=source / "core" / "constitution" / "constitution.md",
+        constitution_hash_path=source / "core" / "constitution" / "constitution.sha256",
+        identity_path=source / "core" / "identity" / "identity.json",
+        personality_path=source / "core" / "personality" / "personality.json",
+        avatar_path=source / "core" / "embodiment" / "avatar.json",
         state_path=disposable_root / "synthetic-interaction-unopened.db",
         provider=ProviderConfiguration(provider="ollama", model="synthetic-offline:fixture"),
         filesystem_root=disposable_root,

@@ -23,9 +23,9 @@ def _trusted_test_state(tmp_path):
     protected = tmp_path / "protected"
     protected.mkdir(exist_ok=True)
     for dest, source in (
-        ("constitution.md", seed / "constitution" / "constitution.md"),
-        ("constitution.sha256", seed / "constitution" / "constitution.sha256"),
-        ("identity.json", seed / "identity" / "identity.json"),
+        ("constitution.md", seed / "core" / "constitution" / "constitution.md"),
+        ("constitution.sha256", seed / "core" / "constitution" / "constitution.sha256"),
+        ("identity.json", seed / "core" / "identity" / "identity.json"),
     ):
         (protected / dest).write_bytes(source.read_bytes())
     return state

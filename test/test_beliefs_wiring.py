@@ -15,6 +15,7 @@ from sofia.core.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.core.beliefs.model import BeliefHolder, BeliefStance
 from sofia.core.social.principals import local_sparks_principal
+from sofia.core.goals.evidence import GoalEvidenceLedger
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -83,12 +84,35 @@ def _quiet_background(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SOFIA_HABIT_LEARNING", "0")
 
 
+def _evidence(state_path: Path, ref: str) -> str:
+    GoalEvidenceLedger(state_path).record(
+        kind="reviewed_evidence",
+        observed_at=datetime.now(timezone.utc),
+        source="test-reviewed-observation",
+        assertion="A reviewed observation supporting the held position.",
+        evidence_ref=ref,
+    )
+    return ref
+
+
 def test_bootstrap_wires_the_beliefs_service(tmp_path: Path) -> None:
     app = SofiaApplication(configuration(tmp_path))
     try:
         assert isinstance(app.beliefs, BeliefsService)
         assert app.conversation._conviction_provider is not None
         app.start()
+        with pytest.raises(ValueError, match="could not be verified"):
+            app.beliefs.record_owner_position(
+                principal=local_sparks_principal(),
+                statement="An unsupported position must not persist.",
+                topic="unsupported evidence",
+                stance=BeliefStance.SUPPORT,
+                confidence=0.8,
+                reason="This reference does not exist.",
+                evidence_refs=("evidence:missing",),
+                expected_revision=None,
+                now=datetime.now(timezone.utc),
+            )
         prune_position = app.beliefs.record_owner_position(
             principal=local_sparks_principal(),
             statement="Prefer Rust for new systems work.",
@@ -96,7 +120,9 @@ def test_bootstrap_wires_the_beliefs_service(tmp_path: Path) -> None:
             stance=BeliefStance.SUPPORT,
             confidence=0.8,
             reason="Documented migration outcomes.",
-            evidence_refs=("memory:session-2026-01-02",),
+            evidence_refs=(_evidence(
+                app.chat_state_path, "evidence:belief-bootstrap"
+            ),),
             expected_revision=None,
             now=datetime.now(timezone.utc),
         )
@@ -152,7 +178,9 @@ def test_conviction_context_reaches_the_model_request(
             stance=BeliefStance.SUPPORT,
             confidence=0.8,
             reason="Documented migration outcomes.",
-            evidence_refs=("memory:session-2026-01-02",),
+            evidence_refs=(_evidence(
+                app.chat_state_path, "evidence:belief-context"
+            ),),
             expected_revision=None,
             now=datetime.now(timezone.utc),
         )
@@ -197,7 +225,9 @@ def test_withdrawn_positions_do_not_reach_the_model_request(
             stance=BeliefStance.SUPPORT,
             confidence=0.8,
             reason="Documented migration outcomes.",
-            evidence_refs=("memory:session-2026-01-02",),
+            evidence_refs=(_evidence(
+                app.chat_state_path, "evidence:belief-withdraw-origin"
+            ),),
             expected_revision=None,
             now=datetime.now(timezone.utc),
         )
@@ -205,7 +235,9 @@ def test_withdrawn_positions_do_not_reach_the_model_request(
             principal=local_sparks_principal(),
             topic=origin.topic,
             reason="The owner asked to drop the claim.",
-            evidence_refs=("conversation:turn-99",),
+            evidence_refs=(_evidence(
+                app.chat_state_path, "evidence:belief-withdraw"
+            ),),
             expected_revision=origin.revision,
             now=datetime.now(timezone.utc) + timedelta(days=1),
         )

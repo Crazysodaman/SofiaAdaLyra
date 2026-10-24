@@ -183,6 +183,15 @@ PRODUCTION_COMPONENT_SCHEMAS = tuple(
         "creative-inventory",
         "life-project-forge",
         "machine-learning-foundation",
+        "run-component-supervisor",
+        "platform-state",
+        "platform-effect-broker",
+        "platform-module-lifecycle",
+        "platform-resource-broker",
+        "platform-module-readiness",
+        "platform-safe-facade",
+        "platform-secrets-broker",
+        "platform-compute-orchestrator",
     )
 )
 

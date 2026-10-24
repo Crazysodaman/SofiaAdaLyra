@@ -997,3 +997,106 @@ execution.
    sections above, in B00→B08 order; audit any newer upstream code first.
 4. Update this ledger after every implemented slice with real test
    commands and counts (never from memory).
+
+## Codex takeover checkpoint — 2026-10-24 UTC
+
+Takeover baseline: clean clone `/workspace/SofiaAdaLyra-Takeover`, branch
+`main`, source revision `f3075b81ad00df878b7dc01f877a5113a8c67d67`.
+The two older dirty Core and Platform workspaces were inventoried and left
+untouched. No commit, push, deployment, host operation, permission change, or
+production-state access has occurred in this checkout.
+
+### Restructure repairs verified
+
+- pytest package ownership now recognizes the `sofia.core`,
+  `sofia.platform`, and `sofia.modules` layer prefixes after relocation.
+- Wardrobe resource schema identifiers point to the relocated
+  `sofia.modules.avatar` owner.
+- Filesystem observation uses a deterministic exact tie-breaker for paths
+  which are equal under case-folding.
+- Focused relocation/resource suite: **59 passed, 1 skipped**.
+
+### B07 Core correctness and real Platform observation
+
+- `core.modreg.manifest` discovers only contained manifests under
+  `src/sofia/modules/*/module_manifest.json`.
+- Registry source verification uses Python package boundaries; `sofia.foo`
+  cannot be satisfied by `sofia.foobar`.
+- The prior requester-major compatibility rule was removed. Core manifests
+  now optionally declare an explicit half-open dependency version interval
+  (`minimum_version`, optional `maximum_version_exclusive`). Bare dependency
+  names retain their documented identity-only meaning. Registry persistence
+  and Workshop request round-trips preserve the typed range.
+- Module self-knowledge no longer treats historical successful or denied
+  outcomes as current permission state. Current authority remains unknown
+  without current authoritative evidence.
+- Availability requires installed, active, and healthy observations. Health
+  is aggregated by logical module instance so one healthy component cannot
+  conceal a failed, stopped, or stale required component.
+- `CanonicalPlatformModuleObserver` is the default production observer in
+  `SofiaApplication`. It reads the canonical Platform lifecycle projection
+  without executing modules or granting authority; a missing lifecycle table
+  is an honest empty observation and stale `ACTIVE` state is unknown health.
+  Fake observers remain test-only injection points.
+- Production `BeliefsService` and `PersonalityEvolutionService` now receive
+  the canonical typed `GoalEvidenceIndex`; missing references are rejected
+  instead of silently allowing unsupported lasting state changes.
+- Core-originated module and Workshop proposals now use the distinct
+  host-bound `sofia` / `system:core` principal rather than impersonating the
+  owner. Proposal/request origin principal and audience are durably retained
+  across restart. Forged Sofía identities in a user audience fail closed.
+  These records remain non-effect proposals: Sofía cannot mark her own
+  Workshop request submitted, install a module, or grant execution authority;
+  that transition still requires the authenticated owner and Platform.
+- Focused Core/observer/evidence suite:
+  `pytest -q test/test_modules_registry.py test/test_module_awareness.py
+  test/test_platform_module_observer.py test/test_beliefs_store.py
+  test/test_beliefs_wiring.py test/test_personality_evolution.py` —
+  **61 passed**. `compileall` for the touched Core/Platform packages and
+  `git diff --check` also passed.
+- Proposal/principal restart and negative-path subset:
+  `pytest -q test/test_module_awareness.py test/test_modules_registry.py
+  test/test_platform_module_observer.py test/test_social_principals.py
+  test/test_social_session_display_binding.py` — **33 passed**.
+
+Readiness remains **BETA / local L4 evidence for these slices only**. There is
+no matching-revision CI, independent review, Windows result, signed real
+module package, or live-host acceptance, so B07/B08 and Core 1.0 are not
+release-qualified yet.
+
+### Broad Core regression gate
+
+The first broad run identified four restructure root causes: stale imports in
+the offline model evaluator, old Core asset paths in interaction/avatar/model
+fixtures and the installed-distribution baseline, stale authoritative V18
+source paths, and an eager `platform.state` facade export that created a
+state→backup→config cycle. Those causes were repaired, not hidden with skips.
+The complete set of 207 initially affected tests then passed.
+
+The first post-repair Core gate ran inside a socket-denying sandbox and
+reported **4,733 passed, 4 skipped, 12 failed, 2,229 deselected, 8 subtests
+passed**. Every failure occurred at loopback socket creation before product
+logic. After granting bounded network permission, all six affected local
+HTTP/mTLS/WebAuthn modules passed (**47 passed**). The exact full rerun under
+the same permission completed:
+
+`pytest -q -m 'pkg_core and not integration'` — **4,745 passed, 4 skipped,
+2,229 deselected, 8 subtests passed** in 310.47 seconds.
+
+JSON parsing of both authoritative evidence files, whole-tree `compileall`,
+and `git diff --check` passed afterward. This is local Linux evidence only;
+it does not establish L5/CI, Windows, or live-host acceptance.
+
+### Wheel and entrypoint acceptance
+
+Using the isolated takeover environment's Setuptools backend,
+`pip wheel --no-deps --no-build-isolation` produced
+`sofia_ada_lyra-0.1.0-py3-none-any.whl` (15,003,440 bytes; SHA-256
+`9914423edcd8b2136b1254d520f4c696a776e497783c362a1db5523961a07b72`).
+The wheel was installed into a disposable target. `importlib.resources`
+verified the five required Constitution, identity, embodiment, and
+personality assets, and installed imports of Platform application and Avatar
+completed. Running the installed `python -m sofia` with an invalid bounded
+argument reached the supported launcher and returned its usage/exit 2 without
+opening production state. This proves packaging/entrypoint reachability, not a
+live Desktop startup.

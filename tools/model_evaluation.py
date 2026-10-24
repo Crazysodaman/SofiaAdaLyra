@@ -20,26 +20,26 @@ from uuid import UUID
 
 from ollama import Client
 
-from sofia.authority.model import Authority
-from sofia.cognition.assembler import CognitiveContextAssembler
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.llm_engine import LLMCognitiveEngine
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.cognition.operation import CognitiveOperation
-from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.cognition.system import CognitiveSystem
-from sofia.config.model import ProviderConfiguration
-from sofia.embodiment.model import (
+from sofia.platform.authority.model import Authority
+from sofia.core.cognition.assembler import CognitiveContextAssembler
+from sofia.core.cognition.context import CognitiveContext
+from sofia.core.cognition.llm_engine import LLMCognitiveEngine
+from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.core.cognition.operation import CognitiveOperation
+from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.system import CognitiveSystem
+from sofia.platform.config.model import ProviderConfiguration
+from sofia.core.embodiment.model import (
     ClothingItem,
     ClothingSpecification,
     Embodiment,
     Measurement,
     PhysicalSelf,
 )
-from sofia.identity.model import SofiaIdentity
-from sofia.operational.model import OperationalState
-from sofia.personality.model import PersonalityProfile
-from sofia.self_model.model import Relationship, SelfConcept, SofiaCoreState
+from sofia.core.identity.model import SofiaIdentity
+from sofia.platform.operational.model import OperationalState
+from sofia.core.personality.model import PersonalityProfile
+from sofia.core.self_model.model import Relationship, SelfConcept, SofiaCoreState
 
 
 CONTROLLED_MODEL = "qwen3:14b"

@@ -1,5 +1,5 @@
 {
-  "schema": "sofia.avatar.wardrobe.outfits.v1",
+  "schema": "sofia.modules.avatar.wardrobe.outfits.v1",
   "outfits": [
     {
       "outfit_id": "day.default",

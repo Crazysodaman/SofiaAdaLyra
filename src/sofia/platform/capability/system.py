@@ -66,6 +66,48 @@ class CapabilitySystem:
             handler,
         )
 
+    def register_batch(
+        self,
+        registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+    ) -> None:
+        """Register one module's capabilities atomically in memory."""
+        if type(registrations) is not tuple or not registrations:
+            raise ValueError("registrations must be a nonempty tuple")
+        names: list[str] = []
+        for capability, handler in registrations:
+            if not isinstance(capability, Capability):
+                raise TypeError("capability must be a Capability")
+            if not callable(handler):
+                raise TypeError("handler must be callable")
+            names.append(capability.name)
+        if len(names) != len(set(names)):
+            raise ValueError("batch contains duplicate capability names")
+        conflicts = sorted(set(names) & set(self._capabilities))
+        if conflicts:
+            raise ValueError(
+                f"Capabilities already registered: {', '.join(conflicts)}"
+            )
+        self._capabilities.update(
+            (capability.name, (capability, handler))
+            for capability, handler in registrations
+        )
+
+    def unregister_batch(
+        self,
+        registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+    ) -> None:
+        """Remove exactly a previously registered batch, never look-alikes."""
+        if type(registrations) is not tuple or not registrations:
+            raise ValueError("registrations must be a nonempty tuple")
+        for capability, handler in registrations:
+            current = self._capabilities.get(capability.name)
+            if current is None or current[0] != capability or current[1] is not handler:
+                raise RuntimeError(
+                    "capability batch changed; refusing partial unregister"
+                )
+        for capability, _ in registrations:
+            del self._capabilities[capability.name]
+
     def capabilities(self) -> tuple[Capability, ...]:
         """Return the registered canonical capability descriptors."""
         return tuple(

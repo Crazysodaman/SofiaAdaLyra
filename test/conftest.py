@@ -138,7 +138,8 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 _IMPORT_RE = re.compile(
-    r"(?m)^\s*(?:from|import)\s+sofia\.([A-Za-z_][A-Za-z0-9_]*)"
+    r"(?m)^\s*(?:from|import)\s+sofia\."
+    r"(?:(core|platform|modules)\.)?([A-Za-z_][A-Za-z0-9_]*)"
 )
 
 
@@ -150,7 +151,9 @@ def _explicit_package_markers(path: Path) -> frozenset[str]:
     except OSError:
         source = ""
 
-    for module in _IMPORT_RE.findall(source):
+    for layer, module in _IMPORT_RE.findall(source):
+        if layer == "core":
+            markers.add("pkg_core")
         markers.update(MODULE_PACKAGE_MARKERS.get(module, ()))
 
     name = path.name

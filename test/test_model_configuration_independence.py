@@ -17,7 +17,7 @@ from sofia.platform.config.user_settings import RuntimeUserSettings
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SOURCE_ROOT = PROJECT_ROOT / "src" / "sofia"
-CATALOG_PATH = SOURCE_ROOT / "config" / "model_catalog.py"
+CATALOG_PATH = SOURCE_ROOT / "platform" / "config" / "model_catalog.py"
 
 
 def test_known_model_literals_are_centralized_in_model_catalog():

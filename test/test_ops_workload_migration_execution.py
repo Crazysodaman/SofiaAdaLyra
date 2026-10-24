@@ -258,3 +258,65 @@ def test_workload_result_path_supports_indexed_service_evidence(tmp_path):
     )
 
     assert executor.execute(plan()).stage is MigrationStage.COMPLETED
+
+
+def test_completed_migration_identity_cannot_replay_external_effects(tmp_path):
+    executor, calls, _, _ = make_executor(tmp_path)
+
+    executor.execute(plan())
+    observed_calls = tuple(calls)
+
+    with pytest.raises(WorkloadBackendError, match="automatic replay"):
+        executor.execute(plan())
+
+    assert tuple(calls) == observed_calls
+
+
+def test_restart_reconciliation_marks_interrupted_migration_uncertain(tmp_path):
+    executor, calls, _, plane = make_executor(tmp_path)
+    migration = plan()
+    executor.journal.record(
+        migration,
+        stage=MigrationStage.DRAINED,
+        lease_epoch=7,
+        receipts=(),
+        now=datetime.now(timezone.utc),
+    )
+
+    restored = WorkloadMigrationExecutor(
+        backend=executor.backend,
+        state_plane=plane,
+        instance_store=executor.instances,
+    )
+    reconciled = restored.reconcile_incomplete("move-1")
+
+    assert reconciled["stage"] == "outcome_uncertain"
+    assert "operator verification" in reconciled["error"]
+    assert calls == []
+    assert restored.reconcile_incomplete("move-1") == reconciled
+
+
+def test_restart_reconciliation_does_not_create_unknown_migration(tmp_path):
+    executor, calls, _, _ = make_executor(tmp_path)
+
+    assert executor.reconcile_incomplete("missing") is None
+    assert calls == []
+
+
+def test_startup_reconciliation_is_bounded_and_only_reports_nonterminal(tmp_path):
+    executor, calls, _, _ = make_executor(tmp_path)
+    migration = plan()
+    executor.journal.record(
+        migration,
+        stage=MigrationStage.TARGET_STARTED,
+        lease_epoch=8,
+        receipts=(),
+        now=datetime.now(timezone.utc),
+    )
+
+    assert executor.reconcile_startup() == ("move-1",)
+    assert executor.reconcile_startup() == ()
+    assert calls == []
+
+    with pytest.raises(ValueError, match="limit"):
+        executor.reconcile_startup(limit=0)

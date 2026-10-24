@@ -38,6 +38,16 @@ from .work import (
     WorkResult,
     WorkStatus,
 )
+from .components import (
+    ComponentAction,
+    ComponentHealth,
+    ComponentKind,
+    ComponentRuntimeSupervisor,
+    ComponentSpec,
+    ComponentStatus,
+    DesiredComponentState,
+)
+from .effects import EffectBroker, EffectReceipt, EffectRequest, EffectStatus
 
 __all__ = [
     "ApplicationHeartbeat",
@@ -66,4 +76,15 @@ __all__ = [
     "WorkOverloadError",
     "WorkResult",
     "WorkStatus",
+    "ComponentAction",
+    "ComponentHealth",
+    "ComponentKind",
+    "ComponentRuntimeSupervisor",
+    "ComponentSpec",
+    "ComponentStatus",
+    "DesiredComponentState",
+    "EffectBroker",
+    "EffectReceipt",
+    "EffectRequest",
+    "EffectStatus",
 ]

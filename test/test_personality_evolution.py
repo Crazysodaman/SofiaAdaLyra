@@ -22,6 +22,7 @@ from sofia.core.personality.evolution import (
 )
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.principals import local_sparks_principal
+from sofia.core.goals.evidence import GoalEvidenceLedger
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 EVIDENCE = ("memory:session-2026-02-01",)
@@ -472,6 +473,23 @@ def test_evolved_traits_reach_the_model_request(
     monkeypatch.setattr(app.runtime, "respond", respond)
     app.start()
     try:
+        with pytest.raises(ValueError, match="could not be verified"):
+            app.personality_evolution.record_trait(
+                principal=local_sparks_principal(),
+                trait="unsupported-drift",
+                weight=0.8,
+                confidence=0.9,
+                reason="No canonical evidence exists.",
+                evidence_refs=("evidence:missing",),
+                now=datetime.now(_timezone.utc),
+            )
+        GoalEvidenceLedger(configuration.state_path).record(
+            kind="reviewed_evidence",
+            observed_at=datetime.now(_timezone.utc),
+            source="test-reviewed-observation",
+            assertion="Recurring reviewed corrections of unverified claims.",
+            evidence_ref="memory:session-2026-02-01",
+        )
         app.personality_evolution.record_trait(
             principal=local_sparks_principal(),
             trait="self-verification",

@@ -6,7 +6,14 @@ from datetime import datetime, timezone
 import json
 from typing import Any
 
-from sofia.platform.ops.workload import MigrationPlan, MigrationStage, WorkloadInstance, WorkloadPhase
+from sofia.platform.ops.model import WorkloadContract
+from sofia.platform.ops.workload import (
+    ManagedWorkload,
+    MigrationPlan,
+    MigrationStage,
+    WorkloadInstance,
+    WorkloadPhase,
+)
 from sofia.platform.ops.workload_backend import (
     TypedWorkloadBackend,
     WorkloadBackendError,
@@ -166,6 +173,11 @@ class WorkloadMigrationExecutor:
     def preflight(self, plan: MigrationPlan) -> None:
         if not isinstance(plan, MigrationPlan):
             raise TypeError("plan must be MigrationPlan")
+        existing = self.journal.get(plan.migration_id)
+        if existing is not None:
+            raise WorkloadBackendError(
+                "migration identity already has durable history; automatic replay is forbidden"
+            )
         source = self.backend.catalog.profile(
             plan.workload.contract.workload_id,
             plan.workload.contract.version,
@@ -211,6 +223,103 @@ class WorkloadMigrationExecutor:
             raise WorkloadBackendError(
                 "migration requires exactly one READY source instance"
             )
+
+    def reconcile_incomplete(self, migration_id: str) -> dict[str, Any] | None:
+        """Fail closed after a restart without replaying an external effect.
+
+        A durable nonterminal migration entry proves only that orchestration had
+        started.  It does not prove which remote effect completed before the
+        process stopped.  Recovery therefore records ``outcome_uncertain`` and
+        leaves resolution to an authenticated operator instead of retrying.
+        Terminal entries are returned unchanged, making repeated startup
+        reconciliation idempotent.
+        """
+        if not isinstance(migration_id, str) or not migration_id.strip():
+            raise ValueError("migration_id required")
+        existing = self.journal.get(migration_id.strip())
+        if existing is None:
+            return None
+        terminal = {
+            MigrationStage.COMPLETED.value,
+            MigrationStage.ROLLED_BACK.value,
+            MigrationStage.FAILED.value,
+            MigrationStage.OUTCOME_UNCERTAIN.value,
+        }
+        if existing["stage"] in terminal:
+            return existing
+
+        workload = ManagedWorkload(
+            WorkloadContract(
+                str(existing["workload_id"]),
+                str(existing["version"]),
+                ("recovery-only",),
+                ("recovery-only",),
+                singleton=bool(existing.get("singleton", False)),
+            ),
+            checkpoint_required=bool(existing.get("checkpoint_required", False)),
+        )
+        plan = MigrationPlan(
+            str(existing["migration_id"]),
+            workload,
+            str(existing["source_host_id"]),
+            str(existing["target_host_id"]),
+        )
+        receipts = tuple(
+            WorkloadExecutionReceipt(
+                step=str(item["step"]),
+                host_id=str(item["host_id"]),
+                capability=str(item["capability"]),
+                operation=str(item["operation"]),
+                reported_success=bool(item["reported_success"]),
+                message=str(item.get("message", "")),
+                result_ref=(
+                    None
+                    if item.get("result_ref") is None
+                    else str(item["result_ref"])
+                ),
+            )
+            for item in existing.get("receipts", ())
+        )
+        self.journal.record(
+            plan,
+            stage=MigrationStage.OUTCOME_UNCERTAIN,
+            lease_epoch=(
+                None
+                if existing.get("lease_epoch") is None
+                else int(existing["lease_epoch"])
+            ),
+            receipts=receipts,
+            now=datetime.now(timezone.utc),
+            error=(
+                "startup reconciliation found an interrupted migration; "
+                "external effects require operator verification"
+            ),
+        )
+        return self.journal.get(migration_id.strip())
+
+    def reconcile_startup(self, *, limit: int = 1000) -> tuple[str, ...]:
+        """Classify durable interrupted migrations without executing work."""
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("startup reconciliation limit must be in 1..1000")
+        records = self.state_plane.list_namespace(MigrationJournal.NAMESPACE)
+        if len(records) > limit:
+            raise RuntimeError(
+                "migration startup reconciliation exceeds its bounded limit"
+            )
+        reconciled: list[str] = []
+        for record in records:
+            current = json.loads(record.value.decode("utf-8"))
+            if current["stage"] in {
+                MigrationStage.PLANNED.value,
+                MigrationStage.DRAINED.value,
+                MigrationStage.CHECKPOINTED.value,
+                MigrationStage.TARGET_STARTED.value,
+                MigrationStage.READY.value,
+                MigrationStage.SOURCE_FENCED.value,
+            }:
+                self.reconcile_incomplete(str(current["migration_id"]))
+                reconciled.append(str(current["migration_id"]))
+        return tuple(reconciled)
 
     def _journal(
         self,

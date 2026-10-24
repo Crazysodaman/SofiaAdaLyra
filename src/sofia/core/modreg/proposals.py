@@ -22,7 +22,10 @@ from uuid import uuid4
 
 from sofia.core.modreg.self_model import CapabilitySelfModel, Grounding
 from sofia.core.social.model import PrincipalContext
-from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.principals import (
+    SOFIA_PRINCIPAL_ID,
+    SPARKS_PRINCIPAL_ID,
+)
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
@@ -137,6 +140,8 @@ class ModuleProposalRecord:
     permissions_needed: tuple[str, ...]
     resource_notes: str
     outcome_refs: tuple[str, ...]
+    proposer_principal_id: str
+    audience_id: str
     recorded_at: datetime
 
     def __post_init__(self) -> None:
@@ -183,6 +188,12 @@ class ModuleProposalRecord:
             for ref in self.outcome_refs
         ):
             raise ValueError("outcome_refs must be bounded canonical ids")
+        for label, value in (
+            ("proposer_principal_id", self.proposer_principal_id),
+            ("audience_id", self.audience_id),
+        ):
+            if not isinstance(value, str) or not value.strip() or len(value) > 160:
+                raise ValueError(f"{label} must be bounded nonempty text")
         if self.revision == 1 and self.status is not ProposalStatus.PROPOSED:
             raise ValueError("proposal origin is always recorded proposed")
         if _aware(self.recorded_at) != self.recorded_at:
@@ -227,6 +238,21 @@ class ModuleProposalStore:
                 CREATE INDEX IF NOT EXISTS modules_proposal_need
                     ON modules_proposal_current(need_id);
             """)
+            columns = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(modules_proposal_revision)"
+                )
+            }
+            if "proposer_principal_id" not in columns:
+                db.execute(
+                    "ALTER TABLE modules_proposal_revision ADD COLUMN "
+                    "proposer_principal_id TEXT NOT NULL DEFAULT 'legacy:unknown'"
+                )
+            if "audience_id" not in columns:
+                db.execute(
+                    "ALTER TABLE modules_proposal_revision ADD COLUMN "
+                    "audience_id TEXT NOT NULL DEFAULT 'legacy:unknown'"
+                )
 
     def _open(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
@@ -251,6 +277,8 @@ class ModuleProposalStore:
             record.resource_notes,
             json.dumps(list(record.outcome_refs)),
             record.recorded_at.isoformat(),
+            record.proposer_principal_id,
+            record.audience_id,
         )
 
     @staticmethod
@@ -271,6 +299,8 @@ class ModuleProposalStore:
             ),
             resource_notes=row["resource_notes"],
             outcome_refs=tuple(json.loads(row["outcome_refs"])),
+            proposer_principal_id=row["proposer_principal_id"],
+            audience_id=row["audience_id"],
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
         )
 
@@ -304,8 +334,12 @@ class ModuleProposalStore:
                         "proposal identity changed; reload before revising"
                     )
             db.execute(
-                """INSERT INTO modules_proposal_revision VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                """INSERT INTO modules_proposal_revision(
+                proposal_id,revision,need_id,target_module,action,status,
+                motivation,alternatives,benefits,risks,permissions_needed,
+                resource_notes,outcome_refs,recorded_at,
+                proposer_principal_id,audience_id) VALUES(
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 self._encode(record),
             )
             if row is None:
@@ -379,13 +413,21 @@ class ModuleProposalService:
         return self._self_model
 
     @staticmethod
-    def _require_sparks(principal: PrincipalContext) -> None:
+    def _require_proposer(principal: PrincipalContext) -> None:
         if not isinstance(principal, PrincipalContext):
             raise TypeError("principal must be a PrincipalContext")
-        if principal.principal_id != SPARKS_PRINCIPAL_ID:
+        if principal.principal_id not in {
+            SPARKS_PRINCIPAL_ID, SOFIA_PRINCIPAL_ID,
+        }:
             raise PermissionError(
-                "module proposal writes require the authenticated owner"
+                "module proposal writes require an authenticated owner or "
+                "the host-bound Sofía Core principal"
             )
+        if principal.principal_id == SOFIA_PRINCIPAL_ID and (
+            principal.audience_id != "system:core"
+            or principal.audience_kind.value != "system"
+        ):
+            raise PermissionError("invalid Sofía Core proposal scope")
 
     def evaluate_need(
         self, need: ModuleNeed, *, capability_terms: tuple[str, ...],
@@ -456,7 +498,7 @@ class ModuleProposalService:
         resource_notes: str = "",
         recorded_at: datetime | None = None,
     ) -> ModuleProposalRecord:
-        self._require_sparks(principal)
+        self._require_proposer(principal)
         if action is ProposalAction.INSTALL and (
             evaluation.installed_alternatives
         ):
@@ -484,6 +526,8 @@ class ModuleProposalService:
             permissions_needed=tuple(permissions_needed),
             resource_notes=resource_notes,
             outcome_refs=(),
+            proposer_principal_id=principal.principal_id,
+            audience_id=principal.audience_id,
             recorded_at=stamp,
         )
         return self._store.persist(record, expected_revision=None)
@@ -500,7 +544,7 @@ class ModuleProposalService:
         outcome_refs: tuple[str, ...] = (),
         recorded_at: datetime | None = None,
     ) -> ModuleProposalRecord:
-        self._require_sparks(principal)
+        self._require_proposer(principal)
         if status is ProposalStatus.PROPOSED:
             raise ValueError("resolution must move past the proposed state")
         if status not in (
@@ -525,6 +569,13 @@ class ModuleProposalService:
             raise LookupError("unknown proposal for this need and target")
         if current.revision != expected_revision:
             raise ProposalError("revision changed; reload before resolving")
+        if (
+            principal.principal_id != SPARKS_PRINCIPAL_ID
+            and principal.principal_id != current.proposer_principal_id
+        ):
+            raise PermissionError(
+                "only the proposal originator or owner may resolve it"
+            )
         if not note.strip() or len(note.strip()) > 500:
             raise ValueError("resolution note must be bounded nonempty text")
         stamp = _aware(recorded_at) if recorded_at is not None else _aware(
@@ -544,6 +595,8 @@ class ModuleProposalService:
             permissions_needed=current.permissions_needed,
             resource_notes=current.resource_notes,
             outcome_refs=tuple(outcome_refs),
+            proposer_principal_id=current.proposer_principal_id,
+            audience_id=current.audience_id,
             recorded_at=stamp,
         )
         return self._store.persist(

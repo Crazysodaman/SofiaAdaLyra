@@ -46,6 +46,11 @@ from .state_promotion import (
     OperatorHandoffEvidence, OperatorHandoffKind, OperatorHandoffReview,
     PendingHomePointer, review_operator_handoff,
 )
+from .resources import ResourceArbiter, ResourceObservation, ResourceReservation
+from .forecast import (
+    FleetForecast, FleetPressureSample, ForecastAdvice, PressureProjection,
+    deterministic_fleet_forecast,
+)
 
 __all__ = [
     'HostLifecycle',
@@ -128,4 +133,12 @@ __all__ = [
     'OperatorHandoffReview',
     'PendingHomePointer',
     'review_operator_handoff',
+    'ResourceArbiter',
+    'ResourceObservation',
+    'ResourceReservation',
+    'FleetForecast',
+    'FleetPressureSample',
+    'ForecastAdvice',
+    'PressureProjection',
+    'deterministic_fleet_forecast',
 ]

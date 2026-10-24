@@ -23,8 +23,8 @@ def _source_files():
 
 def test_source_does_not_use_development_configuration_outside_config():
     allowed = {
-        SOURCE_ROOT / "config" / "__init__.py",
-        SOURCE_ROOT / "config" / "defaults.py",
+        SOURCE_ROOT / "platform" / "config" / "__init__.py",
+        SOURCE_ROOT / "platform" / "config" / "defaults.py",
     }
     offenders = []
     for path in _source_files():
@@ -42,7 +42,7 @@ def test_source_does_not_use_development_configuration_outside_config():
 
 def test_source_does_not_hardcode_repository_state_directory():
     allowed = {
-        SOURCE_ROOT / "config" / "layout.py",
+        SOURCE_ROOT / "platform" / "config" / "layout.py",
     }
     patterns = (
         re.compile(
@@ -69,15 +69,15 @@ def test_source_does_not_hardcode_repository_state_directory():
 
 def test_storage_environment_variables_are_centralized_in_layout():
     allowed = {
-        SOURCE_ROOT / "config" / "layout.py",
+        SOURCE_ROOT / "platform" / "config" / "layout.py",
     }
     storage_names = ("SOFIA_STATE_ROOT", "SOFIA_PROTECTED_ROOT")
     # These two systemd entry points check that the launcher is in
     # production mode. They do not resolve filesystem roots or identity
     # files, and must retain their fail-closed mode preflight.
     mode_guards = {
-        SOURCE_ROOT / "run" / "systemd_runtime.py",
-        SOURCE_ROOT / "run" / "systemd_release_launcher.py",
+        SOURCE_ROOT / "platform" / "run" / "systemd_runtime.py",
+        SOURCE_ROOT / "platform" / "run" / "systemd_release_launcher.py",
     }
     offenders = []
     for path in _source_files():

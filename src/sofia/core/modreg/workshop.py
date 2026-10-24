@@ -22,7 +22,10 @@ from uuid import uuid4
 
 from sofia.core.modreg.manifest import ModuleManifest
 from sofia.core.social.model import PrincipalContext
-from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.social.principals import (
+    SOFIA_PRINCIPAL_ID,
+    SPARKS_PRINCIPAL_ID,
+)
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
@@ -62,6 +65,8 @@ class WorkshopDevelopmentRequest:
     review_requirements: tuple[str, ...]
     proposal_ref: str | None
     status: WorkshopRequestStatus
+    requester_principal_id: str
+    audience_id: str
     recorded_at: datetime
 
     def __post_init__(self) -> None:
@@ -109,6 +114,12 @@ class WorkshopDevelopmentRequest:
             )
         if not isinstance(self.status, WorkshopRequestStatus):
             raise TypeError("status must be WorkshopRequestStatus")
+        for label, value in (
+            ("requester_principal_id", self.requester_principal_id),
+            ("audience_id", self.audience_id),
+        ):
+            if not isinstance(value, str) or not value.strip() or len(value) > 160:
+                raise ValueError(f"{label} must be bounded nonempty text")
         if self.revision == 1 and self.status is not (
             WorkshopRequestStatus.PREPARED
         ):
@@ -145,6 +156,21 @@ class WorkshopRequestStore:
                     UNIQUE(manifest_name,revision)
                 );
             """)
+            columns = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(modules_workshop_revision)"
+                )
+            }
+            if "requester_principal_id" not in columns:
+                db.execute(
+                    "ALTER TABLE modules_workshop_revision ADD COLUMN "
+                    "requester_principal_id TEXT NOT NULL DEFAULT 'legacy:unknown'"
+                )
+            if "audience_id" not in columns:
+                db.execute(
+                    "ALTER TABLE modules_workshop_revision ADD COLUMN "
+                    "audience_id TEXT NOT NULL DEFAULT 'legacy:unknown'"
+                )
 
     def _open(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
@@ -162,6 +188,16 @@ class WorkshopRequestStore:
             "boundary_notes": m.boundary_notes,
             "declared_capabilities": list(m.declared_capabilities),
             "declared_dependencies": list(m.declared_dependencies),
+            "dependency_requirements": [
+                {
+                    "name": requirement.name,
+                    "minimum_version": requirement.minimum_version,
+                    "maximum_version_exclusive": (
+                        requirement.maximum_version_exclusive
+                    ),
+                }
+                for requirement in m.dependency_requirements
+            ],
             "authority_boundary": m.authority_boundary,
         }
         return (
@@ -174,6 +210,8 @@ class WorkshopRequestStore:
             record.proposal_ref,
             record.status.value,
             record.recorded_at.isoformat(),
+            record.requester_principal_id,
+            record.audience_id,
         )
 
     @staticmethod
@@ -191,6 +229,8 @@ class WorkshopRequestStore:
             ),
             proposal_ref=row["proposal_ref"],
             status=WorkshopRequestStatus(row["status"]),
+            requester_principal_id=row["requester_principal_id"],
+            audience_id=row["audience_id"],
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
         )
 
@@ -227,8 +267,11 @@ class WorkshopRequestStore:
                         "request identity changed; reload before revising"
                     )
             db.execute(
-                """INSERT INTO modules_workshop_revision VALUES(
-                ?,?,?,?,?,?,?,?,?)""",
+                """INSERT INTO modules_workshop_revision(
+                request_id,revision,manifest_json,test_targets,
+                sandbox_requirement,review_requirements,proposal_ref,status,
+                recorded_at,requester_principal_id,audience_id) VALUES(
+                ?,?,?,?,?,?,?,?,?,?,?)""",
                 self._encode(record),
             )
             if row is None:
@@ -288,12 +331,29 @@ class WorkshopRequestService:
         return self._store
 
     @staticmethod
+    def _require_requester(principal: PrincipalContext) -> None:
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("principal must be a PrincipalContext")
+        if principal.principal_id not in {
+            SPARKS_PRINCIPAL_ID, SOFIA_PRINCIPAL_ID,
+        }:
+            raise PermissionError(
+                "workshop request writes require an authenticated owner or "
+                "the host-bound Sofía Core principal"
+            )
+        if principal.principal_id == SOFIA_PRINCIPAL_ID and (
+            principal.audience_id != "system:core"
+            or principal.audience_kind.value != "system"
+        ):
+            raise PermissionError("invalid Sofía Core workshop scope")
+
+    @staticmethod
     def _require_sparks(principal: PrincipalContext) -> None:
         if not isinstance(principal, PrincipalContext):
             raise TypeError("principal must be a PrincipalContext")
         if principal.principal_id != SPARKS_PRINCIPAL_ID:
             raise PermissionError(
-                "workshop request writes require the authenticated owner"
+                "submitting a workshop request requires the authenticated owner"
             )
 
     def prepare(
@@ -314,7 +374,7 @@ class WorkshopRequestService:
         proposal_ref: str | None = None,
         recorded_at: datetime | None = None,
     ) -> WorkshopDevelopmentRequest:
-        self._require_sparks(principal)
+        self._require_requester(principal)
         stamp = _aware(recorded_at) if recorded_at is not None else _aware(
             datetime.now(timezone.utc)
         )
@@ -327,6 +387,8 @@ class WorkshopRequestService:
             review_requirements=tuple(review_requirements),
             proposal_ref=proposal_ref,
             status=WorkshopRequestStatus.PREPARED,
+            requester_principal_id=principal.principal_id,
+            audience_id=principal.audience_id,
             recorded_at=stamp,
         )
         return self._store.persist(record, expected_revision=None)
@@ -365,6 +427,8 @@ class WorkshopRequestService:
             review_requirements=current.review_requirements,
             proposal_ref=current.proposal_ref,
             status=WorkshopRequestStatus.SUBMITTED,
+            requester_principal_id=current.requester_principal_id,
+            audience_id=current.audience_id,
             recorded_at=stamp,
         )
         return self._store.persist(
@@ -380,12 +444,19 @@ class WorkshopRequestService:
         recorded_at: datetime | None = None,
     ) -> WorkshopDevelopmentRequest:
         """Retire a request or failed candidate honestly."""
-        self._require_sparks(principal)
+        self._require_requester(principal)
         current = self._store.current(manifest_name)
         if current is None:
             raise LookupError("unknown workshop request")
         if current.revision != expected_revision:
             raise WorkshopRequestError("revision changed; reload first")
+        if (
+            principal.principal_id != SPARKS_PRINCIPAL_ID
+            and principal.principal_id != current.requester_principal_id
+        ):
+            raise PermissionError(
+                "only the request originator or owner may retire it"
+            )
         stamp = _aware(recorded_at) if recorded_at is not None else _aware(
             datetime.now(timezone.utc)
         )
@@ -398,6 +469,8 @@ class WorkshopRequestService:
             review_requirements=current.review_requirements,
             proposal_ref=current.proposal_ref,
             status=WorkshopRequestStatus.RETIRED,
+            requester_principal_id=current.requester_principal_id,
+            audience_id=current.audience_id,
             recorded_at=stamp,
         )
         return self._store.persist(

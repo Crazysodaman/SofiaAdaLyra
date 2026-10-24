@@ -201,7 +201,13 @@ class CapabilitySelfModel:
                 placements.setdefault(row.module_id, []).append(row)
             for row in self._platform.outcomes():
                 outcomes.setdefault(row.module_id, []).append(row)
-        names = sorted(set(trust) | set(described) | set(placements))
+        health_modules = {
+            instance_id.split("@", 1)[0]
+            for instance_id in health_rows
+        }
+        names = sorted(
+            set(trust) | set(described) | set(placements) | health_modules
+        )
         rows: list[ModuleAwarenessRow] = []
         for module_id in names:
             instance_rows = [
@@ -210,20 +216,26 @@ class CapabilitySelfModel:
                 if key == module_id or key.startswith(module_id + "@")
                 for row in sample
             ]
-            latest = max(
-                instance_rows,
-                key=lambda row: row.observed_at,
-                default=None,
+            latest_by_instance = {}
+            for sample in instance_rows:
+                previous = latest_by_instance.get(sample.module_instance_id)
+                if previous is None or sample.observed_at > previous.observed_at:
+                    latest_by_instance[sample.module_instance_id] = sample
+            latest_rows = tuple(latest_by_instance.values())
+            fresh_rows = tuple(
+                sample for sample in latest_rows
+                if sample.fresh_until >= moment
             )
-            row_stale = bool(
-                latest is not None and latest.fresh_until < moment
+            row_stale = bool(latest_rows) and len(fresh_rows) != len(latest_rows)
+            inactive_observed = any(
+                sample.lifecycle != "ACTIVE" for sample in fresh_rows
             )
-            if latest is not None and not row_stale:
-                lifecycle_active = latest.lifecycle == "ACTIVE"
-                healthy_state = latest.health is _HEALTH_OK
-            else:
-                lifecycle_active = False
-                healthy_state = False
+            unhealthy_observed = any(
+                sample.health is not _HEALTH_OK for sample in fresh_rows
+            )
+            blocked_observed = any(
+                sample.blocked_dependencies for sample in fresh_rows
+            )
             if module_id in described:
                 installed_state = Grounding.YES
             elif self._platform is not None:
@@ -231,24 +243,22 @@ class CapabilitySelfModel:
             else:
                 installed_state = Grounding.UNKNOWN
             active = (
-                Grounding.YES if lifecycle_active
-                else (
-                    Grounding.UNKNOWN if latest is None or row_stale
-                    else Grounding.NO
-                )
+                Grounding.NO if inactive_observed
+                else Grounding.YES if fresh_rows and not row_stale
+                else Grounding.UNKNOWN
             )
             healthy = (
-                Grounding.YES if healthy_state
-                else (
-                    Grounding.UNKNOWN if latest is None or row_stale
-                    else Grounding.NO
-                )
+                Grounding.NO if unhealthy_observed or blocked_observed
+                else Grounding.YES if fresh_rows and not row_stale
+                else Grounding.UNKNOWN
             )
-            if healthy is Grounding.YES and latest.health not in (
-                ModuleObservationKind.QUARANTINED,
+            if (
+                installed_state is Grounding.YES
+                and active is Grounding.YES
+                and healthy is Grounding.YES
             ):
                 available = Grounding.YES
-            elif latest is None:
+            elif self._platform is None:
                 available = Grounding.UNKNOWN
             else:
                 available = Grounding.NO
@@ -265,16 +275,6 @@ class CapabilitySelfModel:
                     for capability in capability_specs
                 }
             )
-            granted_capabilities = {
-                outcome.capability
-                for outcome in outcomes.get(module_id, [])
-                if outcome.status is OutcomeStatus.SUCCEEDED_VERIFIED
-            }
-            denied_capabilities = {
-                outcome.capability
-                for outcome in outcomes.get(module_id, [])
-                if outcome.status is OutcomeStatus.DENIED
-            }
             aspects = tuple(
                 CapabilityPermissionAspect(
                     capability=capability,
@@ -285,14 +285,9 @@ class CapabilitySelfModel:
                     )
                     if module_id in described
                     else Grounding.UNKNOWN,
-                    grant_state=(
-                        Grounding.YES if capability in granted_capabilities
-                        else (
-                            Grounding.NO
-                            if capability in denied_capabilities
-                            else Grounding.UNKNOWN
-                        )
-                    ),
+                    # Historical outcomes describe past attempts. They are
+                    # never evidence of a current, scoped, unexpired grant.
+                    grant_state=Grounding.UNKNOWN,
                 )
                 for capability in capability_specs
             )

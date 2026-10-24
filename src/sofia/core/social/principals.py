@@ -3,6 +3,21 @@ from __future__ import annotations
 from sofia.core.social.model import AudienceKind, PrincipalContext
 
 SPARKS_PRINCIPAL_ID = "person:sparks"
+SOFIA_PRINCIPAL_ID = "sofia"
+
+
+def sofia_core_principal() -> PrincipalContext:
+    """Host-authenticated identity for Core-originated non-effect proposals.
+
+    This context is never an owner identity and grants no execution authority.
+    Platform still independently admits every installation or effect.
+    """
+    return PrincipalContext(
+        principal_id=SOFIA_PRINCIPAL_ID,
+        audience_id="system:core",
+        audience_kind=AudienceKind.SYSTEM,
+        display_name="Sofía",
+    )
 
 
 def local_sparks_principal(

@@ -12,7 +12,7 @@ from sofia.platform.state.namespaces import (
     REL_CONTACT_OBSERVATION,
     StateNamespaceSpec,
 )
-from sofia.platform.state.plane import StatePlane, StatePlaneConflictError
+from sofia.platform.state.plane import StatePlane, StatePlaneConflictError, StateWrite
 from sofia.platform.state.replication import (
     ReplicatedStatePlane,
     ReplicationHealth,
@@ -45,6 +45,22 @@ __all__ = [
     "StateNamespaceSpec",
     "StatePlane",
     "StatePlaneConflictError",
+    "StateWrite",
     "StateRecord",
     "SQLiteStatePlane",
+    "MigrationPlan",
+    "NamespaceHandle",
+    "RestorePlan",
+    "StatePlatformService",
 ]
+
+
+def __getattr__(name: str):
+    """Lazily load the backup facade without a config/state import cycle."""
+    if name in {
+        "MigrationPlan", "NamespaceHandle", "RestorePlan",
+        "StatePlatformService",
+    }:
+        from sofia.platform.state import platform
+        return getattr(platform, name)
+    raise AttributeError(name)

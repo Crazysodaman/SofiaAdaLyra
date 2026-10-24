@@ -12,7 +12,7 @@ from sofia.platform.verify.interaction.ab_probe import build_pair
 from sofia.modules.interaction.grammar import NaturalInteractionEngine
 from sofia.core.personality.store import PersonalityStore
 
-ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'
+ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'core'
 CASES = (
     ('ear', '*pats your ear*'),
     ('offer', 'I ask to hug you'),

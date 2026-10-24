@@ -103,17 +103,48 @@ def test_manifest_validation():
             parse_manifest(bad)
 
 
+def test_explicit_dependency_requirement_validation():
+    manifest = parse_manifest(
+        {
+            **MANIFEST,
+            "dependency_requirements": [
+                {
+                    "name": "sofia.core.rel",
+                    "minimum_version": "1.5.0",
+                    "maximum_version_exclusive": "2.0.0",
+                }
+            ],
+        }
+    )
+    [requirement] = manifest.dependency_requirements
+    assert requirement.accepts("1.5.0")
+    assert requirement.accepts("1.9.9")
+    assert not requirement.accepts("2.0.0")
+    with pytest.raises(ModuleManifestError, match="declared dependencies"):
+        parse_manifest(
+            {
+                **MANIFEST,
+                "dependency_requirements": [
+                    {
+                        "name": "sofia.core.memory",
+                        "minimum_version": "1.0.0",
+                    }
+                ],
+            }
+        )
+
+
 def test_discovery_yields_candidates_only(tmp_path):
     root = tmp_path / "project"
-    (root / "src" / "sofia" / "notesched").mkdir(parents=True)
-    (root / "src" / "sofia" / "notesched" / "module_manifest.json").write_text(
+    (root / "src" / "sofia" / "modules" / "notesched").mkdir(parents=True)
+    (root / "src" / "sofia" / "modules" / "notesched" / "module_manifest.json").write_text(
         json.dumps(MANIFEST), encoding="utf-8",
     )
-    (root / "src" / "sofia" / "broken" / "module_manifest.json").parent.mkdir(
+    (root / "src" / "sofia" / "modules" / "broken" / "module_manifest.json").parent.mkdir(
         parents=True
     )
     (
-        root / "src" / "sofia" / "broken" / "module_manifest.json"
+        root / "src" / "sofia" / "modules" / "broken" / "module_manifest.json"
     ).write_text("{ not json", encoding="utf-8")
     outside = tmp_path / "elsewhere"
     (outside / "src" / "sofia" / "sneaky").mkdir(parents=True)
@@ -155,7 +186,7 @@ def test_registry_owner_and_trust_lifecycle(tmp_path):
     candidate = service.record_candidate(
         sparks,
         manifest=manifest,
-        source_path="src/sofia/notesched/module_manifest.json",
+        source_path="src/sofia/modules/notesched/module_manifest.json",
         recorded_at=NOW,
     )
     assert candidate.trust_state is TrustState.CANDIDATE
@@ -249,7 +280,39 @@ def test_compatibility_and_health_projection(tmp_path):
     )
     assert dict(
         service.compatibility_report("sofia.notesched.next")
-    ) == {"sofia.core.rel": "major-version-mismatch"}
+    ) == {"sofia.core.rel": "compatible"}
+
+    ranged = parse_manifest(
+        {
+            **MANIFEST,
+            "name": "sofia.notesched.ranged",
+            "dependency_requirements": [
+                {
+                    "name": "sofia.core.rel",
+                    "minimum_version": "2.0.0",
+                    "maximum_version_exclusive": "3.0.0",
+                }
+            ],
+        }
+    )
+    ranged_candidate = service.record_candidate(
+        sparks, manifest=ranged, source_path="p/ranged.json",
+        recorded_at=NOW,
+    )
+    service.verify(
+        sparks,
+        name="sofia.notesched.ranged",
+        expected_revision=ranged_candidate.revision,
+        inspection=inspection((py("sofia.notesched.ranged.model"),)),
+        recorded_at=NOW,
+    )
+    assert dict(
+        service.compatibility_report("sofia.notesched.ranged")
+    ) == {
+        "sofia.core.rel": (
+            "incompatible-version:installed=1.7.0;required=>=2.0.0,<3.0.0"
+        )
+    }
     notesched_registration = store.current("sofia.notesched")
     assert notesched_registration is not None
     service.verify(
@@ -273,6 +336,24 @@ def test_compatibility_and_health_projection(tmp_path):
         r.name: r for r in service.health_projection(absent)
     }
     assert reports["sofia.notesched"].health is ModuleHealth.SUSPECT
+
+
+def test_source_identity_uses_python_package_boundaries(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    service = ModuleRegistryService(ModuleRegistryStore(tmp_path / "sofia.db"))
+    candidate = service.record_candidate(
+        local_sparks_principal(), manifest=parse_manifest(dict(MANIFEST)),
+        source_path="src/sofia/modules/notesched/module_manifest.json",
+        recorded_at=NOW,
+    )
+
+    with pytest.raises(ModuleRegistryError, match="implementation not observed"):
+        service.verify(
+            local_sparks_principal(), name="sofia.notesched",
+            expected_revision=candidate.revision,
+            inspection=inspection((py("sofia.notescheduler.store"),)),
+            recorded_at=NOW,
+        )
 
 
 def test_correlate_health_persists_cache_and_changes(tmp_path):

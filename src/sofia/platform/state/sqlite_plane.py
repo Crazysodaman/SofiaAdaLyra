@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime
+from hashlib import sha256
 from pathlib import Path
 import sqlite3
 
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
-from sofia.platform.state.plane import StatePlane, StatePlaneConflictError
+from sofia.platform.state.plane import StatePlane, StatePlaneConflictError, StateWrite
 from sofia.platform.state.sqlite_access import shared_sqlite_access
 
 
@@ -52,6 +53,19 @@ class SQLiteStatePlane(StatePlane):
                         principal_id,
                         audience
                     )
+                );
+
+                CREATE TABLE IF NOT EXISTS state_plane_lineage (
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    namespace TEXT NOT NULL,
+                    record_key TEXT NOT NULL,
+                    principal_id TEXT NOT NULL,
+                    audience TEXT NOT NULL,
+                    operation TEXT NOT NULL CHECK(operation IN ('write','delete')),
+                    revision INTEGER NOT NULL,
+                    value_sha256 TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    occurred_at TEXT NOT NULL
                 );
                 """
             )
@@ -133,94 +147,90 @@ class SQLiteStatePlane(StatePlane):
         *,
         expected_revision: int | None,
     ) -> StateRecord:
-        if not isinstance(record, StateRecord):
-            raise TypeError("record must be a StateRecord")
-        if expected_revision is not None and (
-            type(expected_revision) is not int or expected_revision < 1
-        ):
-            raise ValueError(
-                "expected_revision must be None or a positive integer"
+        persisted, = self.write_transaction(
+            (StateWrite(record, expected_revision),)
+        )
+        return persisted
+
+    @staticmethod
+    def _write_one(
+        db: sqlite3.Connection,
+        record: StateRecord,
+        expected_revision: int | None,
+    ) -> None:
+        scope = SQLiteStatePlane._scope(record.key)
+        current = db.execute(
+            """SELECT revision FROM state_plane_record
+            WHERE namespace=? AND record_key=? AND principal_id=? AND audience=?""",
+            scope,
+        ).fetchone()
+        if expected_revision is None:
+            if current is not None:
+                raise StatePlaneConflictError("state record already exists")
+            if record.revision != 1:
+                raise StatePlaneConflictError(
+                    "new state record must begin at revision 1"
+                )
+            db.execute(
+                """INSERT INTO state_plane_record(
+                namespace,record_key,principal_id,audience,state_class,revision,
+                value,updated_at,source) VALUES(?,?,?,?,?,?,?,?,?)""",
+                (*scope, record.state_class.value, record.revision, record.value,
+                 record.updated_at.isoformat(), record.source),
             )
-        scope = self._scope(record.key)
+        else:
+            if current is None or int(current["revision"]) != expected_revision:
+                raise StatePlaneConflictError(
+                    "state record revision changed before write"
+                )
+            if record.revision != expected_revision + 1:
+                raise StatePlaneConflictError(
+                    "updated state record must increment revision exactly once"
+                )
+            changed = db.execute(
+                """UPDATE state_plane_record
+                SET state_class=?,revision=?,value=?,updated_at=?,source=?
+                WHERE namespace=? AND record_key=? AND principal_id=? AND audience=?
+                  AND revision=?""",
+                (record.state_class.value, record.revision, record.value,
+                 record.updated_at.isoformat(), record.source, *scope,
+                 expected_revision),
+            )
+            if changed.rowcount != 1:
+                raise StatePlaneConflictError(
+                    "state record compare-and-swap failed"
+                )
+        db.execute(
+            """INSERT INTO state_plane_lineage(
+            namespace,record_key,principal_id,audience,operation,revision,
+            value_sha256,source,occurred_at) VALUES(?,?,?,?,?,?,?,?,?)""",
+            (*scope, "write", record.revision,
+             sha256(record.value).hexdigest(), record.source,
+             record.updated_at.isoformat()),
+        )
+
+    def write_transaction(
+        self, writes: tuple[StateWrite, ...],
+    ) -> tuple[StateRecord, ...]:
+        if type(writes) is not tuple or not writes:
+            raise ValueError("writes must be a nonempty tuple")
+        if any(not isinstance(item, StateWrite) for item in writes):
+            raise TypeError("writes must contain StateWrite values")
+        scopes = [self._scope(item.record.key) for item in writes]
+        if len(scopes) != len(set(scopes)):
+            raise ValueError(
+                "an atomic transaction cannot write the same key twice"
+            )
         with self._lock, closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            current = db.execute(
-                """
-                SELECT revision
-                FROM state_plane_record
-                WHERE namespace=? AND record_key=?
-                  AND principal_id=? AND audience=?
-                """,
-                scope,
-            ).fetchone()
-
-            if expected_revision is None:
-                if current is not None:
-                    db.rollback()
-                    raise StatePlaneConflictError(
-                        "state record already exists"
-                    )
-                if record.revision != 1:
-                    db.rollback()
-                    raise StatePlaneConflictError(
-                        "new state record must begin at revision 1"
-                    )
-                db.execute(
-                    """
-                    INSERT INTO state_plane_record (
-                        namespace, record_key, principal_id, audience,
-                        state_class, revision, value, updated_at, source
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        *scope,
-                        record.state_class.value,
-                        record.revision,
-                        record.value,
-                        record.updated_at.isoformat(),
-                        record.source,
-                    ),
+            for item in writes:
+                self._write_one(
+                    db, item.record, item.expected_revision,
                 )
-            else:
-                if current is None or int(current["revision"]) != expected_revision:
-                    db.rollback()
-                    raise StatePlaneConflictError(
-                        "state record revision changed before write"
-                    )
-                if record.revision != expected_revision + 1:
-                    db.rollback()
-                    raise StatePlaneConflictError(
-                        "updated state record must increment revision exactly once"
-                    )
-                changed = db.execute(
-                    """
-                    UPDATE state_plane_record
-                    SET state_class=?, revision=?, value=?, updated_at=?, source=?
-                    WHERE namespace=? AND record_key=?
-                      AND principal_id=? AND audience=?
-                      AND revision=?
-                    """,
-                    (
-                        record.state_class.value,
-                        record.revision,
-                        record.value,
-                        record.updated_at.isoformat(),
-                        record.source,
-                        *scope,
-                        expected_revision,
-                    ),
-                )
-                if changed.rowcount != 1:
-                    db.rollback()
-                    raise StatePlaneConflictError(
-                        "state record compare-and-swap failed"
-                    )
-            db.commit()
-        persisted = self.read(record.key)
-        if persisted is None:
-            raise RuntimeError("State Plane write vanished after commit")
-        return persisted
+        persisted = tuple(self.read(item.record.key) for item in writes)
+        if any(item is None for item in persisted):
+            raise RuntimeError("State Plane transaction vanished after commit")
+        return persisted  # type: ignore[return-value]
 
     def delete(
         self,
@@ -234,6 +244,17 @@ class SQLiteStatePlane(StatePlane):
             raise ValueError("expected_revision must be a positive integer")
         with self._lock, closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            scope = self._scope(key)
+            current = db.execute(
+                """SELECT value,source,updated_at FROM state_plane_record
+                WHERE namespace=? AND record_key=? AND principal_id=?
+                  AND audience=? AND revision=?""",
+                (*scope, expected_revision),
+            ).fetchone()
+            if current is None:
+                raise StatePlaneConflictError(
+                    "state record compare-and-swap delete failed"
+                )
             changed = db.execute(
                 """
                 DELETE FROM state_plane_record
@@ -241,14 +262,41 @@ class SQLiteStatePlane(StatePlane):
                   AND principal_id=? AND audience=?
                   AND revision=?
                 """,
-                (*self._scope(key), expected_revision),
+                (*scope, expected_revision),
             )
             if changed.rowcount != 1:
                 db.rollback()
                 raise StatePlaneConflictError(
                     "state record compare-and-swap delete failed"
                 )
-            db.commit()
+            db.execute(
+                """INSERT INTO state_plane_lineage(
+                namespace,record_key,principal_id,audience,operation,revision,
+                value_sha256,source,occurred_at) VALUES(?,?,?,?,?,?,?,?,?)""",
+                (*scope, "delete", expected_revision,
+                 sha256(bytes(current["value"])).hexdigest(), current["source"],
+                 current["updated_at"]),
+            )
+
+    def audit_lineage(
+        self, *, namespace: str | None = None, limit: int = 100,
+    ) -> tuple[dict[str, object], ...]:
+        if namespace is not None and (
+            not isinstance(namespace, str) or not namespace.strip()
+        ):
+            raise ValueError("namespace must be nonempty or None")
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("limit must be in 1..1000")
+        query = "SELECT * FROM state_plane_lineage"
+        parameters: list[object] = []
+        if namespace is not None:
+            query += " WHERE namespace=?"
+            parameters.append(namespace)
+        query += " ORDER BY event_id DESC LIMIT ?"
+        parameters.append(limit)
+        with self._lock, closing(self._connect()) as db:
+            rows = db.execute(query, parameters).fetchall()
+        return tuple(dict(row) for row in rows)
 
     def list_namespace(
         self,

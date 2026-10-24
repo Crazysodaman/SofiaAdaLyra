@@ -14,6 +14,7 @@ __all__ = [
     "ScopeKind",
     "SocialScope",
     "SPARKS_PRINCIPAL_ID",
+    "SOFIA_PRINCIPAL_ID",
     "SocialSessionStore",
     "SENSITIVE_USER_AFFECTS",
     "USER_AFFECTS",
@@ -24,12 +25,15 @@ __all__ = [
     "discord_sparks_principal",
     "local_sparks_principal",
     "remote_sparks_principal",
+    "sofia_core_principal",
 ]
 
 from sofia.core.social.principals import (
+    SOFIA_PRINCIPAL_ID,
     SPARKS_PRINCIPAL_ID,
     discord_sparks_principal,
     local_sparks_principal,
     remote_sparks_principal,
+    sofia_core_principal,
 )
 from sofia.core.social.store import SocialSessionStore
