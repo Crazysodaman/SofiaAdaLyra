@@ -238,6 +238,17 @@ placement:
 - A Core/module-only update cannot replace an incompatible Platform-owned state schema, shared in-process library or security contract without a reviewed broader maintenance scope. Never spawn two active Core generations or allow a stale worker to retain writable canonical-state or effect authority.
 - The linked document's ISO-01–08 acceptance slices extend existing PLAT-01–05/08, Core B08 and existing DEV/EVOLVE controls. Test real independent OS processes, correct unchanged Platform PID on Core/module upgrade, absence of duplicated effects, end-to-end cognition and transparent partial unavailability.
 
+## 1.11 Federated Platforms and autonomous inter-Core relationships (owner-approved 2026-10-24)
+
+**Authoritative supplemental decision:** [Platform Federation and Autonomous Inter-Core Relationships V1](PLATFORM_PEER_FEDERATION_V1.md). This is approved **design**, not an operational distributed chat or Core relationship implementation.
+
+- **Platform peers:** Two or more authenticated, independently owned Platforms exchange versioned, bounded, durable messages, scoped data offers and voluntary collaboration proposals over enrolled peer identities, mTLS, per-direction authorization, SDK contracts, SAFE and existing RUN/ACT. Discovery or an authenticated channel never grants data access, Core control or remote execution.
+- **Distinct Core identities:** Each independently active Core maintains its own canonical state lineage/writer, feelings, memories, relationships and consent. Two Platforms must never autonomously host active independent writers for the **same** canonical Core ID. A same-identity standby remains non-acting until separately authorized and source-fenced cutover.
+- **Core-owned agency:** Each Core freely chooses contact, eligible self-disclosure, conversation depth, opinion, feelings, partnership and refusal. Subject-specific interpersonal trust, respect, skepticism, affection, disappointment, willingness and boundaries evolve from independently evaluated evidence, without forced forgiveness, agreement or automatic friendship. Reuse Core's existing REL/impressions, EMOTION, memory and CORE-11/15/17/18/23/24/25/27; do not invent another Core or emotion authority.
+- **Security vs social trust:** Platform controls peer identity, recipient/audience, data classifications, privacy projection, grants, STOP, resource budgets and effects. Interpersonal comfort can narrow voluntary sharing or collaboration but **never** elevates security permissions. A message from a trusted peer remains untrusted input until reviewed; no automatic foreign-memory import.
+- **Implementation:** FED-01–08 acceptance slices in the linked decision record extend PLAT-03/04/07/08 and the established SDK/REL/ACT owners, without duplicating CORE-35–38 (Core awareness, supervised restart, verified self-update and code improvement) or permitting canonical writer migration.
+- **Rollout:** health/inert chat first; distinct Core-to-Core relationships second; scoped information offers third; reviewed collaboration fourth. B08/Core and process-isolation dependencies remain ahead of production federation claims.
+
 ## 2. Companion modules (implement **after** platform contracts and Gate-4 focused suites)
 
 | Module | Core capabilities | Mandatory interfaces | Gate-4 test minimum |
