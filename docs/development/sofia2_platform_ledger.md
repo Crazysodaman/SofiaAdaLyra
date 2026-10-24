@@ -444,3 +444,28 @@ backpressure/cancellation/events, and move one bounded Core worker into a real
 independent OS process with durable exactly-one-generation fencing. The
 current in-process application remains the working compatibility path and no
 zero-downtime or independent-restart claim is made.
+
+State-facade follow-up:
+
+- `PlatformSDKStateFacade` now adapts the existing `StatePlatformService` and
+  State Plane instead of creating storage. Trusted Platform construction must
+  supply both the active-generation validator and the effective-authority
+  validator; scope strings in a serialized projection are insufficient by
+  themselves.
+- Reads and CAS writes retain the namespace's reviewed principal/audience and
+  state-class policy. Stale generations, expired authority, missing exact
+  namespace scope, authority denial, invalid JSON, oversized values and stale
+  revisions fail closed. The returned object contains JSON plus revision and
+  digest, never a state path, SQLite connection or backend object.
+- Restart reconstruction was exercised by creating a second facade over the
+  same disposable canonical state and continuing exact CAS revisions.
+
+Focused command covering the new facade, existing Platform state service, SDK
+contracts and remote inference integration: **27 passed**. A first attempted
+command named a nonexistent historical `test_state_plane.py` and therefore
+collected no tests; it is not counted. The corrected command used only present
+test modules and passed.
+
+The next blocker is the durable active-component generation owner. Until that
+owner is connected to a real independently hosted Core process, the facade is
+a tested Platform adapter and not evidence that Core is process-isolated.

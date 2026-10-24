@@ -22,6 +22,7 @@ from sofia.platform.state.replication import (
     WriterLease,
 )
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.sdk_facade import PlatformSDKStateFacade
 
 __all__ = [
     "HABIT_COVERAGE",
@@ -48,6 +49,7 @@ __all__ = [
     "StateWrite",
     "StateRecord",
     "SQLiteStatePlane",
+    "PlatformSDKStateFacade",
     "MigrationPlan",
     "NamespaceHandle",
     "RestorePlan",

@@ -153,6 +153,13 @@ class StatePlatformService:
                 raise ValueError(f"{label} must be a bounded identifier")
         return NamespaceHandle(spec, principal_id, audience)
 
+    def namespace_spec(self, namespace: str) -> StateNamespaceSpec:
+        """Return the reviewed contract without exposing the state backend."""
+        try:
+            return self._specs[namespace]
+        except KeyError as exc:
+            raise LookupError("namespace is not registered by this component") from exc
+
     def write_transaction(
         self, writes: tuple[StateWrite, ...],
     ) -> tuple[StateRecord, ...]:
