@@ -6,6 +6,7 @@ from .lease import (
     RunLease,
     RunLeaseError,
 )
+from .generation import ComponentGenerationStore, GenerationState
 from .heartbeat import (
     ApplicationHeartbeat,
     ApplicationHeartbeatStore,
@@ -80,9 +81,11 @@ __all__ = [
     "ComponentHealth",
     "ComponentKind",
     "ComponentRuntimeSupervisor",
+    "ComponentGenerationStore",
     "ComponentSpec",
     "ComponentStatus",
     "DesiredComponentState",
+    "GenerationState",
     "EffectBroker",
     "EffectReceipt",
     "EffectRequest",

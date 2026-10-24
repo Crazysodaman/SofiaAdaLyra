@@ -469,3 +469,28 @@ test modules and passed.
 The next blocker is the durable active-component generation owner. Until that
 owner is connected to a real independently hosted Core process, the facade is
 a tested Platform adapter and not evidence that Core is process-isolated.
+
+### ISO-03 generation-fence prerequisite checkpoint
+
+`ComponentGenerationStore` now persists staged, active, draining, retired and
+quarantined component generations in canonical `sofia.db`, subordinate to the
+existing exact `LocalRunLeaseStore` epoch. A partial unique index enforces one
+ACTIVE generation per component. Activation refuses a second active
+generation; replacement requires explicit active→draining→retired/quarantined
+fencing before the staged generation can activate. Exact component kind,
+release digest, Platform instance and Core identity are matched on every
+transition.
+
+The store controls only SDK/state/IPC eligibility. It neither starts nor stops
+an OS process and therefore cannot turn a database transition into a process
+success claim. Restart reconstruction preserves the active/fenced state;
+expired RUN leases cannot mutate it. The SDK state-facade integration test now
+uses this durable owner and proves that beginning drain immediately revokes an
+old Core generation's state access.
+
+Focused generation, component supervisor, SDK/state, module RUN and inference
+regression command: **42 passed**. `compileall` and `git diff --check` passed.
+ISO-03 remains **IN_PROGRESS**: a real worker transport/process must present
+this endpoint identity, Platform must authenticate it, and drain must verify
+process termination before a replacement is called healthy. No independent
+Core restart or zero-downtime claim is made from the fencing store alone.
