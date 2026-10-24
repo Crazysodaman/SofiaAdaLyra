@@ -6,5 +6,8 @@ calls returned by a model.
 """
 
 from .ollama_provider import OllamaProvider
+from .benchmark import OllamaBenchmarkAdapter, OllamaBenchmarkObservation
 
-__all__ = ["OllamaProvider"]
+__all__ = [
+    "OllamaBenchmarkAdapter", "OllamaBenchmarkObservation", "OllamaProvider",
+]

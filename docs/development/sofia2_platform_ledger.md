@@ -276,11 +276,31 @@ Executed local Linux evidence:
 - HNF benchmark and resource tests plus RUN/background/composition regression
   coverage: **55 passed**.
 
-Readiness remains **BETA**. Reviewed GPU/network/LLM benchmark adapters,
+Readiness remains **BETA**. Reviewed GPU/network benchmark adapters and real
+exact-model Ollama benchmark acceptance,
 measured-result placement ranking, Windows and Debian CI, real enrolled-host
 idle/preemption trials, exact installed-release revision injection, and
 independent review remain open. No live host, model, driver, endpoint,
 canonical writer, or production service was changed.
+
+Follow-up HNF-06 exact-model inference slice:
+
+- The inference module now owns a reviewed streaming Ollama benchmark adapter.
+  It inventories an already-installed selected model, binds one exact digest,
+  uses a fixed synthetic non-private prompt with tools disabled, records TTFT,
+  prompt/generation throughput, load/total duration and only a response hash,
+  then verifies the digest again. It never pulls, installs, switches, or
+  exposes generated content.
+- The application registers this adapter only for an explicitly configured
+  `SOFIA_LOCAL_HOST_ID`. The existing benchmark coordinator queues it only
+  when the same enrolled/trusted host has fresh verified Ollama-runtime and
+  exact model-digest resource evidence. Local/remote host attribution is
+  therefore explicit; a runtime cannot benchmark a different Fleet worker
+  through its local provider by accident.
+- Digest mismatch/change, missing metrics, missing model, cancellation and
+  stale/unverified inventory fail closed and produce canonical RUN/benchmark
+  failure evidence. Stubbed provider and canonical RUN integration coverage
+  joins the broader HNF benchmark suite; no real-model result is claimed.
 
 ## HNF-07 hardware-neutral placement checkpoint — 2026-10-24 UTC
 

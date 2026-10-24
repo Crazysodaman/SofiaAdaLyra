@@ -569,8 +569,27 @@ class SofiaApplication:
                     telemetry=ops_service.resource_telemetry,
                 ),
                 source_revision=source_revision,
+                supply_provider=ops_service.resource_supply,
             )
         )
+        local_benchmark_host = os.environ.get("SOFIA_LOCAL_HOST_ID", "").strip()
+        if self._benchmarking is not None and local_benchmark_host:
+            from sofia.modules.inference.benchmark import OllamaBenchmarkAdapter
+            routing = configuration.routing
+            providers = (
+                tuple(item for item in (routing.primary, routing.secondary) if item is not None)
+                if routing is not None and routing.enabled
+                else (configuration.provider,)
+            )
+            registered_models: set[str] = set()
+            for provider in providers:
+                if provider.provider != "ollama" or provider.model in registered_models:
+                    continue
+                self._benchmarking.register_ollama_adapter(
+                    host_id=local_benchmark_host,
+                    adapter=OllamaBenchmarkAdapter(provider),
+                )
+                registered_models.add(provider.model)
         self._module_operations = ModuleOperationCoordinator(
             state_path=Path(configuration.state_path),
             lifecycle=self._module_lifecycle,

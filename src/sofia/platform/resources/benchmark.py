@@ -20,6 +20,7 @@ from typing import Callable
 
 from sofia.platform.resources.inventory import HardwareInventoryStore, InventoryRecord
 from sofia.platform.resources.inventory import HardwareTelemetryStore
+from sofia.platform.resources.contract import ResourceSupply
 from sofia.platform.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkJob, WorkResult, WorkStatus,
 )
@@ -89,6 +90,7 @@ class BenchmarkExecution:
 
 BenchmarkRunner = Callable[[WorkJob, object], BenchmarkExecution]
 IdleObserver = Callable[[str, str, BenchmarkKind, datetime], IdleAdmission]
+SupplyProvider = Callable[[str], ResourceSupply | None]
 _GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -265,6 +267,7 @@ class BenchmarkCoordinator:
         scratch_root: Path | None = None,
         result_freshness: timedelta = timedelta(days=30),
         max_attempts: int = 3,
+        supply_provider: SupplyProvider | None = None,
     ) -> None:
         if not isinstance(state_path, Path) or not isinstance(inventory, HardwareInventoryStore):
             raise TypeError("state_path and inventory required")
@@ -284,6 +287,9 @@ class BenchmarkCoordinator:
         self._guard = CanonicalSQLiteGuard(state_path)
         self.inventory, self.work_store, self.manager = inventory, work_store, manager
         self.idle_observer, self.source_revision = idle_observer, source_revision
+        if supply_provider is not None and not callable(supply_provider):
+            raise TypeError("supply_provider must be callable or None")
+        self.supply_provider = supply_provider
         self.result_freshness = result_freshness
         self.max_attempts = max_attempts
         self.scratch_root = (scratch_root or state_path.parent / "benchmark-scratch").absolute()
@@ -296,6 +302,7 @@ class BenchmarkCoordinator:
             BenchmarkKind.MEMORY: self._memory,
             BenchmarkKind.STORAGE: self._storage,
         }
+        self._ollama_adapters: dict[tuple[str, str], object] = {}
         with closing(self._connect()) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS platform_benchmark_plan(
@@ -336,23 +343,49 @@ class BenchmarkCoordinator:
             raise ValueError("benchmark runner already registered")
         self._runners[kind] = runner
 
-    @staticmethod
-    def _supported(record: InventoryRecord) -> tuple[tuple[BenchmarkKind, str], ...]:
-        keys = {fact.key for fact in record.facts}
+    def register_ollama_adapter(self, *, host_id: str, adapter: object) -> None:
+        """Register one reviewed local adapter; inventory still gates each run."""
+        configuration = getattr(adapter, "configuration", None)
+        model = getattr(configuration, "model", None)
+        run = getattr(adapter, "run", None)
+        if not isinstance(host_id, str) or not host_id.strip() or not isinstance(model, str):
+            raise ValueError("exact host and adapter model required")
+        if not callable(run):
+            raise TypeError("adapter must expose a reviewed run method")
+        key = (host_id.strip(), model)
+        if key in self._ollama_adapters:
+            raise ValueError("Ollama benchmark adapter already registered")
+        self._ollama_adapters[key] = adapter
+        if BenchmarkKind.LLM not in self._runners:
+            self._runners[BenchmarkKind.LLM] = self._ollama
+
+    def _supported(self, record: InventoryRecord) -> tuple[tuple[BenchmarkKind, str], ...]:
+        supply = None if self.supply_provider is None else self.supply_provider(record.host_id)
+        facts = record.facts if supply is None else supply.facts
+        keys = {fact.key for fact in facts}
         result = [(BenchmarkKind.CPU_SINGLE, f"host:{record.host_id}"),
                   (BenchmarkKind.CPU_MULTI, f"host:{record.host_id}")]
         if any(key.startswith("memory.") for key in keys):
             result.append((BenchmarkKind.MEMORY, f"host:{record.host_id}"))
-        for fact in record.facts:
+        for fact in facts:
             if fact.key.startswith("gpu."):
                 pair = (BenchmarkKind.GPU, fact.resource_id)
                 if pair not in result:
                     result.append(pair)
-        for fact in record.facts:
+        for fact in facts:
             if fact.key.startswith("storage."):
                 pair = (BenchmarkKind.STORAGE, fact.resource_id)
                 if pair not in result:
                     result.append(pair)
+        if "runtime.ollama.version" in keys:
+            for fact in facts:
+                if not (fact.key.startswith("model[") and fact.key.endswith("].digest")):
+                    continue
+                model = fact.key[len("model["):-len("].digest")]
+                if (record.host_id, model) in self._ollama_adapters:
+                    pair = (BenchmarkKind.LLM, fact.resource_id)
+                    if pair not in result:
+                        result.append(pair)
         return tuple(result)
 
     def queue_inventory(self, record: InventoryRecord, *, now: datetime) -> int:
@@ -747,4 +780,48 @@ class BenchmarkCoordinator:
             {"bytes": size, "scratch_only": True, "fsync": True,
              "random_block_bytes": 4096, "random_operations": operations},
             {"temporary_cleanup_verified": True, "python": platform.python_version()},
+        )
+
+    def _ollama(self, job: WorkJob, cancel) -> BenchmarkExecution:
+        if self.supply_provider is None:
+            raise RuntimeError("live resource supply is unavailable")
+        host_id = str(job.payload["host_id"])
+        resource_id = str(job.payload["resource_id"])
+        supply = self.supply_provider(host_id)
+        if supply is None or not supply.enrolled or not supply.trusted:
+            raise PermissionError("Ollama benchmark host is not enrolled and trusted")
+        now = datetime.now(timezone.utc)
+        runtime = tuple(
+            fact for fact in supply.facts
+            if fact.key == "runtime.ollama.version" and fact.verified and fact.fresh(now)
+        )
+        candidates = tuple(
+            fact for fact in supply.facts
+            if fact.resource_id == resource_id and fact.key.startswith("model[")
+            and fact.key.endswith("].digest") and fact.verified and fact.fresh(now)
+        )
+        if not runtime or len(candidates) != 1:
+            raise RuntimeError("fresh verified Ollama runtime/model inventory is unavailable")
+        fact = candidates[0]
+        model = fact.key[len("model["):-len("].digest")]
+        adapter = self._ollama_adapters.get((host_id, model))
+        if adapter is None or not isinstance(fact.value, str):
+            raise RuntimeError("reviewed exact-model benchmark adapter is unavailable")
+        observation = adapter.run(expected_digest=fact.value, cancel=cancel)
+        if observation.model_id != model or observation.model_digest != fact.value:
+            raise RuntimeError("Ollama benchmark observation identity mismatch")
+        return BenchmarkExecution(
+            (
+                BenchmarkMeasurement("time_to_first_token_ms", observation.time_to_first_token_ms, "milliseconds"),
+                BenchmarkMeasurement("provider_total_ms", observation.total_duration_ms, "milliseconds"),
+                BenchmarkMeasurement("model_load_ms", observation.load_duration_ms, "milliseconds"),
+                BenchmarkMeasurement("prompt_tokens_per_second", observation.prompt_tokens_per_second, "tokens_per_second"),
+                BenchmarkMeasurement("generated_tokens_per_second", observation.generated_tokens_per_second, "tokens_per_second"),
+                BenchmarkMeasurement("prompt_tokens", observation.prompt_tokens, "count"),
+                BenchmarkMeasurement("generated_tokens", observation.generated_tokens, "count"),
+            ),
+            {"prompt": "synthetic-fixed-v1", "tools": False, "auto_install": False},
+            {"response_sha256": observation.response_sha256},
+            evidence_refs=(fact.source_ref, runtime[0].source_ref),
+            model_id=model, model_digest=fact.value,
         )
