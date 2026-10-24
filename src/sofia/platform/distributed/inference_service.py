@@ -17,6 +17,7 @@ from sofia.platform.distributed.inference import (
     RemoteInferenceRequest,
     RemoteInferenceResponse,
 )
+from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 
 
 class RemoteInferenceDenied(PermissionError):
@@ -84,6 +85,10 @@ class LocalOllamaInferenceService:
     ) -> RemoteInferenceResponse:
         if not isinstance(request, RemoteInferenceRequest):
             raise TypeError("request must be RemoteInferenceRequest")
+        if request.sdk_protocol != SDK_PROTOCOL_VERSION:
+            raise RemoteInferenceDenied(
+                "inference request SDK protocol is incompatible"
+            )
         if request.node_id != self.node_id:
             raise RemoteInferenceDenied(
                 "inference request is addressed to a different node"

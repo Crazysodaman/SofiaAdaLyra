@@ -21,9 +21,16 @@ from sofia.core.cognition.model import (
     CognitiveToolDefinition,
 )
 from sofia.platform.config.model import ProviderConfiguration
+from sofia.sdk.contracts import ProtocolVersion, SDK_PROTOCOL_VERSION
 
 
 WIRE_VERSION = 1
+# The legacy integer wire version is now explicitly bound to the common SDK
+# protocol.  Keeping the payload byte-compatible avoids a flag-day upgrade;
+# later additive SDK minors can negotiate before a wire-format major changes.
+WIRE_SDK_PROTOCOL = ProtocolVersion(WIRE_VERSION, 0)
+if WIRE_SDK_PROTOCOL != SDK_PROTOCOL_VERSION:
+    raise RuntimeError("remote inference wire and SDK protocol versions diverged")
 MAX_MESSAGES = 128
 MAX_TOOLS = 64
 MAX_TOOL_CALLS = 32
@@ -403,6 +410,11 @@ class RemoteInferenceRequest:
     provider: ProviderConfiguration
     request: CognitiveRequest
 
+    @property
+    def sdk_protocol(self) -> ProtocolVersion:
+        """Protocol identity of this byte-compatible inference envelope."""
+        return WIRE_SDK_PROTOCOL
+
     def __post_init__(self) -> None:
         for value, label in (
             (self.request_id, "request_id"),
@@ -553,6 +565,10 @@ class RemoteInferenceResponse:
     request_id: UUID
     node_id: UUID
     response: CognitiveResponse
+
+    @property
+    def sdk_protocol(self) -> ProtocolVersion:
+        return WIRE_SDK_PROTOCOL
 
     def __post_init__(self) -> None:
         if not isinstance(self.request_id, UUID):

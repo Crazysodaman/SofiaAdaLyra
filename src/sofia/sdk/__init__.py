@@ -1,0 +1,31 @@
+"""Portable Sofía component contracts with no runtime authority."""
+
+from .contracts import (
+    AuthorityProjection,
+    ComponentEndpoint,
+    ComponentKind,
+    ComponentOutcome,
+    ComponentRequestEnvelope,
+    ComponentResponseEnvelope,
+    ProtocolVersion,
+    ProtocolVersionRange,
+    SDK_PROTOCOL_VERSION,
+    negotiate_protocol,
+)
+from .state import StateProjection, StateReadFacade, StateWriteFacade
+
+__all__ = [
+    "AuthorityProjection",
+    "ComponentEndpoint",
+    "ComponentKind",
+    "ComponentOutcome",
+    "ComponentRequestEnvelope",
+    "ComponentResponseEnvelope",
+    "ProtocolVersion",
+    "ProtocolVersionRange",
+    "SDK_PROTOCOL_VERSION",
+    "StateProjection",
+    "StateReadFacade",
+    "StateWriteFacade",
+    "negotiate_protocol",
+]

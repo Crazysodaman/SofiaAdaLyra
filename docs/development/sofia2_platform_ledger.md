@@ -356,3 +356,91 @@ worker, pinned commissioning credentials, approved installed model/digest, or
 Windows/Debian matching-revision CI. No canonical writer migration, Fleet
 enrollment, model pull/switch, network call, host restart, service activation,
 or production configuration change was performed.
+
+## Reconciled continuation queue — 2026-10-24 UTC
+
+Queue source revision: `7d1223e1a917088287bea500cd8897518505e286` on
+`main`, synchronized with `origin/main`, clean working tree. This is the
+single carry-forward projection for the new HNF, ISO, FED and generic-Core
+acceptance slices. It supplements the existing Core/Platform ledgers and maps
+back to the original evidence system; it is not another completion authority.
+
+The authoritative five-stage validator was run against this exact revision:
+
+`python scripts/v18_five_stage_audit.py --repo . --sha 7d1223e1... --verify-head --output /tmp/v18-audit.json --markdown-output /tmp/v18-audit.md`
+
+Result: **652 NOT_WORKED_ON/unverified, 16 CODED_UNFINISHED, 12
+PRODUCTION_CODED, 100 TESTED, 0 TESTED_CI; 133/780 targeted evidence records**.
+The 652 count means unaudited evidence, not proven absence of code.
+
+| Status | Requirement / mapping | Real owner, caller and state/authority boundary | Evidence at queue revision | Remaining acceptance / dependency | Next executable step |
+| --- | --- | --- | --- | --- | --- |
+| DONE_WITH_EVIDENCE | active HNF-06 exact-installed-model benchmark slice; PLAT-06/07/08 | `sofia.modules.inference.benchmark`; application bootstrap registers it with `BenchmarkCoordinator`; canonical RUN and `sofia.db`; no model install/switch authority | 68 focused HNF/provider/application tests passed; commit `7d1223e1` | real local/remote approved Ollama, resource measurements, Windows/CI and independent review remain unverified | retain adapter and exercise it only on an approved installed exact model |
+| DONE_WITH_EVIDENCE | Core B07 / CORE-35–40 | Core codebase, maintenance, Workshop and module-awareness services; application composition; Platform SAFE/RUN remain effect owners | Core ledger records 114 + 37 focused passes and broad Core gate at the cited revisions | matching-revision CI, Windows, independent review and real signed module/adapter | preserve during SDK/process migration; do not rebuild |
+| IN_PROGRESS | Core B08; HNF-08; original Core/channel tasks | `python -m sofia`, desktop/Discord/mobile/application composition, provider-neutral Core with Platform provider factory; canonical state and audience owners unchanged | wheel/entrypoint and local Core/provider suites recorded in Core and Platform ledgers | genuine Ollama, cross-channel installed-package/recovery campaign, Windows/Linux CI and independent review | make the SDK/process seam without changing conversation semantics, then rerun B08 |
+| IN_PROGRESS | HNF-01–04 | `sofia.platform.resources`, OPS inventory/telemetry, signed module manifest and compatibility evaluator; Fleet enrollment remains authority | 72 focused tests recorded | complete authenticated per-device inventory, OWNER_REPORTED provenance, part/replacement history and owner-assisted unknown questions | extend canonical inventory schema and agent observation contract after SDK contracts |
+| IN_PROGRESS | HNF-05–06 | `BenchmarkCoordinator` over canonical RUN; background runtime owns queue/tick | 55 general benchmark tests plus exact-model focused run | reviewed GPU/network adapters, live safe-idle/preemption evidence, installed-build revision injection | implement inert adapter contracts first; no physical effects or public speed tests |
+| IN_PROGRESS | HNF-07 | existing OPS `PlacementEngine` and protected migration preflight | 73 focused tests; 1,387 OPS passes plus 6 elevated-loopback passes | atomic multi-worker reservations, forecast ranking, explicit failover policy and partition trials | add typed reservation admission to the existing engine, not a second placer |
+| BLOCKED_ENVIRONMENT | HNF-09 | hardware-neutral split composition, pinned mTLS Fleet inference and disposable state | 45 local portability tests | approved disposable VM, enrolled GPU worker, credentials, exact model, Windows/Debian CI | keep commissioning harness executable; perform no writer migration or host change |
+| READY | ISO-01 audit and ISO-02 unified SDK contracts | existing `sofia.platform.run.components`, SAFE/RUN, Core cognition and module contracts; Platform must own generation/authority | current source audit shows no `sofia.sdk` family and Core/modules still load in the Platform interpreter | versioned request/response/event/authority/generation negotiation, state facade and negative authority tests | introduce the minimal shared SDK family and use it in one real Platform boundary before process extraction |
+| BLOCKED_DEPENDENCY | ISO-03 independent Core worker | Platform supervisor, canonical writer/state facade and Core application entrypoint | design contract only; current production composition is in-process | ISO-02, active-generation fencing, process IPC, state facade, stop/restart and exactly-one-active-Core tests | migrate one bounded Core request path after SDK/fencing is tested |
+| BLOCKED_DEPENDENCY | ISO-04–05 module/provider worker and component update | module RUN coordinator, adapter factory, component supervisor, signed packages | durable module RUN has 33 + 69 focused passes; provider extraction is locally tested | independent OS process, drain/fence/activate/verify/rollback and real effect observations | reuse supervisor/RUN; never use import reload or blind replay |
+| BLOCKED_DEPENDENCY | ISO-06–08 SDK devtools, impact planning and acceptance | single SDK family plus existing release/readiness owners | approved requirements only | ISO-02–05, real process tests, Windows/Linux/VM, exact-revision CI and review | complete contracts and conformance fixtures before developer façade or release claim |
+| BLOCKED_DEPENDENCY | FED-01–08 | existing distributed mTLS/identity, SAFE/RUN/ACT, Core REL/Emotion/Memory; separate state lineages | design contract only; Fleet inference transport is not federation | Core B08, ISO generation/process boundary and peer-specific consent/storage; approved live mTLS only later | keep in queue; begin FED-01/02 only after ISO boundary is stable |
+| BLOCKED_DEPENDENCY | generic `companion_runtime` multi-Core package target | current verified `sofia.core`, `sofia.platform`, `sofia.modules`; Setuptools and `python -m sofia` are compatibility owners | current layered source tree and package tests; no generic package exists | ISO contract boundary and import/package map; identity/state separation for future distinct Cores | perform bounded compatibility migrations after ISO-02, never a blind rename |
+| READY | original 780-task reconciliation | original brief table + sparse five-stage evidence + validator | validator passed at queue revision; 133/780 targeted records | individual source/test audit for 647 not targeted; preserve all original clauses | update task records only when a concrete implementation slice supplies task-specific evidence |
+| BLOCKED_ENVIRONMENT | GitHub issues/PRs/current-revision Actions, including issue #119 | GitHub is the external evidence owner | `gh` API returned `403 Forbidden` on 2026-10-24; no issue or CI contents inferred | authenticated read access | retry read-only issue/PR/run audit when credentials permit; never claim L5 meanwhile |
+| BLOCKED_OWNER | production hosts, enrollment, writer migration, model pulls/switches, releases and physical effects | owner approval plus Platform SAFE/STOP/RUN | none attempted in this checkout | exact owner authorization and host evidence | continue disposable/local implementation work only |
+
+Dependency order is therefore: preserve Core B07 and current HNF code → finish
+ISO-02 generation/authority/state-facade contracts → isolate and fence one Core
+worker without a second writer → rerun Core B08 → complete remaining HNF
+inventory/benchmark/reservation work → component updates → federation → bounded
+generic package migration → continue the remaining individually audited 780
+tasks. Host- or owner-blocked evidence does not stop independent code work.
+
+### ISO-02 unified SDK contract checkpoint
+
+Status: **IN_PROGRESS / locally tested contract slice**, not independent
+process isolation.
+
+- `sofia.sdk` is the single portable contract family. It has no application
+  composition, database, scheduler, signing key, authentication service or
+  capability gateway of its own.
+- Protocol ranges negotiate the highest overlap and fail closed across major
+  versions or disjoint ranges. Component endpoints bind exact release digest,
+  Platform instance, positive generation and (for Core only) distinct Core
+  identity.
+- Request envelopes bind source/destination generations, existing authority
+  reference, principal/audience, bounded scopes, payload schema/digest,
+  idempotency, correlation and a deadline no later than authority expiry.
+  Dispatch validation rejects stale generations and expired authority. This is
+  a projection of authority, never a way to mint it.
+- Response envelopes preserve denied/unavailable/failed/cancelled/unknown,
+  reported-unverified and verified-success distinctions. Verified success
+  requires an evidence reference. Exact-field decoding rejects injected
+  fields.
+- State façade protocols expose read projections and Platform-owned CAS
+  requests; they intentionally expose no raw SQLite connection and cannot
+  create a second writer.
+- The existing remote inference wire is byte-compatibly pinned to SDK protocol
+  `1.0`; the real worker service rejects a divergent SDK contract before it
+  calls the provider. This is the first production consumer while the existing
+  Fleet wire remains compatible.
+
+Executed locally with the preserved repository test interpreter:
+
+`pytest -q test/test_sdk_component_contracts.py
+test/test_distributed_inference.py test/test_distributed_inference_service.py
+test/test_distributed_inference_agent.py
+test/test_distributed_inference_transport.py
+test/test_distributed_inference_control.py test/test_package_grouping.py` —
+**36 passed**. `compileall` for the SDK/distributed packages and
+`git diff --check` passed.
+
+Remaining ISO-02/03 work: authenticate serialized producer identity at the
+transport boundary, implement the Platform state-facade owner, add process
+backpressure/cancellation/events, and move one bounded Core worker into a real
+independent OS process with durable exactly-one-generation fencing. The
+current in-process application remains the working compatibility path and no
+zero-downtime or independent-restart claim is made.
