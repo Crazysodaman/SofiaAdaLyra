@@ -228,6 +228,16 @@ placement:
 - **Test-preserving LLM boundary:** keep provider-neutral cognitive contracts in Core, move Ollama/provider details behind a Platform-managed inference module, retain fake/stub and *real Ollama* test paths throughout staged migration, and verify remote pinned-mTLS worker inference on a disposable-state VM before dropping legacy imports. This refactor does not by itself certify Core or Platform.
 - **Implementation:** HNF-01–09 acceptance slices in the linked document extend PLAT-05/06/07/08 and SF-03/05/07/11/13/14/16; they do not introduce nine new daemons or change the 780-task inventory. Primary near-term coding sequence remains Core B08 and its blocking Platform dependencies, followed by broader Platform production readiness. Owner-authorized state migration is separate.
 
+## 1.10 Component-isolated updates and unified SDK (owner-approved 2026-10-24)
+
+**Authoritative supplemental decision:** [Component-isolated updates and unified SDK V1](COMPONENT_UPDATES_AND_UNIFIED_SDK_V1.md). This is an approved **target architecture**, not evidence the current in-process application can hot-swap its Core.
+
+- Updating the **isolated Core process** should restart/replace only Core; Platform and unrelated modules remain available. Updating an independently hosted module should restart only that module. An LLM provider update should not restart Core or change its authorized model. A Platform executable or incompatible host ABI update may require a supervised Platform restart, with explicit exceptions for supported atomic data/config reloads.
+- This requires **real process/IPC separation** with generation fencing, authenticated versioned APIs, drain, signed immutable staging, external readiness checks, timeout, rollback and restart recovery. \`ComponentRuntimeSupervisor\` supplies groundwork but the present \`SofiaApplication\` imports Core and modules in-process; calling that "hot-update ready" would be false.
+- Provide **one shared SDK family** for Platform, Core and modules: neutral typed contracts/protocols, audience-safe facades, signed module/resource schemas, testing fixtures, CLI/devtools and version negotiation. The SDK is **not** a privileged mandatory runtime module. Sofía may use optional DEV/EVOLVE/Workshop-backed SDK tools to inspect, propose, build and test candidates without signing or deployment authority.
+- A Core/module-only update cannot replace an incompatible Platform-owned state schema, shared in-process library or security contract without a reviewed broader maintenance scope. Never spawn two active Core generations or allow a stale worker to retain writable canonical-state or effect authority.
+- The linked document's ISO-01–08 acceptance slices extend existing PLAT-01–05/08, Core B08 and existing DEV/EVOLVE controls. Test real independent OS processes, correct unchanged Platform PID on Core/module upgrade, absence of duplicated effects, end-to-end cognition and transparent partial unavailability.
+
 ## 2. Companion modules (implement **after** platform contracts and Gate-4 focused suites)
 
 | Module | Core capabilities | Mandatory interfaces | Gate-4 test minimum |
