@@ -108,13 +108,24 @@ Implement using existing `CapabilitySystem`, `CapabilityGateway`, SAFE, RUN and 
 
 ## Failure isolation and resource policy
 
-- Loss of optional modules does not remove Core identity, memory or text availability.
+- Loss of optional modules does not remove Core identity, memory or permitted non-LLM operations. **Generative text requires an authorized available inference provider**; a GPU/provider outage is not permission to fabricate a model response or silently switch models. Deterministic status/error interfaces may remain available.
 - A module cannot write canonical database tables directly except through narrow canonical owner APIs.
 - Crash or timeout moves a module/job to an explicit state; never silently report success.
 - On outage, respond with capability unavailability and a permitted fallback, not an invented effect.
 - Module resource caps should coexist with owner gaming/workload restrictions and quiet hours.
 - Host-level restart and source-code update are privileged operations, not ordinary module lifecycle calls.
 - Each interface must be testable with fake adapters and failure injection before real-host exposure.
+
+## Approved hardware-neutral Fleet and staged LLM provider boundary (2026-10-24)
+
+The [hardware-neutral Fleet, near-1:1 resource contract, idle benchmarking and inference boundary](HARDWARE_NEUTRAL_FLEET_AND_INFERENCE_CONTRACT_V1.md) is the owner-approved forward design. It augments PLAT-05/06/07/08 and existing SF requirements; current code and old named-host deployment examples do not automatically satisfy it.
+
+- Core keeps the **provider-neutral cognition request/response contract**, identity, context, memory, reasoning orchestration, quality policies and execution-intent interpretation; it must remain testable with a deterministic fake.
+- Provider implementations such as **Ollama belong behind a versioned Platform-managed Inference Module**. Platform owns selected provider/model identity, worker trust/placement, resource admission, mTLS transport, model lifecycle and failure reporting. The actual model may run on any explicitly approved compatible GPU/CPU worker, not necessarily the runtime host.
+- Migrate existing provider-specific Core imports in stages with a backwards-compatible temporary shim and equivalent behavior. Keep **real installed-model local and remote integration tests** operational before removing the old provider implementation. This is a separation refactor, not authorization to rewrite Core cognition.
+- Hardware inventory and signed per-profile module requirements use the **same versioned capability IDs, types and units**, separately tracking attributable manufacturer specifications, fresh host observations and measured benchmark evidence.
+- Initial benchmark jobs are queued as soon as supported hardware is discovered and run automatically on the **earliest verified idle, safe, bounded and resource-reservable window**. Gaming, owner activity, thermal risk, outdated observations, STOP and higher-priority work defer/preempt tests. No download, unsafe device action or extra privilege follows from benchmarking.
+- **No canonical writer migration**, automatic model substitution or unauthorized worker fallback is implied. Actual deployments require separate host-level commissioning evidence.
 
 ## Future architecture revisions
 
