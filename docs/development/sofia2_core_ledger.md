@@ -1176,3 +1176,38 @@ baseline and 192-test post-change suite passed locally; 76 Platform interaction
 probe tests also passed. Actual local/remote Ollama, Windows, and exact-revision
 CI acceptance remain unverified, so neither HNF-08 nor Core B08 is release
 qualified by this checkpoint.
+
+### B08 continuation after ISO-03 — 2026-10-24 UTC
+
+Exact production-code revision tested:
+`18f2cb4c` (`platform: isolate Core cognition in a fenced process`).
+
+The production composition root can now receive an already authenticated,
+RUN-authorized `CoreWorkerController`; its provider-neutral cognitive engine
+then runs in a real spawned OS process. The ordinary single-process path stays
+unchanged when no controller is supplied. The controller refuses selected-
+provider mismatch, dual-model routing or Fleet routing that the isolated path
+cannot yet preserve, so enabling isolation cannot silently swap a model or
+discard the existing remote inference policy. Full CognitiveRequest context is
+encoded exactly, while identity, memory, personality, relationship and goal
+state remain with their existing canonical owners rather than being copied
+into the child.
+
+Executed local Linux B08 regressions after publishing ISO-03:
+
+- Composition/application/operational continuity: **31 passed**.
+- Conversation service and restart/continuity acceptance: **62 passed**.
+- Discord binding/recovery, interaction/provider boundary, avatar conversation,
+  module entrypoint and package classification: **48 passed**.
+- Total across these disjoint bounded groups: **141 passed**.
+
+An earlier command named nonexistent `test_runtime_continuity.py` and collected
+no tests; it is not evidence. A later combined command returned incomplete
+runner output, so it was replaced by the three bounded groups above with
+explicit exit code 0 and summaries.
+
+B08 remains **BETA / local evidence**, not RELEASE CANDIDATE. Genuine local
+and remote Ollama calls, Windows named-pipe execution, installed-wheel desktop
+and Discord host trials, broad exact-revision CI and independent review remain
+unverified. Optional-module absence and broader backup/restore/failure campaigns
+retain their existing open acceptance rows.
