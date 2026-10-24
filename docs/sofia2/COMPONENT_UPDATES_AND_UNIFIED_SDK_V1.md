@@ -137,6 +137,12 @@ For each applicable test, record exact revision, command, environment, active ho
 - Integration: desktop/Discord/mobile clients receive bounded "Core updating/unavailable" or "Module updating/unavailable" statuses when affected and remain connected where transport permits. LLM provider unavailable does not fabricate text or silently select another model.
 - CI: cross-platform packaging, published SDK protocol fixtures, exact revision CI, independent review and approved live-host acceptance required for release qualification.
 
+## 7.1 Federation protocol compatibility in the unified SDK
+
+The approved [Platform Federation and Autonomous Inter-Core Relationships V1](PLATFORM_PEER_FEDERATION_V1.md) adds **federation protocol contracts and client facades to the same Sofía SDK family**, not a separately privileged SDK service. The Platform-to-Platform peer envelope, independent \`platform_instance_id\` / \`core_identity_id\`, audience-bound message/data offer, durable receipt and peer identity negotiation are versioned SDK schemas. Core-owned relationship decisions are inert typed proposals handed to the existing Platform SAFE/ACT pipeline. Actual inbound peer text is lower-trust data, never an imported system instruction.
+
+Core worker updates and signed module updates must preserve or explicitly migrate federation protocol/relationship-context schemas while Platform keeps its canonical state and unmodified peers running. Old peer/client generations must fail closed if incompatible. The peer federation work is FED-01–08; it must not create a second Core code-evolution workstream or duplicate CORE-35–38.
+
 ## 8. Sequence, rollout, and protected operations
 
 1. Preserve existing Core B08 and Platform progress; audit current source and failed tests before changing process ownership. Implement SDK contracts and generation-aware Platform facade before splitting live Core.
