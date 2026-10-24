@@ -19,12 +19,18 @@ from .inventory import (
     HardwareTelemetryStore,
     InventoryRecord,
 )
+from .benchmark import (
+    BenchmarkCoordinator, BenchmarkExecution, BenchmarkKind,
+    BenchmarkMeasurement, IdleAdmission, VerifiedIdleObserver,
+    resolve_source_revision,
+)
 
 __all__ = [
-    "CapabilityFact", "CapabilityPredicate", "CapabilityRequirement",
+    "BenchmarkCoordinator", "BenchmarkExecution", "BenchmarkKind",
+    "BenchmarkMeasurement", "CapabilityFact", "CapabilityPredicate", "CapabilityRequirement",
     "CompatibilityAssessment", "EvidenceClass", "HardwareInventoryStore",
-    "HardwareTelemetryStore", "InventoryRecord", "MatchState", "PredicateOperator",
+    "HardwareTelemetryStore", "IdleAdmission", "InventoryRecord", "MatchState", "PredicateOperator",
     "RequirementAlternative", "ResourceSupply",
     "evaluate_resource_requirements", "requirement_from_document",
-    "requirement_to_document",
+    "requirement_to_document", "resolve_source_revision", "VerifiedIdleObserver",
 ]

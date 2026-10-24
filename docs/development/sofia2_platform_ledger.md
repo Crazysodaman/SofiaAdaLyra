@@ -236,3 +236,48 @@ Executed local Linux evidence:
 Readiness is **BETA**. Complete authenticated per-device agent inventory,
 automatic benchmark scheduling/results, typed placement reservations, real
 multi-host trials, Windows, CI and independent review remain open.
+
+## HNF-05/HNF-06 automatic benchmark checkpoint — 2026-10-24 UTC
+
+Canonical owners: the existing application `DurableWorkStore` and
+`TaskExecutionManager`, `sofia.platform.resources.BenchmarkCoordinator`, the
+HNF inventory/telemetry stores, and canonical `sofia.db`. No scheduler,
+executor, state authority, host trust, or permission system was added.
+
+- Enrolled and trusted inventory revisions deterministically create deduped
+  benchmark plans. Untrusted discovery records cannot queue work. CPU,
+  memory, and scratch-storage runners are bounded and versioned; GPU,
+  network, LLM, and module-specific runners remain unavailable unless a
+  reviewed adapter is registered rather than fabricating unsupported data.
+- The production background owner queues eligible plans and the existing RUN
+  manager admits them. Exact Git source revision is required; an unverifiable
+  installed build or dirty checkout disables automatic benchmarking rather
+  than creating falsely attributed evidence.
+- Admission is fail-closed across fresh authenticated activity, CPU/GPU load,
+  RAM/VRAM, temperature, throttling, power limits, active non-benchmark work,
+  resource/device leases, local policy, and operator STOP. Missing telemetry
+  is UNKNOWN and cannot count as idle. The execution handler rechecks the
+  same boundary immediately before measurement, so foreground/gaming changes
+  preempt queued work.
+- Results retain host/resource IDs, inventory and suite revisions, source
+  revision, duration, units, sample counts, configuration, utilization and
+  environmental evidence, freshness, model identity fields where applicable,
+  and explicit failure/cancellation reasons. CPU single/multicore, memory
+  bandwidth/index latency, and sequential/random scratch-storage metrics are
+  separate; no arbitrary combined score is produced.
+- Restart reconciliation preserves an interrupted RUN receipt and creates a
+  distinct later attempt only for these explicitly resumable scratch/read-only
+  stages. It never reuses the uncertain fingerprint. Stale results become
+  eligible for a bounded new attempt; attempt limits and cooldowns prevent
+  retry loops.
+
+Executed local Linux evidence:
+
+- HNF benchmark and resource tests plus RUN/background/composition regression
+  coverage: **55 passed**.
+
+Readiness remains **BETA**. Reviewed GPU/network/LLM benchmark adapters,
+measured-result placement ranking, Windows and Debian CI, real enrolled-host
+idle/preemption trials, exact installed-release revision injection, and
+independent review remain open. No live host, model, driver, endpoint,
+canonical writer, or production service was changed.

@@ -158,6 +158,16 @@ class HardwareInventoryStore:
                 WHERE host_id=? ORDER BY revision DESC LIMIT ?""", (host_id, limit)).fetchall()
         return tuple(self._record(row) for row in rows)
 
+    def current_records(self, *, limit: int = 256) -> tuple[InventoryRecord, ...]:
+        if type(limit) is not int or not 1 <= limit <= 1024:
+            raise ValueError("limit must be in 1..1024")
+        with closing(self._connect()) as db:
+            rows = db.execute("""SELECT i.* FROM platform_hardware_inventory i
+                JOIN platform_hardware_inventory_current c
+                ON c.host_id=i.host_id AND c.revision=i.revision
+                ORDER BY i.host_id LIMIT ?""", (limit,)).fetchall()
+        return tuple(self._record(row) for row in rows)
+
     def record(
         self, *, host_id: str, display_name: str, facts: tuple[CapabilityFact, ...],
         observed_at: datetime, manufacturer: str | None = None,

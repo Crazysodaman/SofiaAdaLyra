@@ -626,9 +626,15 @@ def create_background_coordinator(
                 snapshot.homeostasis.cognitive_load,
                 snapshot.homeostasis.competition_pressure,
             )
+            benchmarking = getattr(application, "_benchmarking", None)
+            benchmarks_scheduled = (
+                0 if benchmarking is None else benchmarking.schedule(now=now)
+            )
             result = autonomous_work.tick(
                 now=now, busy=busy, resource_pressure=pressure,
             )
+            if benchmarks_scheduled:
+                result["benchmarks_scheduled"] = benchmarks_scheduled
             return result if any(result.values()) else None
 
         coordinator.set_task(

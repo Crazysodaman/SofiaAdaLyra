@@ -58,6 +58,9 @@ from sofia.platform.application.presence import (
     WorldObservation,
 )
 from sofia.platform.application.autonomous_work import AutonomousWorkCoordinator
+from sofia.platform.resources import (
+    BenchmarkCoordinator, VerifiedIdleObserver, resolve_source_revision,
+)
 from sofia.platform.application.core_maintenance import CoreMaintenanceService
 from sofia.platform.application.expression_runtime import ExpressionIntent, ExpressionRuntime
 from sofia.platform.application.act_service import (
@@ -544,6 +547,30 @@ class SofiaApplication:
             code_orchestrator=self._runtime.code_evolution_orchestrator,
             presence=self._presence,
         )
+        ops_service = getattr(self._runtime, "ops_service", None)
+        source_revision = resolve_source_revision(
+            Path(__file__).resolve().parents[4],
+        )
+        self._benchmarking = (
+            None
+            if (
+                ops_service is None
+                or not hasattr(ops_service, "hardware_inventory")
+                or not hasattr(ops_service, "resource_telemetry")
+                or source_revision is None
+            )
+            else BenchmarkCoordinator(
+                state_path=Path(configuration.state_path),
+                inventory=ops_service.hardware_inventory,
+                work_store=self._autonomous_work.work_store,
+                manager=self._autonomous_work.manager,
+                idle_observer=VerifiedIdleObserver(
+                    state_path=Path(configuration.state_path),
+                    telemetry=ops_service.resource_telemetry,
+                ),
+                source_revision=source_revision,
+            )
+        )
         self._module_operations = ModuleOperationCoordinator(
             state_path=Path(configuration.state_path),
             lifecycle=self._module_lifecycle,
@@ -648,6 +675,11 @@ class SofiaApplication:
     @property
     def autonomous_work(self) -> AutonomousWorkCoordinator:
         return self._autonomous_work
+
+    @property
+    def benchmarking(self) -> BenchmarkCoordinator | None:
+        """Application-owned HNF coordinator, absent when source is unverifiable."""
+        return self._benchmarking
 
     @property
     def life(self) -> SelfDirectedLifeCoordinator:

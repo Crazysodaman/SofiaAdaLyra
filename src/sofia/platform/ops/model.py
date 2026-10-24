@@ -13,6 +13,7 @@ class HostTelemetry:
     cpu_percent:float|None=None; ram_used_bytes:int|None=None; ram_total_bytes:int|None=None
     gpu_percent:float|None=None; vram_used_bytes:int|None=None; vram_total_bytes:int|None=None
     storage_free_bytes:int|None=None; temperature_c:float|None=None; throttled:bool|None=None
+    power_limited:bool|None=None
     def __post_init__(self):
         if self.observed_at.tzinfo is None: raise ValueError("observed_at must be timezone-aware")
         for name in ("cpu_percent","gpu_percent"):
@@ -21,6 +22,10 @@ class HostTelemetry:
         for name in ("ram_used_bytes","ram_total_bytes","vram_used_bytes","vram_total_bytes","storage_free_bytes"):
             v=getattr(self,name)
             if v is not None and v<0: raise ValueError(f"{name} cannot be negative")
+        for name in ("throttled", "power_limited"):
+            value=getattr(self,name)
+            if value is not None and type(value) is not bool:
+                raise TypeError(f"{name} must be bool or None")
 
 @dataclass(frozen=True)
 class FleetHost:

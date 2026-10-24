@@ -289,6 +289,7 @@ class OpsToolService:
         add("storage.allocatable_bytes",telemetry.storage_free_bytes,"bytes",f"storage:{host_id}:root")
         add("health.temperature_c",telemetry.temperature_c,"celsius",f"host:{host_id}")
         add("health.throttled",telemetry.throttled,None,f"host:{host_id}")
+        add("health.power_limited",telemetry.power_limited,None,f"host:{host_id}")
         if not facts:
             raise ValueError("telemetry contains no supported observations")
         observation_id=self.resource_telemetry.record(
