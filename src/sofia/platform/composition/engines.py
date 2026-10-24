@@ -13,7 +13,7 @@ from sofia.core.cognition.model_lifecycle import (
     LifecycleManagedCognitiveEngine,
     ModelLifecycleManager,
 )
-from sofia.core.cognition.providers.factory import create_llm_provider
+from sofia.platform.cognition_provider import create_llm_provider
 from sofia.core.cognition.routing import (
     CognitiveEngineRegistry,
     RoutingCognitiveEngine,

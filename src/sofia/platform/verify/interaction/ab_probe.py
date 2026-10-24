@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from sofia.core.cognition.conversation_assembler import ConversationalContextAssembler
 from sofia.core.cognition.context import CognitiveContext
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.modules.inference.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_production_configuration
 from sofia.core.constitution.store import ConstitutionIntegrityVerifier
 from sofia.core.constitution.store import ConstitutionStore

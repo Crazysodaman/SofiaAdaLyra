@@ -11,7 +11,7 @@ from typing import Callable
 from uuid import UUID
 
 from sofia.core.cognition.provider import LLMProvider
-from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.modules.inference.ollama_provider import OllamaProvider
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.distributed.inference import (
     RemoteInferenceRequest,

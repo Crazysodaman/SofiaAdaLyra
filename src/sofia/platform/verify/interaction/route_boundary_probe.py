@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Imported only by the real CLI, never by pure/stubbed tests.
-    from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+    from sofia.modules.inference.ollama_provider import OllamaProvider
     from sofia.platform.config.defaults import create_production_configuration
     from sofia.core.constitution.store import ConstitutionIntegrityVerifier
     from sofia.core.constitution.store import ConstitutionStore

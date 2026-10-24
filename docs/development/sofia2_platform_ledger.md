@@ -169,3 +169,34 @@ classification and honest UNKNOWN availability. These are the minimum
 Platform corrections required for Core module self-knowledge; they do not
 expand Platform authority or enable automatic restart. Evidence is recorded in
 the Core ledger's B07 completion checkpoint.
+
+## HNF-08 inference ownership checkpoint — 2026-10-24 UTC
+
+Baseline: owner-approved hardware-neutral contract commit `ec7f3da6` plus the
+B08 package-classification checkpoint `e0be7565`, local Linux x86_64.
+
+- Core retains `LLMProvider`, `CognitiveEngine`, cognitive messages, tool-call
+  candidates, context and response policy. Tool candidates remain inert data.
+- The Ollama request/response translator now has one implementation at
+  `sofia.modules.inference.ollama_provider`. Platform owns provider selection
+  and construction at `sofia.platform.cognition_provider`; production
+  composition imports that owner directly.
+- The Fleet worker service and Platform verification probes use the inference
+  module directly. Temporary Core import paths are identity-preserving shims:
+  they resolve to the exact same class/factory and cannot create a shadow
+  provider path.
+- Existing pinned-mTLS remote inference, exact configured model selection,
+  no-fallback policy, and canonical Core state remain unchanged. No provider,
+  model, worker, database writer, host, or credential was changed.
+
+Executed local evidence:
+
+- Pre-refactor provider/composition/Fleet baseline: **189 passed**.
+- Post-refactor same suite plus ownership regressions: **192 passed**.
+- Platform interaction/probe consumers: **76 passed**.
+
+These are deterministic and stubbed local tests. The repository's real local
+and remote Ollama integration paths remain executable but were not run because
+this environment has no approved installed model, enrolled worker, or mTLS
+credentials. HNF-08 remains **BETA** pending real-model equivalence, Windows,
+matching-revision CI, and independent review.

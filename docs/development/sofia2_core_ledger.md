@@ -1162,3 +1162,17 @@ completed. Running the installed `python -m sofia` with an invalid bounded
 argument reached the supported launcher and returned its usage/exit 2 without
 opening production state. This proves packaging/entrypoint reachability, not a
 live Desktop startup.
+
+### B08 / HNF-08 provider-neutral Core seam
+
+The approved hardware-neutral inference contract was integrated without
+changing Core cognition semantics. Core continues to own the provider-neutral
+`LLMProvider`, `CognitiveEngine`, request/response and inert tool-candidate
+contracts. Ollama translation moved to the replaceable inference module, and
+Platform composition owns provider construction. Compatibility imports resolve
+to the same implementation object, so legacy callers do not create a second
+cognitive or provider path. The 189-test pre-change cognition/provider/Fleet
+baseline and 192-test post-change suite passed locally; 76 Platform interaction
+probe tests also passed. Actual local/remote Ollama, Windows, and exact-revision
+CI acceptance remain unverified, so neither HNF-08 nor Core B08 is release
+qualified by this checkpoint.

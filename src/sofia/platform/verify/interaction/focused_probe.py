@@ -14,7 +14,7 @@ import argparse
 import json
 
 from sofia.core.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.modules.inference.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_production_configuration
 from sofia.core.constitution.store import ConstitutionIntegrityVerifier
 from sofia.core.constitution.store import ConstitutionStore

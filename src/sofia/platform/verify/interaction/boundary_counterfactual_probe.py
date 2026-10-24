@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # No imports of Ollama or configuration are needed by the stub-only tests.
-    from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+    from sofia.modules.inference.ollama_provider import OllamaProvider
     from sofia.platform.config.defaults import create_production_configuration
     from sofia.core.constitution.store import ConstitutionIntegrityVerifier
     from sofia.core.constitution.store import ConstitutionStore

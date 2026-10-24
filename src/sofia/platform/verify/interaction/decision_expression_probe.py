@@ -11,7 +11,7 @@ import argparse
 from collections import Counter
 from datetime import datetime, timezone
 
-from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.modules.inference.ollama_provider import OllamaProvider
 from sofia.platform.config.defaults import create_production_configuration
 from sofia.core.constitution.store import ConstitutionIntegrityVerifier
 from sofia.core.constitution.store import ConstitutionStore
