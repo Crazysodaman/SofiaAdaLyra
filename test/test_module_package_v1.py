@@ -186,6 +186,16 @@ def test_maintenance_profile_must_bind_exact_package_identity():
         replace(value, maintenance_profile=bad)
 
 
+def test_package_identity_changes_when_signed_policy_changes_with_same_artifacts():
+    value = manifest((("a.py", "0" * 64),))
+    changed_profile = replace(
+        value.profiles[0], permission_ceiling=2,
+    )
+    changed = replace(value, profiles=(changed_profile,))
+    assert changed.artifact_set_identity_digest() == value.artifact_set_identity_digest()
+    assert changed.package_identity_digest() != value.package_identity_digest()
+
+
 def test_untrusted_manifest_parser_round_trips_exact_signed_document():
     value = manifest((("a.py", "0" * 64),))
     document = value.unsigned_document()

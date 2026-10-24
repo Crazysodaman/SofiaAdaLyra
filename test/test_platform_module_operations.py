@@ -30,6 +30,8 @@ from sofia.platform.run import (
     TaskExecutionManager,
     WorkStatus,
 )
+from sofia.platform.modules import CanonicalPlatformModuleObserver
+from sofia.core.modreg.platform import ModuleObservationKind
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from test.test_module_lifecycle_v1 import verified_package
@@ -197,6 +199,11 @@ def test_durable_activation_uses_shared_run_and_verified_observation(
             "externally_verified_success",
         ]
         assert settled.result["evidence_ref"] == "probe:research-worker"
+        [health] = CanonicalPlatformModuleObserver(
+            canonical_state_path,
+        ).health()
+        assert health.health is ModuleObservationKind.HEALTHY
+        assert health.host_identity == "host:test"
     finally:
         manager.close(wait=True)
 

@@ -11,6 +11,7 @@ from sofia.platform.capability.catalog import ToolCatalogCapability,create_tool_
 from sofia.platform.capability.system import CapabilitySystem
 from sofia.core.codebase.capability import CodebaseCapability
 from sofia.core.codebase.inspector import CodebaseInspector
+from sofia.core.codebase.store import CodebaseInspectionStore
 from sofia.core.cognition.assembler import CognitiveContextAssembler
 from sofia.core.cognition.conversation_assembler import ConversationalContextAssembler
 from sofia.core.cognition.system import CognitiveSystem
@@ -271,6 +272,7 @@ def compose(
 
     codebase_capability = CodebaseCapability(
         inspector=codebase_inspector,
+        evidence_store=CodebaseInspectionStore(state_path),
     )
 
     runtime_holder: dict[str, SofiaRuntime] = {}

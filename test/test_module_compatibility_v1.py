@@ -1,3 +1,5 @@
+import pytest
+
 from sofia.platform.modules import (
     DependencyRequirement,
     ModulePlatformTarget,
@@ -24,8 +26,20 @@ def test_compatible_package_admission_is_advisory_not_authority():
         value, profile=OperationProfileKind.OBSERVE, target=target(),
     )
     assert report.compatible is True
-    assert report.authoritative is False
+    # Authoritative means produced by the reviewed deterministic evaluator;
+    # it remains advisory and grants no lifecycle/SAFE authority.
+    assert report.authoritative is True
     assert report.reasons == ()
+
+
+def test_caller_cannot_fabricate_authoritative_compatibility_report():
+    from sofia.platform.modules import ModuleCompatibilityReport
+    value = manifest((("module.py", "0" * 64),))
+    with pytest.raises(PermissionError, match="reviewed evaluator"):
+        ModuleCompatibilityReport(
+            value.module_id, value.version, value.package_identity_digest(),
+            OperationProfileKind.OBSERVE, target(), True, (), True,
+        )
 
 
 def test_os_api_isolation_resources_and_devices_fail_closed():

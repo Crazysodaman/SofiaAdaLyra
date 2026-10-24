@@ -1064,6 +1064,68 @@ no matching-revision CI, independent review, Windows result, signed real
 module package, or live-host acceptance, so B07/B08 and Core 1.0 are not
 release-qualified yet.
 
+### B07 completion checkpoint — 2026-10-24 UTC
+
+Baseline was published Platform RUN commit `ab4d6bb6`. The following Core B07
+paths are now production-connected in the canonical application:
+
+- **CORE-35:** `CodebaseInspector` now hashes each bounded, contained,
+  non-redirected source file. `CodebaseInspectionStore` records append-only
+  canonical inspection runs, provenance/freshness, content snapshot digests,
+  added/modified/removed paths and Python capability-module changes. The
+  existing authorized `codebase.inspect` capability records this evidence;
+  no second watcher or source executor was added.
+- **CORE-36:** `CoreMaintenanceService.request_restart()` records an
+  evidence-bound, idempotent supervised-restart request. It performs no
+  restart and creates no execution authority. Exact Platform outcomes settle
+  as verified/denied/failed/uncertain; a later success cannot overwrite a
+  prior uncertain receipt.
+- **CORE-37:** Core can propose only an `UpdateObservation` whose independently
+  verified signed release is present. Attempted, requested, uncertain and
+  verified states remain distinct; the service never activates a release.
+- **CORE-38:** module proposals can become typed Workshop requests under the
+  host-bound Core principal. Only authenticated Sparks may submit the handoff
+  into the existing `AutonomousWorkCoordinator`, which records a genuine
+  diagnostic and then uses the existing EVOLVE→DEV→VERIFY pipeline. Core
+  cannot self-submit, approve, install or deploy its candidate.
+- **CORE-39:** module awareness remains a projection over signed registry and
+  Platform evidence. Missing observer rows now stay UNKNOWN instead of being
+  converted into a definitive not-installed/unavailable claim. Complete
+  dependency cycle traversal is the only active implementation; an obsolete
+  first-branch traversal was removed.
+- **CORE-40:** troubleshooting persists evidence-bounded assessments and
+  distinguishes healthy, fault-observed and unknown health. Recovery choices
+  are proposals only. Placement explanations are advisory and explicitly
+  retain Platform resource/lease/authority requirements. Verified module
+  outcomes produce idempotent operational lessons, never beliefs, permissions
+  or execution claims. These lessons and request continuity enter the existing
+  module-awareness conversation context.
+
+Required Platform correctness repaired for B07/B08:
+
+- module health comes from fresh externally verified adapter observations,
+  not lifecycle row write time;
+- SIMULATE profile matching is case-normalized;
+- compatibility admission requires the reviewed deterministic evaluator;
+- package lifecycle identity covers the complete signed manifest policy,
+  while a separately named artifact-set digest remains the maintenance-profile
+  binding;
+- readiness evidence stores accept only explicitly configured trusted
+  producers, not a caller-supplied issuer label.
+
+Executed local Linux evidence:
+
+- Combined codebase, module governance, trust, lifecycle, application and
+  background suite: **114 passed**.
+- Existing autonomous DEV/EVOLVE, restart, component supervision and OPS
+  maintenance regression suite plus B07 tests: **37 passed**.
+
+B07 is **production-coded with local L4 test evidence**. It is not L5 and Core
+1.0 is not yet RELEASE CANDIDATE: matching-revision CI, Windows, independent
+review, a real signed module/adapter, and B08 cross-channel/package/recovery
+acceptance remain open. Automatic effectful adapter restart remains blocked by
+design when external state is uncertain.
+
 ### Broad Core regression gate
 
 The first broad run identified four restructure root causes: stale imports in

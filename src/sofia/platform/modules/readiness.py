@@ -95,9 +95,17 @@ class ModuleReadinessReport:
 
 
 class ReadinessEvidenceStore:
-    def __init__(self, state_path: Path) -> None:
+    def __init__(
+        self, state_path: Path, *, trusted_issuers: frozenset[str],
+    ) -> None:
         if not isinstance(state_path, Path):
             raise TypeError("state_path must be Path")
+        if not isinstance(trusted_issuers, frozenset) or not trusted_issuers or any(
+            not isinstance(item, str) or _EVIDENCE_ID.fullmatch(item) is None
+            for item in trusted_issuers
+        ):
+            raise ValueError("trusted readiness issuers must be explicit identifiers")
+        self._trusted_issuers = trusted_issuers
         self._guard = CanonicalSQLiteGuard(state_path)
         with closing(self._connect()) as db, db:
             db.execute(
@@ -129,6 +137,8 @@ class ReadinessEvidenceStore:
     def record(self, evidence: ReadinessEvidence) -> ReadinessEvidence:
         if not isinstance(evidence, ReadinessEvidence):
             raise TypeError("evidence must be ReadinessEvidence")
+        if evidence.issuer not in self._trusted_issuers:
+            raise PermissionError("readiness evidence issuer is not trusted")
         values = (
             evidence.evidence_id, evidence.module_id, evidence.package_digest,
             evidence.source_sha, evidence.kind.value, evidence.issuer,
@@ -165,6 +175,8 @@ class ReadinessEvidenceStore:
             if row is None:
                 raise LookupError("unknown readiness evidence")
             evidence = self._record(row)
+            if issuer not in self._trusted_issuers:
+                raise PermissionError("readiness evidence issuer is not trusted")
             if evidence.issuer != issuer:
                 raise PermissionError("only evidence issuer may revoke this record")
             if evidence.revoked_at is None:

@@ -28,6 +28,10 @@ from sofia.core.codebase.python import (
 from sofia.core.codebase.relationships import (
     CodebaseRelationshipAnalyzer,
 )
+from sofia.core.codebase.store import (
+    CodebaseInspectionRecord,
+    CodebaseInspectionStore,
+)
 
 __all__ = [
     "CODEBASE_INSPECT_CAPABILITY",
@@ -39,6 +43,8 @@ __all__ = [
     "CodebaseInspectionError",
     "CodebaseInspectionEvidence",
     "CodebaseInspector",
+    "CodebaseInspectionRecord",
+    "CodebaseInspectionStore",
     "CodebaseRelationshipAnalyzer",
     "ModuleRelationship",
     "PythonAnalyzer",

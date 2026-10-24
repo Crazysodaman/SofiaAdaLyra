@@ -19,6 +19,7 @@ class CodebaseFile:
     path: Path
     kind: SourceFileKind
     size_bytes: int
+    content_sha256: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.path, Path):
@@ -37,6 +38,18 @@ class CodebaseFile:
         if self.size_bytes < 0:
             raise ValueError(
                 "size_bytes must not be negative."
+            )
+
+        if self.content_sha256 is not None and (
+            not isinstance(self.content_sha256, str)
+            or len(self.content_sha256) != 64
+            or any(
+                character not in "0123456789abcdef"
+                for character in self.content_sha256
+            )
+        ):
+            raise ValueError(
+                "content_sha256 must be a lowercase SHA-256 or None."
             )
 
 

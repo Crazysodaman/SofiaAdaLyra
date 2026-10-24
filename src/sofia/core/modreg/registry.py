@@ -490,53 +490,6 @@ class ModuleRegistryService:
             )
 
     @staticmethod
-    def _check_cycles(
-        registrations: tuple[ModuleRegistration, ...], name: str,
-        _visited: list[str],
-    ) -> bool:
-        """Detect dependency cycles among currently registered manifests."""
-        graph = {
-            reg.manifest.name: {
-                dep
-                for dep in reg.manifest.declared_dependencies
-                if any(other.manifest.name == dep for other in registrations)
-            }
-            for reg in registrations
-        }
-        graph[name] = set(
-            next(
-                (
-                    reg.manifest.declared_dependencies
-                    for reg in registrations
-                    if reg.manifest.name == name
-                ),
-                set(),
-            )
-        )
-        for start in graph:
-            stack: list[str] = []
-            visiting: set[str] = set()
-            node: str | None = start
-            while node is not None:
-                if node in visiting:
-                    if node == start:
-                        return False
-                    break
-                stack.append(node)
-                visiting.add(node)
-                deps = [
-                    dep
-                    for dep in graph.get(node, ())
-                    if any(
-                        registration.manifest.name == dep
-                        for registration in registrations
-                    )
-                    or dep == name
-                ]
-                node = next(iter(deps), None) if deps else None
-        return True
-
-    @staticmethod
     def compatibility(
         manifest: ModuleManifest,
         registrations: tuple[ModuleRegistration, ...],

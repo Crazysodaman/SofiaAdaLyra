@@ -70,11 +70,15 @@ def test_evidence_is_durable_idempotent_and_revocation_blocks_certification(
     canonical_state_path,
 ):
     value = manifest((("module.py", "0" * 64),))
-    store = ReadinessEvidenceStore(canonical_state_path)
+    store = ReadinessEvidenceStore(
+        canonical_state_path, trusted_issuers=frozenset({"verifier:owner-ci"}),
+    )
     records = []
     for kind in ReadinessEvidenceKind:
         records.append(store.record(evidence(value, kind)))
-    restarted = ReadinessEvidenceStore(canonical_state_path)
+    restarted = ReadinessEvidenceStore(
+        canonical_state_path, trusted_issuers=frozenset({"verifier:owner-ci"}),
+    )
     assert restarted.record(records[0]) == records[0]
     restarted.revoke(
         records[0].evidence_id, issuer=records[0].issuer,
@@ -86,6 +90,18 @@ def test_evidence_is_durable_idempotent_and_revocation_blocks_certification(
     )
     assert report.status is PlatformReadiness.BLOCKED
     assert "certification evidence was revoked" in report.reasons
+
+
+def test_untrusted_issuer_cannot_enter_readiness_store(canonical_state_path):
+    value = manifest((("module.py", "0" * 64),))
+    store = ReadinessEvidenceStore(
+        canonical_state_path, trusted_issuers=frozenset({"verifier:owner-ci"}),
+    )
+    forged = replace(
+        evidence(value, ReadinessEvidenceKind.TEST), issuer="attacker:claimed-ci",
+    )
+    with pytest.raises(PermissionError, match="not trusted"):
+        store.record(forged)
 
 
 def test_failed_exact_revision_evidence_blocks_readiness():

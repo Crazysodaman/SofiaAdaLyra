@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field
 import re
 
 from .package import OperationProfileKind, SignedModuleManifest
 
 
 _VERSION = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+_ASSESSMENT_TOKEN = object()
 
 
 def _version(value: str) -> tuple[int, int, int]:
@@ -51,6 +53,13 @@ class ModuleCompatibilityReport:
     compatible: bool
     reasons: tuple[str, ...]
     authoritative: bool = False
+    _producer_token: object | None = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.authoritative != (self._producer_token is _ASSESSMENT_TOKEN):
+            raise PermissionError(
+                "authoritative compatibility requires the reviewed evaluator"
+            )
 
 
 def evaluate_module_compatibility(
@@ -108,5 +117,5 @@ def evaluate_module_compatibility(
             reasons.append(f"dependency version incompatible: {requirement.module_id}")
     return ModuleCompatibilityReport(
         manifest.module_id, manifest.version, manifest.package_identity_digest(),
-        profile, target, not reasons, tuple(reasons), False,
+        profile, target, not reasons, tuple(reasons), True, _ASSESSMENT_TOKEN,
     )

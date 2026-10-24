@@ -21,7 +21,7 @@ def _insert(path, *, module_id, lifecycle, updated_at, version="1.0.0"):
         )
 
 
-def test_canonical_observer_projects_installed_and_fresh_active_state(
+def test_canonical_observer_does_not_invent_health_from_lifecycle_write(
     canonical_state_path, tmp_path,
 ):
     ModuleLifecycleManager(
@@ -43,7 +43,8 @@ def test_canonical_observer_projects_installed_and_fresh_active_state(
     assert described.module_id == "sofia.module.trains"
     assert described.capabilities == ()
     assert health.lifecycle == "ACTIVE"
-    assert health.health is ModuleObservationKind.HEALTHY
+    assert health.health is ModuleObservationKind.UNKNOWN_STATE
+    assert health.reason_codes == ("active-observation-missing-or-stale",)
     assert observer.outcomes() == ()
 
 
@@ -64,7 +65,7 @@ def test_stale_active_row_is_not_live_health(canonical_state_path, tmp_path):
 
     assert health.lifecycle == "ACTIVE"
     assert health.health is ModuleObservationKind.UNKNOWN_STATE
-    assert health.reason_codes == ("active-observation-stale",)
+    assert health.reason_codes == ("active-observation-missing-or-stale",)
 
 
 def test_missing_lifecycle_table_is_honest_empty_projection(

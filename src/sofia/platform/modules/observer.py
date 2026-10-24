@@ -103,6 +103,36 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
     def _rows(self) -> tuple[sqlite3.Row, ...]:
         return self._snapshot()[0]
 
+    def _verified_runtime_observations(self) -> dict[str, sqlite3.Row]:
+        """Latest authenticated adapter probe recorded by canonical RUN."""
+        with closing(
+            self._guard.connect(timeout=10.0, read_only=True)
+        ) as db:
+            db.row_factory = sqlite3.Row
+            tables = {
+                row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND "
+                    "name IN ('platform_module_operation_request',"
+                    "'platform_module_operation_attempt')"
+                )
+            }
+            if len(tables) != 2:
+                return {}
+            rows = db.execute(
+                """SELECT request.module_id,request.component_id,
+                          request.host_identity,attempt.evidence_ref,
+                          attempt.occurred_at
+                   FROM platform_module_operation_attempt AS attempt
+                   JOIN platform_module_operation_request AS request
+                     ON request.request_id=attempt.request_id
+                   WHERE attempt.status='externally_verified_success'
+                   ORDER BY attempt.occurred_at DESC,attempt.event_id DESC"""
+            ).fetchall()
+        result: dict[str, sqlite3.Row] = {}
+        for row in rows:
+            result.setdefault(str(row["module_id"]), row)
+        return result
+
     def described(self) -> tuple[ModuleDescribeObservation, ...]:
         now = datetime.now(timezone.utc)
         rows, declared = self._snapshot()
@@ -124,7 +154,7 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
             )
             simulated_only = (
                 frozenset(capabilities)
-                if profile == "simulate" else frozenset()
+                if profile.casefold() == "simulate" else frozenset()
             )
             result.append(ModuleDescribeObservation(
                 module_id=module_id,
@@ -141,22 +171,28 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
 
     def health(self) -> tuple[ModuleHealthObservation, ...]:
         now = datetime.now(timezone.utc)
+        runtime = self._verified_runtime_observations()
         result = []
         for row in self._rows():
             lifecycle = str(row["lifecycle"])
             if lifecycle == ModuleLifecycle.REMOVED.value:
                 continue
-            updated_at = datetime.fromisoformat(str(row["updated_at"])).astimezone(
-                timezone.utc
+            observation = runtime.get(str(row["module_id"]))
+            observed_at = (
+                None if observation is None
+                else datetime.fromisoformat(str(observation["occurred_at"])).astimezone(
+                    timezone.utc
+                )
             )
             fresh_active = (
                 lifecycle == ModuleLifecycle.ACTIVE.value
-                and -timedelta(seconds=5) <= now - updated_at <= self.max_active_age
+                and observed_at is not None
+                and -timedelta(seconds=5) <= now - observed_at <= self.max_active_age
             )
             if fresh_active:
                 kind = ModuleObservationKind.HEALTHY
                 projected_lifecycle = "ACTIVE"
-                reasons = ()
+                reasons = ("verified-adapter-observation",)
             elif lifecycle == ModuleLifecycle.QUARANTINED.value:
                 kind = ModuleObservationKind.QUARANTINED
                 projected_lifecycle = "QUARANTINED"
@@ -165,19 +201,30 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
                 kind = ModuleObservationKind.UNKNOWN_STATE
                 projected_lifecycle = lifecycle.upper()
                 reasons = (
-                    "active-observation-stale"
+                    "active-observation-missing-or-stale"
                     if lifecycle == ModuleLifecycle.ACTIVE.value
                     else f"lifecycle:{lifecycle}",
                 )
             result.append(ModuleHealthObservation(
-                module_instance_id=str(row["module_id"]),
-                host_identity=self.host_identity,
+                module_instance_id=(
+                    str(row["module_id"])
+                    if observation is None
+                    else f'{row["module_id"]}@{observation["component_id"]}'
+                ),
+                host_identity=(
+                    self.host_identity
+                    if observation is None else str(observation["host_identity"])
+                ),
                 lifecycle=projected_lifecycle,
                 health=kind,
                 reason_codes=reasons,
                 blocked_dependencies=(),
-                fresh_until=now + timedelta(seconds=30),
-                observed_at=now,
+                fresh_until=(
+                    now + timedelta(seconds=30)
+                    if observed_at is None
+                    else observed_at + self.max_active_age
+                ),
+                observed_at=now if observed_at is None else observed_at,
             ))
         return tuple(result)
 

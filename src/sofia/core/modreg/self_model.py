@@ -238,9 +238,9 @@ class CapabilitySelfModel:
             )
             if module_id in described:
                 installed_state = Grounding.YES
-            elif self._platform is not None:
-                installed_state = Grounding.NO
             else:
+                # An observer returning no row is absence of evidence, not a
+                # complete negative inventory of every possible host/module.
                 installed_state = Grounding.UNKNOWN
             active = (
                 Grounding.NO if inactive_observed
@@ -258,7 +258,7 @@ class CapabilitySelfModel:
                 and healthy is Grounding.YES
             ):
                 available = Grounding.YES
-            elif self._platform is None:
+            elif installed_state is Grounding.UNKNOWN:
                 available = Grounding.UNKNOWN
             else:
                 available = Grounding.NO

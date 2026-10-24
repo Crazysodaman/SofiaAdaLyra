@@ -161,3 +161,11 @@ Readiness remains **BETA / local evidence only**. Automatic adapter restart,
 live host/process acceptance, Windows evidence, matching-revision CI and
 independent review remain open. Per the owner priority change, unrelated
 Platform expansion is deferred while Core B07/B08 is completed.
+
+Core-B07 dependency hardening followed this checkpoint: full signed-manifest
+policy identity, trusted readiness-producer admission, evaluator-authenticated
+compatibility, verified adapter health projection, case-normalized SIMULATE
+classification and honest UNKNOWN availability. These are the minimum
+Platform corrections required for Core module self-knowledge; they do not
+expand Platform authority or enable automatic restart. Evidence is recorded in
+the Core ledger's B07 completion checkpoint.

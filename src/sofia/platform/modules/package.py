@@ -276,14 +276,19 @@ class SignedModuleManifest:
             raise PackageManifestError(
                 "maintenance profile identity does not match module"
             )
-        if self.maintenance_profile.artifact_digest != self.package_identity_digest():
+        if self.maintenance_profile.artifact_digest != self.artifact_set_identity_digest():
             raise PackageManifestError("maintenance digest does not match package identity")
 
-    def package_identity_digest(self) -> str:
+    def artifact_set_identity_digest(self) -> str:
+        """Legacy artifact-set identity used by the maintenance contract."""
         return sha256(json.dumps({
             "artifacts": list(self.artifact_digests), "module_id": self.module_id,
             "publisher": self.publisher, "version": self.version,
         }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    def package_identity_digest(self) -> str:
+        """Identity of the complete signed policy, excluding only signature."""
+        return sha256(self.canonical_unsigned_bytes()).hexdigest()
 
     def unsigned_document(self) -> dict[str, object]:
         def profile(item: ModuleOperationProfile) -> dict[str, object]:

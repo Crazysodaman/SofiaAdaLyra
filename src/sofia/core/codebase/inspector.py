@@ -1,5 +1,7 @@
 ﻿from pathlib import Path
 
+from hashlib import sha256
+
 from sofia.core.codebase.analyzers import (
     CodebaseAnalyzerRegistry,
     create_default_analyzer_registry,
@@ -143,6 +145,9 @@ class CodebaseInspector:
             if not path.is_file():
                 continue
 
+            if path.is_symlink():
+                continue
+
             if self._is_ignored(path):
                 continue
 
@@ -152,6 +157,15 @@ class CodebaseInspector:
                 continue
 
             if size > self.MAX_FILE_BYTES:
+                continue
+
+            try:
+                resolved = path.resolve(strict=True)
+                resolved.relative_to(self._root)
+                content_digest = sha256(
+                    resolved.read_bytes()
+                ).hexdigest()
+            except (OSError, ValueError):
                 continue
 
             if len(discovered) >= self.MAX_FILES:
@@ -167,6 +181,7 @@ class CodebaseInspector:
                     path=path,
                     kind=kind,
                     size_bytes=size,
+                    content_sha256=content_digest,
                 )
             )
 

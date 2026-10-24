@@ -745,6 +745,8 @@ class ModuleLifecycleManager:
             raise PermissionError("compatibility report is for another package/profile")
         if not compatibility.compatible:
             raise PermissionError("module package is incompatible with target Platform")
+        if not compatibility.authoritative:
+            raise PermissionError("compatibility assessment is not authoritative")
 
     @staticmethod
     def _validate_registrations(

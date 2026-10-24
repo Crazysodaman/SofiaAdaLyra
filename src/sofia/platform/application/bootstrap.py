@@ -58,6 +58,7 @@ from sofia.platform.application.presence import (
     WorldObservation,
 )
 from sofia.platform.application.autonomous_work import AutonomousWorkCoordinator
+from sofia.platform.application.core_maintenance import CoreMaintenanceService
 from sofia.platform.application.expression_runtime import ExpressionIntent, ExpressionRuntime
 from sofia.platform.application.act_service import (
     SofiaActService, configure_act_delivery_from_environment,
@@ -368,9 +369,12 @@ class SofiaApplication:
             capability_system=self._runtime.capability_system,
         )
         self._module_factories = AdapterFactoryRegistry()
+        self._platform_module_observer = CanonicalPlatformModuleObserver(
+            configuration.state_path,
+        )
         self._module_awareness = CapabilitySelfModel(
             self._module_registry,
-            CanonicalPlatformModuleObserver(configuration.state_path),
+            self._platform_module_observer,
         )
         self._module_proposals = ModuleProposalService(
             ModuleProposalStore(configuration.state_path),
@@ -547,6 +551,13 @@ class SofiaApplication:
             work_store=self._autonomous_work.work_store,
             manager=self._autonomous_work.manager,
         )
+        self._core_maintenance = CoreMaintenanceService(
+            state_path=configuration.state_path,
+            awareness=self._module_awareness,
+            observer=self._platform_module_observer,
+            workshop=self._workshop_requests,
+            autonomous_work=self._autonomous_work,
+        )
         self._goal_production = GoalProductionCoordinator(
             goals=self._goals,
             state_path=configuration.state_path,
@@ -691,6 +702,11 @@ class SofiaApplication:
     def module_operations(self) -> ModuleOperationCoordinator:
         """Durable module operations registered in the shared RUN executor."""
         return self._module_operations
+
+    @property
+    def core_maintenance(self) -> CoreMaintenanceService:
+        """Non-effectful Core B07 maintenance and Workshop bridge."""
+        return self._core_maintenance
 
     @property
     def module_awareness(self) -> CapabilitySelfModel:
@@ -1170,7 +1186,9 @@ class SofiaApplication:
         del principal
         del query_text
         summary = self._module_awareness.awareness_summary(limit=2000)
-        assert summary is not None
+        maintenance = getattr(self, "_core_maintenance", None)
+        if maintenance is not None:
+            summary += "\n\n" + maintenance.working_context(limit=1200)
         return summary
 
     def update_platform_module_observer(
@@ -1178,6 +1196,11 @@ class SofiaApplication:
     ) -> None:
         """Compose-time injection of Codex's typed Platform observers."""
         self._module_awareness.set_platform_observer(observer)
+        if observer is not None:
+            self._platform_module_observer = observer
+            maintenance = getattr(self, "_core_maintenance", None)
+            if maintenance is not None:
+                maintenance.observer = observer
 
     def observe_body_reflex(self, observation: BodyReflexObservation):
         """Accept only a BODY-owned post-reflex summary; never a motor command."""
@@ -2321,6 +2344,7 @@ class SofiaApplication:
                 or fleet_discovery_enabled
                 or fleet_reconciliation_enabled
                 or backup_topology_enabled()
+                or getattr(self, "_core_maintenance", None) is not None
             )
             if background_needed:
                 if not isinstance(self._conversation_service, EmotionalConversationService):

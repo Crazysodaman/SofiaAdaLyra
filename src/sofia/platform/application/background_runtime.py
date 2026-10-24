@@ -637,6 +637,19 @@ def create_background_coordinator(
             interval_seconds=60.0,
         )
 
+    core_maintenance = getattr(application, "_core_maintenance", None)
+    if core_maintenance is not None:
+        def learn_verified_module_outcomes(now):
+            del now
+            learned = core_maintenance.learn_verified_outcomes(limit=32)
+            return None if learned == 0 else {"verified_outcome_lessons": learned}
+
+        coordinator.set_task(
+            "core_maintenance_learning",
+            learn_verified_module_outcomes,
+            interval_seconds=300.0,
+        )
+
     learning = getattr(application, "_learning", None)
     if learning is not None:
         fleet_pressure = getattr(application, "_fleet_pressure_pilot", None)

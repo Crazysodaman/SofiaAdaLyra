@@ -1,5 +1,7 @@
 ﻿from pathlib import Path
 
+from datetime import datetime, timezone
+
 from sofia.platform.capability.model import (
     Capability,
     CapabilityRequest,
@@ -10,6 +12,7 @@ from sofia.core.codebase.inspector import (
 from sofia.core.codebase.model import (
     CodebaseInspectionEvidence,
 )
+from sofia.core.codebase.store import CodebaseInspectionStore
 
 
 CODEBASE_INSPECT_CAPABILITY = Capability(
@@ -35,6 +38,7 @@ class CodebaseCapability:
     def __init__(
         self,
         inspector: CodebaseInspector,
+        evidence_store: CodebaseInspectionStore | None = None,
     ) -> None:
         if not isinstance(
             inspector,
@@ -46,6 +50,13 @@ class CodebaseCapability:
             )
 
         self._inspector = inspector
+        if evidence_store is not None and not isinstance(
+            evidence_store, CodebaseInspectionStore,
+        ):
+            raise TypeError(
+                "evidence_store must be CodebaseInspectionStore or None."
+            )
+        self._evidence_store = evidence_store
 
     @property
     def capability(self) -> Capability:
@@ -94,4 +105,9 @@ class CodebaseCapability:
                     "match the configured codebase root."
                 )
 
-        return self._inspector.inspect()
+        evidence = self._inspector.inspect()
+        if self._evidence_store is not None:
+            self._evidence_store.record(
+                evidence, observed_at=datetime.now(timezone.utc),
+            )
+        return evidence
