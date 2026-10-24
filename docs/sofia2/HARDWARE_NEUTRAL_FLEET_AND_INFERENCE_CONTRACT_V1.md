@@ -60,6 +60,52 @@ Requirement predicate types: equals, in-set, range/minimum/maximum, semver/ABI r
 
 Do not create a shadow database, second authority, independent resource scheduler or second placement engine. Preserve historical records and re-evaluate active leases against current authoritative data.
 
+## 3.1 Component-level part identification and voluntary owner-assisted completion (owner-approved 2026-10-24)
+
+**Decision:** Inventory must model actual **individual physical parts and attached devices**, not merely host aggregate CPU, RAM, GPU and storage quantities. Sofía may *autonomously decide to ask the authenticated owner* for a missing or ambiguous piece of part information when it has a meaningful purpose. Asking does not authorize installation, taking photos, scanning private files, changing BIOS, disassembling a computer, publishing part details or promoting model output to evidence.
+
+**Minimum useful per-part properties (all independently nullable/UNKNOWN):**
+
+| Part class | Properties worth collecting, where available | What software discovery usually cannot prove |
+| --- | --- | --- |
+| System/baseboard | maker, exact motherboard/OEM board model, hardware revision, chipset, BIOS/UEFI model/version, asset/device mapping | retail model versus OEM variant, exact printed PCB revision, user-installed firmware modifications |
+| CPU | vendor, SKU, stepping, package/socket, physical/logical cores, features, clocks and thermal reporting | retail box/manufacturing lot, physical cooler and installed paste |
+| GPU/accelerator | GPU PCI/device ID, board partner, product SKU/revision, VRAM and type, interface, firmware, driver/backend, external power | exact board-partner model/cooling, power connectors, PCB revision |
+| RAM | each DIMM/slot ID, manufacturer, label/part number, size, supported and currently configured timings/speed, ECC | sticker-only lot info or undiscoverable population/kit provenance |
+| Storage | each physical device serial-safe pseudonymous ID, manufacturer/model, capacity, bus/interface, drive firmware, health/SMART, mount/volume association | undocumented drive revision; which mount/volume belongs to a physical disk if unavailable |
+| PSU | maker, model/SKU, rated wattage, supported connectors, modular cables, age when provided | often cannot be read by OS at all; owner or photo/receipt can help |
+| Cooling | CPU/GPU cooling assembly, fans/pump, heat sink/radiator, known airflow/sensor relation | cooler exact SKU, physical installation and fan wiring |
+| Chassis | case/board form factor, clearance, fans, bays, port layout | installed clearances, fan fitment and cable routing |
+| Network/interfaces | each NIC/USB controller/serial port device ID, interface/model, firmware, capabilities, active connection | cable layout, external dock/switch/physical connection details |
+| Attached devices | camera, mic, robot controller, rail interface, sensor, UPS, printer etc.; class, protocol, version, unique device identity/connection and physical host | manual-only model, power source, true physical safety characteristics |
+
+**Per-part record:** \`host_id\`, \`part_instance_id\`, class, physical or virtual resource relationship, discovered IDs, normalized maker/model/SKU/revision, where-installed slot/bus/port, optional redacted label/photo reference, per-property \`value\`/\`unit\`/\`source\`/\`verified\`/\`observed_at\`/\`confidence\`/\`conflict\`, owner-confirmation revision, maintenance/replacement chronology, last-seen and disconnected state. A VM's synthetic NIC/vCPU is not a separately manufactured physical NIC/CPU; link a VM resource to its parent physical part only with verified mapping. Never merge two similar GPUs or DIMMs based on matching model text. Keep sensitive serials, service tags, warranty/receipt IDs and purchase information optional, locally access-controlled, and excluded from automatic LLM/peer/module telemetry projection.
+
+**Evidence separation:** The existing \`EvidenceClass\` enum currently supports \`MANUFACTURER\`, \`OBSERVED\` and \`BENCHMARK\`; none means "owner told me." Implement a separately validated **OWNER_REPORTED** source class or a dedicated owner-assertion overlay, with source principal/audience, explicit answer/revision, date and verification status. Do not cast user-provided text as \`MANUFACTURER\` or a measured fact. An owner answer can establish a useful *declared* configuration; documentation from an attributable manufacturer can establish the manufacturer spec; an authenticated agent observation can establish current detected hardware; a benchmark establishes measured performance. Preserve all conflicting evidence, resolve it explicitly, and never silently overwrite trusted measurements. For safety-critical GPU/PSU limits and hardware-affecting actions, owner-reported details alone do not bypass the mandatory verified hard evidence and SAFE/physical-device controls.
+
+**When Sofía may ask voluntarily:**
+1. Detect a specific missing/contradictory/ambiguous field (not merely an empty inventory) and link it to a meaningful pending task, maintenance profile, known hardware change, troubleshooting issue, requested upgrade, placement rejection or useful self-knowledge goal.
+2. Attempt the permitted non-invasive local/Fleet read first; optionally inspect attributable manufacturer documentation through an approved research capability. A manufacturer's public model specification does not prove which board/PSU is *installed*.
+3. Decide whether the question adds value now and whether the user is available. Respect quiet hours, current activity/gaming, social outreach limits and existing unanswered/declined questions. Prefer **one concise, specific question at a time**, on an approved private owner channel; no question loops, unsolicited multi-page interrogations or pressure to open the case.
+4. Ask optional concrete identification questions such as "Do you know the PSU manufacturer/model?" or "Can you confirm the RAM kit part number?", explaining why it matters. Accept \`don't know\`, \`skip\`, \`not now\`, and \`do not ask about this again\`. A photo of a safe-to-view part label or a product/receipt link can be offered *voluntarily*, never demanded. No automatic camera/file scan or marketplace/order access.
+5. Parse the reply as lower-trust user-supplied data. Bind it only to the authenticated owner, exact host and part, question/answer source refs, and reviewed capability field; support corrections and "this was actually Computer B" rebinding without erasing earlier evidence. If the model isn't sure which part/PC the reply refers to, clarify instead of guessing.
+6. Provide a short acknowledgment, store only approved useful fields, and preserve status as owner-reported until a separate independent check validates it. Recheck only if new evidence conflicts or a later task materially requires more certainty.
+7. If the user declines, record a scoped \`asked/declined/deferred/do_not_ask\` preference (host + part + property + scope, with expiration if appropriate) and don't repeat automatically. Honor opt-out from spontaneous hardware questions entirely.
+
+**How evidence informs modules:** Every field retains the exact typed Resource Capability Contract key. Known component part identity helps select an appropriate driver, adapter, firmware documentation and module profile; **actual ability to execute** still depends on recent verified available resources, installed working runtime, trust, grants, safety, exact device leases and operational benchmarks. A PSU model provided by the owner may support a maintenance recommendation, but not certify enough power for an unsupervised GPU installation. Manufacturer datasheets and user statements never manufacture "free VRAM" or "GPU driver installed" observations.
+
+**Implementation placement:** Extend existing \`sofia.platform.resources.HardwareInventoryStore\` / \`CapabilityFact\` provenance, Fleet per-device collection and the existing Core autonomous-question/ACT owner-private route. Reuse current social outreach scheduling and refusal state; no independent inventory chatbot, memory database, scheduler or permission owner. Apply the same single-writer/CAS/revision and privacy rules. This supplements **HNF-02** and **HNF-03** rather than adding a new parallel roadmap task.
+
+**Acceptance tests:**
+- Newly enrolled host reports CPU/GPU but missing PSU: one permitted owner question can be proposed, deferred or declined; a later owner answer becomes an attached OWNER_REPORTED part fact, survives restart, and is not labeled manufacturer-verified.
+- Missing/ambiguous motherboard SKU or multiple RAM sticks prompts for only the relevant part/host; exact part instance remains distinct; correction and conflict preserve history.
+- Unknown PSU / unsupported hardware remains UNKNOWN to strict placement/safety requirements after an owner says "I think it's 850 W" without independent evidence; advisory troubleshooting may use clearly labeled owner information.
+- An authenticated owner says "stop asking about this"; no repeated unsolicited requests, and a different peer/Discord user cannot submit an owner hardware record.
+- Owner's answers, part photo, receipt and serial never leak into general peer federation messages, unapproved LLM prompts, public UI or module telemetry.
+- The OS cannot detect physical case/cooling/PSU inside a VM; Sofía can ask but does not invent the missing physical component.
+- Hardware replacement makes the prior installed-part record historical and invalidates relevant cached compatibility/benchmark evidence without erasing provenance.
+- If live telemetry contradicts owner claims, retain the discrepancy and refuse dangerous effects; never infer privilege, grant, certified installation or host identity from the answer.
+
 ## 4. Automatic benchmark lifecycle
 
 **Trigger and cadence**
