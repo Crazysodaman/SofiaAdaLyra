@@ -95,3 +95,13 @@ execution and physical device acceptance at the end of development.
 
 Status: **coded as a dormant future-role safety gate. Not enabled or
 deployed on Artemis or Venus.**
+
+## Subsequent owner clarification: hardware-neutral topology (2026-10-24)
+
+The named **Venus → Artemis** topology above records the *existing production-writer authority* and the currently preferred deployment example. It must **not** be interpreted as a permanent architectural host allowlist, as a requirement for Hyper-V, or as a maximum of one GPU-equipped worker across all future deployments.
+
+The later approved target is role-based, capability-matched Fleet placement on any independently enrolled, trusted compatible hardware. Immutable observed Fleet node IDs, model/provider digests, actual hardware inventory, current available resources, safe benchmark performance and per-resource leases replace assumptions based on host display names. Multiple approved GPU-capable nodes may exist. Worker changes and model changes are separate decisions, and neither authorizes silent fallback.
+
+The previous \`SOFIA_SPLIT_INFERENCE_ROLE=artemis_runtime\` gate and \`SOFIA_SPLIT_*_HOST_ID\` names above are **implemented transitional code/configuration, not the intended final hardware-neutral configuration interface**. A staged migration must preserve the current fail-closed behavior while introducing host-neutral role and approved worker-set policy. No existing environment variable should be silently reinterpreted to change active behavior.
+
+See [Sofía 2.0 Hardware-neutral Fleet and inference contract](../sofia2/HARDWARE_NEUTRAL_FLEET_AND_INFERENCE_CONTRACT_V1.md) for the accepted schema, benchmark, routing and test requirements. These decisions **do not move the canonical writer**, enroll or switch inference workers, or authorize a live deployment. Venus remains the last recorded canonical writer until independently verified owner-approved cutover.
