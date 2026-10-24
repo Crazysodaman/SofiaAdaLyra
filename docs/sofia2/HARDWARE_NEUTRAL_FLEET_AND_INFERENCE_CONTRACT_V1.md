@@ -148,6 +148,10 @@ benchmark_id; test_suite/revision/digest; workload/profile; exact host, VM, reso
 
 Each implementation slice must record production callers, typed data schema, migration/compatibility plan, policy, actual tests/commands/revision, failures and readiness level. Do not mark a slice RELEASE CANDIDATE/PRODUCTION READY from this document or mocks alone. Existing PLAT-05/06/07/08 and SF-13/14/16 owners remain authoritative; HNF IDs are acceptance slices, **not** a new parallel service or replacement for V18 task IDs.
 
+## 7.1 Component-isolated inference and shared SDK dependency
+
+The **provider-specific inference extraction** in HNF-08 must share the [Component-isolated updates and unified SDK V1](COMPONENT_UPDATES_AND_UNIFIED_SDK_V1.md) protocol and lifecycle plan, not add a second model supervisor or Core identity. LLM provider workers should be replaceable without restarting Platform or Core once isolated, with exact model digest, trust, authorization and state continuity preserved. This must be proven with real OS-process tests and genuine model calls, not only stubbed adapters. The current in-process composition does not yet satisfy this upgrade isolation.
+
 ## 8. Non-goals and boundary-preserving rollout
 
 - No production Artemis/other-host writer promotion, package activation, re-enrollment, external physical effect, private benchmark data export or GPU model installation from adoption of this document.
