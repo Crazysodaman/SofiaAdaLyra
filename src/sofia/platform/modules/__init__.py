@@ -13,6 +13,7 @@ from .lifecycle import (
     ModuleLifecycleHealth,
     ModuleLifecycleManager,
     ModuleLifecycleRecord,
+    ModuleTransitionReceipt,
 )
 from .package import (
     DependencyRequirement,
@@ -42,6 +43,7 @@ __all__ = [
     "ModuleInstallPlan", "ModuleLifecycle", "ModuleLifecycleAuthorization",
     "ModuleLifecycleHealth",
     "ModuleLifecycleManager", "ModuleLifecycleRecord",
+    "ModuleTransitionReceipt",
     "ModuleMaintenanceProfile", "ModuleOperationProfile",
     "ModulePlatformTarget", "ModuleReadinessReport", "OperationProfileKind",
     "PackageManifestError", "PlacementMode", "PlatformReadiness",

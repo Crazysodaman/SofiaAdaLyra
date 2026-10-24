@@ -73,6 +73,19 @@ def test_exact_owner_approval_is_consumed_once_for_lifecycle_transition(
         approval_id=approval_id, now=NOW,
     )
     assert approved.lifecycle is ModuleLifecycle.APPROVED
+    receipt = command.transition_receipt(found.module_id, approved.revision)
+    assert receipt.operation_ref == approval_id
+    assert receipt.from_lifecycle is ModuleLifecycle.VALIDATED
+    assert receipt.to_lifecycle is ModuleLifecycle.APPROVED
+    assert receipt.actor == "Sparks"
+    restarted = service(canonical_state_path, tmp_path)
+    assert restarted.transition_receipt(
+        found.module_id, approved.revision,
+    ) == receipt
+    assert [item.revision for item in restarted.history(found.module_id)] == [
+        approved.revision,
+        found.revision,
+    ]
     assert not ExecutionApprovalVerifier(canonical_state_path).matches_unconsumed(
         approval_id=approval_id, capability="module.approve",
         parameters=parameters, now=NOW,

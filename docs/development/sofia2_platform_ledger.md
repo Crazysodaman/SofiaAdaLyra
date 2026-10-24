@@ -69,8 +69,8 @@ Windows service, and real-provider host acceptance remain open.
 
 ## Next eligible work
 
-The application-owned module command boundary is now implemented in the
-working tree. It constructs the canonical lifecycle manager during
+The application-owned module command boundary constructs the canonical
+lifecycle manager during
 `SofiaApplication` composition, classifies every lifecycle mutation as a
 protected SAFE capability, and consumes an exact FIDO2-bound one-use approval
 containing module identity, version, digest, revision, target lifecycle and
@@ -85,14 +85,23 @@ four affected mobile/WebAuthn files then passed **36/36** after bounded network
 permission was granted. The slice was published as commit `914ed766` on
 `origin/main` after owner instruction; it has no matching-revision CI evidence.
 
-Signed capability projection is implemented in the next working-tree slice.
+Signed capability projection was published as commit `37730af8`.
 The lifecycle manager persists capability IDs and schema references from the
 already verified manifest in canonical SQLite, including atomic replacement on
 update/rollback. The Core observer reads those declarations as data without
 importing package code, derives only whether a capability's Platform policy
 requires authority, and never reports a current grant. Focused lifecycle,
-observer, Core-awareness and SAFE-policy evidence: **60 passed**. This slice is
-not yet a pushed checkpoint or matching-revision CI evidence.
+observer, Core-awareness and SAFE-policy evidence: **60 passed**. It has no
+matching-revision CI evidence.
+
+Durable module transition receipts are now exposed by exact module ID and
+revision, with bounded history for diagnostics and future RUN reconciliation.
+Receipts preserve the previous/next lifecycle, approval reference, actor,
+reason and timestamp; they report only the canonical state transition, not an
+unverified external effect. Restart persistence is covered by the focused
+module command suite. Component-supervisor integration remains deliberately
+blocked on a restart-safe reviewed adapter factory; the Platform will not
+blindly resurrect an adapter or claim an effect after restart.
 
 Next, complete remaining component supervision/recovery integration and the
 Platform Control Center views. Lifecycle commands still need durable RUN

@@ -82,6 +82,19 @@ class ModuleLifecycleHealth:
 
 
 @dataclass(frozen=True, slots=True)
+class ModuleTransitionReceipt:
+    event_id: int
+    module_id: str
+    from_lifecycle: ModuleLifecycle | None
+    to_lifecycle: ModuleLifecycle
+    revision: int
+    operation_ref: str
+    actor: str
+    reason: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class ModuleLifecycleAuthorization:
     """Exact, inert lifecycle operation presented to the authority boundary."""
 
@@ -274,6 +287,56 @@ class ModuleLifecycleManager:
                 (module_id,),
             ).fetchone()
         return None if row is None else self._record(row)
+
+    @staticmethod
+    def _receipt(row: sqlite3.Row) -> ModuleTransitionReceipt:
+        return ModuleTransitionReceipt(
+            event_id=int(row["event_id"]),
+            module_id=str(row["module_id"]),
+            from_lifecycle=(
+                None
+                if row["from_lifecycle"] is None
+                else ModuleLifecycle(str(row["from_lifecycle"]))
+            ),
+            to_lifecycle=ModuleLifecycle(str(row["to_lifecycle"])),
+            revision=int(row["revision"]),
+            operation_ref=str(row["operation_ref"]),
+            actor=str(row["actor"]),
+            reason=str(row["reason"]),
+            occurred_at=datetime.fromisoformat(str(row["occurred_at"])),
+        )
+
+    def transition_receipt(
+        self, module_id: str, revision: int,
+    ) -> ModuleTransitionReceipt:
+        if not isinstance(module_id, str) or not module_id.strip():
+            raise ValueError("module_id required")
+        if type(revision) is not int or revision < 1:
+            raise ValueError("revision must be a positive integer")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT * FROM platform_module_lifecycle_event "
+                "WHERE module_id=? AND revision=? ORDER BY event_id DESC LIMIT 1",
+                (module_id, revision),
+            ).fetchone()
+        if row is None:
+            raise LookupError("module lifecycle transition receipt does not exist")
+        return self._receipt(row)
+
+    def history(
+        self, module_id: str, *, limit: int = 100,
+    ) -> tuple[ModuleTransitionReceipt, ...]:
+        if not isinstance(module_id, str) or not module_id.strip():
+            raise ValueError("module_id required")
+        if type(limit) is not int or not 1 <= limit <= 500:
+            raise ValueError("limit must be in 1..500")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM platform_module_lifecycle_event "
+                "WHERE module_id=? ORDER BY revision DESC,event_id DESC LIMIT ?",
+                (module_id, limit),
+            ).fetchall()
+        return tuple(self._receipt(row) for row in rows)
 
     def discover(self, package: VerifiedModulePackage, *, now: datetime) -> ModuleLifecycleRecord:
         if not isinstance(package, VerifiedModulePackage):

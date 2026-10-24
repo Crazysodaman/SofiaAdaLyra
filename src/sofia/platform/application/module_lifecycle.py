@@ -20,6 +20,7 @@ from sofia.platform.modules.lifecycle import (
     ModuleLifecycleHealth,
     ModuleLifecycleManager,
     ModuleLifecycleRecord,
+    ModuleTransitionReceipt,
 )
 from sofia.platform.modules.package import OperationProfileKind, VerifiedModulePackage
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
@@ -88,6 +89,16 @@ class ModuleLifecycleCommandService:
 
     def health(self, module_id: str) -> ModuleLifecycleHealth:
         return self._manager.health(module_id)
+
+    def transition_receipt(
+        self, module_id: str, revision: int,
+    ) -> ModuleTransitionReceipt:
+        return self._manager.transition_receipt(module_id, revision)
+
+    def history(
+        self, module_id: str, *, limit: int = 100,
+    ) -> tuple[ModuleTransitionReceipt, ...]:
+        return self._manager.history(module_id, limit=limit)
 
     def plan_install(
         self, package: VerifiedModulePackage, *, profile: OperationProfileKind,
