@@ -75,6 +75,12 @@ These are **acceptance clarifications of existing CORE IDs**, not new IDs or a r
 
 **Order:** OpenCode begins at B00 and audits previously created work. Reuse compliant code; do not skip B00/B01 because another agent reported passing tests. Finish each batch's integration and relevant tests before moving on. Production rollout, live host tests and protected state migrations are separate.
 
+## Existing Core relationships and self-improvement in future peer federation
+
+The owner-approved [Platform Federation and Autonomous Inter-Core Relationships V1](PLATFORM_PEER_FEDERATION_V1.md) **reuses** CORE-11 (relationships), CORE-15 (privacy/boundaries), CORE-17 (independent questions), CORE-18 (social impressions), CORE-23 (personal refusal), CORE-24 (meaningful memories), CORE-25 (dilemmas), CORE-27 (relationship repair) and CORE-30 (self-change) for voluntary, evidence-backed relationships with **distinct authenticated peer Core identities**. A local Core may form its own affinity, respect, skepticism, annoyance, disappointment or appreciation of another Core, choose appropriate eligible sharing and collaboration, disagree, maintain boundaries and revise judgments after verified conduct. The separate Platform controls peer authentication, actual transfer eligibility, data classification, STOP and execution permission; social trust never elevates that authority.
+
+**No new "changeable Core" task:** CORE-35 (codebase awareness), CORE-36 (supervised restart), CORE-37 (verified self-update) and CORE-38 (isolated reviewed improvement) already cover self-evolution. Component isolation ISO-01–08 governs updating the Core worker without restarting Platform. Federation FED-01–08 covers only the new inter-Platform transport/consent and peer Core relationship integration, and does not change B00–B08 order or constitute implementation evidence.
+
 ## Core acceptance across batches
 
 Each row/requirement needs: actual source, canonical owner, production caller, configuration/persistence where relevant, privacy/authorization, failure recovery, tests with exact command and environment, immutable revision evidence, source review, and explicit outstanding blockers. Level 4 means tested and audited; Level 5 means matching CI per [existing evidence standard](../development/V18_TASK_STATUS_STANDARD.md). Planning rows have no implied Gate elevation.
