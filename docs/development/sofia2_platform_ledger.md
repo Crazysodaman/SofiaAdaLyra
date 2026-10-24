@@ -108,3 +108,56 @@ Platform Control Center views. Lifecycle commands still need durable RUN
 envelopes before asynchronous/external module operations can be considered
 complete. Keep effectful transitions inert until authenticated approval and
 the existing execution boundary admit them.
+
+## Durable module RUN checkpoint — 2026-10-24 UTC
+
+Baseline: `e57bbd807fc9d40106055867b2841d5a60f75b20`, local Linux checkout.
+This slice reuses the application-owned `DurableWorkStore` and
+`TaskExecutionManager`; it does not add a scheduler or another database.
+
+- `ModuleOperationRequest` durably binds the exact module/package, lifecycle
+  revision, profile, principal/audience, one-use approval, component/host,
+  deadline, correlation, leases, requested effect and cancellation policy.
+- `ModuleOperationCoordinator` registers one reviewed
+  `platform.module.operation` handler in the existing executor. Idempotency is
+  bound to the authenticated principal, audience and exact request digest.
+  Changed payloads fail rather than attaching to an earlier job.
+- Activation is split into an authority-consuming `ACTIVATING` transition and
+  a separately verified `ACTIVE` transition. Capability conflicts and all
+  other non-effect validation occur before approval consumption. The durable
+  attempt stream distinguishes admission, running, denial, pre-dispatch
+  failure, external dispatch, unknown outcome and externally verified result.
+- An interrupted/ambiguous dispatch remains a terminal `UNCERTAIN` RUN
+  receipt and is never automatically replayed. A later explicit
+  `reconcile()` uses only the reviewed factory's inert inspection boundary:
+  verified-running state may complete activation; verified-stopped state is
+  quarantined; ambiguity remains unknown. The historical RUN uncertainty is
+  retained.
+- `AdapterFactoryRegistry` accepts only factories registered by trusted
+  Platform construction and resolves exact signed-package/component/profile/
+  host contracts. It never scans candidate paths or imports untrusted package
+  code. Restart package reopening verifies the canonical staged path, exact
+  manifest identity, file set and artifact hashes.
+- `SofiaApplication` owns the factory registry and coordinator, registered on
+  the same executor already driven and drained by the background runtime.
+  No factories are automatically registered, so effectful restart stays
+  fail-closed until a reviewed adapter exists.
+
+Executed local evidence:
+
+- `pytest -q test/test_platform_module_operations.py
+  test/test_module_lifecycle_v1.py test/test_platform_module_command_service.py
+  test/test_module_awareness.py` — **33 passed**.
+- `pytest -q test/test_application.py test/test_application_acceptance.py
+  test/test_autonomous_work.py test/test_run_component_supervisor.py
+  test/test_platform_module_observer.py test/test_safe_platform_facade.py
+  test/test_module_lifecycle_v1.py test/test_platform_module_command_service.py
+  test/test_platform_module_operations.py` — **69 passed**.
+- `python -m compileall -q src/sofia/platform` and `git diff --check` passed.
+  Ruff is not installed in this checkout's test environment, so no lint result
+  is claimed.
+
+Readiness remains **BETA / local evidence only**. Automatic adapter restart,
+live host/process acceptance, Windows evidence, matching-revision CI and
+independent review remain open. Per the owner priority change, unrelated
+Platform expansion is deferred while Core B07/B08 is completed.

@@ -141,7 +141,8 @@ def test_operator_stop_blocks_activation_without_consuming_exact_approval(
     )
     activation_id, parameters = authorize(
         canonical_state_path, operation="activate", record=staged,
-        target=ModuleLifecycle.ACTIVE, profile=OperationProfileKind.OBSERVE,
+        target=ModuleLifecycle.ACTIVATING,
+        profile=OperationProfileKind.OBSERVE,
     )
     OperatorStopStore(canonical_state_path).set(
         active=True, updated_by="Sparks", reason="hold module activation",

@@ -448,6 +448,20 @@ class TaskExecutionManager:
         self._finished = Condition(self._lock)
         self._closed = False
 
+    def register_handler(self, kind: str, handler: WorkHandler) -> None:
+        """Register one reviewed handler before its durable jobs are admitted."""
+        DurableWorkStore._validate_id(kind, "kind")
+        if not callable(handler):
+            raise TypeError("work handler must be callable")
+        with self._lock:
+            if self._closed:
+                raise RuntimeError("RUN executor is shutting down")
+            if kind in self.handlers:
+                if self.handlers[kind] is handler:
+                    return
+                raise ValueError("reviewed handler kind is already registered")
+            self.handlers[kind] = handler
+
     def submit(self, **kwargs) -> WorkJob:
         with self._lock:
             if self._closed:

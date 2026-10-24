@@ -144,6 +144,32 @@ class ModuleLifecycleCommandService:
             operation_ref=approval_id, actor="Sparks", now=now,
         )
 
+    def begin_activation(
+        self, package: VerifiedModulePackage, *, expected_revision: int,
+        profile: OperationProfileKind,
+        compatibility: ModuleCompatibilityReport,
+        registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+        approval_id: str, now: datetime,
+    ) -> ModuleLifecycleRecord:
+        return self._manager.begin_activation(
+            package, expected_revision=expected_revision, profile=profile,
+            compatibility=compatibility, registrations=registrations,
+            operation_ref=approval_id, actor="Sparks", now=now,
+        )
+
+    def complete_activation(
+        self, package: VerifiedModulePackage, *, expected_revision: int,
+        profile: OperationProfileKind,
+        compatibility: ModuleCompatibilityReport,
+        registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+        approval_id: str, now: datetime,
+    ) -> ModuleLifecycleRecord:
+        return self._manager.complete_activation(
+            package, expected_revision=expected_revision, profile=profile,
+            compatibility=compatibility, registrations=registrations,
+            operation_ref=approval_id, actor="Sparks", now=now,
+        )
+
     def resume(
         self, package: VerifiedModulePackage, *, expected_revision: int,
         profile: OperationProfileKind,

@@ -78,6 +78,8 @@ from sofia.core.rel.impressions import ImpressionService, ImpressionStore
 from sofia.core.rel.repair import RepairService, RepairStore
 from sofia.core.modreg.platform import PlatformModuleObserver
 from sofia.platform.modules.observer import CanonicalPlatformModuleObserver
+from sofia.platform.modules.adapters import AdapterFactoryRegistry
+from sofia.platform.modules.operations import ModuleOperationCoordinator
 from sofia.platform.application.module_lifecycle import (
     ModuleLifecycleCommandService,
 )
@@ -365,6 +367,7 @@ class SofiaApplication:
             store_root=Path(configuration.state_path).parent / "module-store",
             capability_system=self._runtime.capability_system,
         )
+        self._module_factories = AdapterFactoryRegistry()
         self._module_awareness = CapabilitySelfModel(
             self._module_registry,
             CanonicalPlatformModuleObserver(configuration.state_path),
@@ -537,6 +540,13 @@ class SofiaApplication:
             code_orchestrator=self._runtime.code_evolution_orchestrator,
             presence=self._presence,
         )
+        self._module_operations = ModuleOperationCoordinator(
+            state_path=Path(configuration.state_path),
+            lifecycle=self._module_lifecycle,
+            factories=self._module_factories,
+            work_store=self._autonomous_work.work_store,
+            manager=self._autonomous_work.manager,
+        )
         self._goal_production = GoalProductionCoordinator(
             goals=self._goals,
             state_path=configuration.state_path,
@@ -671,6 +681,16 @@ class SofiaApplication:
     def module_lifecycle(self) -> ModuleLifecycleCommandService:
         """Platform-owned signed module lifecycle and exact SAFE boundary."""
         return self._module_lifecycle
+
+    @property
+    def module_adapter_factories(self) -> AdapterFactoryRegistry:
+        """Trusted construction registry; discovery never adds factories."""
+        return self._module_factories
+
+    @property
+    def module_operations(self) -> ModuleOperationCoordinator:
+        """Durable module operations registered in the shared RUN executor."""
+        return self._module_operations
 
     @property
     def module_awareness(self) -> CapabilitySelfModel:

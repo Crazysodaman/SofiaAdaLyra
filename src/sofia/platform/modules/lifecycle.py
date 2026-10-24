@@ -17,7 +17,11 @@ from sofia.platform.capability.system import CapabilityHandler, CapabilitySystem
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .compatibility import ModuleCompatibilityReport
-from .package import OperationProfileKind, VerifiedModulePackage
+from .package import (
+    OperationProfileKind,
+    VerifiedModulePackage,
+    parse_signed_manifest,
+)
 
 
 class ModuleLifecycle(str, Enum):
@@ -287,6 +291,46 @@ class ModuleLifecycleManager:
                 (module_id,),
             ).fetchone()
         return None if row is None else self._record(row)
+
+    def reopen_staged_package(self, module_id: str) -> VerifiedModulePackage:
+        """Reopen an already verified immutable bundle without importing it.
+
+        Publisher trust was established before staging. Restart recovery
+        rechecks canonical manifest identity, exact file set and every artifact
+        digest; it does not accept a new path or dynamically execute package
+        code.
+        """
+        current = self.describe(module_id)
+        if current is None or current.staged_path is None:
+            raise LookupError("module has no staged immutable package")
+        root = Path(current.staged_path)
+        self._assert_unredirected(root, self.store_root)
+        if not root.is_dir() or root.parent != self.store_root:
+            raise RuntimeError("staged module path is unavailable or relocated")
+        manifest_path = root / "manifest.v1.json"
+        self._assert_unredirected(manifest_path, root)
+        try:
+            document = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError("staged module manifest is unreadable") from exc
+        manifest = parse_signed_manifest(document)
+        if (
+            manifest.module_id != current.module_id
+            or manifest.version != current.version
+            or manifest.package_identity_digest() != current.package_digest
+        ):
+            raise RuntimeError("staged package identity differs from lifecycle")
+        expected_files = {
+            relative for relative, _ in manifest.artifact_digests
+        } | {"manifest.v1.json"}
+        if self._stored_files(root) != frozenset(expected_files):
+            raise RuntimeError("staged package file set changed")
+        for relative, expected_digest in manifest.artifact_digests:
+            target = root / relative
+            self._assert_unredirected(target, root)
+            if sha256(target.read_bytes()).hexdigest() != expected_digest:
+                raise RuntimeError("staged package artifact digest changed")
+        return VerifiedModulePackage(manifest, root, current.package_digest)
 
     @staticmethod
     def _receipt(row: sqlite3.Row) -> ModuleTransitionReceipt:
@@ -591,26 +635,72 @@ class ModuleLifecycleManager:
                  compatibility: ModuleCompatibilityReport,
                  registrations: tuple[tuple[Capability, CapabilityHandler], ...],
                  operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
+        activating = self.begin_activation(
+            package, expected_revision=expected_revision, profile=profile,
+            compatibility=compatibility, registrations=registrations,
+            operation_ref=operation_ref, actor=actor, now=now,
+        )
+        return self.complete_activation(
+            package, expected_revision=activating.revision, profile=profile,
+            compatibility=compatibility, registrations=registrations,
+            operation_ref=operation_ref, actor=actor, now=now,
+        )
+
+    def begin_activation(
+        self, package: VerifiedModulePackage, *, expected_revision: int,
+        profile: OperationProfileKind,
+        compatibility: ModuleCompatibilityReport,
+        registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+        operation_ref: str, actor: str, now: datetime,
+        allowed: tuple[ModuleLifecycle, ...] = (ModuleLifecycle.STAGED,),
+    ) -> ModuleLifecycleRecord:
+        """Consume authority and durably enter ACTIVATING before dispatch."""
+        self._validate_compatibility(package, profile, compatibility)
+        self._validate_registrations(package, profile, registrations)
+        self.capability_system.validate_batch(registrations)
+        current = self.describe(package.manifest.module_id)
+        if current is None or current.package_digest != package.package_digest:
+            raise RuntimeError("verified package differs from lifecycle record")
+        if current.lifecycle not in allowed:
+            raise RuntimeError("module lifecycle cannot begin activation")
+        self._authorize(
+            operation="activate", current=current,
+            expected_revision=expected_revision,
+            target=ModuleLifecycle.ACTIVATING,
+            operation_ref=operation_ref, actor=actor, now=now,
+            profile=profile, package=package,
+        )
+        return self._transition(
+            current.module_id, expected_revision=expected_revision,
+            allowed=allowed, target=ModuleLifecycle.ACTIVATING,
+            operation_ref=operation_ref, actor=actor,
+            reason="authorized activation awaiting verified adapter start",
+            now=now, active_profile=profile, authorized=False,
+        )
+
+    def complete_activation(
+        self, package: VerifiedModulePackage, *, expected_revision: int,
+        profile: OperationProfileKind,
+        compatibility: ModuleCompatibilityReport,
+        registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+        operation_ref: str, actor: str, now: datetime,
+    ) -> ModuleLifecycleRecord:
+        """Register capabilities only after the caller verified adapter start."""
         self._validate_compatibility(package, profile, compatibility)
         self._validate_registrations(package, profile, registrations)
         current = self.describe(package.manifest.module_id)
         if current is None or current.package_digest != package.package_digest:
             raise RuntimeError("verified package differs from lifecycle record")
-        if current.lifecycle is not ModuleLifecycle.STAGED:
-            raise RuntimeError("only staged modules may activate")
-        self._authorize(
-            operation="activate", current=current,
-            expected_revision=expected_revision, target=ModuleLifecycle.ACTIVE,
-            operation_ref=operation_ref, actor=actor, now=now,
-            profile=profile, package=package,
-        )
+        if current.lifecycle is not ModuleLifecycle.ACTIVATING:
+            raise RuntimeError("module is not awaiting activation completion")
         self.capability_system.register_batch(registrations)
         try:
             result = self._transition(
                 current.module_id, expected_revision=expected_revision,
-                allowed=(ModuleLifecycle.STAGED,),
+                allowed=(ModuleLifecycle.ACTIVATING,),
                 target=ModuleLifecycle.ACTIVE, operation_ref=operation_ref,
-                actor=actor, reason="reviewed adapter capabilities activated",
+                actor=actor,
+                reason="verified adapter started; capabilities activated",
                 now=now, active_profile=profile, authorized=False,
             )
         except BaseException:
@@ -618,6 +708,26 @@ class ModuleLifecycleManager:
             raise
         self._active_batches[current.module_id] = registrations
         return result
+
+    def quarantine_uncertain_activation(
+        self, module_id: str, *, expected_revision: int,
+        operation_ref: str, reason: str, now: datetime,
+    ) -> ModuleLifecycleRecord:
+        """Fail closed after an external activation cannot be reconciled.
+
+        This transition can only reduce authority from ACTIVATING and never
+        registers capabilities, so it is owned by Platform recovery rather
+        than a fresh activation approval.
+        """
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("recovery quarantine reason required")
+        return self._transition(
+            module_id, expected_revision=expected_revision,
+            allowed=(ModuleLifecycle.ACTIVATING,),
+            target=ModuleLifecycle.QUARANTINED,
+            operation_ref=operation_ref, actor="platform:recovery",
+            reason=reason, now=now, authorized=False,
+        )
 
     @staticmethod
     def _validate_compatibility(

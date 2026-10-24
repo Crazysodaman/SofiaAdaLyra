@@ -71,6 +71,17 @@ class CapabilitySystem:
         registrations: tuple[tuple[Capability, CapabilityHandler], ...],
     ) -> None:
         """Register one module's capabilities atomically in memory."""
+        self.validate_batch(registrations)
+        self._capabilities.update(
+            (capability.name, (capability, handler))
+            for capability, handler in registrations
+        )
+
+    def validate_batch(
+        self,
+        registrations: tuple[tuple[Capability, CapabilityHandler], ...],
+    ) -> None:
+        """Perform non-effectful registration validation before authority use."""
         if type(registrations) is not tuple or not registrations:
             raise ValueError("registrations must be a nonempty tuple")
         names: list[str] = []
@@ -87,10 +98,6 @@ class CapabilitySystem:
             raise ValueError(
                 f"Capabilities already registered: {', '.join(conflicts)}"
             )
-        self._capabilities.update(
-            (capability.name, (capability, handler))
-            for capability, handler in registrations
-        )
 
     def unregister_batch(
         self,
