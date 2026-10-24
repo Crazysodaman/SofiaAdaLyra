@@ -13,6 +13,7 @@ from .contracts import (
     negotiate_protocol,
 )
 from .state import StateProjection, StateReadFacade, StateWriteFacade
+from .cognition import decode_request, decode_response, encode_request, encode_response
 
 __all__ = [
     "AuthorityProjection",
@@ -28,4 +29,8 @@ __all__ = [
     "StateReadFacade",
     "StateWriteFacade",
     "negotiate_protocol",
+    "decode_request",
+    "decode_response",
+    "encode_request",
+    "encode_response",
 ]

@@ -494,3 +494,80 @@ ISO-03 remains **IN_PROGRESS**: a real worker transport/process must present
 this endpoint identity, Platform must authenticate it, and drain must verify
 process termination before a replacement is called healthy. No independent
 Core restart or zero-downtime claim is made from the fencing store alone.
+
+## ISO-03 independently hosted Core worker — 2026-10-24 UTC
+
+Status: **production-coded and locally tested on Linux / BETA**. This closes
+the prior local implementation gap; Windows, genuine Ollama, matching-revision
+CI, independent review and live service commissioning remain separate release
+acceptance.
+
+Production owners and paths:
+
+- `sofia.sdk.cognition` provides bounded, exact-schema provider-neutral
+  `CognitiveRequest` / `CognitiveResponse` encoding. It preserves system and
+  user context, tool proposals, capability allowlists, route hints and evidence
+  references; it contains no callable or permission.
+- `sofia.platform.core_worker.process` hosts cognition in a spawned OS process.
+  Local IPC uses HMAC-authenticated `multiprocessing.connection` transport,
+  Unix-domain sockets on POSIX and named pipes on Windows. All application
+  payloads are bounded canonical JSON sent with `send_bytes`, not untrusted
+  pickle objects.
+- Readiness binds exact SDK protocol, Core identity, Platform instance,
+  component generation, release digest and child PID. Platform activates the
+  durable generation only after this authenticated readiness succeeds.
+- `CoreWorkerRuntimeBackend` connects the worker to the existing
+  `ComponentRuntimeSupervisor`; it requires the exact canonical RUN lease
+  epoch. `CoreWorkerCognitiveEngine` connects the worker to the existing
+  provider-neutral `CognitiveEngine` contract. `create_cognitive_engine()` and
+  the production composition root accept an explicitly prepared controller;
+  default single-process composition is unchanged.
+- Each request is bound to the current canonical RUN owner/epoch, an expiring
+  system-only `cognition.respond` projection, exact destination generation,
+  schema and payload digest. The worker has no canonical state path, SQLite
+  handle, CapabilitySystem, ActionSystem, signing key or owner credential.
+- Replacement starts and authenticates the candidate as STAGED, fences the old
+  generation before new admissions, drains it, verifies its PID exited, then
+  retires/quarantines it before activating the candidate. Platform PID and
+  unrelated component ownership do not change. Interrupted drain quarantines
+  the old generation instead of claiming a clean stop.
+- Deadline failure, explicit cancellation, health failure, protocol mismatch
+  and process crash terminate/fence the worker and preserve an uncertain/fault
+  boundary; requests are never automatically replayed. A renewed RUN lease is
+  read from the canonical lease store before each dispatch, avoiding stale
+  in-memory expiry.
+- Startup recovery never reconnects or restarts blindly. UNKNOWN or verified-
+  running prior state blocks replacement. Only an authoritative external probe
+  reporting STOPPED permits the old active generation to be quarantined; a
+  fresh generation may then be staged.
+- A partial unique SQLite index enforces one active generation for the same
+  canonical Core identity even when component IDs differ. Generation events
+  remain append-only canonical evidence. SDK state access is revoked as soon
+  as a generation enters DRAINING.
+
+Local real-process evidence:
+
+- Initial sandbox run: **3 failures / 13 passes**, all three process cases
+  stopped at sandbox-denied socket creation (`PermissionError`); no product
+  assertion ran in those failures.
+- After bounded socket permission, the first run exposed and repaired an eager
+  `platform.state` export cycle. The façade remains at its explicit module
+  path, matching the earlier architecture repair.
+- Expanded ISO-03 process/fencing/SDK/state/composition suite: **50 passed**.
+- Existing supervisor integration subset: **20 passed**.
+- Existing local/stub Ollama and pinned remote-inference compatibility suite:
+  **56 passed**. These are not real-model calls.
+- Final broader affected RUN/application/composition/SDK/state/inference
+  command after supervisor integration and packaging classification:
+  **123 passed** in 28.69 seconds.
+- `compileall` across SDK/Core-worker/RUN/composition and `git diff --check`
+  passed immediately after that exact test run.
+
+Local tests prove real child PIDs, unchanged Platform PID, old PID exit,
+authenticated readiness, Core identity collision denial, context codec
+continuity, replacement continuity, stale state denial, crash/cancel fencing,
+deadline and bad-protocol failure, interrupted-drain quarantine, and restart
+reconciliation. The current environment has not run a genuine local/remote
+Ollama model, Windows named-pipe worker, deployed service update, or current-
+revision CI; none is claimed. Core B08 and ISO-04–08 remain next in dependency
+order.

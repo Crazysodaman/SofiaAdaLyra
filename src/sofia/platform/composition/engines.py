@@ -32,6 +32,7 @@ from sofia.platform.composition.split_topology import (
     selected_split_deployment,
     validate_split_inference_runtime,
 )
+from sofia.platform.core_worker import CoreWorkerController, CoreWorkerCognitiveEngine
 
 
 def _create_llm_engine(
@@ -226,7 +227,34 @@ def create_cognitive_engine(
     ops_service: OpsToolService | None = None,
     local_host_id: str | None = None,
     remote_inference_client=None,
+    core_worker_controller: CoreWorkerController | None = None,
 ):
+    if core_worker_controller is not None:
+        if not isinstance(core_worker_controller, CoreWorkerController):
+            raise TypeError("core_worker_controller must be CoreWorkerController")
+        health = core_worker_controller.health()
+        if not health.ready or not health.accepting:
+            raise RuntimeError("independent Core worker is not ready")
+        if configuration.routing is not None and configuration.routing.enabled:
+            raise ValueError(
+                "independent Core worker does not yet support dual-model routing"
+            )
+        if configuration.fleet_cognition.enabled:
+            raise ValueError(
+                "independent Core worker does not yet support Fleet inference routing"
+            )
+        spec = core_worker_controller.engine_spec
+        expected_kind = {
+            "rule": "rule", "test": "test", "test-llm": "provider",
+            "ollama": "provider",
+        }.get(configuration.provider.provider)
+        if spec is None or spec.kind != expected_kind or (
+            spec.kind == "provider" and spec.provider != configuration.provider
+        ):
+            raise ValueError(
+                "independent Core worker engine does not match selected provider"
+            )
+        return CoreWorkerCognitiveEngine(core_worker_controller)
     # An explicit split runtime never substitutes local/alternate models when
     # its exact pinned-mTLS Fleet inference worker is down.
     validate_split_inference_runtime(

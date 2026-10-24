@@ -3,7 +3,7 @@ from hashlib import sha256
 
 import pytest
 
-from sofia.platform.state import PlatformSDKStateFacade
+from sofia.platform.state.sdk_facade import PlatformSDKStateFacade
 from sofia.platform.state.model import StateClass
 from sofia.platform.state.namespaces import StateNamespaceSpec
 from sofia.platform.state.plane import StatePlaneConflictError

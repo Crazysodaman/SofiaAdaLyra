@@ -120,6 +120,8 @@ def _configuration_with_persistent_host_location(
 
 def compose(
     configuration: SofiaConfiguration,
+    *,
+    core_worker_controller=None,
 ) -> SofiaRuntime:
     state_path = Path(configuration.state_path)
     if configuration.identity_bootstrap_mode is IdentityBootstrapMode.REQUIRE_EXISTING:
@@ -468,6 +470,7 @@ def compose(
         ops_service=ops_service,
         local_host_id=local_host_id,
         remote_inference_client=remote_inference_client,
+        core_worker_controller=core_worker_controller,
     )
 
     # Normal Ollama conversation uses a compact projection of the verified

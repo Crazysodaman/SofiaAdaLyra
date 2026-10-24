@@ -64,6 +64,9 @@ class ComponentGenerationStore:
                 CREATE UNIQUE INDEX IF NOT EXISTS run_one_active_component_generation
                 ON run_component_generation(component_id)
                 WHERE state='active';
+                CREATE UNIQUE INDEX IF NOT EXISTS run_one_active_core_identity
+                ON run_component_generation(core_identity_id)
+                WHERE state='active' AND core_identity_id IS NOT NULL;
                 CREATE TABLE IF NOT EXISTS run_component_generation_event(
                     event_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     component_id TEXT NOT NULL,
@@ -154,6 +157,14 @@ class ComponentGenerationStore:
                 ).fetchone()
                 if active is not None:
                     raise RuntimeError("another component generation is already active")
+                if endpoint.core_identity_id is not None:
+                    identity_active = db.execute(
+                        "SELECT component_id,generation FROM run_component_generation "
+                        "WHERE core_identity_id=? AND state='active'",
+                        (endpoint.core_identity_id,),
+                    ).fetchone()
+                    if identity_active is not None:
+                        raise RuntimeError("Core identity already has an active generation")
             changed = db.execute(
                 """UPDATE run_component_generation SET state=?,updated_at=?,
                 lease_owner=?,lease_epoch=?,reason=?
@@ -177,6 +188,16 @@ class ComponentGenerationStore:
     ) -> ComponentEndpoint:
         return self._transition(
             endpoint, expected=GenerationState.STAGED, target=GenerationState.ACTIVE,
+            lease=lease, now=now, reason=reason,
+        )
+
+    def quarantine_staged(
+        self, endpoint: ComponentEndpoint, *, lease: RunLease,
+        now: datetime, reason: str,
+    ) -> ComponentEndpoint:
+        return self._transition(
+            endpoint, expected=GenerationState.STAGED,
+            target=GenerationState.QUARANTINED,
             lease=lease, now=now, reason=reason,
         )
 
@@ -224,3 +245,24 @@ class ComponentGenerationStore:
                 (endpoint.component_id, endpoint.generation),
             ).fetchone()
         return None if row is None else GenerationState(row[0])
+
+    def active_for_core_identity(
+        self, core_identity_id: str,
+    ) -> ComponentEndpoint | None:
+        if not isinstance(core_identity_id, str) or not core_identity_id.strip():
+            raise ValueError("core_identity_id required")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """SELECT component_id,kind,release_digest,generation,
+                platform_instance_id,core_identity_id
+                FROM run_component_generation
+                WHERE core_identity_id=? AND state='active'""",
+                (core_identity_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return ComponentEndpoint(
+            row["component_id"], ComponentKind(row["kind"]),
+            row["release_digest"], int(row["generation"]),
+            row["platform_instance_id"], row["core_identity_id"],
+        )
