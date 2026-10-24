@@ -25,6 +25,8 @@ from sofia.platform.resources import (
     HardwareInventoryStore,
     HardwareTelemetryStore,
     ResourceSupply,
+    read_benchmark_scores,
+    requirement_from_document,
 )
 
 from .activity import HostActivityStore
@@ -584,19 +586,14 @@ class OpsToolService:
         return self._placement_advisor is not None
 
     def choose_placement(self,raw:dict[str,Any])->dict[str,Any]:
-        hosts=self.registry.hosts()
-        activities={host.host_id:self.activity.state(host.host_id) for host in hosts}
+        now=datetime.now(timezone.utc)
+        decision=self._placement_decision(raw,now=now)
         workload=self._workload(raw)
-        decision=self.placement.choose(
-            workload,
-            hosts,
-            activities=activities,
-        )
         result=asdict(decision)
         advisor=self._placement_advisor
         if advisor is not None:
             try:
-                annotation=advisor(workload,at=datetime.now(timezone.utc))
+                annotation=advisor(workload,at=now)
             except Exception as exc:
                 # An optional predictor never blocks or changes deterministic
                 # OPS policy. Expose only the bounded failure class.
@@ -608,6 +605,43 @@ class OpsToolService:
                 )
                 result["ml_advisory"]=annotation
         return result
+
+    def _placement_decision(self,raw:dict[str,Any],*,now:datetime):
+        hosts=self.registry.hosts()
+        activities={host.host_id:self.activity.state(host.host_id) for host in hosts}
+        workload=self._workload(raw)
+        documents=raw.get("resource_requirements")
+        if documents is not None:
+            if not isinstance(documents,list) or not documents:
+                raise ValueError("resource_requirements must be a nonempty list")
+            requirements=tuple(requirement_from_document(item) for item in documents)
+            supplies=tuple(
+                supply for host in hosts
+                if (supply:=self.resource_supply(host.host_id)) is not None
+            )
+            metric=raw.get("benchmark_metric")
+            if metric is not None and (not isinstance(metric,str) or not metric.strip()):
+                raise ValueError("benchmark_metric must be nonempty text")
+            scores=(
+                {} if metric is None else read_benchmark_scores(
+                    self.state_path, host_ids=tuple(item.host_id for item in supplies),
+                    metric=metric, now=now,
+                )
+            )
+            return self.placement.choose_resources(
+                workload_id=workload.workload_id, supplies=supplies,
+                requirements=requirements, activities=activities,
+                benchmark_scores=scores,
+                allowed_host_ids=workload.allowed_host_ids,
+                denied_host_ids=workload.denied_host_ids,
+                allow_interactive_host=workload.allow_interactive_host, now=now,
+            )
+        return self.placement.choose(
+            workload,
+            hosts,
+            activities=activities,
+            now=now,
+        )
 
     def drift(self,p:dict[str,Any])->tuple[dict[str,Any],...]:
         desired_hosts=tuple(
@@ -780,14 +814,7 @@ class OpsToolService:
             or target.lifecycle not in {HostLifecycle.ENROLLED,HostLifecycle.HEALTHY}
         ):
             raise PermissionError("migration requires trusted active Fleet hosts")
-        decision=self.placement.choose(
-            contract,
-            tuple(hosts.values()),
-            activities={
-                host.host_id:self.activity.state(host.host_id)
-                for host in hosts.values()
-            },
-        )
+        decision=self._placement_decision(p["workload"],now=datetime.now(timezone.utc))
         if plan.target_host_id not in decision.eligible_hosts:
             reason=dict(decision.rejected).get(plan.target_host_id,"not eligible")
             raise PermissionError(f"migration target is not eligible: {reason}")

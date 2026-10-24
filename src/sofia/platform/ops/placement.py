@@ -5,12 +5,89 @@ from typing import Mapping
 
 from .activity import ActivityMode, HostActivityState
 from .model import FleetHost, HostLifecycle, WorkloadContract
+from sofia.platform.resources import (
+    CapabilityRequirement, ResourceSupply, evaluate_resource_requirements,
+)
 
 @dataclass(frozen=True)
 class PlacementDecision:
     workload_id:str; host_id:str|None; eligible_hosts:tuple[str,...]; rejected:tuple[tuple[str,str],...]
 
 class PlacementEngine:
+    @staticmethod
+    def _activity_pressure(
+        host_id:str, *, allow_interactive_host:bool,
+        activities:Mapping[str,HostActivityState], now:datetime|None,
+    )->int:
+        if allow_interactive_host:
+            return 0
+        state=activities.get(host_id)
+        if state is None:
+            return 3 if now is not None else 0
+        if now is not None and state.override is ActivityMode.AUTO:
+            observed=state.observed_at
+            if observed is None or observed.tzinfo is None or observed.utcoffset() is None:
+                return 3
+            age=now.astimezone(timezone.utc)-observed.astimezone(timezone.utc)
+            if not -timedelta(seconds=30)<=age<=timedelta(seconds=120):
+                return 3
+        return state.interactive_pressure
+
+    def choose_resources(
+        self, *, workload_id:str, supplies:tuple[ResourceSupply,...],
+        requirements:tuple[CapabilityRequirement,...],
+        activities:Mapping[str,HostActivityState]|None=None,
+        benchmark_scores:Mapping[str,float]|None=None,
+        allowed_host_ids:tuple[str,...]=(), denied_host_ids:tuple[str,...]=(),
+        allow_interactive_host:bool=False, now:datetime,
+    )->PlacementDecision:
+        """Select from typed per-host supply; this decision grants no authority."""
+        if not isinstance(workload_id,str) or not workload_id.strip():
+            raise ValueError("workload_id required")
+        if not isinstance(now,datetime) or now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("placement clock must be timezone-aware")
+        if type(supplies) is not tuple or any(not isinstance(item,ResourceSupply) for item in supplies):
+            raise TypeError("supplies must be ResourceSupply values")
+        if len({item.host_id for item in supplies}) != len(supplies):
+            raise ValueError("one resource supply per host required")
+        if type(requirements) is not tuple or any(
+            not isinstance(item,CapabilityRequirement) for item in requirements
+        ):
+            raise TypeError("requirements must be CapabilityRequirement values")
+        activity_map=activities or {}; scores=benchmark_scores or {}
+        eligible:list[ResourceSupply]=[]; rejected:list[tuple[str,str]]=[]
+        for supply in supplies:
+            if supply.host_id in denied_host_ids:
+                rejected.append((supply.host_id,"host denied by workload policy")); continue
+            if allowed_host_ids and supply.host_id not in allowed_host_ids:
+                rejected.append((supply.host_id,"host not in workload allowlist")); continue
+            assessment=evaluate_resource_requirements(supply,requirements,now=now)
+            if not assessment.compatible:
+                reasons=tuple(reason for _,reason in assessment.rejected+assessment.unknown)
+                rejected.append((supply.host_id,"; ".join(reasons) or "resource requirements not met"))
+                continue
+            pressure=self._activity_pressure(
+                supply.host_id, allow_interactive_host=allow_interactive_host,
+                activities=activity_map, now=now,
+            )
+            if pressure > 0:
+                rejected.append((supply.host_id,"foreground activity is not eligible for background placement"))
+                continue
+            eligible.append(supply)
+        eligible.sort(key=lambda supply:(
+            self._activity_pressure(
+                supply.host_id, allow_interactive_host=allow_interactive_host,
+                activities=activity_map, now=now,
+            ),
+            supply.host_id not in scores,
+            -float(scores.get(supply.host_id,0.0)),
+            supply.host_id,
+        ))
+        return PlacementDecision(
+            workload_id, eligible[0].host_id if eligible else None,
+            tuple(item.host_id for item in eligible), tuple(rejected),
+        )
+
     def choose(
         self,
         workload:WorkloadContract,
@@ -38,23 +115,11 @@ class PlacementEngine:
         # A stale AUTO observation is not proof that the user stopped gaming.
         # Penalize missing, stale or future activity when we have an actual
         # placement clock, while respecting an explicit operator override.
-        def activity_pressure(host_id:str)->int:
-            if workload.allow_interactive_host:
-                return 0
-            state=activity_map.get(host_id)
-            if state is None:
-                return 3 if now is not None else 0
-            if now is not None and state.override is ActivityMode.AUTO:
-                observed=state.observed_at
-                if observed is None or observed.tzinfo is None or observed.utcoffset() is None:
-                    return 3
-                age=now.astimezone(timezone.utc)-observed.astimezone(timezone.utc)
-                if not -timedelta(seconds=30)<=age<=timedelta(seconds=120):
-                    return 3
-            return state.interactive_pressure
-
         def key(host:FleetHost):
-            pressure=activity_pressure(host.host_id)
+            pressure=self._activity_pressure(
+                host.host_id, allow_interactive_host=workload.allow_interactive_host,
+                activities=activity_map, now=now,
+            )
             cpu=(
                 101.0
                 if host.telemetry is None or host.telemetry.cpu_percent is None

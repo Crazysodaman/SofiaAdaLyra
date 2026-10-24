@@ -281,3 +281,38 @@ measured-result placement ranking, Windows and Debian CI, real enrolled-host
 idle/preemption trials, exact installed-release revision injection, and
 independent review remain open. No live host, model, driver, endpoint,
 canonical writer, or production service was changed.
+
+## HNF-07 hardware-neutral placement checkpoint — 2026-10-24 UTC
+
+Canonical owner: the existing OPS `PlacementEngine` and `OpsToolService`.
+The implementation extends that engine and the existing authorized migration
+preflight; it does not create a second placer, scheduler, executor, Fleet
+registry, or enrollment authority.
+
+- The production OPS surface accepts Resource Capability Contract requirements
+  and evaluates each enrolled trusted host's current inventory plus fresh live
+  telemetry. Host display names and deployment roles have no effect on typed
+  selection. Unknown/missing facts, stale facts, untrusted inventory, and
+  foreground activity fail closed with explicit rejection reasons.
+- Individual resource and host supplies remain isolated. GPU VRAM, VM/parent
+  RAM, and other capacities are never added across devices or machines to
+  satisfy one requirement.
+- One explicitly requested fresh benchmark metric may order already-eligible
+  hosts. It cannot override a hard resource, trust, privacy/allowlist, or
+  activity constraint; no combined synthetic hardware score is used.
+- Legacy workload callers remain compatible, but now pass an actual placement
+  clock so stale Fleet telemetry is rejected. The existing protected migration
+  path runs the same deterministic typed preflight before consuming approval
+  or dispatching its existing remote effect.
+
+Executed local Linux evidence:
+
+- Typed placement, migration preflight, signed module compatibility,
+  resource and benchmark focused set: **73 passed**.
+- Complete `pkg_ops and not integration`: **1,387 passed**, with only three
+  loopback-socket cases denied by the default sandbox. The affected mTLS file
+  was rerun outside that socket restriction: **6 passed**.
+
+Readiness is **BETA**: real multi-host resource
+reservations, forecast-informed advisory ranking, failover policy, network
+partition trials, Windows/Debian CI, and enrolled-host acceptance remain open.

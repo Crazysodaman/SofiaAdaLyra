@@ -8,7 +8,7 @@ from time import monotonic, sleep
 from sofia.platform.resources import CapabilityFact, EvidenceClass, HardwareInventoryStore
 from sofia.platform.resources.benchmark import (
     BenchmarkCoordinator, BenchmarkKind, IdleAdmission, VerifiedIdleObserver,
-    resolve_source_revision,
+    read_benchmark_scores, resolve_source_revision,
 )
 from sofia.platform.run.work import DurableWorkStore, TaskExecutionManager, WorkStatus
 from sofia.platform.ops.activity import ActivityMode, HostActivityObservation, HostActivityStore
@@ -136,7 +136,16 @@ def test_stale_results_create_a_new_attempt_not_replay_old_run(canonical_state_p
         assert service.schedule(now=now) == 2
         manager.tick(now=now)
         wait_for_terminal(work, expected=2)
+        score = read_benchmark_scores(
+            canonical_state_path, host_ids=("node:eligible",),
+            metric="integer_iterations_per_second", now=datetime.now(timezone.utc),
+        )
+        assert score["node:eligible"] > 0
         later = datetime.now(timezone.utc) + timedelta(minutes=2)
+        assert read_benchmark_scores(
+            canonical_state_path, host_ids=("node:eligible",),
+            metric="integer_iterations_per_second", now=later,
+        ) == {}
         assert service.schedule(now=later) == 2
         assert {plan["attempt"] for plan in service.plans()} == {2}
         assert len({job.fingerprint for job in work.list()}) == 4

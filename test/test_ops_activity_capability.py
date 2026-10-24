@@ -11,7 +11,7 @@ from sofia.platform.ops.desired import DesiredWorkloadPlacement
 from sofia.platform.ops.workload import WorkloadInstance, WorkloadPhase
 
 
-NOW = datetime(2026, 9, 26, 21, 0, tzinfo=timezone.utc)
+NOW = datetime.now(timezone.utc)
 
 
 def _host(host_id: str, cpu: float) -> FleetHost:

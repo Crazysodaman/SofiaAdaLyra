@@ -114,6 +114,41 @@ def resolve_source_revision(workspace: Path) -> str | None:
     return value if _GIT_REVISION.fullmatch(value) is not None else None
 
 
+def read_benchmark_scores(
+    state_path: Path, *, host_ids: tuple[str, ...], metric: str, now: datetime,
+) -> dict[str, float]:
+    """Read one explicit fresh metric per host; never synthesize a score."""
+    if not isinstance(state_path, Path) or type(host_ids) is not tuple:
+        raise TypeError("state_path and host_ids are required")
+    if not isinstance(metric, str) or not metric.strip() or len(metric) > 160:
+        raise ValueError("bounded benchmark metric required")
+    moment = now.astimezone(timezone.utc)
+    guard = CanonicalSQLiteGuard(state_path)
+    with closing(guard.connect(timeout=10)) as db:
+        db.row_factory = sqlite3.Row
+        exists = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='platform_benchmark_result'"
+        ).fetchone()
+        if exists is None or not host_ids:
+            return {}
+        rows = db.execute(
+            "SELECT host_id,measurements_json,completed_at FROM platform_benchmark_result "
+            "WHERE status='completed' AND fresh_until>? AND host_id IN ("+
+            ",".join("?" for _ in host_ids)+") ORDER BY completed_at DESC,result_id DESC",
+            (moment.isoformat(), *host_ids),
+        ).fetchall()
+    scores:dict[str,float]={}
+    for row in rows:
+        if row["host_id"] in scores:
+            continue
+        for measurement in json.loads(row["measurements_json"]):
+            if measurement.get("name") == metric and type(measurement.get("value")) in (int,float):
+                scores[row["host_id"]]=float(measurement["value"])
+                break
+    return scores
+
+
 class VerifiedIdleObserver:
     """Fail-closed admission from STOP, activity, telemetry, jobs and leases."""
 
