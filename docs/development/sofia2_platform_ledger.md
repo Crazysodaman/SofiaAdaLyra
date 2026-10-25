@@ -858,3 +858,11 @@ shutdown semantics. The focused UI/process-lock/Core-Link/launcher regression
 passed **52 tests** in 2.45 seconds on local Linux. Real Windows foreground
 behavior, XDG launchers, remote transport, tray attention and crash/visual
 acceptance remain open; the launcher/UI work remains **BETA**.
+
+The complete non-integration `pkg_ui` gate at published revision `2a6c3419`
+passed **587 tests**, with **1 skipped** and 6,812 deselected, in 60.46 seconds
+on local Linux when localhost socket access was enabled. The first sandboxed
+attempt produced 13 `PermissionError: Operation not permitted` failures, all at
+ephemeral mobile HTTP server socket creation; rerunning the identical command
+with network permission executed those cases successfully. This is local test
+evidence, not Windows GUI, CI, real remote Core Link or host commissioning.
