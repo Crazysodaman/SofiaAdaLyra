@@ -1333,3 +1333,11 @@ become current grants, and uncertain dispatch remains unverified.
 GitHub Actions could not be inspected for the exact pushed revision because
 the available API identity returned HTTP `403 Forbidden`. Windows, genuine
 Ollama/adapter hosts and independent review remain open; Core stays **BETA**.
+
+Platform commit `e72cec4c` also closes the fake-only placement gap for Core's
+module awareness: production observations now include only fresh,
+externally-verified component/host placements bound to the exact signed
+package policy. A stale activation remains historical outcome evidence but no
+longer appears current. The focused 39-test lifecycle/RUN/awareness batch
+passed locally; placement never grants authority. Live multi-host acceptance
+remains unverified.

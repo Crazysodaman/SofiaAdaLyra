@@ -754,3 +754,21 @@ result is learned once and the restart observes zero duplicate lessons. The
 maintenance/RUN/awareness batch passed **24 tests** in 6.76 seconds. An
 exact-revision GitHub Actions query again returned HTTP `403 Forbidden`, so no
 CI promotion is claimed.
+
+### Verified module placement projection — 2026-10-25 UTC
+
+Production commit `e72cec4c` persists the signed package placement mode and
+isolation policy under the existing module lifecycle owner. Exact verified
+package rediscovery safely backfills the additive policy row for older state;
+a conflicting row fails closed instead of being overwritten. Update and
+rollback atomically move the policy digest with the inactive staged package.
+
+The canonical observer now reports a component placement only when the
+matching package lifecycle is `ACTIVE` and a matching activation/resume has a
+fresh externally verified adapter observation. A historical success remains
+an outcome but stops being current placement/health after freshness expires.
+Eligible-host and device-affinity fields remain empty/unknown when canonical
+evidence does not establish them. The lifecycle/RUN/observer/Core-awareness
+batch passed **39 tests** in 3.29 seconds; `compileall` and `git diff --check`
+passed. Real multi-host commissioning, Windows, CI and independent review are
+still open; Platform remains **BETA**.
