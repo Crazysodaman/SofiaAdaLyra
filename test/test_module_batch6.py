@@ -170,8 +170,8 @@ def test_capability_registration_handler_and_scope():
         capability,handler=reg()[0]
         assert capability.name.endswith('.v1')
         assert len(reg())==1
-        request=CapabilityRequest(capability,{input_key:plan})
+        request=CapabilityRequest(capability,{input_key:plan},requested_scope=None,rationale="test simulation")
         # Test injected clock by substituting source timestamp to current UTC in a separate request.
         plan_now=dict(plan,observed_at=datetime.now(timezone.utc).isoformat())
-        assert handler(CapabilityRequest(capability,{input_key:plan_now}))['effect']=='none'
-        with pytest.raises(ValueError):handler(CapabilityRequest(capability,{input_key:plan,'execute':True}))
+        assert handler(CapabilityRequest(capability,{input_key:plan_now},requested_scope=None,rationale="test simulation"))['effect']=='none'
+        with pytest.raises(ValueError):handler(CapabilityRequest(capability,{input_key:plan,'execute':True},requested_scope=None,rationale="test simulation"))
