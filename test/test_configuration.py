@@ -3,6 +3,7 @@
 import pytest
 
 from sofia.platform.config.model import (
+    CoreWorkerConfiguration,
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -121,6 +122,25 @@ def test_configuration_paths_are_path_objects():
 def test_configuration_has_safe_default_environment():
     configuration = create_configuration()
     assert configuration.environment == EnvironmentConfiguration()
+
+
+def test_core_worker_is_opt_in_and_exact_release_bound():
+    assert create_configuration().core_worker == CoreWorkerConfiguration()
+    with pytest.raises(ValueError, match="exact release digest"):
+        CoreWorkerConfiguration(enabled=True)
+    configured = CoreWorkerConfiguration(
+        enabled=True, release_digest="a" * 64,
+    )
+    assert configured.enabled is True
+    assert configured.release_digest == "a" * 64
+
+
+def test_core_worker_response_deadline_must_fit_lease():
+    with pytest.raises(ValueError, match="shorter than lease TTL"):
+        CoreWorkerConfiguration(
+            enabled=True, release_digest="b" * 64,
+            lease_ttl_seconds=30, response_timeout_seconds=30,
+        )
 
 
 def test_configuration_rejects_invalid_environment_type():

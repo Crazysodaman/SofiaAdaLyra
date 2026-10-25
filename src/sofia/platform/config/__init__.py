@@ -17,6 +17,7 @@ from sofia.platform.config.model_catalog import (
     known_local_model_names,
 )
 from sofia.platform.config.model import (
+    CoreWorkerConfiguration,
     CognitiveRoutingConfiguration,
     FleetBootstrapConfiguration,
     FleetCognitionConfiguration,
@@ -33,6 +34,7 @@ __all__ = [
     "DEFAULT_PROVIDER_MODEL",
     "LOCAL_MODEL_PRESETS",
     "CognitiveRoutingConfiguration",
+    "CoreWorkerConfiguration",
     "FleetBootstrapConfiguration",
     "FleetCognitionConfiguration",
     "FleetDiscoveryConfiguration",

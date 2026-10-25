@@ -116,6 +116,7 @@ class SofiaRuntime:
             FilesystemObservationStore | None
         ) = None,
         model_lifecycle: ModelLifecycleManager | None = None,
+        component_owner=None,
     ) -> None:
         if not isinstance(state_plane, StatePlane):
             raise TypeError(
@@ -162,6 +163,11 @@ class SofiaRuntime:
                 "ModelLifecycleManager or None."
             )
         self._model_lifecycle = model_lifecycle
+        if component_owner is not None and not callable(
+            getattr(component_owner, "close", None)
+        ):
+            raise TypeError("component_owner must expose close() or be None")
+        self._component_owner = component_owner
         self._state_plane = state_plane
         self._environment_service = (
             environment_service
@@ -906,12 +912,18 @@ class SofiaRuntime:
     def _close_runtime_resources(self) -> None:
         """Attempt every owned close, including after a partial reopen."""
         try:
-            self._memory_system.close()
+            owner = self._component_owner
+            self._component_owner = None
+            if owner is not None:
+                owner.close()
         finally:
             try:
-                self._filesystem_observation_store.close()
+                self._memory_system.close()
             finally:
-                self._operational_store.close()
+                try:
+                    self._filesystem_observation_store.close()
+                finally:
+                    self._operational_store.close()
 
     def _rollback_failed_start(self, failure: Exception) -> None:
         self._state = RuntimeState.FAILED

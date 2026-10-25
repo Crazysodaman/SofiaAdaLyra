@@ -13,9 +13,10 @@ from pathlib import Path
 from queue import Queue
 import secrets
 import time
-from threading import Thread
+from threading import Event, Thread
 from typing import Mapping
 from typing import Callable
+from uuid import uuid4
 
 from sofia.core.cognition.engine import CognitiveEngine, CognitiveEngineError
 from sofia.core.cognition.llm_engine import LLMCognitiveEngine
@@ -25,7 +26,12 @@ from sofia.core.cognition.test_engine import TestCognitiveEngine
 from sofia.platform.cognition_provider import create_llm_provider
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.run.generation import ComponentGenerationStore
-from sofia.platform.run.lease import RunLease
+from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
+from sofia.platform.run.components import (
+    ComponentKind as SupervisedComponentKind,
+    ComponentRuntimeSupervisor,
+    ComponentSpec,
+)
 from sofia.platform.run.supervisor import (
     ManagedRuntimeBackend, ProcessState, RuntimeObservation,
 )
@@ -44,6 +50,69 @@ from sofia.sdk import (
 
 
 MAX_IPC_BYTES = 1_400_000
+
+
+def _endpoint_token(endpoint: ComponentEndpoint) -> str:
+    raw = json.dumps(
+        endpoint.to_payload(), sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return sha256(raw).hexdigest()
+
+
+class _ProcessLifetimeLock:
+    """Cross-platform, process-owned lifetime evidence for crash recovery."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._file = None
+
+    def acquire(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        handle = self.path.open("a+b")
+        if handle.seek(0, os.SEEK_END) == 0:
+            handle.write(b"0")
+            handle.flush()
+        handle.seek(0)
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (OSError, BlockingIOError):
+            handle.close()
+            raise
+        self._file = handle
+
+    def release(self) -> None:
+        handle = self._file
+        if handle is None:
+            return
+        try:
+            handle.seek(0)
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
+            self._file = None
+
+    @classmethod
+    def observe_running(cls, path: Path) -> bool | None:
+        if not path.is_file():
+            return None
+        probe = cls(path)
+        try:
+            probe.acquire()
+        except (OSError, BlockingIOError):
+            return True
+        else:
+            probe.release()
+            return False
 
 
 def _utc(value: datetime) -> datetime:
@@ -136,11 +205,13 @@ def _engine(spec: CoreEngineProcessSpec) -> CognitiveEngine:
 
 def _worker_main(
     address: str, family: str, authkey: bytes, endpoint_payload: dict[str, object],
-    spec_payload: dict[str, object],
+    spec_payload: dict[str, object], lifetime_lock_path: str,
 ) -> None:
     connection: Connection | None = None
+    lifetime_lock = _ProcessLifetimeLock(Path(lifetime_lock_path))
     try:
         endpoint = ComponentEndpoint.from_payload(endpoint_payload)
+        lifetime_lock.acquire()
         spec = CoreEngineProcessSpec.from_payload(spec_payload)
         engine = _engine(spec)
         connection = Client(address, family=family, authkey=authkey)
@@ -201,6 +272,7 @@ def _worker_main(
     finally:
         if connection is not None:
             connection.close()
+        lifetime_lock.release()
 
 
 class _CoreWorkerProcess:
@@ -215,9 +287,11 @@ class _CoreWorkerProcess:
         self._process: multiprocessing.Process | None = None
         self._connection: Connection | None = None
         self._listener: Listener | None = None
-        self._socket_path = runtime_dir / (
-            f"core-{endpoint.component_id.replace('.', '-')}-{endpoint.generation}.sock"
-        )
+        token = _endpoint_token(endpoint)
+        # Linux AF_UNIX paths are commonly capped at 108 bytes. Keep the IPC
+        # filename compact while retaining the full digest for durable locks.
+        self._socket_path = runtime_dir / f"c-{token[:12]}.sock"
+        self._lifetime_lock_path = runtime_dir / f"core-{token}.lifetime"
         self._family = "AF_PIPE" if os.name == "nt" else "AF_UNIX"
         self._address = (
             rf"\\.\pipe\sofia-core-{endpoint.generation}-{secrets.token_hex(8)}"
@@ -254,7 +328,7 @@ class _CoreWorkerProcess:
         self._process = context.Process(
             target=_worker_main,
             args=(self._address, self._family, authkey, self.endpoint.to_payload(),
-                  self.spec.to_payload()),
+                  self.spec.to_payload(), str(self._lifetime_lock_path)),
             name=f"sofia-core-{self.endpoint.generation}", daemon=False,
         )
         self._process.start()
@@ -477,6 +551,13 @@ class CoreWorkerController:
         )
         return "prior_stopped_generation_quarantined"
 
+    def observe_prior_generation(self, endpoint: ComponentEndpoint) -> bool | None:
+        """Use process-owned lifetime evidence without trusting a stale PID."""
+        if not isinstance(endpoint, ComponentEndpoint):
+            raise TypeError("endpoint must be ComponentEndpoint")
+        path = self.runtime_dir / f"core-{_endpoint_token(endpoint)}.lifetime"
+        return _ProcessLifetimeLock.observe_running(path)
+
     def health(self) -> CoreWorkerHealth:
         if self._active is None or not self.generations.is_active(self._active.endpoint):
             raise CoreWorkerError("no active Core worker generation")
@@ -495,6 +576,18 @@ class CoreWorkerController:
         if process is None:
             return
         self._quarantine(process, now=now, reason=reason)
+
+    def authority_lost(self) -> None:
+        """Stop admissions/effects when the lease cannot be renewed.
+
+        The durable generation deliberately remains ACTIVE because an expired
+        lease cannot truthfully mutate canonical state. A new owner must
+        reconcile the lifetime lock before fencing it.
+        """
+        process = self._active
+        if process is not None:
+            process.terminate(force=True)
+            self._active = None
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         process = self._active
@@ -638,7 +731,11 @@ class CoreWorkerRuntimeBackend(ManagedRuntimeBackend):
     ) -> None:
         if not isinstance(controller, CoreWorkerController):
             raise TypeError("controller must be CoreWorkerController")
-        if not isinstance(release_digest, str) or len(release_digest) != 64:
+        if (
+            not isinstance(release_digest, str)
+            or len(release_digest) != 64
+            or any(character not in "0123456789abcdef" for character in release_digest)
+        ):
             raise ValueError("release_digest must be SHA-256")
         if not isinstance(spec, CoreEngineProcessSpec):
             raise TypeError("spec must be CoreEngineProcessSpec")
@@ -671,3 +768,139 @@ class CoreWorkerRuntimeBackend(ManagedRuntimeBackend):
 
     def stop(self) -> None:
         self.controller.shutdown(now=self.clock())
+
+
+class CoreWorkerProcessOwner:
+    """Application-owned lease, supervisor and independently hosted Core.
+
+    This owner uses a scoped row in the existing canonical RUN lease table.
+    It does not create another scheduler or state authority.
+    """
+
+    def __init__(
+        self, *, state_path: Path, release_digest: str,
+        platform_instance_id: str, core_identity_id: str, component_id: str,
+        runtime_dir: Path, spec: CoreEngineProcessSpec,
+        lease_ttl_seconds: int = 180, response_timeout_seconds: int = 120,
+        clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    ) -> None:
+        if not isinstance(state_path, Path) or not state_path.is_file():
+            raise FileNotFoundError("existing canonical state database required")
+        if not isinstance(release_digest, str) or len(release_digest) != 64:
+            raise ValueError("release_digest must be SHA-256")
+        if type(lease_ttl_seconds) is not int or not 15 <= lease_ttl_seconds <= 300:
+            raise ValueError("lease_ttl_seconds must be in 15..300")
+        if type(response_timeout_seconds) is not int or not (
+            1 <= response_timeout_seconds < lease_ttl_seconds
+        ):
+            raise ValueError("response timeout must be shorter than lease TTL")
+        self.clock = clock
+        self.lease_ttl_seconds = lease_ttl_seconds
+        self.lease_store = LocalRunLeaseStore(
+            state_path, lease_key="component-core",
+        )
+        acquired = self.lease_store.acquire(
+            owner_id=f"core-worker-owner:{uuid4().hex}", now=clock(),
+            ttl_seconds=lease_ttl_seconds,
+        )
+        if acquired.lease is None:
+            raise CoreWorkerError(
+                f"Core worker RUN lease unavailable: {acquired.status}"
+            )
+        self.lease = acquired.lease
+        try:
+            self.generations = ComponentGenerationStore(
+                state_path=state_path, lease_store=self.lease_store,
+            )
+            self.controller = CoreWorkerController(
+                generations=self.generations, lease=self.lease,
+                platform_instance_id=platform_instance_id,
+                core_identity_id=core_identity_id, component_id=component_id,
+                runtime_dir=runtime_dir,
+                response_timeout=timedelta(seconds=response_timeout_seconds),
+            )
+            self.supervisor = ComponentRuntimeSupervisor(
+                state_path=state_path, lease_store=self.lease_store,
+            )
+            self.backend = CoreWorkerRuntimeBackend(
+                controller=self.controller, release_digest=release_digest,
+                spec=spec, clock=clock,
+            )
+            self.supervisor.register(
+                ComponentSpec(component_id, SupervisedComponentKind.CORE),
+                self.backend, now=clock(),
+            )
+        except Exception:
+            self.lease_store.release(self.lease, now=clock())
+            raise
+        self._component_id = component_id
+        self._stop = Event()
+        self._renewal_error: str | None = None
+        self._thread: Thread | None = None
+
+    @classmethod
+    def start(cls, **kwargs) -> "CoreWorkerProcessOwner":
+        owner = cls(**kwargs)
+        try:
+            owner.controller.reconcile_startup(
+                observe_running=owner.controller.observe_prior_generation,
+                now=owner.clock(),
+            )
+            action = owner.supervisor.start_component(
+                owner._component_id, lease=owner.lease, now=owner.clock(),
+            )
+            if action.action not in {"started", "already_healthy"}:
+                raise CoreWorkerError(
+                    f"Core worker supervisor refused startup: {action.action}"
+                )
+            health = owner.controller.health()
+            if not health.ready or not health.accepting:
+                raise CoreWorkerError("Core worker did not pass authenticated readiness")
+            owner._thread = Thread(
+                target=owner._renew_loop, name="sofia-core-worker-lease",
+                daemon=True,
+            )
+            owner._thread.start()
+            return owner
+        except Exception:
+            owner.close()
+            raise
+
+    @property
+    def renewal_error(self) -> str | None:
+        return self._renewal_error
+
+    def _renew_loop(self) -> None:
+        interval = max(5.0, self.lease_ttl_seconds / 3)
+        while not self._stop.wait(interval):
+            try:
+                result = self.lease_store.renew(
+                    self.lease, now=self.clock(),
+                    ttl_seconds=self.lease_ttl_seconds,
+                )
+                if result.lease is None:
+                    raise CoreWorkerError(f"lease renewal failed: {result.status}")
+                self.lease = result.lease
+                self.controller.lease = result.lease
+            except Exception as exc:
+                self._renewal_error = type(exc).__name__
+                self.controller.authority_lost()
+                return
+
+    def close(self) -> None:
+        self._stop.set()
+        thread = self._thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=min(10.0, self.lease_ttl_seconds / 2))
+        self._thread = None
+        now = self.clock()
+        if self.lease_store.holds(self.lease, now=now):
+            try:
+                self.supervisor.stop_component(
+                    self._component_id, lease=self.lease, now=now,
+                    reason="application shutdown",
+                )
+            finally:
+                self.lease_store.release(self.lease, now=self.clock())
+        else:
+            self.controller.authority_lost()

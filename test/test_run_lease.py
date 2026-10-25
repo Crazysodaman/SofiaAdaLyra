@@ -130,6 +130,48 @@ def test_events_are_audit_only_and_existing_state_is_preserved(state):
         assert db.execute("SELECT value FROM preserved").fetchone() == ("yes",)
 
 
+def test_scoped_leases_are_independent_and_cannot_be_cross_used(state):
+    runtime = LocalRunLeaseStore(state)
+    core = LocalRunLeaseStore(state, lease_key="component:core:sofia")
+
+    runtime_lease = runtime.acquire(owner_id="watchdog", now=START).lease
+    core_lease = core.acquire(owner_id="platform", now=START).lease
+
+    assert runtime_lease is not None and core_lease is not None
+    assert runtime_lease.lease_key == "runtime"
+    assert core_lease.lease_key == "component:core:sofia"
+    assert runtime.holds(runtime_lease, now=START + timedelta(seconds=1))
+    assert core.holds(core_lease, now=START + timedelta(seconds=1))
+    assert not runtime.holds(core_lease, now=START + timedelta(seconds=1))
+    assert not core.holds(runtime_lease, now=START + timedelta(seconds=1))
+    assert [event[0] for event in runtime.events()] == ["acquired"]
+    assert [event[0] for event in core.events()] == ["acquired"]
+
+
+def test_existing_unscoped_event_table_migrates_without_losing_audit(state):
+    with sqlite3.connect(state) as db:
+        db.execute(
+            """CREATE TABLE run_local_lease_events (
+            event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL, owner_id TEXT NOT NULL,
+            epoch INTEGER NOT NULL, occurred_at TEXT NOT NULL,
+            detail TEXT NOT NULL)"""
+        )
+        db.execute(
+            "INSERT INTO run_local_lease_events "
+            "(event_type,owner_id,epoch,occurred_at,detail) VALUES (?,?,?,?,?)",
+            ("acquired", "legacy", 1, START.isoformat(), "legacy event"),
+        )
+
+    runtime = LocalRunLeaseStore(state)
+    assert runtime.events() == (
+        ("acquired", "legacy", 1, START.isoformat(), "legacy event"),
+    )
+    assert LocalRunLeaseStore(
+        state, lease_key="component:core:sofia"
+    ).events() == ()
+
+
 @pytest.mark.parametrize("ttl", [0, 4, 301, True])
 def test_invalid_ttl_rejected(state, ttl):
     store = LocalRunLeaseStore(state)

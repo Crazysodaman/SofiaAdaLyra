@@ -36,6 +36,7 @@ class RunLease:
     acquired_at: datetime
     renewed_at: datetime
     expires_at: datetime
+    lease_key: str = "runtime"
 
 
 @dataclass(frozen=True)
@@ -53,10 +54,11 @@ class RunLeaseError(RuntimeError):
 class LocalRunLeaseStore:
     """SQLite-backed local singleton lease with monotonic epochs."""
 
-    def __init__(self, state_path: str | Path) -> None:
+    def __init__(self, state_path: str | Path, *, lease_key: str = "runtime") -> None:
         if not isinstance(state_path, (str, Path)) or not str(state_path).strip():
             raise ValueError("state_path required")
         self.path = Path(state_path)
+        self.lease_key = _id(lease_key, "lease_key")
         self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db:
             with db:
@@ -77,10 +79,20 @@ class LocalRunLeaseStore:
                         owner_id TEXT NOT NULL,
                         epoch INTEGER NOT NULL,
                         occurred_at TEXT NOT NULL,
-                        detail TEXT NOT NULL
+                        detail TEXT NOT NULL,
+                        lease_key TEXT NOT NULL DEFAULT 'runtime'
                     );
                     """
                 )
+                columns = {
+                    row[1]
+                    for row in db.execute("PRAGMA table_info(run_local_lease_events)")
+                }
+                if "lease_key" not in columns:
+                    db.execute(
+                        "ALTER TABLE run_local_lease_events "
+                        "ADD COLUMN lease_key TEXT NOT NULL DEFAULT 'runtime'"
+                    )
 
     def _connect(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
@@ -93,18 +105,18 @@ class LocalRunLeaseStore:
             raise ValueError("ttl_seconds must be an integer in 5..300")
         return ttl_seconds
 
-    @staticmethod
-    def _row_to_lease(row: tuple) -> RunLease:
+    def _row_to_lease(self, row: tuple) -> RunLease:
         return RunLease(
             owner_id=row[0],
             epoch=row[1],
             acquired_at=datetime.fromisoformat(row[2]).astimezone(timezone.utc),
             renewed_at=datetime.fromisoformat(row[3]).astimezone(timezone.utc),
             expires_at=datetime.fromisoformat(row[4]).astimezone(timezone.utc),
+            lease_key=self.lease_key,
         )
 
-    @staticmethod
     def _event(
+        self,
         db: sqlite3.Connection,
         event_type: str,
         owner_id: str,
@@ -115,10 +127,10 @@ class LocalRunLeaseStore:
         db.execute(
             """
             INSERT INTO run_local_lease_events
-            (event_type, owner_id, epoch, occurred_at, detail)
-            VALUES (?,?,?,?,?)
+            (event_type, owner_id, epoch, occurred_at, detail, lease_key)
+            VALUES (?,?,?,?,?,?)
             """,
-            (event_type, owner_id, epoch, at.isoformat(), detail),
+            (event_type, owner_id, epoch, at.isoformat(), detail, self.lease_key),
         )
 
     def acquire(
@@ -139,8 +151,8 @@ class LocalRunLeaseStore:
                 row = db.execute(
                     """
                     SELECT owner_id, epoch, acquired_at, renewed_at, expires_at, released_at
-                    FROM run_local_lease WHERE lease_key='runtime'
-                    """
+                    FROM run_local_lease WHERE lease_key=?
+                    """, (self.lease_key,)
                 ).fetchone()
                 if row is None:
                     epoch = 1
@@ -148,9 +160,10 @@ class LocalRunLeaseStore:
                         """
                         INSERT INTO run_local_lease
                         (lease_key, owner_id, epoch, acquired_at, renewed_at, expires_at, released_at)
-                        VALUES ('runtime',?,?,?,?,?,NULL)
+                        VALUES (?,?,?,?,?,?,NULL)
                         """,
                         (
+                            self.lease_key,
                             owner,
                             epoch,
                             moment.isoformat(),
@@ -161,7 +174,7 @@ class LocalRunLeaseStore:
                     self._event(db, "acquired", owner, epoch, moment, "initial")
                     return LeaseResult(
                         "acquired",
-                        RunLease(owner, epoch, moment, moment, expires),
+                        RunLease(owner, epoch, moment, moment, expires, self.lease_key),
                     )
 
                 current = self._row_to_lease(row[:5])
@@ -186,11 +199,12 @@ class LocalRunLeaseStore:
                         """
                         UPDATE run_local_lease
                         SET renewed_at=?, expires_at=?
-                        WHERE lease_key='runtime' AND owner_id=? AND epoch=? AND released_at IS NULL
+                        WHERE lease_key=? AND owner_id=? AND epoch=? AND released_at IS NULL
                         """,
                         (
                             moment.isoformat(),
                             expires.isoformat(),
+                            self.lease_key,
                             owner,
                             current.epoch,
                         ),
@@ -211,6 +225,7 @@ class LocalRunLeaseStore:
                             current.acquired_at,
                             moment,
                             expires,
+                            self.lease_key,
                         ),
                     )
 
@@ -224,7 +239,7 @@ class LocalRunLeaseStore:
                     UPDATE run_local_lease
                     SET owner_id=?, epoch=?, acquired_at=?, renewed_at=?,
                         expires_at=?, released_at=NULL
-                    WHERE lease_key='runtime'
+                    WHERE lease_key=?
                     """,
                     (
                         owner,
@@ -232,12 +247,13 @@ class LocalRunLeaseStore:
                         moment.isoformat(),
                         moment.isoformat(),
                         expires.isoformat(),
+                        self.lease_key,
                     ),
                 )
                 self._event(db, "acquired", owner, epoch, moment, detail)
                 return LeaseResult(
                     "acquired",
-                    RunLease(owner, epoch, moment, moment, expires),
+                    RunLease(owner, epoch, moment, moment, expires, self.lease_key),
                 )
 
     def renew(
@@ -249,6 +265,8 @@ class LocalRunLeaseStore:
     ) -> LeaseResult:
         if not isinstance(lease, RunLease):
             raise TypeError("RunLease required")
+        if lease.lease_key != self.lease_key:
+            return LeaseResult("stale")
         moment = _utc(now)
         ttl = self._ttl(ttl_seconds)
         if moment < lease.renewed_at:
@@ -261,8 +279,8 @@ class LocalRunLeaseStore:
                 row = db.execute(
                     """
                     SELECT owner_id, epoch, acquired_at, renewed_at, expires_at, released_at
-                    FROM run_local_lease WHERE lease_key='runtime'
-                    """
+                    FROM run_local_lease WHERE lease_key=?
+                    """, (self.lease_key,)
                 ).fetchone()
                 if row is None:
                     return LeaseResult("stale")
@@ -282,11 +300,12 @@ class LocalRunLeaseStore:
                     """
                     UPDATE run_local_lease
                     SET renewed_at=?, expires_at=?
-                    WHERE lease_key='runtime' AND owner_id=? AND epoch=? AND released_at IS NULL
+                    WHERE lease_key=? AND owner_id=? AND epoch=? AND released_at IS NULL
                     """,
                     (
                         moment.isoformat(),
                         expires.isoformat(),
+                        self.lease_key,
                         lease.owner_id,
                         lease.epoch,
                     ),
@@ -309,6 +328,7 @@ class LocalRunLeaseStore:
                         current.acquired_at,
                         moment,
                         expires,
+                        self.lease_key,
                     ),
                 )
 
@@ -320,6 +340,8 @@ class LocalRunLeaseStore:
     ) -> LeaseResult:
         if not isinstance(lease, RunLease):
             raise TypeError("RunLease required")
+        if lease.lease_key != self.lease_key:
+            return LeaseResult("stale")
         moment = _utc(now)
         with closing(self._connect()) as db:
             with db:
@@ -327,8 +349,8 @@ class LocalRunLeaseStore:
                 row = db.execute(
                     """
                     SELECT owner_id, epoch, acquired_at, renewed_at, expires_at, released_at
-                    FROM run_local_lease WHERE lease_key='runtime'
-                    """
+                    FROM run_local_lease WHERE lease_key=?
+                    """, (self.lease_key,)
                 ).fetchone()
                 if row is None:
                     return LeaseResult("stale")
@@ -347,11 +369,12 @@ class LocalRunLeaseStore:
                     """
                     UPDATE run_local_lease
                     SET expires_at=?, released_at=?
-                    WHERE lease_key='runtime' AND owner_id=? AND epoch=?
+                    WHERE lease_key=? AND owner_id=? AND epoch=?
                     """,
                     (
                         moment.isoformat(),
                         moment.isoformat(),
+                        self.lease_key,
                         lease.owner_id,
                         lease.epoch,
                     ),
@@ -372,6 +395,7 @@ class LocalRunLeaseStore:
                         current.acquired_at,
                         current.renewed_at,
                         moment,
+                        self.lease_key,
                     ),
                 )
 
@@ -381,8 +405,8 @@ class LocalRunLeaseStore:
             row = db.execute(
                 """
                 SELECT owner_id, epoch, acquired_at, renewed_at, expires_at, released_at
-                FROM run_local_lease WHERE lease_key='runtime'
-                """
+                FROM run_local_lease WHERE lease_key=?
+                """, (self.lease_key,)
             ).fetchone()
         if row is None or row[5] is not None:
             return None
@@ -399,6 +423,7 @@ class LocalRunLeaseStore:
             current is not None
             and current.owner_id == lease.owner_id
             and current.epoch == lease.epoch
+            and lease.lease_key == self.lease_key
         )
 
     def events(self) -> tuple[tuple[str, str, int, str, str], ...]:
@@ -407,7 +432,8 @@ class LocalRunLeaseStore:
                 db.execute(
                     """
                     SELECT event_type, owner_id, epoch, occurred_at, detail
-                    FROM run_local_lease_events ORDER BY event_id
-                    """
+                    FROM run_local_lease_events
+                    WHERE lease_key=? ORDER BY event_id
+                    """, (self.lease_key,)
                 )
             )

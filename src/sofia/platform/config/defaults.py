@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 
 from sofia.platform.config.model import (
+    CoreWorkerConfiguration,
     CognitiveRoutingConfiguration,
     FleetBootstrapConfiguration,
     FleetCognitionConfiguration,
@@ -66,6 +67,30 @@ def _environment_csv(name: str) -> tuple[str, ...]:
             for value in os.environ.get(name, "").split(",")
             if value.strip()
         )
+    )
+
+
+def _core_worker_configuration_from_environ() -> CoreWorkerConfiguration:
+    enabled = _environment_flag("SOFIA_CORE_WORKER_ENABLED", default=False)
+    digest = os.environ.get("SOFIA_CORE_WORKER_RELEASE_SHA256", "").strip() or None
+    return CoreWorkerConfiguration(
+        enabled=enabled,
+        release_digest=digest,
+        platform_instance_id=os.environ.get(
+            "SOFIA_PLATFORM_INSTANCE_ID", "platform:local"
+        ).strip(),
+        core_identity_id=os.environ.get(
+            "SOFIA_CORE_IDENTITY_ID", "core:sofia"
+        ).strip(),
+        component_id=os.environ.get(
+            "SOFIA_CORE_COMPONENT_ID", "core.sofia"
+        ).strip(),
+        lease_ttl_seconds=_positive_environment_int(
+            "SOFIA_CORE_WORKER_LEASE_TTL_SECONDS", default=180
+        ),
+        response_timeout_seconds=_positive_environment_int(
+            "SOFIA_CORE_WORKER_RESPONSE_TIMEOUT_SECONDS", default=120
+        ),
     )
 
 
@@ -386,6 +411,7 @@ def create_default_configuration(
         state_path=layout.state_path,
         provider=provider_configuration,
         filesystem_root=repository_root,
+        core_worker=_core_worker_configuration_from_environ(),
         identity_bootstrap_mode=layout.identity_bootstrap_mode,
         standing_allowed_capabilities=standing_capabilities,
         routing=_routing_configuration_from_environ(

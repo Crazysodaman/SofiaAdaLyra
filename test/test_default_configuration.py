@@ -52,6 +52,21 @@ def test_default_configuration_uses_ollama():
     )
 
 
+def test_default_configuration_keeps_core_worker_disabled():
+    assert create_default_configuration().core_worker.enabled is False
+
+
+def test_core_worker_environment_requires_and_preserves_exact_release(monkeypatch):
+    monkeypatch.setenv("SOFIA_CORE_WORKER_ENABLED", "true")
+    monkeypatch.setenv("SOFIA_CORE_WORKER_RELEASE_SHA256", "c" * 64)
+    monkeypatch.setenv("SOFIA_PLATFORM_INSTANCE_ID", "platform:test-host")
+
+    worker = create_default_configuration().core_worker
+    assert worker.enabled is True
+    assert worker.release_digest == "c" * 64
+    assert worker.platform_instance_id == "platform:test-host"
+
+
 def test_default_configuration_creates_state_directory():
     configuration = create_default_configuration()
 

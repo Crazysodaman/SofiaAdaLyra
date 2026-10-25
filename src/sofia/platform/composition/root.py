@@ -72,6 +72,10 @@ from sofia.platform.safe.permissions import PermissionStore, automatic_capabilit
 from sofia.platform.operational.store import OperationalStore
 from sofia.core.personality.store import PersonalityStore
 from sofia.platform.runtime.runtime import SofiaRuntime
+from sofia.platform.core_worker import (
+    CoreEngineProcessSpec,
+    CoreWorkerProcessOwner,
+)
 from sofia.platform.system.capability import create_local_system_capabilities
 from sofia.platform.state.factory import create_state_plane
 from sofia.platform.state.plane import StatePlane
@@ -464,14 +468,61 @@ def compose(
             raise ValueError(
                 "Fleet cognition is enabled but local host identity could not be observed"
             )
-    cognitive_engine = create_cognitive_engine(
-        configuration,
-        lifecycle=model_lifecycle,
-        ops_service=ops_service,
-        local_host_id=local_host_id,
-        remote_inference_client=remote_inference_client,
-        core_worker_controller=core_worker_controller,
-    )
+    owned_core_worker = None
+    if configuration.core_worker.enabled:
+        if core_worker_controller is not None:
+            raise ValueError(
+                "configured Core worker cannot be combined with an injected controller"
+            )
+        if configuration.routing is not None and configuration.routing.enabled:
+            raise ValueError(
+                "independent Core worker does not yet support dual-model routing"
+            )
+        if configuration.fleet_cognition.enabled:
+            raise ValueError(
+                "independent Core worker does not yet support Fleet inference routing"
+            )
+        provider_kind = {
+            "rule": "rule",
+            "test": "test",
+            "test-llm": "provider",
+            "ollama": "provider",
+        }.get(configuration.provider.provider)
+        if provider_kind is None:
+            raise ValueError("selected provider cannot run in independent Core worker")
+        worker_spec = CoreEngineProcessSpec(
+            provider_kind,
+            provider=(
+                configuration.provider if provider_kind == "provider" else None
+            ),
+        )
+        worker = configuration.core_worker
+        owned_core_worker = CoreWorkerProcessOwner.start(
+            state_path=state_path,
+            release_digest=worker.release_digest,
+            platform_instance_id=worker.platform_instance_id,
+            core_identity_id=worker.core_identity_id,
+            component_id=worker.component_id,
+            runtime_dir=state_path.parent / "runtime" / "core-worker",
+            spec=worker_spec,
+            lease_ttl_seconds=worker.lease_ttl_seconds,
+            response_timeout_seconds=worker.response_timeout_seconds,
+        )
+        core_worker_controller = owned_core_worker.controller
+
+    try:
+        cognitive_engine = create_cognitive_engine(
+            configuration,
+            lifecycle=model_lifecycle,
+            ops_service=ops_service,
+            local_host_id=local_host_id,
+            remote_inference_client=remote_inference_client,
+            core_worker_controller=core_worker_controller,
+        )
+    except Exception:
+        if owned_core_worker is not None:
+            owned_core_worker.close()
+        raise
 
     # Normal Ollama conversation uses a compact projection of the verified
     # Constitution. Full assembly remains the default for other providers,
@@ -526,6 +577,7 @@ def compose(
         operational_store=operational_store,
         filesystem_observation_store=filesystem_observation_store,
         model_lifecycle=model_lifecycle,
+        component_owner=owned_core_worker,
     )
     runtime.install_engineering_services(
         dev_service=dev_service,

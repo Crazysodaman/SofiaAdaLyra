@@ -14,7 +14,9 @@ from sofia.platform.core_worker import (
 )
 from sofia.platform.composition.engines import create_cognitive_engine
 from sofia.platform.composition.root import compose
-from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.platform.config.model import (
+    CoreWorkerConfiguration, ProviderConfiguration, SofiaConfiguration,
+)
 from sofia.platform.run import ComponentGenerationStore, GenerationState, LocalRunLeaseStore
 from sofia.platform.run import ComponentRuntimeSupervisor, ComponentSpec
 from sofia.platform.run.components import ComponentKind as SupervisedComponentKind
@@ -285,3 +287,103 @@ def test_existing_component_supervisor_owns_real_core_process(canonical_state_pa
     )
     assert stopped.action == "stopped"
     assert controller.pid is None
+
+
+def test_production_composition_owns_configured_core_process(canonical_state_path, tmp_path):
+    digest = sha256(b"installed-core-release").hexdigest()
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=canonical_state_path,
+        provider=ProviderConfiguration(provider="rule", model="rule-engine"),
+        filesystem_root=tmp_path,
+        core_worker=CoreWorkerConfiguration(
+            enabled=True, release_digest=digest,
+            platform_instance_id="platform:composition-test",
+        ),
+    )
+
+    runtime = compose(configuration)
+    engine = runtime.cognitive_system.engine
+    assert isinstance(engine, CoreWorkerCognitiveEngine)
+    pid = engine.controller.pid
+    endpoint = engine.controller.endpoint
+    assert pid is not None and pid != os.getpid() and endpoint is not None
+    assert engine.respond(request()).content == "I am Sofía Ada Lyra."
+
+    lease_store = engine.controller.generations.lease_store
+    runtime._close_runtime_resources()
+    assert engine.controller.pid is None
+    assert engine.controller.generations.state(endpoint) is GenerationState.RETIRED
+    assert lease_store.current(now=datetime.now(timezone.utc)) is None
+
+
+def test_lifetime_lock_allows_verified_stopped_restart_recovery(canonical_state_path, tmp_path):
+    digest = sha256(b"restart-safe-core").hexdigest()
+    from sofia.platform.core_worker import CoreWorkerProcessOwner
+
+    first = CoreWorkerProcessOwner.start(
+        state_path=canonical_state_path, release_digest=digest,
+        platform_instance_id="platform:restart-test",
+        core_identity_id="core:restart-test", component_id="core.restart-test",
+        runtime_dir=tmp_path / "worker", spec=CoreEngineProcessSpec("rule"),
+    )
+    old = first.controller.endpoint
+    process = first.controller._active
+    assert old is not None and process is not None and process._process is not None
+    process._process.terminate()
+    process._process.join(5)
+    # Emulate a parent crash: release the expired authority without asking the
+    # controller to rewrite generation state. The child-owned lifetime lock is
+    # now authoritative evidence that the old process stopped.
+    first._stop.set()
+    if first._thread is not None:
+        first._thread.join(5)
+    first.lease_store.release(first.lease, now=datetime.now(timezone.utc))
+
+    recovered = CoreWorkerProcessOwner.start(
+        state_path=canonical_state_path, release_digest=digest,
+        platform_instance_id="platform:restart-test",
+        core_identity_id="core:restart-test", component_id="core.restart-test",
+        runtime_dir=tmp_path / "worker", spec=CoreEngineProcessSpec("rule"),
+    )
+    assert recovered.generations.state(old) is GenerationState.QUARANTINED
+    assert recovered.controller.health().ready
+    recovered.close()
+
+
+def test_missing_lifetime_evidence_blocks_automatic_restart(canonical_state_path, tmp_path):
+    now = datetime.now(timezone.utc)
+    leases = LocalRunLeaseStore(
+        canonical_state_path, lease_key="component-core"
+    )
+    old_lease = leases.acquire(
+        owner_id="legacy-platform", now=now, ttl_seconds=180,
+    ).lease
+    assert old_lease is not None
+    generations = ComponentGenerationStore(
+        state_path=canonical_state_path, lease_store=leases,
+    )
+    endpoint = generations.stage(
+        component_id="core.legacy-test", kind=ComponentKind.CORE,
+        release_digest=sha256(b"legacy").hexdigest(),
+        platform_instance_id="platform:legacy", core_identity_id="core:legacy-test",
+        lease=old_lease, now=now, reason="legacy generation without lifetime proof",
+    )
+    generations.activate(endpoint, lease=old_lease, now=now, reason="legacy active")
+    leases.release(old_lease, now=now + timedelta(seconds=1))
+
+    from sofia.platform.core_worker import CoreWorkerProcessOwner
+    with pytest.raises(CoreWorkerError, match="unknown"):
+        CoreWorkerProcessOwner.start(
+            state_path=canonical_state_path,
+            release_digest=sha256(b"new").hexdigest(),
+            platform_instance_id="platform:new",
+            core_identity_id="core:legacy-test", component_id="core.legacy-test",
+            runtime_dir=tmp_path / "missing-proof",
+            spec=CoreEngineProcessSpec("rule"),
+        )
+    assert generations.is_active(endpoint)

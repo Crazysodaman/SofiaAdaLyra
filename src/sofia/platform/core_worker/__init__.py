@@ -6,6 +6,7 @@ from .process import (
     CoreWorkerCognitiveEngine,
     CoreWorkerError,
     CoreWorkerHealth,
+    CoreWorkerProcessOwner,
     CoreWorkerRuntimeBackend,
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     "CoreWorkerCognitiveEngine",
     "CoreWorkerError",
     "CoreWorkerHealth",
+    "CoreWorkerProcessOwner",
     "CoreWorkerRuntimeBackend",
 ]

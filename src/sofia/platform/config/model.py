@@ -11,6 +11,51 @@ from sofia.core.identity.model import IdentityBootstrapMode
 
 
 @dataclass(frozen=True)
+class CoreWorkerConfiguration:
+    """Reviewed configuration for the optional independently hosted Core.
+
+    Enabling this boundary is explicit and pins the exact release identity.
+    The single-process route remains the compatibility default.
+    """
+
+    enabled: bool = False
+    release_digest: str | None = None
+    platform_instance_id: str = "platform:local"
+    core_identity_id: str = "core:sofia"
+    component_id: str = "core.sofia"
+    lease_ttl_seconds: int = 180
+    response_timeout_seconds: int = 120
+
+    def __post_init__(self) -> None:
+        import re
+
+        if type(self.enabled) is not bool:
+            raise TypeError("Core worker enabled must be boolean")
+        if self.release_digest is not None and re.fullmatch(
+            r"[0-9a-f]{64}", self.release_digest
+        ) is None:
+            raise ValueError("Core worker release_digest must be SHA-256 or None")
+        if self.enabled and self.release_digest is None:
+            raise ValueError("enabled Core worker requires an exact release digest")
+        identifier = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
+        for name in ("platform_instance_id", "core_identity_id", "component_id"):
+            if not isinstance(getattr(self, name), str) or identifier.fullmatch(
+                getattr(self, name)
+            ) is None:
+                raise ValueError(f"Core worker {name} must be a bounded identifier")
+        if type(self.lease_ttl_seconds) is not int or not (
+            15 <= self.lease_ttl_seconds <= 300
+        ):
+            raise ValueError("Core worker lease_ttl_seconds must be in 15..300")
+        if type(self.response_timeout_seconds) is not int or not (
+            1 <= self.response_timeout_seconds < self.lease_ttl_seconds
+        ):
+            raise ValueError(
+                "Core worker response timeout must be positive and shorter than lease TTL"
+            )
+
+
+@dataclass(frozen=True)
 class ProviderConfiguration:
     """
     Provider-neutral configuration for the cognitive engine.
@@ -308,6 +353,9 @@ class SofiaConfiguration:
     state_path: Path
     provider: ProviderConfiguration
     filesystem_root: Path
+    core_worker: CoreWorkerConfiguration = field(
+        default_factory=CoreWorkerConfiguration
+    )
     identity_bootstrap_mode: IdentityBootstrapMode = IdentityBootstrapMode.FIRST_BOOTSTRAP
     standing_allowed_capabilities: tuple[str, ...] = ()
     routing: CognitiveRoutingConfiguration | None = None
@@ -333,6 +381,11 @@ class SofiaConfiguration:
             raise TypeError(
                 "SofiaConfiguration provider must be a "
                 "ProviderConfiguration."
+            )
+
+        if not isinstance(self.core_worker, CoreWorkerConfiguration):
+            raise TypeError(
+                "SofiaConfiguration core_worker must be CoreWorkerConfiguration."
             )
 
         if not isinstance(self.filesystem_root, Path):
