@@ -690,3 +690,14 @@ weakened.
 Platform remains **BETA**. Matching-revision GitHub CI is unavailable to this
 environment, Windows and real Fleet/model commissioning were not performed,
 and independent review remains open; no RELEASE CANDIDATE claim is made.
+
+At exact documentation/evidence revision
+`fe2cf85508186b13bd1077e5c6e2dcf46599d2ed`, the official
+`sofia.platform.verify.gate --phase full` command completed all six required
+steps and reported `accepted=True`. Its test step passed **7,052 tests**, with
+**6 skipped**, **6 deselected**, and **23 subtests passed** in 517.55 seconds;
+the isolated semantic step reported zero findings and demonstrated
+reject-and-recover. Compilation, immutable V18 traceability, package-selection
+nonemptiness and `pip check` also returned zero. The receipt is local and does
+not substitute for unavailable GitHub CI, Windows/real-host commissioning or
+independent review, so Platform remains **BETA**.

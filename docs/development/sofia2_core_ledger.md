@@ -1301,3 +1301,13 @@ Executed evidence:
 This is broad local Linux and installed-wheel evidence, not genuine Windows,
 Desktop/Discord, Ollama, matching-revision CI, or independent review. Core
 therefore remains **BETA**.
+
+The repository's official full verification gate was then executed at exact
+ledger revision `fe2cf85508186b13bd1077e5c6e2dcf46599d2ed`. Compilation,
+V18 source traceability, nonempty package selection, `pip check`, the complete
+non-integration suite (**7,052 passed, 6 skipped, 6 deselected, 23 subtests
+passed** in 517.55 seconds), and isolated semantic reject-and-recover all
+passed. The generated local gate evidence reported `accepted=True` and zero
+semantic findings. This is local Gate evidence only; it is not GitHub CI,
+independent review, a live-host integrity attestation, or a RELEASE CANDIDATE
+promotion.
