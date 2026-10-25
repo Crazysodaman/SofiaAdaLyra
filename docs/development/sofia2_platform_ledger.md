@@ -701,3 +701,29 @@ reject-and-recover. Compilation, immutable V18 traceability, package-selection
 nonemptiness and `pip check` also returned zero. The receipt is local and does
 not substitute for unavailable GitHub CI, Windows/real-host commissioning or
 independent review, so Platform remains **BETA**.
+
+### Read-only Platform Control Center projection — 2026-10-25 UTC
+
+Production source commit `6c05a61a` adds a bounded operator projection over
+the existing canonical module observer and RUN/module-operation journals. It
+is wired into the existing desktop Settings Fleet panel; it neither persists
+state nor exposes an action API. Lifecycle, authenticated live health, RUN
+status, recorded external-effect evidence and reviewed adapter-factory
+availability remain distinct. A Settings process without the live application
+factory registry reports that fact as `UNKNOWN` rather than reconstructing or
+inventing factories. Job payloads, results, effect text, principals, approval
+references and evidence contents are deliberately excluded.
+
+Focused module observer/RUN/control-center evidence: **14 passed**. The
+affected desktop Settings/UI batch passed **32 tests with 1 skipped** after
+setting `PYTHONPATH=src` for this checkout. Its first run was **31 passed, 1
+skipped, 1 failed** because a spawned interpreter resolved another checkout
+and could not import `sofia.platform`; no production assertion failed. The
+projection's negative test also verifies that a read against absent RUN and
+module-operation tables does not create them. `compileall` and
+`git diff --check` passed.
+
+This closes the locally implementable read-only SF-09 view, not the entire
+effectful operator HMI. Authenticated control actions, live in-process factory
+display, Windows host acceptance, exact-revision CI and independent review
+remain open. Platform remains **BETA**.
