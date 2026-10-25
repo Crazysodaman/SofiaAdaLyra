@@ -1311,3 +1311,25 @@ passed. The generated local gate evidence reported `accepted=True` and zero
 semantic findings. This is local Gate evidence only; it is not GitHub CI,
 independent review, a live-host integrity attestation, or a RELEASE CANDIDATE
 promotion.
+
+### Canonical module outcome continuity — 2026-10-25 UTC
+
+Platform source commit `2326df17` now projects only settled terminal module
+RUN journal events through the existing typed observer. Core source commit
+`56d44258` keeps outcome-only historical modules in its awareness projection
+without claiming they remain installed, active, healthy, available or
+authorized. Production background maintenance already consumes this observer
+on its bounded five-minute task; no second learning loop or authority path was
+added.
+
+Restart integration commit `9af69751` proves a real canonical module RUN
+activation reaches `CoreMaintenanceService`, creates exactly one verified
+operational lesson, survives full application shutdown/recomposition, and is
+not learned twice after restart. The final focused maintenance/RUN/awareness
+batch passed **24 tests** in 6.76 seconds. The outcome-only Core regression
+batch separately passed **23 tests** in 5.30 seconds. Historical results never
+become current grants, and uncertain dispatch remains unverified.
+
+GitHub Actions could not be inspected for the exact pushed revision because
+the available API identity returned HTTP `403 Forbidden`. Windows, genuine
+Ollama/adapter hosts and independent review remain open; Core stays **BETA**.

@@ -747,3 +747,10 @@ capability grant remains `UNKNOWN`. The module observer/RUN/Core-awareness and
 B07 maintenance batch passed **28 tests** in 5.48 seconds; `compileall` and
 `git diff --check` passed. CI, Windows, genuine adapter-host commissioning and
 independent review remain open, so Platform and Core remain **BETA**.
+
+Restart-path follow-up commit `9af69751` exercises this production projection
+through full application shutdown and recomposition: the canonical verified
+result is learned once and the restart observes zero duplicate lessons. The
+maintenance/RUN/awareness batch passed **24 tests** in 6.76 seconds. An
+exact-revision GitHub Actions query again returned HTTP `403 Forbidden`, so no
+CI promotion is claimed.
