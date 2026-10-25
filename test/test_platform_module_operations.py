@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from threading import Event
 from time import sleep
 from uuid import uuid4
+import sqlite3
 
 import pytest
 
@@ -221,12 +222,26 @@ def test_durable_activation_uses_shared_run_and_verified_observation(
         assert outcome.status is OutcomeStatus.SUCCEEDED_VERIFIED
         assert outcome.verification_method == "authenticated-adapter-probe"
         assert outcome.error_class is None
+        [placement] = CanonicalPlatformModuleObserver(
+            canonical_state_path,
+        ).placements()
+        assert placement.module_id == request.module_id
+        assert placement.component == request.component_id
+        assert placement.host_identity == request.host_identity
+        assert placement.placement_mode.value == "portable_stateless"
+        assert placement.eligible_hosts == ()
+        assert placement.device_affinity is None
         [awareness] = CapabilitySelfModel(
             None, CanonicalPlatformModuleObserver(canonical_state_path),
         ).project(now=datetime.now(timezone.utc))
         assert awareness.module_id == request.module_id
         assert awareness.verified_outcomes == 1
         assert awareness.unverified_outcomes == 0
+        assert awareness.placements == ((
+            request.component_id,
+            request.host_identity,
+            "portable_stateless",
+        ),)
         assert all(
             aspect.grant_state is Grounding.UNKNOWN
             for aspect in awareness.permission_aspects
@@ -247,6 +262,35 @@ def test_changed_idempotency_payload_is_rejected(canonical_state_path, tmp_path)
         )
         with pytest.raises(RuntimeError, match="fingerprint collision|idempotency"):
             coordinator.submit(changed, now=NOW)
+    finally:
+        manager.close(wait=True)
+
+
+def test_stale_verified_activation_is_history_not_current_placement(
+    canonical_state_path, tmp_path,
+):
+    _, coordinator, manager, store, _, request, _ = prepared(
+        canonical_state_path, tmp_path,
+    )
+    try:
+        job = coordinator.submit(request, now=NOW)
+        assert finish(manager, store, job.job_id).status is WorkStatus.COMPLETED
+        stale = datetime.now(timezone.utc) - timedelta(minutes=10)
+        with sqlite3.connect(canonical_state_path) as db:
+            db.execute(
+                "UPDATE platform_module_operation_attempt SET occurred_at=? "
+                "WHERE request_id=?",
+                (stale.isoformat(), request.request_id),
+            )
+
+        observer = CanonicalPlatformModuleObserver(canonical_state_path)
+        assert observer.placements() == ()
+        [health] = observer.health()
+        assert health.health is ModuleObservationKind.UNKNOWN_STATE
+        # The settled fact remains historical evidence; freshness controls
+        # only claims about current health and placement.
+        [outcome] = observer.outcomes()
+        assert outcome.status is OutcomeStatus.SUCCEEDED_VERIFIED
     finally:
         manager.close(wait=True)
 

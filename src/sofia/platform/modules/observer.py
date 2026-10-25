@@ -12,6 +12,7 @@ from sofia.core.modreg.platform import (
     ModuleObservationKind,
     OutcomeObservation,
     OutcomeStatus,
+    PlacementMode,
     PlacementObservation,
     PlatformModuleObserver,
 )
@@ -231,7 +232,70 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
         return tuple(result)
 
     def placements(self) -> tuple[PlacementObservation, ...]:
-        return ()
+        now = datetime.now(timezone.utc)
+        with closing(
+            self._guard.connect(timeout=10.0, read_only=True)
+        ) as db:
+            db.row_factory = sqlite3.Row
+            required = {
+                "platform_module_lifecycle",
+                "platform_module_policy",
+                "platform_module_operation_request",
+                "platform_module_operation_attempt",
+            }
+            tables = {
+                row[0]
+                for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+                if row[0] in required
+            }
+            if tables != required:
+                return ()
+            rows = db.execute(
+                """SELECT request.module_id,request.component_id,
+                          request.host_identity,policy.placement_mode,
+                          attempt.occurred_at
+                   FROM platform_module_operation_request AS request
+                   JOIN platform_module_lifecycle AS lifecycle
+                     ON lifecycle.module_id=request.module_id
+                    AND lifecycle.package_digest=request.package_digest
+                    AND lifecycle.lifecycle='active'
+                   JOIN platform_module_policy AS policy
+                     ON policy.module_id=request.module_id
+                    AND policy.package_digest=request.package_digest
+                   JOIN platform_module_operation_attempt AS attempt
+                     ON attempt.event_id=(
+                       SELECT newest.event_id
+                       FROM platform_module_operation_attempt AS newest
+                       WHERE newest.request_id=request.request_id
+                       ORDER BY newest.event_id DESC LIMIT 1)
+                   WHERE request.operation IN ('activate','resume')
+                     AND attempt.status='externally_verified_success'
+                   ORDER BY attempt.occurred_at DESC,request.request_id DESC"""
+            ).fetchall()
+        result: dict[tuple[str, str], PlacementObservation] = {}
+        for row in rows:
+            observed_at = datetime.fromisoformat(
+                str(row["occurred_at"])
+            ).astimezone(timezone.utc)
+            if not -timedelta(seconds=5) <= now - observed_at <= self.max_active_age:
+                continue
+            key = (str(row["module_id"]), str(row["component_id"]))
+            if key in result:
+                continue
+            result[key] = PlacementObservation(
+                module_id=key[0],
+                component=key[1],
+                host_identity=str(row["host_identity"]),
+                placement_mode=PlacementMode(
+                    str(row["placement_mode"]).casefold()
+                ),
+                eligible_hosts=(),
+                device_affinity=None,
+                observed_at=observed_at,
+            )
+        return tuple(result[key] for key in sorted(result))
 
     def outcomes(self) -> tuple[OutcomeObservation, ...]:
         # These are historical, settled RUN observations. They never become

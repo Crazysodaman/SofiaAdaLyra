@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from hashlib import sha256
+import sqlite3
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -133,6 +134,44 @@ def test_unauthorized_stage_creates_no_package_files(canonical_state_path, tmp_p
             operation_ref="not-approved", actor="principal:other", now=NOW,
         )
     assert list((tmp_path / "store").iterdir()) == []
+
+
+def test_exact_verified_rediscovery_backfills_only_matching_signed_policy(
+    canonical_state_path, tmp_path,
+):
+    package = verified_package(tmp_path)
+    lifecycle, _ = manager(
+        canonical_state_path,
+        tmp_path / "store",
+        CapabilitySystem(authorization_checker=lambda request: True),
+    )
+    original = lifecycle.discover(package, now=NOW)
+    with sqlite3.connect(canonical_state_path) as db:
+        db.execute(
+            "DELETE FROM platform_module_policy WHERE module_id=?",
+            (package.manifest.module_id,),
+        )
+
+    rediscovered = lifecycle.discover(package, now=NOW)
+
+    assert rediscovered == original
+    with sqlite3.connect(canonical_state_path) as db:
+        assert db.execute(
+            "SELECT package_digest,placement_mode,isolation_profile "
+            "FROM platform_module_policy WHERE module_id=?",
+            (package.manifest.module_id,),
+        ).fetchone() == (
+            package.package_digest,
+            package.manifest.placement_mode.value,
+            package.manifest.isolation_profile,
+        )
+        db.execute(
+            "UPDATE platform_module_policy SET placement_mode='HOST_PINNED' "
+            "WHERE module_id=?",
+            (package.manifest.module_id,),
+        )
+    with pytest.raises(RuntimeError, match="policy conflicts"):
+        lifecycle.discover(package, now=NOW)
 
 
 def test_activation_capability_conflict_is_atomic(canonical_state_path, tmp_path):
@@ -356,6 +395,15 @@ def test_verified_update_and_rollback_preserve_history_without_auto_activation(
     assert updated.version == "9.1.0"
     assert updated.lifecycle is ModuleLifecycle.STAGED
     assert system.capability_names() == ()
+    with sqlite3.connect(canonical_state_path) as db:
+        assert db.execute(
+            "SELECT package_digest,placement_mode FROM platform_module_policy "
+            "WHERE module_id=?",
+            (updated.module_id,),
+        ).fetchone() == (
+            replacement.package_digest,
+            replacement.manifest.placement_mode.value,
+        )
     rolled_back = lifecycle.rollback(
         original, expected_revision=updated.revision,
         profile=OperationProfileKind.OBSERVE,
@@ -364,6 +412,15 @@ def test_verified_update_and_rollback_preserve_history_without_auto_activation(
     )
     assert rolled_back.version == "9.0.0"
     assert rolled_back.lifecycle is ModuleLifecycle.STAGED
+    with sqlite3.connect(canonical_state_path) as db:
+        assert db.execute(
+            "SELECT package_digest,placement_mode FROM platform_module_policy "
+            "WHERE module_id=?",
+            (rolled_back.module_id,),
+        ).fetchone() == (
+            original.package_digest,
+            original.manifest.placement_mode.value,
+        )
     assert [item[0] for item in calls][-2:] == ["update", "rollback"]
 
 

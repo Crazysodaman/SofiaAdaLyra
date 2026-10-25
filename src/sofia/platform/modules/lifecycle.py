@@ -213,6 +213,9 @@ class ModuleLifecycleManager:
                     module_id TEXT NOT NULL,capability_id TEXT NOT NULL,
                     schema_ref TEXT NOT NULL,
                     PRIMARY KEY(module_id,capability_id));
+                CREATE TABLE IF NOT EXISTS platform_module_policy(
+                    module_id TEXT PRIMARY KEY,package_digest TEXT NOT NULL,
+                    placement_mode TEXT NOT NULL,isolation_profile TEXT NOT NULL);
                 """
             )
             rows = db.execute(
@@ -390,6 +393,29 @@ class ModuleLifecycleManager:
         if current is not None:
             if current.package_digest != package.package_digest:
                 raise RuntimeError("module identity already refers to another package")
+            # Older canonical databases predate the signed policy projection.
+            # The already verified exact package can backfill only its own
+            # matching row; conflicting policy remains a hard failure.
+            expected_policy = (
+                package.package_digest,
+                package.manifest.placement_mode.value,
+                package.manifest.isolation_profile,
+            )
+            with closing(self._connect()) as db, db:
+                db.execute(
+                    "INSERT OR IGNORE INTO platform_module_policy "
+                    "VALUES(?,?,?,?)",
+                    (package.manifest.module_id, *expected_policy),
+                )
+                policy = db.execute(
+                    "SELECT package_digest,placement_mode,isolation_profile "
+                    "FROM platform_module_policy WHERE module_id=?",
+                    (package.manifest.module_id,),
+                ).fetchone()
+            if policy is None or tuple(policy) != expected_policy:
+                raise RuntimeError(
+                    "canonical module policy conflicts with verified package"
+                )
             return current
         with closing(self._connect()) as db, db:
             db.execute(
@@ -416,6 +442,15 @@ class ModuleLifecycleManager:
                     (package.manifest.module_id, capability_id, schema_ref)
                     for capability_id, schema_ref
                     in package.manifest.capability_schemas
+                ),
+            )
+            db.execute(
+                "INSERT INTO platform_module_policy VALUES(?,?,?,?)",
+                (
+                    package.manifest.module_id,
+                    package.package_digest,
+                    package.manifest.placement_mode.value,
+                    package.manifest.isolation_profile,
                 ),
             )
         return self.describe(package.manifest.module_id)  # type: ignore[return-value]
@@ -950,6 +985,19 @@ class ModuleLifecycleManager:
                         (current.module_id, capability_id, schema_ref)
                         for capability_id, schema_ref
                         in package.manifest.capability_schemas
+                    ),
+                )
+                db.execute(
+                    "INSERT INTO platform_module_policy VALUES(?,?,?,?) "
+                    "ON CONFLICT(module_id) DO UPDATE SET "
+                    "package_digest=excluded.package_digest,"
+                    "placement_mode=excluded.placement_mode,"
+                    "isolation_profile=excluded.isolation_profile",
+                    (
+                        current.module_id,
+                        package.package_digest,
+                        package.manifest.placement_mode.value,
+                        package.manifest.isolation_profile,
                     ),
                 )
                 db.execute(
