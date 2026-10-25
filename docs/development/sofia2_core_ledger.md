@@ -1372,3 +1372,32 @@ After rebasing onto the six concurrent optional-module commits at
 `cd896d87`, the focused maintenance/observer/awareness suite passed **27
 tests** at `2f3ed65e`. The broader counts above remain evidence for the
 identical source diff before that rebase, not exact-revision CI evidence.
+
+### Isolated dual-model and Fleet cognition — 2026-10-25 UTC
+
+Production commit `c5c2f357` removes the prior isolated-Core composition
+refusals without moving cognition policy or authority into the child. One
+release-byte-attested, generation-fenced Core worker now owns the exact
+configured primary and optional secondary provider adapters. Role-specific
+Platform proxies retain the existing routing policy, activity/runtime-state
+records, model lifecycle, Fleet placement, resource admission and pinned
+remote inference transport. The child receives no canonical SQLite handle,
+grant store or execution gateway. Provider and secondary-model drift fail
+closed before the engine becomes callable, and split-host topology validation
+now also runs on the isolated path.
+
+The worker's single authenticated IPC channel serializes complete health and
+cognition exchanges so concurrent dual-model routing cannot consume another
+request's response. Deadline or transport ambiguity still quarantines the
+generation and is never replayed automatically. The production composition
+test proves both model roles share one child PID and that runtime teardown
+retires it without stopping Platform.
+
+Local Linux evidence: the focused routing/Fleet/process batch passed **91
+tests**; the final updated real-process file passed **19 tests**; the broader
+B08 composition, lifecycle, conversation, routing, Fleet and provider-boundary
+batch passed **207 tests** in 84.43 seconds. The initial restricted-sandbox
+baseline was **77 passed / 10 failed**, with every failure occurring at denied
+AF_UNIX socket creation before product behavior; the authorized identical
+process suite passed. No genuine Ollama model, Windows named-pipe worker,
+matching-revision CI or independent review ran. Core B08 remains **BETA**.

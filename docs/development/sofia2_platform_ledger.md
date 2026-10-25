@@ -866,3 +866,29 @@ attempt produced 13 `PermissionError: Operation not permitted` failures, all at
 ephemeral mobile HTTP server socket creation; rerunning the identical command
 with network permission executed those cases successfully. This is local test
 evidence, not Windows GUI, CI, real remote Core Link or host commissioning.
+
+### Platform-routed isolated cognition — 2026-10-25 UTC
+
+Production commit `c5c2f357` completes the previously blocked local production
+path for dual-model and Fleet inference with the independent Core worker. The
+worker process hosts exact primary/secondary provider identities, while
+Platform remains the sole owner of route selection, model lifecycle, Fleet
+placement, resource admission, pinned remote transport, activity evidence and
+canonical state. A remote placement invokes the existing authenticated Fleet
+client; a local placement invokes the matching role in the fenced child. The
+configured no-local-fallback policy is preserved, and neither remote failure
+nor a mismatched worker specification selects a substitute model.
+
+The process protocol now includes a bounded model role and serializes complete
+request/health exchanges over its single authenticated channel. This prevents
+parallel route decisions or supervisor probes from cross-consuming replies.
+Existing timeout, crash, lease-loss and generation-quarantine behavior remains
+fail closed and does not replay uncertain model requests or external effects.
+
+Local Linux evidence: **91 passed** in the focused process/routing/Fleet/split
+topology batch, **19 passed** in the final real-process file, and **207 passed**
+in the broader composition/lifecycle/conversation/provider regression. The
+initial sandbox baseline's ten failures were exclusively denied local socket
+creation; the same suite passed with bounded socket permission. Genuine local
+or remote Ollama, Windows named pipes, current-revision CI, live Fleet host
+commissioning and independent review remain open. Platform stays **BETA**.
