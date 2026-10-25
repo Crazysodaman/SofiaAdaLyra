@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
-from threading import RLock
+from threading import RLock, Thread
 from uuid import uuid4
 
 from sofia.modules.avatar.clothing_action import ClothingActionService
@@ -178,6 +178,12 @@ from sofia.platform.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.principals import local_sparks_principal, SPARKS_PRINCIPAL_ID
 from sofia.platform.state.component_schema import verify_production_component_schemas
+from sofia.platform.core_link import (
+    CoreLinkClientAccessStore,
+    CoreLinkConversationGateway,
+    CoreLinkServer,
+    CoreLinkServerConfiguration,
+)
 from sofia.modules.ui.drafts import UIDraftStore
 from sofia.modules.ui.text import UITextClient
 from sofia.modules.voice import (
@@ -648,6 +654,8 @@ class SofiaApplication:
             act_service=self._act_service,
         )
         self._background: ApplicationBackgroundCoordinator | None = None
+        self._core_link_server: CoreLinkServer | None = None
+        self._core_link_server_thread: Thread | None = None
         self._mentor_review_consumer = None  # Optional public-advice reader; no canonical writes.
         self._mentor_behavior_monitor = None  # Private, in-memory, no new state writer.
         self._startup_awareness_error: CognitiveEngineError | None = None
@@ -2143,6 +2151,11 @@ class SofiaApplication:
         """Best-effort unwind for resources opened by a failed start attempt."""
         errors: list[str] = []
 
+        try:
+            self._stop_core_link_server()
+        except Exception as exc:
+            errors.append(f"core_link:{type(exc).__name__}")
+
         coordinator = getattr(self, "_background", None)
         if coordinator is not None:
             try:
@@ -2222,6 +2235,97 @@ class SofiaApplication:
                 errors.append(f"runtime:{type(exc).__name__}")
 
         return tuple(errors)
+
+    @property
+    def core_link_server_address(self) -> tuple[str, int] | None:
+        """Return the configured host endpoint without exposing TLS secrets."""
+        server = self._core_link_server
+        return None if server is None else server.address
+
+    def _start_core_link_server_from_environment(self) -> None:
+        """Start the explicit Core-host mTLS endpoint after Core readiness.
+
+        This is deliberately opt-in.  Enrollment remains a separate
+        owner-approved operation and certificates remain external protected
+        files; merely setting an endpoint cannot create authority.
+        """
+        raw_enabled = os.environ.get("SOFIA_CORE_LINK_SERVER_ENABLED", "0")
+        enabled = raw_enabled.strip().casefold()
+        if enabled in {"0", "false", "off", "no"}:
+            return
+        if enabled not in {"1", "true", "on", "yes"}:
+            raise ValueError("SOFIA_CORE_LINK_SERVER_ENABLED must be boolean")
+        if self._core_link_server is not None:
+            raise SofiaApplicationError("Core Link server is already running")
+        worker = self._configuration.core_worker
+        generation = self._runtime.core_worker_generation
+        if not worker.enabled or generation is None:
+            raise SofiaApplicationError(
+                "Core Link server requires a healthy independently hosted Core"
+            )
+
+        def required_path(name: str) -> Path:
+            raw = os.environ.get(name, "").strip()
+            if not raw:
+                raise ValueError(f"{name} is required when Core Link is enabled")
+            path = Path(raw)
+            if not path.is_absolute() or not path.is_file():
+                raise ValueError(f"{name} must identify an existing absolute file")
+            return path
+
+        try:
+            port = int(os.environ.get("SOFIA_CORE_LINK_LISTEN_PORT", "8443"))
+        except ValueError as exc:
+            raise ValueError("SOFIA_CORE_LINK_LISTEN_PORT must be an integer") from exc
+        if not 1 <= port <= 65535:
+            raise ValueError("SOFIA_CORE_LINK_LISTEN_PORT must be in 1..65535")
+        configuration = CoreLinkServerConfiguration(
+            listen_host=os.environ.get(
+                "SOFIA_CORE_LINK_LISTEN_HOST", "127.0.0.1"
+            ).strip(),
+            listen_port=port,
+            server_certificate=required_path("SOFIA_CORE_LINK_SERVER_CERTIFICATE"),
+            server_private_key=required_path("SOFIA_CORE_LINK_SERVER_PRIVATE_KEY"),
+            client_ca_file=required_path("SOFIA_CORE_LINK_CLIENT_CA_FILE"),
+            max_inflight_requests=int(os.environ.get(
+                "SOFIA_CORE_LINK_MAX_INFLIGHT", "16"
+            )),
+            socket_timeout_seconds=float(os.environ.get(
+                "SOFIA_CORE_LINK_SOCKET_TIMEOUT_SECONDS", "30"
+            )),
+        )
+        gateway = CoreLinkConversationGateway(
+            self,
+            access_store=CoreLinkClientAccessStore(self._configuration.state_path),
+            remote_platform_id=worker.platform_instance_id,
+            remote_core_identity_id=worker.core_identity_id,
+            generation_provider=lambda: self._runtime.core_worker_generation,
+        )
+        try:
+            server = CoreLinkServer(configuration, gateway)
+        except Exception:
+            gateway.close()
+            raise
+        thread = Thread(
+            target=server.serve_forever,
+            name="sofia-core-link-mtls",
+            daemon=True,
+        )
+        self._core_link_server = server
+        self._core_link_server_thread = thread
+        thread.start()
+
+    def _stop_core_link_server(self) -> None:
+        server = getattr(self, "_core_link_server", None)
+        thread = getattr(self, "_core_link_server_thread", None)
+        self._core_link_server = None
+        self._core_link_server_thread = None
+        if server is not None:
+            server.close()
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=5)
+            if thread.is_alive():
+                raise RuntimeError("Core Link server did not stop")
 
     def start(self, session_id: str | None = None) -> CognitiveResponse | None:
         """Start the runtime and session, then optionally start idle reflection.
@@ -2452,6 +2556,7 @@ class SofiaApplication:
                 )
                 self._model_lifecycle_worker = lifecycle_worker
                 lifecycle_worker.start()
+            self._start_core_link_server_from_environment()
             return response
         except KeyboardInterrupt:
             self._rollback_failed_start()
@@ -2470,6 +2575,7 @@ class SofiaApplication:
 
     def shutdown(self) -> None:
         """Stop background work, then serialize teardown after foreground work."""
+        self._stop_core_link_server()
         coordinator = getattr(self, "_background", None)
         if coordinator is not None:
             try:

@@ -542,8 +542,19 @@ class InteractiveConversationService(EmotionalConversationService):
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
         source_event_id: str | None = None,
+        source_device_id: str | None = None,
+        client_created_at: datetime | None = None,
+        reply_to_event_id: str | None = None,
+        correction_of_event_id: str | None = None,
     ) -> CognitiveResponse:
         """Route enforceable actions before model inference or tool orchestration."""
+
+        metadata = {
+            "source_device_id": source_device_id,
+            "client_created_at": client_created_at,
+            "reply_to_event_id": reply_to_event_id,
+            "correction_of_event_id": correction_of_event_id,
+        }
 
         def guarded(reply: str, **kwargs):
             return self._respond_ordered_special(
@@ -551,6 +562,7 @@ class InteractiveConversationService(EmotionalConversationService):
                 principal=principal,
                 channel=channel,
                 source_event_id=source_event_id,
+                **metadata,
                 handler=lambda bound: self._guarded_reply(
                     content,
                     reply,
@@ -564,12 +576,14 @@ class InteractiveConversationService(EmotionalConversationService):
             if principal is None:
                 return super().respond(
                     content, channel=channel, source_event_id=source_event_id,
+                    **metadata,
                 )
             return super().respond(
                 content,
                 principal=principal,
                 channel=channel,
                 source_event_id=source_event_id,
+                **metadata,
             )
 
         if _TOUCH_SCOPE_QUERY.fullmatch(content.strip()):
@@ -612,12 +626,14 @@ class InteractiveConversationService(EmotionalConversationService):
         if principal is None:
             return super().respond(
                 content, channel=channel, source_event_id=source_event_id,
+                **metadata,
             )
         return super().respond(
             content,
             principal=principal,
             channel=channel,
             source_event_id=source_event_id,
+            **metadata,
         )
 
     def _should_record_legacy_affection(self, user) -> bool:

@@ -409,6 +409,10 @@ class EmotionalConversationService(ConversationService):
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
         source_event_id: str | None = None,
+        source_device_id: str | None = None,
+        client_created_at: datetime | None = None,
+        reply_to_event_id: str | None = None,
+        correction_of_event_id: str | None = None,
     ):
         """Serialize user inference against application-owned idle inference."""
         started = monotonic()
@@ -427,6 +431,10 @@ class EmotionalConversationService(ConversationService):
                             content,
                             channel=channel,
                             source_event_id=source_event_id,
+                            source_device_id=source_device_id,
+                            client_created_at=client_created_at,
+                            reply_to_event_id=reply_to_event_id,
+                            correction_of_event_id=correction_of_event_id,
                         )
                     else:
                         response = super().respond(
@@ -434,6 +442,10 @@ class EmotionalConversationService(ConversationService):
                             principal=principal,
                             channel=channel,
                             source_event_id=source_event_id,
+                            source_device_id=source_device_id,
+                            client_created_at=client_created_at,
+                            reply_to_event_id=reply_to_event_id,
+                            correction_of_event_id=correction_of_event_id,
                         )
                     if self._last_turn_replayed:
                         return response

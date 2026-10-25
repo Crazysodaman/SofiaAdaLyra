@@ -278,6 +278,9 @@ _REVERSIBLE = frozenset({
 })
 
 _PROTECTED = frozenset({
+    "core-link.enroll",
+    "core-link.revoke",
+    "core-link.rotate",
     "module.approve",
     "module.stage",
     "module.activate",

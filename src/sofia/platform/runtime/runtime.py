@@ -475,6 +475,29 @@ class SofiaRuntime:
         return self._runtime_id
 
     @property
+    def core_worker_generation(self) -> int | None:
+        """Return the authenticated isolated Core generation, when present.
+
+        The process owner remains private so callers cannot bypass its RUN
+        lease or lifecycle controller.  Core Link uses only this fenced
+        identity projection when admitting remote requests.
+        """
+        owner = self._component_owner
+        if owner is None:
+            return None
+        controller = getattr(owner, "controller", None)
+        if controller is None:
+            return None
+        try:
+            health = controller.health()
+        except Exception:
+            return None
+        if not health.ready or not health.accepting:
+            return None
+        generation = health.endpoint.generation
+        return generation if type(generation) is int and generation > 0 else None
+
+    @property
     def started_at(self) -> datetime | None:
         return self._started_at
 

@@ -7,6 +7,16 @@ from .binding import (
     CoreLinkBindingStore,
     CoreLinkStoreSnapshot,
 )
+from .access import CoreLinkClientAccess, CoreLinkClientAccessStore
+from .conversation import CoreLinkConversationGateway
+from .transport import (
+    CoreLinkEndpoint,
+    CoreLinkServer,
+    CoreLinkServerConfiguration,
+    CoreLinkTLSCredentials,
+    CoreLinkTransportError,
+    PinnedCoreLinkClient,
+)
 
 __all__ = [
     "CORE_LINK_BINDING_STORE_ENV",
@@ -14,5 +24,14 @@ __all__ = [
     "CoreLinkBindingState",
     "CoreLinkBindingStore",
     "CoreLinkStoreSnapshot",
+    "CoreLinkClientAccess",
+    "CoreLinkClientAccessStore",
+    "CoreLinkConversationGateway",
+    "CoreLinkEndpoint",
+    "CoreLinkServer",
+    "CoreLinkServerConfiguration",
+    "CoreLinkTLSCredentials",
+    "CoreLinkTransportError",
+    "PinnedCoreLinkClient",
 ]
 

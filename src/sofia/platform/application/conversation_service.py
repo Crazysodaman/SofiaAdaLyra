@@ -1403,6 +1403,21 @@ class ConversationService(ConversationMatrixMixin):
             principal=principal,
         )
 
+    def bind_authenticated_principal(
+        self, principal: PrincipalContext,
+    ) -> PrincipalContext:
+        """Bind or verify this session at an authenticated channel boundary.
+
+        Remote transports must establish the principal from enrolled
+        credentials before calling this method.  Display names or request
+        JSON are never accepted as authentication.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        bound = self._bind_principal(principal)
+        assert bound is not None
+        return bound
+
     def _link_main_lifelong_message(
         self, message: ConversationMessage,
         principal: PrincipalContext | None,
@@ -2047,6 +2062,10 @@ class ConversationService(ConversationMatrixMixin):
     def _respond_ordered_special(
         self, content: str, *, principal: PrincipalContext | None,
         channel: str, source_event_id: str | None, handler,
+        source_device_id: str | None = None,
+        client_created_at: datetime | None = None,
+        reply_to_event_id: str | None = None,
+        correction_of_event_id: str | None = None,
     ) -> CognitiveResponse:
         """Give a guarded deterministic route the same canonical turn owner."""
         if self._session is None:
@@ -2062,6 +2081,10 @@ class ConversationService(ConversationMatrixMixin):
             channel=channel.strip().casefold(), content=content.strip(),
             runtime_id=self._conversation_runtime_id,
             now=datetime.now(timezone.utc),
+            source_device_id=source_device_id,
+            client_created_at=client_created_at,
+            reply_to_event_id=reply_to_event_id,
+            correction_of_event_id=correction_of_event_id,
         )
         if admission.status == "completed":
             if admission.response is None:
@@ -2330,6 +2353,17 @@ class ConversationService(ConversationMatrixMixin):
 
         return self._conversation_store.list_messages(
             self._session.id
+        )
+
+    def authenticated_messages_page(
+        self, *, principal: PrincipalContext,
+        after: tuple[datetime, str] | None = None, limit: int = 100,
+    ) -> tuple[ConversationMessage, ...]:
+        """Read one bounded session page after rechecking its exact audience."""
+        self.bind_authenticated_principal(principal)
+        assert self._session is not None
+        return self._conversation_store.list_messages_page(
+            self._session.id, after=after, limit=limit,
         )
 
     def close(self) -> None:

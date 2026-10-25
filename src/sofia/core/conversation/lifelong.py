@@ -662,6 +662,34 @@ class LifelongThreadStore:
                         "canonical turn could not settle uncertainty"
                     )
 
+    def turn_status(
+        self, *, event_id: str, principal: PrincipalContext,
+    ) -> CanonicalTurnAdmission | None:
+        """Read one canonical receipt only within its authenticated audience."""
+        if not isinstance(event_id, str) or not event_id.strip() or len(event_id) > 256:
+            raise ValueError("event_id must be bounded nonempty text")
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT * FROM canonical_conversation_turn WHERE event_id=?",
+                (event_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        if (
+            row["owner_principal_id"] != principal.principal_id
+            or row["source_audience_id"] != principal.audience_id
+            or row["source_audience_kind"] != principal.audience_kind.value
+        ):
+            raise PermissionError("canonical turn belongs to another audience")
+        try:
+            return self._turn_admission(row)
+        except (TypeError, ValueError, KeyError) as exc:
+            raise CanonicalTurnUncertain(
+                "canonical turn receipt is unreadable"
+            ) from exc
+
     @staticmethod
     def _decode(row: sqlite3.Row) -> LifelongThread:
         return LifelongThread(

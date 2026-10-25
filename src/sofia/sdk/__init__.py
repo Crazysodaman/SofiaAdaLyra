@@ -14,6 +14,7 @@ from .contracts import (
 )
 from .state import StateProjection, StateReadFacade, StateWriteFacade
 from .cognition import decode_request, decode_response, encode_request, encode_response
+from .core_link import CoreLinkRequest, CoreLinkResponse, CoreLinkResponseStatus
 
 __all__ = [
     "AuthorityProjection",
@@ -33,4 +34,7 @@ __all__ = [
     "decode_response",
     "encode_request",
     "encode_response",
+    "CoreLinkRequest",
+    "CoreLinkResponse",
+    "CoreLinkResponseStatus",
 ]

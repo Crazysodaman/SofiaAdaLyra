@@ -892,3 +892,38 @@ initial sandbox baseline's ten failures were exclusively denied local socket
 creation; the same suite passed with bounded socket permission. Genuine local
 or remote Ollama, Windows named pipes, current-revision CI, live Fleet host
 commissioning and independent review remain open. Platform stays **BETA**.
+
+### Authenticated Core Link conversation host — 2026-10-25 UTC
+
+This Core Link batch adds the host-side canonical access projection,
+authority-free SDK request/response contract, conversation gateway and pinned
+mutual-TLS transport. Client certificates are enrolled or revoked only by an
+exact one-use SAFE approval; every request rechecks expiry, scope, destination
+Platform, Core identity, active isolated-Core generation and operator STOP.
+Principal and audience come from canonical enrollment, never request JSON.
+The Core-free client resolves certificates through a protected credential
+reference and pins the exact server public key from the explicitly selected
+Core binding.
+
+Conversation creation/selection, bounded keyset history, sending, result
+reconciliation and cancellation status use the existing canonical application
+and lifelong turn store. Stable client idempotency keys become canonical event
+IDs, so reconnect/replay returns the stored response rather than invoking the
+model twice. A processing turn is reported as `OUTCOME_UNKNOWN`; the current
+provider boundary cannot truthfully abort a call already in flight. Source
+device and client-time metadata now propagate through every production
+interaction-service override instead of being dropped by specialized routes.
+
+Production startup exposes the mTLS listener only through explicit host
+configuration and only while a healthy, generation-fenced independent Core
+worker exists. Compatibility-mode Core cannot accidentally be advertised
+remotely. Local Core Link state remains a protected JSON binding registry and
+never opens or creates a client-side `sofia.db`.
+
+Local Linux evidence after integration: a real loopback TLS conversation
+passed with generated CA/server/client certificates and rejected a mismatched
+server pin. The focused Core Link, binding, conversation, Core-worker and
+configuration batch passed **120 tests** in 65.39 seconds. `py_compile` and
+`git diff --check` passed. Remote Desktop/Tray adoption, durable streaming, a
+cancellable active provider request, Windows acceptance, installed Core-free
+packaging, CI and independent review remain open; LINK/Core B08 stay **BETA**.

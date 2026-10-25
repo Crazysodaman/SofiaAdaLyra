@@ -154,7 +154,17 @@ class ExpandedConversationService(InteractiveConversationService):
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
         source_event_id: str | None = None,
+        source_device_id: str | None = None,
+        client_created_at: datetime | None = None,
+        reply_to_event_id: str | None = None,
+        correction_of_event_id: str | None = None,
     ):
+        metadata = {
+            "source_device_id": source_device_id,
+            "client_created_at": client_created_at,
+            "reply_to_event_id": reply_to_event_id,
+            "correction_of_event_id": correction_of_event_id,
+        }
         if isinstance(content, str):
             text = content.strip()
             if ('?' not in text and '"' not in text and '`' not in text and
@@ -163,6 +173,7 @@ class ExpandedConversationService(InteractiveConversationService):
                 return self._respond_ordered_special(
                     content, principal=principal, channel=channel,
                     source_event_id=source_event_id,
+                    **metadata,
                     handler=lambda bound: self._guarded_reply(
                         content,
                         _COMPOSITE_ACTION,
@@ -180,6 +191,7 @@ class ExpandedConversationService(InteractiveConversationService):
                         return self._respond_ordered_special(
                             content, principal=principal, channel=channel,
                             source_event_id=source_event_id,
+                            **metadata,
                             handler=lambda bound: self._guarded_reply(
                                 content,
                                 _STOPPED_ACTION,
@@ -191,6 +203,7 @@ class ExpandedConversationService(InteractiveConversationService):
                         return self._respond_ordered_special(
                             content, principal=principal, channel=channel,
                             source_event_id=source_event_id,
+                            **metadata,
                             handler=lambda bound: self._guarded_reply(
                                 content,
                                 _BOUNDARY_ACTION,
@@ -201,6 +214,7 @@ class ExpandedConversationService(InteractiveConversationService):
         return (
             super().respond(
                 content, channel=channel, source_event_id=source_event_id,
+                **metadata,
             )
             if principal is None
             else super().respond(
@@ -208,6 +222,7 @@ class ExpandedConversationService(InteractiveConversationService):
                 principal=principal,
                 channel=channel,
                 source_event_id=source_event_id,
+                **metadata,
             )
         )
 

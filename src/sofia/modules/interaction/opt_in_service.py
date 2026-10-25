@@ -15,6 +15,7 @@ from sofia.modules.interaction.live_offer_service import (
 from sofia.modules.interaction.question_clarification_service import respond_reviewed_hug_question
 from sofia.modules.interaction.reviewed_hug_question import is_reviewed_hug_question
 from sofia.core.social.model import PrincipalContext
+from datetime import datetime
 
 
 class OptInInteractionConversationService(ExpandedConversationService):
@@ -25,11 +26,22 @@ class OptInInteractionConversationService(ExpandedConversationService):
         principal: PrincipalContext | None = None,
         channel: str = "conversation",
         source_event_id: str | None = None,
+        source_device_id: str | None = None,
+        client_created_at: datetime | None = None,
+        reply_to_event_id: str | None = None,
+        correction_of_event_id: str | None = None,
     ):
+        metadata = {
+            "source_device_id": source_device_id,
+            "client_created_at": client_created_at,
+            "reply_to_event_id": reply_to_event_id,
+            "correction_of_event_id": correction_of_event_id,
+        }
         if not staged_offers_enabled():
             return (
                 super().respond(
                     content, channel=channel, source_event_id=source_event_id,
+                    **metadata,
                 )
                 if principal is None
                 else super().respond(
@@ -37,12 +49,14 @@ class OptInInteractionConversationService(ExpandedConversationService):
                     principal=principal,
                     channel=channel,
                     source_event_id=source_event_id,
+                    **metadata,
                 )
             )
         if content == OFFER:
             return self._respond_ordered_special(
                 content, principal=principal, channel=channel,
                 source_event_id=source_event_id,
+                **metadata,
                 handler=lambda bound: respond_staged_offer(
                     self, content, principal=bound, channel=channel,
                 ),
@@ -51,6 +65,7 @@ class OptInInteractionConversationService(ExpandedConversationService):
             return self._respond_ordered_special(
                 content, principal=principal, channel=channel,
                 source_event_id=source_event_id,
+                **metadata,
                 handler=lambda bound: respond_reviewed_hug_question(
                     self, content, principal=bound, channel=channel,
                 ),
@@ -58,6 +73,7 @@ class OptInInteractionConversationService(ExpandedConversationService):
         return (
             super().respond(
                 content, channel=channel, source_event_id=source_event_id,
+                **metadata,
             )
             if principal is None
             else super().respond(
@@ -65,5 +81,6 @@ class OptInInteractionConversationService(ExpandedConversationService):
                 principal=principal,
                 channel=channel,
                 source_event_id=source_event_id,
+                **metadata,
             )
         )
