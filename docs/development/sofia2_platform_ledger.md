@@ -727,3 +727,23 @@ This closes the locally implementable read-only SF-09 view, not the entire
 effectful operator HMI. Authenticated control actions, live in-process factory
 display, Windows host acceptance, exact-revision CI and independent review
 remain open. Platform remains **BETA**.
+
+### Canonical module outcome projection — 2026-10-25 UTC
+
+Production source commit `2326df17` connects settled durable module-operation
+attempts to the existing typed `PlatformModuleObserver.outcomes()` boundary.
+Only the latest terminal journal event for each request is projected, with a
+hard 200-row bound. Admission, queueing, running and external-effect-attempted
+events are not outcomes. Verified success/failure retains the authenticated
+adapter-probe classification; ambiguous dispatch stays `OUTCOME_UNKNOWN` and
+is never converted to success. The projection remains historical operational
+evidence and never provides a current grant.
+
+The production Core capability self-model now receives these real canonical
+outcomes through its existing observer seam. Regression coverage proves a
+queued request produces no outcome, verified completion increments only the
+verified-outcome projection, uncertain dispatch remains unverified, and every
+capability grant remains `UNKNOWN`. The module observer/RUN/Core-awareness and
+B07 maintenance batch passed **28 tests** in 5.48 seconds; `compileall` and
+`git diff --check` passed. CI, Windows, genuine adapter-host commissioning and
+independent review remain open, so Platform and Core remain **BETA**.
