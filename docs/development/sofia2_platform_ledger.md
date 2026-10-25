@@ -838,3 +838,23 @@ code and Sofía assets, so physical Core-free packaging, authenticated IPC,
 pairing, remote Desktop/Tray and settings synchronization remain open. This
 slice is **BETA**, not Release Candidate; CI, Windows, systemd commissioning
 and independent review were not performed.
+
+### Profile-scoped desktop launch/reopen — 2026-10-25 UTC
+
+Production commit `4fc9e497` adds a desktop singleton beside the existing tray
+singleton while keeping their lifetimes independent. A repeated desktop launch
+does not construct a second window or application runtime: it writes a bounded,
+same-user attention request and the existing workbench restores, raises and
+focuses its window where the GUI permits, with a bell fallback. The attention
+mailbox is atomic, mode-restricted, schema-checked, single-use and freshness
+bounded. OS-backed locks recover automatically after process exit.
+
+Lock identity is now a generic client-profile anchor rather than a required
+canonical database path. A Core Link binding-store path plus exact binding ID
+can derive independent desktop/tray locks without creating or opening
+`sofia.db`; different Core profiles cannot collide by display name. This does
+not make the current local-state tray a remote client and does not change its
+shutdown semantics. The focused UI/process-lock/Core-Link/launcher regression
+passed **52 tests** in 2.45 seconds on local Linux. Real Windows foreground
+behavior, XDG launchers, remote transport, tray attention and crash/visual
+acceptance remain open; the launcher/UI work remains **BETA**.
