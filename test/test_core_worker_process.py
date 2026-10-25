@@ -7,6 +7,8 @@ import pytest
 from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveRole, CognitiveToolDefinition,
 )
+from sofia.core.cognition.fleet_engine import FleetPlacedCognitiveEngine
+from sofia.core.cognition.routing import RoutingCognitiveEngine
 from sofia.platform.core_worker import (
     CoreEngineProcessSpec, CoreWorkerController, CoreWorkerCognitiveEngine,
     CoreWorkerError,
@@ -16,11 +18,14 @@ from sofia.platform.core_worker import (
 from sofia.platform.composition.engines import create_cognitive_engine
 from sofia.platform.composition.root import compose
 from sofia.platform.config.model import (
-    CoreWorkerConfiguration, ProviderConfiguration, SofiaConfiguration,
+    CognitiveRoutingConfiguration, CoreWorkerConfiguration,
+    FleetCognitionConfiguration, ProviderConfiguration, SofiaConfiguration,
 )
+from sofia.platform.ops.capability import OpsToolService
 from sofia.platform.run import ComponentGenerationStore, GenerationState, LocalRunLeaseStore
 from sofia.platform.run import ComponentRuntimeSupervisor, ComponentSpec
 from sofia.platform.run.components import ComponentKind as SupervisedComponentKind
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.sdk import decode_request, encode_request
 from sofia.sdk import (
     AuthorityProjection, ComponentEndpoint, ComponentKind,
@@ -66,6 +71,163 @@ def request():
 def test_codec_preserves_identity_memory_and_tool_proposals_exactly():
     original = request()
     assert decode_request(encode_request(original)) == original
+
+
+def test_process_spec_round_trips_exact_dual_model_identity():
+    primary = ProviderConfiguration(provider="ollama", model="owner/deep:sha")
+    secondary = ProviderConfiguration(provider="ollama", model="owner/fast:sha")
+    spec = CoreEngineProcessSpec(
+        "provider", provider=primary, secondary_provider=secondary,
+        expected_runtime_digest="a" * 64,
+    )
+
+    assert CoreEngineProcessSpec.from_payload(spec.to_payload()) == spec
+    with pytest.raises(ValueError, match="secondary provider"):
+        CoreEngineProcessSpec("rule", secondary_provider=secondary)
+
+
+def test_composition_routes_both_roles_through_one_generation_fenced_worker(
+    canonical_state_path, tmp_path,
+):
+    now, _, controller = build(canonical_state_path, tmp_path)
+    primary = ProviderConfiguration(provider="test-llm", model="deep-model")
+    secondary = ProviderConfiguration(provider="test-llm", model="fast-model")
+    controller.start(
+        release_digest=sha256(b"dual-model-worker").hexdigest(),
+        spec=CoreEngineProcessSpec(
+            "provider", provider=primary, secondary_provider=secondary,
+        ),
+        now=now,
+    )
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=canonical_state_path,
+        provider=primary,
+        filesystem_root=tmp_path,
+        routing=CognitiveRoutingConfiguration(
+            enabled=True, primary=primary, secondary=secondary,
+        ),
+    )
+
+    engine = create_cognitive_engine(
+        configuration, core_worker_controller=controller,
+    )
+
+    assert isinstance(engine, RoutingCognitiveEngine)
+    assert isinstance(engine.registry.primary, CoreWorkerCognitiveEngine)
+    assert isinstance(engine.registry.secondary, CoreWorkerCognitiveEngine)
+    assert engine.registry.primary.controller is controller
+    assert engine.registry.secondary.controller is controller
+    assert engine.registry.primary.role == "primary"
+    assert engine.registry.secondary.role == "secondary"
+    assert engine.registry.primary.configuration == primary
+    assert engine.registry.secondary.configuration == secondary
+    controller.shutdown(now=now + timedelta(seconds=1))
+
+
+class _RemoteInference:
+    def ensure_model_available(self, node_id, provider, auto_provision):
+        return None
+
+    def infer(self, node_id, provider, cognitive_request):
+        raise AssertionError("composition must not dispatch during construction")
+
+
+def test_fleet_placement_wraps_each_isolated_core_role_without_local_fallback(
+    canonical_state_path, tmp_path,
+):
+    now, _, controller = build(canonical_state_path, tmp_path)
+    primary = ProviderConfiguration(provider="test-llm", model="deep-model")
+    secondary = ProviderConfiguration(provider="test-llm", model="fast-model")
+    controller.start(
+        release_digest=sha256(b"fleet-dual-worker").hexdigest(),
+        spec=CoreEngineProcessSpec(
+            "provider", provider=primary, secondary_provider=secondary,
+        ),
+        now=now,
+    )
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=canonical_state_path,
+        provider=primary,
+        filesystem_root=tmp_path,
+        routing=CognitiveRoutingConfiguration(
+            enabled=True, primary=primary, secondary=secondary,
+        ),
+        fleet_cognition=FleetCognitionConfiguration(
+            enabled=True, local_fallback=False,
+        ),
+    )
+    ops = OpsToolService(
+        canonical_state_path,
+        state_plane=SQLiteStatePlane(canonical_state_path),
+    )
+
+    engine = create_cognitive_engine(
+        configuration, ops_service=ops, local_host_id="local-host",
+        remote_inference_client=_RemoteInference(),
+        core_worker_controller=controller,
+    )
+
+    assert isinstance(engine, RoutingCognitiveEngine)
+    for role, expected in (
+        (engine.registry.primary, "primary"),
+        (engine.registry.secondary, "secondary"),
+    ):
+        assert isinstance(role, FleetPlacedCognitiveEngine)
+        assert role.policy.local_fallback is False
+        assert isinstance(role.local, CoreWorkerCognitiveEngine)
+        assert role.local.role == expected
+        assert role.local.controller is controller
+    controller.shutdown(now=now + timedelta(seconds=1))
+
+
+def test_worker_spec_must_match_both_configured_model_roles(
+    canonical_state_path, tmp_path,
+):
+    now, _, controller = build(canonical_state_path, tmp_path)
+    primary = ProviderConfiguration(provider="test-llm", model="deep-model")
+    configured_secondary = ProviderConfiguration(
+        provider="test-llm", model="fast-model"
+    )
+    controller.start(
+        release_digest=sha256(b"wrong-secondary").hexdigest(),
+        spec=CoreEngineProcessSpec(
+            "provider", provider=primary,
+            secondary_provider=ProviderConfiguration(
+                provider="test-llm", model="other-model"
+            ),
+        ),
+        now=now,
+    )
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=canonical_state_path,
+        provider=primary,
+        filesystem_root=tmp_path,
+        routing=CognitiveRoutingConfiguration(
+            enabled=True, primary=primary, secondary=configured_secondary,
+        ),
+    )
+
+    with pytest.raises(ValueError, match="does not match selected provider"):
+        create_cognitive_engine(
+            configuration, core_worker_controller=controller,
+        )
+    assert controller.health().ready
+    controller.shutdown(now=now + timedelta(seconds=1))
 
 
 def test_real_process_replacement_keeps_platform_and_continuity(canonical_state_path, tmp_path):
@@ -320,6 +482,46 @@ def test_production_composition_owns_configured_core_process(canonical_state_pat
     assert engine.controller.pid is None
     assert engine.controller.generations.state(endpoint) is GenerationState.RETIRED
     assert lease_store.current(now=datetime.now(timezone.utc)) is None
+
+
+def test_production_composition_owns_one_worker_for_dual_model_routing(
+    canonical_state_path, tmp_path,
+):
+    digest = installed_core_release_digest()
+    primary = ProviderConfiguration(provider="test-llm", model="deep-model")
+    secondary = ProviderConfiguration(provider="test-llm", model="fast-model")
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=canonical_state_path,
+        provider=primary,
+        filesystem_root=tmp_path,
+        routing=CognitiveRoutingConfiguration(
+            enabled=True, primary=primary, secondary=secondary,
+        ),
+        core_worker=CoreWorkerConfiguration(
+            enabled=True, release_digest=digest,
+            platform_instance_id="platform:dual-composition-test",
+        ),
+    )
+
+    runtime = compose(configuration)
+    engine = runtime.cognitive_system.engine
+    assert isinstance(engine, RoutingCognitiveEngine)
+    primary_engine = engine.registry.primary
+    secondary_engine = engine.registry.secondary
+    assert isinstance(primary_engine, CoreWorkerCognitiveEngine)
+    assert isinstance(secondary_engine, CoreWorkerCognitiveEngine)
+    assert primary_engine.controller is secondary_engine.controller
+    assert primary_engine.controller.pid not in {None, os.getpid()}
+    assert primary_engine.configuration == primary
+    assert secondary_engine.configuration == secondary
+
+    runtime._close_runtime_resources()
+    assert primary_engine.controller.pid is None
 
 
 def test_lifetime_lock_allows_verified_stopped_restart_recovery(canonical_state_path, tmp_path):

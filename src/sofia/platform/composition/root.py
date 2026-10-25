@@ -474,27 +474,33 @@ def compose(
             raise ValueError(
                 "configured Core worker cannot be combined with an injected controller"
             )
-        if configuration.routing is not None and configuration.routing.enabled:
+        routing = configuration.routing
+        routed = routing is not None and routing.enabled
+        selected_provider = routing.primary if routed else configuration.provider
+        secondary_provider = routing.secondary if routed else None
+        assert selected_provider is not None
+        if routed and (
+            selected_provider.provider not in {"ollama", "test-llm"}
+            or secondary_provider is None
+            or secondary_provider.provider not in {"ollama", "test-llm"}
+        ):
             raise ValueError(
-                "independent Core worker does not yet support dual-model routing"
-            )
-        if configuration.fleet_cognition.enabled:
-            raise ValueError(
-                "independent Core worker does not yet support Fleet inference routing"
+                "independent routed Core requires supported primary and secondary providers"
             )
         provider_kind = {
             "rule": "rule",
             "test": "test",
             "test-llm": "provider",
             "ollama": "provider",
-        }.get(configuration.provider.provider)
+        }.get(selected_provider.provider)
         if provider_kind is None:
             raise ValueError("selected provider cannot run in independent Core worker")
         worker_spec = CoreEngineProcessSpec(
             provider_kind,
             provider=(
-                configuration.provider if provider_kind == "provider" else None
+                selected_provider if provider_kind == "provider" else None
             ),
+            secondary_provider=secondary_provider,
         )
         worker = configuration.core_worker
         owned_core_worker = CoreWorkerProcessOwner.start(

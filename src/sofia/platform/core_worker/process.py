@@ -13,7 +13,7 @@ from pathlib import Path
 from queue import Queue
 import secrets
 import time
-from threading import Event, Thread
+from threading import Event, RLock, Thread
 from typing import Mapping
 from typing import Callable
 from uuid import uuid4
@@ -196,6 +196,7 @@ def _receive(connection: Connection) -> Mapping[str, object]:
 class CoreEngineProcessSpec:
     kind: str
     provider: ProviderConfiguration | None = None
+    secondary_provider: ProviderConfiguration | None = None
     test_delay_seconds: float = 0.0
     expected_runtime_digest: str | None = None
 
@@ -204,6 +205,8 @@ class CoreEngineProcessSpec:
             raise ValueError("unsupported Core worker engine kind")
         if (self.kind == "provider") != (self.provider is not None):
             raise ValueError("provider engine requires exactly one provider configuration")
+        if self.secondary_provider is not None and self.kind != "provider":
+            raise ValueError("secondary provider requires a provider engine")
         if not isinstance(self.test_delay_seconds, (int, float)) or not (
             0 <= self.test_delay_seconds <= 30
         ):
@@ -223,6 +226,11 @@ class CoreEngineProcessSpec:
         return {
             "kind": self.kind,
             "provider": None if self.provider is None else asdict(self.provider),
+            "secondary_provider": (
+                None
+                if self.secondary_provider is None
+                else asdict(self.secondary_provider)
+            ),
             "test_delay_seconds": self.test_delay_seconds,
             "expected_runtime_digest": self.expected_runtime_digest,
         }
@@ -230,13 +238,20 @@ class CoreEngineProcessSpec:
     @classmethod
     def from_payload(cls, payload: object) -> "CoreEngineProcessSpec":
         if not isinstance(payload, dict) or set(payload) != {
-            "kind", "provider", "test_delay_seconds", "expected_runtime_digest"
+            "kind", "provider", "secondary_provider", "test_delay_seconds",
+            "expected_runtime_digest",
         }:
             raise ValueError("invalid Core engine process specification")
         provider = payload["provider"]
+        secondary_provider = payload["secondary_provider"]
         return cls(
             kind=payload["kind"],
             provider=None if provider is None else ProviderConfiguration(**provider),
+            secondary_provider=(
+                None
+                if secondary_provider is None
+                else ProviderConfiguration(**secondary_provider)
+            ),
             test_delay_seconds=payload["test_delay_seconds"],
             expected_runtime_digest=payload["expected_runtime_digest"],
         )
@@ -254,14 +269,27 @@ class CoreWorkerError(RuntimeError):
     pass
 
 
-def _engine(spec: CoreEngineProcessSpec) -> CognitiveEngine:
+def _engines(spec: CoreEngineProcessSpec) -> dict[str, CognitiveEngine]:
     if spec.kind == "rule":
-        return RuleEngine()
+        return {"primary": RuleEngine()}
     if spec.kind == "test":
-        return TestCognitiveEngine(ProviderConfiguration(provider="test", model="test"))
+        return {
+            "primary": TestCognitiveEngine(
+                ProviderConfiguration(provider="test", model="test")
+            )
+        }
     assert spec.provider is not None
-    provider = create_llm_provider(spec.provider)
-    return LLMCognitiveEngine(spec.provider, provider)
+    engines: dict[str, CognitiveEngine] = {
+        "primary": LLMCognitiveEngine(
+            spec.provider, create_llm_provider(spec.provider)
+        )
+    }
+    if spec.secondary_provider is not None:
+        engines["secondary"] = LLMCognitiveEngine(
+            spec.secondary_provider,
+            create_llm_provider(spec.secondary_provider),
+        )
+    return engines
 
 
 def _worker_main(
@@ -279,7 +307,7 @@ def _worker_main(
             or endpoint.release_digest != spec.expected_runtime_digest
         ):
             raise PermissionError("Core worker runtime release digest mismatch")
-        engine = _engine(spec)
+        engines = _engines(spec)
         connection = Client(address, family=family, authkey=authkey)
         accepting = True
         _send(connection, {
@@ -302,7 +330,9 @@ def _worker_main(
             if kind == "shutdown" and set(message) == {"kind"}:
                 _send(connection, {"kind": "stopped", "pid": os.getpid()})
                 return
-            if kind != "respond" or set(message) != {"kind", "envelope", "payload"}:
+            if kind != "respond" or set(message) != {
+                "kind", "envelope", "payload", "role",
+            }:
                 raise CoreWorkerError("unsupported Core worker IPC command")
             if not accepting:
                 _send(connection, {"kind": "error", "error": "worker_draining"})
@@ -317,10 +347,13 @@ def _worker_main(
             encoded = base64.b64decode(message["payload"], validate=True)
             if sha256(encoded).hexdigest() != envelope.payload_digest:
                 raise PermissionError("Core worker request digest mismatch")
+            role = message["role"]
+            if role not in engines:
+                raise PermissionError("Core worker model role is unavailable")
             try:
                 if spec.test_delay_seconds:
                     time.sleep(spec.test_delay_seconds)
-                response = engine.respond(decode_request(encoded))
+                response = engines[role].respond(decode_request(encoded))
                 result = encode_response(response)
                 _send(connection, {
                     "kind": "response", "request_id": envelope.request_id,
@@ -353,6 +386,11 @@ class _CoreWorkerProcess:
         self._process: multiprocessing.Process | None = None
         self._connection: Connection | None = None
         self._listener: Listener | None = None
+        # One worker owns one ordered IPC channel. Routing can ask primary and
+        # secondary roles concurrently, while health supervision can sample at
+        # the same time; serialize complete exchanges so replies cannot be
+        # consumed by the wrong caller.
+        self._ipc_lock = RLock()
         token = _endpoint_token(endpoint)
         # Linux AF_UNIX paths are commonly capped at 108 bytes. Keep the IPC
         # filename compact while retaining the full digest for durable locks.
@@ -422,12 +460,13 @@ class _CoreWorkerProcess:
         return CoreWorkerHealth(self.endpoint, self.pid or 0, True, True)
 
     def health(self, timeout: float = 2.0) -> CoreWorkerHealth:
-        if self._connection is None or not self.alive:
-            raise CoreWorkerError("Core worker is not connected")
-        _send(self._connection, {"kind": "health"})
-        if not self._connection.poll(timeout):
-            raise CoreWorkerError("Core worker health deadline expired")
-        value = _receive(self._connection)
+        with self._ipc_lock:
+            if self._connection is None or not self.alive:
+                raise CoreWorkerError("Core worker is not connected")
+            _send(self._connection, {"kind": "health"})
+            if not self._connection.poll(timeout):
+                raise CoreWorkerError("Core worker health deadline expired")
+            value = _receive(self._connection)
         if set(value) != {"kind", "endpoint", "pid", "ready", "accepting"} or (
             value["kind"] != "health"
             or ComponentEndpoint.from_payload(value["endpoint"]) != self.endpoint
@@ -440,20 +479,24 @@ class _CoreWorkerProcess:
 
     def respond(
         self, *, envelope: ComponentRequestEnvelope,
-        request: CognitiveRequest, timeout: float,
+        request: CognitiveRequest, timeout: float, role: str = "primary",
     ) -> CognitiveResponse:
-        if self._connection is None or not self.alive:
-            raise CoreWorkerError("Core worker is not connected")
         payload = encode_request(request)
         if sha256(payload).hexdigest() != envelope.payload_digest:
             raise ValueError("Core worker request envelope digest mismatch")
-        _send(self._connection, {
-            "kind": "respond", "envelope": envelope.to_payload(),
-            "payload": base64.b64encode(payload).decode("ascii"),
-        })
-        if not self._connection.poll(timeout):
-            raise TimeoutError("Core worker response deadline expired")
-        value = _receive(self._connection)
+        if role not in {"primary", "secondary"}:
+            raise ValueError("Core worker role must be primary or secondary")
+        with self._ipc_lock:
+            if self._connection is None or not self.alive:
+                raise CoreWorkerError("Core worker is not connected")
+            _send(self._connection, {
+                "kind": "respond", "envelope": envelope.to_payload(),
+                "payload": base64.b64encode(payload).decode("ascii"),
+                "role": role,
+            })
+            if not self._connection.poll(timeout):
+                raise TimeoutError("Core worker response deadline expired")
+            value = _receive(self._connection)
         if value.get("kind") == "error":
             raise CoreWorkerError(f"Core worker failed: {value.get('error', 'unknown')}")
         if set(value) != {"kind", "request_id", "payload", "payload_digest"} or (
@@ -466,12 +509,13 @@ class _CoreWorkerProcess:
         return decode_response(result)
 
     def drain(self, timeout: float = 5.0) -> None:
-        if self._connection is None or not self.alive:
-            raise CoreWorkerError("Core worker is not connected")
-        _send(self._connection, {"kind": "drain"})
-        if not self._connection.poll(timeout):
-            raise TimeoutError("Core worker drain deadline expired")
-        value = _receive(self._connection)
+        with self._ipc_lock:
+            if self._connection is None or not self.alive:
+                raise CoreWorkerError("Core worker is not connected")
+            _send(self._connection, {"kind": "drain"})
+            if not self._connection.poll(timeout):
+                raise TimeoutError("Core worker drain deadline expired")
+            value = _receive(self._connection)
         if value != {"kind": "drained", "pid": self.pid}:
             raise CoreWorkerError("Core worker drain acknowledgement mismatch")
 
@@ -655,7 +699,9 @@ class CoreWorkerController:
             process.terminate(force=True)
             self._active = None
 
-    def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+    def respond(
+        self, request: CognitiveRequest, *, role: str = "primary",
+    ) -> CognitiveResponse:
         process = self._active
         now = datetime.now(timezone.utc)
         if process is None or not self.generations.is_active(process.endpoint):
@@ -695,6 +741,7 @@ class CoreWorkerController:
             return process.respond(
                 envelope=envelope, request=request,
                 timeout=max(0.001, (deadline - now).total_seconds()),
+                role=role,
             )
         except Exception as exc:
             self._quarantine(process, now=datetime.now(timezone.utc), reason=type(exc).__name__)
@@ -778,13 +825,24 @@ class CoreWorkerController:
 
 
 class CoreWorkerCognitiveEngine(CognitiveEngine):
-    def __init__(self, controller: CoreWorkerController) -> None:
+    def __init__(
+        self, controller: CoreWorkerController, *, role: str = "primary",
+        configuration: ProviderConfiguration | None = None,
+    ) -> None:
         if not isinstance(controller, CoreWorkerController):
             raise TypeError("controller must be CoreWorkerController")
+        if role not in {"primary", "secondary"}:
+            raise ValueError("Core worker role must be primary or secondary")
+        if configuration is not None and not isinstance(
+            configuration, ProviderConfiguration
+        ):
+            raise TypeError("configuration must be ProviderConfiguration or None")
         self.controller = controller
+        self.role = role
+        self.configuration = configuration
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
-        return self.controller.respond(request)
+        return self.controller.respond(request, role=self.role)
 
 
 class CoreWorkerRuntimeBackend(ManagedRuntimeBackend):

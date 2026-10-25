@@ -229,40 +229,123 @@ def create_cognitive_engine(
     remote_inference_client=None,
     core_worker_controller: CoreWorkerController | None = None,
 ):
-    if core_worker_controller is not None:
-        if not isinstance(core_worker_controller, CoreWorkerController):
-            raise TypeError("core_worker_controller must be CoreWorkerController")
-        health = core_worker_controller.health()
-        if not health.ready or not health.accepting:
-            raise RuntimeError("independent Core worker is not ready")
-        if configuration.routing is not None and configuration.routing.enabled:
-            raise ValueError(
-                "independent Core worker does not yet support dual-model routing"
-            )
-        if configuration.fleet_cognition.enabled:
-            raise ValueError(
-                "independent Core worker does not yet support Fleet inference routing"
-            )
-        spec = core_worker_controller.engine_spec
-        expected_kind = {
-            "rule": "rule", "test": "test", "test-llm": "provider",
-            "ollama": "provider",
-        }.get(configuration.provider.provider)
-        if spec is None or spec.kind != expected_kind or (
-            spec.kind == "provider" and spec.provider != configuration.provider
-        ):
-            raise ValueError(
-                "independent Core worker engine does not match selected provider"
-            )
-        return CoreWorkerCognitiveEngine(core_worker_controller)
-    # An explicit split runtime never substitutes local/alternate models when
-    # its exact pinned-mTLS Fleet inference worker is down.
+    # Validate split-host invariants before either the compatibility path or
+    # independently hosted Core path can construct a callable engine.
     validate_split_inference_runtime(
         configuration=configuration,
         local_host_id=local_host_id,
         remote_inference_client=remote_inference_client,
         deployment=selected_split_deployment(),
     )
+    if core_worker_controller is not None:
+        if not isinstance(core_worker_controller, CoreWorkerController):
+            raise TypeError("core_worker_controller must be CoreWorkerController")
+        health = core_worker_controller.health()
+        if not health.ready or not health.accepting:
+            raise RuntimeError("independent Core worker is not ready")
+        spec = core_worker_controller.engine_spec
+        routing = configuration.routing
+        routed = routing is not None and routing.enabled
+        primary_configuration = (
+            routing.primary if routed else configuration.provider
+        )
+        secondary_configuration = routing.secondary if routed else None
+        assert primary_configuration is not None
+        expected_kind = {
+            "rule": "rule", "test": "test", "test-llm": "provider",
+            "ollama": "provider",
+        }.get(primary_configuration.provider)
+        if spec is None or spec.kind != expected_kind or (
+            spec.kind == "provider"
+            and (
+                spec.provider != primary_configuration
+                or spec.secondary_provider != secondary_configuration
+            )
+        ):
+            raise ValueError(
+                "independent Core worker engine does not match selected provider"
+            )
+        if routed:
+            assert primary_configuration is not None
+            assert secondary_configuration is not None
+            supported = {"ollama", "test-llm"}
+            if primary_configuration.provider not in supported:
+                raise ValueError(
+                    "routing primary provider must be ollama or test-llm"
+                )
+            if secondary_configuration.provider not in supported:
+                raise ValueError(
+                    "routing secondary provider must be ollama or test-llm"
+                )
+            primary_engine = CoreWorkerCognitiveEngine(
+                core_worker_controller, role="primary",
+                configuration=primary_configuration,
+            )
+            secondary_engine = CoreWorkerCognitiveEngine(
+                core_worker_controller, role="secondary",
+                configuration=secondary_configuration,
+            )
+            if lifecycle is not None:
+                if primary_configuration.provider == "ollama":
+                    primary_engine = LifecycleManagedCognitiveEngine(
+                        delegate=primary_engine, lifecycle=lifecycle,
+                        role=CognitiveModelRole.PRIMARY,
+                    )
+                if secondary_configuration.provider == "ollama":
+                    secondary_engine = LifecycleManagedCognitiveEngine(
+                        delegate=secondary_engine, lifecycle=lifecycle,
+                        role=CognitiveModelRole.SECONDARY,
+                    )
+            primary_engine = _fleet_wrap_cognitive_engine(
+                primary_engine,
+                provider_configuration=primary_configuration,
+                configuration=configuration, ops_service=ops_service,
+                local_host_id=local_host_id,
+                remote_inference_client=remote_inference_client,
+                workload_id="cognition-primary",
+            )
+            secondary_engine = _fleet_wrap_cognitive_engine(
+                secondary_engine,
+                provider_configuration=secondary_configuration,
+                configuration=configuration, ops_service=ops_service,
+                local_host_id=local_host_id,
+                remote_inference_client=remote_inference_client,
+                workload_id="cognition-secondary",
+            )
+            activity_store = CognitiveModelActivityStore(configuration.state_path)
+            activity_store.clear_stale_busy()
+            return RoutingCognitiveEngine(
+                registry=CognitiveEngineRegistry(
+                    primary=primary_engine, secondary=secondary_engine,
+                ),
+                verify_enabled=routing.verify_enabled,
+                parallel_enabled=routing.parallel_enabled,
+                fallback_enabled=routing.fallback_enabled,
+                activity_store=activity_store,
+                runtime_state_store=CognitionRuntimeStateStore(
+                    configuration.state_path
+                ),
+                local_host_id=local_host_id,
+            )
+        engine = CoreWorkerCognitiveEngine(
+            core_worker_controller,
+            configuration=(
+                configuration.provider if spec.kind == "provider" else None
+            ),
+        )
+        if lifecycle is not None and configuration.provider.provider == "ollama":
+            engine = LifecycleManagedCognitiveEngine(
+                delegate=engine, lifecycle=lifecycle,
+                role=CognitiveModelRole.PRIMARY,
+            )
+        return _fleet_wrap_cognitive_engine(
+            engine,
+            provider_configuration=configuration.provider,
+            configuration=configuration, ops_service=ops_service,
+            local_host_id=local_host_id,
+            remote_inference_client=remote_inference_client,
+            workload_id="cognition-primary",
+        )
     routing = configuration.routing
     if routing is not None and routing.enabled:
         primary_configuration = routing.primary
