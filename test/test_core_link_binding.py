@@ -1,0 +1,231 @@
+"""LINK-02 protected Core Link binding registry acceptance."""
+from __future__ import annotations
+
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
+import json
+import os
+from pathlib import Path
+
+import pytest
+
+from sofia.platform import launcher
+from sofia.platform.core_link import (
+    CoreLinkBinding, CoreLinkBindingState, CoreLinkBindingStore,
+)
+from sofia.sdk.contracts import ProtocolVersion
+
+
+NOW = datetime(2026, 10, 25, 16, 0, tzinfo=timezone.utc)
+
+
+def binding(**changes) -> CoreLinkBinding:
+    base = CoreLinkBinding(
+        binding_id="binding:sofia-primary",
+        local_platform_id="platform:venus-client",
+        remote_platform_id="platform:canonical-vm",
+        remote_core_identity_id="core:sofia",
+        remote_core_generation=7,
+        endpoint_id="endpoint:canonical-core-link",
+        credential_ref="os-keystore:sofia/core-link/client-7",
+        trust_anchor_ref="sha256:" + "a" * 64,
+        audience_id="audience:sparks-private",
+        granted_scopes=("conversation.read", "conversation.write", "status.read"),
+        protocol_version=ProtocolVersion(1, 0),
+        state=CoreLinkBindingState.PENDING_APPROVAL,
+        revision=1,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    return replace(base, **changes)
+
+
+def store(tmp_path: Path) -> CoreLinkBindingStore:
+    root = tmp_path / "private-client"
+    root.mkdir(mode=0o700)
+    return CoreLinkBindingStore((root / "core-links.json").resolve())
+
+
+def activate(registry: CoreLinkBindingStore):
+    created = registry.add_pending(binding(), expected_store_revision=0)
+    verifying = registry.transition(
+        "binding:sofia-primary", expected_binding_revision=1,
+        expected_store_revision=created.revision,
+        state=CoreLinkBindingState.VERIFYING, at=NOW + timedelta(seconds=1),
+    )
+    active = registry.reconcile_contact(
+        "binding:sofia-primary", expected_binding_revision=2,
+        expected_store_revision=verifying.revision,
+        remote_platform_id="platform:canonical-vm",
+        remote_core_identity_id="core:sofia", remote_core_generation=7,
+        endpoint_id="endpoint:canonical-core-link",
+        trust_anchor_ref="sha256:" + "a" * 64,
+        at=NOW + timedelta(seconds=2),
+    )
+    return active
+
+
+def test_binding_store_is_core_free_json_not_sqlite_and_survives_restart(tmp_path):
+    registry = store(tmp_path)
+    active = activate(registry)
+    selected = registry.select(
+        "binding:sofia-primary", expected_store_revision=active.revision,
+    )
+    assert selected.selected().state is CoreLinkBindingState.ACTIVE
+    assert not any(path.suffix == ".db" for path in registry.path.parent.iterdir())
+    restarted = CoreLinkBindingStore(registry.path).load()
+    assert restarted == selected
+    assert os.stat(registry.path).st_mode & 0o077 == 0
+
+
+def test_cas_prevents_concurrent_silent_overwrite(tmp_path):
+    registry = store(tmp_path)
+    first = registry.add_pending(binding(), expected_store_revision=0)
+    registry.transition(
+        "binding:sofia-primary", expected_binding_revision=1,
+        expected_store_revision=first.revision,
+        state=CoreLinkBindingState.VERIFYING, at=NOW + timedelta(seconds=1),
+    )
+    with pytest.raises(RuntimeError, match="store revision conflict"):
+        registry.transition(
+            "binding:sofia-primary", expected_binding_revision=1,
+            expected_store_revision=first.revision,
+            state=CoreLinkBindingState.REVOKED, at=NOW + timedelta(seconds=2),
+        )
+
+
+@pytest.mark.parametrize("field,value", [
+    ("remote_platform_id", "platform:impostor"),
+    ("remote_core_identity_id", "core:roland"),
+    ("remote_core_generation", 8),
+    ("endpoint_id", "endpoint:changed"),
+    ("trust_anchor_ref", "sha256:" + "b" * 64),
+])
+def test_authenticated_contact_mismatch_quarantines_and_deselects(
+    tmp_path, field, value,
+):
+    registry = store(tmp_path)
+    selected = registry.select(
+        "binding:sofia-primary", expected_store_revision=activate(registry).revision,
+    )
+    observed = {
+        "remote_platform_id": "platform:canonical-vm",
+        "remote_core_identity_id": "core:sofia",
+        "remote_core_generation": 7,
+        "endpoint_id": "endpoint:canonical-core-link",
+        "trust_anchor_ref": "sha256:" + "a" * 64,
+    }
+    observed[field] = value
+    result = registry.reconcile_contact(
+        "binding:sofia-primary", expected_binding_revision=3,
+        expected_store_revision=selected.revision,
+        at=NOW + timedelta(seconds=3), **observed,
+    )
+    assert result.selected_binding_id is None
+    assert result.bindings[0].state is CoreLinkBindingState.QUARANTINED
+    assert result.bindings[0].remote_core_identity_id == "core:sofia"
+
+
+def test_offline_selected_core_remains_selected_and_no_substitute_is_chosen(tmp_path):
+    registry = store(tmp_path)
+    selected = registry.select(
+        "binding:sofia-primary", expected_store_revision=activate(registry).revision,
+    )
+    offline = registry.transition(
+        "binding:sofia-primary", expected_binding_revision=3,
+        expected_store_revision=selected.revision,
+        state=CoreLinkBindingState.OFFLINE, at=NOW + timedelta(seconds=3),
+    )
+    second = replace(
+        binding(), binding_id="binding:roland", remote_core_identity_id="core:roland",
+        revision=1, updated_at=NOW + timedelta(seconds=4),
+    )
+    after_discovery = registry.add_pending(
+        second, expected_store_revision=offline.revision,
+    )
+    assert after_discovery.selected_binding_id == "binding:sofia-primary"
+    assert after_discovery.selected().state is CoreLinkBindingState.OFFLINE
+
+
+def test_store_rejects_corruption_unknown_fields_and_symlink(tmp_path):
+    registry = store(tmp_path)
+    registry.path.write_text("not json", encoding="utf-8")
+    registry.path.chmod(0o600)
+    with pytest.raises(RuntimeError, match="corrupt"):
+        registry.load()
+
+    registry.path.write_text(json.dumps({
+        "schema": "companion.platform.core_link_store.v1", "revision": 0,
+        "selected_binding_id": None, "bindings": [], "surprise": True,
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="malformed"):
+        registry.load()
+
+    registry.path.unlink()
+    target = registry.path.parent / "other.json"
+    target.write_text("{}", encoding="utf-8")
+    registry.path.symlink_to(target)
+    with pytest.raises(PermissionError, match="regular local file"):
+        registry.load()
+
+
+def test_plaintext_credentials_and_invalid_fingerprints_are_rejected():
+    with pytest.raises(ValueError, match="secret-store reference"):
+        binding(credential_ref="actual-secret-token")
+    with pytest.raises(ValueError, match="SHA-256 fingerprint"):
+        binding(trust_anchor_ref="trust-me")
+
+
+def test_active_state_requires_exact_authenticated_contact(tmp_path):
+    registry = store(tmp_path)
+    created = registry.add_pending(binding(), expected_store_revision=0)
+    verifying = registry.transition(
+        "binding:sofia-primary", expected_binding_revision=1,
+        expected_store_revision=created.revision,
+        state=CoreLinkBindingState.VERIFYING, at=NOW + timedelta(seconds=1),
+    )
+    with pytest.raises(ValueError, match="invalid Core Link transition"):
+        registry.transition(
+            "binding:sofia-primary", expected_binding_revision=2,
+            expected_store_revision=verifying.revision,
+            state=CoreLinkBindingState.ACTIVE, at=NOW + timedelta(seconds=2),
+        )
+
+
+def test_revoked_binding_cannot_be_reactivated_by_contact(tmp_path):
+    registry = store(tmp_path)
+    created = registry.add_pending(binding(), expected_store_revision=0)
+    revoked = registry.transition(
+        "binding:sofia-primary", expected_binding_revision=1,
+        expected_store_revision=created.revision,
+        state=CoreLinkBindingState.REVOKED, at=NOW + timedelta(seconds=1),
+    )
+    with pytest.raises(PermissionError, match="contact reconciliation"):
+        registry.reconcile_contact(
+            "binding:sofia-primary", expected_binding_revision=2,
+            expected_store_revision=revoked.revision,
+            remote_platform_id="platform:canonical-vm",
+            remote_core_identity_id="core:sofia", remote_core_generation=7,
+            endpoint_id="endpoint:canonical-core-link",
+            trust_anchor_ref="sha256:" + "a" * 64,
+            at=NOW + timedelta(seconds=2),
+        )
+
+
+def test_launcher_status_projects_selected_binding_without_secret_refs(
+    tmp_path, monkeypatch, capsys,
+):
+    registry = store(tmp_path)
+    selected = registry.select(
+        "binding:sofia-primary", expected_store_revision=activate(registry).revision,
+    )
+    monkeypatch.setenv("SOFIA_PLATFORM_ROLES", "CORE_LINK,MODULE_HOST")
+    monkeypatch.setenv("SOFIA_CORE_LINK_BINDING_STORE", str(registry.path))
+    assert launcher.main(["status"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["core_link"]["store_revision"] == selected.revision
+    projection = payload["core_link"]["selected"]
+    assert projection["remote_core_identity_id"] == "core:sofia"
+    assert "credential_ref" not in projection
+    assert "trust_anchor_ref" not in projection
+

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+from pathlib import Path
 import sys
 from typing import Sequence
 
@@ -38,7 +40,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         if args.command == "status":
-            print(json.dumps(_roles().to_payload(), sort_keys=True))
+            payload = _roles().to_payload()
+            store_path = os.environ.get("SOFIA_CORE_LINK_BINDING_STORE", "").strip()
+            if store_path:
+                from sofia.platform.core_link import CoreLinkBindingStore
+
+                snapshot = CoreLinkBindingStore(Path(store_path)).load()
+                selected = snapshot.selected()
+                payload["core_link"] = {
+                    "store_revision": snapshot.revision,
+                    "selected": None if selected is None else selected.redacted_status(),
+                }
+            print(json.dumps(payload, sort_keys=True))
             return 0
 
         _require_local_core(args.command)
