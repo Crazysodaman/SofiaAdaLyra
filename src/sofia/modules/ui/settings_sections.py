@@ -803,6 +803,12 @@ class SettingsSections:
         self.sql_panel(frames["Fleet"], "Enrolled nodes", "distributed_node_identity")
         self.sql_panel(frames["Fleet"], "Software and capability health evidence", "ops_dependency_observation")
         self.sql_panel(frames["Fleet"], "Verified platform installation receipts", "ops_platform_install_receipt")
+        from sofia.platform.modules import platform_control_center_text
+        self.viewer(
+            frames["Fleet"],
+            "Platform Control Center (verified read-only projection)",
+            lambda: platform_control_center_text(config.state_path),
+        )
         # Owner-created blank VM handoff. No generic Artemis PowerShell or
         # auto-provision route; only pinned Fleet read-only VM/media operations.
         from queue import Empty, Queue
