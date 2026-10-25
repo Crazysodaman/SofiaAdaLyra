@@ -646,3 +646,16 @@ boundary. The first no-dependency import correctly failed because `ollama`
 was absent from that interpreter and is not counted as installed-runtime
 success. Exact-revision CI remains unavailable (`gh run list` returned HTTP
 403), and Windows/real-model acceptance remains open.
+
+### Core/Platform broad regression completion — 2026-10-25 UTC
+
+Commit `5d934a8c` fixes only the HNF benchmark test clock: short-lived hardware
+telemetry is now timestamped when the test executes rather than when pytest
+collects the module. Production continues to reject stale or missing resource
+observations. Focused HNF benchmark coverage passed **11 tests**. The complete
+local non-integration Core marker then passed **4,779 tests**, with **4
+skipped**, **2,281 deselected**, and **8 subtests passed** in 353.43 seconds.
+
+The Platform remains **BETA**. This local Linux result is not matching-revision
+CI, Windows acceptance, genuine model/Fleet commissioning, independent review,
+or permission to deploy.

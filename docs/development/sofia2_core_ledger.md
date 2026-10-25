@@ -1250,3 +1250,25 @@ inputs fail closed. Focused affected suite: **77 passed** on local Linux.
 This improves B08 source-to-runtime evidence but does not change its **BETA**
 classification: genuine Ollama, Windows, full broad Core, matching-revision CI
 and independent review are still outstanding.
+
+### B08 full Core regression completion — 2026-10-25 UTC
+
+Commit `5d934a8c` repairs a test-evidence defect uncovered by the first complete
+Core marker run. The HNF Ollama benchmark fixture created two-minute telemetry
+at pytest module-import time. In a broad collection the observation was stale
+before the test executed, so production correctly failed closed and the test
+incorrectly expected completion. The fixture now creates its bounded freshness
+window at test execution; production freshness and placement policy were not
+weakened.
+
+Executed locally on Linux with the repository's reviewed Python 3.12 test
+environment:
+
+- HNF benchmark regression suites: **11 passed**.
+- `pytest -q -m "pkg_core and not integration"`: **4,779 passed, 4 skipped,
+  2,281 deselected, 8 subtests passed** in 353.43 seconds.
+
+This closes the previously open local broad-Core test item. Core B08 remains
+**BETA** rather than RELEASE CANDIDATE: genuine configured Ollama, Windows
+named-pipe and installed Desktop/Discord host acceptance, matching-revision
+CI, and independent review remain unverified.
