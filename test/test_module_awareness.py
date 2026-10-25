@@ -263,6 +263,26 @@ def test_outcomes_and_placement_do_not_reuse_historical_authority(tmp_path):
     )
 
 
+def test_outcome_only_history_stays_visible_without_claiming_installation():
+    observer = FakePlatformModuleObserver(outcomes=(OutcomeObservation(
+        request_id="req-removed",
+        module_id="sofia.retired",
+        capability="module.remove",
+        status=OutcomeStatus.SUCCEEDED_VERIFIED,
+        verification_method="authenticated-adapter-probe",
+        error_class=None,
+        settled_at=NOW,
+    ),))
+
+    [row] = CapabilitySelfModel(None, observer).project(now=NOW)
+
+    assert row.module_id == "sofia.retired"
+    assert row.installed is Grounding.UNKNOWN
+    assert row.active is Grounding.UNKNOWN
+    assert row.available is Grounding.UNKNOWN
+    assert row.verified_outcomes == 1
+
+
 def test_one_healthy_component_cannot_hide_failed_distributed_component(tmp_path):
     platform = fake_platform(
         health_rows=(

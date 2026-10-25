@@ -206,7 +206,11 @@ class CapabilitySelfModel:
             for instance_id in health_rows
         }
         names = sorted(
-            set(trust) | set(described) | set(placements) | health_modules
+            set(trust)
+            | set(described)
+            | set(placements)
+            | set(outcomes)
+            | health_modules
         )
         rows: list[ModuleAwarenessRow] = []
         for module_id in names:
