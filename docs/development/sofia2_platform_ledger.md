@@ -778,3 +778,29 @@ Broad exact-revision regression at `e4e77f27052e47117bfe679965472c44193a70e2`:
 70.96 seconds. `pkg_core and not integration` passed **4,782 tests**, with 4
 skipped, 2,284 deselected and 8 subtests passed in 335.15 seconds. These are
 local Linux results, not matching-revision CI or live-host acceptance.
+
+### Durable module-outcome backlog progress — 2026-10-25 UTC
+
+Production commit `2f3ed65e` (rebased without source changes from the tested
+`df69a7b3` checkpoint) repairs audit finding A. The canonical module
+observer now exposes a bounded monotonic journal page contract, and Core
+maintenance persists its source cursor in canonical state. Verified lessons
+and cursor advancement commit in one transaction. Restart resumes after the
+last processed terminal event; concurrent/replayed pages remain idempotent.
+Denied, cancelled, failed and uncertain outcomes advance progress but never
+become lessons or authority. Observers without a durable cursor fail rather
+than silently truncating a larger backlog.
+
+Focused lifecycle/observer/RUN/maintenance coverage passed **46 tests**,
+including 76 verified outcomes drained across eight ten-record pages and zero
+duplicate learning after application restart. Exact-code broad gates at
+`df69a7b3`: `pkg_run and not integration` passed **633 tests** with 6,439
+deselected in 76.19 seconds; `pkg_core and not integration` passed **4,784
+tests**, with 4 skipped, 2,284 deselected and 8 subtests passed in 397.98
+seconds. `compileall` and `git diff --check` passed. CI/Windows/live-host review
+remain open; Platform remains **BETA**.
+
+After rebasing onto the six concurrent optional-module commits at
+`cd896d87`, the focused maintenance/observer/awareness suite passed **27
+tests** at `2f3ed65e`. The broader counts above remain evidence for the
+identical source diff before that rebase, not exact-revision CI evidence.

@@ -1349,3 +1349,26 @@ deselected, 8 subtests passed**, 335.15 seconds). This validates the new
 canonical outcome/placement path against the broader restart, conversation,
 state and maintenance surface on local Linux. It remains separate from CI,
 Windows, real-model/adapter-host acceptance and independent review.
+
+### Starvation-free verified module learning — 2026-10-25 UTC
+
+Production commit `2f3ed65e` (rebased without source changes from the tested
+`df69a7b3` checkpoint) replaces the repeated newest-32 scan with a
+typed, bounded Platform journal page and a durable canonical Core-maintenance
+cursor. Lessons and progress commit atomically, survive application restart
+and remain idempotent. Non-success terminal outcomes are consumed as backlog
+progress but never become learned success, memory truth, execution authority
+or permission. A fixed observer that cannot page refuses to truncate rather
+than silently dropping older outcomes.
+
+Focused regression: **46 passed**. Exact-code broad local Linux gates:
+`pkg_run and not integration` **633 passed**, 6,439 deselected; `pkg_core and
+not integration` **4,784 passed, 4 skipped**, 2,284 deselected, 8 subtests
+passed. This repairs the source-level starvation defect but does not supply
+CI, Windows, real-model/adapter-host or independent-review evidence. Core
+remains **BETA**.
+
+After rebasing onto the six concurrent optional-module commits at
+`cd896d87`, the focused maintenance/observer/awareness suite passed **27
+tests** at `2f3ed65e`. The broader counts above remain evidence for the
+identical source diff before that rebase, not exact-revision CI evidence.
