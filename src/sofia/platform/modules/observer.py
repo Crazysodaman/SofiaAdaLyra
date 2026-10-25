@@ -11,6 +11,7 @@ from sofia.core.modreg.platform import (
     ModuleHealthObservation,
     ModuleObservationKind,
     OutcomeObservation,
+    OutcomeStatus,
     PlacementObservation,
     PlatformModuleObserver,
 )
@@ -34,6 +35,7 @@ _INSTALLED = frozenset({
     ModuleLifecycle.UPDATING.value,
     ModuleLifecycle.ROLLING_BACK.value,
 })
+_OUTCOME_LIMIT = 200
 
 
 class CanonicalPlatformModuleObserver(PlatformModuleObserver):
@@ -232,6 +234,85 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
         return ()
 
     def outcomes(self) -> tuple[OutcomeObservation, ...]:
-        # RUN/effect receipts remain separate historical outcomes and are not
-        # converted into current authorization evidence here.
-        return ()
+        # These are historical, settled RUN observations. They never become
+        # current authorization evidence and an attempted effect is omitted
+        # unless RUN reached one of the explicit terminal outcomes below.
+        status_map = {
+            "denied": (
+                OutcomeStatus.DENIED,
+                "canonical-authorization",
+                "authorization_denied",
+            ),
+            "cancelled_before_dispatch": (
+                OutcomeStatus.CANCELLED,
+                "canonical-run-cancellation",
+                "cancelled_before_dispatch",
+            ),
+            "failed_before_external_effect": (
+                OutcomeStatus.FAILED,
+                "canonical-run-pre-dispatch",
+                "failed_before_external_effect",
+            ),
+            "outcome_unknown": (
+                OutcomeStatus.OUTCOME_UNKNOWN,
+                None,
+                "external_outcome_unknown",
+            ),
+            "externally_verified_success": (
+                OutcomeStatus.SUCCEEDED_VERIFIED,
+                "authenticated-adapter-probe",
+                None,
+            ),
+            "externally_verified_failure": (
+                OutcomeStatus.FAILED,
+                "authenticated-adapter-probe",
+                "externally_verified_failure",
+            ),
+        }
+        with closing(
+            self._guard.connect(timeout=10.0, read_only=True)
+        ) as db:
+            db.row_factory = sqlite3.Row
+            tables = {
+                row[0]
+                for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND "
+                    "name IN ('platform_module_operation_request',"
+                    "'platform_module_operation_attempt')"
+                )
+            }
+            if len(tables) != 2:
+                return ()
+            rows = db.execute(
+                """SELECT request.request_id,request.module_id,
+                          request.operation,attempt.status,
+                          attempt.occurred_at
+                   FROM platform_module_operation_request AS request
+                   JOIN platform_module_operation_attempt AS attempt
+                     ON attempt.event_id=(
+                       SELECT newest.event_id
+                       FROM platform_module_operation_attempt AS newest
+                       WHERE newest.request_id=request.request_id
+                       ORDER BY newest.event_id DESC LIMIT 1)
+                   ORDER BY attempt.occurred_at DESC,request.request_id DESC
+                   LIMIT ?""",
+                (_OUTCOME_LIMIT,),
+            ).fetchall()
+        result = []
+        for row in rows:
+            mapped = status_map.get(str(row["status"]))
+            if mapped is None:
+                continue
+            status, verification_method, error_class = mapped
+            result.append(OutcomeObservation(
+                request_id=str(row["request_id"]),
+                module_id=str(row["module_id"]),
+                capability=f"module.{row['operation']}",
+                status=status,
+                verification_method=verification_method,
+                error_class=error_class,
+                settled_at=datetime.fromisoformat(
+                    str(row["occurred_at"])
+                ).astimezone(timezone.utc),
+            ))
+        return tuple(result)

@@ -31,7 +31,8 @@ from sofia.platform.run import (
     WorkStatus,
 )
 from sofia.platform.modules import CanonicalPlatformModuleObserver
-from sofia.core.modreg.platform import ModuleObservationKind
+from sofia.core.modreg.platform import ModuleObservationKind, OutcomeStatus
+from sofia.core.modreg.self_model import CapabilitySelfModel, Grounding
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from test.test_module_lifecycle_v1 import verified_package
@@ -211,6 +212,25 @@ def test_durable_activation_uses_shared_run_and_verified_observation(
         ).health()
         assert health.health is ModuleObservationKind.HEALTHY
         assert health.host_identity == "host:test"
+        [outcome] = CanonicalPlatformModuleObserver(
+            canonical_state_path,
+        ).outcomes()
+        assert outcome.request_id == request.request_id
+        assert outcome.module_id == request.module_id
+        assert outcome.capability == "module.activate"
+        assert outcome.status is OutcomeStatus.SUCCEEDED_VERIFIED
+        assert outcome.verification_method == "authenticated-adapter-probe"
+        assert outcome.error_class is None
+        [awareness] = CapabilitySelfModel(
+            None, CanonicalPlatformModuleObserver(canonical_state_path),
+        ).project(now=datetime.now(timezone.utc))
+        assert awareness.module_id == request.module_id
+        assert awareness.verified_outcomes == 1
+        assert awareness.unverified_outcomes == 0
+        assert all(
+            aspect.grant_state is Grounding.UNKNOWN
+            for aspect in awareness.permission_aspects
+        )
     finally:
         manager.close(wait=True)
 
@@ -219,6 +239,8 @@ def test_changed_idempotency_payload_is_rejected(canonical_state_path, tmp_path)
     _, coordinator, manager, _, _, request, _ = prepared(canonical_state_path, tmp_path)
     try:
         coordinator.submit(request, now=NOW)
+        # Admission/queueing is not a settled execution outcome.
+        assert CanonicalPlatformModuleObserver(canonical_state_path).outcomes() == ()
         changed = replace(
             request, request_id=f"request:{uuid4()}",
             requested_effect="different effect",
@@ -259,6 +281,12 @@ def test_dispatch_failure_is_uncertain_and_never_replayed_after_recovery(
     assert settled.status is WorkStatus.UNCERTAIN
     assert adapter.starts == 1
     assert lifecycle.describe(request.module_id).lifecycle is ModuleLifecycle.ACTIVATING
+    [outcome] = CanonicalPlatformModuleObserver(
+        canonical_state_path,
+    ).outcomes()
+    assert outcome.status is OutcomeStatus.OUTCOME_UNKNOWN
+    assert outcome.verification_method is None
+    assert outcome.error_class == "external_outcome_unknown"
     manager.close(wait=True)
 
     recovered_manager = TaskExecutionManager(store, {}, max_workers=1)
