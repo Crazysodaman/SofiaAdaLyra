@@ -22,6 +22,11 @@ from typing import Any
 
 from sofia.platform.config import SofiaConfiguration, create_production_configuration
 from sofia.modules.ui.desktop_worker import DesktopApplicationWorker
+from sofia.modules.ui.process_lock import (
+    DesktopAttentionMailbox,
+    DesktopProcessAlreadyRunning,
+    DesktopProcessLock,
+)
 from sofia.modules.ui.quick_tools import (
     quick_tool_by_label,
     quick_tool_labels,
@@ -235,12 +240,14 @@ class _TkDesktopWorkbench:
         root: Any,
         configuration: SofiaConfiguration,
         session_id: str | None,
+        attention_mailbox: DesktopAttentionMailbox | None = None,
     ) -> None:
         self._tk = tk
         self._ttk = ttk
         self._root = root
         self._configuration = configuration
         self._session_id = session_id
+        self._attention_mailbox = attention_mailbox
         self._events: Queue[tuple[str, object]] = Queue()
         self._worker = DesktopApplicationWorker(
             configuration=configuration,
@@ -284,11 +291,33 @@ class _TkDesktopWorkbench:
         self._status.set("Starting Sofía...")
         self._root.protocol("WM_DELETE_WINDOW", self._request_close)
         self._root.after(80, self._poll_events)
+        self._root.after(500, self._poll_attention)
         self._root.after(
             60_000,
             self._refresh_theme_timer,
         )
         self._start_background()
+
+    def _poll_attention(self) -> None:
+        if self._attention_mailbox is not None:
+            try:
+                requested = self._attention_mailbox.consume()
+            except Exception:
+                requested = False
+            if requested:
+                try:
+                    self._root.deiconify()
+                    self._root.lift()
+                    self._root.focus_force()
+                except Exception:
+                    try:
+                        self._root.bell()
+                    except Exception:
+                        pass
+        try:
+            self._root.after(500, self._poll_attention)
+        except Exception:
+            pass
 
     def _open_live2d_prep(self) -> None:
         from sofia.modules.ui.live2d_review import open_review_window
@@ -1479,15 +1508,26 @@ def run_desktop(
         ) from exc
 
     config = configuration or create_production_configuration()
-    root = tk.Tk()
-    _TkDesktopWorkbench(
-        tk=tk,
-        ttk=ttk,
-        root=root,
-        configuration=config,
-        session_id=session_id,
-    )
-    root.mainloop()
+    lock = DesktopProcessLock(config.state_path)
+    mailbox = DesktopAttentionMailbox(lock)
+    try:
+        lock.acquire()
+    except DesktopProcessAlreadyRunning:
+        mailbox.request()
+        return 0
+    try:
+        root = tk.Tk()
+        _TkDesktopWorkbench(
+            tk=tk,
+            ttk=ttk,
+            root=root,
+            configuration=config,
+            session_id=session_id,
+            attention_mailbox=mailbox,
+        )
+        root.mainloop()
+    finally:
+        lock.release()
     return 0
 
 
