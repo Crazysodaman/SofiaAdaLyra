@@ -1,7 +1,7 @@
 """Spawned Core cognition worker with HMAC-authenticated local IPC."""
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import base64
@@ -50,6 +50,56 @@ from sofia.sdk import (
 
 
 MAX_IPC_BYTES = 1_400_000
+
+
+def installed_core_release_digest(package_root: Path | None = None) -> str:
+    """Hash the actual installed Sofía package bytes used by a worker.
+
+    Bytecode/cache files are execution artifacts rather than release inputs.
+    Symlinks are rejected so a digest can never attest to a redirected tree.
+    """
+    root = (
+        package_root.resolve()
+        if package_root is not None
+        else Path(__file__).resolve().parents[2]
+    )
+    if not root.is_dir():
+        raise FileNotFoundError("installed Sofía package root is missing")
+    digest = sha256()
+    paths = sorted(
+        (
+            path for path in root.rglob("*")
+            if path.is_symlink()
+            or (
+                path.is_file()
+                and "__pycache__" not in path.parts
+                and path.suffix not in {".pyc", ".pyo"}
+            )
+        ),
+        key=lambda path: path.relative_to(root).as_posix(),
+    )
+    if not paths:
+        raise CoreWorkerError("installed Sofía package contains no release files")
+    for path in paths:
+        if path.is_symlink():
+            raise CoreWorkerError(
+                f"installed Sofía package contains symlink: {path.relative_to(root)}"
+            )
+        before = path.stat()
+        data = path.read_bytes()
+        after = path.stat()
+        if (
+            before.st_size != after.st_size
+            or before.st_mtime_ns != after.st_mtime_ns
+            or len(data) != after.st_size
+        ):
+            raise CoreWorkerError("installed Sofía package changed during attestation")
+        relative = path.relative_to(root).as_posix().encode("utf-8")
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        digest.update(len(data).to_bytes(8, "big"))
+        digest.update(data)
+    return digest.hexdigest()
 
 
 def _endpoint_token(endpoint: ComponentEndpoint) -> str:
@@ -147,6 +197,7 @@ class CoreEngineProcessSpec:
     kind: str
     provider: ProviderConfiguration | None = None
     test_delay_seconds: float = 0.0
+    expected_runtime_digest: str | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in {"rule", "test", "provider"}:
@@ -159,18 +210,27 @@ class CoreEngineProcessSpec:
             raise ValueError("test_delay_seconds must be in 0..30")
         if self.test_delay_seconds and self.kind != "test":
             raise ValueError("only the deterministic test engine may be delayed")
+        if self.expected_runtime_digest is not None and (
+            len(self.expected_runtime_digest) != 64
+            or any(
+                character not in "0123456789abcdef"
+                for character in self.expected_runtime_digest
+            )
+        ):
+            raise ValueError("expected_runtime_digest must be SHA-256 or None")
 
     def to_payload(self) -> dict[str, object]:
         return {
             "kind": self.kind,
             "provider": None if self.provider is None else asdict(self.provider),
             "test_delay_seconds": self.test_delay_seconds,
+            "expected_runtime_digest": self.expected_runtime_digest,
         }
 
     @classmethod
     def from_payload(cls, payload: object) -> "CoreEngineProcessSpec":
         if not isinstance(payload, dict) or set(payload) != {
-            "kind", "provider", "test_delay_seconds"
+            "kind", "provider", "test_delay_seconds", "expected_runtime_digest"
         }:
             raise ValueError("invalid Core engine process specification")
         provider = payload["provider"]
@@ -178,6 +238,7 @@ class CoreEngineProcessSpec:
             kind=payload["kind"],
             provider=None if provider is None else ProviderConfiguration(**provider),
             test_delay_seconds=payload["test_delay_seconds"],
+            expected_runtime_digest=payload["expected_runtime_digest"],
         )
 
 
@@ -213,6 +274,11 @@ def _worker_main(
         endpoint = ComponentEndpoint.from_payload(endpoint_payload)
         lifetime_lock.acquire()
         spec = CoreEngineProcessSpec.from_payload(spec_payload)
+        if spec.expected_runtime_digest is not None and (
+            installed_core_release_digest() != spec.expected_runtime_digest
+            or endpoint.release_digest != spec.expected_runtime_digest
+        ):
+            raise PermissionError("Core worker runtime release digest mismatch")
         engine = _engine(spec)
         connection = Client(address, family=family, authkey=authkey)
         accepting = True
@@ -794,6 +860,14 @@ class CoreWorkerProcessOwner:
             1 <= response_timeout_seconds < lease_ttl_seconds
         ):
             raise ValueError("response timeout must be shorter than lease TTL")
+        observed_digest = installed_core_release_digest()
+        if observed_digest != release_digest:
+            raise CoreWorkerError(
+                "configured Core release digest does not match installed package"
+            )
+        if spec.expected_runtime_digest not in {None, release_digest}:
+            raise CoreWorkerError("Core process specification release mismatch")
+        spec = replace(spec, expected_runtime_digest=release_digest)
         self.clock = clock
         self.lease_ttl_seconds = lease_ttl_seconds
         self.lease_store = LocalRunLeaseStore(

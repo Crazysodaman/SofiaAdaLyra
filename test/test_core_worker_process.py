@@ -11,6 +11,7 @@ from sofia.platform.core_worker import (
     CoreEngineProcessSpec, CoreWorkerController, CoreWorkerCognitiveEngine,
     CoreWorkerError,
     CoreWorkerRuntimeBackend,
+    installed_core_release_digest,
 )
 from sofia.platform.composition.engines import create_cognitive_engine
 from sofia.platform.composition.root import compose
@@ -290,7 +291,7 @@ def test_existing_component_supervisor_owns_real_core_process(canonical_state_pa
 
 
 def test_production_composition_owns_configured_core_process(canonical_state_path, tmp_path):
-    digest = sha256(b"installed-core-release").hexdigest()
+    digest = installed_core_release_digest()
     configuration = SofiaConfiguration(
         constitution_path=tmp_path / "constitution.md",
         constitution_hash_path=tmp_path / "constitution.sha256",
@@ -322,7 +323,7 @@ def test_production_composition_owns_configured_core_process(canonical_state_pat
 
 
 def test_lifetime_lock_allows_verified_stopped_restart_recovery(canonical_state_path, tmp_path):
-    digest = sha256(b"restart-safe-core").hexdigest()
+    digest = installed_core_release_digest()
     from sofia.platform.core_worker import CoreWorkerProcessOwner
 
     first = CoreWorkerProcessOwner.start(
@@ -380,10 +381,55 @@ def test_missing_lifetime_evidence_blocks_automatic_restart(canonical_state_path
     with pytest.raises(CoreWorkerError, match="unknown"):
         CoreWorkerProcessOwner.start(
             state_path=canonical_state_path,
-            release_digest=sha256(b"new").hexdigest(),
+            release_digest=installed_core_release_digest(),
             platform_instance_id="platform:new",
             core_identity_id="core:legacy-test", component_id="core.legacy-test",
             runtime_dir=tmp_path / "missing-proof",
             spec=CoreEngineProcessSpec("rule"),
         )
     assert generations.is_active(endpoint)
+
+
+def test_application_owner_rejects_forged_release_identity_before_spawn(
+    canonical_state_path, tmp_path,
+):
+    from sofia.platform.core_worker import CoreWorkerProcessOwner
+
+    with pytest.raises(CoreWorkerError, match="does not match installed package"):
+        CoreWorkerProcessOwner.start(
+            state_path=canonical_state_path, release_digest="0" * 64,
+            platform_instance_id="platform:forged-release",
+            core_identity_id="core:forged-release",
+            component_id="core.forged-release",
+            runtime_dir=tmp_path / "forged-release",
+            spec=CoreEngineProcessSpec("rule"),
+        )
+
+
+def test_child_independently_rejects_parent_claimed_release_digest(
+    canonical_state_path, tmp_path,
+):
+    now, generations, controller = build(
+        canonical_state_path, tmp_path, "core.forged-child"
+    )
+    forged = "0" * 64
+    with pytest.raises(CoreWorkerError, match="did not connect"):
+        controller.start(
+            release_digest=forged,
+            spec=CoreEngineProcessSpec(
+                "rule", expected_runtime_digest=forged,
+            ),
+            now=now,
+        )
+    rows = generations.active_for_core_identity("core:sofia")
+    assert rows is None
+
+
+def test_installed_release_digest_rejects_symlinked_package_input(tmp_path):
+    package = tmp_path / "package"
+    package.mkdir()
+    (package / "core.py").write_text("value = 1\n", encoding="utf-8")
+    (package / "redirect.py").symlink_to(package / "core.py")
+
+    with pytest.raises(CoreWorkerError, match="symlink"):
+        installed_core_release_digest(package)
