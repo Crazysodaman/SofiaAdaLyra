@@ -11,6 +11,7 @@ from sofia.core.modreg.platform import (
     ModuleHealthObservation,
     ModuleObservationKind,
     OutcomeObservation,
+    OutcomePage,
     OutcomeStatus,
     PlacementMode,
     PlacementObservation,
@@ -37,6 +38,7 @@ _INSTALLED = frozenset({
     ModuleLifecycle.ROLLING_BACK.value,
 })
 _OUTCOME_LIMIT = 200
+_OUTCOME_CURSOR_PREFIX = "module-attempt:"
 
 
 class CanonicalPlatformModuleObserver(PlatformModuleObserver):
@@ -297,11 +299,9 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
             )
         return tuple(result[key] for key in sorted(result))
 
-    def outcomes(self) -> tuple[OutcomeObservation, ...]:
-        # These are historical, settled RUN observations. They never become
-        # current authorization evidence and an attempted effect is omitted
-        # unless RUN reached one of the explicit terminal outcomes below.
-        status_map = {
+    @staticmethod
+    def _outcome_status_map():
+        return {
             "denied": (
                 OutcomeStatus.DENIED,
                 "canonical-authorization",
@@ -333,6 +333,27 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
                 "externally_verified_failure",
             ),
         }
+
+    @staticmethod
+    def _outcome_from_row(row, status_map) -> OutcomeObservation:
+        status, verification_method, error_class = status_map[str(row["status"])]
+        return OutcomeObservation(
+            request_id=str(row["request_id"]),
+            module_id=str(row["module_id"]),
+            capability=f"module.{row['operation']}",
+            status=status,
+            verification_method=verification_method,
+            error_class=error_class,
+            settled_at=datetime.fromisoformat(
+                str(row["occurred_at"])
+            ).astimezone(timezone.utc),
+        )
+
+    def outcomes(self) -> tuple[OutcomeObservation, ...]:
+        # These are historical, settled RUN observations. They never become
+        # current authorization evidence and an attempted effect is omitted
+        # unless RUN reached one of the explicit terminal outcomes below.
+        status_map = self._outcome_status_map()
         with closing(
             self._guard.connect(timeout=10.0, read_only=True)
         ) as db:
@@ -367,16 +388,69 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
             mapped = status_map.get(str(row["status"]))
             if mapped is None:
                 continue
-            status, verification_method, error_class = mapped
-            result.append(OutcomeObservation(
-                request_id=str(row["request_id"]),
-                module_id=str(row["module_id"]),
-                capability=f"module.{row['operation']}",
-                status=status,
-                verification_method=verification_method,
-                error_class=error_class,
-                settled_at=datetime.fromisoformat(
-                    str(row["occurred_at"])
-                ).astimezone(timezone.utc),
-            ))
+            result.append(self._outcome_from_row(row, status_map))
         return tuple(result)
+
+    def outcome_page(
+        self, *, after_cursor: str | None, limit: int,
+    ) -> OutcomePage:
+        """Read terminal outcomes in durable journal order without starvation."""
+        if type(limit) is not int or not 1 <= limit <= 128:
+            raise ValueError("outcome page limit must be in 1..128")
+        if after_cursor is None:
+            after_event_id = 0
+        else:
+            if not isinstance(after_cursor, str) or not after_cursor.startswith(
+                _OUTCOME_CURSOR_PREFIX
+            ):
+                raise ValueError("module outcome cursor is incompatible")
+            suffix = after_cursor.removeprefix(_OUTCOME_CURSOR_PREFIX)
+            if not suffix.isdigit():
+                raise ValueError("module outcome cursor is invalid")
+            after_event_id = int(suffix)
+        status_map = self._outcome_status_map()
+        with closing(
+            self._guard.connect(timeout=10.0, read_only=True)
+        ) as db:
+            db.row_factory = sqlite3.Row
+            tables = {
+                row[0]
+                for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND "
+                    "name IN ('platform_module_operation_request',"
+                    "'platform_module_operation_attempt')"
+                )
+            }
+            if len(tables) != 2:
+                return OutcomePage((), after_cursor, False)
+            terminal = tuple(status_map)
+            placeholders = ",".join("?" for _ in terminal)
+            rows = db.execute(
+                f"""SELECT attempt.event_id,request.request_id,
+                            request.module_id,request.operation,attempt.status,
+                            attempt.occurred_at
+                     FROM platform_module_operation_attempt AS attempt
+                     JOIN platform_module_operation_request AS request
+                       ON request.request_id=attempt.request_id
+                     WHERE attempt.event_id>?
+                       AND attempt.status IN ({placeholders})
+                       AND attempt.event_id=(
+                         SELECT newest.event_id
+                         FROM platform_module_operation_attempt AS newest
+                         WHERE newest.request_id=request.request_id
+                         ORDER BY newest.event_id DESC LIMIT 1)
+                     ORDER BY attempt.event_id
+                     LIMIT ?""",
+                (after_event_id, *terminal, limit + 1),
+            ).fetchall()
+        has_more = len(rows) > limit
+        selected = rows[:limit]
+        outcomes = tuple(
+            self._outcome_from_row(row, status_map) for row in selected
+        )
+        next_cursor = (
+            after_cursor
+            if not selected
+            else _OUTCOME_CURSOR_PREFIX + str(selected[-1]["event_id"])
+        )
+        return OutcomePage(outcomes, next_cursor, has_more)

@@ -283,6 +283,25 @@ def test_outcome_only_history_stays_visible_without_claiming_installation():
     assert row.verified_outcomes == 1
 
 
+def test_fixed_observer_refuses_to_silently_truncate_outcome_backlog():
+    outcomes = tuple(
+        OutcomeObservation(
+            request_id=f"req-{index}",
+            module_id="sofia.fixed",
+            capability="module.inspect",
+            status=OutcomeStatus.SUCCEEDED_VERIFIED,
+            verification_method="fixture",
+            error_class=None,
+            settled_at=NOW,
+        )
+        for index in range(2)
+    )
+    observer = FakePlatformModuleObserver(outcomes=outcomes)
+
+    with pytest.raises(RuntimeError, match="no durable cursor"):
+        observer.outcome_page(after_cursor=None, limit=1)
+
+
 def test_one_healthy_component_cannot_hide_failed_distributed_component(tmp_path):
     platform = fake_platform(
         health_rows=(

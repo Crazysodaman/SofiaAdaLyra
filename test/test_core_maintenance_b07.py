@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
+import sqlite3
 from uuid import uuid4
 
 import pytest
@@ -150,6 +152,84 @@ def test_canonical_module_run_outcome_is_learned_once_across_app_restart(
     try:
         assert restarted.core_maintenance.learn_verified_outcomes() == 0
         assert "verified successful outcome" in restarted.core_maintenance.working_context()
+    finally:
+        restarted.shutdown()
+
+
+def test_canonical_module_outcome_backlog_progresses_without_starvation(
+    personality_path, tmp_path,
+):
+    state_path = tmp_path / "sofia.db"
+    _lifecycle, coordinator, manager, store, _adapter, request, _ = prepared(
+        state_path, tmp_path,
+    )
+    try:
+        job = coordinator.submit(request, now=datetime.now(timezone.utc))
+        assert finish(manager, store, job.job_id).status.value == "completed"
+    finally:
+        manager.close(wait=True)
+
+    with sqlite3.connect(state_path) as db:
+        db.row_factory = sqlite3.Row
+        source = db.execute(
+            "SELECT * FROM platform_module_operation_request WHERE request_id=?",
+            (request.request_id,),
+        ).fetchone()
+        assert source is not None
+        columns = tuple(source.keys())
+        insert = (
+            "INSERT INTO platform_module_operation_request(" +
+            ",".join(columns) + ") VALUES(" +
+            ",".join("?" for _ in columns) + ")"
+        )
+        for index in range(75):
+            request_id = f"request:backlog-{index:03d}"
+            job_id = f"work:backlog-{index:03d}"
+            values = dict(source)
+            values.update({
+                "request_id": request_id,
+                "idempotency_key": f"backlog:{index:03d}",
+                "request_digest": sha256(request_id.encode()).hexdigest(),
+                "job_id": job_id,
+            })
+            db.execute(insert, tuple(values[name] for name in columns))
+            db.execute(
+                "INSERT INTO platform_module_operation_attempt "
+                "(request_id,job_id,status,attempt_number,detail,evidence_ref,occurred_at) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (
+                    request_id,
+                    job_id,
+                    "externally_verified_success",
+                    1,
+                    "verified backlog result",
+                    f"probe:backlog-{index:03d}",
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+
+    first = application(personality_path, tmp_path)
+    try:
+        learned = sum(
+            first.core_maintenance.learn_verified_outcomes(limit=10)
+            for _ in range(8)
+        )
+        assert learned == 76
+        assert first.core_maintenance.learn_verified_outcomes(limit=10) == 0
+        with sqlite3.connect(state_path) as db:
+            assert db.execute(
+                "SELECT COUNT(*) FROM core_maintenance_lesson"
+            ).fetchone()[0] == 76
+            cursor = db.execute(
+                "SELECT cursor FROM core_maintenance_outcome_cursor"
+            ).fetchone()[0]
+        assert cursor.startswith("module-attempt:")
+    finally:
+        first.shutdown()
+
+    restarted = application(personality_path, tmp_path)
+    try:
+        assert restarted.core_maintenance.learn_verified_outcomes(limit=10) == 0
     finally:
         restarted.shutdown()
 

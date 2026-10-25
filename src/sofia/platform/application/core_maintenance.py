@@ -101,6 +101,9 @@ class CoreMaintenanceService:
                     capability TEXT NOT NULL,status TEXT NOT NULL,
                     verification_method TEXT,settled_at TEXT NOT NULL,
                     lesson TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS core_maintenance_outcome_cursor(
+                    source_id TEXT PRIMARY KEY,cursor TEXT NOT NULL,
+                    revision INTEGER NOT NULL,updated_at TEXT NOT NULL);
                 """
             )
 
@@ -265,24 +268,60 @@ class CoreMaintenanceService:
         """Persist exact operational lessons; never beliefs or permissions."""
         if type(limit) is not int or not 1 <= limit <= 128:
             raise ValueError("limit must be in 1..128")
+        source_id = "platform-module-operation-journal-v1"
+        with closing(self._connect()) as db:
+            cursor_row = db.execute(
+                "SELECT cursor,revision FROM core_maintenance_outcome_cursor "
+                "WHERE source_id=?",
+                (source_id,),
+            ).fetchone()
+        cursor = None if cursor_row is None else str(cursor_row["cursor"])
+        cursor_revision = 0 if cursor_row is None else int(cursor_row["revision"])
+        page = self.observer.outcome_page(
+            after_cursor=cursor, limit=limit,
+        )
         learned = 0
-        for outcome in self.observer.outcomes()[:limit]:
-            if outcome.status is not OutcomeStatus.SUCCEEDED_VERIFIED:
-                continue
-            if not outcome.verification_method:
-                continue
-            lesson = (
-                f"{outcome.module_id} capability {outcome.capability} had a "
-                f"verified successful outcome via {outcome.verification_method}."
-            )
-            with closing(self._connect()) as db, db:
+        moment = datetime.now(timezone.utc).isoformat()
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            for outcome in page.outcomes:
+                if outcome.status is not OutcomeStatus.SUCCEEDED_VERIFIED:
+                    continue
+                if not outcome.verification_method:
+                    continue
+                lesson = (
+                    f"{outcome.module_id} capability {outcome.capability} had a "
+                    "verified successful outcome via "
+                    f"{outcome.verification_method}."
+                )
                 changed = db.execute(
-                    "INSERT OR IGNORE INTO core_maintenance_lesson VALUES(?,?,?,?,?,?,?)",
+                    "INSERT OR IGNORE INTO core_maintenance_lesson "
+                    "VALUES(?,?,?,?,?,?,?)",
                     (outcome.request_id, outcome.module_id, outcome.capability,
                      outcome.status.value, outcome.verification_method,
                      _utc(outcome.settled_at).isoformat(), lesson),
                 )
-            learned += int(changed.rowcount == 1)
+                learned += int(changed.rowcount == 1)
+            if page.next_cursor is not None and page.next_cursor != cursor:
+                if cursor_row is None:
+                    db.execute(
+                        "INSERT OR IGNORE INTO core_maintenance_outcome_cursor "
+                        "VALUES(?,?,1,?)",
+                        (source_id, page.next_cursor, moment),
+                    )
+                else:
+                    db.execute(
+                        "UPDATE core_maintenance_outcome_cursor SET "
+                        "cursor=?,revision=revision+1,updated_at=? "
+                        "WHERE source_id=? AND revision=? AND cursor=?",
+                        (
+                            page.next_cursor,
+                            moment,
+                            source_id,
+                            cursor_revision,
+                            cursor,
+                        ),
+                    )
         return learned
 
     def prepare_development_handoff(

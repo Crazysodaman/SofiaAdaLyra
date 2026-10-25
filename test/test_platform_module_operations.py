@@ -222,6 +222,17 @@ def test_durable_activation_uses_shared_run_and_verified_observation(
         assert outcome.status is OutcomeStatus.SUCCEEDED_VERIFIED
         assert outcome.verification_method == "authenticated-adapter-probe"
         assert outcome.error_class is None
+        first_page = CanonicalPlatformModuleObserver(
+            canonical_state_path,
+        ).outcome_page(after_cursor=None, limit=1)
+        assert first_page.outcomes == (outcome,)
+        assert first_page.next_cursor is not None
+        assert not first_page.has_more
+        assert CanonicalPlatformModuleObserver(
+            canonical_state_path,
+        ).outcome_page(
+            after_cursor=first_page.next_cursor, limit=1,
+        ).outcomes == ()
         [placement] = CanonicalPlatformModuleObserver(
             canonical_state_path,
         ).placements()

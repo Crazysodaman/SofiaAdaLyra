@@ -202,6 +202,31 @@ class OutcomeObservation:
         _aware(self.settled_at)
 
 
+@dataclass(frozen=True, slots=True)
+class OutcomePage:
+    """Bounded historical outcome page from one observer-owned journal."""
+
+    outcomes: tuple[OutcomeObservation, ...]
+    next_cursor: str | None
+    has_more: bool
+
+    def __post_init__(self) -> None:
+        if type(self.outcomes) is not tuple or any(
+            not isinstance(item, OutcomeObservation) for item in self.outcomes
+        ):
+            raise TypeError("outcomes must be a tuple of OutcomeObservation")
+        if self.next_cursor is not None and (
+            not isinstance(self.next_cursor, str)
+            or not self.next_cursor.strip()
+            or len(self.next_cursor) > 200
+        ):
+            raise ValueError("next_cursor must be None or bounded nonempty text")
+        if type(self.has_more) is not bool:
+            raise TypeError("has_more must be bool")
+        if self.has_more and self.next_cursor is None:
+            raise ValueError("a continuing page requires a next cursor")
+
+
 class PlatformModuleObserver:
     """Read-only seam for Codex's Platform module manager (PLAT-05/07/04).
 
@@ -221,6 +246,25 @@ class PlatformModuleObserver:
 
     def outcomes(self) -> tuple[OutcomeObservation, ...]:
         raise NotImplementedError
+
+    def outcome_page(
+        self, *, after_cursor: str | None, limit: int,
+    ) -> OutcomePage:
+        """Compatibility page for observers without durable source cursors.
+
+        Production journal observers override this. Test/fixed observers are
+        intentionally a single immutable page and therefore return no cursor.
+        """
+        if after_cursor is not None:
+            return OutcomePage((), None, False)
+        if type(limit) is not int or not 1 <= limit <= 128:
+            raise ValueError("outcome page limit must be in 1..128")
+        outcomes = self.outcomes()
+        if len(outcomes) > limit:
+            raise RuntimeError(
+                "observer has no durable cursor for the requested outcome backlog"
+            )
+        return OutcomePage(tuple(outcomes), None, False)
 
 
 @dataclass(frozen=True, slots=True)
