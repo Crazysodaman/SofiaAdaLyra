@@ -81,6 +81,12 @@ The owner-approved [Platform Federation and Autonomous Inter-Core Relationships 
 
 **No new "changeable Core" task:** CORE-35 (codebase awareness), CORE-36 (supervised restart), CORE-37 (verified self-update) and CORE-38 (isolated reviewed improvement) already cover self-evolution. Component isolation ISO-01–08 governs updating the Core worker without restarting Platform. Federation FED-01–08 covers only the new inter-Platform transport/consent and peer Core relationship integration, and does not change B00–B08 order or constitute implementation evidence.
 
+## Shared Core framework versus remote Core Link (2026-10-25)
+
+[Universal Platform, Core Link and Multi-Core Binding V1](UNIVERSAL_PLATFORM_CORE_LINK_AND_MULTI_CORE_BINDING_V1.md) makes a clear distinction: \`CORE_HOST\` installs Sofía's real, uniquely identified cognitive/relationship/memory implementation; a remote \`CORE_LINK\` is a **noncognitive, Core-free Platform client** with an enrolled connection to the *same* authoritative Sofía, not a second Core identity or a "light Sofía" personality. No automatic pairing or selection when another Core is discovered; Roland/Lyda/John need separately installed/approved genuine Core definitions and canonical state.
+
+This is Core B08 desktop/client and the existing Platform/SDK boundary work, not a replacement for CORE-01–40 or CORE-35–38 self-improvement. Do not move Sofía's protected experiences into a client package, duplicate Sofía's Core on GUI computers, allow two active same-identity writers, or count design/packaging proposals as implemented. Headless runtime + Windows/Linux thin-client acceptance and independent live settings remain open until tested.
+
 ## Core acceptance across batches
 
 Each row/requirement needs: actual source, canonical owner, production caller, configuration/persistence where relevant, privacy/authorization, failure recovery, tests with exact command and environment, immutable revision evidence, source review, and explicit outstanding blockers. Level 4 means tested and audited; Level 5 means matching CI per [existing evidence standard](../development/V18_TASK_STATUS_STANDARD.md). Planning rows have no implied Gate elevation.
