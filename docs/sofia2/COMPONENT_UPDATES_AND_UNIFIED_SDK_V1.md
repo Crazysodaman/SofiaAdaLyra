@@ -143,6 +143,14 @@ The approved [Platform Federation and Autonomous Inter-Core Relationships V1](PL
 
 Core worker updates and signed module updates must preserve or explicitly migrate federation protocol/relationship-context schemas while Platform keeps its canonical state and unmodified peers running. Old peer/client generations must fail closed if incompatible. The peer federation work is FED-01–08; it must not create a second Core code-evolution workstream or duplicate CORE-35–38.
 
+## 7.2 Universal Platform and Core Link interfaces
+
+The owner-approved [Universal Platform, Core Link and Multi-Core Binding V1](UNIVERSAL_PLATFORM_CORE_LINK_AND_MULTI_CORE_BINDING_V1.md) adds **the same SDK family**, not another SDK, with a \`CoreLinkBinding\` that binds authenticated local Platform/client identity, exact destination Platform **and** Core identity, trust fingerprint, principal/audience, explicit scopes, revision and negotiated protocol. A client with Core Link installed has **no real Core code or Core state writer** and is not a second acting Sofía. Core-free Platform module workers stay usable under scoped local grants.
+
+A registered remote Core cannot be silently picked from Fleet discovery, a matching name or a previously cached URL. New first or additional Core connections require explicit owner enrollment and exact identity acceptance. Remote desktop/tray status/chat/settings operations are authenticated, bounded, replay-safe Core-host APIs; legacy desktop's local \`SofiaApplication\` and SQLite state access are migration blockers, not usable remote-client code.
+
+Settings schemas must declare canonical/global versus host/client ownership and authoritative \`LIVE\`, \`NEXT_OPERATION\`, \`COMPONENT_RESTART\`, \`PLATFORM_RESTART\` apply requirements. Save and *effective application* use separate CAS revisions and verified receipts, with event-subscription/resync after network loss; no setting may cause a surprise runtime restart merely because UI saved it. Component update and restart scopes remain per ISO-01–08. LINK-01–08 are acceptance slices integrated with Core B08, PLAT and ISO, without becoming a second Core or user-settings authority.
+
 ## 8. Sequence, rollout, and protected operations
 
 1. Preserve existing Core B08 and Platform progress; audit current source and failed tests before changing process ownership. Implement SDK contracts and generation-aware Platform facade before splitting live Core.
