@@ -1,0 +1,69 @@
+"""Stable role-aware launcher for the generic Platform installation."""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from typing import Sequence
+
+from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
+
+
+def _roles() -> PlatformRoleConfiguration:
+    return PlatformRoleConfiguration.from_environment()
+
+
+def _require_local_core(command: str) -> PlatformRoleConfiguration:
+    roles = _roles()
+    if not roles.supports(PlatformRole.CORE_HOST):
+        if roles.supports(PlatformRole.CORE_LINK):
+            raise RuntimeError(
+                f"{command} remote Core Link transport is not configured; "
+                "refusing to instantiate a local Core or canonical database"
+            )
+        raise RuntimeError(
+            f"{command} requires CORE_HOST or an approved CORE_LINK binding"
+        )
+    return roles
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="companion-runtime")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("status", help="Show configured Platform roles")
+    subparsers.add_parser("desktop", help="Open the configured desktop client")
+    subparsers.add_parser("tray", help="Open the configured tray client")
+    subparsers.add_parser("settings", help="Open the configured settings client")
+    args = parser.parse_args(argv)
+
+    try:
+        if args.command == "status":
+            print(json.dumps(_roles().to_payload(), sort_keys=True))
+            return 0
+
+        _require_local_core(args.command)
+        if args.command == "desktop":
+            from sofia.core.launcher import main as core_main
+
+            return core_main(argv=())
+        if args.command == "tray":
+            from sofia.modules.ui.tray_agent import main as tray_main
+
+            return tray_main([])
+        if args.command == "settings":
+            from sofia.modules.ui.settings_window import main as settings_main
+
+            return settings_main([])
+        raise AssertionError("unreachable launcher command")
+    except (OSError, RuntimeError, TypeError, ValueError, PermissionError) as exc:
+        print(
+            f"companion-runtime {args.command} refused: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+

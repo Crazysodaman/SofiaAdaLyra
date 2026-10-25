@@ -19,6 +19,7 @@ from threading import Event
 from queue import Empty, Queue
 
 from sofia.platform.state.canonical_sqlite import require_existing_sqlite
+from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
 
 SERVICE_NAME = "sofia-runtime.service"
 DEBIAN_VERSION_ID = "13"
@@ -35,8 +36,14 @@ class SystemdRuntimeSpec:
     state_root: PurePosixPath
     environment_file: PurePosixPath
     service_user: str = "sofia"
+    roles: PlatformRoleConfiguration = PlatformRoleConfiguration((
+        PlatformRole.CORE_HOST,
+        PlatformRole.MODULE_HOST,
+    ))
 
     def __post_init__(self) -> None:
+        if not isinstance(self.roles, PlatformRoleConfiguration):
+            raise TypeError("roles must be PlatformRoleConfiguration")
         for label in ("python_path", "state_root", "environment_file"):
             value = getattr(self, label)
             if (
@@ -55,6 +62,7 @@ class SystemdRuntimeSpec:
             or self.service_user in {"root", "nobody"}
         ):
             raise ValueError("service_user must be a dedicated unprivileged account name")
+        self.roles.require(PlatformRole.CORE_HOST)
 
 
 def require_debian_guest(*, os_release_path: Path = Path("/etc/os-release")) -> None:
@@ -110,6 +118,7 @@ User={spec.service_user}
 Group={spec.service_user}
 Environment=SOFIA_RUNTIME_MODE=production
 Environment=SOFIA_IDENTITY_BOOTSTRAP_MODE=require_existing
+Environment=SOFIA_PLATFORM_ROLES={','.join(role.value for role in spec.roles.roles)}
 Environment=PYTHONDONTWRITEBYTECODE=1
 EnvironmentFile={spec.environment_file}
 ExecStartPre={spec.python_path} -m sofia.platform.run.systemd_runtime verify-guest
@@ -217,6 +226,7 @@ def run_headless(*, stop_event: Event) -> None:
         raise RuntimeError("headless systemd runtime requires Linux")
     if not isinstance(stop_event, Event):
         raise TypeError("stop_event must be a threading.Event")
+    PlatformRoleConfiguration.from_environment().require(PlatformRole.CORE_HOST)
     # EnvironmentFile settings can override systemd Environment entries.
     # Reject that explicitly rather than permitting first-bootstrap mode or
     # an untrusted runtime mode on the future sole-writer VM.

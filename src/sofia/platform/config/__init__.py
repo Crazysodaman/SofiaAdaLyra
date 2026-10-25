@@ -26,6 +26,7 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
+from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
 
 __all__ = [
     "ConfigurationPrecedence",
@@ -40,6 +41,8 @@ __all__ = [
     "FleetDiscoveryConfiguration",
     "ModelLifecycleConfiguration",
     "ProviderConfiguration",
+    "PlatformRole",
+    "PlatformRoleConfiguration",
     "SofiaConfiguration",
     "RECOMMENDED_PRIMARY_MODEL",
     "RECOMMENDED_SECONDARY_MODEL",

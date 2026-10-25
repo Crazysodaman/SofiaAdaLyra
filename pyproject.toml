@@ -17,6 +17,9 @@ dependencies = [
     "pywin32>=311; sys_platform == \"win32\"",
 ]
 
+[project.scripts]
+companion-runtime = "sofia.platform.launcher:main"
+
 [project.optional-dependencies]
 # External Live2D renderer is opt-in; Tk remains the safe installed fallback.
 vtube-studio = ["websockets>=14,<17", "psutil>=6,<8"]

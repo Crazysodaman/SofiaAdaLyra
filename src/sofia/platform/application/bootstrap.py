@@ -107,6 +107,7 @@ from sofia.core.cognition.matrix import (
 from sofia.platform.composition.root import compose
 from sofia.platform.config.defaults import create_production_configuration
 from sofia.platform.config.model import SofiaConfiguration
+from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
 from sofia.platform.config.reviewed_projection import apply_reviewed_configuration
 from sofia.platform.config.user_settings import (
     RuntimeUserSettings,
@@ -224,6 +225,12 @@ class SofiaApplication:
     """
 
     def __init__(self, configuration: SofiaConfiguration) -> None:
+        # The integrated compatibility wheel still contains Core code.  A
+        # Platform configured only as CORE_LINK/MODULE_HOST must nevertheless
+        # fail before opening canonical state or composing cognition.
+        PlatformRoleConfiguration.from_environment().require(
+            PlatformRole.CORE_HOST
+        )
         self._configuration = configuration
         self._environment_settings_store = RuntimeUserSettingsStore(
             configuration.state_path
