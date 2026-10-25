@@ -927,3 +927,38 @@ configuration batch passed **120 tests** in 65.39 seconds. `py_compile` and
 `git diff --check` passed. Remote Desktop/Tray adoption, durable streaming, a
 cancellable active provider request, Windows acceptance, installed Core-free
 packaging, CI and independent review remain open; LINK/Core B08 stay **BETA**.
+
+### Core-free Desktop and Tray conversation clients — 2026-10-25 UTC
+
+The generic launcher now routes `desktop` and `tray` to Core Link clients when
+the local Platform has `CORE_LINK` without `CORE_HOST`. This route never
+constructs `SofiaApplication`, opens canonical SQLite or imports any
+`sofia.core.*` module. Package export initializers for Platform configuration,
+state, RUN, SDK, UI and Core Link were made lazy to enforce that physical
+boundary while preserving their public imports for compatibility-mode hosts.
+
+The remote Desktop uses the exact explicitly selected binding, protected
+credential reference, endpoint identity, Core identity/generation and pinned
+mTLS transport. It provides authenticated status, conversation selection,
+bounded history and sends. Client-owned session selection, draft text and a
+pending idempotency key live in mode-restricted atomic JSON scoped to the exact
+binding/Core—not `sofia.db`. A connection loss or `OUTCOME_UNKNOWN` preserves
+the draft and request identity; restart queries `conversation.result` and
+never blindly resubmits the turn. The host now durably claims conversation
+creation idempotency in canonical state, so a lost creation response cannot
+silently create another session on retry.
+
+The independent Core Link tray/status fallback performs authenticated status
+only, does not create a conversation, can launch the Desktop, and has its own
+profile-scoped singleton lock. Closing either local UI never invokes a remote
+Core/Platform stop. The full existing local Desktop/Tray implementation and
+legacy Core-host launcher remain available.
+
+Local Linux evidence: **38 passed** in the Core Link/Desktop/Tray batch,
+including real mutual-TLS remote Desktop conversation and restart
+reconciliation; the complete non-integration UI gate passed **590 tests with
+1 skipped** in 59.73 seconds; and the complete non-integration RUN gate passed
+**655 tests** in 81.40 seconds. The focused configuration/state/SDK gate passed
+**87 tests**. Windows GUI foreground behavior, native tray protocols, visual
+acceptance, remote Settings, installed split-wheel inspection, CI and
+independent review remain open. The client migration remains **BETA**.

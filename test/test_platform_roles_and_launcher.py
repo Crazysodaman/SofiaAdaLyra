@@ -52,7 +52,7 @@ def test_core_link_desktop_fails_closed_without_importing_core(monkeypatch, caps
     monkeypatch.setenv("SOFIA_PLATFORM_ROLES", "CORE_LINK,MODULE_HOST")
     sys.modules.pop("sofia.core.launcher", None)
     assert launcher.main(["desktop"]) == 2
-    assert "refusing to instantiate a local Core" in capsys.readouterr().err
+    assert "SOFIA_CORE_LINK_BINDING_STORE is required" in capsys.readouterr().err
     assert "sofia.core.launcher" not in sys.modules
 
 
@@ -64,6 +64,38 @@ def test_python_module_status_path_does_not_import_core_in_fresh_process():
         "result=main(['status']); "
         "assert result == 0; "
         "assert 'sofia.core.launcher' not in sys.modules"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_core_link_desktop_diagnostic_does_not_import_any_core_package():
+    code = (
+        "import os,sys; "
+        "os.environ['SOFIA_PLATFORM_ROLES']='CORE_LINK,MODULE_HOST'; "
+        "os.environ.pop('SOFIA_CORE_LINK_BINDING_STORE',None); "
+        "from sofia.platform.launcher import main; "
+        "result=main(['desktop']); "
+        "assert result == 2; "
+        "assert not [name for name in sys.modules if name.startswith('sofia.core')]"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_core_link_tray_diagnostic_does_not_import_any_core_package():
+    code = (
+        "import os,sys; "
+        "os.environ['SOFIA_PLATFORM_ROLES']='CORE_LINK,MODULE_HOST'; "
+        "os.environ.pop('SOFIA_CORE_LINK_BINDING_STORE',None); "
+        "from sofia.platform.launcher import main; "
+        "result=main(['tray']); "
+        "assert result == 2; "
+        "assert not [name for name in sys.modules if name.startswith('sofia.core')]"
     )
     result = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, timeout=10,

@@ -1,40 +1,45 @@
-"""Portable Sofía component contracts with no runtime authority."""
+"""Portable component contracts, lazily loaded across package boundaries."""
+from __future__ import annotations
 
-from .contracts import (
-    AuthorityProjection,
-    ComponentEndpoint,
-    ComponentKind,
-    ComponentOutcome,
-    ComponentRequestEnvelope,
-    ComponentResponseEnvelope,
-    ProtocolVersion,
-    ProtocolVersionRange,
-    SDK_PROTOCOL_VERSION,
-    negotiate_protocol,
-)
-from .state import StateProjection, StateReadFacade, StateWriteFacade
-from .cognition import decode_request, decode_response, encode_request, encode_response
-from .core_link import CoreLinkRequest, CoreLinkResponse, CoreLinkResponseStatus
+from importlib import import_module
 
-__all__ = [
-    "AuthorityProjection",
-    "ComponentEndpoint",
-    "ComponentKind",
-    "ComponentOutcome",
-    "ComponentRequestEnvelope",
-    "ComponentResponseEnvelope",
-    "ProtocolVersion",
-    "ProtocolVersionRange",
-    "SDK_PROTOCOL_VERSION",
-    "StateProjection",
-    "StateReadFacade",
-    "StateWriteFacade",
-    "negotiate_protocol",
-    "decode_request",
-    "decode_response",
-    "encode_request",
-    "encode_response",
-    "CoreLinkRequest",
-    "CoreLinkResponse",
-    "CoreLinkResponseStatus",
-]
+
+_EXPORTS = {
+    **{
+        name: ("contracts", name) for name in (
+            "AuthorityProjection", "ComponentEndpoint", "ComponentKind",
+            "ComponentOutcome", "ComponentRequestEnvelope",
+            "ComponentResponseEnvelope", "ProtocolVersion",
+            "ProtocolVersionRange", "SDK_PROTOCOL_VERSION",
+            "negotiate_protocol",
+        )
+    },
+    **{
+        name: ("state", name) for name in (
+            "StateProjection", "StateReadFacade", "StateWriteFacade",
+        )
+    },
+    **{
+        name: ("cognition", name) for name in (
+            "decode_request", "decode_response", "encode_request",
+            "encode_response",
+        )
+    },
+    **{
+        name: ("core_link", name) for name in (
+            "CoreLinkRequest", "CoreLinkResponse", "CoreLinkResponseStatus",
+        )
+    },
+}
+
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name: str):
+    target = _EXPORTS.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute = target
+    value = getattr(import_module(f"{__name__}.{module_name}"), attribute)
+    globals()[name] = value
+    return value

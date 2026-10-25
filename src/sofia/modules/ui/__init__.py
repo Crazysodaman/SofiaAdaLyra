@@ -1,69 +1,50 @@
-"""PKG-UI text-first desktop, tray and draft primitives.
+"""PKG-UI exports loaded lazily for Core-free Platform clients."""
+from __future__ import annotations
 
-UI presents and transports already-authorized Sofía interaction. It does not
-own identity, cognition, memory, authentication, interaction semantics, or
-external-action authority.
-"""
+from importlib import import_module
 
-from sofia.modules.ui.desktop_controller import DesktopWorkbenchController
-from sofia.modules.ui.drafts import UIDraft, UIDraftStore
-from sofia.modules.ui.quick_tools import (
-    QUICK_TOOLS,
-    QuickTool,
-    quick_tool_by_label,
-    quick_tool_labels,
-)
-from sofia.modules.ui.text import UITextClient, UITextMessage
-from sofia.modules.ui.terminal import ConversationLoop
-from sofia.modules.ui.theme import (
-    AdaptiveThemePolicy,
-    ThemePalette,
-    ThemeSignals,
-    canonical_theme,
-    theme_signals_from_sources,
-)
-from sofia.modules.ui.control_center import (
-    DesktopControlSettings,
-    DesktopControlSettingsStore,
-    GameMode,
-    MASTER_SETTINGS_SECTIONS,
-    RemoteChatMode,
-    ServiceAction,
-    ServiceKind,
-    ServiceTarget,
-    TrayCommand,
-    TrayStatus,
-    tray_command_enabled,
-    tray_command_requires_confirmation,
-    tray_menu_labels,
-)
-__all__ = [
-    'AdaptiveThemePolicy',
-    'ConversationLoop',
-    'DesktopWorkbenchController',
-    'QUICK_TOOLS',
-    'QuickTool',
-    'ThemePalette',
-    'ThemeSignals',
-    'UIDraft',
-    'UIDraftStore',
-    'UITextClient',
-    'UITextMessage',
-    'canonical_theme',
-    'quick_tool_by_label',
-    'quick_tool_labels',
-    'theme_signals_from_sources',
-    'DesktopControlSettings',
-    'DesktopControlSettingsStore',
-    'GameMode',
-    'MASTER_SETTINGS_SECTIONS',
-    'RemoteChatMode',
-    'ServiceAction',
-    'ServiceKind',
-    'ServiceTarget',
-    'TrayCommand',
-    'TrayStatus',
-    'tray_command_enabled',
-    'tray_command_requires_confirmation',
-    'tray_menu_labels',
-]
+
+_EXPORTS = {
+    "DesktopWorkbenchController": ("desktop_controller", "DesktopWorkbenchController"),
+    "UIDraft": ("drafts", "UIDraft"),
+    "UIDraftStore": ("drafts", "UIDraftStore"),
+    "QUICK_TOOLS": ("quick_tools", "QUICK_TOOLS"),
+    "QuickTool": ("quick_tools", "QuickTool"),
+    "quick_tool_by_label": ("quick_tools", "quick_tool_by_label"),
+    "quick_tool_labels": ("quick_tools", "quick_tool_labels"),
+    "UITextClient": ("text", "UITextClient"),
+    "UITextMessage": ("text", "UITextMessage"),
+    "ConversationLoop": ("terminal", "ConversationLoop"),
+    "AdaptiveThemePolicy": ("theme", "AdaptiveThemePolicy"),
+    "ThemePalette": ("theme", "ThemePalette"),
+    "ThemeSignals": ("theme", "ThemeSignals"),
+    "canonical_theme": ("theme", "canonical_theme"),
+    "theme_signals_from_sources": ("theme", "theme_signals_from_sources"),
+    "DesktopControlSettings": ("control_center", "DesktopControlSettings"),
+    "DesktopControlSettingsStore": ("control_center", "DesktopControlSettingsStore"),
+    "GameMode": ("control_center", "GameMode"),
+    "MASTER_SETTINGS_SECTIONS": ("control_center", "MASTER_SETTINGS_SECTIONS"),
+    "RemoteChatMode": ("control_center", "RemoteChatMode"),
+    "ServiceAction": ("control_center", "ServiceAction"),
+    "ServiceKind": ("control_center", "ServiceKind"),
+    "ServiceTarget": ("control_center", "ServiceTarget"),
+    "TrayCommand": ("control_center", "TrayCommand"),
+    "TrayStatus": ("control_center", "TrayStatus"),
+    "tray_command_enabled": ("control_center", "tray_command_enabled"),
+    "tray_command_requires_confirmation": (
+        "control_center", "tray_command_requires_confirmation",
+    ),
+    "tray_menu_labels": ("control_center", "tray_menu_labels"),
+}
+
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name: str):
+    target = _EXPORTS.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute = target
+    value = getattr(import_module(f"{__name__}.{module_name}"), attribute)
+    globals()[name] = value
+    return value

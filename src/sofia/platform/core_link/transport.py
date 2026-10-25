@@ -16,16 +16,20 @@ from pathlib import Path
 import re
 import ssl
 from threading import BoundedSemaphore
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 from sofia.platform.core_link.binding import (
     CoreLinkBinding, CoreLinkBindingState, CoreLinkBindingStore,
 )
-from sofia.platform.core_link.conversation import CoreLinkConversationGateway
 from sofia.platform.distributed.tls import (
     public_key_fingerprint_from_der_certificate,
 )
-from sofia.sdk import CoreLinkRequest, CoreLinkResponse, CoreLinkResponseStatus
+from sofia.sdk.core_link import (
+    CoreLinkRequest, CoreLinkResponse, CoreLinkResponseStatus,
+)
+
+if TYPE_CHECKING:
+    from sofia.platform.core_link.conversation import CoreLinkConversationGateway
 
 
 _FP = re.compile(r"^[0-9a-f]{64}$")
@@ -94,12 +98,14 @@ class CoreLinkServer:
 
     def __init__(
         self, configuration: CoreLinkServerConfiguration,
-        gateway: CoreLinkConversationGateway,
+        gateway: "CoreLinkConversationGateway",
     ) -> None:
         if not isinstance(configuration, CoreLinkServerConfiguration):
             raise TypeError("configuration must be CoreLinkServerConfiguration")
-        if not isinstance(gateway, CoreLinkConversationGateway):
-            raise TypeError("gateway must be CoreLinkConversationGateway")
+        if not callable(getattr(gateway, "dispatch", None)) or not callable(
+            getattr(gateway, "close", None)
+        ):
+            raise TypeError("gateway must expose dispatch() and close()")
         self.configuration = configuration
         self.gateway = gateway
         self._capacity = BoundedSemaphore(configuration.max_inflight_requests)

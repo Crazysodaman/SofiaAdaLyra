@@ -35,6 +35,9 @@ from sofia.sdk import (
     CoreLinkResponse, CoreLinkResponseStatus, ProtocolVersion,
 )
 from test.owner_auth_fixture import record_verified_owner_approval
+from sofia.modules.ui.core_link_desktop import (
+    CoreLinkDesktopClient, CoreLinkDesktopStateStore,
+)
 
 
 NOW = datetime(2026, 10, 25, 18, tzinfo=timezone.utc)
@@ -276,11 +279,45 @@ def test_real_application_core_link_turn_is_deduplicated_and_audience_scoped(
             generation_provider=lambda: 7,
             clock=lambda: NOW + timedelta(seconds=1),
         )
+        create_request = request(
+            "conversation.create", {}, idempotency_key="session:stable-owner",
+        )
         created = gateway.dispatch(
             certificate_public_key_sha256="a" * 64,
-            request=request("conversation.create", {}),
+            request=create_request,
         )
         session_id = created.payload["session_id"]
+        create_replay = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64,
+            request=create_request,
+        )
+        assert create_replay.payload["session_id"] == session_id
+        gateway.close()
+        gateway = CoreLinkConversationGateway(
+            application, access_store=store,
+            remote_platform_id="platform:canonical",
+            remote_core_identity_id="core:sofia",
+            generation_provider=lambda: 7,
+            clock=lambda: NOW + timedelta(seconds=1),
+        )
+        restarted_replay = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64,
+            request=create_request,
+        )
+        assert restarted_replay.payload["session_id"] == session_id
+        gateway.session_requests.claim(
+            client_id=access().client_id,
+            idempotency_key="session:interrupted-create",
+            now=NOW + timedelta(milliseconds=1),
+        )
+        interrupted_create = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64,
+            request=request(
+                "conversation.create", {},
+                idempotency_key="session:interrupted-create",
+            ),
+        )
+        assert interrupted_create.status is CoreLinkResponseStatus.OUTCOME_UNKNOWN
         stable = "turn:stable-owner-1"
         first = gateway.dispatch(
             certificate_public_key_sha256="a" * 64,
@@ -476,6 +513,18 @@ def test_pinned_mtls_core_link_runs_real_remote_conversation_without_local_core(
         ))
         assert sent.status is CoreLinkResponseStatus.COMPLETED
         assert sent.payload["receipt"]["source_device_id"] == host_access.client_id
+
+        remote_ui = CoreLinkDesktopClient(
+            client, binding,
+            CoreLinkDesktopStateStore(
+                (binding_root / "desktop-state.json").resolve(), binding,
+            ),
+            clock=lambda: NOW + timedelta(seconds=1),
+        )
+        assert remote_ui.start() == ()
+        rendered = remote_ui.send("Desktop through the authenticated Core Link")
+        assert [message.actor for message in rendered] == ["user", "sofia"]
+        assert not any(path.suffix == ".db" for path in binding_root.iterdir())
 
         corrupt = replace(binding, trust_anchor_ref="sha256:" + "0" * 64)
         quarantined_root = tmp_path / "client-corrupt"

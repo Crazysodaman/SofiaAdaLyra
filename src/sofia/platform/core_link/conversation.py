@@ -1,8 +1,10 @@
 """Authenticated Core-host conversation boundary for thin Platform clients."""
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timezone
 from hashlib import sha256
+import sqlite3
 from threading import RLock
 from typing import Protocol
 
@@ -15,6 +17,7 @@ from sofia.core.conversation.lifelong import (
 from sofia.platform.core_link.access import (
     CoreLinkClientAccess, CoreLinkClientAccessStore,
 )
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.sdk import (
     CoreLinkRequest, CoreLinkResponse, CoreLinkResponseStatus,
     SDK_PROTOCOL_VERSION,
@@ -23,6 +26,73 @@ from sofia.sdk import (
 
 class CoreLinkApplication(Protocol):
     def open_channel_conversation(self, *, session_id: str | None = None): ...
+
+
+class CoreLinkSessionRequestStore:
+    """Durable create-session idempotency without a second state authority."""
+
+    def __init__(self, state_path) -> None:
+        self._guard = CanonicalSQLiteGuard(state_path)
+        with closing(self._connect()) as database, database:
+            database.execute(
+                """CREATE TABLE IF NOT EXISTS core_link_session_request(
+                client_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                request_digest TEXT NOT NULL,
+                state TEXT NOT NULL CHECK(state IN ('claimed','completed')),
+                session_id TEXT,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY(client_id,idempotency_key)
+                )"""
+            )
+
+    def _connect(self) -> sqlite3.Connection:
+        database = self._guard.connect(timeout=10)
+        database.execute("PRAGMA busy_timeout=10000")
+        return database
+
+    def claim(
+        self, *, client_id: str, idempotency_key: str, now: datetime,
+    ) -> tuple[str, str | None]:
+        digest = sha256(b"conversation.create:v1").hexdigest()
+        with closing(self._connect()) as database:
+            database.execute("BEGIN IMMEDIATE")
+            row = database.execute(
+                """SELECT request_digest,state,session_id
+                FROM core_link_session_request
+                WHERE client_id=? AND idempotency_key=?""",
+                (client_id, idempotency_key),
+            ).fetchone()
+            if row is not None:
+                if row[0] != digest:
+                    raise CanonicalTurnConflict(
+                        "Core Link idempotency key names another request"
+                    )
+                database.commit()
+                return str(row[1]), row[2]
+            database.execute(
+                """INSERT INTO core_link_session_request(
+                client_id,idempotency_key,request_digest,state,session_id,updated_at
+                ) VALUES(?,?,?,'claimed',NULL,?)""",
+                (client_id, idempotency_key, digest, now.isoformat()),
+            )
+            database.commit()
+            return "new", None
+
+    def settle(
+        self, *, client_id: str, idempotency_key: str,
+        session_id: str, now: datetime,
+    ) -> None:
+        with closing(self._connect()) as database, database:
+            cursor = database.execute(
+                """UPDATE core_link_session_request
+                SET state='completed',session_id=?,updated_at=?
+                WHERE client_id=? AND idempotency_key=?
+                AND state='claimed' AND session_id IS NULL""",
+                (session_id, now.isoformat(), client_id, idempotency_key),
+            )
+            if cursor.rowcount != 1:
+                raise RuntimeError("Core Link session claim could not settle")
 
 
 class CoreLinkConversationGateway:
@@ -61,6 +131,7 @@ class CoreLinkConversationGateway:
         self.generation_provider = generation_provider
         self.clock = clock
         self.max_open_sessions = max_open_sessions
+        self.session_requests = CoreLinkSessionRequestStore(access_store.path)
         self._services: dict[tuple[str, str], object] = {}
         self._lock = RLock()
 
@@ -165,7 +236,31 @@ class CoreLinkConversationGateway:
             }
         elif operation == "conversation.create":
             self._exact(payload, set())
+            request_state, session_id = self.session_requests.claim(
+                client_id=access.client_id,
+                idempotency_key=request.idempotency_key,
+                now=now,
+            )
+            if request_state == "claimed":
+                return CoreLinkResponse(
+                    request.request_id, CoreLinkResponseStatus.OUTCOME_UNKNOWN,
+                    {"state": "create_claimed"}, now,
+                )
+            if request_state == "completed":
+                if session_id is None:
+                    raise RuntimeError("completed Core Link session has no identity")
+                service = self._service(access, session_id)
+                return CoreLinkResponse(
+                    request.request_id, CoreLinkResponseStatus.COMPLETED,
+                    {"session_id": service.session_id}, now,
+                )
             service = self._service(access, None)
+            self.session_requests.settle(
+                client_id=access.client_id,
+                idempotency_key=request.idempotency_key,
+                session_id=service.session_id,
+                now=self.clock(),
+            )
             result = {"session_id": service.session_id}
         elif operation == "conversation.select":
             self._exact(payload, {"session_id"})

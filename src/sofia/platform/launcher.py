@@ -54,6 +54,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(payload, sort_keys=True))
             return 0
 
+        roles = _roles()
+        if (
+            args.command in {"desktop", "tray"}
+            and not roles.supports(PlatformRole.CORE_HOST)
+            and roles.supports(PlatformRole.CORE_LINK)
+        ):
+            if args.command == "desktop":
+                from sofia.modules.ui.core_link_desktop import run_core_link_desktop
+
+                return run_core_link_desktop()
+            from sofia.modules.ui.core_link_tray import run_core_link_tray
+
+            return run_core_link_tray()
+
         _require_local_core(args.command)
         if args.command == "desktop":
             from sofia.core.launcher import main as core_main

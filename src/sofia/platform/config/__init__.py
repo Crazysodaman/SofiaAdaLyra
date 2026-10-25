@@ -1,54 +1,41 @@
-﻿from sofia.platform.config.authority import (
-    ConfigurationPrecedence,
-    ConfigurationResolver,
-    ConfigurationValue,
-)
-from sofia.platform.config.defaults import (
-    create_default_configuration,
-    create_production_configuration,
-    production_state_path,
-    production_storage_layout,
-)
-from sofia.platform.config.model_catalog import (
-    DEFAULT_PROVIDER_MODEL,
-    LOCAL_MODEL_PRESETS,
-    RECOMMENDED_PRIMARY_MODEL,
-    RECOMMENDED_SECONDARY_MODEL,
-    known_local_model_names,
-)
-from sofia.platform.config.model import (
-    CoreWorkerConfiguration,
-    CognitiveRoutingConfiguration,
-    FleetBootstrapConfiguration,
-    FleetCognitionConfiguration,
-    FleetDiscoveryConfiguration,
-    ModelLifecycleConfiguration,
-    ProviderConfiguration,
-    SofiaConfiguration,
-)
-from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
+"""Platform configuration exports loaded lazily for role-only clients."""
+from __future__ import annotations
 
-__all__ = [
-    "ConfigurationPrecedence",
-    "ConfigurationResolver",
-    "ConfigurationValue",
-    "DEFAULT_PROVIDER_MODEL",
-    "LOCAL_MODEL_PRESETS",
-    "CognitiveRoutingConfiguration",
-    "CoreWorkerConfiguration",
-    "FleetBootstrapConfiguration",
-    "FleetCognitionConfiguration",
-    "FleetDiscoveryConfiguration",
-    "ModelLifecycleConfiguration",
-    "ProviderConfiguration",
-    "PlatformRole",
-    "PlatformRoleConfiguration",
-    "SofiaConfiguration",
-    "RECOMMENDED_PRIMARY_MODEL",
-    "RECOMMENDED_SECONDARY_MODEL",
-    "known_local_model_names",
-    "create_default_configuration",
-    "create_production_configuration",
-    "production_state_path",
-    "production_storage_layout",
-]
+from importlib import import_module
+
+
+_EXPORTS = {
+    **{name: ("authority", name) for name in (
+        "ConfigurationPrecedence", "ConfigurationResolver", "ConfigurationValue",
+    )},
+    **{name: ("defaults", name) for name in (
+        "create_default_configuration", "create_production_configuration",
+        "production_state_path", "production_storage_layout",
+    )},
+    **{name: ("model_catalog", name) for name in (
+        "DEFAULT_PROVIDER_MODEL", "LOCAL_MODEL_PRESETS",
+        "RECOMMENDED_PRIMARY_MODEL", "RECOMMENDED_SECONDARY_MODEL",
+        "known_local_model_names",
+    )},
+    **{name: ("model", name) for name in (
+        "CoreWorkerConfiguration", "CognitiveRoutingConfiguration",
+        "FleetBootstrapConfiguration", "FleetCognitionConfiguration",
+        "FleetDiscoveryConfiguration", "ModelLifecycleConfiguration",
+        "ProviderConfiguration", "SofiaConfiguration",
+    )},
+    **{name: ("roles", name) for name in (
+        "PlatformRole", "PlatformRoleConfiguration",
+    )},
+}
+
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name: str):
+    target = _EXPORTS.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute = target
+    value = getattr(import_module(f"{__name__}.{module_name}"), attribute)
+    globals()[name] = value
+    return value
