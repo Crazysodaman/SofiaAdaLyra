@@ -145,6 +145,16 @@ Separate independently acting Core identities on separate enrolled Platform inst
 
 A second Platform running the **same** canonical Core identity is not an independent companion: a standby cannot act or write; dual-active instances for one identity remain blocked until externally verified writer/generation fencing and separate owner approval. Untrusted peer messages never become system instructions or automatically merged memories. The plan reuses existing REL, EMOTION, Social, ACT and Fleet owners; CORE-35–38 self-improvement remains on its existing roadmap.
 
+## Approved Universal Platforms, Core Link and explicit Core pairing (2026-10-25)
+
+See [Universal Platform, Core Link and Multi-Core Binding V1](UNIVERSAL_PLATFORM_CORE_LINK_AND_MULTI_CORE_BINDING_V1.md).
+
+**Every Platform is Core-capable; no Core is mandatory.** \`CORE_HOST\` runs a separately installed real Core with its exact protected identity and sole active writer; \`CORE_LINK\` is a minimal authenticated client that connects to a reviewed remote Core **without installing Sofía's cognition, personality, Constitution or memory database**; \`MODULE_HOST\` runs locally approved modules without a Core. These are composable roles, not different Platform implementations. The headless Debian VM can host the canonical Sofía Core while Windows/Linux GUI clients and module agents run Core-free Platform instances.
+
+**Never auto-pair, auto-select or auto-install a Core from network discovery.** New discovered Core identities are untrusted candidates. Initial connection and any additional Core require exact authenticated owner pairing. A previously paired Sofía remains pinned when Roland/Lyda/John appears; an offline selected Core does not trigger silent identity, endpoint or model substitution. Separate Core identities retain independent canonical writers, memories, audiences and history. A \`CORE_LINK\` is **not** an independent Core peer or autonomous duplicate of Sofía.
+
+Global settings are saved/applied only by the Core's canonical Platform via authenticated revisioned SDK, while host/device/client settings belong to each enrolled local Platform. Where supported, field-level \`LIVE\` or \`NEXT_OPERATION\` changes must apply and synchronize **without restarting Core or Platform**, with separate durable saved/effective receipts. Worker-only code changes affect that worker; Platform ABI/security releases may still require a supervised Platform restart. The present desktop/tray still uses local \`sofia.db\`, and the current unified wheel still bundles Core; client API, packaging split and true cross-host settings must be implemented and tested before headless canonical cutover.
+
 ## Future architecture revisions
 
 Any change to a critical boundary requires: evidence of current behavior; ADR-style decision; compatibility contract; narrow implementation batch; rollback; source-specific tests; explicit approval if protected authority or canonical writer would change. A new version label alone does not justify a rewrite.
