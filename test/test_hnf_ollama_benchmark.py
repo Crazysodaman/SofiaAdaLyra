@@ -92,36 +92,42 @@ def test_cancellation_never_contacts_provider_when_already_set() -> None:
 def test_llm_benchmark_runs_only_from_fresh_verified_inventory_via_run(
     canonical_state_path,
 ) -> None:
+    # Derive the short-lived observation window when this test executes, not
+    # when pytest imports the module.  In the full Core suite collection can
+    # precede execution by several minutes; using module-level NOW here made
+    # genuinely stale telemetry and correctly triggered the production
+    # fail-closed path.
+    observed_at = datetime.now(timezone.utc)
     inventory = HardwareInventoryStore(
         canonical_state_path,
         enrollment_verifier=lambda host, reference, at: reference == "enrollment:worker",
     )
     static = CapabilityFact(
         "cpu.arch", "x86_64", None, "node:worker", "host:node-worker",
-        EvidenceClass.OBSERVED, "agent:worker", NOW, None, True,
+        EvidenceClass.OBSERVED, "agent:worker", observed_at, None, True,
     )
     record = inventory.record(
         host_id="node:worker", display_name="Renameable", facts=(static,),
-        observed_at=NOW, enrolled=True, trusted=True,
+        observed_at=observed_at, enrolled=True, trusted=True,
         enrollment_ref="enrollment:worker",
     )
     telemetry = HardwareTelemetryStore(canonical_state_path)
-    expires = NOW + timedelta(minutes=2)
+    expires = observed_at + timedelta(minutes=2)
     live = (
         CapabilityFact(
             "runtime.ollama.version", "0.12.4", None, "node:worker",
-            "runtime:ollama", EvidenceClass.OBSERVED, "agent:worker", NOW,
+            "runtime:ollama", EvidenceClass.OBSERVED, "agent:worker", observed_at,
             expires, True,
         ),
         CapabilityFact(
             "model[owner/exact:1].digest", DIGEST, None, "node:worker",
-            "model:owner-exact-1", EvidenceClass.OBSERVED, "agent:worker", NOW,
+            "model:owner-exact-1", EvidenceClass.OBSERVED, "agent:worker", observed_at,
             expires, True,
         ),
     )
     telemetry.record(
         host_id="node:worker", facts=live, source_ref="agent:worker",
-        observed_at=NOW,
+        observed_at=observed_at,
     )
 
     def supply(host_id):
@@ -142,9 +148,9 @@ def test_llm_benchmark_runs_only_from_fresh_verified_inventory_via_run(
     )
     coordinator.register_ollama_adapter(host_id="node:worker", adapter=adapter())
     try:
-        assert coordinator.queue_inventory(record, now=NOW) == 3
-        assert coordinator.schedule(now=NOW) == 3
-        assert manager.tick(now=NOW) == 3
+        assert coordinator.queue_inventory(record, now=observed_at) == 3
+        assert coordinator.schedule(now=observed_at) == 3
+        assert manager.tick(now=observed_at) == 3
         deadline = monotonic() + 5
         while monotonic() < deadline and any(
             job.status not in {WorkStatus.COMPLETED, WorkStatus.FAILED}
