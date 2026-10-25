@@ -623,3 +623,26 @@ Executed evidence:
 No production service, canonical writer, Fleet host, model or credential was
 changed. Next eligible work is the Core B08/PLAT-01–08 requirement audit and
 focused closure; ISO-04+, federation and generic restructuring remain deferred.
+
+### ISO-03 release-byte attestation follow-up
+
+Commit `a41d5900` closes a trust gap found during the Core/Platform audit. The
+release digest in the endpoint is no longer a parent-supplied label that the
+child merely echoes. Platform deterministically hashes the actual installed
+`sofia` package (excluding bytecode caches and rejecting symlinks), requires
+the configured digest to match before acquiring RUN authority, and places the
+same expectation in the process specification. The spawned child recomputes
+the digest from its own imported package before constructing an engine or
+reporting readiness. A forged parent claim therefore times out and the staged
+generation is quarantined; it never becomes ACTIVE.
+
+Focused Linux evidence: **13 passed** for the first attestation suite, then
+**77 passed** for Core worker, SDK contract, composition and configuration
+regressions including parent-side mismatch, child-side mismatch and symlink
+denial. A local wheel was built successfully at commit `6e638dd9`, installed
+into a disposable target and imported with the reviewed dependency
+environment; `python -m sofia --invalid` reached the installed launcher usage
+boundary. The first no-dependency import correctly failed because `ollama`
+was absent from that interpreter and is not counted as installed-runtime
+success. Exact-revision CI remains unavailable (`gh run list` returned HTTP
+403), and Windows/real-model acceptance remains open.

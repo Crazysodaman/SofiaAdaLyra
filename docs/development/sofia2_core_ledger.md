@@ -1237,3 +1237,16 @@ Core B08 remains **BETA**. Genuine Ollama conversation, Windows named-pipe and
 installed-wheel desktop/Discord acceptance, exact-revision CI, full broad
 Core completion, and independent review remain required before RELEASE
 CANDIDATE.
+
+### B08 release identity hardening
+
+Commit `a41d5900` binds isolated Core readiness to the actual installed Sofía
+package bytes on both sides of the authenticated process boundary. Platform
+rejects a configured digest mismatch before RUN acquisition; the child
+independently recomputes the package digest before engine construction and
+cannot become ACTIVE by echoing a forged endpoint identity. Symlinked package
+inputs fail closed. Focused affected suite: **77 passed** on local Linux.
+
+This improves B08 source-to-runtime evidence but does not change its **BETA**
+classification: genuine Ollama, Windows, full broad Core, matching-revision CI
+and independent review are still outstanding.
