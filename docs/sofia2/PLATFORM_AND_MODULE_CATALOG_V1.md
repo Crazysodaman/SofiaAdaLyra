@@ -251,6 +251,16 @@ placement:
 - **Implementation:** FED-01–08 acceptance slices in the linked decision record extend PLAT-03/04/07/08 and the established SDK/REL/ACT owners, without duplicating CORE-35–38 (Core awareness, supervised restart, verified self-update and code improvement) or permitting canonical writer migration.
 - **Rollout:** health/inert chat first; distinct Core-to-Core relationships second; scoped information offers third; reviewed collaboration fourth. B08/Core and process-isolation dependencies remain ahead of production federation claims.
 
+## 1.12 Universal Core-capable Platforms, Core Link and multi-Core pairing (owner-approved 2026-10-25)
+
+The approved [Universal Platform/Core Link/Multi-Core Binding V1](UNIVERSAL_PLATFORM_CORE_LINK_AND_MULTI_CORE_BINDING_V1.md) extends existing PLAT-01/02/03/04/05/07/08 and Core B08 acceptance, and defines LINK-01–08 implementation slices, **not a duplicate permission/scheduler/relationship subsystem**.
+
+- Install the same generic Platform foundation everywhere, capable of adding an owner-approved real Core later, but capable of running a \`CORE_LINK\`, \`MODULE_HOST\`, or both with **no Core executable/identity assets installed**. \`CORE_HOST\` separately installs authorized Core code and owns one canonical writer per distinct Core identity. A multi-Core host must prove full identity/state/writer isolation before use.
+- \`CORE_LINK\` is a versioned, scoped, cryptographically enrolled **remote UI/agent connector**, not a "dummy" cognitive Core. It stores only approved binding/credential references, local UI/device preferences and narrowly scoped drafts; it cannot fabricate messages or clone Sofía state.
+- Discovery is not trust: if one or several network Cores appear, none may connect, install or become selected absent an authenticated explicit pairing. Additional Cores require fresh owner selection/approval; a preexisting Sofía connection stays pinned and cannot silently shift to another Core with the same display name or a new endpoint.
+- The headless canonical Platform exposes authenticated Desktop/Tray endpoints and **global versioned Settings authority**; other Platforms keep only host/device/client settings locally and consume reviewed, authorized settings projections. Implement conflict-safe save/apply receipts, event/resync updates and no-restart \`LIVE\`/\`NEXT_OPERATION\` handlers. Restart only the affected isolated component when necessary; host Platform code/security updates may require supervisor restart.
+- **Source gaps:** current Windows desktop/tray instantiate local canonical Sofía/state and old remote-chat selection is disabled. Actual no-Core packaging, remote desktop/tray settings, enrollment and multi-tenant Core hosting are not production-ready. Implement LINK-01–08 with negative tests and normal startup before VM state cutover or certification.
+
 ## 2. Companion modules (implement **after** platform contracts and Gate-4 focused suites)
 
 | Module | Core capabilities | Mandatory interfaces | Gate-4 test minimum |
