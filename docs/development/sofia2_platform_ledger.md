@@ -659,3 +659,34 @@ skipped**, **2,281 deselected**, and **8 subtests passed** in 353.43 seconds.
 The Platform remains **BETA**. This local Linux result is not matching-revision
 CI, Windows acceptance, genuine model/Fleet commissioning, independent review,
 or permission to deploy.
+
+### Exact-commit Platform and release-verification campaign — 2026-10-25 UTC
+
+Exact tested source revision: `92b7c9b380256c4c1d34a13c07a0a3b03e4cd3b1`.
+
+- `pkg_ops and not integration`: **1,400 passed**, 5,664 deselected.
+- `pkg_safe and not integration`: **1,857 passed, 2 skipped**, 5,205
+  deselected, 23 subtests passed.
+- After repairing relocated evidence pointers while retaining byte-exact
+  original requirements, `pkg_verify and not integration`: **838 passed**,
+  6,226 deselected, 23 subtests passed.
+- The final exact-commit all-package non-integration run: **7,052 passed, 6
+  skipped, 6 deselected, 23 subtests passed** in 555.77 seconds.
+- The five-stage validator passed at the exact revision: 652 NOT_WORKED_ON,
+  16 CODED_UNFINISHED, 12 PRODUCTION_CODED, 100 TESTED, 0 TESTED_CI, and
+  133/780 targeted evidence records. These counts were not promoted by this
+  campaign.
+- Disposable wheel build/install passed. Wheel size: 15,076,025 bytes;
+  SHA-256 `5d487324d71b64f3fe4f059ced51702852b99af56547fba019b08738b19c15f6`.
+  The installed Windows-startup helper resolves the import parent containing
+  `sofia`, and the installed launcher reached its usage contract.
+
+The first full run was not green (**7,042 passed, 6 skipped, 10 failed**). It
+correctly exposed nine import-time freshness fixture defects and one actual
+Windows package-root regression; commit `92b7c9b3` fixes those shared causes.
+No production freshness, authorization, STOP or execution boundary was
+weakened.
+
+Platform remains **BETA**. Matching-revision GitHub CI is unavailable to this
+environment, Windows and real Fleet/model commissioning were not performed,
+and independent review remains open; no RELEASE CANDIDATE claim is made.

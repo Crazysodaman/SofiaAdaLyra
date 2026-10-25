@@ -1272,3 +1272,32 @@ This closes the previously open local broad-Core test item. Core B08 remains
 **BETA** rather than RELEASE CANDIDATE: genuine configured Ollama, Windows
 named-pipe and installed Desktop/Discord host acceptance, matching-revision
 CI, and independent review remain unverified.
+
+### B08 complete local non-integration campaign — 2026-10-25 UTC
+
+Exact tested source revision: `92b7c9b380256c4c1d34a13c07a0a3b03e4cd3b1`.
+
+The first all-package run exposed ten failures hidden by shorter marker runs.
+Nine were bounded-evidence fixtures whose import-time observations, approvals
+or deadlines expired before execution in the nine-minute suite; production
+correctly denied the stale inputs. One was a real package-restructure defect:
+Windows tray startup returned the `sofia` package directory instead of its
+import parent. Fixtures now establish time-bounded evidence per test, and the
+launcher resolves the correct import root in editable and installed layouts.
+Stale-evidence production checks were not relaxed.
+
+Executed evidence:
+
+- Directly affected freshness, module RUN, Windows startup and HTTP resource
+  cleanup regressions: **32 passed**.
+- Full exact-commit `pytest -q -m "not integration"`: **7,052 passed, 6
+  skipped, 6 deselected, 23 subtests passed** in 555.77 seconds.
+- A clean wheel was built without dependency resolution (15,076,025 bytes;
+  SHA-256 `5d487324d71b64f3fe4f059ced51702852b99af56547fba019b08738b19c15f6`),
+  installed into disposable state, and its Windows startup root was verified
+  to contain the installed `sofia` package. The installed launcher reached
+  its documented usage boundary.
+
+This is broad local Linux and installed-wheel evidence, not genuine Windows,
+Desktop/Discord, Ollama, matching-revision CI, or independent review. Core
+therefore remains **BETA**.
