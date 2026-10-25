@@ -18,11 +18,12 @@ NOW = datetime.now(timezone.utc)
 GIB = 1024 ** 3
 
 
-def fact(host, key, value, *, resource=None, unit=None):
+def fact(host, key, value, *, resource=None, unit=None, observed_at=None):
+    moment = observed_at or NOW
     return CapabilityFact(
         key, value, unit, host, resource or f"host:{host}",
-        EvidenceClass.OBSERVED, f"agent:{host}", NOW,
-        NOW + timedelta(minutes=2), True,
+        EvidenceClass.OBSERVED, f"agent:{host}", moment,
+        moment + timedelta(minutes=2), True,
     )
 
 
@@ -141,6 +142,7 @@ def test_vm_and_parent_resources_are_evaluated_independently() -> None:
 def test_production_ops_uses_typed_inventory_and_not_host_names(
     canonical_state_path,
 ) -> None:
+    observed_at = datetime.now(timezone.utc)
     service = OpsToolService(canonical_state_path)
     node_id = uuid4()
     service.registry.register_candidate(FleetHost(
@@ -154,14 +156,17 @@ def test_production_ops_uses_typed_inventory_and_not_host_names(
     service.registry.transition("node:portable", HostLifecycle.HEALTHY)
     service.hardware_inventory.record(
         host_id="node:portable", display_name="Owner Can Rename This", facts=(
-            fact("node:portable", "os.family", "linux"),
-            fact("node:portable", "cpu.arch", "x86_64"),
-            fact("node:portable", "memory.allocatable_bytes", 12 * GIB, unit="bytes"),
-        ), observed_at=NOW, enrolled=True, trusted=True,
+            fact("node:portable", "os.family", "linux", observed_at=observed_at),
+            fact("node:portable", "cpu.arch", "x86_64", observed_at=observed_at),
+            fact(
+                "node:portable", "memory.allocatable_bytes", 12 * GIB,
+                unit="bytes", observed_at=observed_at,
+            ),
+        ), observed_at=observed_at, enrolled=True, trusted=True,
         enrollment_ref=f"fleet-node:{node_id}",
     )
     service.activity.record(HostActivityObservation(
-        "node:portable", ActivityMode.IDLE, NOW, "authenticated-agent",
+        "node:portable", ActivityMode.IDLE, observed_at, "authenticated-agent",
     ))
     requirements = (
         requirement("os", equals("os.family", "linux")),

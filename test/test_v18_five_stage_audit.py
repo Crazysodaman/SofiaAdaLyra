@@ -59,7 +59,7 @@ def test_all_required_evidence_paths_needed_for_partial_status(tmp_path):
 
 def test_source_and_regression_trace_produces_only_stage_two(tmp_path, monkeypatch):
     fixture_repo(tmp_path)
-    source = tmp_path / "src" / "sofia" / "life" / "coordinator.py"
+    source = tmp_path / "src" / "sofia" / "core" / "life" / "coordinator.py"
     regression = tmp_path / "test" / "test_life.py"
     for path in (source, regression):
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -78,7 +78,7 @@ def test_sparse_audited_evidence_promotes_only_exact_task(tmp_path):
     import json
 
     fixture_repo(tmp_path)
-    source = tmp_path / "src" / "sofia" / "life" / "coordinator.py"
+    source = tmp_path / "src" / "sofia" / "core" / "life" / "coordinator.py"
     source.parent.mkdir(parents=True, exist_ok=True)
     source.write_text("# reviewed production source\n", encoding="utf-8")
     evidence = tmp_path / module.EVIDENCE_FILE

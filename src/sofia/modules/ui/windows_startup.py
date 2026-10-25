@@ -17,7 +17,11 @@ class WindowsStartupUnavailable(RuntimeError):
 def _package_root() -> Path:
     """Return the directory that contains the top-level sofia package."""
 
-    return Path(__file__).resolve().parents[2]
+    # ``windows_startup.py`` lives at ``sofia/modules/ui`` in both an editable
+    # source tree and an installed wheel.  The import root is therefore the
+    # parent of the top-level ``sofia`` package, not the package directory
+    # itself.
+    return Path(__file__).resolve().parents[3]
 
 
 def tray_startup_command(*, state_path: Path | None = None) -> str:

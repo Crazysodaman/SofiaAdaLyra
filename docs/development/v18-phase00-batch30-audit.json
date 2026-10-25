@@ -69,7 +69,7 @@
     },
     {
       "id": "CA-004",
-      "source": "src/sofia/cognition/v2/kernel.py",
+      "source": "src/sofia/core/cognition/v2/kernel.py",
       "source_anchor": "class ProductionTurnKernel",
       "related_test": "test/test_cognition_v2_turn_kernel.py",
       "observed_source": "Single turn-sequencing owner implemented",
@@ -169,7 +169,7 @@
     },
     {
       "id": "CA-1202",
-      "source": "src/sofia/life/model.py",
+      "source": "src/sofia/core/life/model.py",
       "source_anchor": "PROJECT_TRANSITIONS",
       "related_test": "test/test_life_state_graph_contract.py",
       "observed_source": "LIFE state transitions and uncertain-work blocking coded",
@@ -189,7 +189,7 @@
     },
     {
       "id": "CA-1203",
-      "source": "src/sofia/cognition/budgets.py",
+      "source": "src/sofia/core/cognition/budgets.py",
       "source_anchor": "class ModelTokenBudget",
       "related_test": "test/test_cognitive_context_assembler.py",
       "observed_source": "Per-model route budgets are typed",
@@ -269,7 +269,7 @@
     },
     {
       "id": "CA-1207",
-      "source": "src/sofia/cognition/llm_engine.py",
+      "source": "src/sofia/core/cognition/llm_engine.py",
       "source_anchor": "class LLMCognitiveEngine",
       "related_test": "test/test_default_runtime_provider_boundary.py",
       "observed_source": "Typed provider error boundary exists",
@@ -289,7 +289,7 @@
     },
     {
       "id": "CA-1208",
-      "source": "src/sofia/memory/provenance_store.py",
+      "source": "src/sofia/core/memory/provenance_store.py",
       "source_anchor": "class DurableMemoryCandidateStore",
       "related_test": "test/test_memory_deletion_restore.py",
       "observed_source": "Provenance and scoped memory deletion tests exist",
@@ -369,7 +369,7 @@
     },
     {
       "id": "CA-3104",
-      "source": "src/sofia/life/model.py",
+      "source": "src/sofia/core/life/model.py",
       "source_anchor": "PROJECT_TRANSITIONS",
       "related_test": "test/test_life_run_outcome_reconciliation.py",
       "observed_source": "LIFE statuses and uncertain RUN outcomes modeled",
@@ -469,7 +469,7 @@
     },
     {
       "id": "CA-3109",
-      "source": "src/sofia/cognition/context_evidence.py",
+      "source": "src/sofia/core/cognition/context_evidence.py",
       "source_anchor": "def format_continuity_event",
       "related_test": "test/test_memory_provenance.py",
       "observed_source": "Source observations are projected to context; provenance exists",
@@ -529,7 +529,7 @@
     },
     {
       "id": "CA-3112",
-      "source": "src/sofia/voice/tts.py",
+      "source": "src/sofia/modules/voice/tts.py",
       "source_anchor": "class TTSPlaybackReceipt",
       "related_test": "test/test_avatar_presentation_runtime.py",
       "observed_source": "Voice playback receipt and headless avatar contracts exist",

@@ -14,7 +14,8 @@ from sofia.platform.ops.workload import WorkloadInstance, WorkloadPhase
 NOW = datetime.now(timezone.utc)
 
 
-def _host(host_id: str, cpu: float) -> FleetHost:
+def _host(host_id: str, cpu: float, *, observed_at=None) -> FleetHost:
+    moment = observed_at or datetime.now(timezone.utc)
     return FleetHost(
         host_id,
         "windows",
@@ -22,7 +23,7 @@ def _host(host_id: str, cpu: float) -> FleetHost:
         HostLifecycle.CANDIDATE,
         True,
         HostTelemetry(
-            NOW,
+            moment,
             cpu_percent=cpu,
             ram_used_bytes=1,
             ram_total_bytes=100,
@@ -31,18 +32,22 @@ def _host(host_id: str, cpu: float) -> FleetHost:
 
 
 def test_ops_tool_placement_uses_same_durable_game_mode_evidence(tmp_path):
+    observed_at = datetime.now(timezone.utc)
     state = tmp_path / "sofia.db"
     with sqlite3.connect(state):
         pass
 
     service = OpsToolService(state)
-    for host in (_host("venus", 5), _host("artemis", 30)):
+    for host in (
+        _host("venus", 5, observed_at=observed_at),
+        _host("artemis", 30, observed_at=observed_at),
+    ):
         service.registry.register_candidate(host)
         service.registry.transition(host.host_id, HostLifecycle.ENROLLED)
         service.registry.transition(host.host_id, HostLifecycle.HEALTHY)
 
-    service.activity.set_override("venus", ActivityMode.GAMING, at=NOW)
-    service.activity.set_override("artemis", ActivityMode.NORMAL, at=NOW)
+    service.activity.set_override("venus", ActivityMode.GAMING, at=observed_at)
+    service.activity.set_override("artemis", ActivityMode.NORMAL, at=observed_at)
 
     decision = service.choose_placement(
         {
@@ -58,17 +63,21 @@ def test_ops_tool_placement_uses_same_durable_game_mode_evidence(tmp_path):
 
 
 def test_ops_tool_can_explicitly_allow_interactive_host(tmp_path):
+    observed_at = datetime.now(timezone.utc)
     state = tmp_path / "sofia.db"
     with sqlite3.connect(state):
         pass
 
     service = OpsToolService(state)
-    for host in (_host("venus", 5), _host("artemis", 30)):
+    for host in (
+        _host("venus", 5, observed_at=observed_at),
+        _host("artemis", 30, observed_at=observed_at),
+    ):
         service.registry.register_candidate(host)
         service.registry.transition(host.host_id, HostLifecycle.ENROLLED)
         service.registry.transition(host.host_id, HostLifecycle.HEALTHY)
 
-    service.activity.set_override("venus", ActivityMode.GAMING, at=NOW)
+    service.activity.set_override("venus", ActivityMode.GAMING, at=observed_at)
 
     decision = service.choose_placement(
         {

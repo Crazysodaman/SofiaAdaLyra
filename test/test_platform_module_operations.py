@@ -41,6 +41,13 @@ from test.test_platform_module_command_service import authorize
 NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
 
+@pytest.fixture(autouse=True)
+def _fresh_operation_clock():
+    """Keep bounded approvals/deadlines fresh after long suite collection."""
+    global NOW
+    NOW = datetime.now(timezone.utc).replace(microsecond=0)
+
+
 class Adapter(ReviewedModuleAdapter):
     def __init__(self, package_digest, *, fail_start=False):
         self.package_digest = package_digest
@@ -168,7 +175,7 @@ def prepared(canonical_state_path, tmp_path, *, register_factory=True, fail_star
 
 
 def finish(manager, store, job_id):
-    manager.tick(now=NOW + timedelta(seconds=1))
+    manager.tick(now=datetime.now(timezone.utc))
     for _ in range(200):
         job = store.get(job_id)
         if job.status in {

@@ -109,6 +109,8 @@ def test_http_error_body_is_also_bounded(monkeypatch):
         def read(self, size=None):
             sizes.append(size)
             return b"s" * size
+        def close(self):
+            pass
 
     def fail(request, timeout):
         raise HTTPError(
