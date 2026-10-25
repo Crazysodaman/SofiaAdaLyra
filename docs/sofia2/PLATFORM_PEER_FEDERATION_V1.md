@@ -243,6 +243,12 @@ FED IDs are **Platform/relationship integration acceptance slices**, not new Cor
 11. Cross-platform version negotiation, key rotation, stale certificate, changed endpoint, wrong recipient, malicious spoofed SYSTEM prompt, data-offer prompt injection, unsupported schema, oversized payload, time skew and network partition fail safely.
 12. No compatibility shortcuts or mock-only release claims: record real process and separately approved live mTLS commissioning evidence before calling federation PRODUCTION READY.
 
+## 12.1 Relationship federation versus Core Link client connection
+
+The separate approved [Universal Platform/Core Link/Multi-Core Binding V1](UNIVERSAL_PLATFORM_CORE_LINK_AND_MULTI_CORE_BINDING_V1.md) defines the remote thin-client use case: a \`CORE_LINK\` displays and talks to an **existing Core** over an authenticated Platform API, but it is *not* an independently acting Core, cannot acquire a persona or originate a new Core-to-Core social relationship, and must not duplicate private Core memory.
+
+Independently thinking Roland/Lyda/John are **different signed/enrolled Core identity packages and protected state lineages**. A discovered Core advertisement grants zero trust or data permission; one or several detected candidates require explicit owner pairing for first/additional connection. Already paired Sofía stays pinned instead of "following" a different Core. Per-Core social relationships in FED-01–08 become possible only once distinct real Core identities and inbound/outbound federation scopes are independently verified. Core Link does not implement or imply any social federation by itself.
+
 ## 13. Rollout and operating boundaries
 
 Phase 1: authenticated Platform health and inert peer messaging; fake Cores and disposable state, no personal disclosure or effect authority.
