@@ -1,0 +1,848 @@
+{
+  "schema": "sofia.optional.beta_source_preflight.v1",
+  "claim": "source-only; never Platform readiness evidence",
+  "expected_optional_modules": 47,
+  "source_locally_parsed": 45,
+  "source_reported_remotely": 2,
+  "source_unobserved": 0,
+  "source_issues": 2,
+  "beta_verified": 0,
+  "beta_gates_missing_evidence": [
+    "owner_reviewed_package_id_mapping",
+    "exact_artifact_digests_and_approved_ed25519_signature",
+    "trusted_package_verification_and_manifest_parsing",
+    "reviewed_adapter_factory_matching_signed_digest",
+    "signed_maintenance_and_operation_profiles",
+    "authoritative_Platform_compatibility_and_resource_admission",
+    "Platform_lifecycle_staged_or_installed_record",
+    "RUN_SAFE_principal_target_and_approval_checks",
+    "isolation_and_restart_fault_testing",
+    "full_repository_CI_and_host_integration_evidence"
+  ],
+  "cross_module_issues": [],
+  "candidates": [
+    {
+      "module_id": "MOD-3D-PRINT",
+      "package_id_proposal": "mod.3d.print",
+      "capability_id": "printing3d.estimate_material.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/printing3d/analysis.py",
+      "source_sha256": "070538036de83c6faf95589a00c0e5be8fa8b1d9ba54826caf306e0eaf2affb7",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-AVATAR-STUDIO",
+      "package_id_proposal": "mod.avatar.studio",
+      "capability_id": "avatar_studio.review_asset_layers.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/avatar_studio/analysis.py",
+      "source_sha256": "3519046dfa8789883b978cc9dc0701e56b30a9e964ca318b854853367c30b97f",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-AVATAR3D",
+      "package_id_proposal": "mod.avatar3d",
+      "capability_id": "avatar3d.review_joint_pose.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/avatar3d/analysis.py",
+      "source_sha256": "d6f5bcd373ee8d9d42d9a3a8d494272f3235abb4ba5499119fdd3e2d43d02a3f",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-BROWSER",
+      "package_id_proposal": "mod.browser",
+      "capability_id": "browser.review_navigation_candidates.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/browser/analysis.py",
+      "source_sha256": "78763e41239e65903ddd6a176dac540b25f95550aaa88b3cca6d84d6311b84b6",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-CAD",
+      "package_id_proposal": "mod.cad",
+      "capability_id": "cad.simulate_plate.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/cad/analysis.py",
+      "source_sha256": "6f764f35c912adde0ec561596b0503213e9130c47e7a5c371e8cb3fb2466d1c8",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-CALENDAR",
+      "package_id_proposal": "mod.calendar",
+      "capability_id": "calendar.review_schedule_conflicts.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/calendar/analysis.py",
+      "source_sha256": "a873dc0dc0b352bb162013716da8ccff841603afa3539575431df564af955430",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-COMMUNICATIONS",
+      "package_id_proposal": "mod.communications",
+      "capability_id": "communications.review_delivery_receipts.v1",
+      "profile": "OBSERVE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/communications/analysis.py",
+      "source_sha256": "5e660f0854cd62c4ea3d005ebc4ef70bc4d705a2f1bd2a78f4c4b209b517d6af",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-CREATIVE",
+      "package_id_proposal": "mod.creative",
+      "capability_id": "creative.review_storyboard.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/creative_studio/analysis.py",
+      "source_sha256": "e24787656d9026a3b36900197efd3fb21d3f2c7e9a92c1ed195a33350b03cb96",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-DATA-ANALYTICS",
+      "package_id_proposal": "mod.data.analytics",
+      "capability_id": "data_analytics.summarize_numeric.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/data_analytics/analysis.py",
+      "source_sha256": "e12e2f57411019d7502332792c83a4e896116ed8bd42587e7a69e472dceb9aa3",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 100,
+        "gpu_mib": 0,
+        "ram_mib": 64
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-DESKTOP-ACT",
+      "package_id_proposal": "mod.desktop.act",
+      "capability_id": "desktop_automation.review_action_plan.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/desktop_automation/analysis.py",
+      "source_sha256": "78ea0eef5ba34f574bae86d385c3452b78d2177eeb02a144db8c8ad651b17d14",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-DEV",
+      "package_id_proposal": "mod.dev",
+      "capability_id": "dev.review_patch_manifest.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/development/analysis.py",
+      "source_sha256": "33200e1c456a3dd3b27147871a709cb2fb5f01b30139c213e603152526d46e8e",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-DIGITAL-TWIN",
+      "package_id_proposal": "mod.digital.twin",
+      "capability_id": "digital_twin.compare_scenarios.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/digital_twin/analysis.py",
+      "source_sha256": "93c0fb67c83544dd90ce6f6afcf83b3112e3f30b42e3f372dd8441d1ac7ed501",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-DOCUMENTS",
+      "package_id_proposal": "mod.documents",
+      "capability_id": "documents.render_safe_markdown.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/documents/analysis.py",
+      "source_sha256": "ae2b27a1c69cb1c5a360b751d93cd861e00cf59b2f5e3613222094dcb7d2c47a",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-ELECTRONICS",
+      "package_id_proposal": "mod.electronics",
+      "capability_id": "electronics.analyze_adc_divider.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/electronics/analysis.py",
+      "source_sha256": "09ba7bb0b26f2c83f7a3d68b1f8f981d36f57a9d14e1d35bd91f2a875584bf91",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-ENERGY",
+      "package_id_proposal": "mod.energy",
+      "capability_id": "energy.assess_ups.v1",
+      "profile": "OBSERVE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/energy/analysis.py",
+      "source_sha256": "ceae6708eb30ddc0841907c00b475bb940952507b06e13671a4e3c4e44ad8354",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-ENGINEERING",
+      "package_id_proposal": "mod.engineering",
+      "capability_id": "engineering.simulate_resistive_dc.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/engineering/analysis.py",
+      "source_sha256": "8b04658b39acc3cd651c6e863a07c368b10b8025741fd7314fd6dfcf5ac9b71a",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-FILE-WATCH",
+      "package_id_proposal": "mod.file.watch",
+      "capability_id": "file_watch.summarize_changes.v1",
+      "profile": "OBSERVE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/file_watch/analysis.py",
+      "source_sha256": "0fcf7be969296ebc2cf84685529c51864fca754f2e1280e463272fd9a538849a",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-FINANCE",
+      "package_id_proposal": "mod.finance",
+      "capability_id": "finance.review_budget_aggregates.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/finance/analysis.py",
+      "source_sha256": "f4d60adea3da8225744cc125cde8f7c16498d30ce0c12b0eb9d9a4424d1afd3e",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-GAMES",
+      "package_id_proposal": "mod.games",
+      "capability_id": "games.review_objective_state.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/games/analysis.py",
+      "source_sha256": "6796ac13546c7e9018c8db65488cd95fc88409ccfbbbaa0fe056f89ecf2a8ffd",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-GENERALIZATION",
+      "package_id_proposal": "mod.generalization",
+      "capability_id": "generalization.review_transfer_trials.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/generalization/analysis.py",
+      "source_sha256": "284041eda6ce572cd6d685dd1f2283e02b9c9d0877c9b01b4073cbfd9092cdce",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-HOMELAB",
+      "package_id_proposal": "mod.homelab",
+      "capability_id": "homelab.assess_services.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/homelab/analysis.py",
+      "source_sha256": "3394a021a08d854c022c9d58e21e2f4297d0ea06f86fbdf33c077a4f696751a0",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 80,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-HOUSEHOLD",
+      "package_id_proposal": "mod.household",
+      "capability_id": "household.review_inventory.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/household/analysis.py",
+      "source_sha256": "4a44f264b0d858be988a281ec160063b2e00ed822e6034c4acd6c80f37294935",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-BACKUP-DR",
+      "package_id_proposal": "mod.it.backup.dr",
+      "capability_id": "it.backup_dr.assess_recovery.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/it_backup_dr/analysis.py",
+      "source_sha256": "c6eb4d8c63435e7e8787c1abb82c7bab09deda4c47227c81b0dd88e3acc05138",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-CONTAINERS",
+      "package_id_proposal": "mod.it.containers",
+      "capability_id": "it.containers.interpret_inventory.v1",
+      "profile": "OBSERVE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/it_containers/analysis.py",
+      "source_sha256": "b5d08cd657f16a8c047ca6a6a0e06d38f7419bfd0c953e21e908d5d3a2b7942c",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-DATABASE",
+      "package_id_proposal": "mod.it.database",
+      "capability_id": "it.database.analyze_status.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/it_database/analysis.py",
+      "source_sha256": "12843e492624513cad9a160ef24ede31d0948565c8c334b0bbd83490ca14eac5",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-DEVOPS",
+      "package_id_proposal": "mod.it.devops",
+      "capability_id": "it.devops.assess_pipeline.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/it_devops/analysis.py",
+      "source_sha256": "a1bc6e0f41b9cd7f87ee31f1dc6994573eae69dd3e1e2a70e7e187eae0b81731",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-HELPDESK",
+      "package_id_proposal": "mod.it.helpdesk",
+      "capability_id": null,
+      "profile": null,
+      "version": null,
+      "source_path": "src/sofia/modules/it_helpdesk/triage.py",
+      "source_sha256": null,
+      "source_scope": "remote_source_report_not_locally_parsed",
+      "resources": {},
+      "source_issues": [
+        "local_source_unavailable"
+      ],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-NETWORK",
+      "package_id_proposal": "mod.it.network",
+      "capability_id": null,
+      "profile": null,
+      "version": null,
+      "source_path": "src/sofia/modules/it_network/diagnostics.py",
+      "source_sha256": null,
+      "source_scope": "remote_source_report_not_locally_parsed",
+      "resources": {},
+      "source_issues": [
+        "local_source_unavailable"
+      ],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-OBSERVABILITY",
+      "package_id_proposal": "mod.it.observability",
+      "capability_id": "it.observability.correlate.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/it_observability/correlation.py",
+      "source_sha256": "f45d8ae7d9548f80b850ba17567093871cf0babe0c74c2e5e1b81ba217d2e50a",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-SECURITY",
+      "package_id_proposal": "mod.it.security",
+      "capability_id": "it.security.triage_findings.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/it_security/analysis.py",
+      "source_sha256": "0527c2727ef36dc14865d2d059d163dc81737cc9902511304307cee3f9e4cc8e",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-STORAGE",
+      "package_id_proposal": "mod.it.storage",
+      "capability_id": "it.storage.analyze_volumes.v1",
+      "profile": "OBSERVE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/it_storage/analysis.py",
+      "source_sha256": "ba28de8b1a1eb13fad2627caa5d013557d24fe13816d4cafb59bcff8bf8041dc",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-IT-SYSTEMS",
+      "package_id_proposal": "mod.it.systems",
+      "capability_id": "it.systems.analyze_snapshot.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/it_systems/analysis.py",
+      "source_sha256": "f7e1636fb398de52ac7849d7691a4befdbe8eaa4337bcc4b10612c23f9f6c1ac",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-KNOWLEDGE-LIBRARY",
+      "package_id_proposal": "mod.knowledge.library",
+      "capability_id": "knowledge_library.plan_revision_index.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/knowledge_library/analysis.py",
+      "source_sha256": "13e7512238a5a99388a7f2a856093e2648334b26ffc5df1682dff82ff48c955a",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-MEDIA",
+      "package_id_proposal": "mod.media",
+      "capability_id": "media.review_timeline.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/media/analysis.py",
+      "source_sha256": "ed459fc345b7694c5a711b4bb621af65586b5b7b4746f4f70e318b1e7945931e",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-MENTOR",
+      "package_id_proposal": "mod.mentor",
+      "capability_id": "mentor.review_rubric_evidence.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/mentor_review/analysis.py",
+      "source_sha256": "373a026824b390a0aca611090d031cb4d44af411d76b861ee9c6f3c604f63a81",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-ML",
+      "package_id_proposal": "mod.ml",
+      "capability_id": "ml.review_classification_metrics.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/ml_evaluation/analysis.py",
+      "source_sha256": "604d0a6cbbe608010eb6d91422db3e0122098ab623ccbbed1436219d26c546ef",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-PRODUCTIVITY",
+      "package_id_proposal": "mod.productivity",
+      "capability_id": "productivity.review_task_dependencies.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/productivity/analysis.py",
+      "source_sha256": "a1b7d81385d2ff1a59e8937c54e7e957f72955ded714c5b05affddcda7757934",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-PROJECT-FORGE",
+      "package_id_proposal": "mod.project.forge",
+      "capability_id": "project_forge.review_artifact_manifest.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/project_forge/analysis.py",
+      "source_sha256": "f31ea0c43b86bd1f50785149df24a94b5fa55472ba34a28ee4d6f5fc138eb7fa",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-REMOTE-ACCESS",
+      "package_id_proposal": "mod.remote.access",
+      "capability_id": "remote_access.review_session.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/remote_access/analysis.py",
+      "source_sha256": "5b5a118b23a87e5dd685347eeefeb7e8607bd125043f25913c8597d2db13b71e",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-RESEARCH",
+      "package_id_proposal": "mod.research",
+      "capability_id": "research.compare_claim_sources.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/research/analysis.py",
+      "source_sha256": "7649337d0492b15e5dff93ab5ae7a148870f529a0487b793e53c576f748793e5",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-ROBOTICS-GAIA",
+      "package_id_proposal": "mod.robotics.gaia",
+      "capability_id": "gaia.simulate_leg_ik.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/robotics_gaia/kinematics.py",
+      "source_sha256": "351f0c4833719a6302232f2bd7b5284e642d992cfa7b30cd48a2edc7935f2833",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-SENSORS",
+      "package_id_proposal": "mod.sensors",
+      "capability_id": "sensors.interpret_readings.v1",
+      "profile": "OBSERVE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/sensors/readings.py",
+      "source_sha256": "61397e68c9a3e624a5ced602577475f99d35efc55704bc558dfc1199c8738fa0",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-SMART-HOME",
+      "package_id_proposal": "mod.smart.home",
+      "capability_id": "smart_home.review_entities.v1",
+      "profile": "OBSERVE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/smart_home/analysis.py",
+      "source_sha256": "e716542f681c4ea068278129d5e85ce5197010bab09b8ce5db99b86c3bb183ec",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 50,
+        "gpu_mib": 0,
+        "ram_mib": 32
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-TRAINS",
+      "package_id_proposal": "mod.trains",
+      "capability_id": "trains.review_route_projection.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/trains/analysis.py",
+      "source_sha256": "c83946937abaadcc11f2f6fc4f50860e437c714c13c6fd9c43c5d7cc18053256",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-VISION",
+      "package_id_proposal": "mod.vision",
+      "capability_id": "vision.review_detection_projection.v1",
+      "profile": "OBSERVE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/vision/projection_review.py",
+      "source_sha256": "bdaf6ee28b33385362de1bfaa0dd0a968aac56fa330749c344ee2697464cc808",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-VWORLD",
+      "package_id_proposal": "mod.vworld",
+      "capability_id": "virtual_world.review_placements.v1",
+      "profile": "SIMULATE",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/virtual_world/analysis.py",
+      "source_sha256": "ad7a69519be51adb3d49b89547523e51784bef09f9d37e135c4373c94fb8ee60",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    },
+    {
+      "module_id": "MOD-WORKSHOP",
+      "package_id_proposal": "mod.workshop",
+      "capability_id": "workshop.review_experiment_plan.v1",
+      "profile": "ADVISORY",
+      "version": "0.1.0",
+      "source_path": "src/sofia/modules/workshop/analysis.py",
+      "source_sha256": "28324f78d48b2ab055c588295b3237b75f7b840ba34958c9b94f1d01be6cca3c",
+      "source_scope": "locally_parsed_ast",
+      "resources": {
+        "cpu_millicores": 75,
+        "gpu_mib": 0,
+        "ram_mib": 48
+      },
+      "source_issues": [],
+      "beta_gate": "NOT_VERIFIED"
+    }
+  ],
+  "remote_github_baseline": "6d4687595fd0c648db18b1727b608e42ab4a82d8",
+  "remotely_inspected": {
+    "MOD-IT-HELPDESK": {
+      "git_blob_sha": "862c99990d743b9a9eea2868e1f1b23633aaef21",
+      "source_path": "src/sofia/modules/it_helpdesk/triage.py",
+      "version": "0.1.0",
+      "capability": "it.helpdesk.triage_evidence.v1",
+      "profile": "ADVISORY",
+      "source_inspected_via": "GitHub fetch_file",
+      "not_a_signature": true
+    },
+    "MOD-IT-NETWORK": {
+      "git_blob_sha": "d298f3b41ce56288006902ff001421d1f787f2b1",
+      "source_path": "src/sofia/modules/it_network/diagnostics.py",
+      "version": "0.1.0",
+      "capability": "it.network.interpret_snapshot.v1",
+      "profile": "OBSERVE",
+      "source_inspected_via": "GitHub fetch_file",
+      "not_a_signature": true
+    }
+  },
+  "limitations": [
+    "Only 45 candidates were re-parsed from an isolated source workspace. Five local sample Git blob SHA values matched the same remote main revision.",
+    "Two batch-1 sources were inspected through connected GitHub API; they were not executed or fully re-parsed in this local scanner.",
+    "GitHub source and isolated regression tests are not verified signed packages or lifecycle records.",
+    "No production host, package trust root, owner approvals, signed maintenance, live module registry or CI status was inspected by this report.",
+    "BETA is evaluated by Canonical Platform; local source checks do not award readiness."
+  ]
+}
