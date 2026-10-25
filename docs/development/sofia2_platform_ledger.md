@@ -772,3 +772,9 @@ evidence does not establish them. The lifecycle/RUN/observer/Core-awareness
 batch passed **39 tests** in 3.29 seconds; `compileall` and `git diff --check`
 passed. Real multi-host commissioning, Windows, CI and independent review are
 still open; Platform remains **BETA**.
+
+Broad exact-revision regression at `e4e77f27052e47117bfe679965472c44193a70e2`:
+`pkg_run and not integration` passed **631 tests** with 6,439 deselected in
+70.96 seconds. `pkg_core and not integration` passed **4,782 tests**, with 4
+skipped, 2,284 deselected and 8 subtests passed in 335.15 seconds. These are
+local Linux results, not matching-revision CI or live-host acceptance.

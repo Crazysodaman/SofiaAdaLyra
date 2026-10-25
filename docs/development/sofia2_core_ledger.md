@@ -1341,3 +1341,11 @@ package policy. A stale activation remains historical outcome evidence but no
 longer appears current. The focused 39-test lifecycle/RUN/awareness batch
 passed locally; placement never grants authority. Live multi-host acceptance
 remains unverified.
+
+Broad exact-revision regression at `e4e77f27052e47117bfe679965472c44193a70e2`
+passed the complete non-integration RUN package (**631 passed**, 6,439
+deselected, 70.96 seconds) and Core package (**4,782 passed, 4 skipped, 2,284
+deselected, 8 subtests passed**, 335.15 seconds). This validates the new
+canonical outcome/placement path against the broader restart, conversation,
+state and maintenance surface on local Linux. It remains separate from CI,
+Windows, real-model/adapter-host acceptance and independent review.
