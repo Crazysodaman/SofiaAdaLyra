@@ -21,6 +21,7 @@ from sofia.platform.application import SofiaApplication
 from sofia.platform.run.github_update_watch import UpdateObservation, VerifiedUpdate
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from test.test_application import create_configuration, personality_path
+from test.test_platform_module_operations import finish, prepared
 
 
 assert personality_path is not None  # imported pytest fixture
@@ -123,6 +124,34 @@ def test_verified_module_outcome_learning_is_idempotent_and_not_authority(
         assert row.permission_aspects[0].grant_state.value == "unknown"
     finally:
         app.shutdown()
+
+
+def test_canonical_module_run_outcome_is_learned_once_across_app_restart(
+    personality_path, tmp_path,
+):
+    state_path = tmp_path / "sofia.db"
+    _lifecycle, coordinator, manager, store, _adapter, request, _ = prepared(
+        state_path, tmp_path,
+    )
+    try:
+        job = coordinator.submit(request, now=datetime.now(timezone.utc))
+        assert finish(manager, store, job.job_id).status.value == "completed"
+    finally:
+        manager.close(wait=True)
+
+    first = application(personality_path, tmp_path)
+    try:
+        assert first.core_maintenance.learn_verified_outcomes() == 1
+        assert "verified successful outcome" in first.core_maintenance.working_context()
+    finally:
+        first.shutdown()
+
+    restarted = application(personality_path, tmp_path)
+    try:
+        assert restarted.core_maintenance.learn_verified_outcomes() == 0
+        assert "verified successful outcome" in restarted.core_maintenance.working_context()
+    finally:
+        restarted.shutdown()
 
 
 def test_module_proposal_reaches_workshop_then_existing_evolve_pipeline_only_after_owner_submission(
