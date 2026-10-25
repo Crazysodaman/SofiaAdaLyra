@@ -804,3 +804,37 @@ After rebasing onto the six concurrent optional-module commits at
 `cd896d87`, the focused maintenance/observer/awareness suite passed **27
 tests** at `2f3ed65e`. The broader counts above remain evidence for the
 identical source diff before that rebase, not exact-revision CI evidence.
+
+### Universal Platform roles and protected Core Link bindings — 2026-10-25 UTC
+
+Production commits `44f27ecc` and `2029241b` begin LINK-01/LINK-02 without
+claiming their remaining transport or package-separation acceptance. A strict
+mode-neutral role contract now declares composable `CORE_HOST`, `CORE_LINK`,
+`MODULE_HOST`, and `STANDBY` responsibilities. The Debian systemd unit declares
+its Core-host role, headless startup refuses a Core-free role before state
+access, direct `SofiaApplication` construction has the same guard, and the
+legacy `python -m sofia` import is lazy. The installed `companion-runtime`
+entrypoint can report Core-free Platform status without importing Core or
+opening `sofia.db`; desktop/tray/settings remain deliberately refused in
+Core-Link mode until an authenticated remote client exists.
+
+The new Platform-owned Core Link registry is a protected atomic JSON file,
+not canonical Core state or a second SQLite writer. It stores only typed
+destination identity, endpoint, secret-store reference, trust fingerprint,
+audience/scopes, SDK version and lifecycle evidence. Whole-store and
+per-binding CAS, an OS process lock, strict schema decoding, explicit
+selection, restart persistence and immutable target identity prevent silent
+switching. Endpoint, key, Core ID, Platform ID or generation drift quarantines
+and deselects the binding; revoked bindings cannot be revived by contact.
+Launcher status exposes only a redacted selected-binding projection.
+
+Exact-source local Linux regression at `2029241b` passed **160 tests** across
+Core Link, Platform roles, headless runtime/mobile hosting, legacy CLI,
+composition/application, SDK, atomic-file and process-lock suites in 32.93
+seconds. An installed wheel was built successfully with the approved locked
+setuptools backend and contains the `companion-runtime` console entrypoint.
+Inspection also confirms that the current unified wheel still contains Core
+code and Sofía assets, so physical Core-free packaging, authenticated IPC,
+pairing, remote Desktop/Tray and settings synchronization remain open. This
+slice is **BETA**, not Release Candidate; CI, Windows, systemd commissioning
+and independent review were not performed.
