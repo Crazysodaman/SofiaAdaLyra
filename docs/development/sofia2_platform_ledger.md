@@ -571,3 +571,55 @@ reconciliation. The current environment has not run a genuine local/remote
 Ollama model, Windows named-pipe worker, deployed service update, or current-
 revision CI; none is claimed. Core B08 and ISO-04–08 remain next in dependency
 order.
+
+## ISO-03 application-owned worker completion — 2026-10-24
+
+Source implementation commit: `5e38baff` (based on and preserving the
+concurrent `b5e7b0d0` mentor outbox update). Status: **BETA**, locally tested;
+not RELEASE CANDIDATE because Windows named-pipe, genuine Ollama,
+matching-revision CI and independent review remain unverified.
+
+- Normal `compose()` can now explicitly own the isolated Core worker through
+  `CoreWorkerConfiguration`. Enabling it requires an exact SHA-256 release
+  identity. Unsupported providers, dual-model routing and Fleet routing fail
+  closed; there is no silent in-process fallback.
+- `CoreWorkerProcessOwner` acquires and renews the fixed `component-core`
+  scope in the existing canonical RUN lease table, registers the worker with
+  `ComponentRuntimeSupervisor`, verifies authenticated readiness and owns
+  shutdown. The watchdog's `runtime` lease remains separate and cannot be
+  cross-used.
+- The child holds a cross-platform lifetime file lock. After a Platform crash,
+  a new owner may fence a prior generation only when that lock proves the old
+  process stopped. Missing evidence or a still-held lock blocks automatic
+  restart. PID reuse is not trusted.
+- Lease-renewal loss terminates the child and stops new admissions without
+  falsely rewriting canonical generation state under expired authority. A new
+  owner must reconcile the stopped process before replacement.
+- Runtime teardown stops the process, verifies termination through the
+  existing supervisor/backend, retires its generation and releases the scoped
+  lease. Core still receives no raw SQLite handle, capability gateway,
+  signing key or owner credential.
+- The AF_UNIX path is a short digest (Linux commonly limits paths to 108
+  bytes); durable lifetime evidence retains the full endpoint digest. The
+  real-process regression initially reproduced this path-length failure and
+  the corrected suite passed.
+
+Executed evidence:
+
+- Consolidated ISO-03/SDK/state/configuration/composition/runtime/supervisor
+  suite: **145 passed**.
+- Final focused process/configuration/lease suite: **64 passed**.
+- `pkg_run and not integration`: **622 passed**, 6,439 deselected.
+- `pkg_safe and not integration`: initial sandbox run **1,848 passed, 2
+  skipped, 9 failed** only because loopback sockets were denied and a spawned
+  interpreter lacked this checkout on `PYTHONPATH`; the exact nine failed
+  cases passed after authorized loopback execution with `PYTHONPATH=src`.
+- `pkg_core and not integration` was interrupted after one observed failure;
+  that failure was the same spawned-interpreter source-path mismatch and its
+  exact case passed with `PYTHONPATH=src`. The incomplete broad run is not
+  claimed green.
+- `compileall` and `git diff --check` passed.
+
+No production service, canonical writer, Fleet host, model or credential was
+changed. Next eligible work is the Core B08/PLAT-01–08 requirement audit and
+focused closure; ISO-04+, federation and generic restructuring remain deferred.

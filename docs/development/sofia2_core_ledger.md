@@ -1211,3 +1211,29 @@ and remote Ollama calls, Windows named-pipe execution, installed-wheel desktop
 and Discord host trials, broad exact-revision CI and independent review remain
 unverified. Optional-module absence and broader backup/restore/failure campaigns
 retain their existing open acceptance rows.
+
+## B08 isolated-Core production composition follow-up — 2026-10-24
+
+Implementation commit `5e38baff` makes the independently hosted Core an
+explicit production composition option rather than a test-only injected
+controller. The provider-neutral `CognitiveEngine` contract and the default
+single-process compatibility path are unchanged. When isolation is enabled,
+the exact configured provider and release digest are required; routing modes
+that cannot yet be preserved are rejected instead of silently downgraded.
+
+The application-owned Platform supervisor starts and authenticates the child,
+renews its scoped RUN authority, and retires it during runtime teardown. The
+child receives serialized cognitive requests only. Identity, Constitution,
+personality, memory, relationships, goals and canonical state remain in their
+existing owners and are not copied into or made writable by the child.
+
+Local evidence added in this slice: 145-pass consolidated boundary suite,
+64-pass final focused suite and 622-pass non-integration RUN package gate.
+The broad Core marker run did not complete and is not claimed green; its one
+observed failure was an environment/source-path mismatch in a spawned Python
+process and the exact test passed with the current checkout on `PYTHONPATH`.
+
+Core B08 remains **BETA**. Genuine Ollama conversation, Windows named-pipe and
+installed-wheel desktop/Discord acceptance, exact-revision CI, full broad
+Core completion, and independent review remain required before RELEASE
+CANDIDATE.
