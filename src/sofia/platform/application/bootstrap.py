@@ -2241,6 +2241,12 @@ class SofiaApplication:
         autonomous_work = getattr(self, "_autonomous_work", None)
         if autonomous_work is not None:
             autonomous_work.close()
+        module_operations = getattr(self, "_module_operations", None)
+        if module_operations is not None:
+            try:
+                module_operations.close()
+            except Exception as exc:
+                errors.append(f"module_operations:{type(exc).__name__}")
         life = getattr(self, "_life", None)
         if life is not None:
             life.close()

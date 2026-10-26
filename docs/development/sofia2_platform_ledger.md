@@ -1127,16 +1127,21 @@ exact dispatched adapter, uses it for reconciliation, withdraws its exact
 capability handler on shutdown, and then verifies safe stop. Application
 shutdown closes RUN workers before this module teardown. Bounded IPC timeout
 force-terminates the worker so a late response cannot be mistaken for a later
-request.
+request. Process-backed pause is now two-phase: the exact one-use approval
+withdraws capabilities and commits DRAINING before stop dispatch; only an
+identity-bound STOPPED observation commits PAUSED. A lost stop receipt remains
+DRAINING/UNCERTAIN, and an idempotent retry resolves to the same RUN job rather
+than replaying the external stop.
 
-Local Linux evidence: **15 tests** passed for real process startup, signed
+Local Linux evidence: **16 tests** passed for real process startup, signed
 package + one-use approval + durable RUN activation, authenticated health,
 actual capability execution, authorization denial, oversized input, timeout,
-post-dispatch lifecycle-commit uncertainty, capability withdrawal and
-shutdown. The combined module lifecycle/package/compatibility/process gate
-passed **43 tests**, and application shutdown/
+post-dispatch lifecycle-commit uncertainty, verified two-phase pause,
+ambiguous-stop no-replay, capability withdrawal and shutdown. The combined
+module lifecycle/package/compatibility/process/command gate passed **47 tests**,
+and application shutdown/
 acceptance regressions passed **20 tests**. The complete affected
-non-integration `pkg_run` gate passed **677 tests** with 7,147 deselected.
+non-integration `pkg_run` gate passed **678 tests** with 7,147 deselected.
 ISO-04 remains **ALPHA** overall:
 independent inference-provider isolation, authenticated remote placement,
 restart reconstruction of a pre-existing external worker, Windows process

@@ -176,6 +176,7 @@ class ModuleOperationCoordinator:
             raise TypeError("state_path must be Path")
         if not all(callable(getattr(lifecycle, name, None)) for name in (
             "describe", "begin_activation", "complete_activation",
+            "begin_process_pause", "complete_process_pause",
         )) or not hasattr(lifecycle, "manager"):
             raise TypeError("lifecycle service required")
         if not isinstance(factories, AdapterFactoryRegistry):
@@ -193,6 +194,7 @@ class ModuleOperationCoordinator:
         self.manager = manager
         self._adapter_lock = RLock()
         self._dispatched_adapters: dict[str, object] = {}
+        self._active_adapters: dict[str, object] = {}
         self._registered_capabilities: dict[str, tuple] = {}
         with closing(self._connect()) as db, db:
             db.executescript(
@@ -243,6 +245,7 @@ class ModuleOperationCoordinator:
             adapters = tuple(by_identity.values())
             registrations = tuple(self._registered_capabilities.values())
             self._dispatched_adapters.clear()
+            self._active_adapters.clear()
             self._registered_capabilities.clear()
         errors: list[str] = []
         for batch in registrations:
@@ -323,7 +326,9 @@ class ModuleOperationCoordinator:
         moment = _utc(now)
         if moment >= _utc(request.deadline):
             raise ValueError("module operation request expired")
-        if request.operation is not ModuleOperationType.ACTIVATE:
+        if request.operation not in {
+            ModuleOperationType.ACTIVATE, ModuleOperationType.PAUSE,
+        }:
             raise ValueError(
                 "this operation remains synchronous; no external RUN dispatch required"
             )
@@ -492,6 +497,7 @@ class ModuleOperationCoordinator:
                 now=now,
             )
             return WorkResult(WorkStatus.FAILED, {}, "cancelled_before_dispatch")
+        pause_current = None
         try:
             if now >= request.deadline:
                 raise PermissionError("module operation expired")
@@ -502,25 +508,33 @@ class ModuleOperationCoordinator:
             current = self.lifecycle.describe(request.module_id)
             if current is None:
                 raise LookupError("module lifecycle does not exist")
+            expected_destination = (
+                ModuleLifecycle.ACTIVE
+                if request.operation is ModuleOperationType.ACTIVATE
+                else ModuleLifecycle.PAUSED
+            )
             if (
                 current.revision != request.expected_revision
                 or current.lifecycle is not request.source_lifecycle
                 or current.package_digest != request.package_digest
-                or request.destination_lifecycle is not ModuleLifecycle.ACTIVE
+                or request.destination_lifecycle is not expected_destination
             ):
                 raise RuntimeError("module lifecycle precondition changed")
-            package, adapter, compatibility, registrations = self._reconstruct(request)
-            before = adapter.inspect()
-            if before.package_digest != request.package_digest:
-                raise PermissionError("adapter inspection package identity mismatch")
-            if cancel.is_set():
-                raise InterruptedError("cancelled before authority consumption")
-            activating = self.lifecycle.begin_activation(
-                package, expected_revision=request.expected_revision,
-                profile=request.profile, compatibility=compatibility,
-                registrations=registrations, approval_id=request.approval_id,
-                now=datetime.now(timezone.utc),
-            )
+            if request.operation is ModuleOperationType.PAUSE:
+                pause_current = current
+            else:
+                package, adapter, compatibility, registrations = self._reconstruct(request)
+                before = adapter.inspect()
+                if before.package_digest != request.package_digest:
+                    raise PermissionError("adapter inspection package identity mismatch")
+                if cancel.is_set():
+                    raise InterruptedError("cancelled before authority consumption")
+                activating = self.lifecycle.begin_activation(
+                    package, expected_revision=request.expected_revision,
+                    profile=request.profile, compatibility=compatibility,
+                    registrations=registrations, approval_id=request.approval_id,
+                    now=datetime.now(timezone.utc),
+                )
         except InterruptedError:
             self._event(
                 request_id=request.request_id, job_id=job.job_id,
@@ -546,6 +560,12 @@ class ModuleOperationCoordinator:
             return WorkResult(
                 WorkStatus.FAILED, {"error_type": type(exc).__name__},
                 "module_operation_validation_failed",
+            )
+
+        if pause_current is not None:
+            return self._pause_handler(
+                job=job, request=request, attempt=attempt,
+                current=pause_current,
             )
 
         dispatch_at = datetime.now(timezone.utc)
@@ -615,7 +635,8 @@ class ModuleOperationCoordinator:
                 "external_module_running_lifecycle_commit_unknown",
             )
         with self._adapter_lock:
-            self._registered_capabilities[request.request_id] = registrations
+            self._registered_capabilities[request.module_id] = registrations
+            self._active_adapters[request.module_id] = adapter
         self._event(
             request_id=request.request_id, job_id=job.job_id,
             status=ModuleAttemptStatus.EXTERNALLY_VERIFIED_SUCCESS,
@@ -630,6 +651,148 @@ class ModuleOperationCoordinator:
              "lifecycle_revision": completed.revision,
              "evidence_ref": observed.evidence_ref},
             "external_module_activation_verified",
+        )
+
+    def _pause_handler(
+        self, *, job: WorkJob, request: ModuleOperationRequest,
+        attempt: int, current,
+    ) -> WorkResult:
+        with self._adapter_lock:
+            adapter = self._active_adapters.get(request.module_id)
+        if adapter is None:
+            self._event(
+                request_id=request.request_id, job_id=job.job_id,
+                status=ModuleAttemptStatus.FAILED_BEFORE_EXTERNAL_EFFECT,
+                attempt_number=attempt,
+                detail="active process adapter is unavailable",
+                now=datetime.now(timezone.utc),
+            )
+            return WorkResult(
+                WorkStatus.FAILED, {}, "active_module_process_unavailable",
+            )
+        before = adapter.inspect()
+        if not self._verified_inspection(request, before):
+            self._event(
+                request_id=request.request_id, job_id=job.job_id,
+                status=ModuleAttemptStatus.FAILED_BEFORE_EXTERNAL_EFFECT,
+                attempt_number=attempt,
+                detail="active process identity or health is not verified",
+                evidence_ref=before.evidence_ref,
+                now=datetime.now(timezone.utc),
+            )
+            return WorkResult(
+                WorkStatus.FAILED, {}, "active_module_process_not_verified",
+            )
+        try:
+            draining = self.lifecycle.begin_process_pause(
+                request.module_id, expected_revision=current.revision,
+                approval_id=request.approval_id,
+                now=datetime.now(timezone.utc),
+            )
+            with self._adapter_lock:
+                self._registered_capabilities.pop(request.module_id, None)
+        except PermissionError as exc:
+            self._event(
+                request_id=request.request_id, job_id=job.job_id,
+                status=ModuleAttemptStatus.DENIED, attempt_number=attempt,
+                detail=str(exc), now=datetime.now(timezone.utc),
+            )
+            return WorkResult(WorkStatus.FAILED, {}, "module_pause_denied")
+        except Exception as exc:
+            self._event(
+                request_id=request.request_id, job_id=job.job_id,
+                status=ModuleAttemptStatus.FAILED_BEFORE_EXTERNAL_EFFECT,
+                attempt_number=attempt, detail=type(exc).__name__,
+                now=datetime.now(timezone.utc),
+            )
+            return WorkResult(
+                WorkStatus.FAILED, {}, "module_pause_validation_failed",
+            )
+        self._event(
+            request_id=request.request_id, job_id=job.job_id,
+            status=ModuleAttemptStatus.EXTERNAL_EFFECT_ATTEMPTED,
+            attempt_number=attempt,
+            detail="adapter stop dispatched; absence of receipt is not failure proof",
+            now=datetime.now(timezone.utc),
+        )
+        try:
+            adapter.stop()
+            observed = adapter.inspect()
+        except Exception as exc:
+            self._event(
+                request_id=request.request_id, job_id=job.job_id,
+                status=ModuleAttemptStatus.OUTCOME_UNKNOWN,
+                attempt_number=attempt, detail=type(exc).__name__,
+                now=datetime.now(timezone.utc),
+            )
+            return WorkResult(
+                WorkStatus.UNCERTAIN,
+                {"module_request_id": request.request_id,
+                 "lifecycle_revision": draining.revision},
+                "external_module_pause_outcome_unknown",
+            )
+        stopped = (
+            observed.module_id == request.module_id
+            and observed.package_digest == request.package_digest
+            and observed.component_id == request.component_id
+            and observed.host_identity == request.host_identity
+            and observed.state.value == "stopped"
+            and not observed.ready
+        )
+        if not stopped:
+            self._event(
+                request_id=request.request_id, job_id=job.job_id,
+                status=ModuleAttemptStatus.OUTCOME_UNKNOWN,
+                attempt_number=attempt,
+                detail="post-stop observation did not verify stopped identity",
+                evidence_ref=observed.evidence_ref,
+                now=datetime.now(timezone.utc),
+            )
+            return WorkResult(
+                WorkStatus.UNCERTAIN,
+                {"module_request_id": request.request_id,
+                 "lifecycle_revision": draining.revision},
+                "external_module_pause_not_verified",
+            )
+        try:
+            paused = self.lifecycle.complete_process_pause(
+                request.module_id, expected_revision=draining.revision,
+                operation_ref=request.request_id,
+                now=datetime.now(timezone.utc),
+            )
+        except Exception as exc:
+            self._event(
+                request_id=request.request_id, job_id=job.job_id,
+                status=ModuleAttemptStatus.OUTCOME_UNKNOWN,
+                attempt_number=attempt,
+                detail="verified stopped process but pause commit failed:"
+                + type(exc).__name__,
+                evidence_ref=observed.evidence_ref,
+                now=datetime.now(timezone.utc),
+            )
+            return WorkResult(
+                WorkStatus.UNCERTAIN,
+                {"module_request_id": request.request_id,
+                 "lifecycle_revision": draining.revision},
+                "external_module_stopped_pause_commit_unknown",
+            )
+        with self._adapter_lock:
+            self._active_adapters.pop(request.module_id, None)
+        self._event(
+            request_id=request.request_id, job_id=job.job_id,
+            status=ModuleAttemptStatus.EXTERNALLY_VERIFIED_SUCCESS,
+            attempt_number=attempt,
+            detail="adapter stop and paused lifecycle independently verified",
+            evidence_ref=observed.evidence_ref,
+            now=datetime.now(timezone.utc),
+        )
+        return WorkResult(
+            WorkStatus.COMPLETED,
+            {"module_request_id": request.request_id,
+             "module_id": request.module_id,
+             "lifecycle_revision": paused.revision,
+             "evidence_ref": observed.evidence_ref},
+            "external_module_pause_verified",
         )
 
     def reconcile(self, request_id: str, *, now: datetime) -> ModuleAttemptStatus:
@@ -677,7 +840,8 @@ class ModuleOperationCoordinator:
                 now=moment,
             )
             with self._adapter_lock:
-                self._registered_capabilities[request.request_id] = registrations
+                self._registered_capabilities[request.module_id] = registrations
+                self._active_adapters[request.module_id] = adapter
             status = ModuleAttemptStatus.EXTERNALLY_VERIFIED_SUCCESS
             detail = "post-crash inspection verified the original activation"
         elif observed.state.value in {"stopped", "failed"} and not observed.ready:

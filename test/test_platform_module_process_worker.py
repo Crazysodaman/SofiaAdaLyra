@@ -234,13 +234,50 @@ def test_signed_run_activation_owns_real_process_and_shutdown(
             "private", "execute isolated research capability",
         ))
         assert result.kind is CapabilityResultKind.SUCCESS
-        manager.close(wait=True)
-        coordinator.close()
+        active = lifecycle.describe(RESEARCH_MODULE_ID)
+        pause_id, _ = authorize(
+            canonical_state_path, operation="pause", record=active,
+            target=ModuleLifecycle.PAUSED, now=datetime.now(timezone.utc),
+        )
+        pause_request = ModuleOperationRequest(
+            request_id=f"request:{uuid4()}",
+            idempotency_key="research:process:pause:v1",
+            module_id=RESEARCH_MODULE_ID,
+            package_digest=package.package_digest,
+            operation=ModuleOperationType.PAUSE,
+            expected_revision=active.revision,
+            source_lifecycle=ModuleLifecycle.ACTIVE,
+            destination_lifecycle=ModuleLifecycle.PAUSED,
+            profile=OperationProfileKind.OBSERVE,
+            principal=local_sparks_principal(),
+            principal_attestation_ref=pause_id, approval_id=pause_id,
+            component_id=RESEARCH_COMPONENT_ID, host_identity="host:test",
+            deadline=datetime.now(timezone.utc) + timedelta(minutes=5),
+            correlation_id="corr:research-process-pause",
+            resource_lease_refs=(), device_lease_refs=(),
+            requested_effect="drain and stop exact reviewed research process",
+            cancellation_policy=ModuleCancellationPolicy.COOPERATIVE_SAFE_STOP,
+        )
+        pause_job = coordinator.submit(
+            pause_request, now=datetime.now(timezone.utc),
+        )
+        manager.tick(now=datetime.now(timezone.utc))
+        for _ in range(300):
+            paused_job = store.get(pause_job.job_id)
+            if paused_job.status in {
+                WorkStatus.COMPLETED, WorkStatus.FAILED, WorkStatus.UNCERTAIN,
+            }:
+                break
+            sleep(0.01)
+        assert paused_job.status is WorkStatus.COMPLETED
+        assert lifecycle.describe(RESEARCH_MODULE_ID).lifecycle is ModuleLifecycle.PAUSED
         after = system.execute(CapabilityRequest(
             capability, {"snapshot": snapshot(datetime.now(timezone.utc))},
             "private", "worker must be stopped",
         ))
         assert after.kind is CapabilityResultKind.UNAVAILABLE
+        manager.close(wait=True)
+        coordinator.close()
     finally:
         manager.close(wait=True)
         coordinator.close()

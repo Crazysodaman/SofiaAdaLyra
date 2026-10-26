@@ -861,6 +861,50 @@ class ModuleLifecycleManager:
         self._active_batches.pop(module_id, None)
         return result
 
+    def begin_process_pause(
+        self, module_id: str, *, expected_revision: int,
+        operation_ref: str, actor: str, now: datetime,
+    ) -> ModuleLifecycleRecord:
+        """Withdraw admissions and durably enter DRAINING before OS stop."""
+        batch = self._active_batches.get(module_id)
+        if batch is None:
+            raise RuntimeError("active adapter batch is unavailable")
+        current = self.describe(module_id)
+        if current is None:
+            raise LookupError("unknown module")
+        self._authorize(
+            operation="pause", current=current,
+            expected_revision=expected_revision, target=ModuleLifecycle.PAUSED,
+            operation_ref=operation_ref, actor=actor, now=now,
+        )
+        self.capability_system.unregister_batch(batch)
+        try:
+            result = self._transition(
+                module_id, expected_revision=expected_revision,
+                allowed=(ModuleLifecycle.ACTIVE,), target=ModuleLifecycle.DRAINING,
+                operation_ref=operation_ref, actor=actor,
+                reason="capabilities withdrawn; process drain required", now=now,
+                authorized=False,
+            )
+        except BaseException:
+            self.capability_system.register_batch(batch)
+            raise
+        self._active_batches.pop(module_id, None)
+        return result
+
+    def complete_process_pause(
+        self, module_id: str, *, expected_revision: int,
+        operation_ref: str, now: datetime,
+    ) -> ModuleLifecycleRecord:
+        """Commit PAUSED only after Platform independently verified stop."""
+        return self._transition(
+            module_id, expected_revision=expected_revision,
+            allowed=(ModuleLifecycle.DRAINING,), target=ModuleLifecycle.PAUSED,
+            operation_ref=operation_ref, actor="platform:module-supervisor",
+            reason="external process stop independently verified", now=now,
+            authorized=False,
+        )
+
     def disable(self, module_id: str, *, expected_revision: int,
                 operation_ref: str, actor: str, now: datetime) -> ModuleLifecycleRecord:
         if module_id in self._active_batches:

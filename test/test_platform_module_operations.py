@@ -190,6 +190,28 @@ def finish(manager, store, job_id):
     raise AssertionError("RUN job did not settle")
 
 
+def pause_request(canonical_state_path, active, request):
+    approval_id, _ = authorize(
+        canonical_state_path, operation="pause", record=active,
+        target=ModuleLifecycle.PAUSED, now=datetime.now(timezone.utc),
+    )
+    return replace(
+        request,
+        request_id=f"request:{uuid4()}",
+        idempotency_key="pause:research:v1",
+        operation=ModuleOperationType.PAUSE,
+        expected_revision=active.revision,
+        source_lifecycle=ModuleLifecycle.ACTIVE,
+        destination_lifecycle=ModuleLifecycle.PAUSED,
+        principal_attestation_ref=approval_id,
+        approval_id=approval_id,
+        correlation_id="corr:research-pause",
+        requested_effect="drain exact research worker",
+        cancellation_policy=ModuleCancellationPolicy.COOPERATIVE_SAFE_STOP,
+        deadline=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+
+
 def test_durable_activation_uses_shared_run_and_verified_observation(
     canonical_state_path, tmp_path,
 ):
@@ -260,9 +282,10 @@ def test_durable_activation_uses_shared_run_and_verified_observation(
         )
         manager.close(wait=True)
         coordinator.close()
-        assert adapter.state is ProcessState.STOPPED
     finally:
         manager.close(wait=True)
+        coordinator.close()
+        assert adapter.state is ProcessState.STOPPED
 
 
 def test_changed_idempotency_payload_is_rejected(canonical_state_path, tmp_path):
@@ -301,10 +324,40 @@ def test_verified_process_with_failed_lifecycle_commit_is_uncertain_and_owned(
         )
         manager.close(wait=True)
         coordinator.close()
-        assert adapter.state is ProcessState.STOPPED
     finally:
         manager.close(wait=True)
         coordinator.close()
+
+
+def test_ambiguous_process_pause_stays_draining_and_is_not_replayed(
+    canonical_state_path, tmp_path,
+):
+    lifecycle, coordinator, manager, store, adapter, request, _ = prepared(
+        canonical_state_path, tmp_path,
+    )
+    original_stop = adapter.stop
+    try:
+        activation = coordinator.submit(request, now=NOW)
+        assert finish(manager, store, activation.job_id).status is WorkStatus.COMPLETED
+        active = lifecycle.describe(request.module_id)
+        pause = pause_request(canonical_state_path, active, request)
+        def uncertain_stop():
+            raise RuntimeError("stop receipt lost")
+        adapter.stop = uncertain_stop
+        job = coordinator.submit(pause, now=datetime.now(timezone.utc))
+        settled = finish(manager, store, job.job_id)
+        assert settled.status is WorkStatus.UNCERTAIN
+        assert settled.reason == "external_module_pause_outcome_unknown"
+        assert lifecycle.describe(request.module_id).lifecycle is ModuleLifecycle.DRAINING
+        assert lifecycle.manager.capability_system.capability_names() == ()
+        duplicate = coordinator.submit(pause, now=datetime.now(timezone.utc))
+        assert duplicate.job_id == job.job_id
+        assert adapter.starts == 1
+    finally:
+        adapter.stop = original_stop
+        manager.close(wait=True)
+        coordinator.close()
+        assert adapter.state is ProcessState.STOPPED
 
 
 def test_stale_verified_activation_is_history_not_current_placement(

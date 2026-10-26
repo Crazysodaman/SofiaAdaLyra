@@ -192,6 +192,24 @@ class ModuleLifecycleCommandService:
             operation_ref=approval_id, actor="Sparks", now=now,
         )
 
+    def begin_process_pause(
+        self, module_id: str, *, expected_revision: int,
+        approval_id: str, now: datetime,
+    ) -> ModuleLifecycleRecord:
+        return self._manager.begin_process_pause(
+            module_id, expected_revision=expected_revision,
+            operation_ref=approval_id, actor="Sparks", now=now,
+        )
+
+    def complete_process_pause(
+        self, module_id: str, *, expected_revision: int,
+        operation_ref: str, now: datetime,
+    ) -> ModuleLifecycleRecord:
+        return self._manager.complete_process_pause(
+            module_id, expected_revision=expected_revision,
+            operation_ref=operation_ref, now=now,
+        )
+
     def disable(
         self, module_id: str, *, expected_revision: int,
         approval_id: str, now: datetime,
