@@ -134,9 +134,17 @@ def read_benchmark_scores(
         ).fetchone()
         if exists is None or not host_ids:
             return {}
+        columns = {
+            row[1] for row in db.execute(
+                "PRAGMA table_info(platform_benchmark_result)"
+            ).fetchall()
+        }
+        if "execution_host_id" not in columns:
+            return {}
         rows = db.execute(
             "SELECT host_id,measurements_json,completed_at FROM platform_benchmark_result "
-            "WHERE status='completed' AND fresh_until>? AND host_id IN ("+
+            "WHERE status='completed' AND execution_host_id=host_id "
+            "AND fresh_until>? AND host_id IN ("+
             ",".join("?" for _ in host_ids)+") ORDER BY completed_at DESC,result_id DESC",
             (moment.isoformat(), *host_ids),
         ).fetchall()
@@ -264,6 +272,7 @@ class BenchmarkCoordinator:
         self, *, state_path: Path, inventory: HardwareInventoryStore,
         work_store: DurableWorkStore, manager: TaskExecutionManager,
         idle_observer: IdleObserver, source_revision: str,
+        local_host_id: str,
         scratch_root: Path | None = None,
         result_freshness: timedelta = timedelta(days=30),
         max_attempts: int = 3,
@@ -277,6 +286,8 @@ class BenchmarkCoordinator:
             raise TypeError("idle_observer required")
         if not isinstance(source_revision, str) or _GIT_REVISION.fullmatch(source_revision) is None:
             raise ValueError("exact source revision required")
+        if not isinstance(local_host_id, str) or not local_host_id.strip():
+            raise ValueError("verified local_host_id required")
         if (
             not isinstance(result_freshness, timedelta)
             or not timedelta(minutes=1) <= result_freshness <= timedelta(days=365)
@@ -287,6 +298,7 @@ class BenchmarkCoordinator:
         self._guard = CanonicalSQLiteGuard(state_path)
         self.inventory, self.work_store, self.manager = inventory, work_store, manager
         self.idle_observer, self.source_revision = idle_observer, source_revision
+        self.local_host_id = local_host_id.strip()
         if supply_provider is not None and not callable(supply_provider):
             raise TypeError("supply_provider must be callable or None")
         self.supply_provider = supply_provider
@@ -325,8 +337,19 @@ class BenchmarkCoordinator:
                     configuration_json TEXT NOT NULL,resource_usage_json TEXT NOT NULL,
                     evidence_refs_json TEXT NOT NULL,model_id TEXT,model_digest TEXT,
                     failure_reason TEXT,fresh_until TEXT NOT NULL,
+                    execution_host_id TEXT,
                     UNIQUE(benchmark_id,attempt));
             """)
+            columns = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(platform_benchmark_result)"
+                ).fetchall()
+            }
+            if "execution_host_id" not in columns:
+                db.execute(
+                    "ALTER TABLE platform_benchmark_result "
+                    "ADD COLUMN execution_host_id TEXT"
+                )
         manager.register_handler(self.WORK_KIND, self._execute)
         self.reconcile(now=datetime.now(timezone.utc))
 
@@ -360,6 +383,12 @@ class BenchmarkCoordinator:
             self._runners[BenchmarkKind.LLM] = self._ollama
 
     def _supported(self, record: InventoryRecord) -> tuple[tuple[BenchmarkKind, str], ...]:
+        # Built-in runners execute in this process. Remote inventory may be
+        # evaluated for placement, but it cannot be measured locally and then
+        # credited to another host. A future authenticated Fleet runner must
+        # supply its own execution-host proof.
+        if record.host_id != self.local_host_id:
+            return ()
         supply = None if self.supply_provider is None else self.supply_provider(record.host_id)
         facts = record.facts if supply is None else supply.facts
         keys = {fact.key for fact in facts}
@@ -541,6 +570,19 @@ class BenchmarkCoordinator:
         payload = job.payload
         kind = BenchmarkKind(str(payload["kind"]))
         now = datetime.now(timezone.utc)
+        if payload.get("host_id") != self.local_host_id:
+            self._record_failure(
+                payload, kind=kind, started_at=now, now=now,
+                exc=PermissionError("execution_host_identity_mismatch"),
+                status="failed",
+            )
+            self._finish_plan(
+                payload, status="failed",
+                reason="execution_host_identity_mismatch", now=now,
+            )
+            return WorkResult(
+                WorkStatus.FAILED, {}, "benchmark_execution_host_mismatch",
+            )
         admission = self.idle_observer(
             str(payload["host_id"]), str(payload["resource_id"]), kind, now,
         )
@@ -577,8 +619,13 @@ class BenchmarkCoordinator:
             completed = datetime.now(timezone.utc)
             duration_ms = max(0, int((perf_counter() - started) * 1000))
             with closing(self._connect()) as db, db:
-                db.execute("""INSERT INTO platform_benchmark_result VALUES(
-                    NULL,?,?,?,?,?,?,?,?,?,?,?,'completed',?,?,?,?,?,?,NULL,?)""", (
+                db.execute("""INSERT INTO platform_benchmark_result(
+                    benchmark_id,attempt,host_id,resource_id,kind,suite_version,
+                    source_revision,inventory_revision,started_at,completed_at,
+                    duration_ms,status,measurements_json,configuration_json,
+                    resource_usage_json,evidence_refs_json,model_id,model_digest,
+                    failure_reason,fresh_until,execution_host_id
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,'completed',?,?,?,?,?,?,NULL,?,?)""", (
                     payload["benchmark_id"], payload["attempt"], payload["host_id"],
                     payload["resource_id"], kind.value, self.SUITE_VERSION,
                     payload["source_revision"], payload["inventory_revision"],
@@ -594,6 +641,7 @@ class BenchmarkCoordinator:
                     json.dumps(tuple(payload.get("idle_evidence_refs", ())) + execution.evidence_refs),
                     execution.model_id, execution.model_digest,
                     (completed + self.result_freshness).isoformat(),
+                    self.local_host_id,
                 ))
             self._finish_plan(payload, status="completed", reason="measured_result_persisted", now=completed)
             return WorkResult(WorkStatus.COMPLETED, {
@@ -632,8 +680,13 @@ class BenchmarkCoordinator:
         if status not in {"failed", "cancelled"}:
             raise ValueError("invalid benchmark failure status")
         with closing(self._connect()) as db, db:
-            db.execute("""INSERT OR IGNORE INTO platform_benchmark_result VALUES(
-                NULL,?,?,?,?,?,?,?,?,?,?,?,?, '[]','{}','{}',?,NULL,NULL,?,?)""", (
+            db.execute("""INSERT OR IGNORE INTO platform_benchmark_result(
+                benchmark_id,attempt,host_id,resource_id,kind,suite_version,
+                source_revision,inventory_revision,started_at,completed_at,
+                duration_ms,status,measurements_json,configuration_json,
+                resource_usage_json,evidence_refs_json,model_id,model_digest,
+                failure_reason,fresh_until,execution_host_id
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?, '[]','{}','{}',?,NULL,NULL,?,?,?)""", (
                 payload["benchmark_id"], payload["attempt"], payload["host_id"],
                 payload["resource_id"], kind.value, self.SUITE_VERSION,
                 payload["source_revision"], payload["inventory_revision"],
@@ -641,7 +694,7 @@ class BenchmarkCoordinator:
                 max(0, int((now - started_at).total_seconds() * 1000)),
                 status,
                 json.dumps(tuple(payload.get("idle_evidence_refs", ()))),
-                type(exc).__name__, now.isoformat(),
+                type(exc).__name__, now.isoformat(), self.local_host_id,
             ))
 
     def _finish_plan(self, payload, *, status: str, reason: str, now: datetime) -> None:

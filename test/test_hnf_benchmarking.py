@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import sqlite3
 from time import monotonic, sleep
 
 from sofia.platform.resources import CapabilityFact, EvidenceClass, HardwareInventoryStore
@@ -59,6 +60,7 @@ def coordinator(path, inventory, admission, *, freshness=timedelta(days=30)):
     service = BenchmarkCoordinator(
         state_path=path, inventory=inventory, work_store=work, manager=manager,
         idle_observer=admission, source_revision=SHA,
+        local_host_id="node:eligible",
         scratch_root=path.parent / "scratch", result_freshness=freshness,
     )
     return service, work, manager
@@ -92,6 +94,42 @@ def test_discovery_queues_but_unverified_idle_cannot_start(canonical_state_path)
         manager.close(wait=True)
 
 
+def test_local_runners_never_credit_remote_inventory(canonical_state_path) -> None:
+    now = datetime.now(timezone.utc)
+    inventory = HardwareInventoryStore(
+        canonical_state_path,
+        enrollment_verifier=lambda host, reference, at: (
+            host == "node:remote" and reference == "enrollment:remote"
+        ),
+    )
+    remote = inventory.record(
+        host_id="node:remote", display_name="Remote Worker",
+        facts=(CapabilityFact(
+            "cpu.arch", "x86_64", None, "node:remote", "host:node-remote",
+            EvidenceClass.OBSERVED, "agent:remote", now, None, True,
+        ),),
+        observed_at=now, enrolled=True, trusted=True,
+        enrollment_ref="enrollment:remote",
+    )
+    work = DurableWorkStore(canonical_state_path)
+    manager = TaskExecutionManager(work, {}, max_workers=1)
+    service = BenchmarkCoordinator(
+        state_path=canonical_state_path, inventory=inventory,
+        work_store=work, manager=manager,
+        idle_observer=lambda *args: (_ for _ in ()).throw(
+            AssertionError("remote inventory must not reach local admission")
+        ),
+        source_revision=SHA, local_host_id="node:actual-local",
+    )
+    try:
+        assert service.queue_inventory(remote, now=now) == 0
+        assert service.schedule(now=now) == 0
+        assert work.list() == ()
+        assert service.results(host_id="node:remote") == ()
+    finally:
+        manager.close(wait=True)
+
+
 def test_idle_benchmarks_execute_through_canonical_run_and_survive_restart(
     canonical_state_path,
 ) -> None:
@@ -107,6 +145,7 @@ def test_idle_benchmarks_execute_through_canonical_run_and_survive_restart(
     assert len(results) == 2
     assert {result["source_revision"] for result in results} == {SHA}
     assert all(result["status"] == "completed" for result in results)
+    assert {result["execution_host_id"] for result in results} == {"node:eligible"}
     manager.close(wait=True)
 
     restarted_work = DurableWorkStore(canonical_state_path)
@@ -116,6 +155,7 @@ def test_idle_benchmarks_execute_through_canonical_run_and_survive_restart(
         state_path=canonical_state_path, inventory=inventory,
         work_store=restarted_work, manager=restarted_manager,
         idle_observer=admission, source_revision=SHA,
+        local_host_id="node:eligible",
         scratch_root=canonical_state_path.parent / "scratch",
     )
     try:
@@ -153,6 +193,30 @@ def test_stale_results_create_a_new_attempt_not_replay_old_run(canonical_state_p
         manager.close(wait=True)
 
 
+def test_unbound_historical_result_cannot_influence_placement_score(
+    canonical_state_path,
+) -> None:
+    now = datetime.now(timezone.utc)
+    inventory, _ = enrolled_inventory(canonical_state_path, now)
+    service, work, manager = coordinator(
+        canonical_state_path, inventory, AdmissionProbe(eligible=True),
+    )
+    try:
+        service.schedule(now=now, limit=1)
+        manager.tick(now=now)
+        wait_for_terminal(work, expected=1)
+        with sqlite3.connect(canonical_state_path) as db:
+            db.execute(
+                "UPDATE platform_benchmark_result SET execution_host_id=NULL"
+            )
+        assert read_benchmark_scores(
+            canonical_state_path, host_ids=("node:eligible",),
+            metric="integer_iterations_per_second", now=datetime.now(timezone.utc),
+        ) == {}
+    finally:
+        manager.close(wait=True)
+
+
 def test_restart_reconciles_uncertain_attempt_without_reusing_it(canonical_state_path) -> None:
     now = datetime.now(timezone.utc)
     inventory, _ = enrolled_inventory(canonical_state_path, now)
@@ -173,6 +237,7 @@ def test_restart_reconciles_uncertain_attempt_without_reusing_it(canonical_state
         state_path=canonical_state_path, inventory=inventory,
         work_store=work2, manager=manager2, idle_observer=admission,
         source_revision=SHA, scratch_root=canonical_state_path.parent / "scratch",
+        local_host_id="node:eligible",
     )
     try:
         plan = next(item for item in restarted.plans() if item["job_id"] is None)

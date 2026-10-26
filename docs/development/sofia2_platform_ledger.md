@@ -1038,3 +1038,37 @@ inspection found the new launcher/Control Center modules plus the installed
 `companion-runtime` console entrypoint. Actual Windows Start Menu/foreground
 visual acceptance, Wayland compositor acceptance, signed installer creation,
 CI and independent review remain open. The launcher slice remains **BETA**.
+
+### Module-health identity and benchmark-host attribution hardening — 2026-10-26 UTC
+
+The current-health audit reproduced a trust-boundary defect in
+`CanonicalPlatformModuleObserver`: a recent externally verified attempt was
+selected by module ID alone. A newly active package could therefore inherit a
+fresh success observation from an older signed package. Runtime health now
+requires the exact active lifecycle package digest, activation profile,
+completed lifecycle revision and activation/resume request before it can be
+projected as HEALTHY. Historical outcomes remain auditable but cannot become
+current health. A changed-package regression proves the old receipt yields
+UNKNOWN_STATE.
+
+The benchmark audit also confirmed that built-in CPU/RAM/storage runners are
+local process functions while plans were generated for every trusted inventory
+record. `BenchmarkCoordinator` now requires a verified local machine identity,
+queues built-in work only for that identity, rechecks the host at the RUN
+handler boundary, and persists `execution_host_id` on both success and failure.
+Fresh benchmark scores exclude missing or mismatched execution-host evidence,
+so historical unbound measurements cannot affect placement. Production
+composition derives this identity from local machine discovery rather than a
+renameable host environment value. Remote inventory remains eligible for
+placement observation but not local measurement; authenticated remote agent
+benchmark dispatch remains an explicit open feature.
+
+The safe-idle audit found the current telemetry admission already fails closed
+for missing, stale or unsafe temperature, throttling and power-limit evidence;
+no synthetic healthy telemetry or code relaxation was added. Focused module
+operation/observer/HNF tests passed **27 tests**. The complete non-integration
+`pkg_ops` gate passed **1,427 tests** with 6,381 deselected in 63.67 seconds,
+and `pkg_run` passed **661 tests** with 7,147 deselected in 88.62 seconds, using
+the permitted disposable IPC/localhost boundary. Linux tests do not replace
+Windows, real Fleet-agent, CI, or independent-review evidence. Platform
+readiness remains **BETA**.

@@ -130,7 +130,14 @@ class CanonicalPlatformModuleObserver(PlatformModuleObserver):
                    FROM platform_module_operation_attempt AS attempt
                    JOIN platform_module_operation_request AS request
                      ON request.request_id=attempt.request_id
+                   JOIN platform_module_lifecycle AS lifecycle
+                     ON lifecycle.module_id=request.module_id
+                    AND lifecycle.package_digest=request.package_digest
+                    AND lifecycle.revision=request.expected_revision+2
+                    AND lifecycle.active_profile=request.profile
+                    AND lifecycle.lifecycle='active'
                    WHERE attempt.status='externally_verified_success'
+                     AND request.operation IN ('activate','resume')
                    ORDER BY attempt.occurred_at DESC,attempt.event_id DESC"""
             ).fetchall()
         result: dict[str, sqlite3.Row] = {}

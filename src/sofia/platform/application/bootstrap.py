@@ -564,6 +564,17 @@ class SofiaApplication:
         source_revision = resolve_source_revision(
             Path(__file__).resolve().parents[4],
         )
+        local_benchmark_host = None
+        if (
+            ops_service is not None
+            and hasattr(ops_service, "hardware_inventory")
+            and hasattr(ops_service, "resource_telemetry")
+            and source_revision is not None
+        ):
+            from sofia.platform.machine.discovery import create_machine_discovery
+            local_benchmark_host = (
+                create_machine_discovery().discover().identity.machine_id
+            )
         self._benchmarking = (
             None
             if (
@@ -582,10 +593,10 @@ class SofiaApplication:
                     telemetry=ops_service.resource_telemetry,
                 ),
                 source_revision=source_revision,
+                local_host_id=local_benchmark_host,
                 supply_provider=ops_service.resource_supply,
             )
         )
-        local_benchmark_host = os.environ.get("SOFIA_LOCAL_HOST_ID", "").strip()
         if self._benchmarking is not None and local_benchmark_host:
             from sofia.modules.inference.benchmark import OllamaBenchmarkAdapter
             routing = configuration.routing

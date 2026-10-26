@@ -10,12 +10,16 @@ from sofia.platform.modules import (
 from test.test_module_lifecycle_v1 import verified_custom
 
 
-def _insert(path, *, module_id, lifecycle, updated_at, version="1.0.0"):
+def _insert(
+    path, *, module_id, lifecycle, updated_at, version="1.0.0",
+    package_digest="a" * 64, revision=1,
+):
     with sqlite3.connect(path) as db:
         db.execute(
-            "INSERT INTO platform_module_lifecycle VALUES(?,?,?,?,1,?,?,?,?)",
+            "INSERT INTO platform_module_lifecycle VALUES(?,?,?,?,?,?,?,?,?)",
             (
-                module_id, version, "a" * 64, lifecycle, "observe", None,
+                module_id, version, package_digest, lifecycle, revision,
+                "observe", None,
                 "test lifecycle evidence", updated_at.isoformat(),
             ),
         )
@@ -74,6 +78,49 @@ def test_missing_lifecycle_table_is_honest_empty_projection(
     observer = CanonicalPlatformModuleObserver(canonical_state_path)
     assert observer.described() == ()
     assert observer.health() == ()
+
+
+def test_old_package_success_cannot_become_new_active_package_health(
+    canonical_state_path, tmp_path,
+):
+    ModuleLifecycleManager(
+        state_path=canonical_state_path,
+        store_root=tmp_path / "module-store",
+        capability_system=CapabilitySystem(lambda request: False),
+        authorizer=lambda request: False,
+    )
+    now = datetime.now(timezone.utc)
+    _insert(
+        canonical_state_path, module_id="org.sofia.changed-package",
+        lifecycle="active", updated_at=now, package_digest="b" * 64,
+        revision=5,
+    )
+    with sqlite3.connect(canonical_state_path) as db:
+        db.executescript("""
+            CREATE TABLE platform_module_operation_request(
+                request_id TEXT PRIMARY KEY,module_id TEXT,package_digest TEXT,
+                expected_revision INTEGER,profile TEXT,operation TEXT,
+                component_id TEXT,host_identity TEXT);
+            CREATE TABLE platform_module_operation_attempt(
+                event_id INTEGER PRIMARY KEY,request_id TEXT,status TEXT,
+                evidence_ref TEXT,occurred_at TEXT);
+        """)
+        db.execute(
+            "INSERT INTO platform_module_operation_request VALUES(?,?,?,?,?,?,?,?)",
+            ("request:old", "org.sofia.changed-package", "a" * 64, 3,
+             "observe", "activate", "component:old", "host:old"),
+        )
+        db.execute(
+            "INSERT INTO platform_module_operation_attempt VALUES(1,?,?,?,?)",
+            ("request:old", "externally_verified_success", "probe:old",
+             now.isoformat()),
+        )
+
+    [health] = CanonicalPlatformModuleObserver(canonical_state_path).health()
+
+    assert health.health is ModuleObservationKind.UNKNOWN_STATE
+    assert health.reason_codes == ("active-observation-missing-or-stale",)
+    assert health.module_instance_id == "org.sofia.changed-package"
 
 
 def test_observer_projects_signed_declared_capabilities_without_importing_code(

@@ -145,6 +145,7 @@ def test_llm_benchmark_runs_only_from_fresh_verified_inventory_via_run(
             True, (), ("idle:verified",), now,
         ),
         source_revision=SHA, supply_provider=supply,
+        local_host_id="node:worker",
     )
     coordinator.register_ollama_adapter(host_id="node:worker", adapter=adapter())
     try:
