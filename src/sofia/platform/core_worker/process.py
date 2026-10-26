@@ -1172,29 +1172,35 @@ class CoreWorkerProcessOwner:
     def start(cls, **kwargs) -> "CoreWorkerProcessOwner":
         owner = cls(**kwargs)
         try:
-            owner.controller.reconcile_startup(
-                observe_running=owner.controller.observe_prior_generation,
-                now=owner.clock(),
-            )
-            action = owner.supervisor.start_component(
-                owner._component_id, lease=owner.lease, now=owner.clock(),
-            )
-            if action.action not in {"started", "already_healthy"}:
-                raise CoreWorkerError(
-                    f"Core worker supervisor refused startup: {action.action}"
-                )
-            health = owner.controller.health()
-            if not health.ready or not health.accepting:
-                raise CoreWorkerError("Core worker did not pass authenticated readiness")
-            owner._thread = Thread(
-                target=owner._renew_loop, name="sofia-core-worker-lease",
-                daemon=True,
-            )
-            owner._thread.start()
-            return owner
+            return owner.activate()
         except Exception:
             owner.close()
             raise
+
+    def activate(self) -> "CoreWorkerProcessOwner":
+        """Activate after any lease-bound dependencies have become ready."""
+        if self._thread is not None or self.controller.endpoint is not None:
+            raise RuntimeError("Core worker owner is already active")
+        self.controller.reconcile_startup(
+            observe_running=self.controller.observe_prior_generation,
+            now=self.clock(),
+        )
+        action = self.supervisor.start_component(
+            self._component_id, lease=self.lease, now=self.clock(),
+        )
+        if action.action not in {"started", "already_healthy"}:
+            raise CoreWorkerError(
+                f"Core worker supervisor refused startup: {action.action}"
+            )
+        health = self.controller.health()
+        if not health.ready or not health.accepting:
+            raise CoreWorkerError("Core worker did not pass authenticated readiness")
+        self._thread = Thread(
+            target=self._renew_loop, name="sofia-core-worker-lease",
+            daemon=True,
+        )
+        self._thread.start()
+        return self
 
     @property
     def renewal_error(self) -> str | None:

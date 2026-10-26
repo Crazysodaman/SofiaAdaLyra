@@ -19,6 +19,7 @@ from sofia.platform.core_worker import (
     PlatformProviderBinding,
     installed_core_release_digest,
 )
+from sofia.platform.inference_worker import InferenceProviderProcess
 from sofia.platform.composition.engines import create_cognitive_engine
 from sofia.platform.composition.root import compose
 from sofia.platform.config.model import (
@@ -135,6 +136,49 @@ def test_provider_executes_in_platform_not_core_process(
     assert health.pid != os.getpid()
     assert response.content == f"provider-pid:{os.getpid()}"
     controller.shutdown(now=now + timedelta(seconds=1))
+
+
+def test_inference_adapter_runs_in_independent_authenticated_process(tmp_path):
+    configuration = ProviderConfiguration(
+        provider="test-llm", model="isolated-provider-model"
+    )
+    process = InferenceProviderProcess(
+        configuration=configuration,
+        role="primary",
+        release_digest=installed_core_release_digest(),
+        platform_instance_id="platform:test",
+        response_timeout_seconds=5,
+    )
+
+    health = process.start(epoch=7)
+
+    assert health.pid == process.pid
+    assert health.pid != os.getpid()
+    assert health.ready and health.accepting
+    assert health.role == "primary"
+    assert health.epoch == 7
+    with pytest.raises(LLMProviderError, match="isolated inference"):
+        process.respond(request())
+    assert process.health().pid == health.pid
+    process.close()
+    assert process.pid is None
+
+
+def test_inference_worker_independently_rejects_wrong_release_bytes():
+    process = InferenceProviderProcess(
+        configuration=ProviderConfiguration(
+            provider="test-llm", model="forged-release-model"
+        ),
+        role="primary",
+        release_digest="0" * 64,
+        platform_instance_id="platform:test",
+        response_timeout_seconds=5,
+    )
+
+    with pytest.raises(Exception, match="readiness identity"):
+        process.start(epoch=3)
+
+    assert process.pid is None
 
 
 def test_provider_worker_start_fails_closed_without_exact_platform_binding(
@@ -623,8 +667,21 @@ def test_production_composition_owns_one_worker_for_dual_model_routing(
     assert primary_engine.configuration == primary
     assert secondary_engine.configuration == secondary
 
+    owner_group = runtime._component_owner
+    inference_processes = owner_group.inference_owner.providers
+    assert set(inference_processes) == {"primary", "secondary"}
+    assert all(
+        process.pid not in {None, os.getpid(), primary_engine.controller.pid}
+        for process in inference_processes.values()
+    )
+    assert all(
+        process.health().epoch == primary_engine.controller.lease.epoch
+        for process in inference_processes.values()
+    )
+
     runtime._close_runtime_resources()
     assert primary_engine.controller.pid is None
+    assert all(process.pid is None for process in inference_processes.values())
 
 
 def test_lifetime_lock_allows_verified_stopped_restart_recovery(canonical_state_path, tmp_path):

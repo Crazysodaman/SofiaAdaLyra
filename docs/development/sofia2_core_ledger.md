@@ -1408,10 +1408,11 @@ The isolated Core no longer imports or constructs the configured Ollama or
 test-LLM implementation. Its exact primary/secondary model configuration is
 still release-bound in the worker specification, while provider-neutral
 requests are returned over the same authenticated, generation-fenced IPC
-channel to an exact `PlatformProviderBinding`. Provider configuration digest,
-role, payload digest, deadline and a one-provider-call limit are checked before
-the result can become a cognitive response. The worker receives no model
-lifecycle authority, canonical state handle or execution grant.
+channel to an exact `PlatformProviderBinding`, which dispatches to a separate
+release-attested, HMAC-authenticated provider process. Provider configuration,
+role, payload, RUN epoch and release digests plus a one-provider-call limit are
+checked before the result can become a cognitive response. The Core receives
+no model lifecycle authority, canonical state handle or execution grant.
 
 This preserves existing Core routing, memory/context assembly, personality,
 audience behavior and tool-call interpretation while moving provider ownership
@@ -1420,8 +1421,8 @@ routing owners; no fallback or alternate model is introduced. Platform provider
 failure quarantines the Core generation as uncertain and is never silently
 retried.
 
-Local Linux evidence: **22 real-process tests** passed for the Core boundary;
-the affected cognition/provider/configuration/Fleet suite passed **129 tests**.
+Local Linux evidence: **24 real-process tests** passed for the Core boundary;
+the affected cognition/provider/configuration/Fleet suite passed **131 tests**.
 The deterministic test and compatibility routes remain executable. Genuine
 local/remote Ollama, Windows, exact-revision CI, installed-service and
 independent-review acceptance remain open, so Core B08 remains **BETA**.

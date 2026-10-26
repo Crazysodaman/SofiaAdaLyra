@@ -77,10 +77,29 @@ from sofia.platform.core_worker import (
     PlatformProviderBinding,
     CoreWorkerProcessOwner,
 )
-from sofia.platform.cognition_provider import create_llm_provider
+from sofia.platform.inference_worker import (
+    InferenceProcessGroup,
+    InferenceProviderProcess,
+)
 from sofia.platform.system.capability import create_local_system_capabilities
 from sofia.platform.state.factory import create_state_plane
 from sofia.platform.state.plane import StatePlane
+
+
+class _CompositionComponentOwners:
+    """Close Core before the independently hosted providers it can call."""
+
+    def __init__(self, core_owner, inference_owner) -> None:
+        self.core_owner = core_owner
+        self.inference_owner = inference_owner
+
+    def close(self) -> None:
+        try:
+            if self.core_owner is not None:
+                self.core_owner.close()
+        finally:
+            if self.inference_owner is not None:
+                self.inference_owner.close()
 
 
 def _configuration_with_persistent_host_location(
@@ -471,6 +490,7 @@ def compose(
                 "Fleet cognition is enabled but local host identity could not be observed"
             )
     owned_core_worker = None
+    owned_inference_workers = None
     if configuration.core_worker.enabled:
         if core_worker_controller is not None:
             raise ValueError(
@@ -504,35 +524,55 @@ def compose(
             ),
             secondary_provider=secondary_provider,
         )
-        provider_bindings = None
-        if provider_kind == "provider":
-            provider_bindings = {
-                "primary": PlatformProviderBinding(
-                    selected_provider, create_llm_provider(selected_provider),
-                ),
-                **(
-                    {
-                        "secondary": PlatformProviderBinding(
-                            secondary_provider,
-                            create_llm_provider(secondary_provider),
-                        )
-                    }
-                    if secondary_provider is not None else {}
-                ),
-            }
         worker = configuration.core_worker
-        owned_core_worker = CoreWorkerProcessOwner.start(
-            state_path=state_path,
-            release_digest=worker.release_digest,
-            platform_instance_id=worker.platform_instance_id,
-            core_identity_id=worker.core_identity_id,
-            component_id=worker.component_id,
-            runtime_dir=state_path.parent / "runtime" / "core-worker",
-            spec=worker_spec,
-            providers=provider_bindings,
-            lease_ttl_seconds=worker.lease_ttl_seconds,
-            response_timeout_seconds=worker.response_timeout_seconds,
-        )
+        provider_bindings = None
+        try:
+            owned_core_worker = CoreWorkerProcessOwner(
+                state_path=state_path,
+                release_digest=worker.release_digest,
+                platform_instance_id=worker.platform_instance_id,
+                core_identity_id=worker.core_identity_id,
+                component_id=worker.component_id,
+                runtime_dir=state_path.parent / "runtime" / "core-worker",
+                spec=worker_spec,
+                lease_ttl_seconds=worker.lease_ttl_seconds,
+                response_timeout_seconds=worker.response_timeout_seconds,
+            )
+            if provider_kind == "provider":
+                configurations = {
+                    "primary": selected_provider,
+                    **(
+                        {"secondary": secondary_provider}
+                        if secondary_provider is not None else {}
+                    ),
+                }
+                processes = {
+                    role: InferenceProviderProcess(
+                        configuration=provider_configuration,
+                        role=role,
+                        release_digest=worker.release_digest,
+                        platform_instance_id=worker.platform_instance_id,
+                        response_timeout_seconds=worker.response_timeout_seconds,
+                    )
+                    for role, provider_configuration in configurations.items()
+                }
+                owned_inference_workers = InferenceProcessGroup(processes)
+                for process in processes.values():
+                    process.start(epoch=owned_core_worker.lease.epoch)
+                provider_bindings = {
+                    role: PlatformProviderBinding(configurations[role], process)
+                    for role, process in processes.items()
+                }
+                owned_core_worker.controller.bind_providers(provider_bindings)
+            owned_core_worker.activate()
+        except Exception:
+            try:
+                _CompositionComponentOwners(
+                    owned_core_worker, owned_inference_workers,
+                ).close()
+            except Exception:
+                pass
+            raise
         core_worker_controller = owned_core_worker.controller
 
     try:
@@ -545,8 +585,12 @@ def compose(
             core_worker_controller=core_worker_controller,
         )
     except Exception:
-        if owned_core_worker is not None:
-            owned_core_worker.close()
+        try:
+            _CompositionComponentOwners(
+                owned_core_worker, owned_inference_workers,
+            ).close()
+        except Exception:
+            pass
         raise
 
     # Normal Ollama conversation uses a compact projection of the verified
@@ -602,7 +646,11 @@ def compose(
         operational_store=operational_store,
         filesystem_observation_store=filesystem_observation_store,
         model_lifecycle=model_lifecycle,
-        component_owner=owned_core_worker,
+        component_owner=_CompositionComponentOwners(
+            owned_core_worker, owned_inference_workers,
+        ) if (
+            owned_core_worker is not None or owned_inference_workers is not None
+        ) else None,
     )
     runtime.install_engineering_services(
         dev_service=dev_service,
