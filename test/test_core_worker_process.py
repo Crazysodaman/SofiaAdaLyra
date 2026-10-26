@@ -19,7 +19,9 @@ from sofia.platform.core_worker import (
     PlatformProviderBinding,
     installed_core_release_digest,
 )
-from sofia.platform.inference_worker import InferenceProviderProcess
+from sofia.platform.inference_worker import (
+    InferenceProcessOwner, InferenceProviderProcess, InferenceWorkerError,
+)
 from sofia.platform.composition.engines import create_cognitive_engine
 from sofia.platform.composition.root import compose
 from sofia.platform.config.model import (
@@ -142,15 +144,22 @@ def test_inference_adapter_runs_in_independent_authenticated_process(tmp_path):
     configuration = ProviderConfiguration(
         provider="test-llm", model="isolated-provider-model"
     )
+    release_digest = installed_core_release_digest()
     process = InferenceProviderProcess(
         configuration=configuration,
         role="primary",
-        release_digest=installed_core_release_digest(),
+        release_digest=release_digest,
         platform_instance_id="platform:test",
         response_timeout_seconds=5,
     )
 
-    health = process.start(epoch=7)
+    health = process.start(
+        endpoint=ComponentEndpoint(
+            "inference.primary.test", ComponentKind.INFERENCE,
+            release_digest, 1, "platform:test",
+        ),
+        epoch=7,
+    )
 
     assert health.pid == process.pid
     assert health.pid != os.getpid()
@@ -176,9 +185,92 @@ def test_inference_worker_independently_rejects_wrong_release_bytes():
     )
 
     with pytest.raises(Exception, match="readiness identity"):
-        process.start(epoch=3)
+        process.start(
+            endpoint=ComponentEndpoint(
+                "inference.primary.forged", ComponentKind.INFERENCE,
+                "0" * 64, 1, "platform:test",
+            ),
+            epoch=3,
+        )
 
     assert process.pid is None
+
+
+def test_inference_restart_blocks_unreconciled_active_generation(
+    canonical_state_path,
+):
+    digest = installed_core_release_digest()
+    configuration = ProviderConfiguration(
+        provider="test-llm", model="restart-fenced-model"
+    )
+    first = InferenceProcessOwner(
+        state_path=canonical_state_path,
+        process=InferenceProviderProcess(
+            configuration=configuration, role="primary",
+            release_digest=digest, platform_instance_id="platform:test",
+            response_timeout_seconds=5,
+        ),
+        component_id="inference.primary.restart-test",
+    )
+    health = first.start()
+    endpoint = first.endpoint
+    assert endpoint is not None and first.generations.is_active(endpoint)
+    assert health.generation == endpoint.generation
+
+    first._stop.set()
+    if first._thread is not None:
+        first._thread.join(2)
+    first.process.close(force=True)
+    first.lease_store.release(first.lease, now=datetime.now(timezone.utc))
+    replacement = InferenceProcessOwner(
+        state_path=canonical_state_path,
+        process=InferenceProviderProcess(
+            configuration=configuration, role="primary",
+            release_digest=digest, platform_instance_id="platform:test",
+            response_timeout_seconds=5,
+        ),
+        component_id="inference.primary.restart-test",
+    )
+
+    with pytest.raises(InferenceWorkerError, match="explicit reconciliation"):
+        replacement.start()
+
+    assert replacement.pid is None
+    assert replacement.generations.active_for_component(
+        "inference.primary.restart-test"
+    ) == endpoint
+
+
+def test_draining_inference_generation_cannot_dispatch(
+    canonical_state_path,
+):
+    digest = installed_core_release_digest()
+    configuration = ProviderConfiguration(
+        provider="test-llm", model="draining-model"
+    )
+    owner = InferenceProcessOwner(
+        state_path=canonical_state_path,
+        process=InferenceProviderProcess(
+            configuration=configuration, role="primary",
+            release_digest=digest, platform_instance_id="platform:test",
+            response_timeout_seconds=5,
+        ),
+        component_id="inference.primary.draining-test",
+    )
+    owner.start()
+    endpoint = owner.endpoint
+    assert endpoint is not None
+    owner.generations.begin_drain(
+        endpoint, lease=owner.lease, now=datetime.now(timezone.utc),
+        reason="test external fence",
+    )
+
+    with pytest.raises(LLMProviderError, match="authority"):
+        owner.respond(request())
+
+    owner.close()
+    assert owner.generations.state(endpoint) is GenerationState.QUARANTINED
+    assert owner.pid is None
 
 
 def test_provider_worker_start_fails_closed_without_exact_platform_binding(
@@ -675,13 +767,25 @@ def test_production_composition_owns_one_worker_for_dual_model_routing(
         for process in inference_processes.values()
     )
     assert all(
-        process.health().epoch == primary_engine.controller.lease.epoch
+        process.health().epoch == process.lease.epoch
         for process in inference_processes.values()
+    )
+    inference_generations = tuple(
+        (owner.generations, owner.endpoint)
+        for owner in inference_processes.values()
+    )
+    assert all(
+        endpoint is not None and generations.is_active(endpoint)
+        for generations, endpoint in inference_generations
     )
 
     runtime._close_runtime_resources()
     assert primary_engine.controller.pid is None
     assert all(process.pid is None for process in inference_processes.values())
+    assert all(
+        generations.state(endpoint) is GenerationState.RETIRED
+        for generations, endpoint in inference_generations
+    )
 
 
 def test_lifetime_lock_allows_verified_stopped_restart_recovery(canonical_state_path, tmp_path):

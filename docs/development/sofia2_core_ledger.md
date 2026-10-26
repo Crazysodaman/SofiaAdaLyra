@@ -1421,8 +1421,15 @@ routing owners; no fallback or alternate model is introduced. Platform provider
 failure quarantines the Core generation as uncertain and is never silently
 retried.
 
-Local Linux evidence: **24 real-process tests** passed for the Core boundary;
-the affected cognition/provider/configuration/Fleet suite passed **131 tests**.
+Provider roles now have separate canonical RUN leases and durable INFERENCE
+generation rows. Each call fails closed unless both remain exact and current;
+stale/draining generations cannot dispatch. Restart does not infer that a lost
+provider receipt means the old process stopped, so an unreconciled ACTIVE row
+blocks automatic provider replacement.
+
+Local Linux evidence: **26 real-process tests** passed for the Core boundary;
+the affected cognition/provider/configuration/Fleet/generation suite passed
+**137 tests**.
 The deterministic test and compatibility routes remain executable. Genuine
 local/remote Ollama, Windows, exact-revision CI, installed-service and
 independent-review acceptance remain open, so Core B08 remains **BETA**.

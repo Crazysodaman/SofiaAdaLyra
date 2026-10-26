@@ -1143,7 +1143,7 @@ and application shutdown/
 acceptance regressions passed **20 tests**. The complete affected
 non-integration `pkg_run` gate passed **678 tests** with 7,147 deselected.
 ISO-04 remains **ALPHA** overall:
-durable inference-provider generation/replacement, authenticated remote placement,
+inference-provider hot replacement/rollback, authenticated remote placement,
 restart reconstruction of a pre-existing external worker, Windows process
 acceptance, CI and independent review remain open. No automatic module install
 or production activation was performed.
@@ -1171,14 +1171,28 @@ Platform-owned binding. Model lifecycle/resource policy also remains in the
 Platform wrappers. Compatibility mode continues to use the same provider
 factory directly until isolated operation completes broader acceptance.
 
-Local Linux evidence: the real-process file passed **24 tests**, including
+Each provider role now also owns a scoped lease in the canonical RUN lease
+table and an exact `ComponentGenerationStore` INFERENCE row. Readiness activates
+that row only after the child proves component ID, generation, package release,
+configuration and lease epoch. Every inference call rechecks the live lease and
+exact active generation. Normal verified shutdown retires the generation;
+externally drained or uncertain shutdown quarantines it. A prior ACTIVE row is
+never silently reconnected or replayed after restart: startup blocks pending an
+explicit reconciliation policy.
+
+Local Linux evidence: the real-process file passed **26 tests**, including
 distinct Platform/Core/provider PID assertions, exact-binding denial,
 provider-failure quarantine, independent release-byte rejection, authenticated
-provider health and verified ordered shutdown. The affected
+provider health, durable restart fencing, stale-generation dispatch denial and
+verified ordered shutdown. The affected
 Core/cognition/configuration/HNF/provider/split-topology
-suite passed **131 tests**. Restricted execution initially denied AF_UNIX socket creation; the
+suite plus generation-store regressions passed **137 tests**. Restricted execution initially denied AF_UNIX socket creation; the
 identical suite passed with the permitted disposable local IPC boundary. No
 genuine Ollama request, Windows named-pipe test, CI, live Fleet host or
 independent review is claimed. Isolated provider ownership is **BETA**;
-durable provider generation fencing, independent replacement/rollback
-(ISO-04/05), restart reconstruction and host acceptance remain open.
+independent replacement/rollback (ISO-04/05), safe-probe restart
+reconciliation and host acceptance remain open.
+
+The complete affected non-integration `pkg_run` gate passed **685 tests** with
+7,147 deselected in 154.11 seconds on local Linux. This is local regression
+evidence, not matching-revision CI or independent review.

@@ -2,6 +2,7 @@
 
 from .process import (
     InferenceProcessGroup,
+    InferenceProcessOwner,
     InferenceProviderProcess,
     InferenceWorkerError,
     InferenceWorkerHealth,
@@ -9,6 +10,7 @@ from .process import (
 
 __all__ = [
     "InferenceProcessGroup",
+    "InferenceProcessOwner",
     "InferenceProviderProcess",
     "InferenceWorkerError",
     "InferenceWorkerHealth",

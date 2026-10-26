@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 import base64
 from hashlib import sha256
 import hmac
@@ -9,15 +10,23 @@ import json
 import multiprocessing
 from multiprocessing.connection import Connection
 import os
+from pathlib import Path
 import secrets
 from threading import RLock
-from typing import Mapping
+from threading import Event, Thread
+from typing import Callable, Mapping
+from uuid import uuid4
 
 from sofia.core.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.core.cognition.provider import LLMProvider, LLMProviderError
 from sofia.platform.cognition_provider import create_llm_provider
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.sdk import decode_request, decode_response, encode_request, encode_response
+from sofia.platform.run.generation import ComponentGenerationStore, GenerationState
+from sofia.platform.run.lease import LocalRunLeaseStore
+from sofia.sdk import (
+    ComponentEndpoint, ComponentKind, decode_request, decode_response,
+    encode_request, encode_response,
+)
 
 
 PROTOCOL = "sofia.inference.worker.v1"
@@ -83,11 +92,14 @@ class InferenceWorkerHealth:
     release_digest: str
     platform_instance_id: str
     epoch: int
+    component_id: str
+    generation: int
 
 
 def _identity(
     *, configuration: ProviderConfiguration, role: str, release_digest: str,
-    platform_instance_id: str, epoch: int,
+    platform_instance_id: str, epoch: int, component_id: str,
+    generation: int,
 ) -> dict[str, object]:
     return {
         "role": role,
@@ -95,6 +107,8 @@ def _identity(
         "release_digest": release_digest,
         "platform_instance_id": platform_instance_id,
         "epoch": epoch,
+        "component_id": component_id,
+        "generation": generation,
     }
 
 
@@ -110,6 +124,8 @@ def _worker_main(
             release_digest=identity["release_digest"],
             platform_instance_id=identity["platform_instance_id"],
             epoch=identity["epoch"],
+            component_id=identity["component_id"],
+            generation=identity["generation"],
         )
         if identity != expected:
             raise PermissionError("inference worker identity mismatch")
@@ -211,9 +227,17 @@ class InferenceProviderProcess(LLMProvider):
     def pid(self) -> int | None:
         return None if self._process is None else self._process.pid
 
-    def start(self, *, epoch: int) -> InferenceWorkerHealth:
+    def start(
+        self, *, endpoint: ComponentEndpoint, epoch: int,
+    ) -> InferenceWorkerHealth:
         if type(epoch) is not int or epoch < 1:
             raise ValueError("positive execution epoch required")
+        if not isinstance(endpoint, ComponentEndpoint) or (
+            endpoint.kind is not ComponentKind.INFERENCE
+            or endpoint.release_digest != self.release_digest
+            or endpoint.platform_instance_id != self.platform_instance_id
+        ):
+            raise ValueError("exact inference component endpoint required")
         if self._process is not None:
             raise RuntimeError("inference worker already started")
         context = multiprocessing.get_context("spawn")
@@ -223,6 +247,8 @@ class InferenceProviderProcess(LLMProvider):
             configuration=self.configuration, role=self.role,
             release_digest=self.release_digest,
             platform_instance_id=self.platform_instance_id, epoch=epoch,
+            component_id=endpoint.component_id,
+            generation=endpoint.generation,
         )
         process = context.Process(
             target=_worker_main,
@@ -276,6 +302,8 @@ class InferenceProviderProcess(LLMProvider):
             release_digest=self.release_digest,
             platform_instance_id=self.platform_instance_id,
             epoch=response["epoch"],
+            component_id=response["component_id"],
+            generation=response["generation"],
         )
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
@@ -321,11 +349,12 @@ class InferenceProviderProcess(LLMProvider):
         self._secret = None
         self._identity = None
 
-    def close(self, *, force: bool = False) -> None:
+    def close(self, *, force: bool = False) -> bool:
         with self._lock:
             process = self._process
             if process is None:
-                return
+                return True
+            verified = False
             try:
                 if not force and process.is_alive():
                     drained = self._rpc({"kind": "drain"})
@@ -334,15 +363,178 @@ class InferenceProviderProcess(LLMProvider):
                     stopped = self._rpc({"kind": "shutdown"})
                     if stopped != {"kind": "stopped", "pid": process.pid}:
                         raise InferenceWorkerError("inference stop identity mismatch")
+                    verified = True
             finally:
                 process.join(2.0)
                 self._terminate_locked()
+            return verified
+
+
+class InferenceProcessOwner(LLMProvider):
+    """Canonical RUN lease and generation owner for one provider process."""
+
+    def __init__(
+        self, *, state_path: Path, process: InferenceProviderProcess,
+        component_id: str, lease_ttl_seconds: int = 180,
+        clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    ) -> None:
+        if not isinstance(state_path, Path) or not state_path.is_file():
+            raise FileNotFoundError("existing canonical state database required")
+        if not isinstance(process, InferenceProviderProcess):
+            raise TypeError("process must be InferenceProviderProcess")
+        if not isinstance(component_id, str) or not component_id.strip():
+            raise ValueError("component_id required")
+        if type(lease_ttl_seconds) is not int or not 15 <= lease_ttl_seconds <= 300:
+            raise ValueError("lease_ttl_seconds must be in 15..300")
+        self.process = process
+        self.component_id = component_id
+        self.clock = clock
+        self.lease_ttl_seconds = lease_ttl_seconds
+        self.lease_store = LocalRunLeaseStore(
+            state_path, lease_key=f"component-{component_id}",
+        )
+        acquired = self.lease_store.acquire(
+            owner_id=f"inference-owner:{uuid4().hex}", now=clock(),
+            ttl_seconds=lease_ttl_seconds,
+        )
+        if acquired.lease is None:
+            raise InferenceWorkerError(
+                f"inference RUN lease unavailable: {acquired.status}"
+            )
+        self.lease = acquired.lease
+        self.generations = ComponentGenerationStore(
+            state_path=state_path, lease_store=self.lease_store,
+        )
+        self.endpoint: ComponentEndpoint | None = None
+        self._stop = Event()
+        self._thread: Thread | None = None
+        self.renewal_error: str | None = None
+
+    def start(self) -> InferenceWorkerHealth:
+        if self.endpoint is not None:
+            raise RuntimeError("inference process owner already started")
+        if self.generations.active_for_component(self.component_id) is not None:
+            self.lease_store.release(self.lease, now=self.clock())
+            raise InferenceWorkerError(
+                "prior inference generation requires explicit reconciliation"
+            )
+        endpoint = self.generations.stage(
+            component_id=self.component_id, kind=ComponentKind.INFERENCE,
+            release_digest=self.process.release_digest,
+            platform_instance_id=self.process.platform_instance_id,
+            core_identity_id=None, lease=self.lease, now=self.clock(),
+            reason="inference provider process staged",
+        )
+        try:
+            health = self.process.start(endpoint=endpoint, epoch=self.lease.epoch)
+            if not health.ready or not health.accepting or (
+                health.component_id != endpoint.component_id
+                or health.generation != endpoint.generation
+            ):
+                raise InferenceWorkerError("inference readiness identity mismatch")
+            self.generations.activate(
+                endpoint, lease=self.lease, now=self.clock(),
+                reason="authenticated inference readiness verified",
+            )
+        except Exception:
+            self.process.close(force=True)
+            self.generations.quarantine_staged(
+                endpoint, lease=self.lease, now=self.clock(),
+                reason="inference process failed readiness",
+            )
+            self.lease_store.release(self.lease, now=self.clock())
+            raise
+        self.endpoint = endpoint
+        self._thread = Thread(
+            target=self._renew_loop,
+            name=f"sofia-inference-lease-{self.process.role}", daemon=True,
+        )
+        self._thread.start()
+        return health
+
+    def _renew_loop(self) -> None:
+        interval = max(5.0, self.lease_ttl_seconds / 3)
+        while not self._stop.wait(interval):
+            try:
+                result = self.lease_store.renew(
+                    self.lease, now=self.clock(),
+                    ttl_seconds=self.lease_ttl_seconds,
+                )
+                if result.lease is None:
+                    raise InferenceWorkerError(
+                        f"inference lease renewal failed: {result.status}"
+                    )
+                self.lease = result.lease
+            except Exception as exc:
+                self.renewal_error = type(exc).__name__
+                self.process.close(force=True)
+                return
+
+    def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+        endpoint = self.endpoint
+        now = self.clock()
+        current = self.lease_store.current(now=now)
+        if endpoint is None or not self.generations.is_active(endpoint) or (
+            current is None or current.owner_id != self.lease.owner_id
+            or current.epoch != self.lease.epoch
+        ):
+            raise LLMProviderError("inference generation authority is unavailable")
+        return self.process.respond(request)
+
+    @property
+    def pid(self) -> int | None:
+        return self.process.pid
+
+    def health(self) -> InferenceWorkerHealth:
+        if self.endpoint is None or not self.generations.is_active(self.endpoint):
+            raise InferenceWorkerError("inference generation is not active")
+        return self.process.health()
+
+    def close(self) -> None:
+        self._stop.set()
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=min(10.0, self.lease_ttl_seconds / 2))
+        self._thread = None
+        endpoint = self.endpoint
+        now = self.clock()
+        if self.lease_store.holds(self.lease, now=now):
+            try:
+                if endpoint is not None and self.generations.is_active(endpoint):
+                    self.generations.begin_drain(
+                        endpoint, lease=self.lease, now=now,
+                        reason="inference provider shutdown",
+                    )
+                    verified = self.process.close()
+                    self.generations.fence(
+                        endpoint, lease=self.lease, now=self.clock(),
+                        reason=(
+                            "inference process exit verified"
+                            if verified else "inference process exit uncertain"
+                        ),
+                        quarantine=not verified,
+                    )
+                elif endpoint is not None and self.generations.state(
+                    endpoint
+                ) is GenerationState.DRAINING:
+                    self.process.close(force=True)
+                    self.generations.fence(
+                        endpoint, lease=self.lease, now=self.clock(),
+                        reason="inference process fenced after external drain",
+                        quarantine=True,
+                    )
+                else:
+                    self.process.close(force=True)
+            finally:
+                self.lease_store.release(self.lease, now=self.clock())
+        else:
+            self.process.close(force=True)
+        self.endpoint = None
 
 
 class InferenceProcessGroup:
     """Ordered owner for exact provider-role processes."""
 
-    def __init__(self, providers: Mapping[str, InferenceProviderProcess]) -> None:
+    def __init__(self, providers: Mapping[str, InferenceProcessOwner]) -> None:
         self.providers = dict(providers)
 
     def close(self) -> None:

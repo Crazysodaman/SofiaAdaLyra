@@ -1,5 +1,6 @@
 """Wire configured subsystem instances into one foundational runtime."""
 from dataclasses import replace
+from hashlib import sha256
 import os
 from pathlib import Path
 
@@ -79,6 +80,7 @@ from sofia.platform.core_worker import (
 )
 from sofia.platform.inference_worker import (
     InferenceProcessGroup,
+    InferenceProcessOwner,
     InferenceProviderProcess,
 )
 from sofia.platform.system.capability import create_local_system_capabilities
@@ -556,12 +558,32 @@ def compose(
                     )
                     for role, provider_configuration in configurations.items()
                 }
-                owned_inference_workers = InferenceProcessGroup(processes)
-                for process in processes.values():
-                    process.start(epoch=owned_core_worker.lease.epoch)
+                provider_owners = {}
+                try:
+                    for role, process in processes.items():
+                        provider_owners[role] = InferenceProcessOwner(
+                            state_path=state_path, process=process,
+                            component_id=(
+                                f"inference.{role}."
+                                + sha256(
+                                    f"{worker.core_identity_id}:{role}".encode(
+                                        "utf-8"
+                                    )
+                                ).hexdigest()[:20]
+                            ),
+                            lease_ttl_seconds=worker.lease_ttl_seconds,
+                        )
+                except Exception:
+                    InferenceProcessGroup(provider_owners).close()
+                    raise
+                owned_inference_workers = InferenceProcessGroup(provider_owners)
+                for provider_owner in provider_owners.values():
+                    provider_owner.start()
                 provider_bindings = {
-                    role: PlatformProviderBinding(configurations[role], process)
-                    for role, process in processes.items()
+                    role: PlatformProviderBinding(
+                        configurations[role], provider_owner,
+                    )
+                    for role, provider_owner in provider_owners.items()
                 }
                 owned_core_worker.controller.bind_providers(provider_bindings)
             owned_core_worker.activate()

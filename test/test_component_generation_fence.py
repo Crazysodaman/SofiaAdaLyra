@@ -36,6 +36,7 @@ def test_exactly_one_active_generation_and_explicit_drain_fence(canonical_state_
     second = stage(store, lease, b"core-v2")
     store.activate(first, lease=lease, now=NOW, reason="initial activation")
     assert store.is_active(first) is True
+    assert store.active_for_component("core.sofia") == first
     with pytest.raises(RuntimeError, match="already active"):
         store.activate(second, lease=lease, now=NOW, reason="unsafe collision")
     store.begin_drain(
@@ -45,11 +46,13 @@ def test_exactly_one_active_generation_and_explicit_drain_fence(canonical_state_
     store.fence(
         first, lease=lease, now=NOW + timedelta(seconds=2), reason="worker stopped",
     )
+    assert store.active_for_component("core.sofia") is None
     store.activate(
         second, lease=lease, now=NOW + timedelta(seconds=3), reason="replacement",
     )
     assert store.state(first) is GenerationState.RETIRED
     assert store.is_active(second) is True
+    assert store.active_for_component("core.sofia") == second
 
 
 def test_restart_preserves_fence_and_stale_identity_cannot_reactivate(canonical_state_path):

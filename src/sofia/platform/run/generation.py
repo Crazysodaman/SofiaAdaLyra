@@ -266,3 +266,25 @@ class ComponentGenerationStore:
             row["release_digest"], int(row["generation"]),
             row["platform_instance_id"], row["core_identity_id"],
         )
+
+    def active_for_component(
+        self, component_id: str,
+    ) -> ComponentEndpoint | None:
+        """Return the exact active endpoint, never a historical generation."""
+        if not isinstance(component_id, str) or not component_id.strip():
+            raise ValueError("component_id required")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """SELECT component_id,kind,release_digest,generation,
+                platform_instance_id,core_identity_id
+                FROM run_component_generation
+                WHERE component_id=? AND state='active'""",
+                (component_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return ComponentEndpoint(
+            row["component_id"], ComponentKind(row["kind"]),
+            row["release_digest"], int(row["generation"]),
+            row["platform_instance_id"], row["core_identity_id"],
+        )
