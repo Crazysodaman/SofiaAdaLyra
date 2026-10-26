@@ -163,6 +163,8 @@ def test_headless_core_host_role_is_explicit_in_unit():
 def test_launcher_installs_xdg_clients_without_starting_core(
     monkeypatch, tmp_path, capsys,
 ):
+    import sofia.platform.ui_launchers as ui_launchers
+    monkeypatch.setattr(ui_launchers.sys, "platform", "linux")
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))

@@ -1226,3 +1226,27 @@ review remain required; this repair is **BETA**, not RELEASE CANDIDATE.
 
 The complete non-integration `pkg_run` gate passed **686 tests** with 7,148
 deselected in 111.71 seconds on the same local Linux source.
+
+### Windows shortcut quoting and cross-platform launcher selection — 2026-10-26 UTC
+
+Windows `.lnk` creation no longer appends user-controlled paths/arguments after
+PowerShell `-Command` and relies on ambiguous `$args` parsing. Platform invokes
+a fixed UTF-16LE `-EncodedCommand`; shortcut path, target, Windows-quoted
+arguments, description and working directory travel as separate environment
+fields. This preserves Unicode Sofía names and paths containing spaces, quotes
+or shell metacharacters without evaluating them as PowerShell. Every expected
+shortcut must exist as a regular non-symlink file before the installer returns
+a receipt. Start Menu, optional Desktop and HKCU startup behavior remain
+per-user and require no elevation.
+
+The XDG CLI regression now explicitly selects Linux semantics; it no longer
+expects a Linux receipt merely because that test happens to execute in a
+Windows job. Production platform selection is unchanged. Launcher payloads
+still invoke only `sofia.platform.launcher`, carry no database/credential path,
+and Core-Link role tests prove installation does not import or start Core.
+
+Local Linux evidence: focused launcher/role coverage passed **25 tests**. The
+complete non-integration `pkg_ui` gate passed **599 tests with 1 skipped** and
+7,239 deselected in 100.07 seconds. Real Windows COM shortcut creation, Start
+Menu visual launch, HKCU registry inspection, installed-wheel execution, CI and
+independent review remain open; the launcher remains **BETA**.

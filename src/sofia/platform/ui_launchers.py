@@ -6,6 +6,7 @@ machine-wide services, embeds credentials, or requires administrator access.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import base64
 import os
 from pathlib import Path
 import shutil
@@ -135,13 +136,27 @@ def install_xdg_launchers(
 _POWERSHELL_SHORTCUT = r"""
 $ErrorActionPreference='Stop'
 $shell=New-Object -ComObject WScript.Shell
-$link=$shell.CreateShortcut($args[0])
-$link.TargetPath=$args[1]
-$link.Arguments=$args[2]
-$link.Description=$args[3]
-$link.WorkingDirectory=$args[4]
+$required=@(
+  'SOFIA_SHORTCUT_PATH','SOFIA_SHORTCUT_TARGET','SOFIA_SHORTCUT_ARGUMENTS',
+  'SOFIA_SHORTCUT_DESCRIPTION','SOFIA_SHORTCUT_WORKDIR'
+)
+foreach($name in $required) {
+  if([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+    throw "Missing shortcut field"
+  }
+}
+$link=$shell.CreateShortcut($env:SOFIA_SHORTCUT_PATH)
+$link.TargetPath=$env:SOFIA_SHORTCUT_TARGET
+$link.Arguments=$env:SOFIA_SHORTCUT_ARGUMENTS
+$link.Description=$env:SOFIA_SHORTCUT_DESCRIPTION
+$link.WorkingDirectory=$env:SOFIA_SHORTCUT_WORKDIR
 $link.Save()
 """.strip()
+
+
+def _encoded_powershell(script: str) -> str:
+    """PowerShell encoded commands are UTF-16LE and need no argv quoting."""
+    return base64.b64encode(script.encode("utf-16-le")).decode("ascii")
 
 
 def install_windows_launchers(
@@ -178,12 +193,23 @@ def install_windows_launchers(
         for target in targets:
             if target.exists() and target.is_symlink():
                 raise PermissionError("Windows shortcut target cannot be a symlink")
+            process_environment = dict(os.environ)
+            process_environment.update(env)
+            process_environment.update({
+                "SOFIA_SHORTCUT_PATH": str(target),
+                "SOFIA_SHORTCUT_TARGET": argv[0],
+                "SOFIA_SHORTCUT_ARGUMENTS": arguments,
+                "SOFIA_SHORTCUT_DESCRIPTION": description,
+                "SOFIA_SHORTCUT_WORKDIR": str(Path(argv[0]).parent),
+            })
             run(
-                [powershell, "-NoProfile", "-NonInteractive", "-Command",
-                 _POWERSHELL_SHORTCUT, str(target), argv[0], arguments,
-                 description, str(Path(argv[0]).parent)],
+                [powershell, "-NoProfile", "-NonInteractive",
+                 "-EncodedCommand", _encoded_powershell(_POWERSHELL_SHORTCUT)],
                 check=True, capture_output=True, text=True,
+                env=process_environment,
             )
+            if not target.is_file() or target.is_symlink():
+                raise RuntimeError("PowerShell did not create a safe shortcut")
             installed.append(str(target))
     if configure_startup is None:
         from sofia.modules.ui.windows_startup import configure_windows_ui_startup
