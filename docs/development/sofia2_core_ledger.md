@@ -1466,3 +1466,22 @@ non-integration Core gate produced **4,926 passed, 4 skipped, 2,906 deselected
 and 8 subtests passed**, with one unrelated known P2 failure:
 `test_batch_denies_incomplete_review`. Actual Windows junction/ACL and CI
 evidence remain open; Core remains **BETA**.
+
+### RUN receipt clock and package-selection follow-up — 2026-10-26 UTC
+
+Implementation commit `c5c9249f` removes test-only wall-clock drift without
+weakening Core evidence requirements. Imported module-operation fixtures now
+create deadlines, approvals and authenticated adapter observations relative to
+the actual invocation. The LIFE completion regression orders its independent
+evaluation after the genuine asynchronous operation receipt, then proves a
+later canonical RUN transition to uncertain still blocks completion. An
+explicit negative confirms an already expired module request remains denied.
+
+This also resolves the one unrelated failure in the prior Core run: the
+optional-release negative now intentionally supplies an incomplete reviewed
+policy instead of assuming local source candidates are missing. Those release
+tests are explicitly owned by RUN/SAFE/VERIFY rather than falling through to
+Core. Local Linux evidence: named cross-system regressions **5 passed**,
+`pkg_run` **752 passed**, `pkg_safe` **2,570 passed with 2 skipped**, and
+`pkg_verify` **878 passed**. This is not Windows, CI, real-host or independent
+review evidence; Core remains **BETA**.

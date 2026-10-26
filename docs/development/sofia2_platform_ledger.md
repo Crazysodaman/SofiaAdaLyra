@@ -1250,3 +1250,38 @@ complete non-integration `pkg_ui` gate passed **599 tests with 1 skipped** and
 7,239 deselected in 100.07 seconds. Real Windows COM shortcut creation, Start
 Menu visual launch, HKCU registry inspection, installed-wheel execution, CI and
 independent review remain open; the launcher remains **BETA**.
+
+### Optional-release, package ownership and expiring-fixture remediation — 2026-10-26 UTC
+
+Implementation commit `c5c9249f` preserves the approved 47-module catalog and
+its fail-closed release policy. The previously failing incomplete-review test
+had become a false negative after all 47 source candidates arrived: its helper
+silently constructed a complete policy. It now deliberately omits one reviewed
+package identity. Separate negatives prove missing per-module data
+classification and missing capability schema are rejected. Production batch
+cardinality and receipts derive from the canonical catalog set, preventing a
+future catalog edit from leaving stale magic counts in enforcement code.
+
+The five audit-listed test files now have explicit cross-package ownership:
+Core Link (`pkg_ui`, `pkg_net`, `pkg_safe`), optional-module lifecycle/release
+(`pkg_run`, `pkg_safe`, `pkg_verify` as applicable), and UI launcher security
+(`pkg_ui`, `pkg_safe`). The all-package collection proof found **7,836 unique
+non-integration tests** and nonempty selections for all 22 configured package
+markers; this collection did not execute those tests.
+
+Imported module-operation fixtures no longer bind approval deadlines or
+authenticated adapter observations to module-import time. Each invocation
+creates one consistent bounded operation clock, while an explicit negative
+still proves expired requests are rejected. LIFE's historical-receipt test now
+orders its synthetic evaluation after the real asynchronous RUN receipt rather
+than predating genuine evidence on a loaded host. Production expiration,
+freshness, receipt and authorization checks were not relaxed.
+
+Local Linux evidence on the implementation tree: optional release/grouping
+coverage **70 passed**; named expiry/restart/backlog/Control Center/LIFE
+regressions **5 passed**; `pkg_run` **752 passed**; `pkg_safe` **2,570 passed,
+2 skipped, 23 subtests passed**; `pkg_verify` **878 passed, 23 subtests passed**.
+Restricted execution initially denied AF_UNIX worker sockets; complete RUN and
+SAFE results were obtained with the approved disposable local IPC boundary.
+No signed owner release, module installation, Windows execution, matching-SHA
+CI or independent review is claimed. Platform remains **BETA**.
