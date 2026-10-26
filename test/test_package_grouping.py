@@ -62,6 +62,21 @@ def test_mentor_and_live2d_have_explicit_package_owners() -> None:
         ), path.name
 
 
+def test_core_link_optional_release_and_launcher_have_explicit_owners() -> None:
+    root = Path(__file__).parent
+    expected = {
+        "test_core_link_binding.py": {"pkg_ui", "pkg_net", "pkg_safe"},
+        "test_four_module_batch.py": {"pkg_run", "pkg_safe"},
+        "test_optional_module_beta_source_preflight.py": {
+            "pkg_run", "pkg_safe", "pkg_verify",
+        },
+        "test_optional_release_packages.py": {"pkg_run", "pkg_safe", "pkg_verify"},
+        "test_platform_ui_launchers.py": {"pkg_ui", "pkg_safe"},
+    }
+    for filename, owners in expected.items():
+        assert owners.issubset(_explicit_package_markers(root / filename)), filename
+
+
 def test_an_unmapped_test_does_not_gain_explicit_ownership(tmp_path: Path) -> None:
     probe = tmp_path / "test_unowned_feature.py"
     probe.write_text("def test_example(): pass\n", encoding="utf-8")

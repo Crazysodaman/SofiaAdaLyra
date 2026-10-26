@@ -198,8 +198,28 @@ def test_real_platform_manifest_signature_and_tamper_denial(rows,policy,tmp_path
 
 def test_batch_denies_incomplete_review(rows):
     from sofia.modules.optional_release_packages import prepare_release_batch
-    incomplete=policy_for(rows)
+    package_ids={r['module_id']:package_id_proposal(r['module_id']) for r in rows}
+    package_ids.pop(rows[0]['module_id'])
+    incomplete=policy_for(rows,package_ids=package_ids)
     with pytest.raises(ReleasePreparationError,match='all 47'):
+        prepare_release_batch(SOURCE_ROOT,policy=incomplete,source_revision_sha=SNAPSHOT)
+
+
+def test_batch_denies_missing_reviewed_data_class(rows):
+    from sofia.modules.optional_release_packages import prepare_release_batch
+    data={r['module_id']:('supplied_unverified',) for r in rows}
+    data.pop(rows[-1]['module_id'])
+    incomplete=policy_for(rows,classes=data)
+    with pytest.raises(ReleasePreparationError,match='all 47 reviewed data'):
+        prepare_release_batch(SOURCE_ROOT,policy=incomplete,source_revision_sha=SNAPSHOT)
+
+
+def test_batch_denies_missing_reviewed_capability_schema(rows):
+    from sofia.modules.optional_release_packages import prepare_release_batch
+    schemas={r['capability_id']:f'test-reviewed:{r["capability_id"]}' for r in rows}
+    schemas.pop(rows[-1]['capability_id'])
+    incomplete=policy_for(rows,schemas=schemas)
+    with pytest.raises(ReleasePreparationError,match='missing reviewed capability'):
         prepare_release_batch(SOURCE_ROOT,policy=incomplete,source_revision_sha=SNAPSHOT)
 
 

@@ -52,9 +52,10 @@ def _fresh_operation_clock():
 
 
 class Adapter(ReviewedModuleAdapter):
-    def __init__(self, package_digest, *, fail_start=False):
+    def __init__(self, package_digest, *, fail_start=False, observed_at=None):
         self.package_digest = package_digest
         self.fail_start = fail_start
+        self.observed_at = observed_at or datetime.now(timezone.utc)
         self.state = ProcessState.STOPPED
         self.starts = 0
 
@@ -62,7 +63,7 @@ class Adapter(ReviewedModuleAdapter):
         return AdapterInspection(
             "org.sofia.research", self.package_digest, "research.worker",
             "host:test", self.state, self.state is ProcessState.RUNNING,
-            "probe:research-worker", NOW,
+            "probe:research-worker", self.observed_at,
         )
 
     def observe(self):
@@ -118,7 +119,15 @@ class Factory(ReviewedAdapterFactory):
         return self.adapter
 
 
-def prepared(canonical_state_path, tmp_path, *, register_factory=True, fail_start=False):
+def prepared(
+    canonical_state_path, tmp_path, *, register_factory=True, fail_start=False,
+    now=None,
+):
+    # This helper is imported by several package suites.  A module-level clock
+    # becomes expired when collection/execution crosses a validity boundary,
+    # so derive the bounded authorization window at fixture invocation unless
+    # a deterministic scenario clock is explicitly supplied.
+    operation_now = now or datetime.now(timezone.utc).replace(microsecond=0)
     system = CapabilitySystem(authorization_checker=lambda request: True)
     lifecycle = ModuleLifecycleCommandService(
         state_path=canonical_state_path,
@@ -126,32 +135,35 @@ def prepared(canonical_state_path, tmp_path, *, register_factory=True, fail_star
         capability_system=system,
     )
     package = verified_package(tmp_path)
-    found = lifecycle.discover(package, now=NOW)
+    found = lifecycle.discover(package, now=operation_now)
     approval_id, _ = authorize(
         canonical_state_path, operation="approve", record=found,
-        target=ModuleLifecycle.APPROVED, now=NOW,
+        target=ModuleLifecycle.APPROVED, now=operation_now,
     )
     approved = lifecycle.approve(
         found.module_id, expected_revision=found.revision,
-        approval_id=approval_id, now=NOW,
+        approval_id=approval_id, now=operation_now,
     )
     stage_id, _ = authorize(
         canonical_state_path, operation="stage", record=approved,
-        target=ModuleLifecycle.STAGED, now=NOW,
+        target=ModuleLifecycle.STAGED, now=operation_now,
     )
     staged = lifecycle.stage(
         package, expected_revision=approved.revision,
-        approval_id=stage_id, now=NOW,
+        approval_id=stage_id, now=operation_now,
     )
     activation_id, parameters = authorize(
         canonical_state_path, operation="activate", record=staged,
         target=ModuleLifecycle.ACTIVATING,
-        profile=OperationProfileKind.OBSERVE, now=NOW,
+        profile=OperationProfileKind.OBSERVE, now=operation_now,
     )
     store = DurableWorkStore(canonical_state_path)
     manager = TaskExecutionManager(store, {}, max_workers=1)
     factories = AdapterFactoryRegistry()
-    adapter = Adapter(package.package_digest, fail_start=fail_start)
+    adapter = Adapter(
+        package.package_digest, fail_start=fail_start,
+        observed_at=operation_now,
+    )
     if register_factory:
         factories.register(Factory(package.package_digest, adapter))
     coordinator = ModuleOperationCoordinator(
@@ -169,12 +181,33 @@ def prepared(canonical_state_path, tmp_path, *, register_factory=True, fail_star
         principal=local_sparks_principal(),
         principal_attestation_ref=activation_id, approval_id=activation_id,
         component_id="research.worker", host_identity="host:test",
-        deadline=NOW + timedelta(minutes=5), correlation_id="corr:research",
+        deadline=operation_now + timedelta(minutes=5), correlation_id="corr:research",
         resource_lease_refs=(), device_lease_refs=(),
         requested_effect="start reviewed research worker",
         cancellation_policy=ModuleCancellationPolicy.BEFORE_EXTERNAL_DISPATCH_ONLY,
     )
     return lifecycle, coordinator, manager, store, adapter, request, parameters
+
+
+def test_prepared_request_window_is_fresh_and_expiration_still_fails_closed(
+    canonical_state_path, tmp_path,
+):
+    _lifecycle, coordinator, manager, _store, _adapter, request, _ = prepared(
+        canonical_state_path, tmp_path,
+    )
+    moment = datetime.now(timezone.utc)
+    try:
+        assert request.deadline > moment
+        expired = replace(
+            request,
+            request_id=f"request:{uuid4()}",
+            idempotency_key="activation:research:expired",
+            deadline=moment - timedelta(seconds=1),
+        )
+        with pytest.raises(ValueError, match="request expired"):
+            coordinator.submit(expired, now=moment)
+    finally:
+        manager.close(wait=True)
 
 
 def finish(manager, store, job_id):

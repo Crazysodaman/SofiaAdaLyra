@@ -1403,6 +1403,13 @@ def test_life_completion_rechecks_canonical_run_after_valid_evaluation(tmp_path)
         job_id = life.store.jobs(project.project_id)[0]
         job = wait_for_job(life, job_id)
         assert job.status is WorkStatus.COMPLETED
+        operation_receipt = life.evidence_index.lookup(
+            str(job.result["evidence_ref"])
+        )
+        assert operation_receipt is not None
+        evaluation_at = max(
+            now + timedelta(seconds=4), operation_receipt.observed_at,
+        )
         life.evaluate_artifact(
             project.project_id, artifact_id=str(job.result["artifact_id"]),
             technical_outcome=TechnicalOutcome.VALID,
@@ -1410,18 +1417,18 @@ def test_life_completion_rechecks_canonical_run_after_valid_evaluation(tmp_path)
             objective_results={"text_contains:Foxfire": True},
             reason="Original independent byte inspection passed.",
             evidence_refs=(str(job.result["evidence_ref"]),),
-            preserve_for_research=False, now=now + timedelta(seconds=4),
+            preserve_for_research=False, now=evaluation_at,
         )
         life.work_store.transition(
             job_id, expected=(WorkStatus.COMPLETED,),
             status=WorkStatus.UNCERTAIN,
             reason="later source contradiction",
-            now=now + timedelta(seconds=5),
+            now=evaluation_at + timedelta(seconds=1),
         )
         with pytest.raises(ValueError, match="independent PASS"):
             life.complete(
                 project.project_id, reason="This no longer has a verified RUN receipt.",
-                now=now + timedelta(seconds=6),
+                now=evaluation_at + timedelta(seconds=2),
             )
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
     finally:

@@ -82,6 +82,16 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_live2d_recovery.py", ("pkg_avatar", "pkg_dev", "pkg_integrate")),
     # MENTOR QA and public/local bridge security are VERIFY/SAFE-owned.
     ("test_mentor_", ("pkg_verify", "pkg_safe")),
+    # Core Link is a UI/network projection whose binding and credentials are
+    # SAFE-owned.  Keep all three package jobs responsible for the boundary.
+    ("test_core_link_binding.py", ("pkg_ui", "pkg_net", "pkg_safe")),
+    # Optional-module source/release checks exercise the RUN lifecycle and
+    # SAFE trust boundary; static preflight is also release verification.
+    ("test_four_module_batch.py", ("pkg_run", "pkg_safe")),
+    ("test_optional_module_beta_source_preflight.py", ("pkg_run", "pkg_safe", "pkg_verify")),
+    ("test_optional_release_packages.py", ("pkg_run", "pkg_safe", "pkg_verify")),
+    # Installer output is a UI surface and a per-user security boundary.
+    ("test_platform_ui_launchers.py", ("pkg_ui", "pkg_safe")),
     ("test_v18_change_guard.py", ("pkg_verify", "pkg_dev")),
     ("test_v18_five_stage_audit.py", ("pkg_verify",)),
     ("test_v18_direct_code_audit.py", ("pkg_verify",)),

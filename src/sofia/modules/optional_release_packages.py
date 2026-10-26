@@ -26,6 +26,7 @@ _SEMVER = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
 _ALLOWED_PROFILES = frozenset({"OBSERVE", "ADVISORY", "SIMULATE"})
 _ALLOWED_RESOURCE_NAMES = frozenset({"cpu_millicores", "ram_mib", "gpu_mib"})
+_EXPECTED_OPTIONAL_COUNT = len(EXPECTED_OPTIONAL_IDS)
 
 
 class ReleasePreparationError(ValueError):
@@ -327,21 +328,25 @@ def prepare_release_batch(
     repo_root: Path, *, policy: OwnerReviewedReleasePolicy,
     source_revision_sha: str,
 ) -> tuple[UnsignedReleaseDraft, ...]:
-    """Fail the *entire* 47-module batch if any source or policy is incomplete.
+    """Fail the entire reviewed catalog if any source or policy is incomplete.
 
     No partial release is ever represented as a successfully prepared batch.
     """
     if set(policy.package_ids) != EXPECTED_OPTIONAL_IDS:
-        raise ReleasePreparationError("all 47 owner-reviewed package IDs required")
+        raise ReleasePreparationError(
+            f"all {_EXPECTED_OPTIONAL_COUNT} owner-reviewed package IDs required"
+        )
     if set(policy.data_classes) != EXPECTED_OPTIONAL_IDS:
-        raise ReleasePreparationError("all 47 reviewed data classes required")
+        raise ReleasePreparationError(
+            f"all {_EXPECTED_OPTIONAL_COUNT} reviewed data classes required"
+        )
     drafts = tuple(prepare_release_draft(
         repo_root, catalog_id=catalog_id, policy=policy,
         source_revision_sha=source_revision_sha,
     ) for catalog_id in sorted(EXPECTED_OPTIONAL_IDS))
-    if len({draft.capability_id for draft in drafts}) != 47:
+    if len({draft.capability_id for draft in drafts}) != _EXPECTED_OPTIONAL_COUNT:
         raise ReleasePreparationError("duplicate capability in release batch")
-    if len({draft.package_digest for draft in drafts}) != 47:
+    if len({draft.package_digest for draft in drafts}) != _EXPECTED_OPTIONAL_COUNT:
         raise ReleasePreparationError("duplicate release package identity")
     return drafts
 
@@ -350,12 +355,14 @@ def materialize_unsigned_batch(
     drafts: tuple[UnsignedReleaseDraft, ...], *, repo_root: Path,
     output_root: Path,
 ) -> Path:
-    """Prepare a fresh 47-module unsigned review directory, all-or-nothing."""
-    if type(drafts) is not tuple or len(drafts) != 47 or (
+    """Prepare a fresh full-catalog unsigned review directory, all-or-nothing."""
+    if type(drafts) is not tuple or len(drafts) != _EXPECTED_OPTIONAL_COUNT or (
         set(item.catalog_id for item in drafts) != EXPECTED_OPTIONAL_IDS
-        or len({item.package_id for item in drafts}) != 47
+        or len({item.package_id for item in drafts}) != _EXPECTED_OPTIONAL_COUNT
     ):
-        raise ReleasePreparationError("exactly 47 unique optional drafts required")
+        raise ReleasePreparationError(
+            f"exactly {_EXPECTED_OPTIONAL_COUNT} unique optional drafts required"
+        )
     output = Path(output_root).absolute()
     if output.exists() or output.is_symlink():
         raise FileExistsError("output directory already exists")
@@ -370,7 +377,7 @@ def materialize_unsigned_batch(
             )
         with (output / "BATCH_UNSIGNED_REVIEW_ONLY.json").open("x", encoding="utf-8") as handle:
             json.dump({"schema": "sofia.optional.release_batch_request.v1",
-                       "count": 47, "signed": False,
+                       "count": _EXPECTED_OPTIONAL_COUNT, "signed": False,
                        "platform_readiness": "NOT_VERIFIED",
                        "packages": [item.package_digest for item in drafts]}, handle,
                       sort_keys=True, indent=2)
