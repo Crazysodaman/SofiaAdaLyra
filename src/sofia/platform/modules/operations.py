@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import sqlite3
 from threading import Event
+from threading import RLock
 from typing import TYPE_CHECKING
 
 from sofia.core.social.model import AudienceKind, PrincipalContext
@@ -190,6 +191,9 @@ class ModuleOperationCoordinator:
         self.factories = factories
         self.work_store = work_store
         self.manager = manager
+        self._adapter_lock = RLock()
+        self._dispatched_adapters: dict[str, object] = {}
+        self._registered_capabilities: dict[str, tuple] = {}
         with closing(self._connect()) as db, db:
             db.executescript(
                 """
@@ -218,6 +222,44 @@ class ModuleOperationCoordinator:
                 """
             )
         self.manager.register_handler(self.WORK_KIND, self.handler)
+
+    def _retain_dispatched_adapter(self, request_id: str, adapter: object) -> None:
+        with self._adapter_lock:
+            existing = self._dispatched_adapters.get(request_id)
+            if existing is not None and existing is not adapter:
+                raise RuntimeError("module request adapter identity changed")
+            self._dispatched_adapters[request_id] = adapter
+
+    def close(self) -> None:
+        """Safely stop exact adapters dispatched by this coordinator.
+
+        The owning RUN manager must be closed first so no handler can begin a
+        new dispatch while shutdown is draining module workers.
+        """
+        with self._adapter_lock:
+            by_identity = {
+                id(adapter): adapter for adapter in self._dispatched_adapters.values()
+            }
+            adapters = tuple(by_identity.values())
+            registrations = tuple(self._registered_capabilities.values())
+            self._dispatched_adapters.clear()
+            self._registered_capabilities.clear()
+        errors: list[str] = []
+        for batch in registrations:
+            try:
+                self.lifecycle.manager.capability_system.unregister_batch(batch)
+            except Exception as exc:
+                errors.append(type(exc).__name__)
+        for adapter in adapters:
+            try:
+                adapter.stop()
+            except Exception as exc:
+                errors.append(type(exc).__name__)
+        if errors:
+            raise RuntimeError(
+                "one or more module adapters did not stop safely: "
+                + ",".join(errors)
+            )
 
     def _connect(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
@@ -515,6 +557,7 @@ class ModuleOperationCoordinator:
             now=dispatch_at,
         )
         try:
+            self._retain_dispatched_adapter(request.request_id, adapter)
             adapter.start(epoch=attempt)
             if cancel.is_set():
                 raise RuntimeError("cancelled_after_external_dispatch")
@@ -547,12 +590,32 @@ class ModuleOperationCoordinator:
                  "lifecycle_revision": activating.revision},
                 "external_module_activation_not_verified",
             )
-        completed = self.lifecycle.complete_activation(
-            package, expected_revision=activating.revision,
-            profile=request.profile, compatibility=compatibility,
-            registrations=registrations, approval_id=request.approval_id,
-            now=datetime.now(timezone.utc),
-        )
+        try:
+            completed = self.lifecycle.complete_activation(
+                package, expected_revision=activating.revision,
+                profile=request.profile, compatibility=compatibility,
+                registrations=registrations, approval_id=request.approval_id,
+                now=datetime.now(timezone.utc),
+            )
+        except Exception as exc:
+            self._event(
+                request_id=request.request_id, job_id=job.job_id,
+                status=ModuleAttemptStatus.OUTCOME_UNKNOWN,
+                attempt_number=attempt,
+                detail="verified external process but lifecycle commit failed:"
+                + type(exc).__name__,
+                evidence_ref=observed.evidence_ref,
+                now=datetime.now(timezone.utc),
+            )
+            return WorkResult(
+                WorkStatus.UNCERTAIN,
+                {"module_request_id": request.request_id,
+                 "lifecycle_revision": activating.revision,
+                 "evidence_ref": observed.evidence_ref},
+                "external_module_running_lifecycle_commit_unknown",
+            )
+        with self._adapter_lock:
+            self._registered_capabilities[request.request_id] = registrations
         self._event(
             request_id=request.request_id, job_id=job.job_id,
             status=ModuleAttemptStatus.EXTERNALLY_VERIFIED_SUCCESS,
@@ -588,7 +651,14 @@ class ModuleOperationCoordinator:
         ):
             raise RuntimeError("uncertain activation lifecycle no longer matches")
         try:
-            package, adapter, compatibility, registrations = self._reconstruct(request)
+            package, reconstructed, compatibility, registrations = self._reconstruct(request)
+            with self._adapter_lock:
+                adapter = self._dispatched_adapters.get(
+                    request.request_id, reconstructed,
+                )
+            if adapter is not reconstructed:
+                registrations = adapter.capability_registrations()
+                self.lifecycle.manager.capability_system.validate_batch(registrations)
             observed = adapter.inspect()
         except Exception as exc:
             self._event(
@@ -606,6 +676,8 @@ class ModuleOperationCoordinator:
                 registrations=registrations, approval_id=request.approval_id,
                 now=moment,
             )
+            with self._adapter_lock:
+                self._registered_capabilities[request.request_id] = registrations
             status = ModuleAttemptStatus.EXTERNALLY_VERIFIED_SUCCESS
             detail = "post-crash inspection verified the original activation"
         elif observed.state.value in {"stopped", "failed"} and not observed.ready:

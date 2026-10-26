@@ -775,6 +775,32 @@ class SofiaApplication:
         """Trusted construction registry; discovery never adds factories."""
         return self._module_factories
 
+    def register_reviewed_research_process_factory(
+        self, *, package_digest: str, host_identity: str, platform_target,
+    ) -> None:
+        """Bind one exact reviewed Research package to the process adapter.
+
+        This trusted construction hook is intentionally explicit. Package
+        discovery never calls it, and registration grants no lifecycle or
+        capability authority. The existing signed lifecycle and RUN handler
+        still re-open and verify the exact staged package before activation.
+        """
+        from sofia.platform.modules import (
+            ModulePlatformTarget,
+            ReviewedResearchProcessFactory,
+        )
+        if not isinstance(platform_target, ModulePlatformTarget):
+            raise TypeError("platform_target must be ModulePlatformTarget")
+        self._module_factories.register(ReviewedResearchProcessFactory(
+            package_digest=package_digest,
+            host_identity=host_identity,
+            runtime_dir=(
+                Path(self._configuration.state_path).parent
+                / "component-runtime" / "research"
+            ),
+            platform_target=platform_target,
+        ))
+
     @property
     def module_operations(self) -> ModuleOperationCoordinator:
         """Durable module operations registered in the shared RUN executor."""
@@ -2671,6 +2697,9 @@ class SofiaApplication:
                 bundle = getattr(self, "_presentation_bundle", None)
                 if bundle is not None:
                     bundle.store.save(bundle.authority)
+                module_operations = getattr(self, "_module_operations", None)
+                if module_operations is not None:
+                    module_operations.close()
                 # Normal shutdown must release the same canonical SQLite
                 # handles that failed-start rollback already closes.
                 # A transaction context does not close a sqlite connection;

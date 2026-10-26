@@ -1100,3 +1100,45 @@ process replacement passed **41 tests** with permitted disposable local IPC.
 The affected non-integration `pkg_run` selection also exited successfully.
 No Windows, real module/provider update, CI, live-host, or independent-review
 evidence is claimed. ISO-07 is **BETA**; ISO-04, ISO-05 and ISO-08 remain open.
+
+### Representative isolated Research module process — 2026-10-26 UTC
+
+ISO-04 now has one real optional-module process slice rather than only the
+previous in-memory adapter test. `ResearchModuleProcessAdapter` hosts the
+reviewed `research.compare_claim_sources.v1` implementation in a distinct OS
+process over bounded, versioned, HMAC-authenticated IPC. The entrypoint and
+capability are fixed in reviewed Platform source: it is not a generic command
+runner and never imports candidate package code. The worker receives no
+canonical SQLite path or handle, cannot authorize itself, performs no browsing
+or external effect, and Platform's existing `CapabilitySystem` still evaluates
+authorization before the proxy handler may dispatch.
+
+`ReviewedResearchProcessFactory` binds an exact signed-package digest,
+component ID, local host identity, reviewed OBSERVE/ADVISORY profiles and
+resource/isolation contract. Production construction exposes an explicit
+registration hook; discovery never registers it and registration itself grants
+no lifecycle authority. Activation still uses the existing signed lifecycle,
+one-use owner approval and durable `ModuleOperationCoordinator` RUN handler.
+
+The audit also repaired a real ownership defect: the coordinator previously
+dropped its adapter reference after activation. That could orphan a real child
+and made reconciliation rebuild a different inert adapter. It now retains the
+exact dispatched adapter, uses it for reconciliation, withdraws its exact
+capability handler on shutdown, and then verifies safe stop. Application
+shutdown closes RUN workers before this module teardown. Bounded IPC timeout
+force-terminates the worker so a late response cannot be mistaken for a later
+request.
+
+Local Linux evidence: **15 tests** passed for real process startup, signed
+package + one-use approval + durable RUN activation, authenticated health,
+actual capability execution, authorization denial, oversized input, timeout,
+post-dispatch lifecycle-commit uncertainty, capability withdrawal and
+shutdown. The combined module lifecycle/package/compatibility/process gate
+passed **43 tests**, and application shutdown/
+acceptance regressions passed **20 tests**. The complete affected
+non-integration `pkg_run` gate passed **677 tests** with 7,147 deselected.
+ISO-04 remains **ALPHA** overall:
+independent inference-provider isolation, authenticated remote placement,
+restart reconstruction of a pre-existing external worker, Windows process
+acceptance, CI and independent review remain open. No automatic module install
+or production activation was performed.

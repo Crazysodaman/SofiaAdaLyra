@@ -14,6 +14,7 @@ from sofia.platform.modules import (
     AdapterFactoryContract,
     AdapterFactoryRegistry,
     AdapterInspection,
+    ModuleAttemptStatus,
     ModuleCancellationPolicy,
     ModuleLifecycle,
     ModuleOperationCoordinator,
@@ -257,6 +258,9 @@ def test_durable_activation_uses_shared_run_and_verified_observation(
             aspect.grant_state is Grounding.UNKNOWN
             for aspect in awareness.permission_aspects
         )
+        manager.close(wait=True)
+        coordinator.close()
+        assert adapter.state is ProcessState.STOPPED
     finally:
         manager.close(wait=True)
 
@@ -275,6 +279,32 @@ def test_changed_idempotency_payload_is_rejected(canonical_state_path, tmp_path)
             coordinator.submit(changed, now=NOW)
     finally:
         manager.close(wait=True)
+
+
+def test_verified_process_with_failed_lifecycle_commit_is_uncertain_and_owned(
+    canonical_state_path, tmp_path, monkeypatch,
+):
+    lifecycle, coordinator, manager, store, adapter, request, _ = prepared(
+        canonical_state_path, tmp_path,
+    )
+    def fail_commit(*args, **kwargs):
+        raise sqlite3.OperationalError("injected lifecycle commit fault")
+    monkeypatch.setattr(lifecycle, "complete_activation", fail_commit)
+    try:
+        job = coordinator.submit(request, now=NOW)
+        settled = finish(manager, store, job.job_id)
+        assert settled.status is WorkStatus.UNCERTAIN
+        assert settled.reason == "external_module_running_lifecycle_commit_unknown"
+        assert adapter.state is ProcessState.RUNNING
+        assert coordinator.attempts(request.request_id)[-1].status is (
+            ModuleAttemptStatus.OUTCOME_UNKNOWN
+        )
+        manager.close(wait=True)
+        coordinator.close()
+        assert adapter.state is ProcessState.STOPPED
+    finally:
+        manager.close(wait=True)
+        coordinator.close()
 
 
 def test_stale_verified_activation_is_history_not_current_placement(

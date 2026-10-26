@@ -44,6 +44,14 @@ from .adapters import (
     ReviewedAdapterFactory,
     ReviewedModuleAdapter,
 )
+from .process_worker import (
+    RESEARCH_CAPABILITY_ID,
+    RESEARCH_COMPONENT_ID,
+    RESEARCH_MODULE_ID,
+    ModuleProcessError,
+    ResearchModuleProcessAdapter,
+    ReviewedResearchProcessFactory,
+)
 from .operations import (
     ModuleAttemptEvent,
     ModuleAttemptStatus,
@@ -71,6 +79,9 @@ __all__ = [
     "SignedModuleManifest", "VerifiedModulePackage",
     "CanonicalPlatformModuleObserver",
     "ReviewedAdapterFactory", "ReviewedModuleAdapter",
+    "ModuleProcessError", "ResearchModuleProcessAdapter",
+    "ReviewedResearchProcessFactory", "RESEARCH_CAPABILITY_ID",
+    "RESEARCH_COMPONENT_ID", "RESEARCH_MODULE_ID",
     "evaluate_module_compatibility", "evaluate_module_readiness",
     "parse_signed_manifest", "validate_dependency_graph",
     "verify_module_package",
