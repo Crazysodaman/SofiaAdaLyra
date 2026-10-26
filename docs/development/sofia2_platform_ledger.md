@@ -1147,3 +1147,35 @@ independent inference-provider isolation, authenticated remote placement,
 restart reconstruction of a pre-existing external worker, Windows process
 acceptance, CI and independent review remain open. No automatic module install
 or production activation was performed.
+
+### Platform-owned provider boundary for isolated Core — 2026-10-26 UTC
+
+The remaining Core/provider ownership defect in the isolated cognition path is
+closed in production composition. `CoreEngineProcessSpec` still pins the exact
+primary/secondary provider, model and generation parameters, but the Core child
+no longer constructs Ollama or test-LLM adapters. `PlatformProviderBinding`
+keeps each reviewed adapter in the Platform process. The authenticated Core IPC
+channel now carries one bounded provider-neutral request for the selected role,
+checks the exact configuration digest and response digest, and returns only the
+typed cognitive response. Tool calls remain proposal data and the worker still
+has no canonical SQLite, SAFE grant or execution handle.
+
+Missing roles, changed configuration, extra roles and runtime provider failure
+fail closed. A provider failure makes the Core request outcome uncertain,
+quarantines that Core generation and is not retried. The existing outer Fleet
+placement boundary remains authoritative: remote placement bypasses the local
+adapter through the pinned transport, while an admitted local call uses the
+Platform-owned binding. Model lifecycle/resource policy also remains in the
+Platform wrappers. Compatibility mode continues to use the same provider
+factory directly until isolated operation completes broader acceptance.
+
+Local Linux evidence: the real-process file passed **22 tests**, including a
+PID assertion that the provider runs in Platform while cognition runs in the
+child, exact-binding denial and provider-failure quarantine. The affected
+Core/cognition/configuration/HNF/provider/split-topology suite passed **129
+tests**. Restricted execution initially denied AF_UNIX socket creation; the
+identical suite passed with the permitted disposable local IPC boundary. No
+genuine Ollama request, Windows named-pipe test, CI, live Fleet host or
+independent review is claimed. Isolated provider ownership is **BETA**;
+separate provider-process replacement (ISO-04/05) and host acceptance remain
+open.

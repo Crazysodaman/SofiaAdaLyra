@@ -21,9 +21,9 @@ from uuid import uuid4
 from sofia.core.cognition.engine import CognitiveEngine, CognitiveEngineError
 from sofia.core.cognition.llm_engine import LLMCognitiveEngine
 from sofia.core.cognition.model import CognitiveRequest, CognitiveResponse
+from sofia.core.cognition.provider import LLMProvider, LLMProviderError
 from sofia.core.cognition.rules import RuleEngine
 from sofia.core.cognition.test_engine import TestCognitiveEngine
-from sofia.platform.cognition_provider import create_llm_provider
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.run.generation import ComponentGenerationStore
 from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
@@ -269,7 +269,77 @@ class CoreWorkerError(RuntimeError):
     pass
 
 
-def _engines(spec: CoreEngineProcessSpec) -> dict[str, CognitiveEngine]:
+@dataclass(frozen=True, slots=True)
+class PlatformProviderBinding:
+    """Exact Platform-owned provider made callable by one Core generation.
+
+    The provider object deliberately stays in the Platform process.  Only its
+    provider-neutral request/response contract crosses the authenticated Core
+    channel; constructing this binding grants no tool or execution authority.
+    """
+
+    configuration: ProviderConfiguration
+    provider: LLMProvider
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.configuration, ProviderConfiguration):
+            raise TypeError("configuration must be ProviderConfiguration")
+        if not isinstance(self.provider, LLMProvider):
+            raise TypeError("provider must implement LLMProvider")
+
+
+def _configuration_digest(configuration: ProviderConfiguration) -> str:
+    payload = json.dumps(
+        asdict(configuration), sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    ).encode("utf-8")
+    return sha256(payload).hexdigest()
+
+
+class _PlatformProviderProxy(LLMProvider):
+    """Core-side authority-free proxy for a Platform-owned provider."""
+
+    def __init__(
+        self, *, connection: Connection, role: str,
+        configuration: ProviderConfiguration,
+    ) -> None:
+        self.connection = connection
+        self.role = role
+        self.configuration_digest = _configuration_digest(configuration)
+
+    def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+        payload = encode_request(request)
+        request_id = f"provider:{secrets.token_hex(16)}"
+        _send(self.connection, {
+            "kind": "provider_request",
+            "request_id": request_id,
+            "role": self.role,
+            "configuration_digest": self.configuration_digest,
+            "payload": base64.b64encode(payload).decode("ascii"),
+            "payload_digest": sha256(payload).hexdigest(),
+        })
+        value = _receive(self.connection)
+        if value.get("kind") == "provider_error" and (
+            value.get("request_id") == request_id
+        ):
+            raise LLMProviderError("Platform provider request failed")
+        if set(value) != {
+            "kind", "request_id", "configuration_digest", "payload",
+            "payload_digest",
+        } or value["kind"] != "provider_response" or (
+            value["request_id"] != request_id
+            or value["configuration_digest"] != self.configuration_digest
+        ):
+            raise LLMProviderError("Platform provider response identity mismatch")
+        result = base64.b64decode(value["payload"], validate=True)
+        if sha256(result).hexdigest() != value["payload_digest"]:
+            raise LLMProviderError("Platform provider response digest mismatch")
+        return decode_response(result)
+
+
+def _engines(
+    spec: CoreEngineProcessSpec, connection: Connection,
+) -> dict[str, CognitiveEngine]:
     if spec.kind == "rule":
         return {"primary": RuleEngine()}
     if spec.kind == "test":
@@ -281,13 +351,20 @@ def _engines(spec: CoreEngineProcessSpec) -> dict[str, CognitiveEngine]:
     assert spec.provider is not None
     engines: dict[str, CognitiveEngine] = {
         "primary": LLMCognitiveEngine(
-            spec.provider, create_llm_provider(spec.provider)
+            spec.provider,
+            _PlatformProviderProxy(
+                connection=connection, role="primary",
+                configuration=spec.provider,
+            ),
         )
     }
     if spec.secondary_provider is not None:
         engines["secondary"] = LLMCognitiveEngine(
             spec.secondary_provider,
-            create_llm_provider(spec.secondary_provider),
+            _PlatformProviderProxy(
+                connection=connection, role="secondary",
+                configuration=spec.secondary_provider,
+            ),
         )
     return engines
 
@@ -307,8 +384,8 @@ def _worker_main(
             or endpoint.release_digest != spec.expected_runtime_digest
         ):
             raise PermissionError("Core worker runtime release digest mismatch")
-        engines = _engines(spec)
         connection = Client(address, family=family, authkey=authkey)
+        engines = _engines(spec, connection)
         accepting = True
         _send(connection, {
             "kind": "ready", "protocol": str(SDK_PROTOCOL_VERSION),
@@ -377,12 +454,35 @@ def _worker_main(
 class _CoreWorkerProcess:
     def __init__(
         self, *, endpoint: ComponentEndpoint, spec: CoreEngineProcessSpec,
-        runtime_dir: Path, startup_timeout: float = 10.0,
+        runtime_dir: Path,
+        providers: Mapping[str, PlatformProviderBinding] | None = None,
+        startup_timeout: float = 10.0,
     ) -> None:
         self.endpoint = endpoint
         self.spec = spec
         self.runtime_dir = runtime_dir
         self.startup_timeout = startup_timeout
+        self.providers = dict(providers or {})
+        expected_configurations = (
+            {}
+            if spec.kind != "provider"
+            else {
+                "primary": spec.provider,
+                **(
+                    {"secondary": spec.secondary_provider}
+                    if spec.secondary_provider is not None else {}
+                ),
+            }
+        )
+        if set(self.providers) != set(expected_configurations):
+            raise CoreWorkerError(
+                "Core provider roles must have exact Platform bindings"
+            )
+        for role, configuration in expected_configurations.items():
+            if self.providers[role].configuration != configuration:
+                raise CoreWorkerError(
+                    f"Core {role} provider binding configuration mismatch"
+                )
         self._process: multiprocessing.Process | None = None
         self._connection: Connection | None = None
         self._listener: Listener | None = None
@@ -494,9 +594,23 @@ class _CoreWorkerProcess:
                 "payload": base64.b64encode(payload).decode("ascii"),
                 "role": role,
             })
-            if not self._connection.poll(timeout):
-                raise TimeoutError("Core worker response deadline expired")
-            value = _receive(self._connection)
+            deadline = time.monotonic() + timeout
+            provider_calls = 0
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not self._connection.poll(remaining):
+                    raise TimeoutError("Core worker response deadline expired")
+                value = _receive(self._connection)
+                if value.get("kind") != "provider_request":
+                    break
+                provider_calls += 1
+                if provider_calls > 1:
+                    raise CoreWorkerError(
+                        "Core worker exceeded bounded provider calls"
+                    )
+                self._serve_provider_request(
+                    value=value, expected_role=role,
+                )
         if value.get("kind") == "error":
             raise CoreWorkerError(f"Core worker failed: {value.get('error', 'unknown')}")
         if set(value) != {"kind", "request_id", "payload", "payload_digest"} or (
@@ -507,6 +621,44 @@ class _CoreWorkerProcess:
         if sha256(result).hexdigest() != value["payload_digest"]:
             raise CoreWorkerError("Core worker response digest mismatch")
         return decode_response(result)
+
+    def _serve_provider_request(
+        self, *, value: Mapping[str, object], expected_role: str,
+    ) -> None:
+        required = {
+            "kind", "request_id", "role", "configuration_digest",
+            "payload", "payload_digest",
+        }
+        if set(value) != required or value["role"] != expected_role:
+            raise PermissionError("Core provider request role is incompatible")
+        role = value["role"]
+        if not isinstance(role, str) or role not in self.providers:
+            raise PermissionError("Core provider role is unavailable")
+        binding = self.providers[role]
+        if value["configuration_digest"] != _configuration_digest(
+            binding.configuration
+        ):
+            raise PermissionError("Core provider configuration identity mismatch")
+        request_id = value["request_id"]
+        if not isinstance(request_id, str) or not request_id.startswith("provider:"):
+            raise PermissionError("Core provider request identity is invalid")
+        try:
+            payload = base64.b64decode(value["payload"], validate=True)
+            if sha256(payload).hexdigest() != value["payload_digest"]:
+                raise PermissionError("Core provider request digest mismatch")
+            response = binding.provider.respond(decode_request(payload))
+            result = encode_response(response)
+            _send(self._connection, {
+                "kind": "provider_response",
+                "request_id": request_id,
+                "configuration_digest": value["configuration_digest"],
+                "payload": base64.b64encode(result).decode("ascii"),
+                "payload_digest": sha256(result).hexdigest(),
+            })
+        except Exception:
+            _send(self._connection, {
+                "kind": "provider_error", "request_id": request_id,
+            })
 
     def drain(self, timeout: float = 5.0) -> None:
         with self._ipc_lock:
@@ -559,6 +711,7 @@ class CoreWorkerController:
         self, *, generations: ComponentGenerationStore, lease: RunLease,
         platform_instance_id: str, core_identity_id: str, component_id: str,
         runtime_dir: Path, response_timeout: timedelta = timedelta(minutes=2),
+        providers: Mapping[str, PlatformProviderBinding] | None = None,
     ) -> None:
         self.generations = generations
         self.lease = lease
@@ -567,6 +720,13 @@ class CoreWorkerController:
         self.component_id = component_id
         self.runtime_dir = runtime_dir
         self.response_timeout = response_timeout
+        self.providers = dict(providers or {})
+        if any(
+            role not in {"primary", "secondary"}
+            or not isinstance(binding, PlatformProviderBinding)
+            for role, binding in self.providers.items()
+        ):
+            raise TypeError("providers must contain typed primary/secondary bindings")
         self._active: _CoreWorkerProcess | None = None
 
     @property
@@ -581,9 +741,44 @@ class CoreWorkerController:
     def engine_spec(self) -> CoreEngineProcessSpec | None:
         return None if self._active is None else self._active.spec
 
+    def bind_providers(
+        self, providers: Mapping[str, PlatformProviderBinding],
+    ) -> None:
+        """Bind reviewed Platform providers before starting a generation."""
+        if self._active is not None:
+            raise RuntimeError("cannot change providers for an active Core generation")
+        if self.providers:
+            raise RuntimeError("Core provider bindings are already configured")
+        candidate = dict(providers)
+        if any(
+            role not in {"primary", "secondary"}
+            or not isinstance(binding, PlatformProviderBinding)
+            for role, binding in candidate.items()
+        ):
+            raise TypeError("providers must contain typed primary/secondary bindings")
+        self.providers = candidate
+
     def _stage(
         self, release_digest: str, spec: CoreEngineProcessSpec, now: datetime,
     ) -> _CoreWorkerProcess:
+        expected = (
+            {}
+            if spec.kind != "provider"
+            else {
+                "primary": spec.provider,
+                **(
+                    {"secondary": spec.secondary_provider}
+                    if spec.secondary_provider is not None else {}
+                ),
+            }
+        )
+        if set(self.providers) != set(expected) or any(
+            self.providers[role].configuration != configuration
+            for role, configuration in expected.items()
+        ):
+            raise CoreWorkerError(
+                "Core engine specification lacks exact Platform provider bindings"
+            )
         endpoint = self.generations.stage(
             component_id=self.component_id, kind=ComponentKind.CORE,
             release_digest=release_digest,
@@ -593,6 +788,7 @@ class CoreWorkerController:
         )
         return _CoreWorkerProcess(
             endpoint=endpoint, spec=spec, runtime_dir=self.runtime_dir,
+            providers=self.providers,
         )
 
     def start(
@@ -905,6 +1101,7 @@ class CoreWorkerProcessOwner:
         self, *, state_path: Path, release_digest: str,
         platform_instance_id: str, core_identity_id: str, component_id: str,
         runtime_dir: Path, spec: CoreEngineProcessSpec,
+        providers: Mapping[str, PlatformProviderBinding] | None = None,
         lease_ttl_seconds: int = 180, response_timeout_seconds: int = 120,
         clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     ) -> None:
@@ -950,6 +1147,7 @@ class CoreWorkerProcessOwner:
                 core_identity_id=core_identity_id, component_id=component_id,
                 runtime_dir=runtime_dir,
                 response_timeout=timedelta(seconds=response_timeout_seconds),
+                providers=providers,
             )
             self.supervisor = ComponentRuntimeSupervisor(
                 state_path=state_path, lease_store=self.lease_store,

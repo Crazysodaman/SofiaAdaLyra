@@ -74,8 +74,10 @@ from sofia.core.personality.store import PersonalityStore
 from sofia.platform.runtime.runtime import SofiaRuntime
 from sofia.platform.core_worker import (
     CoreEngineProcessSpec,
+    PlatformProviderBinding,
     CoreWorkerProcessOwner,
 )
+from sofia.platform.cognition_provider import create_llm_provider
 from sofia.platform.system.capability import create_local_system_capabilities
 from sofia.platform.state.factory import create_state_plane
 from sofia.platform.state.plane import StatePlane
@@ -502,6 +504,22 @@ def compose(
             ),
             secondary_provider=secondary_provider,
         )
+        provider_bindings = None
+        if provider_kind == "provider":
+            provider_bindings = {
+                "primary": PlatformProviderBinding(
+                    selected_provider, create_llm_provider(selected_provider),
+                ),
+                **(
+                    {
+                        "secondary": PlatformProviderBinding(
+                            secondary_provider,
+                            create_llm_provider(secondary_provider),
+                        )
+                    }
+                    if secondary_provider is not None else {}
+                ),
+            }
         worker = configuration.core_worker
         owned_core_worker = CoreWorkerProcessOwner.start(
             state_path=state_path,
@@ -511,6 +529,7 @@ def compose(
             component_id=worker.component_id,
             runtime_dir=state_path.parent / "runtime" / "core-worker",
             spec=worker_spec,
+            providers=provider_bindings,
             lease_ttl_seconds=worker.lease_ttl_seconds,
             response_timeout_seconds=worker.response_timeout_seconds,
         )

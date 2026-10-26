@@ -8,6 +8,7 @@ from .process import (
     CoreWorkerHealth,
     CoreWorkerProcessOwner,
     CoreWorkerRuntimeBackend,
+    PlatformProviderBinding,
     installed_core_release_digest,
 )
 
@@ -19,5 +20,6 @@ __all__ = [
     "CoreWorkerHealth",
     "CoreWorkerProcessOwner",
     "CoreWorkerRuntimeBackend",
+    "PlatformProviderBinding",
     "installed_core_release_digest",
 ]

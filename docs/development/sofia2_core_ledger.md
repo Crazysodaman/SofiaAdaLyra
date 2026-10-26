@@ -1401,3 +1401,27 @@ baseline was **77 passed / 10 failed**, with every failure occurring at denied
 AF_UNIX socket creation before product behavior; the authorized identical
 process suite passed. No genuine Ollama model, Windows named-pipe worker,
 matching-revision CI or independent review ran. Core B08 remains **BETA**.
+
+### Isolated Core with Platform-owned model providers — 2026-10-26 UTC
+
+The isolated Core no longer imports or constructs the configured Ollama or
+test-LLM implementation. Its exact primary/secondary model configuration is
+still release-bound in the worker specification, while provider-neutral
+requests are returned over the same authenticated, generation-fenced IPC
+channel to an exact `PlatformProviderBinding`. Provider configuration digest,
+role, payload digest, deadline and a one-provider-call limit are checked before
+the result can become a cognitive response. The worker receives no model
+lifecycle authority, canonical state handle or execution grant.
+
+This preserves existing Core routing, memory/context assembly, personality,
+audience behavior and tool-call interpretation while moving provider ownership
+to Platform. Dual-model and hardware-neutral Fleet wrappers remain the only
+routing owners; no fallback or alternate model is introduced. Platform provider
+failure quarantines the Core generation as uncertain and is never silently
+retried.
+
+Local Linux evidence: **22 real-process tests** passed for the Core boundary;
+the affected cognition/provider/configuration/Fleet suite passed **129 tests**.
+The deterministic test and compatibility routes remain executable. Genuine
+local/remote Ollama, Windows, exact-revision CI, installed-service and
+independent-review acceptance remain open, so Core B08 remains **BETA**.

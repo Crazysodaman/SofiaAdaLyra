@@ -5,14 +5,18 @@ import os
 import pytest
 
 from sofia.core.cognition.model import (
-    CognitiveMessage, CognitiveRequest, CognitiveRole, CognitiveToolDefinition,
+    CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
+    CognitiveToolDefinition,
 )
+from sofia.core.cognition.provider import LLMProvider, LLMProviderError
+from sofia.core.cognition.providers.test_provider import TestLLMProvider
 from sofia.core.cognition.fleet_engine import FleetPlacedCognitiveEngine
 from sofia.core.cognition.routing import RoutingCognitiveEngine
 from sofia.platform.core_worker import (
     CoreEngineProcessSpec, CoreWorkerController, CoreWorkerCognitiveEngine,
     CoreWorkerError,
     CoreWorkerRuntimeBackend,
+    PlatformProviderBinding,
     installed_core_release_digest,
 )
 from sofia.platform.composition.engines import create_cognitive_engine
@@ -68,6 +72,20 @@ def request():
     )
 
 
+def bind_test_providers(controller, primary, secondary=None):
+    response = CognitiveResponse("platform-provider-response")
+    bindings = {
+        "primary": PlatformProviderBinding(
+            primary, TestLLMProvider(response=response),
+        )
+    }
+    if secondary is not None:
+        bindings["secondary"] = PlatformProviderBinding(
+            secondary, TestLLMProvider(response=response),
+        )
+    controller.bind_providers(bindings)
+
+
 def test_codec_preserves_identity_memory_and_tool_proposals_exactly():
     original = request()
     assert decode_request(encode_request(original)) == original
@@ -86,12 +104,92 @@ def test_process_spec_round_trips_exact_dual_model_identity():
         CoreEngineProcessSpec("rule", secondary_provider=secondary)
 
 
+class _PlatformPidProvider(LLMProvider):
+    def respond(self, cognitive_request):
+        assert cognitive_request == request()
+        return CognitiveResponse(f"provider-pid:{os.getpid()}")
+
+
+def test_provider_executes_in_platform_not_core_process(
+    canonical_state_path, tmp_path,
+):
+    now, _, controller = build(canonical_state_path, tmp_path)
+    configuration = ProviderConfiguration(
+        provider="test-llm", model="platform-owned-model"
+    )
+    controller.bind_providers({
+        "primary": PlatformProviderBinding(
+            configuration, _PlatformPidProvider(),
+        )
+    })
+    health = controller.start(
+        release_digest=sha256(b"platform-provider-boundary").hexdigest(),
+        spec=CoreEngineProcessSpec("provider", provider=configuration),
+        now=now,
+    )
+
+    response = CoreWorkerCognitiveEngine(
+        controller, configuration=configuration,
+    ).respond(request())
+
+    assert health.pid != os.getpid()
+    assert response.content == f"provider-pid:{os.getpid()}"
+    controller.shutdown(now=now + timedelta(seconds=1))
+
+
+def test_provider_worker_start_fails_closed_without_exact_platform_binding(
+    canonical_state_path, tmp_path,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    configuration = ProviderConfiguration(
+        provider="test-llm", model="unbound-model"
+    )
+
+    with pytest.raises(CoreWorkerError, match="exact Platform provider"):
+        controller.start(
+            release_digest=sha256(b"unbound-provider").hexdigest(),
+            spec=CoreEngineProcessSpec("provider", provider=configuration),
+            now=now,
+        )
+
+    assert generations.active_for_core_identity("core:sofia") is None
+    assert controller.pid is None
+
+
+def test_platform_provider_failure_quarantines_core_without_retry(
+    canonical_state_path, tmp_path,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    configuration = ProviderConfiguration(
+        provider="test-llm", model="failing-model"
+    )
+    provider = TestLLMProvider(error=LLMProviderError("provider unavailable"))
+    controller.bind_providers({
+        "primary": PlatformProviderBinding(configuration, provider),
+    })
+    health = controller.start(
+        release_digest=sha256(b"failing-platform-provider").hexdigest(),
+        spec=CoreEngineProcessSpec("provider", provider=configuration),
+        now=now,
+    )
+
+    with pytest.raises(Exception, match="failed or became uncertain"):
+        CoreWorkerCognitiveEngine(
+            controller, configuration=configuration,
+        ).respond(request())
+
+    assert provider.received_request == request()
+    assert generations.state(health.endpoint) is GenerationState.QUARANTINED
+    assert controller.pid is None
+
+
 def test_composition_routes_both_roles_through_one_generation_fenced_worker(
     canonical_state_path, tmp_path,
 ):
     now, _, controller = build(canonical_state_path, tmp_path)
     primary = ProviderConfiguration(provider="test-llm", model="deep-model")
     secondary = ProviderConfiguration(provider="test-llm", model="fast-model")
+    bind_test_providers(controller, primary, secondary)
     controller.start(
         release_digest=sha256(b"dual-model-worker").hexdigest(),
         spec=CoreEngineProcessSpec(
@@ -143,6 +241,7 @@ def test_fleet_placement_wraps_each_isolated_core_role_without_local_fallback(
     now, _, controller = build(canonical_state_path, tmp_path)
     primary = ProviderConfiguration(provider="test-llm", model="deep-model")
     secondary = ProviderConfiguration(provider="test-llm", model="fast-model")
+    bind_test_providers(controller, primary, secondary)
     controller.start(
         release_digest=sha256(b"fleet-dual-worker").hexdigest(),
         spec=CoreEngineProcessSpec(
@@ -197,6 +296,10 @@ def test_worker_spec_must_match_both_configured_model_roles(
     primary = ProviderConfiguration(provider="test-llm", model="deep-model")
     configured_secondary = ProviderConfiguration(
         provider="test-llm", model="fast-model"
+    )
+    bind_test_providers(
+        controller, primary,
+        ProviderConfiguration(provider="test-llm", model="other-model"),
     )
     controller.start(
         release_digest=sha256(b"wrong-secondary").hexdigest(),
