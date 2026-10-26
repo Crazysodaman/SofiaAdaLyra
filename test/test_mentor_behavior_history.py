@@ -1,6 +1,7 @@
 """Behavior trend records only bounded local numeric aggregates, no raw chat."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
@@ -47,6 +48,35 @@ class TestBehaviorScoreHistory(TestCase):
         history = merge_scores(empty_counts(), personality, emotion)
         with self.assertRaisesRegex(ValueError, "public Git"):
             save_counts(self.root / "docs" / "scores.json", history, repo=self.root)
+
+    def test_rejects_normalized_and_case_variant_checkout_destination(self):
+        personality, emotion = self.scores()
+        history = merge_scores(empty_counts(), personality, emotion)
+        normalized_inside = self.root / "docs" / ".." / "scores.json"
+        with self.assertRaisesRegex(ValueError, "public Git"):
+            save_counts(normalized_inside, history, repo=self.root)
+        if os.name == "nt":
+            case_variant = Path(str(self.root).swapcase()) / "scores.json"
+            with self.assertRaisesRegex(ValueError, "public Git"):
+                save_counts(case_variant, history, repo=self.root)
+
+    def test_rejects_parent_redirect_into_checkout(self):
+        personality, emotion = self.scores()
+        history = merge_scores(empty_counts(), personality, emotion)
+        (self.root / "docs").mkdir()
+        redirected = Path(self.tmp.name) / "redirect-to-public"
+        try:
+            redirected.symlink_to(self.root / "docs", target_is_directory=True)
+        except OSError:
+            self.skipTest("directory symlinks unavailable for this account")
+        with self.assertRaisesRegex(ValueError, "redirected"):
+            save_counts(redirected / "scores.json", history, repo=self.root)
+
+    def test_private_history_file_mode_is_restricted_on_posix(self):
+        if os.name == "nt":
+            self.skipTest("Windows confidentiality is enforced by inherited ACL")
+        save_counts(self.private, empty_counts(), repo=self.root)
+        self.assertEqual(self.private.stat().st_mode & 0o777, 0o600)
 
     def test_corrupt_score_records_are_not_loaded(self):
         self.private.parent.mkdir()

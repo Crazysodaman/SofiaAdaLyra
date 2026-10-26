@@ -17,6 +17,36 @@ SCHEMA = "sofia.core.mentor.behavior-aggregate.v1"
 MAX_FILE_BYTES = 8_192
 
 
+def _redirected(path: Path) -> bool:
+    """Detect symlinks and Windows junction/reparse directory redirects."""
+    if path.is_symlink():
+        return True
+    is_junction = getattr(path, "is_junction", None)
+    return bool(is_junction is not None and is_junction())
+
+
+def _contains(root: Path, candidate: Path) -> bool:
+    """Compare resolved paths with the current OS's case/drive semantics."""
+    root_text = os.path.normcase(os.fspath(root))
+    candidate_text = os.path.normcase(os.fspath(candidate))
+    try:
+        return os.path.commonpath((root_text, candidate_text)) == root_text
+    except ValueError:
+        # Different Windows drives cannot contain one another.
+        return False
+
+
+def _reject_redirected_components(path: Path) -> None:
+    cursor = path
+    while True:
+        if _redirected(cursor):
+            raise ValueError("local history destination redirected")
+        parent = cursor.parent
+        if parent == cursor:
+            return
+        cursor = parent
+
+
 def default_local_path() -> Path:
     base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_STATE_HOME")
     if not base:
@@ -87,16 +117,25 @@ def merge_scores(counts: dict, personality: dict, emotion: dict) -> dict:
 def save_counts(path: Path | str, data: dict, *, repo: Path | str) -> None:
     """Atomic score-only file, explicitly outside the repository."""
     _validate_counts(data)
-    root = Path(repo).resolve(strict=True)
-    dest = Path(path).expanduser().absolute()
-    if root == dest or root in dest.parents:
+    root = Path(repo).expanduser().resolve(strict=True)
+    requested = Path(path).expanduser()
+    if not requested.is_absolute():
+        requested = Path.cwd() / requested
+    _reject_redirected_components(requested)
+    dest = requested.resolve(strict=False)
+    if _contains(root, dest):
         raise ValueError("never store local behavior history under public Git")
-    if dest.is_symlink() or dest.parent.is_symlink():
-        raise ValueError("local history destination redirected")
     encoded = json.dumps(data, sort_keys=True, indent=2) + "\n"
     if len(encoded.encode("utf-8")) > MAX_FILE_BYTES:
         raise ValueError("local history exceeds size limit")
     dest.parent.mkdir(parents=True, exist_ok=True)
+    _reject_redirected_components(requested)
+    resolved_parent = requested.parent.resolve(strict=True)
+    dest = resolved_parent / requested.name
+    if _contains(root, dest):
+        raise ValueError("never store local behavior history under public Git")
+    if not resolved_parent.is_dir() or _redirected(dest):
+        raise ValueError("local history destination redirected")
     fd, tempname = tempfile.mkstemp(prefix=".behavior-", dir=str(dest.parent))
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:

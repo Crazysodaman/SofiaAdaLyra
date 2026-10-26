@@ -1448,3 +1448,21 @@ Local Linux Core/configuration evidence passed **60 tests**, including health,
 cognition, replacement, shutdown, attestation rejection and deterministic
 startup-timeout cleanup. Windows named-pipe/spawn timing and installed-wheel
 acceptance are still unverified, so Core B08 remains **BETA**.
+
+### MENTOR private behavior-history containment — 2026-10-26 UTC
+
+Private numeric behavior aggregates now canonicalize both the public checkout
+and requested destination before comparison, using the current operating
+system's drive and case semantics. The writer rejects normalized traversal into
+the checkout plus any symlink or Windows junction component, rechecks after
+directory creation, and retains atomic replacement and restricted POSIX mode.
+No raw prompt, response, principal, secret or transcript field was added to the
+strict aggregate schema or public outbox.
+
+Focused history/diagnostics/exchange/monitor coverage passed **35 tests**,
+including unchanged checkout rejection plus traversal, case-variant (on
+Windows), redirected-parent and POSIX mode regressions. The complete local
+non-integration Core gate produced **4,926 passed, 4 skipped, 2,906 deselected
+and 8 subtests passed**, with one unrelated known P2 failure:
+`test_batch_denies_incomplete_review`. Actual Windows junction/ACL and CI
+evidence remain open; Core remains **BETA**.
