@@ -56,7 +56,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         roles = _roles()
         if (
-            args.command in {"desktop", "tray"}
+            args.command in {"desktop", "tray", "settings"}
             and not roles.supports(PlatformRole.CORE_HOST)
             and roles.supports(PlatformRole.CORE_LINK)
         ):
@@ -64,6 +64,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 from sofia.modules.ui.core_link_desktop import run_core_link_desktop
 
                 return run_core_link_desktop()
+            if args.command == "settings":
+                from sofia.modules.ui.core_link_settings import run_core_link_settings
+
+                return run_core_link_settings()
             from sofia.modules.ui.core_link_tray import run_core_link_tray
 
             return run_core_link_tray()

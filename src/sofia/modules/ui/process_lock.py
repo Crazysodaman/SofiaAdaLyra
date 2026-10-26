@@ -18,6 +18,10 @@ class DesktopProcessAlreadyRunning(RuntimeError):
     pass
 
 
+class SettingsProcessAlreadyRunning(RuntimeError):
+    pass
+
+
 def core_link_profile_anchor(
     binding_store_path: str | Path, binding_id: str,
 ) -> Path:
@@ -46,6 +50,14 @@ class DesktopProcessLock(StateProcessLock):
         super().__init__(
             profile_anchor, resource="desktop", owner_label="desktop client",
             duplicate_error=DesktopProcessAlreadyRunning,
+        )
+
+
+class SettingsProcessLock(StateProcessLock):
+    def __init__(self, profile_anchor):
+        super().__init__(
+            profile_anchor, resource="settings", owner_label="settings client",
+            duplicate_error=SettingsProcessAlreadyRunning,
         )
 
 

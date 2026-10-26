@@ -21,6 +21,7 @@ _OPERATIONS = frozenset({
     "status", "conversation.create", "conversation.select",
     "conversation.send", "conversation.history", "conversation.result",
     "conversation.cancel",
+    "settings.snapshot", "settings.update", "settings.events",
 })
 _MAX_PAYLOAD_BYTES = 64 * 1024
 

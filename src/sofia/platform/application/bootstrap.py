@@ -1692,6 +1692,43 @@ class SofiaApplication:
         self._environment_settings_fingerprint = fingerprint
         return True
 
+    def _apply_core_link_live_settings(
+        self, settings: RuntimeUserSettings, changed_fields: tuple[str, ...],
+    ) -> None:
+        """Apply the reviewed LIVE subset after its canonical commit.
+
+        This callback deliberately cannot restart Platform, Core, providers,
+        or discovery workers.  Fields needing those boundaries are classified
+        by CanonicalSettingsService and never reach this method.
+        """
+        if not isinstance(settings, RuntimeUserSettings):
+            raise TypeError("validated RuntimeUserSettings required")
+        fields = frozenset(changed_fields)
+        if "avatar_routines_enabled" in fields:
+            self._avatar_routines_enabled = settings.avatar_routines_enabled
+        if fields & {
+            "neuro_competition_enabled", "neuro_competition_reset_generation",
+        }:
+            self._apply_owner_neuro_settings(settings)
+        environment_fields = {
+            "home_assistant_enabled", "home_assistant_url",
+            "home_assistant_weather_entity",
+            "home_assistant_indoor_temperature_entity",
+            "home_assistant_indoor_humidity_entity",
+            "home_assistant_current_location_entity",
+            "home_assistant_current_location_subject", "location_label",
+            "location_timezone", "location_latitude", "location_longitude",
+            "location_subject", "nws_enabled", "nws_location_subject",
+            "nws_station_id", "nws_user_agent", "refresh_seconds",
+            "weather_max_age_seconds", "indoor_max_age_seconds",
+            "current_location_max_age_seconds",
+        }
+        if fields & environment_fields:
+            # Reloads the just-committed canonical row and atomically swaps the
+            # environment service.  A failure leaves the saved revision visibly
+            # distinct from the effective revision.
+            self._reload_environment_if_settings_changed()
+
     def _refresh_trusted_live_state_before_response(
         self,
         *,
@@ -2300,6 +2337,7 @@ class SofiaApplication:
             remote_platform_id=worker.platform_instance_id,
             remote_core_identity_id=worker.core_identity_id,
             generation_provider=lambda: self._runtime.core_worker_generation,
+            settings_live_apply=self._apply_core_link_live_settings,
         )
         try:
             server = CoreLinkServer(configuration, gateway)

@@ -12,6 +12,7 @@ from sofia.modules.ui.core_link_desktop import (
     CoreLinkDesktopStateStore,
     RemoteTurnUncertain,
 )
+from sofia.modules.ui.core_link_settings import CoreLinkSettingsClient
 from sofia.platform.core_link import CoreLinkBinding, CoreLinkBindingState
 from sofia.sdk import CoreLinkResponse, CoreLinkResponseStatus, ProtocolVersion
 
@@ -31,6 +32,8 @@ def binding() -> CoreLinkBinding:
         granted_scopes=(
             "core-link.status", "conversation.create", "conversation.select",
             "conversation.send", "conversation.history", "conversation.result",
+            "settings.snapshot", "settings.update", "settings.events",
+            "settings.read.core", "settings.write.core",
         ),
         protocol_version=ProtocolVersion(1, 0),
         state=CoreLinkBindingState.ACTIVE, revision=3,
@@ -167,3 +170,64 @@ def test_tray_status_probe_does_not_create_a_conversation(tmp_path):
     )
     assert client.probe_status()["state"] == "ready"
     assert [request.operation for request in transport.requests] == ["status"]
+
+
+def test_remote_settings_uses_revisioned_api_and_resynchronizes():
+    selected = binding()
+    initial = {
+        "schema_version": 11, "revision": 4, "effective_revision": 4,
+        "values": {"location_label": "Home"},
+        "contracts": {"location_label": {
+            "owner": "core", "apply_class": "live",
+        }},
+    }
+    changed = {
+        **initial, "revision": 5, "effective_revision": 5,
+        "values": {"location_label": "Workshop"},
+    }
+    transport = ScriptedTransport([
+        ("settings.snapshot", CoreLinkResponseStatus.COMPLETED, initial),
+        ("settings.update", CoreLinkResponseStatus.COMPLETED, {
+            "revision": 5, "effective_revision": 5, "apply_state": "applied",
+            "changed_fields": ["location_label"], "apply_classes": ["live"],
+            "error": None,
+        }),
+        ("settings.snapshot", CoreLinkResponseStatus.COMPLETED, changed),
+    ])
+    client = CoreLinkSettingsClient(transport, selected, clock=lambda: NOW)
+
+    assert client.refresh()["revision"] == 4
+    receipt = client.update(
+        "location_label", "Workshop", idempotency_key="settings:stable",
+    )
+
+    assert receipt["apply_state"] == "applied"
+    assert client.snapshot["values"]["location_label"] == "Workshop"
+    update_request = transport.requests[1]
+    assert update_request.payload == {
+        "expected_revision": 4,
+        "changes": {"location_label": "Workshop"},
+    }
+    assert update_request.idempotency_key == "settings:stable"
+
+
+def test_remote_settings_refuses_fields_outside_authorized_projection():
+    selected = binding()
+    snapshot = {
+        "schema_version": 11, "revision": 0, "effective_revision": 0,
+        "values": {"location_label": "Home"},
+        "contracts": {"location_label": {
+            "owner": "core", "apply_class": "live",
+        }},
+    }
+    transport = ScriptedTransport([
+        ("settings.snapshot", CoreLinkResponseStatus.COMPLETED, snapshot),
+    ])
+    client = CoreLinkSettingsClient(transport, selected, clock=lambda: NOW)
+    client.refresh()
+
+    with pytest.raises(PermissionError, match="authorized projection"):
+        client.update("adaptive_theme", False)
+    assert [request.operation for request in transport.requests] == [
+        "settings.snapshot",
+    ]

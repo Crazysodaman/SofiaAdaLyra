@@ -60,6 +60,8 @@ def access() -> CoreLinkClientAccess:
             "core-link.status", "conversation.create", "conversation.select",
             "conversation.send", "conversation.history",
             "conversation.result", "conversation.cancel",
+            "settings.snapshot", "settings.update", "settings.events",
+            "settings.read.core", "settings.write.core",
         ),
         protocol_version=ProtocolVersion(1, 0),
         enrolled_at=NOW,
@@ -399,6 +401,64 @@ def test_real_application_core_link_turn_is_deduplicated_and_audience_scoped(
                 certificate_public_key_sha256="b" * 64,
                 request=request("status", {}),
             )
+    finally:
+        if gateway is not None:
+            gateway.close()
+        application.shutdown()
+
+
+def test_core_link_settings_are_cas_scoped_and_emit_apply_receipts(tmp_path):
+    state = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(state)
+    application = SofiaApplication(configuration(tmp_path))
+    application.start()
+    applied = []
+    gateway = None
+    try:
+        gateway = CoreLinkConversationGateway(
+            application, access_store=enrolled_store(state),
+            remote_platform_id="platform:canonical",
+            remote_core_identity_id="core:sofia",
+            generation_provider=lambda: 7,
+            settings_live_apply=lambda settings, fields: applied.append(fields),
+            clock=lambda: NOW + timedelta(seconds=1),
+        )
+        initial = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64,
+            request=request("settings.snapshot", {}),
+        )
+        assert initial.payload["revision"] == 0
+        assert "adaptive_theme" not in initial.payload["values"]
+        change = request(
+            "settings.update",
+            {"expected_revision": 0, "changes": {"location_label": "Lab"}},
+            idempotency_key="settings:location:1",
+        )
+        updated = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64, request=change,
+        )
+        replay = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64, request=change,
+        )
+        assert updated.payload == replay.payload
+        assert updated.payload["apply_state"] == "applied"
+        assert applied == [("location_label",)]
+        conflict = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64,
+            request=request(
+                "settings.update",
+                {"expected_revision": 0, "changes": {"location_label": "Old"}},
+                idempotency_key="settings:stale",
+            ),
+        )
+        assert conflict.status is CoreLinkResponseStatus.CONFLICT
+        events = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64,
+            request=request(
+                "settings.events", {"after_revision": 0, "limit": 10},
+            ),
+        )
+        assert events.payload["events"][0]["changed_fields"] == ["location_label"]
     finally:
         if gateway is not None:
             gateway.close()

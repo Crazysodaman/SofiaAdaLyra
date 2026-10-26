@@ -962,3 +962,44 @@ reconciliation; the complete non-integration UI gate passed **590 tests with
 **87 tests**. Windows GUI foreground behavior, native tray protocols, visual
 acceptance, remote Settings, installed split-wheel inspection, CI and
 independent review remain open. The client migration remains **BETA**.
+
+### Canonical Settings authority and Core Link Settings client — 2026-10-26 UTC
+
+This batch extends the existing `RuntimeUserSettingsStore` rather than adding
+a configuration database. `CanonicalSettingsService` supplies typed field
+ownership, explicit LIVE/NEXT_OPERATION/COMPONENT_RESTART/PLATFORM_RESTART
+classification, canonical compare-and-swap revisions, durable per-client
+idempotency, append-only change events, and separate saved/effective apply
+receipts. Client-owned UI fields are excluded from the Core-host projection;
+Core and host writes require independent authenticated field scopes. A value
+saved in SQLite is never by itself reported as applied.
+
+The application registers a reviewed LIVE apply callback for environment,
+NEURO, and avatar-routine settings. Provider/model, Fleet-discovery,
+background-worker, and integration changes retain their truthful pending
+restart or next-operation state. Apply exceptions retain the saved revision,
+old effective revision, error class, and auditable event. Existing trusted
+local settings callers remain compatible: an out-of-band change to the legacy
+canonical row is imported into the revision journal as UNKNOWN, invalidating
+stale remote CAS tokens instead of being silently overwritten.
+
+Core Link adds authenticated settings snapshot, update, and bounded event-page
+operations. The remote Settings client uses the selected identity/generation,
+pinned mutual TLS, protected credential reference, and authorized projection;
+it opens no local canonical database and imports no Core package. It provides
+JSON-typed field editing, authoritative resynchronization after every save,
+periodic revision notification polling, saved/effective diagnostics, and an
+independent profile-scoped singleton. The generic launcher routes `settings`
+to this client in Core-Link-only mode while preserving the local Core-host
+Settings window.
+
+Local Linux evidence: focused settings/Core-Link/configuration/launcher tests
+passed **48 tests**; the combined settings, Core Link, environment reload and
+runtime settings batch passed **35 tests** with the one loopback case selected
+separately; that real mutual-TLS case passed **1 test**. The complete
+non-integration `pkg_ui` gate passed **598 tests with 1 skipped** in 75.89
+seconds when disposable localhost sockets were permitted. The identical
+sandboxed run's 14 failures were all socket-creation denials and not code
+assertion failures. Windows GUI acceptance, native notification delivery,
+component-restart execution for pending settings, CI, host commissioning and
+independent review remain open. Settings/Core Link remain **BETA**.

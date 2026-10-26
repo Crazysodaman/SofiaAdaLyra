@@ -18,6 +18,9 @@ from sofia.platform.core_link.access import (
     CoreLinkClientAccess, CoreLinkClientAccessStore,
 )
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.config.settings_authority import (
+    CanonicalSettingsService, SettingsOwner,
+)
 from sofia.sdk import (
     CoreLinkRequest, CoreLinkResponse, CoreLinkResponseStatus,
     SDK_PROTOCOL_VERSION,
@@ -107,6 +110,7 @@ class CoreLinkConversationGateway:
         access_store: CoreLinkClientAccessStore,
         remote_platform_id: str, remote_core_identity_id: str,
         generation_provider,
+        settings_live_apply=None,
         clock=lambda: datetime.now(timezone.utc),
         max_open_sessions: int = 64,
     ) -> None:
@@ -132,6 +136,9 @@ class CoreLinkConversationGateway:
         self.clock = clock
         self.max_open_sessions = max_open_sessions
         self.session_requests = CoreLinkSessionRequestStore(access_store.path)
+        self.settings = CanonicalSettingsService(
+            access_store.path, live_apply=settings_live_apply,
+        )
         self._services: dict[tuple[str, str], object] = {}
         self._lock = RLock()
 
@@ -212,6 +219,19 @@ class CoreLinkConversationGateway:
                 return duplicate
             self._services[actual_key] = service
             return service
+
+    @staticmethod
+    def _settings_owners(
+        access: CoreLinkClientAccess, *, write: bool,
+    ) -> frozenset[SettingsOwner]:
+        prefix = "settings.write." if write else "settings.read."
+        owners = {
+            owner for owner in (SettingsOwner.CORE, SettingsOwner.HOST)
+            if prefix + owner.value in access.scopes
+        }
+        if not owners:
+            raise PermissionError("Core Link client lacks field-level settings scope")
+        return frozenset(owners)
 
     def dispatch(
         self, *, certificate_public_key_sha256: str,
@@ -367,6 +387,39 @@ class CoreLinkConversationGateway:
                 status = CoreLinkResponseStatus.OUTCOME_UNKNOWN
                 result = {"event_id": event_id, "state": admission.status}
             return CoreLinkResponse(request.request_id, status, result, now)
+        elif operation == "settings.snapshot":
+            self._exact(payload, set())
+            result = self.settings.snapshot(
+                owners=self._settings_owners(access, write=False),
+            )
+        elif operation == "settings.update":
+            self._exact(payload, {"expected_revision", "changes"})
+            try:
+                receipt = self.settings.update(
+                    client_id=access.client_id,
+                    principal_id=access.principal.principal_id,
+                    audience_id=access.principal.audience_id,
+                    idempotency_key=request.idempotency_key,
+                    expected_revision=payload["expected_revision"],
+                    changes=payload["changes"],
+                    writable_owners=self._settings_owners(access, write=True),
+                    now=now,
+                )
+            except RuntimeError as exc:
+                return CoreLinkResponse(
+                    request.request_id, CoreLinkResponseStatus.CONFLICT,
+                    {"error": str(exc)}, now,
+                )
+            result = receipt.to_payload()
+        elif operation == "settings.events":
+            self._exact(payload, {"after_revision", "limit"})
+            result = {
+                "events": self.settings.events(
+                    after_revision=payload["after_revision"],
+                    owners=self._settings_owners(access, write=False),
+                    limit=payload["limit"],
+                )
+            }
         else:  # pragma: no cover - CoreLinkRequest rejects this first.
             raise ValueError("unsupported Core Link operation")
         return CoreLinkResponse(

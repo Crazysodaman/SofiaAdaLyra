@@ -372,8 +372,8 @@ class CoreLinkDesktopClient:
         return False
 
 
-def create_core_link_desktop_client_from_environment() -> CoreLinkDesktopClient:
-    """Compose a client solely from an approved binding and protected refs."""
+def create_core_link_transport_from_environment():
+    """Compose the shared pinned transport without importing any Core code."""
     store_raw = os.environ.get(CORE_LINK_BINDING_STORE_ENV, "").strip()
     if not store_raw:
         raise RuntimeError(f"{CORE_LINK_BINDING_STORE_ENV} is required")
@@ -415,6 +415,12 @@ def create_core_link_desktop_client_from_environment() -> CoreLinkDesktopClient:
         endpoint_resolver=lambda requested: endpoint if requested == endpoint_id else None,
         credential_resolver=resolve_credentials,
     )
+    return transport, binding_store, binding
+
+
+def create_core_link_desktop_client_from_environment() -> CoreLinkDesktopClient:
+    """Compose a client solely from an approved binding and protected refs."""
+    transport, binding_store, binding = create_core_link_transport_from_environment()
     state_raw = os.environ.get("SOFIA_CORE_LINK_DESKTOP_STATE", "").strip()
     state_path = (
         Path(state_raw)
