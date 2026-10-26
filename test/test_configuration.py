@@ -143,6 +143,19 @@ def test_core_worker_response_deadline_must_fit_lease():
         )
 
 
+def test_core_worker_startup_deadline_is_bounded_for_slow_spawn_attestation():
+    assert CoreWorkerConfiguration().startup_timeout_seconds == 60
+    with pytest.raises(ValueError, match="startup timeout"):
+        CoreWorkerConfiguration(startup_timeout_seconds=4)
+    with pytest.raises(ValueError, match="startup timeout"):
+        CoreWorkerConfiguration(startup_timeout_seconds=301)
+    with pytest.raises(ValueError, match="shorter than lease TTL"):
+        CoreWorkerConfiguration(
+            lease_ttl_seconds=30, response_timeout_seconds=10,
+            startup_timeout_seconds=30,
+        )
+
+
 def test_configuration_rejects_invalid_environment_type():
     with pytest.raises(TypeError, match="EnvironmentConfiguration"):
         SofiaConfiguration(

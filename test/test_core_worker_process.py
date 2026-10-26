@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+import multiprocessing
 import os
 
 import pytest
@@ -691,6 +692,44 @@ def test_existing_component_supervisor_owns_real_core_process(canonical_state_pa
     assert controller.pid is None
 
 
+def test_startup_deadline_quarantines_generation_and_leaves_no_child(
+    canonical_state_path, tmp_path,
+):
+    now, generations, base = build(
+        canonical_state_path, tmp_path, "core.startup-timeout"
+    )
+    controller = CoreWorkerController(
+        generations=generations, lease=base.lease,
+        platform_instance_id="platform:test", core_identity_id="core:startup-timeout",
+        component_id="core.startup-timeout",
+        runtime_dir=tmp_path / "startup-timeout-runtime",
+        response_timeout=timedelta(seconds=5),
+        startup_timeout=timedelta(seconds=1),
+    )
+    digest = sha256(b"startup-timeout").hexdigest()
+    endpoint = ComponentEndpoint(
+        "core.startup-timeout", ComponentKind.CORE, digest, 1,
+        "platform:test", "core:startup-timeout",
+    )
+
+    with pytest.raises(CoreWorkerError, match="attestation/readiness deadline"):
+        controller.start(
+            release_digest=digest,
+            spec=CoreEngineProcessSpec(
+                "test", test_startup_delay_seconds=2,
+            ),
+            now=now,
+        )
+
+    assert controller.pid is None
+    assert generations.state(endpoint) is GenerationState.QUARANTINED
+    assert generations.active_for_core_identity("core:startup-timeout") is None
+    assert all(
+        child.name != "sofia-core-1" or not child.is_alive()
+        for child in multiprocessing.active_children()
+    )
+
+
 def test_production_composition_owns_configured_core_process(canonical_state_path, tmp_path):
     digest = installed_core_release_digest()
     configuration = SofiaConfiguration(
@@ -879,7 +918,10 @@ def test_child_independently_rejects_parent_claimed_release_digest(
         canonical_state_path, tmp_path, "core.forged-child"
     )
     forged = "0" * 64
-    with pytest.raises(CoreWorkerError, match="did not connect"):
+    with pytest.raises(
+        CoreWorkerError,
+        match="startup rejected: attestation_or_identity_rejected",
+    ):
         controller.start(
             release_digest=forged,
             spec=CoreEngineProcessSpec(

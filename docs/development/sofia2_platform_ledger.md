@@ -1196,3 +1196,33 @@ reconciliation and host acceptance remain open.
 The complete affected non-integration `pkg_run` gate passed **685 tests** with
 7,147 deselected in 154.11 seconds on local Linux. This is local regression
 evidence, not matching-revision CI or independent review.
+
+### Bounded Core-worker startup attestation — 2026-10-26 UTC
+
+The audited hard-coded 10-second startup deadline is replaced by the typed
+`CoreWorkerConfiguration.startup_timeout_seconds` setting (60 seconds by
+default, bounded to 5–300 seconds and required to fit inside the canonical RUN
+lease TTL). `SOFIA_CORE_WORKER_STARTUP_TIMEOUT_SECONDS` exposes the reviewed
+deployment override. Production composition passes the value to the process
+owner; no digest or identity check is disabled.
+
+The child now establishes authenticated local IPC and reports an exact
+protocol/endpoint/PID `starting` record before potentially slow release-byte
+hashing. It becomes ready only after the child independently hashes the
+installed package and verifies the configured SHA-256 release. The parent uses
+one total monotonic deadline across connection, startup status, attestation and
+readiness. Sanitized errors distinguish pre-IPC child exit, authenticated IPC
+timeout, startup identity mismatch, attestation/identity rejection, invalid
+startup contract and generic child startup failure without exposing paths or
+private exception text.
+
+Local Linux evidence: Core process/configuration regressions passed **60
+tests**. A deterministic delayed-attestation process test proves deadline
+cleanup terminates the child, quarantines (rather than activates) the staged
+generation and leaves no active Core identity. Existing replacement, health,
+cognition and shutdown tests remain green. Actual Windows spawn/named-pipe and
+18–19 second package-hash timing, installed-wheel startup, CI and independent
+review remain required; this repair is **BETA**, not RELEASE CANDIDATE.
+
+The complete non-integration `pkg_run` gate passed **686 tests** with 7,148
+deselected in 111.71 seconds on the same local Linux source.

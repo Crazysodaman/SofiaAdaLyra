@@ -198,6 +198,7 @@ class CoreEngineProcessSpec:
     provider: ProviderConfiguration | None = None
     secondary_provider: ProviderConfiguration | None = None
     test_delay_seconds: float = 0.0
+    test_startup_delay_seconds: float = 0.0
     expected_runtime_digest: str | None = None
 
     def __post_init__(self) -> None:
@@ -213,6 +214,12 @@ class CoreEngineProcessSpec:
             raise ValueError("test_delay_seconds must be in 0..30")
         if self.test_delay_seconds and self.kind != "test":
             raise ValueError("only the deterministic test engine may be delayed")
+        if not isinstance(self.test_startup_delay_seconds, (int, float)) or not (
+            0 <= self.test_startup_delay_seconds <= 30
+        ):
+            raise ValueError("test_startup_delay_seconds must be in 0..30")
+        if self.test_startup_delay_seconds and self.kind != "test":
+            raise ValueError("only the deterministic test startup may be delayed")
         if self.expected_runtime_digest is not None and (
             len(self.expected_runtime_digest) != 64
             or any(
@@ -232,6 +239,7 @@ class CoreEngineProcessSpec:
                 else asdict(self.secondary_provider)
             ),
             "test_delay_seconds": self.test_delay_seconds,
+            "test_startup_delay_seconds": self.test_startup_delay_seconds,
             "expected_runtime_digest": self.expected_runtime_digest,
         }
 
@@ -239,7 +247,7 @@ class CoreEngineProcessSpec:
     def from_payload(cls, payload: object) -> "CoreEngineProcessSpec":
         if not isinstance(payload, dict) or set(payload) != {
             "kind", "provider", "secondary_provider", "test_delay_seconds",
-            "expected_runtime_digest",
+            "test_startup_delay_seconds", "expected_runtime_digest",
         }:
             raise ValueError("invalid Core engine process specification")
         provider = payload["provider"]
@@ -253,6 +261,7 @@ class CoreEngineProcessSpec:
                 else ProviderConfiguration(**secondary_provider)
             ),
             test_delay_seconds=payload["test_delay_seconds"],
+            test_startup_delay_seconds=payload["test_startup_delay_seconds"],
             expected_runtime_digest=payload["expected_runtime_digest"],
         )
 
@@ -379,12 +388,18 @@ def _worker_main(
         endpoint = ComponentEndpoint.from_payload(endpoint_payload)
         lifetime_lock.acquire()
         spec = CoreEngineProcessSpec.from_payload(spec_payload)
+        connection = Client(address, family=family, authkey=authkey)
+        _send(connection, {
+            "kind": "starting", "protocol": str(SDK_PROTOCOL_VERSION),
+            "endpoint": endpoint.to_payload(), "pid": os.getpid(),
+        })
+        if spec.test_startup_delay_seconds:
+            time.sleep(spec.test_startup_delay_seconds)
         if spec.expected_runtime_digest is not None and (
             installed_core_release_digest() != spec.expected_runtime_digest
             or endpoint.release_digest != spec.expected_runtime_digest
         ):
             raise PermissionError("Core worker runtime release digest mismatch")
-        connection = Client(address, family=family, authkey=authkey)
         engines = _engines(spec, connection)
         accepting = True
         _send(connection, {
@@ -442,8 +457,18 @@ def _worker_main(
                     "kind": "error", "request_id": envelope.request_id,
                     "error": type(exc).__name__,
                 })
-    except BaseException:
-        # The parent observes EOF/process exit and records crash/uncertainty.
+    except BaseException as exc:
+        if connection is not None:
+            if isinstance(exc, PermissionError):
+                code = "attestation_or_identity_rejected"
+            elif isinstance(exc, (TypeError, ValueError)):
+                code = "invalid_startup_contract"
+            else:
+                code = "child_startup_failed"
+            try:
+                _send(connection, {"kind": "startup_error", "code": code})
+            except BaseException:
+                pass
         return
     finally:
         if connection is not None:
@@ -456,12 +481,16 @@ class _CoreWorkerProcess:
         self, *, endpoint: ComponentEndpoint, spec: CoreEngineProcessSpec,
         runtime_dir: Path,
         providers: Mapping[str, PlatformProviderBinding] | None = None,
-        startup_timeout: float = 10.0,
+        startup_timeout: float = 60.0,
     ) -> None:
         self.endpoint = endpoint
         self.spec = spec
         self.runtime_dir = runtime_dir
         self.startup_timeout = startup_timeout
+        if type(startup_timeout) not in {int, float} or not (
+            1.0 <= startup_timeout <= 300.0
+        ):
+            raise ValueError("startup_timeout must be in 1..300 seconds")
         self.providers = dict(providers or {})
         expected_configurations = (
             {}
@@ -536,19 +565,46 @@ class _CoreWorkerProcess:
             name=f"sofia-core-{self.endpoint.generation}", daemon=False,
         )
         self._process.start()
-        thread.join(self.startup_timeout)
-        if thread.is_alive() or queue.empty():
+        deadline = time.monotonic() + self.startup_timeout
+        while queue.empty() and self._process.is_alive():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            thread.join(min(0.05, remaining))
+        if queue.empty():
+            exited = not self._process.is_alive()
             self.terminate(force=True)
-            raise CoreWorkerError("Core worker did not connect before startup deadline")
+            raise CoreWorkerError(
+                "Core worker exited before authenticated IPC"
+                if exited else "Core worker authenticated IPC deadline expired"
+            )
         accepted = queue.get()
         if isinstance(accepted, BaseException):
             self.terminate(force=True)
             raise CoreWorkerError("Core worker authenticated connection failed") from accepted
         self._connection = accepted
-        if not self._connection.poll(self.startup_timeout):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or not self._connection.poll(remaining):
             self.terminate(force=True)
-            raise CoreWorkerError("Core worker did not become ready")
+            raise CoreWorkerError("Core worker startup status deadline expired")
+        starting = _receive(self._connection)
+        expected_starting = {"kind", "protocol", "endpoint", "pid"}
+        if set(starting) != expected_starting or starting["kind"] != "starting" or (
+            starting["protocol"] != str(SDK_PROTOCOL_VERSION)
+            or ComponentEndpoint.from_payload(starting["endpoint"]) != self.endpoint
+            or starting["pid"] != self.pid
+        ):
+            self.terminate(force=True)
+            raise CoreWorkerError("Core worker startup identity mismatch")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or not self._connection.poll(remaining):
+            self.terminate(force=True)
+            raise CoreWorkerError("Core worker attestation/readiness deadline expired")
         ready = _receive(self._connection)
+        if ready.get("kind") == "startup_error" and set(ready) == {"kind", "code"}:
+            code = ready["code"]
+            self.terminate(force=True)
+            raise CoreWorkerError(f"Core worker startup rejected: {code}")
         expected = {"kind", "protocol", "endpoint", "pid"}
         if set(ready) != expected or ready["kind"] != "ready" or (
             ready["protocol"] != str(SDK_PROTOCOL_VERSION)
@@ -711,6 +767,7 @@ class CoreWorkerController:
         self, *, generations: ComponentGenerationStore, lease: RunLease,
         platform_instance_id: str, core_identity_id: str, component_id: str,
         runtime_dir: Path, response_timeout: timedelta = timedelta(minutes=2),
+        startup_timeout: timedelta = timedelta(seconds=60),
         providers: Mapping[str, PlatformProviderBinding] | None = None,
     ) -> None:
         self.generations = generations
@@ -720,6 +777,11 @@ class CoreWorkerController:
         self.component_id = component_id
         self.runtime_dir = runtime_dir
         self.response_timeout = response_timeout
+        if not isinstance(startup_timeout, timedelta) or not (
+            timedelta(seconds=1) <= startup_timeout <= timedelta(minutes=5)
+        ):
+            raise ValueError("startup_timeout must be in 1..300 seconds")
+        self.startup_timeout = startup_timeout
         self.providers = dict(providers or {})
         if any(
             role not in {"primary", "secondary"}
@@ -789,6 +851,7 @@ class CoreWorkerController:
         return _CoreWorkerProcess(
             endpoint=endpoint, spec=spec, runtime_dir=self.runtime_dir,
             providers=self.providers,
+            startup_timeout=self.startup_timeout.total_seconds(),
         )
 
     def start(
@@ -1103,6 +1166,7 @@ class CoreWorkerProcessOwner:
         runtime_dir: Path, spec: CoreEngineProcessSpec,
         providers: Mapping[str, PlatformProviderBinding] | None = None,
         lease_ttl_seconds: int = 180, response_timeout_seconds: int = 120,
+        startup_timeout_seconds: int = 60,
         clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     ) -> None:
         if not isinstance(state_path, Path) or not state_path.is_file():
@@ -1115,6 +1179,12 @@ class CoreWorkerProcessOwner:
             1 <= response_timeout_seconds < lease_ttl_seconds
         ):
             raise ValueError("response timeout must be shorter than lease TTL")
+        if type(startup_timeout_seconds) is not int or not (
+            5 <= startup_timeout_seconds <= 300
+        ):
+            raise ValueError("startup timeout must be in 5..300 seconds")
+        if startup_timeout_seconds >= lease_ttl_seconds:
+            raise ValueError("startup timeout must be shorter than lease TTL")
         observed_digest = installed_core_release_digest()
         if observed_digest != release_digest:
             raise CoreWorkerError(
@@ -1147,6 +1217,7 @@ class CoreWorkerProcessOwner:
                 core_identity_id=core_identity_id, component_id=component_id,
                 runtime_dir=runtime_dir,
                 response_timeout=timedelta(seconds=response_timeout_seconds),
+                startup_timeout=timedelta(seconds=startup_timeout_seconds),
                 providers=providers,
             )
             self.supervisor = ComponentRuntimeSupervisor(

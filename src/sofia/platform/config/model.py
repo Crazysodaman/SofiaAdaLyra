@@ -25,6 +25,7 @@ class CoreWorkerConfiguration:
     component_id: str = "core.sofia"
     lease_ttl_seconds: int = 180
     response_timeout_seconds: int = 120
+    startup_timeout_seconds: int = 60
 
     def __post_init__(self) -> None:
         import re
@@ -52,6 +53,16 @@ class CoreWorkerConfiguration:
         ):
             raise ValueError(
                 "Core worker response timeout must be positive and shorter than lease TTL"
+            )
+        if type(self.startup_timeout_seconds) is not int or not (
+            5 <= self.startup_timeout_seconds <= 300
+        ):
+            raise ValueError(
+                "Core worker startup timeout must be in 5..300 seconds"
+            )
+        if self.startup_timeout_seconds >= self.lease_ttl_seconds:
+            raise ValueError(
+                "Core worker startup timeout must be shorter than lease TTL"
             )
 
 

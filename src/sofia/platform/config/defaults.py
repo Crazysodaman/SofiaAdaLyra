@@ -91,6 +91,9 @@ def _core_worker_configuration_from_environ() -> CoreWorkerConfiguration:
         response_timeout_seconds=_positive_environment_int(
             "SOFIA_CORE_WORKER_RESPONSE_TIMEOUT_SECONDS", default=120
         ),
+        startup_timeout_seconds=_positive_environment_int(
+            "SOFIA_CORE_WORKER_STARTUP_TIMEOUT_SECONDS", default=60
+        ),
     )
 
 

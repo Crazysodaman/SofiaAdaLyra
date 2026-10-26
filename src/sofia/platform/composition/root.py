@@ -539,6 +539,7 @@ def compose(
                 spec=worker_spec,
                 lease_ttl_seconds=worker.lease_ttl_seconds,
                 response_timeout_seconds=worker.response_timeout_seconds,
+                startup_timeout_seconds=worker.startup_timeout_seconds,
             )
             if provider_kind == "provider":
                 configurations = {

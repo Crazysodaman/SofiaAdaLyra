@@ -1433,3 +1433,18 @@ the affected cognition/provider/configuration/Fleet/generation suite passed
 The deterministic test and compatibility routes remain executable. Genuine
 local/remote Ollama, Windows, exact-revision CI, installed-service and
 independent-review acceptance remain open, so Core B08 remains **BETA**.
+
+### Core worker startup deadline and diagnostics — 2026-10-26 UTC
+
+Independent Core startup now uses one configurable 60-second total deadline
+for authenticated IPC, child release-byte attestation and readiness instead of
+the former hard-coded 10 seconds. The child authenticates and identifies its
+exact endpoint/PID before hashing, but it cannot accept cognition until the
+configured SHA-256 release matches the independently observed installed bytes.
+Failures remain sanitized and fail closed; a timed-out generation is killed and
+quarantined rather than activated or replayed.
+
+Local Linux Core/configuration evidence passed **60 tests**, including health,
+cognition, replacement, shutdown, attestation rejection and deterministic
+startup-timeout cleanup. Windows named-pipe/spawn timing and installed-wheel
+acceptance are still unverified, so Core B08 remains **BETA**.
