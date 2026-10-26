@@ -1003,3 +1003,38 @@ sandboxed run's 14 failures were all socket-creation denials and not code
 assertion failures. Windows GUI acceptance, native notification delivery,
 component-restart execution for pending settings, CI, host commissioning and
 independent review remain open. Settings/Core Link remain **BETA**.
+
+### Per-user UI launchers and read-only remote Control Center — 2026-10-26 UTC
+
+The installed `companion-runtime` facade now includes `desktop`, `tray`,
+`settings`, `control-center`, `status`, and an explicit `install-ui` operator
+command. The installer creates four current-user Windows Start Menu shell
+links through the standard WScript shell-link API and, when requested, the
+same current-user Desktop links. Tray and Desktop login startup are separate
+HKCU choices; disabling either removes its value without uninstalling the
+client. No machine-wide service, scheduled task, elevation, Core process,
+state path, binding secret, or credential is embedded in a shortcut. Taskbar
+pinning remains the normal user-controlled Windows action.
+
+Linux installation writes four per-user XDG application entries and optional
+Desktop/Tray XDG autostart entries. It uses Desktop Entry argument escaping,
+atomic writes, rejects target symlinks, needs no root/system service, and
+removes disabled autostart entries. The existing Core Link tray is also the
+documented small status-window fallback on sessions without a compatible
+notification-area protocol.
+
+The distinct Core Link Control Center is a profile-scoped singleton that reads
+authenticated Core identity/generation, Platform runtime/STOP state, and
+canonical settings saved/effective revisions. It does not display static demo
+health, instantiate Core, open client SQLite, or gain effectful authority.
+Local compatibility mode continues to open the established full settings and
+control surface.
+
+Local Linux evidence: launcher, role, process-lock, Windows registration and
+XDG regression passed **35 tests**; the complete non-integration `pkg_ui` gate
+passed **598 tests with 1 skipped** and 7,205 deselected in 73.36 seconds with
+disposable localhost access. A no-isolation wheel build succeeded, and wheel
+inspection found the new launcher/Control Center modules plus the installed
+`companion-runtime` console entrypoint. Actual Windows Start Menu/foreground
+visual acceptance, Wayland compositor acceptance, signed installer creation,
+CI and independent review remain open. The launcher slice remains **BETA**.

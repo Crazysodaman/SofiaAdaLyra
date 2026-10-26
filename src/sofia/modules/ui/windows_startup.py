@@ -8,10 +8,16 @@ import sys
 
 _RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 _VALUE_NAME = "SofiaAdaLyraTray"
+_DESKTOP_VALUE_NAME = "SofiaAdaLyraDesktop"
 
 
 class WindowsStartupUnavailable(RuntimeError):
     pass
+
+
+def _python_gui_executable(executable: Path) -> Path:
+    pythonw = executable.with_name("pythonw.exe")
+    return pythonw if pythonw.is_file() else executable
 
 
 def _package_root() -> Path:
@@ -62,3 +68,34 @@ def configure_windows_startup(enabled: bool, *, state_path: Path | None = None) 
                 winreg.DeleteValue(key, _VALUE_NAME)
             except FileNotFoundError:
                 pass
+
+
+def configure_windows_ui_startup(
+    *, tray_enabled: bool, desktop_enabled: bool,
+    executable: Path | None = None,
+) -> None:
+    """Configure independent generic clients for the current Windows user."""
+    if type(tray_enabled) is not bool or type(desktop_enabled) is not bool:
+        raise TypeError("startup choices must be boolean")
+    if sys.platform != "win32":
+        raise WindowsStartupUnavailable("Windows startup registration requires Windows")
+    import winreg
+
+    runner = _python_gui_executable(Path(executable or sys.executable))
+    with winreg.CreateKeyEx(
+        winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_SET_VALUE,
+    ) as key:
+        for name, enabled, command in (
+            (_VALUE_NAME, tray_enabled, "tray"),
+            (_DESKTOP_VALUE_NAME, desktop_enabled, "desktop"),
+        ):
+            if enabled:
+                value = subprocess.list2cmdline((
+                    str(runner), "-m", "sofia.platform.launcher", command,
+                ))
+                winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+            else:
+                try:
+                    winreg.DeleteValue(key, name)
+                except FileNotFoundError:
+                    pass

@@ -36,6 +36,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     subparsers.add_parser("desktop", help="Open the configured desktop client")
     subparsers.add_parser("tray", help="Open the configured tray client")
     subparsers.add_parser("settings", help="Open the configured settings client")
+    subparsers.add_parser(
+        "control-center", help="Open the configured Platform Control Center",
+    )
+    install = subparsers.add_parser(
+        "install-ui", help="Install per-user GUI launchers",
+    )
+    install.add_argument("--tray-autostart", action="store_true")
+    install.add_argument("--desktop-autostart", action="store_true")
+    install.add_argument("--desktop-shortcuts", action="store_true")
     args = parser.parse_args(argv)
 
     try:
@@ -54,9 +63,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(payload, sort_keys=True))
             return 0
 
+        if args.command == "install-ui":
+            from sofia.platform.ui_launchers import (
+                UILauncherInstallOptions, install_user_launchers,
+            )
+
+            receipt = install_user_launchers(UILauncherInstallOptions(
+                tray_autostart=args.tray_autostart,
+                desktop_autostart=args.desktop_autostart,
+                desktop_shortcuts=args.desktop_shortcuts,
+            ))
+            print(json.dumps({
+                "platform": receipt.platform,
+                "installed": list(receipt.installed),
+                "autostart": list(receipt.autostart),
+            }, sort_keys=True))
+            return 0
+
         roles = _roles()
         if (
-            args.command in {"desktop", "tray", "settings"}
+            args.command in {"desktop", "tray", "settings", "control-center"}
             and not roles.supports(PlatformRole.CORE_HOST)
             and roles.supports(PlatformRole.CORE_LINK)
         ):
@@ -68,6 +94,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 from sofia.modules.ui.core_link_settings import run_core_link_settings
 
                 return run_core_link_settings()
+            if args.command == "control-center":
+                from sofia.modules.ui.core_link_control_center import (
+                    run_core_link_control_center,
+                )
+
+                return run_core_link_control_center()
             from sofia.modules.ui.core_link_tray import run_core_link_tray
 
             return run_core_link_tray()
@@ -82,6 +114,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             return tray_main([])
         if args.command == "settings":
+            from sofia.modules.ui.settings_window import main as settings_main
+
+            return settings_main([])
+        if args.command == "control-center":
             from sofia.modules.ui.settings_window import main as settings_main
 
             return settings_main([])

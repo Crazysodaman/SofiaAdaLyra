@@ -5,7 +5,7 @@ import pytest
 from sofia.modules.ui import windows_startup
 from sofia.modules.ui.windows_startup import (
     WindowsStartupUnavailable,
-    configure_windows_startup,
+    configure_windows_startup, configure_windows_ui_startup,
     tray_startup_command,
 )
 
@@ -57,3 +57,26 @@ def test_startup_registration_keeps_the_selected_database(tmp_path, monkeypatch)
     configure_windows_startup(True, state_path=selected)
     assert "--state-path" in calls[0][-1]
     assert repr(str(selected.resolve())) in calls[0][-1]
+
+
+def test_generic_ui_startup_registers_tray_and_removes_desktop(monkeypatch, tmp_path):
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+    writes = []
+    deletes = []
+    fake = SimpleNamespace(HKEY_CURRENT_USER=1, KEY_SET_VALUE=2, REG_SZ=3)
+    fake.CreateKeyEx = lambda *args: nullcontext("registry-key")
+    fake.SetValueEx = lambda *args: writes.append(args)
+    fake.DeleteValue = lambda *args: deletes.append(args)
+    monkeypatch.setitem(sys.modules, "winreg", fake)
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    configure_windows_ui_startup(
+        tray_enabled=True, desktop_enabled=False,
+        executable=tmp_path / "python.exe",
+    )
+
+    assert writes[0][1] == "SofiaAdaLyraTray"
+    assert "sofia.platform.launcher" in writes[0][-1]
+    assert writes[0][-1].endswith(" tray")
+    assert deletes == [("registry-key", "SofiaAdaLyraDesktop")]

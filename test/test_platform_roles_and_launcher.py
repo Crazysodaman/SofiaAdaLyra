@@ -119,6 +119,22 @@ def test_core_link_settings_diagnostic_does_not_import_any_core_package():
     assert result.returncode == 0, result.stderr
 
 
+def test_core_link_control_center_diagnostic_does_not_import_core():
+    code = (
+        "import os,sys; "
+        "os.environ['SOFIA_PLATFORM_ROLES']='CORE_LINK,MODULE_HOST'; "
+        "os.environ.pop('SOFIA_CORE_LINK_BINDING_STORE',None); "
+        "from sofia.platform.launcher import main; "
+        "result=main(['control-center']); "
+        "assert result == 2; "
+        "assert not [name for name in sys.modules if name.startswith('sofia.core')]"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_legacy_python_module_entrypoint_fails_closed_without_core_import():
     code = (
         "import os,sys; "
@@ -142,6 +158,23 @@ def test_headless_core_host_role_is_explicit_in_unit():
         environment_file=systemd_runtime.PurePosixPath("/etc/sofia/runtime.env"),
     ))
     assert "Environment=SOFIA_PLATFORM_ROLES=CORE_HOST,MODULE_HOST" in unit
+
+
+def test_launcher_installs_xdg_clients_without_starting_core(
+    monkeypatch, tmp_path, capsys,
+):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    sys.modules.pop("sofia.core.launcher", None)
+
+    assert launcher.main(["install-ui", "--tray-autostart"]) == 0
+
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["platform"] == "linux-xdg"
+    assert len(receipt["installed"]) == 4
+    assert len(receipt["autostart"]) == 1
+    assert "sofia.core.launcher" not in sys.modules
 
 
 def test_headless_runtime_refuses_core_free_role_before_state_access(monkeypatch):

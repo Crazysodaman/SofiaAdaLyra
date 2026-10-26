@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 from queue import Empty, Queue
 from threading import RLock, Thread
@@ -492,8 +494,24 @@ def run_core_link_desktop() -> int:
         client.save_draft(content)
         task("Sending", lambda: client.send(content))
 
-    button = ttk.Button(root, text="Send", command=send)
-    button.pack(pady=(0, 10))
+    controls = ttk.Frame(root)
+    controls.pack(pady=(0, 10))
+    button = ttk.Button(controls, text="Send", command=send)
+    button.pack(side="left", padx=4)
+    ttk.Button(
+        controls, text="Settings",
+        command=lambda: subprocess.Popen(
+            [sys.executable, "-m", "sofia.platform.launcher", "settings"],
+            close_fds=True,
+        ),
+    ).pack(side="left", padx=4)
+    ttk.Button(
+        controls, text="Control Center",
+        command=lambda: subprocess.Popen(
+            [sys.executable, "-m", "sofia.platform.launcher", "control-center"],
+            close_fds=True,
+        ),
+    ).pack(side="left", padx=4)
     entry.bind("<Return>", send)
 
     def poll() -> None:

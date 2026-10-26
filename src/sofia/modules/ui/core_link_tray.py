@@ -53,17 +53,24 @@ def run_core_link_tray() -> int:
 
         Thread(target=probe, name="core-link-tray-status", daemon=True).start()
 
-    def open_desktop() -> None:
+    def open_client(command: str) -> None:
         subprocess.Popen(
-            [sys.executable, "-m", "sofia.platform.launcher", "desktop"],
+            [sys.executable, "-m", "sofia.platform.launcher", command],
             close_fds=True,
         )
 
     controls = ttk.Frame(root)
     controls.pack(pady=(0, 10))
-    ttk.Button(controls, text="Open Desktop", command=open_desktop).pack(
+    ttk.Button(controls, text="Open Desktop", command=lambda: open_client("desktop")).pack(
         side="left", padx=4,
     )
+    ttk.Button(controls, text="Settings", command=lambda: open_client("settings")).pack(
+        side="left", padx=4,
+    )
+    ttk.Button(
+        controls, text="Control Center",
+        command=lambda: open_client("control-center"),
+    ).pack(side="left", padx=4)
     ttk.Button(controls, text="Refresh", command=refresh).pack(side="left", padx=4)
     ttk.Button(controls, text="Exit Tray", command=root.destroy).pack(
         side="left", padx=4,

@@ -22,6 +22,10 @@ class SettingsProcessAlreadyRunning(RuntimeError):
     pass
 
 
+class ControlCenterProcessAlreadyRunning(RuntimeError):
+    pass
+
+
 def core_link_profile_anchor(
     binding_store_path: str | Path, binding_id: str,
 ) -> Path:
@@ -58,6 +62,15 @@ class SettingsProcessLock(StateProcessLock):
         super().__init__(
             profile_anchor, resource="settings", owner_label="settings client",
             duplicate_error=SettingsProcessAlreadyRunning,
+        )
+
+
+class ControlCenterProcessLock(StateProcessLock):
+    def __init__(self, profile_anchor):
+        super().__init__(
+            profile_anchor, resource="control-center",
+            owner_label="Platform Control Center client",
+            duplicate_error=ControlCenterProcessAlreadyRunning,
         )
 
 
