@@ -35,6 +35,10 @@ _EXPORTS = {
         "ComponentRuntimeSupervisor", "ComponentSpec", "ComponentStatus",
         "DesiredComponentState",
     )},
+    **{name: ("update_impact", name) for name in (
+        "ComponentUpdateCandidate", "UpdateChangeKind", "UpdateImpactPlan",
+        "plan_component_update",
+    )},
     **{name: ("effects", name) for name in (
         "EffectBroker", "EffectReceipt", "EffectRequest", "EffectStatus",
     )},

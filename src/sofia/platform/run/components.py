@@ -15,11 +15,15 @@ from enum import Enum
 from pathlib import Path
 import re
 import sqlite3
+from typing import TYPE_CHECKING
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .lease import LocalRunLeaseStore, RunLease
 from .supervisor import ManagedRuntimeBackend, ProcessState, RuntimeObservation
+
+if TYPE_CHECKING:
+    from .update_impact import ComponentUpdateCandidate, UpdateImpactPlan
 
 
 _ID = re.compile(r"^[a-z][a-z0-9_.-]{0,95}$")
@@ -35,6 +39,7 @@ class ComponentKind(str, Enum):
     CORE = "core"
     PLATFORM = "platform"
     OPTIONAL_MODULE = "optional_module"
+    INFERENCE = "inference"
 
 
 class DesiredComponentState(str, Enum):
@@ -269,6 +274,47 @@ class ComponentRuntimeSupervisor:
         with closing(self._connect()) as db:
             ids = [row[0] for row in db.execute("SELECT component_id FROM run_component ORDER BY component_id")]
         return tuple(self.read_health(component_id, now=now) for component_id in ids)
+
+    def plan_update(
+        self, candidate: "ComponentUpdateCandidate",
+    ) -> "UpdateImpactPlan":
+        """Plan update impact from the durable registered component graph.
+
+        Importing lazily avoids making the supervisor lifecycle depend on the
+        release planner.  The returned plan is inert and carries no authority.
+        """
+        import json
+        from .update_impact import ComponentUpdateCandidate, plan_component_update
+        if not isinstance(candidate, ComponentUpdateCandidate):
+            raise TypeError("candidate must be ComponentUpdateCandidate")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT component_id,kind,dependencies_json FROM run_component"
+            ).fetchall()
+            try:
+                active_rows = db.execute(
+                    """SELECT component_id,release_digest
+                    FROM run_component_generation WHERE state='active'"""
+                ).fetchall()
+            except sqlite3.OperationalError as exc:
+                if "no such table" not in str(exc):
+                    raise
+                active_rows = ()
+        registered = {row["component_id"] for row in rows}
+        return plan_component_update(
+            candidate,
+            component_kinds={
+                row["component_id"]: ComponentKind(row["kind"]) for row in rows
+            },
+            dependencies={
+                row["component_id"]: tuple(json.loads(row["dependencies_json"]))
+                for row in rows
+            },
+            active_release_digests={
+                row["component_id"]: row["release_digest"]
+                for row in active_rows if row["component_id"] in registered
+            },
+        )
 
     def heartbeat(self, component_id: str, *, lease: RunLease, now: datetime) -> None:
         moment = _utc(now)

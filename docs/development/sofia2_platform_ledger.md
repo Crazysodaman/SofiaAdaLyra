@@ -1072,3 +1072,31 @@ and `pkg_run` passed **661 tests** with 7,147 deselected in 88.62 seconds, using
 the permitted disposable IPC/localhost boundary. Linux tests do not replace
 Windows, real Fleet-agent, CI, or independent-review evidence. Platform
 readiness remains **BETA**.
+
+### Exact component update-impact planning — 2026-10-26 UTC
+
+ISO-07 now has a production-owned, effect-free planning boundary on the
+existing `ComponentRuntimeSupervisor`. `ComponentUpdateCandidate` binds exact
+source and target SHA-256 identities, the declared change class, explicit
+compatibility evidence, and exact shared-ABI consumers. The supervisor derives
+the plan from its durable registered component/dependency graph rather than a
+caller-supplied topology. Core-only, optional-module-only and inference-only
+changes drain only the selected component and pause its transitive dependents;
+unrelated components are explicitly retained. Platform and canonical-state
+schema changes broaden to a Platform restart. A shared ABI broadens to its
+declared consumers and their dependents, and an ABI consumer containing the
+Platform requires a Platform restart.
+
+UNKNOWN or failed compatibility, wrong component kind, unknown targets or ABI
+consumers, and data-only changes without a reviewed atomic reload contract all
+fail closed. The result reports only whether impact is resolved; it carries no
+SAFE/RUN authority and cannot stage, approve, drain, restart, or activate a
+component. This closes the ISO-07 planning primitive, not ISO-05 activation or
+ISO-08 live acceptance.
+
+Local Linux evidence: the focused impact/supervisor/generation gate passed
+**22 tests**; the extended gate including real independently hosted Core
+process replacement passed **41 tests** with permitted disposable local IPC.
+The affected non-integration `pkg_run` selection also exited successfully.
+No Windows, real module/provider update, CI, live-host, or independent-review
+evidence is claimed. ISO-07 is **BETA**; ISO-04, ISO-05 and ISO-08 remain open.
