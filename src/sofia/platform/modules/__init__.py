@@ -60,7 +60,10 @@ from .operations import (
     ModuleOperationRequest,
     ModuleOperationType,
 )
-from .control_center import platform_control_center_text
+from .control_center import (
+    platform_control_center_text,
+    platform_module_manager_text,
+)
 
 __all__ = [
     "AdapterFactoryContract", "AdapterFactoryRegistry", "AdapterInspection",
@@ -85,5 +88,5 @@ __all__ = [
     "evaluate_module_compatibility", "evaluate_module_readiness",
     "parse_signed_manifest", "validate_dependency_graph",
     "verify_module_package",
-    "platform_control_center_text",
+    "platform_control_center_text", "platform_module_manager_text",
 ]

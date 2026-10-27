@@ -90,6 +90,7 @@ def test_tray_has_separate_llm_runtime_game_and_settings_controls():
 def test_master_settings_has_expected_command_center_sections():
     expected = {
         "General", "Chat", "ACT", "Fleet", "Workloads", "Models",
+        "Module Manager",
         "Integrations", "Environment", "Avatar", "Memory", "EVOLVE",
         "Safety & Authority", "Advanced",
     }

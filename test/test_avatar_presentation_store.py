@@ -85,6 +85,79 @@ def test_store_writes_snapshot_into_canonical_sqlite(tmp_path):
     assert json.loads(row[0])["schema"] == "sofia.modules.avatar.presentation.v1"
 
 
+def test_store_migrates_valid_legacy_schema_without_losing_presentation(tmp_path):
+    catalog, outfits, authority = setup_authority()
+    authority.propose_outfit(
+        operation_id="op.violet",
+        expected_revision=1,
+        outfit_id="outfit.violet_casual",
+        reason="owner-selected violet outfit",
+        daily=True,
+    )
+    authority.commit_text(operation_id="op.violet", renderer_unavailable=True)
+    legacy = authority.snapshot()
+    legacy["schema"] = "sofia.avatar.presentation.v1"
+    original_revision = legacy["current"]["revision"]
+    path = tmp_path / "sofia.db"
+    store = PresentationStore(path)
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "INSERT INTO avatar_presentation_state VALUES(?,?,?)",
+            ("canonical", json.dumps(legacy), "2026-10-01T00:00:00+00:00"),
+        )
+
+    restored = store.load(catalog.wardrobe, outfits=outfits)
+
+    assert restored.current.outfit_id == "outfit.violet_casual"
+    assert restored.current.revision == original_revision
+    assert restored.last_daily.outfit_id == "outfit.violet_casual"
+    with sqlite3.connect(path) as db:
+        snapshot = json.loads(db.execute(
+            "SELECT snapshot_json FROM avatar_presentation_state "
+            "WHERE state_key='canonical'"
+        ).fetchone()[0])
+        migration = db.execute(
+            "SELECT from_schema,to_schema,before_digest,after_digest "
+            "FROM avatar_presentation_migration"
+        ).fetchone()
+    assert snapshot["schema"] == "sofia.modules.avatar.presentation.v1"
+    assert snapshot["current"]["outfit_id"] == "outfit.violet_casual"
+    assert migration[:2] == (
+        "sofia.avatar.presentation.v1",
+        "sofia.modules.avatar.presentation.v1",
+    )
+    assert all(len(value) == 64 for value in migration[2:])
+
+
+def test_store_leaves_incompatible_legacy_snapshot_untouched(tmp_path):
+    catalog, outfits, authority = setup_authority()
+    legacy = authority.snapshot()
+    legacy["schema"] = "sofia.avatar.presentation.v1"
+    legacy["current"]["outfit_id"] = "outfit.unknown"
+    path = tmp_path / "sofia.db"
+    store = PresentationStore(path)
+    original = json.dumps(legacy, sort_keys=True)
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "INSERT INTO avatar_presentation_state VALUES(?,?,?)",
+            ("canonical", original, "2026-10-01T00:00:00+00:00"),
+        )
+
+    with pytest.raises(PresentationStoreError, match="invalid"):
+        store.load(catalog.wardrobe, outfits=outfits)
+
+    with sqlite3.connect(path) as db:
+        stored = db.execute(
+            "SELECT snapshot_json FROM avatar_presentation_state "
+            "WHERE state_key='canonical'"
+        ).fetchone()[0]
+        migration_count = db.execute(
+            "SELECT COUNT(*) FROM avatar_presentation_migration"
+        ).fetchone()[0]
+    assert stored == original
+    assert migration_count == 0
+
+
 def test_store_refuses_unsettled_transition(tmp_path):
     _, _, authority = setup_authority()
     authority.propose_outfit(

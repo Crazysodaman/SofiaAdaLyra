@@ -13,9 +13,26 @@ from pathlib import Path
 import sqlite3
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.safe.permissions import (
+    PermissionLevel,
+    capability_permission_policy,
+)
 
 from .adapters import AdapterFactoryRegistry
 from .observer import CanonicalPlatformModuleObserver
+
+
+_INSTALLED_LIFECYCLES = frozenset({
+    "staged", "installed_disabled", "activating", "active", "draining",
+    "paused", "quarantined", "updating", "rolling_back",
+})
+_RC_EVIDENCE = frozenset({
+    "test", "security_audit", "independent_review", "compatibility",
+    "interoperability", "rollback",
+})
+_PRODUCTION_EVIDENCE = _RC_EVIDENCE | frozenset({
+    "matching_ci", "host_acceptance",
+})
 
 
 def _table_exists(db: sqlite3.Connection, name: str) -> bool:
@@ -179,4 +196,172 @@ def platform_control_center_text(
                 f"safe_shutdown={contract.safe_shutdown} "
                 f"replay_safe={contract.start_effect_replay_safe}"
             )
+    return "\n".join(lines)
+
+
+def platform_module_manager_text(state_path: Path | str) -> str:
+    """Render a bounded module-manager projection from canonical owners.
+
+    This view deliberately performs no lifecycle transition.  It keeps
+    installation, lifecycle, runtime health, release readiness and authority
+    visibly separate so a UI cannot turn one into another.
+    """
+    if not isinstance(state_path, (Path, str)):
+        raise TypeError("state_path must be a Path or path string")
+    observer = CanonicalPlatformModuleObserver(state_path)
+    health_by_module = {
+        item.module_instance_id.split("@", 1)[0]: item
+        for item in observer.health()
+    }
+    guard = CanonicalSQLiteGuard(Path(state_path))
+    with closing(guard.connect(timeout=10.0, read_only=True)) as db:
+        db.row_factory = sqlite3.Row
+        if not _table_exists(db, "platform_module_lifecycle"):
+            return (
+                "MODULE MANAGER — READ ONLY\n"
+                "No verified module lifecycle records. Discovery does not "
+                "install or authorize a module."
+            )
+        lifecycle_rows = db.execute(
+            "SELECT module_id,version,package_digest,lifecycle,revision,"
+            "active_profile,updated_at FROM platform_module_lifecycle "
+            "ORDER BY module_id"
+        ).fetchall()
+        dependencies: dict[str, list[str]] = {}
+        if _table_exists(db, "platform_module_dependency"):
+            for row in db.execute(
+                "SELECT module_id,dependency_id,minimum_version,"
+                "maximum_version_exclusive FROM platform_module_dependency "
+                "ORDER BY module_id,dependency_id"
+            ):
+                bounds = f">={row['minimum_version']}"
+                if row["maximum_version_exclusive"] is not None:
+                    bounds += f",<{row['maximum_version_exclusive']}"
+                dependencies.setdefault(str(row["module_id"]), []).append(
+                    f"{row['dependency_id']} ({bounds})"
+                )
+        capabilities: dict[str, list[str]] = {}
+        if _table_exists(db, "platform_module_capability"):
+            for row in db.execute(
+                "SELECT module_id,capability_id FROM platform_module_capability "
+                "ORDER BY module_id,capability_id"
+            ):
+                capabilities.setdefault(str(row["module_id"]), []).append(
+                    str(row["capability_id"])
+                )
+        policies: dict[str, sqlite3.Row] = {}
+        if _table_exists(db, "platform_module_policy"):
+            policies = {
+                str(row["module_id"]): row
+                for row in db.execute(
+                    "SELECT module_id,package_digest,placement_mode,"
+                    "isolation_profile FROM platform_module_policy"
+                )
+            }
+        evidence: dict[str, list[sqlite3.Row]] = {}
+        if _table_exists(db, "platform_module_readiness_evidence"):
+            for row in db.execute(
+                "SELECT module_id,package_digest,source_sha,kind,passed,"
+                "observed_at,revoked_at FROM platform_module_readiness_evidence "
+                "ORDER BY observed_at,evidence_id"
+            ):
+                evidence.setdefault(str(row["module_id"]), []).append(row)
+        attempts: dict[str, sqlite3.Row] = {}
+        if all(
+            _table_exists(db, name)
+            for name in (
+                "platform_module_operation_request",
+                "platform_module_operation_attempt",
+            )
+        ):
+            for row in db.execute(
+                """SELECT request.module_id,request.operation,attempt.status,
+                          attempt.occurred_at
+                   FROM platform_module_operation_request AS request
+                   JOIN platform_module_operation_attempt AS attempt
+                     ON attempt.request_id=request.request_id
+                   ORDER BY attempt.occurred_at DESC,attempt.event_id DESC"""
+            ):
+                attempts.setdefault(str(row["module_id"]), row)
+
+    lines = [
+        "MODULE MANAGER — VERIFIED READ-ONLY PROJECTION",
+        "Lifecycle, health, readiness, compatibility, and authority are "
+        "independent. Use governed lifecycle commands for changes.",
+    ]
+    for row in lifecycle_rows:
+        module_id = str(row["module_id"])
+        lifecycle = str(row["lifecycle"])
+        package_digest = str(row["package_digest"])
+        current_evidence = [
+            item for item in evidence.get(module_id, ())
+            if str(item["package_digest"]) == package_digest
+        ]
+        source_sha = (
+            "UNKNOWN" if not current_evidence
+            else str(current_evidence[-1]["source_sha"])
+        )
+        exact_revision_evidence = [
+            item for item in current_evidence
+            if str(item["source_sha"]) == source_sha
+        ]
+        failed = any(
+            (not bool(item["passed"])) or item["revoked_at"] is not None
+            for item in exact_revision_evidence
+        )
+        satisfied = {
+            str(item["kind"]) for item in exact_revision_evidence
+            if bool(item["passed"]) and item["revoked_at"] is None
+        }
+        if lifecycle in {"quarantined", "removed"} or failed:
+            readiness = "BLOCKED"
+        elif _PRODUCTION_EVIDENCE.issubset(satisfied):
+            readiness = "PRODUCTION_READY"
+        elif _RC_EVIDENCE.issubset(satisfied):
+            readiness = "RELEASE_CANDIDATE"
+        elif lifecycle in _INSTALLED_LIFECYCLES:
+            readiness = "BETA"
+        else:
+            readiness = "ALPHA"
+        health = health_by_module.get(module_id)
+        health_name = "UNKNOWN" if health is None else health.health.value.upper()
+        host = "UNKNOWN" if health is None else health.host_identity
+        reason = "missing-observation" if health is None else ",".join(health.reason_codes)
+        policy = policies.get(module_id)
+        policy_identity_ok = (
+            policy is not None and str(policy["package_digest"]) == package_digest
+        )
+        capability_values = capabilities.get(module_id, [])
+        protected = [
+            capability for capability in capability_values
+            if capability_permission_policy(capability).level
+            > PermissionLevel.SAFE_AUTONOMOUS
+        ]
+        latest = attempts.get(module_id)
+        latest_operation = (
+            "none" if latest is None
+            else f"{latest['operation']}:{latest['status']}@{latest['occurred_at']}"
+        )
+        lines.extend((
+            "",
+            f"{module_id} version={row['version']} installed="
+            f"{str(lifecycle in _INSTALLED_LIFECYCLES).lower()} "
+            f"lifecycle={lifecycle.upper()} revision={row['revision']}",
+            f"  package={package_digest} profile="
+            f"{row['active_profile'] or 'DISABLED'} readiness={readiness} "
+            f"source={source_sha}",
+            f"  health={health_name} host={host} reasons={reason}",
+            f"  dependencies={'; '.join(dependencies.get(module_id, [])) or 'none'}",
+            f"  capabilities={','.join(capability_values) or 'none'}; "
+            f"protected={','.join(protected) or 'none'}",
+            "  effective_authority=UNKNOWN (declared capability is not a grant)",
+            f"  placement="
+            f"{('UNKNOWN' if policy is None else policy['placement_mode'])}; "
+            f"isolation={('UNKNOWN' if policy is None else policy['isolation_profile'])}; "
+            f"policy_identity={'verified' if policy_identity_ok else 'unknown-or-mismatch'}",
+            f"  readiness_evidence={','.join(sorted(satisfied)) or 'none'}; "
+            f"latest_operation={latest_operation}",
+            "  resources=UNKNOWN unless supplied by the active signed manifest "
+            "and fresh host telemetry",
+        ))
     return "\n".join(lines)

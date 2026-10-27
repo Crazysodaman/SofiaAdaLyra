@@ -1338,3 +1338,35 @@ code. Actual Ollama offline-to-online host operation, Windows service/tray
 integration, Fleet mTLS transport, genuine configured-model inference,
 matching-revision CI and independent review remain open. The inference
 integration remains **BETA**, not RELEASE CANDIDATE.
+
+### Canonical Module Manager projection and Avatar schema migration — 2026-10-26 UTC
+
+Settings now contains a dedicated Module Manager page backed by a bounded
+read-only projection over canonical lifecycle, RUN observation and readiness
+evidence owners. It separates installed state, lifecycle revision, runtime
+health, exact-package/exact-source readiness, dependencies, declared and
+protected capabilities, placement/isolation policy, observed host and latest
+operation status. Missing resource telemetry and effective authority are
+reported UNKNOWN; manifest capabilities are explicitly not presented as
+grants. No UI action bypasses the existing signed-package, SAFE, compatibility
+or RUN boundaries. Governed state-changing controls and module-provided typed
+settings contracts remain incomplete, so the Module Manager is **ALPHA**.
+
+`PresentationStore` now recognizes the single known legacy schema
+`sofia.avatar.presentation.v1`. It first restores and validates the complete
+snapshot against the current wardrobe/outfit catalog. Only a valid result is
+published through an exact snapshot compare-and-swap transaction under the
+current `sofia.modules.avatar.presentation.v1` schema. The migration preserves
+revision, current and daily outfits (including `outfit.violet_casual`),
+appearance, finished operations and dynamic outfits, and appends before/after
+SHA-256 lineage. Incompatible legacy data is rejected without changing the
+stored snapshot or adding a migration receipt.
+
+Local Linux evidence: combined projection/migration/UI tests passed **42 tests
+with 1 headless GUI skip**; package ownership checks passed **5 tests**;
+`pkg_avatar` passed **1,055 tests with 1 skip**; `pkg_ui` passed **622 tests
+with 1 skip**; and `pkg_run` passed **753 tests**. The UI and RUN suites needed
+approved disposable loopback/process IPC after the restricted sandbox denied
+socket creation. Real Windows migration, Settings UI accessibility, complete
+governed Module Manager actions, matching-revision CI and independent review
+remain open. Avatar migration code is **BETA** pending those external gates.

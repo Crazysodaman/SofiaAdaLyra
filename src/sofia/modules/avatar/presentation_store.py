@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime, timezone
+from hashlib import sha256
 import json
 from pathlib import Path
 import sqlite3
@@ -49,6 +50,17 @@ class PresentationStore:
             updated_at TEXT NOT NULL
         )
     """
+    _MIGRATION_SCHEMA = """
+        CREATE TABLE IF NOT EXISTS avatar_presentation_migration (
+            migration_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_schema TEXT NOT NULL,
+            to_schema TEXT NOT NULL,
+            before_digest TEXT NOT NULL,
+            after_digest TEXT NOT NULL,
+            migrated_at TEXT NOT NULL
+        )
+    """
+    _LEGACY_SCHEMAS = frozenset({"sofia.avatar.presentation.v1"})
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
@@ -59,6 +71,7 @@ class PresentationStore:
                 db.execute(self._SCHEMA)
                 db.execute(self._HISTORY_SCHEMA)
                 db.execute(self._FAVORITES_SCHEMA)
+                db.execute(self._MIGRATION_SCHEMA)
                 db.commit()
         except sqlite3.Error as exc:
             raise PresentationStoreError(
@@ -300,11 +313,16 @@ class PresentationStore:
             raise PresentationStoreError(
                 "presentation state must be a JSON object"
             )
+        legacy_schema = raw.get("schema")
+        migrated = legacy_schema in self._LEGACY_SCHEMAS
+        candidate = dict(raw)
+        if migrated:
+            candidate["schema"] = PresentationAuthority.SCHEMA
         try:
-            return PresentationAuthority.restore(
+            authority = PresentationAuthority.restore(
                 wardrobe,
                 outfits=outfits,
-                snapshot=raw,
+                snapshot=candidate,
             )
         except (
             PresentationDenied,
@@ -314,6 +332,54 @@ class PresentationStore:
         ) as exc:
             raise PresentationStoreError(
                 "presentation state is invalid"
+            ) from exc
+        if migrated:
+            self._commit_schema_migration(
+                original_json=row[0], authority=authority,
+                from_schema=str(legacy_schema),
+            )
+        return authority
+
+    def _commit_schema_migration(
+        self, *, original_json: str, authority: PresentationAuthority,
+        from_schema: str,
+    ) -> None:
+        """CAS one validated legacy snapshot into the current schema."""
+        migrated_json = json.dumps(
+            authority.snapshot(), sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        before_digest = sha256(original_json.encode("utf-8")).hexdigest()
+        after_digest = sha256(migrated_json.encode("utf-8")).hexdigest()
+        moment = datetime.now(timezone.utc).isoformat()
+        try:
+            with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
+                db.execute("PRAGMA busy_timeout = 10000")
+                db.execute("BEGIN IMMEDIATE")
+                result = db.execute(
+                    """UPDATE avatar_presentation_state
+                       SET snapshot_json=?,updated_at=?
+                       WHERE state_key=? AND snapshot_json=?""",
+                    (migrated_json, moment, self._KEY, original_json),
+                )
+                if result.rowcount != 1:
+                    raise PresentationStoreError(
+                        "presentation changed during schema migration"
+                    )
+                db.execute(
+                    """INSERT INTO avatar_presentation_migration
+                       (from_schema,to_schema,before_digest,after_digest,migrated_at)
+                       VALUES(?,?,?,?,?)""",
+                    (
+                        from_schema, PresentationAuthority.SCHEMA,
+                        before_digest, after_digest, moment,
+                    ),
+                )
+        except PresentationStoreError:
+            raise
+        except sqlite3.Error as exc:
+            raise PresentationStoreError(
+                "failed to persist presentation schema migration"
             ) from exc
 
     def _read_snapshot_json(self) -> str | None:

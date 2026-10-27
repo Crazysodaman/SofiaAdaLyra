@@ -355,6 +355,7 @@ MASTER_SETTINGS_SECTIONS = (
     "ACT",
     "Fleet",
     "Workloads",
+    "Module Manager",
     "Models",
     "Integrations",
     "Environment",
