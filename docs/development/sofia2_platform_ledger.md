@@ -1370,3 +1370,31 @@ approved disposable loopback/process IPC after the restricted sandbox denied
 socket creation. Real Windows migration, Settings UI accessibility, complete
 governed Module Manager actions, matching-revision CI and independent review
 remain open. Avatar migration code is **BETA** pending those external gates.
+
+### Settings ownership hierarchy and truthful local-save reconciliation — 2026-10-26 UTC
+
+The existing Settings controls are now presented under stable CORE SETTINGS,
+PLATFORM SETTINGS, MODULES, APPLICATION and SECURITY groups without renaming
+their persistent section IDs or removing controls. A dedicated Settings & Sync
+page projects every canonical runtime field's owner and apply boundary together
+with saved and effective revisions. Client-only presentation fields remain
+excluded from Core Link canonical writes.
+
+The legacy local Settings window now establishes the authoritative pre-write
+digest, commits its existing atomic runtime/Desktop/activity transaction, and
+immediately imports the exact resulting changes into
+`CanonicalSettingsService`'s CAS/event sequence. It reports the observed saved
+and effective revisions and does not promise that persistence activated a live
+component. A separately running runtime still owns effective-apply proof;
+fields needing NEXT_OPERATION, component restart or Platform restart remain
+classified as such. Core Link continues to use the existing authenticated
+CAS/idempotency/event protocol rather than opening SQLite remotely.
+
+Local Linux evidence: Settings authority, local persistence, Core Link,
+navigation, headless projection and Control Center coverage passed **49 tests
+with 1 headless GUI skip**. The complete `pkg_ui` selection passed **624 tests
+with 1 skip**. Real Windows GUI navigation/accessibility, multi-client live
+notification acceptance, complete field-specific apply handlers,
+matching-revision CI and independent review remain open. Settings remains
+**BETA**; saved/effective semantics are production-wired but acceptance is
+incomplete.

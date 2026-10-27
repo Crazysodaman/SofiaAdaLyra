@@ -24,6 +24,8 @@ _EXPORTS = {
     "DesktopControlSettingsStore": ("control_center", "DesktopControlSettingsStore"),
     "GameMode": ("control_center", "GameMode"),
     "MASTER_SETTINGS_SECTIONS": ("control_center", "MASTER_SETTINGS_SECTIONS"),
+    "SETTINGS_NAVIGATION_GROUPS": ("control_center", "SETTINGS_NAVIGATION_GROUPS"),
+    "SETTINGS_SECTION_GROUP": ("control_center", "SETTINGS_SECTION_GROUP"),
     "RemoteChatMode": ("control_center", "RemoteChatMode"),
     "ServiceAction": ("control_center", "ServiceAction"),
     "ServiceKind": ("control_center", "ServiceKind"),

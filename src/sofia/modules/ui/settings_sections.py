@@ -10,7 +10,7 @@ import sqlite3
 
 from sofia.platform.config.user_settings import OutreachSettings, RuntimeUserSettingsStore
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
-from .settings_service import database_diagnostics
+from .settings_service import database_diagnostics, settings_contract_text
 
 
 def parse_field(raw, default, name: str):
@@ -826,6 +826,11 @@ class SettingsSections:
             ),
             wraplength=660,
         ).pack(anchor="w", pady=8)
+        self.viewer(
+            frames["Settings & Sync"],
+            "Canonical ownership, revisions, and apply boundaries",
+            lambda: settings_contract_text(config.state_path),
+        )
         # Owner-created blank VM handoff. No generic Artemis PowerShell or
         # auto-provision route; only pinned Fleet read-only VM/media operations.
         from queue import Empty, Queue

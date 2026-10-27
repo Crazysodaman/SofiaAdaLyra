@@ -181,7 +181,23 @@ def test_enabled_outreach_can_be_saved_before_transport_setup(tmp_path):
     assert saved.idle_reflections_enabled is True
     assert saved.outreach is not None and saved.outreach.enabled is True
     assert "Saved to the canonical database" in message
+    assert "effective revision" in message
     assert "remains inactive" not in message
+
+
+def test_local_settings_save_records_truthful_saved_and_effective_revisions(tmp_path):
+    path = profile(tmp_path)
+    message = settings_service.save_settings(
+        path, DesktopControlSettings(),
+        RuntimeUserSettings(location_label="Workshop"), host_id="host",
+    )
+    assert "revision 1" in message
+    assert "effective revision 0" in message
+    assert "not yet verified" in message
+    contract = settings_service.settings_contract_text(path)
+    assert "location_label: owner=core; apply=live" in contract
+    assert "provider_model: owner=core; apply=component_restart" in contract
+    assert "fleet_bootstrap: owner=host; apply=platform_restart" in contract
 
 
 def test_quiet_hours_persist_and_project_into_policy(tmp_path):

@@ -359,6 +359,7 @@ MASTER_SETTINGS_SECTIONS = (
     "Models",
     "Integrations",
     "Environment",
+    "Settings & Sync",
     "Avatar",
     "Voice",
     "Wardrobe",
@@ -375,6 +376,36 @@ MASTER_SETTINGS_SECTIONS = (
     "Safety & Authority",
     "Advanced",
 )
+
+# Presentation-only hierarchy. Stable section IDs above remain compatible
+# with tray navigation, saved requests and older launchers.
+SETTINGS_NAVIGATION_GROUPS = (
+    ("CORE SETTINGS", (
+        "Sofía", "Chat", "Models", "Mood & Emotion", "NEURO", "Goals",
+        "Memory", "Life & Projects", "Preferences", "EVOLVE", "ACT",
+    )),
+    ("PLATFORM SETTINGS", (
+        "Fleet", "Workloads", "Integrations", "Environment",
+        "Settings & Sync", "Advanced",
+    )),
+    ("MODULES", (
+        "Module Manager", "World", "Creative",
+    )),
+    ("APPLICATION", (
+        "General", "Avatar", "Voice", "Wardrobe",
+    )),
+    ("SECURITY", (
+        "Permissions", "Safety & Authority",
+    )),
+)
+
+SETTINGS_SECTION_GROUP = {
+    section: group
+    for group, sections in SETTINGS_NAVIGATION_GROUPS
+    for section in sections
+}
+if set(SETTINGS_SECTION_GROUP) != set(MASTER_SETTINGS_SECTIONS):
+    raise RuntimeError("Settings navigation hierarchy is incomplete")
 
 
 def tray_command_requires_confirmation(command: TrayCommand) -> bool:

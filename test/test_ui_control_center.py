@@ -7,6 +7,8 @@ from sofia.modules.ui import (
     DesktopControlSettingsStore,
     GameMode,
     MASTER_SETTINGS_SECTIONS,
+    SETTINGS_NAVIGATION_GROUPS,
+    SETTINGS_SECTION_GROUP,
     RemoteChatMode,
     TrayCommand,
     TrayStatus,
@@ -95,6 +97,17 @@ def test_master_settings_has_expected_command_center_sections():
         "Safety & Authority", "Advanced",
     }
     assert expected.issubset(set(MASTER_SETTINGS_SECTIONS))
+
+
+def test_settings_hierarchy_accounts_for_every_stable_section_once():
+    flattened = [
+        section for _, sections in SETTINGS_NAVIGATION_GROUPS
+        for section in sections
+    ]
+    assert len(flattened) == len(set(flattened))
+    assert set(flattened) == set(MASTER_SETTINGS_SECTIONS)
+    assert SETTINGS_SECTION_GROUP["Module Manager"] == "MODULES"
+    assert SETTINGS_SECTION_GROUP["Permissions"] == "SECURITY"
 
 
 def _tray_status(*, runtime_state="running", llm_state="running"):

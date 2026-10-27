@@ -8,6 +8,11 @@ import sqlite3
 import sys
 
 from sofia.platform.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
+from sofia.platform.config.settings_authority import (
+    CanonicalSettingsService,
+    SettingsOwner,
+    runtime_settings_contracts,
+)
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.platform.state.sqlite_uri import sqlite_file_uri
 from sofia.platform.ops.activity import ActivityMode, HostActivityStore
@@ -40,6 +45,9 @@ def save_settings(
             raise ValueError("Daily outfit must be an approved public wardrobe preset")
     desktop_store = DesktopControlSettingsStore(path)
     runtime_store = RuntimeUserSettingsStore(path)
+    # Establish the pre-write digest/revision before the legacy local
+    # transaction changes the canonical runtime row.
+    authority = CanonicalSettingsService(path)
     activity = HostActivityStore(path)
     secrets = secrets or ProtectedSecretStore.for_state_path(path)
     changes = secret_changes or {}
@@ -121,7 +129,46 @@ def save_settings(
             warning += " Proactive Discord outreach requires enabled Discord, its protected token, and a verified owner DM channel. Choose desktop delivery to use the tray immediately."
         else:
             warning += " Proactive outreach is enabled but its selected Home Assistant delivery requires a URL, protected token, and notification service. Choose desktop delivery to use the tray without Home Assistant."
-    return "Saved to the canonical database. Environment and tray controls refresh automatically; restart Sofía for other changes." + warning
+    # Import this reviewed compatibility write into the canonical CAS/event
+    # sequence before reporting success. The separate Settings process cannot
+    # prove that the running runtime applied it, so keep saved and effective
+    # revisions visibly distinct rather than promising a restart or hot reload.
+    projection = authority.snapshot(owners=frozenset(SettingsOwner))
+    revision = int(projection["revision"])
+    effective = int(projection["effective_revision"])
+    apply_detail = (
+        "Applied revision is verified."
+        if revision == effective
+        else "Live application is not yet verified; refresh status after the "
+        "owning component reports its effective revision."
+    )
+    return (
+        f"Saved to the canonical database at revision {revision}; effective "
+        f"revision {effective}. {apply_detail}" + warning
+    )
+
+
+def settings_contract_text(path: Path) -> str:
+    """Render authoritative field ownership and apply boundaries."""
+    authority = CanonicalSettingsService(path)
+    snapshot = authority.snapshot(owners=frozenset(SettingsOwner))
+    contracts = runtime_settings_contracts()
+    lines = [
+        "CANONICAL SETTINGS CONTRACT",
+        f"Saved revision: {snapshot['revision']}",
+        f"Effective revision: {snapshot['effective_revision']}",
+        "A saved value is not proof that its owning runtime applied it.",
+        "Client-only fields are local presentation preferences and are not "
+        "writable through Core Link canonical settings.",
+        "",
+    ]
+    for field in sorted(contracts):
+        contract = contracts[field]
+        lines.append(
+            f"{field}: owner={contract.owner.value}; "
+            f"apply={contract.apply_class.value}"
+        )
+    return "\n".join(lines)
 
 
 def database_diagnostics(path: Path) -> str:

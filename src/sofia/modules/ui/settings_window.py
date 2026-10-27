@@ -43,6 +43,7 @@ from .control_center import (
     DesktopControlSettingsStore,
     GameMode,
     MASTER_SETTINGS_SECTIONS,
+    SETTINGS_SECTION_GROUP,
     RemoteChatMode,
 )
 from .settings_service import save_settings
@@ -196,7 +197,8 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     notebook.pack(side="left", fill="both", expand=True)
     frames, canvases = {}, {}
     for name in MASTER_SETTINGS_SECTIONS:
-        navigation.insert("end", name)
+        group = SETTINGS_SECTION_GROUP[name]
+        navigation.insert("end", f"{group} · {name}")
         page = ttk.Frame(notebook)
         notebook.add(page, text=name)
         canvas = tk.Canvas(page, highlightthickness=0)
@@ -206,6 +208,9 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         canvas.configure(yscrollcommand=scrollbar.set)
         frame = ttk.Frame(canvas, padding=14)
         item = canvas.create_window((0, 0), window=frame, anchor="nw")
+        ttk.Label(
+            frame, text=f"{group}  /  {name}",
+        ).pack(anchor="w", pady=(0, 8))
         frame.bind("<Configure>", lambda event, canvas=canvas: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>", lambda event, canvas=canvas, item=item: canvas.itemconfigure(item, width=event.width))
         frames[name], canvases[name] = frame, canvas
