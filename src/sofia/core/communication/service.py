@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 
 from sofia.core.communication.shorthand import (
+    canonical_shorthand_token,
     ShorthandRecord,
     ShorthandStatus,
     ShorthandStore,
@@ -116,8 +117,9 @@ class CommunicationLearningService:
         ):
             return ()
         tokens = tuple(
-            candidate.group(0).lower()
+            token
             for candidate in _WORD_RE.finditer(text)
+            if (token := canonical_shorthand_token(candidate.group(0))) is not None
         )
         return self._store.interpretations(
             tokens, principal_id=principal_id, audience_id=audience_id,
@@ -130,4 +132,8 @@ class CommunicationLearningService:
         )
 
 
-_WORD_RE = re.compile(r"(?u)[A-Za-z][A-Za-z0-9'-]*")
+# Unicode-aware whole lexical units.  The canonical shorthand validator then
+# admits only its reviewed ASCII subset; unsupported words stay whole and are
+# ignored rather than becoming accidental fragments (for example ``Sof`` +
+# ``a`` from ``Sofía``).
+_WORD_RE = re.compile(r"(?u)[^\W_]+(?:['’\-][^\W_]+)*")

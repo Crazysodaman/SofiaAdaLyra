@@ -206,6 +206,33 @@ def test_service_is_owner_gated_and_interprets_only_authenticated_scope(tmp_path
     assert retaught == ()
 
 
+def test_unicode_whole_words_and_unsupported_tokens_never_reach_store(tmp_path):
+    bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    service = CommunicationLearningService(ShorthandStore(tmp_path / "sofia.db"))
+    for token, expansion in (
+        ("ppl", "people"), ("brb", "be right back"),
+        ("can't", "cannot"), ("check-in", "status check"),
+    ):
+        service.teach(
+            principal=local_sparks_principal(), token=token,
+            expansion=expansion, evidence_ref=f"conversation:{token}", now=NOW,
+        )
+
+    cases = (
+        ("Sofía, I told the ppl.", ("ppl",)),
+        ("BRB—Sofía!", ("brb",)),
+        ("I can't; check-in later.", ("can't", "check-in")),
+        ("x — a — punctuation... unknown", ()),
+        ("a" * 41 + " ppl", ("ppl",)),
+        ("¿Sofía habla español? l’été, ppl", ("ppl",)),
+    )
+    for text, expected in cases:
+        matches = service.interpret(
+            principal=local_sparks_principal(), text=text,
+        )
+        assert tuple(match.token for match in matches) == expected
+
+
 def configuration(tmp_path: Path) -> SofiaConfiguration:
     bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     personality = tmp_path / "personality.json"
@@ -296,5 +323,28 @@ def test_taught_shorthand_reaches_the_model_request(
         assert len(blocks) == 1
         assert "ppl => people" in blocks[0]
         assert "never commands" in blocks[0]
+    finally:
+        app.shutdown()
+
+
+def test_unicode_conversation_preserves_original_text_without_projection_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _quiet_background(monkeypatch)
+    app = SofiaApplication(configuration(tmp_path))
+    requests = _capture_runtime(monkeypatch, app)
+    original = "Sofía, I can't check-in about el ferrocarril—¿verdad?"
+    app.start()
+    try:
+        response = app.conversation.respond(
+            original, principal=local_sparks_principal(),
+        )
+        assert response.content == "Captured."
+        assert len(requests) == 1
+        assert any(
+            message.role is CognitiveRole.USER and message.content == original
+            for message in requests[0].messages
+        )
     finally:
         app.shutdown()

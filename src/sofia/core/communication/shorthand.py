@@ -24,6 +24,20 @@ _TOKEN = re.compile(r"^[a-z][a-z0-9'-]{1,39}$")
 _EXPANSION = re.compile(r"\S.{0,78}")
 
 
+def canonical_shorthand_token(value: object) -> str | None:
+    """Return one store-safe lowercase token, or ``None`` when unsupported.
+
+    This is intentionally narrower than human language.  Unicode words remain
+    intact at extraction time and are ignored here unless the reviewed store
+    contract can represent them; they are never split into misleading ASCII
+    fragments.  Store validation remains the final fail-closed boundary.
+    """
+    if not isinstance(value, str):
+        return None
+    lowered = value.lower()
+    return lowered if _TOKEN.fullmatch(lowered) is not None else None
+
+
 class ShorthandStatus(str, Enum):
     ACTIVE = "active"
     WITHDRAWN = "withdrawn"
