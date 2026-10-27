@@ -1485,3 +1485,25 @@ Core. Local Linux evidence: named cross-system regressions **5 passed**,
 `pkg_run` **752 passed**, `pkg_safe` **2,570 passed with 2 skipped**, and
 `pkg_verify` **878 passed**. This is not Windows, CI, real-host or independent
 review evidence; Core remains **BETA**.
+
+### Unicode-safe communication interpretation — 2026-10-26 UTC
+
+Implementation commit `d0c11884` fixes the reproduced production traceback
+where `Sofía, I...` was split into ASCII fragments and a one-character token
+was sent to the fail-closed shorthand store. Communication now extracts whole
+Unicode lexical units (including contractions and hyphenated words), then
+admits only tokens accepted by the unchanged canonical shorthand contract.
+Unsupported Unicode, single-character and overlong tokens are ignored as
+interpretation candidates; the original user text is unchanged for normal
+conversation processing. Owner teaching, principal/audience isolation and the
+rule that expansions are evidence rather than commands are unchanged.
+
+Coverage includes valid shorthand, `Sofía`, mixed-language text, punctuation,
+contractions, hyphenated text, single-character/long/unknown tokens and an
+actual application conversation request proving exact original text reaches
+the cognitive runtime without a projection exception. The combined focused
+security/communication batch passed **36 tests**. The complete local
+non-integration `pkg_core` gate passed **4,872 tests with 4 skipped and 8
+subtests passed**; `pkg_ui` passed **620 with 1 skipped** and `pkg_safe` passed
+**2,572 with 2 skipped** on the same source. No Windows, CI, genuine model or
+independent-review evidence is claimed; Core remains **BETA**.

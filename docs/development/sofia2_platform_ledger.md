@@ -1285,3 +1285,27 @@ Restricted execution initially denied AF_UNIX worker sockets; complete RUN and
 SAFE results were obtained with the approved disposable local IPC boundary.
 No signed owner release, module installation, Windows execution, matching-SHA
 CI or independent review is claimed. Platform remains **BETA**.
+
+### Native private Core Link client state — 2026-10-26 UTC
+
+Implementation commit `950c3e0c` replaces POSIX-only confidentiality
+assumptions in Core Link binding and Desktop client JSON with one shared native
+private-file boundary. POSIX requires owner-only directories/files. Windows
+inspects the actual owner and DACL, rejects NULL DACLs and unauthorized allow
+ACEs, and fails closed if native ACL inspection is unavailable. Newly created
+Windows directories and atomic temporary files receive protected owner/SYSTEM
+DACLs before private content is written.
+
+Every existing path component is checked for symlink or junction redirection,
+including broken links. Parent security, an existing destination and the final
+published file are revalidated around same-directory atomic replacement. The
+Core Link files still contain only binding metadata, local drafts and uncertain
+request IDs; they create no SQLite database and carry credential references,
+not credential bytes. The existing Workshop owner-key path now reuses this
+same primitive rather than maintaining a separate Windows ACL authority.
+
+Focused Core Link/Desktop/Workshop coverage passed **28 tests** before the
+commit and the combined exact-revision focused batch passed **36 tests** after
+rebase. Local package evidence: `pkg_ui` **620 passed, 1 skipped**; `pkg_safe`
+**2,572 passed, 2 skipped, 23 subtests passed**. Real Windows DACL/junction
+execution and exact-revision CI remain required; Platform remains **BETA**.
