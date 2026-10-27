@@ -14,6 +14,7 @@ from sofia.sdk import (
     ModuleSettingApplyClass, ModuleSettingField, ModuleSettingType,
     ModuleSettingsContract,
 )
+from sofia.platform.modules import ModuleSettingsService
 
 
 def test_control_center_labels_unverified_lifecycle_and_absent_runtime_state(
@@ -199,3 +200,27 @@ def test_module_manager_projects_only_signed_typed_settings_contract(
     assert "module_settings=SUPPORTED schema=sofia.module.settings.v1" in rendered
     assert "display.mode:live" in rendered
     assert "credential.ref:component_restart:secret-ref" in rendered
+    assert "module_settings_state=not-configured" in rendered
+
+    settings = ModuleSettingsService(
+        canonical_state_path,
+        authorizer=lambda request, transaction: True,
+    )
+    record = lifecycle.describe("org.sofia.settings.policy")
+    settings.update(
+        module_id=record.module_id,
+        expected_package_digest=record.package_digest,
+        expected_lifecycle_revision=record.revision,
+        expected_revision=0,
+        client_id="client:test", principal_id="principal:sparks",
+        audience_id="audience:owner-private", approval_ref="approval:test",
+        idempotency_key="settings:test",
+        changes={
+            "display.mode": "compact",
+            "credential.ref": "secret:module.api_key",
+        },
+        now=datetime.now(timezone.utc),
+    )
+    configured = platform_module_manager_text(canonical_state_path)
+    assert "module_settings_state=saved=1;effective=0;package_identity=verified" in configured
+    assert "secret:module.api_key" not in configured

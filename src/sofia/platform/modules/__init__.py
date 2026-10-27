@@ -64,6 +64,11 @@ from .control_center import (
     platform_control_center_text,
     platform_module_manager_text,
 )
+from .settings import (
+    ModuleSettingsAuthorization,
+    ModuleSettingsReceipt,
+    ModuleSettingsService,
+)
 
 __all__ = [
     "AdapterFactoryContract", "AdapterFactoryRegistry", "AdapterInspection",
@@ -83,6 +88,8 @@ __all__ = [
     "CanonicalPlatformModuleObserver",
     "ReviewedAdapterFactory", "ReviewedModuleAdapter",
     "ModuleProcessError", "ResearchModuleProcessAdapter",
+    "ModuleSettingsAuthorization", "ModuleSettingsReceipt",
+    "ModuleSettingsService",
     "ReviewedResearchProcessFactory", "RESEARCH_CAPABILITY_ID",
     "RESEARCH_COMPONENT_ID", "RESEARCH_MODULE_ID",
     "evaluate_module_compatibility", "evaluate_module_readiness",

@@ -291,6 +291,7 @@ _PROTECTED = frozenset({
     "module.update",
     "module.rollback",
     "module.remove",
+    "module.settings.update",
     "fleet.enroll",
     "workshop.vm.provision",
     "workshop.vm.quarantine",

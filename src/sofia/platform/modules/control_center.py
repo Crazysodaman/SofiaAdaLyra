@@ -304,6 +304,15 @@ def platform_module_manager_text(state_path: Path | str) -> str:
                 manifest_projections[str(row["module_id"])] = (
                     digest, document,
                 )
+        settings_state: dict[str, sqlite3.Row] = {}
+        if _table_exists(db, "platform_module_settings_state"):
+            settings_state = {
+                str(row["module_id"]): row
+                for row in db.execute(
+                    "SELECT module_id,package_digest,revision,effective_revision "
+                    "FROM platform_module_settings_state ORDER BY module_id"
+                )
+            }
 
     lines = [
         "MODULE MANAGER — VERIFIED READ-ONLY PROJECTION",
@@ -441,6 +450,14 @@ def platform_module_manager_text(state_path: Path | str) -> str:
                     f"version={raw_settings.get('contract_version', 'UNKNOWN')} "
                     f"fields={fields}"
                 )
+        saved = settings_state.get(module_id)
+        settings_status = "not-configured"
+        if saved is not None:
+            settings_status = (
+                f"saved={saved['revision']};effective={saved['effective_revision']};"
+                f"package_identity="
+                f"{'verified' if saved['package_digest'] == package_digest else 'mismatch'}"
+            )
         lines.extend((
             "",
             f"{module_id} version={row['version']} installed="
@@ -464,5 +481,6 @@ def platform_module_manager_text(state_path: Path | str) -> str:
             f"profiles={profiles}",
             f"  maintenance={maintenance}",
             f"  module_settings={module_settings}",
+            f"  module_settings_state={settings_status}",
         ))
     return "\n".join(lines)

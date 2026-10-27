@@ -23,6 +23,10 @@ from sofia.platform.modules.lifecycle import (
     ModuleTransitionReceipt,
 )
 from sofia.platform.modules.package import OperationProfileKind, VerifiedModulePackage
+from sofia.platform.modules.settings import (
+    ModuleSettingsAuthorization,
+    ModuleSettingsService,
+)
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.safe.operator_stop import OperatorStopStore
 
@@ -49,11 +53,46 @@ class ModuleLifecycleCommandService:
             capability_system=capability_system,
             authorizer=self._consume_exact_authority,
         )
+        self._settings = ModuleSettingsService(
+            state_path, authorizer=self._consume_settings_authority,
+        )
 
     @property
     def manager(self) -> ModuleLifecycleManager:
         """Expose the canonical manager for read-only projections and diagnostics."""
         return self._manager
+
+    @property
+    def settings(self) -> ModuleSettingsService:
+        """Exact-package module settings authority in canonical state."""
+        return self._settings
+
+    def _consume_settings_authority(
+        self, request: ModuleSettingsAuthorization, transaction,
+    ) -> bool:
+        if not isinstance(request, ModuleSettingsAuthorization):
+            return False
+        if (
+            request.principal_id != "principal:sparks"
+            or request.audience_id != "audience:owner-private"
+        ):
+            return False
+        stop = transaction.execute(
+            "SELECT active FROM safe_operator_stop WHERE singleton=1"
+        ).fetchone()
+        if stop is None or bool(stop[0]):
+            return False
+        try:
+            approval = self._approvals.consume(
+                approval_id=request.approval_ref,
+                capability=request.capability,
+                parameters=request.parameters,
+                now=request.occurred_at,
+                _transaction_db=transaction,
+            )
+        except (LookupError, PermissionError, TypeError, ValueError):
+            return False
+        return approval.approved_by == "Sparks"
 
     def _consume_exact_authority(
         self, request: ModuleLifecycleAuthorization,

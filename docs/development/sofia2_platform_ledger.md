@@ -1484,3 +1484,41 @@ Module-owned persistence/apply handlers and generated editable pages remain
 the next implementation boundary. No Windows, installed-package,
 matching-revision CI or independent review is claimed; this contract is
 **BETA**, while end-to-end module settings remain **ALPHA**.
+
+### Canonical module settings authority and apply receipts — 2026-10-27 UTC
+
+The application-owned `ModuleLifecycleCommandService` now constructs one
+`ModuleSettingsService` over the existing canonical SQLite authority. It does
+not create a module database or accept manifest authority. Every mutation is
+fenced to the exact signed package digest, lifecycle revision and settings
+revision; is durable and idempotent per client; and emits separate saved and
+effective revisions. Package changes require an explicit reviewed settings
+migration instead of silently carrying configuration into different code.
+
+The production boundary validates the complete signed contract before
+consuming authority, then consumes an exact one-use, FIDO-backed
+`module.settings.update` approval in the same `BEGIN IMMEDIATE` transaction as
+the CAS write. The approval binds principal, owner-private audience, module,
+package, lifecycle revision, settings revision and changed fields. STOP and
+wrong-audience requests fail without consuming the approval. Secret fields
+persist only protected `secret:` references and read projections mask even
+those identifiers.
+
+LIVE changes invoke only a handler registered by trusted Platform
+construction for the exact immutable package. Missing handlers, inactive
+modules, handler failures and lifecycle/package changes during application are
+reported as UNKNOWN or FAILED and never advance the effective revision.
+NEXT_OPERATION and COMPONENT_RESTART changes remain explicitly pending. The
+read-only Module Manager exposes package-bound saved/effective revisions but
+no setting values.
+
+Local Linux evidence: the focused settings, SAFE, command-service and Module
+Manager set passed **28 tests** after final principal/audience hardening. The
+wider signed-package, lifecycle, observer, RUN operation, process-worker,
+readiness, compatibility, application-awareness and SAFE set passed **125
+tests** before that final hardening; all directly affected tests were rerun.
+No optional module currently supplies a production apply handler, so generated
+editable module pages and real module-specific application remain **ALPHA**.
+The canonical persistence/authorization/receipt path is production-wired and
+**BETA** pending Windows, installed-package, matching-revision CI and
+independent review.
