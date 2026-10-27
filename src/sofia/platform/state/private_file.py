@@ -31,7 +31,12 @@ def assert_no_redirected_components(path: Path, *, include_leaf: bool) -> None:
 
 
 def assert_owner_private_path(path: Path, *, directory: bool) -> None:
-    """Require owner-only POSIX access or an equivalent Windows DACL."""
+    """Require owner-only POSIX access or an equivalent Windows DACL.
+
+    On Windows the descriptor owner must be the process token user or the
+    token's designated default owner (``TokenOwner``); an OWNER RIGHTS ACE
+    counts as an explicit grant to the verified owner.
+    """
     candidate = Path(path)
     assert_no_redirected_components(candidate, include_leaf=True)
     if directory:
@@ -57,6 +62,14 @@ def assert_owner_private_path(path: Path, *, directory: bool) -> None:
             token, win32security.TokenUser,
         )
         owner = win32security.ConvertSidToStringSid(owner_sid)
+        default_owner_sid = win32security.GetTokenInformation(
+            token, win32security.TokenOwner,
+        )
+        acceptable_owners = {owner}
+        if default_owner_sid is not None:
+            acceptable_owners.add(
+                win32security.ConvertSidToStringSid(default_owner_sid)
+            )
         descriptor = win32security.GetFileSecurity(
             str(candidate), win32security.OWNER_SECURITY_INFORMATION
             | win32security.DACL_SECURITY_INFORMATION,
@@ -64,12 +77,12 @@ def assert_owner_private_path(path: Path, *, directory: bool) -> None:
         actual_owner = descriptor.GetSecurityDescriptorOwner()
         if actual_owner is None or win32security.ConvertSidToStringSid(
             actual_owner
-        ) != owner:
+        ) not in acceptable_owners:
             raise PermissionError("private state belongs to another Windows identity")
         dacl = descriptor.GetSecurityDescriptorDacl()
         if dacl is None:
             raise PermissionError("private state has an unrestricted NULL DACL")
-        allowed = {owner, "S-1-5-18", "S-1-5-32-544"}
+        allowed = {owner, "S-1-5-18", "S-1-5-32-544", "S-1-3-4"}
         saw_owner = False
         for index in range(dacl.GetAceCount()):
             ace = dacl.GetAce(index)
@@ -84,7 +97,7 @@ def assert_owner_private_path(path: Path, *, directory: bool) -> None:
                     raise PermissionError(
                         "private Windows state has an unauthorized ACL reader"
                     )
-                saw_owner = saw_owner or principal == owner
+                saw_owner = saw_owner or principal in (owner, "S-1-3-4")
         if not saw_owner:
             raise PermissionError("private Windows state has no owner ACL")
     except ImportError as exc:

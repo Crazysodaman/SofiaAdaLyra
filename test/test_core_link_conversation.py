@@ -138,6 +138,16 @@ def tls_material(tmp_path: Path):
         .not_valid_before(now - timedelta(minutes=1))
         .not_valid_after(now + timedelta(days=2))
         .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .add_extension(x509.KeyUsage(
+            digital_signature=True, content_commitment=False,
+            key_encipherment=False, data_encipherment=False,
+            key_agreement=False, key_cert_sign=True, crl_sign=True,
+            encipher_only=False, decipher_only=False,
+        ), critical=True)
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(ca_key.public_key()),
+            critical=False,
+        )
         .sign(ca_key, hashes.SHA256())
     )
     ca_path = tmp_path / "ca.pem"
@@ -153,6 +163,18 @@ def tls_material(tmp_path: Path):
             .not_valid_before(now - timedelta(minutes=1))
             .not_valid_after(now + timedelta(days=1))
             .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+            .add_extension(x509.KeyUsage(
+                digital_signature=True, content_commitment=False,
+                key_encipherment=True, data_encipherment=False,
+                key_agreement=False, key_cert_sign=False, crl_sign=False,
+                encipher_only=False, decipher_only=False,
+            ), critical=True)
+            .add_extension(
+                x509.AuthorityKeyIdentifier.from_issuer_public_key(
+                    ca_key.public_key(),
+                ),
+                critical=False,
+            )
         )
         if server:
             builder = builder.add_extension(

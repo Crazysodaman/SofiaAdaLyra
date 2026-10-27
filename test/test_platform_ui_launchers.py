@@ -41,7 +41,12 @@ def test_xdg_launcher_refuses_symlink_redirection(tmp_path):
     applications.mkdir(parents=True)
     target = tmp_path / "outside.desktop"
     target.write_text("do not overwrite", encoding="utf-8")
-    (applications / "companion-runtime-desktop.desktop").symlink_to(target)
+    try:
+        (applications / "companion-runtime-desktop.desktop").symlink_to(target)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) != 1314:
+            raise
+        pytest.skip("symlink creation privilege unavailable")
 
     with pytest.raises(PermissionError, match="unsafe"):
         install_xdg_launchers(
@@ -79,12 +84,16 @@ def test_windows_shortcuts_and_startup_are_current_user_only(tmp_path):
     assert receipt.autostart == ("tray",)
     assert len(calls) == 8
     assert all(call[0][3] == "-EncodedCommand" for call in calls)
-    assert all(
-        "Microsoft/Windows/Start Menu/Programs/Sofía"
-        in call[1]["env"]["SOFIA_SHORTCUT_PATH"]
-        or "/Desktop/" in call[1]["env"]["SOFIA_SHORTCUT_PATH"]
-        for call in calls
+    roaming = (tmp_path / "AppData/Roaming").resolve()
+    user_profile = (tmp_path / "User").resolve()
+    start_menu_root = (
+        roaming / "Microsoft/Windows/Start Menu/Programs/Sofía"
     )
+    desktop_root = user_profile / "Desktop"
+    for call in calls:
+        location = Path(call[1]["env"]["SOFIA_SHORTCUT_PATH"]).resolve()
+        assert location.parent in (start_menu_root, desktop_root)
+        assert location.is_relative_to(tmp_path)
     assert all(
         "sofia.platform.launcher"
         in call[1]["env"]["SOFIA_SHORTCUT_ARGUMENTS"]

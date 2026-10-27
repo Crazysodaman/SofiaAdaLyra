@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -165,7 +166,7 @@ def test_store_rejects_corruption_unknown_fields_and_symlink(tmp_path):
     registry.path.unlink()
     target = registry.path.parent / "other.json"
     target.write_text("{}", encoding="utf-8")
-    registry.path.symlink_to(target)
+    _symlink_or_skip(registry.path.symlink_to, target)
     with pytest.raises(PermissionError, match="redirection|regular"):
         registry.load()
 
@@ -174,7 +175,7 @@ def test_binding_store_rejects_redirected_parent(tmp_path):
     outside = tmp_path / "outside"
     outside.mkdir(mode=0o700)
     redirected = tmp_path / "redirected"
-    redirected.symlink_to(outside, target_is_directory=True)
+    _symlink_or_skip(redirected.symlink_to, outside, target_is_directory=True)
     registry = CoreLinkBindingStore((redirected / "bindings.json").absolute())
     with pytest.raises(PermissionError, match="redirection"):
         registry.add_pending(binding(), expected_store_revision=0)
@@ -213,6 +214,160 @@ def test_binding_store_rejects_unsafe_native_permissions(tmp_path):
         registry.path.chmod(0o644)
     with pytest.raises(PermissionError, match="ACL reader|group/world"):
         registry.load()
+
+
+def _windows_privilege_enabled(name: str) -> bool:
+    import win32api
+    import win32security
+
+    token = win32security.OpenProcessToken(
+        win32api.GetCurrentProcess(),
+        win32security.TOKEN_ADJUST_PRIVILEGES | win32security.TOKEN_QUERY,
+    )
+    privileges = {
+        win32security.LookupPrivilegeName(None, luid): attributes
+        for luid, attributes in win32security.GetTokenInformation(
+            token, win32security.TokenPrivileges,
+        )
+    }
+    if privileges.get(name, 0) & win32security.SE_PRIVILEGE_ENABLED:
+        return True
+    try:
+        luid = win32security.LookupPrivilegeValue(None, name)
+        win32security.AdjustTokenPrivileges(
+            token, 0, [(luid, win32security.SE_PRIVILEGE_ENABLED)],
+        )
+    except Exception:
+        return False
+    privileges = {
+        win32security.LookupPrivilegeName(None, luid): attributes
+        for luid, attributes in win32security.GetTokenInformation(
+            token, win32security.TokenPrivileges,
+        )
+    }
+    return bool(privileges.get(name, 0) & win32security.SE_PRIVILEGE_ENABLED)
+
+
+def _symlink_or_skip(symlink_to, target, **kwargs) -> None:
+    try:
+        symlink_to(target, **kwargs)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) != 1314:
+            raise
+        pytest.skip("symlink creation privilege unavailable")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows native DACL validation")
+def test_windows_owner_rights_dacl_is_owner_private(tmp_path):
+    import win32security
+
+    root = tmp_path / "private-client"
+    root.mkdir(mode=0o700)
+    descriptor = win32security.GetFileSecurity(
+        str(root), win32security.DACL_SECURITY_INFORMATION,
+    )
+    dacl = descriptor.GetSecurityDescriptorDacl()
+    assert dacl is not None
+    principals = {
+        win32security.ConvertSidToStringSid(dacl.GetAce(index)[2])
+        for index in range(dacl.GetAceCount())
+    }
+    assert "S-1-3-4" in principals
+    registry = CoreLinkBindingStore((root / "core-links.json").resolve())
+    activate(registry)
+    assert_owner_private_path(root, directory=True)
+    assert_owner_private_path(registry.path, directory=False)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows native DACL validation")
+def test_windows_accepts_token_owner_and_rejects_foreign_owner(tmp_path):
+    import win32api
+    import win32security
+
+    if not _windows_privilege_enabled("SeRestorePrivilege"):
+        pytest.skip("SeRestorePrivilege unavailable for owner reconstruction")
+
+    token = win32security.OpenProcessToken(
+        win32api.GetCurrentProcess(), win32security.TOKEN_QUERY,
+    )
+    user_sid, _ = win32security.GetTokenInformation(token, win32security.TokenUser)
+    root = tmp_path / "private-client"
+    root.mkdir(mode=0o700)
+    target = root / "state.json"
+    target.write_text("{}", encoding="utf-8")
+
+    def set_owner(sid) -> None:
+        descriptor = win32security.GetFileSecurity(
+            str(target),
+            win32security.OWNER_SECURITY_INFORMATION
+            | win32security.DACL_SECURITY_INFORMATION,
+        )
+        descriptor.SetSecurityDescriptorOwner(sid, False)
+        win32security.SetFileSecurity(
+            str(target), win32security.OWNER_SECURITY_INFORMATION, descriptor,
+        )
+
+    set_owner(win32security.ConvertStringSidToSid("S-1-5-32-546"))
+    with pytest.raises(PermissionError, match="another Windows identity"):
+        assert_owner_private_path(target, directory=False)
+
+    set_owner(win32security.GetTokenInformation(token, win32security.TokenOwner))
+    assert_owner_private_path(target, directory=False)
+    set_owner(user_sid)
+    assert_owner_private_path(target, directory=False)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows native DACL validation")
+def test_windows_owner_rights_does_not_admit_unauthorized_readers(tmp_path):
+    import win32con
+    import win32security
+
+    root = tmp_path / "private-client"
+    root.mkdir(mode=0o700)
+    target = root / "state.json"
+    target.write_text("{}", encoding="utf-8")
+
+    def replace_dacl(acl) -> None:
+        descriptor = win32security.GetFileSecurity(
+            str(target), win32security.DACL_SECURITY_INFORMATION,
+        )
+        descriptor.SetSecurityDescriptorDacl(1, acl, 0)
+        win32security.SetFileSecurity(
+            str(target), win32security.DACL_SECURITY_INFORMATION, descriptor,
+        )
+
+    unauthorized = win32security.ACL()
+    unauthorized.AddAccessAllowedAce(
+        win32security.ACL_REVISION, win32con.GENERIC_READ,
+        win32security.ConvertStringSidToSid("S-1-5-11"),
+    )
+    replace_dacl(unauthorized)
+    with pytest.raises(PermissionError, match="unauthorized ACL reader"):
+        assert_owner_private_path(target, directory=False)
+
+    ownerless = win32security.ACL()
+    for sid in ("S-1-5-18", "S-1-5-32-544"):
+        ownerless.AddAccessAllowedAce(
+            win32security.ACL_REVISION, win32con.GENERIC_ALL,
+            win32security.ConvertStringSidToSid(sid),
+        )
+    replace_dacl(ownerless)
+    with pytest.raises(PermissionError, match="no owner ACL"):
+        assert_owner_private_path(target, directory=False)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows junction redirection")
+def test_windows_private_state_rejects_junction_parent(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o700)
+    junction = tmp_path / "junction"
+    subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(junction), str(outside)],
+        check=True, capture_output=True,
+    )
+    registry = CoreLinkBindingStore((junction / "bindings.json").absolute())
+    with pytest.raises(PermissionError, match="redirection"):
+        registry.add_pending(binding(), expected_store_revision=0)
 
 
 def test_plaintext_credentials_and_invalid_fingerprints_are_rejected():

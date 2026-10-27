@@ -21,6 +21,15 @@ from sofia.sdk import CoreLinkResponse, CoreLinkResponseStatus, ProtocolVersion
 NOW = datetime(2026, 10, 25, 20, tzinfo=timezone.utc)
 
 
+def _symlink_or_skip(symlink_to, target, **kwargs) -> None:
+    try:
+        symlink_to(target, **kwargs)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) != 1314:
+            raise
+        pytest.skip("symlink creation privilege unavailable")
+
+
 def binding() -> CoreLinkBinding:
     return CoreLinkBinding(
         binding_id="binding:sofia", local_platform_id="platform:desktop",
@@ -159,7 +168,7 @@ def test_client_state_rejects_redirected_parent(tmp_path):
     outside = tmp_path / "outside"
     outside.mkdir(mode=0o700)
     redirected = tmp_path / "redirected"
-    redirected.symlink_to(outside, target_is_directory=True)
+    _symlink_or_skip(redirected.symlink_to, outside, target_is_directory=True)
     store = CoreLinkDesktopStateStore(
         (redirected / "remote-ui.json").absolute(), selected,
     )
