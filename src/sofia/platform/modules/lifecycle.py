@@ -216,6 +216,9 @@ class ModuleLifecycleManager:
                 CREATE TABLE IF NOT EXISTS platform_module_policy(
                     module_id TEXT PRIMARY KEY,package_digest TEXT NOT NULL,
                     placement_mode TEXT NOT NULL,isolation_profile TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS platform_module_manifest_projection(
+                    module_id TEXT PRIMARY KEY,package_digest TEXT NOT NULL,
+                    manifest_json TEXT NOT NULL);
                 """
             )
             rows = db.execute(
@@ -248,6 +251,53 @@ class ModuleLifecycleManager:
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db
+
+    @staticmethod
+    def _manifest_projection(package: VerifiedModulePackage) -> tuple[str, str, str]:
+        """Return the identity-bound signed policy projection (not authority).
+
+        The signature is intentionally omitted because the lifecycle already
+        stores the verified complete-manifest digest.  This projection exists
+        so diagnostics do not lose resource, profile, device, and maintenance
+        policy after package admission.
+        """
+        document = package.manifest.unsigned_document()
+        encoded = json.dumps(
+            document, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False,
+        )
+        if sha256(encoded.encode("utf-8")).hexdigest() != package.package_digest:
+            raise RuntimeError("module manifest projection identity mismatch")
+        return package.manifest.module_id, package.package_digest, encoded
+
+    def _persist_manifest_projection(
+        self, db: sqlite3.Connection, package: VerifiedModulePackage, *,
+        replace_existing: bool,
+    ) -> None:
+        projected = self._manifest_projection(package)
+        if replace_existing:
+            db.execute(
+                "INSERT INTO platform_module_manifest_projection VALUES(?,?,?) "
+                "ON CONFLICT(module_id) DO UPDATE SET "
+                "package_digest=excluded.package_digest,"
+                "manifest_json=excluded.manifest_json",
+                projected,
+            )
+            return
+        db.execute(
+            "INSERT OR IGNORE INTO platform_module_manifest_projection "
+            "VALUES(?,?,?)",
+            projected,
+        )
+        stored = db.execute(
+            "SELECT package_digest,manifest_json "
+            "FROM platform_module_manifest_projection WHERE module_id=?",
+            (projected[0],),
+        ).fetchone()
+        if stored is None or tuple(stored) != projected[1:]:
+            raise RuntimeError(
+                "canonical module manifest projection conflicts with verified package"
+            )
 
     @staticmethod
     def _assert_unredirected(path: Path, root: Path) -> None:
@@ -412,6 +462,9 @@ class ModuleLifecycleManager:
                     "FROM platform_module_policy WHERE module_id=?",
                     (package.manifest.module_id,),
                 ).fetchone()
+                self._persist_manifest_projection(
+                    db, package, replace_existing=False,
+                )
             if policy is None or tuple(policy) != expected_policy:
                 raise RuntimeError(
                     "canonical module policy conflicts with verified package"
@@ -452,6 +505,9 @@ class ModuleLifecycleManager:
                     package.manifest.placement_mode.value,
                     package.manifest.isolation_profile,
                 ),
+            )
+            self._persist_manifest_projection(
+                db, package, replace_existing=False,
             )
         return self.describe(package.manifest.module_id)  # type: ignore[return-value]
 
@@ -1043,6 +1099,9 @@ class ModuleLifecycleManager:
                         package.manifest.placement_mode.value,
                         package.manifest.isolation_profile,
                     ),
+                )
+                self._persist_manifest_projection(
+                    db, package, replace_existing=True,
                 )
                 db.execute(
                     "INSERT INTO platform_module_lifecycle_event VALUES(NULL,?,?,?,?,?,?,?,?)",

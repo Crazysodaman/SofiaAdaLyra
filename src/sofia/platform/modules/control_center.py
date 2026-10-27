@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime, timezone
+from hashlib import sha256
+import json
 from pathlib import Path
 import sqlite3
 
@@ -283,6 +285,25 @@ def platform_module_manager_text(state_path: Path | str) -> str:
                    ORDER BY attempt.occurred_at DESC,attempt.event_id DESC"""
             ):
                 attempts.setdefault(str(row["module_id"]), row)
+        manifest_projections: dict[str, tuple[str, object]] = {}
+        if _table_exists(db, "platform_module_manifest_projection"):
+            for row in db.execute(
+                "SELECT module_id,package_digest,manifest_json "
+                "FROM platform_module_manifest_projection ORDER BY module_id"
+            ):
+                raw = str(row["manifest_json"])
+                digest = str(row["package_digest"])
+                try:
+                    document = (
+                        json.loads(raw)
+                        if sha256(raw.encode("utf-8")).hexdigest() == digest
+                        else None
+                    )
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    document = None
+                manifest_projections[str(row["module_id"])] = (
+                    digest, document,
+                )
 
     lines = [
         "MODULE MANAGER — VERIFIED READ-ONLY PROJECTION",
@@ -342,6 +363,60 @@ def platform_module_manager_text(state_path: Path | str) -> str:
             "none" if latest is None
             else f"{latest['operation']}:{latest['status']}@{latest['occurred_at']}"
         )
+        signed_policy = manifest_projections.get(module_id)
+        manifest = (
+            signed_policy[1]
+            if signed_policy is not None
+            and signed_policy[0] == package_digest
+            and isinstance(signed_policy[1], dict)
+            else None
+        )
+        resources = "UNKNOWN"
+        devices = "UNKNOWN"
+        profiles = "UNKNOWN"
+        maintenance = "UNKNOWN"
+        if manifest is not None:
+            raw_resources = manifest.get("resources")
+            if isinstance(raw_resources, list) and all(
+                isinstance(item, list) and len(item) == 2
+                and isinstance(item[0], str) and type(item[1]) is int
+                for item in raw_resources
+            ):
+                resources = ",".join(
+                    f"{name}={amount}" for name, amount in raw_resources
+                ) or "none"
+            raw_devices = manifest.get("device_requirements")
+            if isinstance(raw_devices, list) and all(
+                isinstance(item, str) for item in raw_devices
+            ):
+                devices = ",".join(raw_devices) or "none"
+            raw_profiles = manifest.get("profiles")
+            if isinstance(raw_profiles, list) and all(
+                isinstance(item, dict)
+                and isinstance(item.get("profile_id"), str)
+                and type(item.get("permission_ceiling")) is int
+                for item in raw_profiles
+            ):
+                profiles = ",".join(
+                    f"{item['profile_id']}(ceiling={item['permission_ceiling']})"
+                    for item in raw_profiles
+                ) or "none"
+            raw_maintenance = manifest.get("maintenance_profile")
+            if isinstance(raw_maintenance, dict) and all(
+                key in raw_maintenance
+                for key in (
+                    "support_status", "retry_limit", "quarantine_threshold",
+                    "health_probe_ids", "update_policy", "rollback_procedure",
+                )
+            ):
+                probes = raw_maintenance["health_probe_ids"]
+                maintenance = (
+                    f"support={raw_maintenance['support_status']};"
+                    f"retries={raw_maintenance['retry_limit']};"
+                    f"quarantine_threshold="
+                    f"{raw_maintenance['quarantine_threshold']};"
+                    f"probes={','.join(probes) if isinstance(probes, list) else 'UNKNOWN'}"
+                )
         lines.extend((
             "",
             f"{module_id} version={row['version']} installed="
@@ -361,7 +436,10 @@ def platform_module_manager_text(state_path: Path | str) -> str:
             f"policy_identity={'verified' if policy_identity_ok else 'unknown-or-mismatch'}",
             f"  readiness_evidence={','.join(sorted(satisfied)) or 'none'}; "
             f"latest_operation={latest_operation}",
-            "  resources=UNKNOWN unless supplied by the active signed manifest "
-            "and fresh host telemetry",
+            f"  signed_resources={resources}; devices={devices}; "
+            f"profiles={profiles}",
+            f"  maintenance={maintenance}",
+            "  module_settings=UNSUPPORTED (signed manifest has no settings "
+            "contract); no configuration UI is simulated",
         ))
     return "\n".join(lines)

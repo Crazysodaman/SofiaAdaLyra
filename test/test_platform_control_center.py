@@ -9,6 +9,7 @@ from sofia.platform.modules import (
 )
 from test.test_platform_module_observer import _insert
 from test.test_platform_module_operations import finish, prepared
+from test.test_module_lifecycle_v1 import verified_custom
 
 
 def test_control_center_labels_unverified_lifecycle_and_absent_runtime_state(
@@ -120,4 +121,39 @@ def test_module_manager_keeps_lifecycle_health_readiness_and_authority_separate(
     assert "protected=system.service.restart" in rendered
     assert "effective_authority=UNKNOWN" in rendered
     assert "policy_identity=verified" in rendered
-    assert "resources=UNKNOWN" in rendered
+    assert "signed_resources=UNKNOWN" in rendered
+    assert "module_settings=UNSUPPORTED" in rendered
+
+
+def test_module_manager_projects_exact_signed_resource_and_maintenance_policy(
+    canonical_state_path, tmp_path,
+):
+    package = verified_custom(
+        tmp_path, directory="signed-policy",
+        module_id="org.sofia.manager.policy",
+    )
+    lifecycle = ModuleLifecycleManager(
+        state_path=canonical_state_path,
+        store_root=tmp_path / "module-store",
+        capability_system=CapabilitySystem(lambda request: False),
+        authorizer=lambda request: False,
+    )
+    lifecycle.discover(package, now=datetime.now(timezone.utc))
+
+    rendered = platform_module_manager_text(canonical_state_path)
+
+    assert "org.sofia.manager.policy version=9.0.0 installed=false" in rendered
+    assert "signed_resources=ram_mib=128" in rendered
+    assert "profiles=OBSERVE(ceiling=1)" in rendered
+    assert "maintenance=support=supported;retries=2;quarantine_threshold=3" in rendered
+    assert "probes=process.health" in rendered
+    assert "module_settings=UNSUPPORTED" in rendered
+
+    with sqlite3.connect(canonical_state_path) as db:
+        db.execute(
+            "UPDATE platform_module_manifest_projection SET manifest_json='{}' "
+            "WHERE module_id=?", (package.manifest.module_id,),
+        )
+    tampered = platform_module_manager_text(canonical_state_path)
+    assert "signed_resources=UNKNOWN" in tampered
+    assert "maintenance=UNKNOWN" in tampered

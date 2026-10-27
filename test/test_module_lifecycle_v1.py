@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from hashlib import sha256
+import json
 import sqlite3
 
 import pytest
@@ -151,6 +152,10 @@ def test_exact_verified_rediscovery_backfills_only_matching_signed_policy(
             "DELETE FROM platform_module_policy WHERE module_id=?",
             (package.manifest.module_id,),
         )
+        db.execute(
+            "DELETE FROM platform_module_manifest_projection WHERE module_id=?",
+            (package.manifest.module_id,),
+        )
 
     rediscovered = lifecycle.discover(package, now=NOW)
 
@@ -165,12 +170,40 @@ def test_exact_verified_rediscovery_backfills_only_matching_signed_policy(
             package.manifest.placement_mode.value,
             package.manifest.isolation_profile,
         )
+        projected = db.execute(
+            "SELECT package_digest,manifest_json "
+            "FROM platform_module_manifest_projection WHERE module_id=?",
+            (package.manifest.module_id,),
+        ).fetchone()
+        assert projected is not None
+        assert projected[0] == package.package_digest
+        assert json.loads(projected[1]) == package.manifest.unsigned_document()
         db.execute(
             "UPDATE platform_module_policy SET placement_mode='HOST_PINNED' "
             "WHERE module_id=?",
             (package.manifest.module_id,),
         )
     with pytest.raises(RuntimeError, match="policy conflicts"):
+        lifecycle.discover(package, now=NOW)
+
+
+def test_rediscovery_rejects_changed_manifest_projection(
+    canonical_state_path, tmp_path,
+):
+    package = verified_package(tmp_path)
+    lifecycle, _ = manager(
+        canonical_state_path, tmp_path / "store",
+        CapabilitySystem(authorization_checker=lambda request: True),
+    )
+    lifecycle.discover(package, now=NOW)
+    with sqlite3.connect(canonical_state_path) as db:
+        db.execute(
+            "UPDATE platform_module_manifest_projection "
+            "SET manifest_json='{}' WHERE module_id=?",
+            (package.manifest.module_id,),
+        )
+
+    with pytest.raises(RuntimeError, match="manifest projection conflicts"):
         lifecycle.discover(package, now=NOW)
 
 
@@ -404,6 +437,10 @@ def test_verified_update_and_rollback_preserve_history_without_auto_activation(
             replacement.package_digest,
             replacement.manifest.placement_mode.value,
         )
+        assert db.execute(
+            "SELECT package_digest FROM platform_module_manifest_projection "
+            "WHERE module_id=?", (updated.module_id,),
+        ).fetchone() == (replacement.package_digest,)
     rolled_back = lifecycle.rollback(
         original, expected_revision=updated.revision,
         profile=OperationProfileKind.OBSERVE,
@@ -421,6 +458,10 @@ def test_verified_update_and_rollback_preserve_history_without_auto_activation(
             original.package_digest,
             original.manifest.placement_mode.value,
         )
+        assert db.execute(
+            "SELECT package_digest FROM platform_module_manifest_projection "
+            "WHERE module_id=?", (rolled_back.module_id,),
+        ).fetchone() == (original.package_digest,)
     assert [item[0] for item in calls][-2:] == ["update", "rollback"]
 
 

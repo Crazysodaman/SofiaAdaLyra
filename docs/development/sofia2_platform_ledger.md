@@ -1429,3 +1429,31 @@ local sockets; the complete results above used approved disposable local IPC.
 No genuine Ollama request, remote Fleet provider, Windows GUI/service test,
 matching-revision CI or independent review is claimed. The endpoint and
 isolated-provider integration remain **BETA**.
+
+### Identity-bound signed module policy projection — 2026-10-27 UTC
+
+Canonical module admission now retains an identity-bound projection of the
+complete verified unsigned manifest policy. The projection digest must equal
+the lifecycle package digest; exact rediscovery backfills a missing projection
+but rejects conflicting bytes. Update and rollback replace the projection in
+the same SQLite transaction as the package pointer, dependency, capability and
+placement policy changes. This introduces no second registry and grants no
+module authority.
+
+The Settings Module Manager now reports signed resource envelopes, device
+requirements, operation profiles and permission ceilings, plus bounded
+maintenance support/retry/quarantine/probe information for the exact current
+package. Legacy lifecycle rows without an exact projection remain UNKNOWN.
+Because manifest schemas 1/2 do not define a module settings contract, the UI
+explicitly reports module settings as UNSUPPORTED instead of simulating a
+configuration page. Live resource consumption still requires fresh telemetry
+and is not inferred from the signed maximum.
+
+Local Linux evidence: focused package, lifecycle, observer, compatibility,
+readiness, command-service, process-worker and RUN-operation coverage passed
+**65 tests**; the complete `pkg_run` selection passed **756 tests**. No owner
+signature, package installation, lifecycle action, Windows execution,
+matching-revision CI or independent review is claimed. The Module Manager
+remains **ALPHA** until governed actions and signed module-provided settings
+contracts are production-integrated; the signed policy projection is
+production-wired but remains **BETA** pending external gates.
