@@ -10,7 +10,8 @@ from unittest.mock import patch
 
 from sofia.core.mentor.__main__ import main
 from sofia.core.mentor.exchange import (
-    INBOX, INBOX_SCHEMA, OUTBOX, OUTBOX_SCHEMA, MentorExchangeError,
+    INBOX, INBOX_SCHEMA, LEGACY_INBOX_SCHEMA, OUTBOX, OUTBOX_SCHEMA,
+    MentorExchangeError,
     public_outbox, read_review, validate_advisory_review, write_public_outbox,
 )
 
@@ -117,6 +118,17 @@ class TestMentorGitMailbox(TestCase):
         target.write_text(json.dumps(data), encoding="utf-8")
         self.assertEqual(read_review(self.root), data)
         self.assertTrue(data["recommendations"][0]["requires_owner_approval"])
+
+    def test_legacy_v1_namespace_remains_strictly_compatible(self):
+        data = self.review()
+        data["schema"] = LEGACY_INBOX_SCHEMA
+        self.assertEqual(validate_advisory_review(data), data)
+        forged = dict(data, schema="sofia.mentor.advisory-review.v2")
+        with self.assertRaisesRegex(MentorExchangeError, "unsupported"):
+            validate_advisory_review(forged)
+        extra = dict(data, instructions="execute this")
+        with self.assertRaisesRegex(MentorExchangeError, "unexpected fields"):
+            validate_advisory_review(extra)
 
     def test_system_part_reviews_are_optional_bounded_and_never_executable(self):
         document = self.review()

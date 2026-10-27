@@ -19,6 +19,8 @@ from .system_parts import system_parts_summary, PARTS
 
 OUTBOX_SCHEMA = "sofia.core.mentor.public-outbox.v1"
 INBOX_SCHEMA = "sofia.core.mentor.advisory-review.v1"
+LEGACY_INBOX_SCHEMA = "sofia.mentor.advisory-review.v1"
+SUPPORTED_INBOX_SCHEMAS = frozenset({INBOX_SCHEMA, LEGACY_INBOX_SCHEMA})
 OUTBOX = "docs/mentor_exchange/outbox/latest.json"
 INBOX = "docs/mentor_exchange/inbox/latest.json"
 TASK_ID = re.compile(r"(?:CA-\d{4}|ML-\d{3}|GA-\d{3})\Z")
@@ -126,8 +128,12 @@ def validate_advisory_review(raw: dict) -> dict:
         "review_created_at", "reviewer", "summary", "recommendations",
         "limitations", "part_reviews",
     }
-    if not set(raw).issubset(allowed) or not (set(raw) - {"part_reviews"}) == (allowed - {"part_reviews"}) or raw.get("schema") != INBOX_SCHEMA:
+    keys = set(raw)
+    required = allowed - {"part_reviews"}
+    if not keys.issubset(allowed) or not required.issubset(keys):
         raise MentorExchangeError("invalid inbox schema or unexpected fields")
+    if raw.get("schema") not in SUPPORTED_INBOX_SCHEMAS:
+        raise MentorExchangeError("unsupported MENTOR inbox schema version")
     if raw.get("visibility") != "public":
         raise MentorExchangeError("only public advisory review permitted")
     sha = raw.get("reviewed_source_revision")
