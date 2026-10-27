@@ -10,6 +10,10 @@ from sofia.platform.modules import (
 from test.test_platform_module_observer import _insert
 from test.test_platform_module_operations import finish, prepared
 from test.test_module_lifecycle_v1 import verified_custom
+from sofia.sdk import (
+    ModuleSettingApplyClass, ModuleSettingField, ModuleSettingType,
+    ModuleSettingsContract,
+)
 
 
 def test_control_center_labels_unverified_lifecycle_and_absent_runtime_state(
@@ -157,3 +161,41 @@ def test_module_manager_projects_exact_signed_resource_and_maintenance_policy(
     tampered = platform_module_manager_text(canonical_state_path)
     assert "signed_resources=UNKNOWN" in tampered
     assert "maintenance=UNKNOWN" in tampered
+
+
+def test_module_manager_projects_only_signed_typed_settings_contract(
+    canonical_state_path, tmp_path,
+):
+    contract = ModuleSettingsContract(
+        "sofia.module.settings.v1", 2, (
+            ModuleSettingField(
+                "display.mode", "Display mode", ModuleSettingType.ENUM,
+                ModuleSettingApplyClass.LIVE,
+                enum_values=("compact", "full"),
+            ),
+            ModuleSettingField(
+                "credential.ref", "Credential reference",
+                ModuleSettingType.STRING,
+                ModuleSettingApplyClass.COMPONENT_RESTART,
+                secret_reference=True,
+            ),
+        ),
+    )
+    package = verified_custom(
+        tmp_path, directory="settings-policy",
+        module_id="org.sofia.settings.policy", schema_version=3,
+        settings_contract=contract,
+    )
+    lifecycle = ModuleLifecycleManager(
+        state_path=canonical_state_path,
+        store_root=tmp_path / "module-store",
+        capability_system=CapabilitySystem(lambda request: False),
+        authorizer=lambda request: False,
+    )
+    lifecycle.discover(package, now=datetime.now(timezone.utc))
+
+    rendered = platform_module_manager_text(canonical_state_path)
+
+    assert "module_settings=SUPPORTED schema=sofia.module.settings.v1" in rendered
+    assert "display.mode:live" in rendered
+    assert "credential.ref:component_restart:secret-ref" in rendered

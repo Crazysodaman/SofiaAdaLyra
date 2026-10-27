@@ -1457,3 +1457,30 @@ matching-revision CI or independent review is claimed. The Module Manager
 remains **ALPHA** until governed actions and signed module-provided settings
 contracts are production-integrated; the signed policy projection is
 production-wired but remains **BETA** pending external gates.
+
+### Portable signed module settings contract — 2026-10-27 UTC
+
+SDK 1.0 now defines a strict, provider-neutral module settings schema with
+typed boolean, integer, numeric, string and enum fields; LIVE,
+NEXT_OPERATION and COMPONENT_RESTART application classes; numeric and enum
+bounds; required fields; and protected secret-reference fields. Secret fields
+accept only canonical `secret:` references and never literal credential bytes.
+Unknown fields, invalid types, non-finite bounds and unsupported schemas fail
+closed.
+
+Signed module manifest schema 3 can carry this contract as part of its complete
+signature and package identity. Schemas 1/2 remain byte-compatible and cannot
+smuggle a settings contract. The lifecycle's exact manifest projection makes
+the supported fields discoverable after restart, and Module Manager reports
+field IDs, apply boundaries and secret-reference classification without
+displaying values. Modules without a signed contract remain explicitly
+UNSUPPORTED; this does not create a generic writer or let a manifest apply its
+own settings.
+
+Local Linux evidence: focused SDK/manifest/lifecycle/Module Manager coverage
+passed **33 tests**; the wider module package, optional-release, compatibility,
+readiness, operation, worker and command-service set passed **92 tests**.
+Module-owned persistence/apply handlers and generated editable pages remain
+the next implementation boundary. No Windows, installed-package,
+matching-revision CI or independent review is claimed; this contract is
+**BETA**, while end-to-end module settings remain **ALPHA**.

@@ -19,6 +19,10 @@ from sofia.platform.modules import (
     validate_dependency_graph,
     verify_module_package,
 )
+from sofia.sdk import (
+    ModuleSettingApplyClass, ModuleSettingField, ModuleSettingType,
+    ModuleSettingsContract,
+)
 
 
 def identity_digest(module_id, version, publisher, artifacts):
@@ -30,7 +34,8 @@ def identity_digest(module_id, version, publisher, artifacts):
 
 def manifest(
     artifact_digests, *, module_id="org.sofia.research", version="9.0.0",
-    dependencies=(), capabilities=("research.search",),
+    dependencies=(), capabilities=("research.search",), schema_version=1,
+    settings_contract=None,
 ):
     publisher = "owner-reviewed"
     digest = identity_digest(module_id, version, publisher, artifact_digests)
@@ -46,14 +51,14 @@ def manifest(
         ("linux-x86_64",), (), "none",
     )
     return SignedModuleManifest(
-        1, module_id, version, "optional", publisher, artifact_digests,
+        schema_version, module_id, version, "optional", publisher, artifact_digests,
         b64encode(b"\0" * 64).decode(), "trust:owner-modules",
         ("linux-x86_64", "windows-x86_64"), "1.0.0", "2.0.0",
         tuple((item, "schema:v1") for item in capabilities),
         dependencies, "subprocess-restricted", (("ram_mib", 128),), (),
         PlacementMode.PORTABLE_STATELESS, module_id + ".state",
         "no-state-migration-v1", "module-health.v1", "signed-rollback.v1",
-        (profile,), (), maintenance,
+        (profile,), (), maintenance, settings_contract,
     )
 
 
@@ -82,6 +87,90 @@ def test_signed_package_verifies_without_importing_artifact(tmp_path):
         value, package_root=package, trusted_public_key=public,
     )
     assert verified.package_digest == value.package_identity_digest()
+
+
+def test_manifest_v3_round_trips_typed_module_settings_contract():
+    contract = ModuleSettingsContract(
+        "sofia.module.settings.v1", 1, (
+            ModuleSettingField(
+                "display.mode", "Display mode", ModuleSettingType.ENUM,
+                ModuleSettingApplyClass.LIVE, required=True,
+                enum_values=("compact", "full"),
+            ),
+            ModuleSettingField(
+                "credential.ref", "Credential reference",
+                ModuleSettingType.STRING,
+                ModuleSettingApplyClass.COMPONENT_RESTART,
+                secret_reference=True,
+            ),
+        ),
+    )
+    value = manifest(
+        (("module.py", "a" * 64),), schema_version=3,
+        settings_contract=contract,
+    )
+    parsed = parse_signed_manifest({
+        **value.unsigned_document(), "signature_b64": value.signature_b64,
+    })
+
+    assert parsed.settings_contract == contract
+    assert contract.validate({
+        "display.mode": "compact", "credential.ref": "secret:ollama",
+    }) == {
+        "display.mode": "compact", "credential.ref": "secret:ollama",
+    }
+    with pytest.raises(ValueError, match="unsupported"):
+        contract.validate({"unknown": True})
+
+
+def test_old_manifest_schema_cannot_smuggle_module_settings_contract():
+    contract = ModuleSettingsContract("sofia.module.settings.v1", 1, ())
+    with pytest.raises(PackageManifestError, match="schema_version 3"):
+        manifest(
+            (("module.py", "a" * 64),), settings_contract=contract,
+        )
+
+
+def test_secret_module_setting_must_be_a_reference_string():
+    with pytest.raises(ValueError, match="secret references"):
+        ModuleSettingField(
+            "credential.ref", "Credential reference",
+            ModuleSettingType.BOOLEAN, ModuleSettingApplyClass.LIVE,
+            secret_reference=True,
+        )
+    reference = ModuleSettingField(
+        "credential.ref", "Credential reference", ModuleSettingType.STRING,
+        ModuleSettingApplyClass.COMPONENT_RESTART, secret_reference=True,
+    )
+    with pytest.raises(ValueError, match="protected secret reference"):
+        reference.validate("literal-password")
+    assert reference.validate("secret:module.api_key") == "secret:module.api_key"
+
+
+def test_module_settings_reject_nonfinite_values_and_unexpected_contract_fields():
+    number = ModuleSettingField(
+        "resource.ratio", "Resource ratio", ModuleSettingType.NUMBER,
+        ModuleSettingApplyClass.NEXT_OPERATION,
+    )
+    for value in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(ValueError, match="invalid value type"):
+            number.validate(value)
+
+    contract = ModuleSettingsContract(
+        "sofia.module.settings.v1", 1, (number,),
+    )
+    document = {
+        **manifest(
+            (("module.py", "a" * 64),), schema_version=3,
+            settings_contract=contract,
+        ).unsigned_document(),
+        "signature_b64": b64encode(b"\0" * 64).decode(),
+    }
+    document["settings_contract"] = {
+        **document["settings_contract"], "unreviewed": True,
+    }
+    with pytest.raises(PackageManifestError, match="invalid typed values"):
+        parse_signed_manifest(document)
 
 
 def test_tampered_artifact_is_rejected(tmp_path):

@@ -11,6 +11,11 @@ import re
 from typing import Any, Mapping
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from sofia.sdk.module_settings import (
+    ModuleSettingsContract,
+    module_settings_contract_from_document,
+    module_settings_contract_to_document,
+)
 from sofia.platform.resources import (
     CapabilityRequirement,
     requirement_from_document,
@@ -209,9 +214,10 @@ class SignedModuleManifest:
     profiles: tuple[ModuleOperationProfile, ...]
     interoperability_contracts: tuple[str, ...]
     maintenance_profile: ModuleMaintenanceProfile
+    settings_contract: ModuleSettingsContract | None = None
 
     def __post_init__(self) -> None:
-        if type(self.schema_version) is not int or self.schema_version not in {1, 2}:
+        if type(self.schema_version) is not int or self.schema_version not in {1, 2, 3}:
             raise PackageManifestError("unsupported manifest schema_version")
         _module_id(self.module_id)
         _version(self.version)
@@ -283,6 +289,14 @@ class SignedModuleManifest:
             raise PackageManifestError(
                 "resource capability requirements require manifest schema_version 2"
             )
+        if self.schema_version < 3 and self.settings_contract is not None:
+            raise PackageManifestError(
+                "module settings contract requires manifest schema_version 3"
+            )
+        if self.settings_contract is not None and not isinstance(
+            self.settings_contract, ModuleSettingsContract
+        ):
+            raise TypeError("settings_contract must be ModuleSettingsContract or None")
         declared = {name for name, _ in self.capability_schemas}
         if any(not set(item.available_capability_ids).issubset(declared) for item in self.profiles):
             raise PackageManifestError("profile exposes undeclared capability")
@@ -329,7 +343,7 @@ class SignedModuleManifest:
                 ]
             return document
         maintenance = self.maintenance_profile
-        return {
+        document = {
             "api_maximum_exclusive": self.api_maximum_exclusive,
             "api_minimum": self.api_minimum,
             "artifact_digests": [list(item) for item in self.artifact_digests],
@@ -372,6 +386,13 @@ class SignedModuleManifest:
             "update_rollback_contract": self.update_rollback_contract,
             "version": self.version,
         }
+        if self.schema_version >= 3:
+            document["settings_contract"] = (
+                None
+                if self.settings_contract is None
+                else module_settings_contract_to_document(self.settings_contract)
+            )
+        return document
 
     def canonical_unsigned_bytes(self) -> bytes:
         return json.dumps(self.unsigned_document(), sort_keys=True,
@@ -410,7 +431,10 @@ def _list(value: object, *, label: str) -> tuple[Any, ...]:
 
 def parse_signed_manifest(document: object) -> SignedModuleManifest:
     """Parse untrusted JSON data strictly without importing module code."""
-    top = _object(document, label="manifest", keys=frozenset({
+    if not isinstance(document, Mapping):
+        raise PackageManifestError("manifest has invalid fields")
+    schema_version = document.get("schema_version")
+    top_keys = {
         "api_maximum_exclusive", "api_minimum", "artifact_digests",
         "capability_schemas", "dependencies", "device_requirements",
         "health_contract", "interoperability_contracts", "isolation_profile",
@@ -418,7 +442,10 @@ def parse_signed_manifest(document: object) -> SignedModuleManifest:
         "placement_mode", "profiles", "publisher", "resources",
         "schema_version", "signature_b64", "state_namespace",
         "supported_os_arch", "trust_ref", "update_rollback_contract", "version",
-    }))
+    }
+    if schema_version == 3:
+        top_keys.add("settings_contract")
+    top = _object(document, label="manifest", keys=frozenset(top_keys))
     maintenance_doc = _object(
         top["maintenance_profile"], label="maintenance profile",
         keys=frozenset({
@@ -436,7 +463,7 @@ def parse_signed_manifest(document: object) -> SignedModuleManifest:
         "profile_id", "profile_version", "required_approval_class",
         "resource_envelope",
     }
-    if schema_version == 2:
+    if schema_version in {2, 3}:
         profile_keys.add("resource_requirements")
     profile_keys = frozenset(profile_keys)
     try:
@@ -455,7 +482,7 @@ def parse_signed_manifest(document: object) -> SignedModuleManifest:
                     requirement_from_document(item)
                     for item in (
                         _list(profile["resource_requirements"], label="resource requirements")
-                        if schema_version == 2 else ()
+                        if schema_version in {2, 3} else ()
                     )
                 ),
             )
@@ -502,6 +529,13 @@ def parse_signed_manifest(document: object) -> SignedModuleManifest:
             top["update_rollback_contract"], profiles,
             _list(top["interoperability_contracts"], label="interoperability contracts"),
             maintenance,
+            (
+                None
+                if schema_version < 3 or top["settings_contract"] is None
+                else module_settings_contract_from_document(
+                    top["settings_contract"]
+                )
+            ),
         )
     except PackageManifestError:
         raise

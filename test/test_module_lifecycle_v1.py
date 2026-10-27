@@ -41,7 +41,8 @@ def verified_package(tmp_path):
 
 def verified_custom(tmp_path, *, directory, module_id="org.sofia.research",
                     version="9.0.0", content="MODULE = 'reviewed'\n",
-                    dependencies=(), capabilities=("research.search",)):
+                    dependencies=(), capabilities=("research.search",),
+                    schema_version=1, settings_contract=None):
     package = tmp_path / directory
     package.mkdir()
     artifact = package / "module.py"
@@ -49,7 +50,8 @@ def verified_custom(tmp_path, *, directory, module_id="org.sofia.research",
     value = manifest(
         (("module.py", sha256(artifact.read_bytes()).hexdigest()),),
         module_id=module_id, version=version, dependencies=dependencies,
-        capabilities=capabilities,
+        capabilities=capabilities, schema_version=schema_version,
+        settings_contract=settings_contract,
     )
     key = Ed25519PrivateKey.generate()
     value = signed(value, key)

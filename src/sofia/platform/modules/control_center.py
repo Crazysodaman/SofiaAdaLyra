@@ -375,6 +375,10 @@ def platform_module_manager_text(state_path: Path | str) -> str:
         devices = "UNKNOWN"
         profiles = "UNKNOWN"
         maintenance = "UNKNOWN"
+        module_settings = (
+            "UNSUPPORTED (signed manifest has no settings contract); "
+            "no configuration UI is simulated"
+        )
         if manifest is not None:
             raw_resources = manifest.get("resources")
             if isinstance(raw_resources, list) and all(
@@ -417,6 +421,26 @@ def platform_module_manager_text(state_path: Path | str) -> str:
                     f"{raw_maintenance['quarantine_threshold']};"
                     f"probes={','.join(probes) if isinstance(probes, list) else 'UNKNOWN'}"
                 )
+            raw_settings = manifest.get("settings_contract")
+            if isinstance(raw_settings, dict) and isinstance(
+                raw_settings.get("fields"), list
+            ) and all(
+                isinstance(item, dict)
+                and isinstance(item.get("field_id"), str)
+                and isinstance(item.get("apply_class"), str)
+                and type(item.get("secret_reference")) is bool
+                for item in raw_settings["fields"]
+            ):
+                fields = ",".join(
+                    f"{item['field_id']}:{item['apply_class']}"
+                    + (":secret-ref" if item["secret_reference"] else "")
+                    for item in raw_settings["fields"]
+                ) or "none"
+                module_settings = (
+                    f"SUPPORTED schema={raw_settings.get('schema', 'UNKNOWN')} "
+                    f"version={raw_settings.get('contract_version', 'UNKNOWN')} "
+                    f"fields={fields}"
+                )
         lines.extend((
             "",
             f"{module_id} version={row['version']} installed="
@@ -439,7 +463,6 @@ def platform_module_manager_text(state_path: Path | str) -> str:
             f"  signed_resources={resources}; devices={devices}; "
             f"profiles={profiles}",
             f"  maintenance={maintenance}",
-            "  module_settings=UNSUPPORTED (signed manifest has no settings "
-            "contract); no configuration UI is simulated",
+            f"  module_settings={module_settings}",
         ))
     return "\n".join(lines)

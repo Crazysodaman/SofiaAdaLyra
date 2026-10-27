@@ -30,6 +30,14 @@ _EXPORTS = {
             "CoreLinkRequest", "CoreLinkResponse", "CoreLinkResponseStatus",
         )
     },
+    **{
+        name: ("module_settings", name) for name in (
+            "ModuleSettingApplyClass", "ModuleSettingField",
+            "ModuleSettingType", "ModuleSettingsContract",
+            "module_settings_contract_from_document",
+            "module_settings_contract_to_document",
+        )
+    },
 }
 
 __all__ = list(_EXPORTS)
