@@ -60,7 +60,9 @@ def setup(tmp_path, monkeypatch):
         RuntimeUserSettings(cognitive_primary_model=MODEL)
     )
     backend = ObservedOllama()
-    monkeypatch.setattr(ollama, "OllamaAdapter", lambda: backend)
+    monkeypatch.setattr(
+        ollama, "OllamaAdapter", lambda endpoint=None: backend,
+    )
     return state, backend
 
 

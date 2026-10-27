@@ -59,12 +59,14 @@ _CLIENT_FIELDS = frozenset({
     "voice_input_device",
 })
 _HOST_FIELDS = frozenset({
+    "ollama_endpoint",
     "fleet_bootstrap", "fleet_discovery_enabled",
     "fleet_discovery_interval_seconds", "fleet_discovery_targets",
     "fleet_discovery_scopes", "fleet_discovery_max_hosts_per_scope",
 })
 _PLATFORM_RESTART_FIELDS = frozenset({"fleet_bootstrap"})
 _COMPONENT_RESTART_FIELDS = frozenset({
+    "ollama_endpoint",
     "provider_model", "provider_context_size", "provider_thinking",
     "provider_temperature", "provider_seed", "provider_max_output_tokens",
     "cognitive_routing_enabled", "cognitive_primary_model",

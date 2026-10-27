@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import pytest
 
 from sofia.modules.inference.endpoint import (
@@ -13,6 +14,21 @@ from sofia.modules.integrations.ollama import (
     OllamaConnectionState,
 )
 from sofia.platform.config.model import ProviderConfiguration
+from sofia.platform.config import create_production_configuration
+from sofia.platform.config.defaults import production_storage_layout
+from sofia.core.identity.model import IdentityBootstrapMode
+from sofia.platform.config.user_settings import (
+    RuntimeUserSettings, RuntimeUserSettingsStore,
+)
+
+
+def _production_state(path):
+    layout = replace(
+        production_storage_layout(state_path=path),
+        identity_bootstrap_mode=IdentityBootstrapMode.FIRST_BOOTSTRAP,
+    )
+    layout.provision_from_source()
+    return layout.state_path
 
 
 @pytest.mark.parametrize(
@@ -66,6 +82,32 @@ def test_provider_and_lifecycle_adapter_share_the_authoritative_endpoint(
 
     assert provider.endpoint == adapter.base_url == "http://inference.internal:12434"
     assert provider_hosts == lifecycle_hosts == ["http://inference.internal:12434"]
+
+
+def test_host_owned_endpoint_reaches_production_configuration(tmp_path, monkeypatch):
+    state = _production_state(tmp_path / "sofia.db")
+    RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
+        ollama_endpoint="https://inference.example:12434/",
+    ))
+    monkeypatch.delenv("SOFIA_OLLAMA_URL", raising=False)
+
+    configuration = create_production_configuration(state_path=state)
+
+    assert configuration.ollama_endpoint == "https://inference.example:12434"
+
+
+def test_explicit_deployment_endpoint_overrides_saved_host_endpoint(
+    tmp_path, monkeypatch,
+):
+    state = _production_state(tmp_path / "sofia.db")
+    RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
+        ollama_endpoint="https://saved.example:12434",
+    ))
+    monkeypatch.setenv("SOFIA_OLLAMA_URL", "https://deployed.example:22434/")
+
+    configuration = create_production_configuration(state_path=state)
+
+    assert configuration.ollama_endpoint == "https://deployed.example:22434"
 
 
 class _DiagnosticHttp:

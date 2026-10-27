@@ -20,6 +20,10 @@ from uuid import uuid4
 from sofia.core.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.core.cognition.provider import LLMProvider, LLMProviderError
 from sofia.platform.cognition_provider import create_llm_provider
+from sofia.platform.config.inference_endpoint import (
+    configured_ollama_endpoint,
+    validate_ollama_endpoint,
+)
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.run.generation import ComponentGenerationStore, GenerationState
 from sofia.platform.run.lease import LocalRunLeaseStore
@@ -37,9 +41,12 @@ class InferenceWorkerError(RuntimeError):
     pass
 
 
-def _configuration_digest(configuration: ProviderConfiguration) -> str:
+def _configuration_digest(
+    configuration: ProviderConfiguration, endpoint: str,
+) -> str:
     raw = json.dumps(
-        asdict(configuration), sort_keys=True, separators=(",", ":"),
+        {"provider": asdict(configuration), "endpoint": endpoint},
+        sort_keys=True, separators=(",", ":"),
         ensure_ascii=False, allow_nan=False,
     ).encode("utf-8")
     return sha256(raw).hexdigest()
@@ -99,11 +106,11 @@ class InferenceWorkerHealth:
 def _identity(
     *, configuration: ProviderConfiguration, role: str, release_digest: str,
     platform_instance_id: str, epoch: int, component_id: str,
-    generation: int,
+    generation: int, endpoint: str,
 ) -> dict[str, object]:
     return {
         "role": role,
-        "configuration_digest": _configuration_digest(configuration),
+        "configuration_digest": _configuration_digest(configuration, endpoint),
         "release_digest": release_digest,
         "platform_instance_id": platform_instance_id,
         "epoch": epoch,
@@ -114,10 +121,12 @@ def _identity(
 
 def _worker_main(
     connection: Connection, secret: bytes,
-    configuration_payload: dict[str, object], identity: dict[str, object],
+    configuration_payload: dict[str, object], endpoint: str,
+    identity: dict[str, object],
 ) -> None:
     try:
         configuration = ProviderConfiguration(**configuration_payload)
+        endpoint = validate_ollama_endpoint(endpoint)
         expected = _identity(
             configuration=configuration,
             role=identity["role"],
@@ -126,13 +135,14 @@ def _worker_main(
             epoch=identity["epoch"],
             component_id=identity["component_id"],
             generation=identity["generation"],
+            endpoint=endpoint,
         )
         if identity != expected:
             raise PermissionError("inference worker identity mismatch")
         from sofia.platform.core_worker.process import installed_core_release_digest
         if installed_core_release_digest() != identity["release_digest"]:
             raise PermissionError("inference worker runtime release mismatch")
-        provider = create_llm_provider(configuration)
+        provider = create_llm_provider(configuration, endpoint=endpoint)
         pid = os.getpid()
         accepting = True
         _send(connection, secret, {
@@ -196,6 +206,7 @@ class InferenceProviderProcess(LLMProvider):
     def __init__(
         self, *, configuration: ProviderConfiguration, role: str,
         release_digest: str, platform_instance_id: str,
+        endpoint: str | None = None,
         response_timeout_seconds: float = 120.0,
     ) -> None:
         if not isinstance(configuration, ProviderConfiguration):
@@ -216,6 +227,9 @@ class InferenceProviderProcess(LLMProvider):
         self.role = role
         self.release_digest = release_digest
         self.platform_instance_id = platform_instance_id
+        self.endpoint = validate_ollama_endpoint(
+            endpoint if endpoint is not None else configured_ollama_endpoint()
+        )
         self.response_timeout_seconds = float(response_timeout_seconds)
         self._process: multiprocessing.Process | None = None
         self._connection: Connection | None = None
@@ -249,10 +263,14 @@ class InferenceProviderProcess(LLMProvider):
             platform_instance_id=self.platform_instance_id, epoch=epoch,
             component_id=endpoint.component_id,
             generation=endpoint.generation,
+            endpoint=self.endpoint,
         )
         process = context.Process(
             target=_worker_main,
-            args=(child, secret, asdict(self.configuration), identity),
+            args=(
+                child, secret, asdict(self.configuration), self.endpoint,
+                identity,
+            ),
             name=f"sofia-inference-{self.role}-{epoch}", daemon=False,
         )
         process.start()
@@ -311,7 +329,9 @@ class InferenceProviderProcess(LLMProvider):
         request_id = f"inference:{secrets.token_hex(16)}"
         response = self._rpc({
             "kind": "respond", "request_id": request_id,
-            "configuration_digest": _configuration_digest(self.configuration),
+            "configuration_digest": _configuration_digest(
+                self.configuration, self.endpoint,
+            ),
             "payload": base64.b64encode(payload).decode("ascii"),
             "payload_digest": sha256(payload).hexdigest(),
         })
@@ -325,7 +345,7 @@ class InferenceProviderProcess(LLMProvider):
         } or response["kind"] != "response" or (
             response["request_id"] != request_id
             or response["configuration_digest"] != _configuration_digest(
-                self.configuration
+                self.configuration, self.endpoint,
             )
         ):
             raise InferenceWorkerError("inference response identity mismatch")

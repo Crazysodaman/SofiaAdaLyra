@@ -555,6 +555,7 @@ def compose(
                         role=role,
                         release_digest=worker.release_digest,
                         platform_instance_id=worker.platform_instance_id,
+                        endpoint=configuration.ollama_endpoint,
                         response_timeout_seconds=worker.response_timeout_seconds,
                     )
                     for role, provider_configuration in configurations.items()

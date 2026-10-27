@@ -174,6 +174,20 @@ def test_inference_adapter_runs_in_independent_authenticated_process(tmp_path):
     assert process.pid is None
 
 
+def test_inference_worker_identity_binds_exact_provider_endpoint():
+    from sofia.platform.inference_worker.process import _configuration_digest
+
+    configuration = ProviderConfiguration(
+        provider="test-llm", model="endpoint-bound-model"
+    )
+
+    assert _configuration_digest(
+        configuration, "http://127.0.0.1:11434"
+    ) != _configuration_digest(
+        configuration, "https://gpu.example:11434"
+    )
+
+
 def test_inference_worker_independently_rejects_wrong_release_bytes():
     process = InferenceProviderProcess(
         configuration=ProviderConfiguration(

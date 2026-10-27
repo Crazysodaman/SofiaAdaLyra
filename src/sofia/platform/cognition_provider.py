@@ -10,6 +10,7 @@ def create_llm_provider(
     configuration: ProviderConfiguration,
     *,
     keep_alive: str | None = None,
+    endpoint: str | None = None,
 ) -> LLMProvider:
     """
     Construct the configured LLM provider adapter.
@@ -22,6 +23,7 @@ def create_llm_provider(
         return OllamaProvider(
             configuration=configuration,
             keep_alive=keep_alive,
+            endpoint=endpoint,
         )
 
     raise ValueError(

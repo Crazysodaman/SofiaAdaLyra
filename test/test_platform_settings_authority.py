@@ -89,6 +89,29 @@ def test_component_restart_is_not_misreported_as_live(tmp_path):
     assert calls == []
 
 
+def test_ollama_endpoint_is_host_owned_and_requires_component_restart(tmp_path):
+    _, authority = service(tmp_path, lambda *_: None)
+
+    with pytest.raises(PermissionError, match="scope"):
+        update(
+            authority, changes={"ollama_endpoint": "https://gpu.example:11434"},
+            owners=CORE,
+        )
+
+    receipt = update(
+        authority, key="host:endpoint", expected=0,
+        changes={"ollama_endpoint": "https://gpu.example:11434/"},
+        owners=HOST,
+    )
+
+    assert receipt.apply_state is SettingsApplyState.PENDING_COMPONENT_RESTART
+    assert receipt.revision == 1
+    assert receipt.effective_revision == 0
+    assert authority.snapshot(owners=HOST)["values"]["ollama_endpoint"] == (
+        "https://gpu.example:11434"
+    )
+
+
 def test_failed_live_apply_preserves_saved_and_effective_distinction(tmp_path):
     def fail(*_):
         raise OSError("runtime unavailable")

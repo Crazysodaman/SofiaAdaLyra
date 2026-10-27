@@ -428,7 +428,7 @@ class SettingsSections:
                         selection=CognitiveModelSelection.from_configuration(
                             current_config
                         ),
-                        backend=OllamaAdapter(),
+                        backend=OllamaAdapter(current_config.ollama_endpoint),
                         host_id=host_id,
                         at=datetime.now(timezone.utc),
                     )

@@ -8,6 +8,10 @@ CURRENT_CONFIGURATION_SCHEMA_VERSION = 1
 from sofia.platform.distributed.version import FleetProtocolVersion
 from sofia.core.environment.config import EnvironmentConfiguration
 from sofia.core.identity.model import IdentityBootstrapMode
+from sofia.platform.config.inference_endpoint import (
+    DEFAULT_OLLAMA_ENDPOINT,
+    validate_ollama_endpoint,
+)
 
 
 @dataclass(frozen=True)
@@ -386,8 +390,13 @@ class SofiaConfiguration:
         default_factory=EnvironmentConfiguration
     )
     avatar_private_adult_verified: bool = False
+    ollama_endpoint: str = DEFAULT_OLLAMA_ENDPOINT
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "ollama_endpoint",
+            validate_ollama_endpoint(self.ollama_endpoint),
+        )
         if not isinstance(self.provider, ProviderConfiguration):
             raise TypeError(
                 "SofiaConfiguration provider must be a "

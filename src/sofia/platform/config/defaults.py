@@ -15,6 +15,7 @@ from sofia.platform.config.model import (
 from sofia.core.environment.config import environment_configuration_from_environ
 from sofia.platform.config.layout import RuntimeStorageLayout
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
+from sofia.platform.config.inference_endpoint import configured_ollama_endpoint
 from sofia.platform.safe.permissions import automatic_capabilities
 
 
@@ -434,6 +435,9 @@ def create_default_configuration(
         avatar_private_adult_verified=_environment_flag(
             "SOFIA_AVATAR_PRIVATE_ADULT_VERIFIED",
             default=False,
+        ),
+        ollama_endpoint=configured_ollama_endpoint(
+            default=user_settings.ollama_endpoint,
         ),
     )
 

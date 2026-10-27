@@ -250,6 +250,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     runtime_service = tk.StringVar(value=current.runtime_service_name)
     llm_service = tk.StringVar(value=current.llm_service_name)
 
+    ollama_endpoint = tk.StringVar(value=runtime.ollama_endpoint)
     provider_model = tk.StringVar(value=runtime.provider_model)
     provider_context = tk.StringVar(value=str(runtime.provider_context_size))
     provider_thinking = tk.StringVar(
@@ -454,6 +455,19 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     ).pack(anchor="w")
 
     models = frames["Models"]
+    ttk.Label(models, text="Ollama service endpoint").pack(anchor="w")
+    ttk.Entry(
+        models,
+        textvariable=ollama_endpoint,
+    ).pack(anchor="w", fill="x", pady=(2, 8))
+    ttk.Label(
+        models,
+        text=(
+            "Host-owned provider origin. Changes require only the isolated "
+            "inference component to restart. Credentials are not permitted."
+        ),
+        wraplength=720,
+    ).pack(anchor="w", pady=(0, 10))
     ttk.Label(models, text="Ollama model").pack(anchor="w")
     ttk.Combobox(
         models,
@@ -1868,6 +1882,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
 
             runtime_updated = replace(runtime_store.load(),
                 **extra.updates(),
+                ollama_endpoint=ollama_endpoint.get().strip(),
                 provider_model=provider_model.get().strip(),
                 provider_context_size=_positive(
                     provider_context.get(),

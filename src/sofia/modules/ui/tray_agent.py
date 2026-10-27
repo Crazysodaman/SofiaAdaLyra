@@ -40,6 +40,7 @@ from sofia.platform.safe.execution_approval import (
 )
 from sofia.platform.state.component_schema import verify_production_component_schemas
 from sofia.modules.ui.notifications import DesktopNotificationStore
+from sofia.modules.integrations.ollama import OllamaAdapter
 from sofia.platform.system.model import (
     SystemCapabilityName,
     SystemCapabilityRequest,
@@ -110,6 +111,7 @@ class TrayAgentApplication:
             local_host_id=self.host_id,
             approval_verifier=self._execution_approvals,
             remote=None,
+            ollama=OllamaAdapter(self.config.ollama_endpoint),
         )
         self._system_backend = create_local_system_backend()
         by_name = {

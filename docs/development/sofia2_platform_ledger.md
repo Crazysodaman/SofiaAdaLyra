@@ -1398,3 +1398,34 @@ notification acceptance, complete field-specific apply handlers,
 matching-revision CI and independent review remain open. Settings remains
 **BETA**; saved/effective semantics are production-wired but acceptance is
 incomplete.
+
+### Canonical host-owned inference endpoint — 2026-10-27 UTC
+
+The validated Ollama origin is now a versioned canonical runtime setting rather
+than an environment-only value. Runtime settings schema 12 migrates older
+documents to the loopback default, rejects credentials and non-origin URLs,
+and assigns the field to the HOST authority with COMPONENT_RESTART apply
+semantics. The Models Settings page edits the field; saves continue through
+the canonical CAS/event reconciliation and do not claim the provider changed
+until its isolated component is replaced. `SOFIA_OLLAMA_URL` remains an
+explicit deployment override and is validated by the same contract.
+
+Production composition passes the exact endpoint to local provider adapters,
+model lifecycle/inventory, owner-approved installation, tray diagnostics and
+independently hosted inference workers. The worker's authenticated
+configuration digest now covers both provider/model parameters and the
+canonical endpoint. Parent and spawned child independently reconstruct that
+digest, so endpoint substitution cannot retain the same worker identity.
+Changing it requires a fenced provider generation replacement; it does not
+restart Core or Platform and it grants no inference or tool authority.
+
+Local Linux evidence: configuration, migration, authority, lifecycle,
+composition, Settings persistence and diagnostic coverage passed **149
+tests**; the real spawned-process suite passed **28 tests**; `pkg_ui` passed
+**624 tests with 1 skip**; and the complete `pkg_core` selection passed
+**4,892 tests with 4 skips and 8 subtests**. A first restricted execution of
+the network/process-bearing package tests failed only where the sandbox denied
+local sockets; the complete results above used approved disposable local IPC.
+No genuine Ollama request, remote Fleet provider, Windows GUI/service test,
+matching-revision CI or independent review is claimed. The endpoint and
+isolated-provider integration remain **BETA**.

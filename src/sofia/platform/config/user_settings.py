@@ -24,9 +24,13 @@ from sofia.core.environment.model import LocationSubject
 from sofia.platform.config.model import FleetCognitionConfiguration, FleetBootstrapConfiguration
 from sofia.platform.act.outreach import Policy
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.config.inference_endpoint import (
+    DEFAULT_OLLAMA_ENDPOINT,
+    validate_ollama_endpoint,
+)
 
 
-CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 11
+CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 12
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +93,7 @@ class RuntimeUserSettings:
     provider_temperature: float | None = None
     provider_seed: int | None = None
     provider_max_output_tokens: int | None = DEFAULT_PROVIDER_MAX_OUTPUT_TOKENS
+    ollama_endpoint: str = DEFAULT_OLLAMA_ENDPOINT
     adaptive_theme: bool = True
     idle_reflections_enabled: bool | None = None
     habit_learning_enabled: bool | None = None
@@ -157,6 +162,10 @@ class RuntimeUserSettings:
     fleet_discovery_max_hosts_per_scope: int = 256
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "ollama_endpoint",
+            validate_ollama_endpoint(self.ollama_endpoint),
+        )
         if self.avatar_daily_outfit is not None:
             if not isinstance(self.avatar_daily_outfit, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", self.avatar_daily_outfit) is None:
                 raise ValueError("Daily outfit must be a bounded wardrobe ID")
@@ -605,6 +614,8 @@ class RuntimeUserSettingsStore:
             data["neuro_competition_reset_generation"] = 0
         if version < 11:
             data["neuro_association_enabled"] = False
+        if version < 12:
+            data["ollama_endpoint"] = DEFAULT_OLLAMA_ENDPOINT
         data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
         data["fleet_discovery_targets"] = tuple(
             data.get("fleet_discovery_targets", ())

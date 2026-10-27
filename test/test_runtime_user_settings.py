@@ -89,6 +89,26 @@ def test_runtime_user_settings_round_trip(tmp_path):
     assert store.load() == settings
 
 
+def test_schema_v11_migrates_safe_default_ollama_endpoint():
+    document = json.loads(RuntimeUserSettingsStore._encode(
+        RuntimeUserSettings()
+    ))
+    document["schema_version"] = 11
+    document.pop("ollama_endpoint")
+
+    migrated = RuntimeUserSettingsStore._decode(json.dumps(document))
+
+    assert migrated.schema_version == CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
+    assert migrated.ollama_endpoint == "http://127.0.0.1:11434"
+
+
+def test_runtime_settings_reject_credential_bearing_ollama_endpoint():
+    with pytest.raises(ValueError, match="credentials"):
+        RuntimeUserSettings(
+            ollama_endpoint="http://owner:secret@localhost:11434",
+        )
+
+
 def test_environment_mapping_contains_only_enabled_integrations():
     settings = RuntimeUserSettings(
         location_label="Home",

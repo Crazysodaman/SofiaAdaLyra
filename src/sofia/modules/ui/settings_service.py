@@ -263,7 +263,7 @@ def install_approved_configured_model(
     manager = ModelLifecycleManager(
         selection=selection,
         policy=configuration.model_lifecycle,
-        backend=OllamaAdapter(),
+        backend=OllamaAdapter(configuration.ollama_endpoint),
     )
     # An already-present model needs neither a pull nor an installation
     # approval consumption. Do not write a misleading installation receipt.

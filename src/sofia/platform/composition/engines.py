@@ -40,6 +40,7 @@ def _create_llm_engine(
     *,
     lifecycle: ModelLifecycleManager | None = None,
     role: CognitiveModelRole | None = None,
+    endpoint: str | None = None,
 ):
     provider = create_llm_provider(
         provider_configuration,
@@ -49,6 +50,7 @@ def _create_llm_engine(
             and provider_configuration.provider == "ollama"
             else None
         ),
+        endpoint=endpoint,
     )
     engine = LLMCognitiveEngine(
         configuration=provider_configuration,
@@ -168,7 +170,7 @@ def create_model_lifecycle(
     return ModelLifecycleManager(
         selection=selection,
         policy=configuration.model_lifecycle,
-        backend=OllamaAdapter(),
+        backend=OllamaAdapter(configuration.ollama_endpoint),
         resource_observer=collect_local_telemetry,
         gaming_observer=gaming_observer,
         idle_observer=idle_observer,
@@ -373,6 +375,7 @@ def create_cognitive_engine(
                 primary_configuration,
                 lifecycle=lifecycle,
                 role=CognitiveModelRole.PRIMARY,
+                endpoint=configuration.ollama_endpoint,
             ),
             provider_configuration=primary_configuration,
             configuration=configuration,
@@ -386,6 +389,7 @@ def create_cognitive_engine(
                 secondary_configuration,
                 lifecycle=lifecycle,
                 role=CognitiveModelRole.SECONDARY,
+                endpoint=configuration.ollama_endpoint,
             ),
             provider_configuration=secondary_configuration,
             configuration=configuration,
@@ -427,6 +431,7 @@ def create_cognitive_engine(
             configuration.provider,
             lifecycle=lifecycle,
             role=CognitiveModelRole.PRIMARY,
+            endpoint=configuration.ollama_endpoint,
         )
         return _fleet_wrap_cognitive_engine(
             local_engine,
