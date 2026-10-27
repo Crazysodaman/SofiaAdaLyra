@@ -2381,6 +2381,7 @@ class SofiaApplication:
             remote_core_identity_id=worker.core_identity_id,
             generation_provider=lambda: self._runtime.core_worker_generation,
             settings_live_apply=self._apply_core_link_live_settings,
+            module_settings=self._module_lifecycle.settings,
         )
         try:
             server = CoreLinkServer(configuration, gateway)

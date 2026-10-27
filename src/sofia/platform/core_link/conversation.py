@@ -111,6 +111,7 @@ class CoreLinkConversationGateway:
         remote_platform_id: str, remote_core_identity_id: str,
         generation_provider,
         settings_live_apply=None,
+        module_settings=None,
         clock=lambda: datetime.now(timezone.utc),
         max_open_sessions: int = 64,
     ) -> None:
@@ -139,6 +140,12 @@ class CoreLinkConversationGateway:
         self.settings = CanonicalSettingsService(
             access_store.path, live_apply=settings_live_apply,
         )
+        if module_settings is not None and not all(
+            callable(getattr(module_settings, name, None))
+            for name in ("catalog", "snapshot", "update")
+        ):
+            raise TypeError("module_settings must implement catalog/snapshot/update")
+        self.module_settings = module_settings
         self._services: dict[tuple[str, str], object] = {}
         self._lock = RLock()
 
@@ -420,6 +427,52 @@ class CoreLinkConversationGateway:
                     limit=payload["limit"],
                 )
             }
+        elif operation == "module.settings.list":
+            self._exact(payload, set())
+            if self.module_settings is None:
+                return CoreLinkResponse(
+                    request.request_id, CoreLinkResponseStatus.UNAVAILABLE,
+                    {"error": "module settings service is unavailable"}, now,
+                )
+            result = {"modules": list(self.module_settings.catalog())}
+        elif operation == "module.settings.snapshot":
+            self._exact(payload, {"module_id"})
+            if self.module_settings is None:
+                return CoreLinkResponse(
+                    request.request_id, CoreLinkResponseStatus.UNAVAILABLE,
+                    {"error": "module settings service is unavailable"}, now,
+                )
+            result = self.module_settings.snapshot(module_id=payload["module_id"])
+        elif operation == "module.settings.update":
+            self._exact(payload, {
+                "module_id", "expected_package_digest",
+                "expected_lifecycle_revision", "expected_revision",
+                "approval_ref", "changes",
+            })
+            if self.module_settings is None:
+                return CoreLinkResponse(
+                    request.request_id, CoreLinkResponseStatus.UNAVAILABLE,
+                    {"error": "module settings service is unavailable"}, now,
+                )
+            try:
+                receipt = self.module_settings.update(
+                    module_id=payload["module_id"],
+                    expected_package_digest=payload["expected_package_digest"],
+                    expected_lifecycle_revision=payload["expected_lifecycle_revision"],
+                    expected_revision=payload["expected_revision"],
+                    client_id=access.client_id,
+                    principal_id=access.principal.principal_id,
+                    audience_id=access.principal.audience_id,
+                    approval_ref=payload["approval_ref"],
+                    idempotency_key=request.idempotency_key,
+                    changes=payload["changes"], now=now,
+                )
+            except RuntimeError as exc:
+                return CoreLinkResponse(
+                    request.request_id, CoreLinkResponseStatus.CONFLICT,
+                    {"error": str(exc)}, now,
+                )
+            result = receipt.to_payload()
         else:  # pragma: no cover - CoreLinkRequest rejects this first.
             raise ValueError("unsupported Core Link operation")
         return CoreLinkResponse(

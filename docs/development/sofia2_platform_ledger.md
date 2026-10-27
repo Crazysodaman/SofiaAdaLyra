@@ -1522,3 +1522,36 @@ editable module pages and real module-specific application remain **ALPHA**.
 The canonical persistence/authorization/receipt path is production-wired and
 **BETA** pending Windows, installed-package, matching-revision CI and
 independent review.
+
+### Authenticated remote module settings and generated UI — 2026-10-27 UTC
+
+The versioned Core Link contract now includes `module.settings.list`,
+`module.settings.snapshot` and `module.settings.update`. Production bootstrap
+passes the application-owned canonical module settings service into the
+existing mTLS gateway. The gateway derives client ID, principal and audience
+from exact certificate enrollment and generation binding; caller JSON cannot
+override them. Catalog and reads require their explicit enrolled scopes, while
+updates additionally require the exact one-use SAFE/FIDO approval consumed by
+the canonical module settings transaction. Core Link remains transport, not a
+permission issuer.
+
+The Core-free Settings client can now enumerate installed signed contracts,
+load package/lifecycle/revision-bound values and submit CAS changes. Its Module
+Settings window generates fields, labels, value types and apply boundaries
+from the strictly parsed signed SDK contract instead of hardcoding module
+forms. It shows saved versus effective revisions, never opens canonical
+SQLite, never prefills a protected secret reference, and reports pending,
+failed and unknown application outcomes without promising a restart or live
+success. Malformed authenticated-host projections fail closed before reaching
+the UI.
+
+Local Linux evidence: focused backend, client and Core Link tests passed **21
+tests** without network access; the complete disposable certificate-pinned
+localhost mTLS set passed **22 tests** with approved local IPC. The full
+non-integration `pkg_ui` selection passed **626 tests**, with **1 skipped** and
+7,263 deselected. Final strict client-contract and package-ownership coverage
+passed **36 tests**. No real optional module has yet published an owner-signed
+schema-3 package and registered a reviewed apply handler, so that external
+module acceptance remains open. No Windows GUI, installed-wheel,
+matching-revision CI or independent review is claimed. The remote signed-
+contract settings path is **BETA**.

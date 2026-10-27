@@ -62,6 +62,8 @@ def access() -> CoreLinkClientAccess:
             "conversation.result", "conversation.cancel",
             "settings.snapshot", "settings.update", "settings.events",
             "settings.read.core", "settings.write.core",
+            "module.settings.list", "module.settings.snapshot",
+            "module.settings.update",
         ),
         protocol_version=ProtocolVersion(1, 0),
         enrolled_at=NOW,
@@ -257,6 +259,80 @@ def test_operator_stop_blocks_remote_turns_but_keeps_diagnostic_status(
                 certificate_public_key_sha256="a" * 64,
                 request=request("conversation.create", {}),
             )
+    finally:
+        if gateway is not None:
+            gateway.close()
+        application.shutdown()
+
+
+def test_core_link_module_settings_derive_identity_and_do_not_mint_authority(
+    tmp_path,
+):
+    state = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(state)
+    application = SofiaApplication(configuration(tmp_path))
+    application.start()
+    calls = []
+
+    class ModuleSettings:
+        def catalog(self):
+            return ({
+                "module_id": "org.sofia.example", "package_digest": "b" * 64,
+                "lifecycle": "active", "lifecycle_revision": 3,
+                "revision": 1, "effective_revision": 1,
+                "settings_identity": "current",
+                "contract": {"schema": "sofia.module.settings.v1"},
+            },)
+
+        def snapshot(self, *, module_id):
+            assert module_id == "org.sofia.example"
+            return {
+                **self.catalog()[0], "values": {"display.mode": "compact"},
+            }
+
+        def update(self, **arguments):
+            calls.append(arguments)
+            from sofia.platform.modules import ModuleSettingsReceipt
+            from sofia.platform.config.settings_authority import SettingsApplyState
+            return ModuleSettingsReceipt(
+                "org.sofia.example", "b" * 64, 2, 1,
+                SettingsApplyState.PENDING_NEXT_OPERATION,
+                ("display.mode",), ("next_operation",),
+            )
+
+    gateway = None
+    try:
+        gateway = CoreLinkConversationGateway(
+            application, access_store=enrolled_store(state),
+            remote_platform_id="platform:canonical",
+            remote_core_identity_id="core:sofia",
+            generation_provider=lambda: 7,
+            module_settings=ModuleSettings(), clock=lambda: NOW,
+        )
+        listed = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64,
+            request=request("module.settings.list", {}),
+        )
+        assert listed.payload["modules"][0]["module_id"] == "org.sofia.example"
+        changed = gateway.dispatch(
+            certificate_public_key_sha256="a" * 64,
+            request=request(
+                "module.settings.update", {
+                    "module_id": "org.sofia.example",
+                    "expected_package_digest": "b" * 64,
+                    "expected_lifecycle_revision": 3,
+                    "expected_revision": 1,
+                    "approval_ref": "approval:owner-fido",
+                    "changes": {"display.mode": "full"},
+                }, idempotency_key="module-settings:stable",
+            ),
+        )
+        assert changed.payload["apply_state"] == "pending_next_operation"
+        assert calls[0]["client_id"] == "client:windows-owner"
+        assert calls[0]["principal_id"] == "principal:sparks"
+        assert calls[0]["audience_id"] == "audience:owner-private"
+        assert calls[0]["approval_ref"] == "approval:owner-fido"
+        assert calls[0]["idempotency_key"] == "module-settings:stable"
     finally:
         if gateway is not None:
             gateway.close()

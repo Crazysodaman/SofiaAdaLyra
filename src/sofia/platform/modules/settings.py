@@ -237,7 +237,7 @@ class ModuleSettingsService:
                 contract_digest=digest, now=moment,
             )
             db.commit()
-        values = contract.validate(json.loads(state["values_json"]))
+        values = contract.validate_partial(json.loads(state["values_json"]))
         secret_fields = {
             field.field_id for field in contract.fields if field.secret_reference
         }
@@ -254,6 +254,46 @@ class ModuleSettingsService:
             },
             "contract": module_settings_contract_to_document(contract),
         }
+
+    def catalog(self) -> tuple[dict[str, object], ...]:
+        """Return exact signed contracts without initializing module values."""
+        with closing(self._connect()) as db:
+            module_ids = tuple(
+                str(row[0]) for row in db.execute(
+                    "SELECT module_id FROM platform_module_lifecycle "
+                    "WHERE lifecycle NOT IN ('discovered','removed') "
+                    "ORDER BY module_id"
+                )
+            )
+            result = []
+            for module_id in module_ids:
+                try:
+                    package, lifecycle_revision, lifecycle, contract, _ = (
+                        self._policy_locked(db, module_id)
+                    )
+                except LookupError:
+                    continue
+                state = db.execute(
+                    "SELECT package_digest,revision,effective_revision FROM "
+                    "platform_module_settings_state WHERE module_id=?",
+                    (module_id,),
+                ).fetchone()
+                package_matches = state is None or state["package_digest"] == package
+                result.append({
+                    "module_id": module_id,
+                    "package_digest": package,
+                    "lifecycle": lifecycle.value,
+                    "lifecycle_revision": lifecycle_revision,
+                    "revision": 0 if state is None else int(state["revision"]),
+                    "effective_revision": (
+                        0 if state is None else int(state["effective_revision"])
+                    ),
+                    "settings_identity": (
+                        "current" if package_matches else "migration_required"
+                    ),
+                    "contract": module_settings_contract_to_document(contract),
+                })
+        return tuple(result)
 
     def update(
         self, *, module_id: str, expected_package_digest: str,

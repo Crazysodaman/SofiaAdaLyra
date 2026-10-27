@@ -86,6 +86,17 @@ def test_live_module_settings_are_exact_package_cas_applied_and_restart_durable(
     service, package, record, authorizations = configured(
         canonical_state_path, tmp_path,
     )
+    assert service.catalog() == ({
+        "module_id": record.module_id,
+        "package_digest": package.package_digest,
+        "lifecycle": record.lifecycle.value,
+        "lifecycle_revision": record.revision,
+        "revision": 0,
+        "effective_revision": 0,
+        "settings_identity": "current",
+        "contract": service.snapshot(module_id=record.module_id)["contract"],
+    },)
+    assert service.snapshot(module_id=record.module_id)["values"] == {}
     make_active(canonical_state_path, record.module_id)
     applied = []
     service.register_apply_handler(

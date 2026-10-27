@@ -127,6 +127,14 @@ class ModuleSettingsContract:
             raise ValueError("module settings fields must be bounded and unique")
 
     def validate(self, values: Mapping[str, object]) -> dict[str, object]:
+        result = self.validate_partial(values)
+        for field in self.fields:
+            if field.required and field.field_id not in result:
+                raise ValueError(f"{field.field_id} is required")
+        return result
+
+    def validate_partial(self, values: Mapping[str, object]) -> dict[str, object]:
+        """Validate persisted fields while allowing an unconfigured initial row."""
         if not isinstance(values, Mapping) or any(
             not isinstance(key, str) for key in values
         ):
@@ -139,9 +147,6 @@ class ModuleSettingsContract:
             field_id: fields[field_id].validate(value)
             for field_id, value in values.items()
         }
-        for field in self.fields:
-            if field.required and field.field_id not in result:
-                raise ValueError(f"{field.field_id} is required")
         return result
 
 

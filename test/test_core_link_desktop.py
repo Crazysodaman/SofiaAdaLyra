@@ -246,3 +246,71 @@ def test_remote_settings_refuses_fields_outside_authorized_projection():
     assert [request.operation for request in transport.requests] == [
         "settings.snapshot",
     ]
+
+
+def test_remote_module_settings_use_signed_contract_identity_and_exact_approval():
+    selected = binding()
+    entry = {
+        "module_id": "org.sofia.example", "package_digest": "c" * 64,
+        "lifecycle": "active", "lifecycle_revision": 4,
+        "revision": 2, "effective_revision": 1,
+        "settings_identity": "current",
+        "contract": {
+            "schema": "sofia.module.settings.v1", "contract_version": 1,
+            "fields": [],
+        },
+    }
+    snapshot = {
+        key: value for key, value in entry.items()
+        if key != "settings_identity"
+    }
+    snapshot["values"] = {"display.mode": "compact"}
+    transport = ScriptedTransport([
+        ("module.settings.list", CoreLinkResponseStatus.COMPLETED, {
+            "modules": [entry],
+        }),
+        ("module.settings.snapshot", CoreLinkResponseStatus.COMPLETED, snapshot),
+        ("module.settings.update", CoreLinkResponseStatus.COMPLETED, {
+            "module_id": entry["module_id"],
+            "package_digest": entry["package_digest"],
+            "revision": 3, "effective_revision": 1,
+            "apply_state": "pending_component_restart",
+            "changed_fields": ["display.mode"],
+            "apply_classes": ["component_restart"], "error": None,
+        }),
+    ])
+    client = CoreLinkSettingsClient(transport, selected, clock=lambda: NOW)
+
+    assert client.module_catalog() == (entry,)
+    current = client.module_snapshot("org.sofia.example")
+    receipt = client.update_module(
+        current, {"display.mode": "full"},
+        approval_ref="approval:owner-fido", idempotency_key="module:stable",
+    )
+
+    assert receipt["apply_state"] == "pending_component_restart"
+    request_value = transport.requests[-1]
+    assert request_value.idempotency_key == "module:stable"
+    assert request_value.payload["approval_ref"] == "approval:owner-fido"
+    assert request_value.payload["expected_package_digest"] == "c" * 64
+
+
+def test_remote_module_settings_reject_malformed_host_contract():
+    entry = {
+        "module_id": "org.sofia.example", "package_digest": "c" * 64,
+        "lifecycle": "active", "lifecycle_revision": 4,
+        "revision": 0, "effective_revision": 0,
+        "settings_identity": "current",
+        "contract": {
+            "schema": "sofia.module.settings.v1", "contract_version": 1,
+            "fields": [{"field_id": "unvalidated"}],
+        },
+    }
+    client = CoreLinkSettingsClient(ScriptedTransport([
+        ("module.settings.list", CoreLinkResponseStatus.COMPLETED, {
+            "modules": [entry],
+        }),
+    ]), binding(), clock=lambda: NOW)
+
+    with pytest.raises(ValueError, match="invalid signed settings contract"):
+        client.module_catalog()
