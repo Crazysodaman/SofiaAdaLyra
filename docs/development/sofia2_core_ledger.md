@@ -1507,3 +1507,20 @@ non-integration `pkg_core` gate passed **4,872 tests with 4 skipped and 8
 subtests passed**; `pkg_ui` passed **620 with 1 skipped** and `pkg_safe` passed
 **2,572 with 2 skipped** on the same source. No Windows, CI, genuine model or
 independent-review evidence is claimed; Core remains **BETA**.
+
+### MENTOR advisory inbox v1 compatibility — 2026-10-26 UTC
+
+Implementation commit `e62a45f3` repairs the read-only audit failure caused by
+the Core package namespace migration changing the v1 wire-schema string while
+the established public inbox producer and tracked advisory still used the
+original v1 identifier. The parser now explicitly accepts both reviewed v1
+identifiers. Required fields remain exact, `part_reviews` remains the only
+optional field, and unknown fields, v2/unsupported schemas, malformed
+provenance, excessive content and any implied execution authority remain
+rejected.
+
+The real tracked inbox now passes `exchange-read`. The exact workflow-style
+stdlib Mentor suite passed **140 tests** and focused exchange/remote-inbox
+pytest coverage passed **20 tests with 2 subtests**. This is local Linux source
+evidence; the GitHub workflow and independent review remain unverified, so
+Core remains **BETA**.
