@@ -23,6 +23,10 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 from sofia.platform.state.path_policy import inside_git_worktree
+from sofia.platform.state.private_file import (
+    assert_owner_private_path as _assert_owner_private_path,
+    restrict_new_owner_private_path,
+)
 
 SCHEMA = "sofia-workshop-offline-media-ed25519-v1"
 POLICY = "hephaestus-debian13-console-admin-v1"
@@ -44,117 +48,10 @@ def _content_hash(path: Path) -> str:
     return h.hexdigest()
 
 
-def _assert_owner_private_path(path: Path, *, directory: bool) -> None:
-    """Check actual OS ACLs instead of trusting synthetic Windows chmod bits.
-
-    On POSIX require an owner-only 0700/0600 boundary. Windows has a DACL:
-    reject inherited Everyone/Users/readers, NULL DACLs and foreign owners.
-    The local token user, SYSTEM and built-in Administrators are the only
-    permitted allow ACE principals. Missing pywin32 means DENY, never allow.
-    """
-    if os.name != "nt":
-        if path.stat().st_mode & 0o077:
-            raise PermissionError(
-                "key directory must not be group/world accessible" if directory
-                else "owner signing key file permissions are too broad"
-            )
-        return
-    try:
-        import win32api
-        import win32con
-        import win32security
-
-        token = win32security.OpenProcessToken(
-            win32api.GetCurrentProcess(), win32security.TOKEN_QUERY,
-        )
-        user_sid, _ = win32security.GetTokenInformation(
-            token, win32security.TokenUser,
-        )
-        own = win32security.ConvertSidToStringSid(user_sid)
-        descriptor = win32security.GetFileSecurity(
-            str(path), win32security.OWNER_SECURITY_INFORMATION |
-            win32security.DACL_SECURITY_INFORMATION,
-        )
-        actual_owner = descriptor.GetSecurityDescriptorOwner()
-        if actual_owner is None or (
-            win32security.ConvertSidToStringSid(actual_owner) != own
-        ):
-            raise PermissionError("owner signing path belongs to another Windows identity")
-        dacl = descriptor.GetSecurityDescriptorDacl()
-        if dacl is None:
-            raise PermissionError("owner signing path has an unrestricted NULL DACL")
-        allowed = {own, "S-1-5-18", "S-1-5-32-544"}
-        saw_owner_allow = False
-        for i in range(dacl.GetAceCount()):
-            ace = dacl.GetAce(i)
-            ace_type = ace[0][0]
-            mask = int(ace[1])
-            principal = win32security.ConvertSidToStringSid(ace[2])
-            if ace_type in (
-                win32security.ACCESS_ALLOWED_ACE_TYPE,
-                win32security.ACCESS_ALLOWED_OBJECT_ACE_TYPE,
-            ) and mask:
-                if principal not in allowed:
-                    raise PermissionError(
-                        "Windows owner signing key path has unauthorized ACL reader"
-                    )
-                if principal == own:
-                    saw_owner_allow = True
-        if not saw_owner_allow:
-            raise PermissionError("owner signing path has no approved owner ACL")
-    except ImportError as exc:
-        raise PermissionError("Windows ACL inspection dependency unavailable") from exc
-    except PermissionError:
-        raise
-    except Exception as exc:
-        raise PermissionError("unable to verify private Windows owner ACL") from exc
-
-
-def _restrict_new_windows_file(path: Path) -> None:
-    """Tighten a newly created EMPTY file before writing private key bytes."""
-    if os.name != "nt":
-        return
-    try:
-        import win32api
-        import win32con
-        import win32security
-        token = win32security.OpenProcessToken(
-            win32api.GetCurrentProcess(), win32security.TOKEN_QUERY,
-        )
-        sid, _ = win32security.GetTokenInformation(
-            token, win32security.TokenUser,
-        )
-        acl = win32security.ACL()
-        acl.AddAccessAllowedAce(
-            win32security.ACL_REVISION, win32con.GENERIC_ALL, sid,
-        )
-        acl.AddAccessAllowedAce(
-            win32security.ACL_REVISION, win32con.GENERIC_ALL,
-            win32security.ConvertStringSidToSid("S-1-5-18"),
-        )
-        sd = win32security.GetFileSecurity(
-            str(path), win32security.OWNER_SECURITY_INFORMATION |
-            win32security.DACL_SECURITY_INFORMATION,
-        )
-        sd.SetSecurityDescriptorOwner(sid, False)
-        sd.SetSecurityDescriptorDacl(1, acl, 0)
-        # Protect private file DACL from broad inherited Users/Everyone ACEs.
-        sd.SetSecurityDescriptorControl(
-            win32security.SE_DACL_PROTECTED, win32security.SE_DACL_PROTECTED,
-        )
-        win32security.SetFileSecurity(
-            str(path), win32security.OWNER_SECURITY_INFORMATION |
-            win32security.DACL_SECURITY_INFORMATION, sd,
-        )
-        _assert_owner_private_path(path, directory=False)
-    except Exception as exc:
-        raise PermissionError("cannot secure new private Windows owner key") from exc
-
-
 def _private_file(path: Path, content: bytes) -> None:
     fd=os.open(str(path),os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     try:
-        _restrict_new_windows_file(path)
+        restrict_new_owner_private_path(path, directory=False)
         with os.fdopen(fd,"wb") as stream:
             fd=None
             stream.write(content)

@@ -18,7 +18,11 @@ import re
 from typing import Mapping
 
 from sofia.platform.run.process_lock import StateProcessLock
-from sofia.platform.state.atomic_file import atomic_write_text
+from sofia.platform.state.private_file import (
+    assert_owner_private_path,
+    atomic_write_private_text,
+    ensure_owner_private_directory,
+)
 from sofia.sdk.contracts import ProtocolVersion
 
 
@@ -242,19 +246,13 @@ class CoreLinkBindingStore:
         )
 
     def _secure_parent(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        if self.path.parent.is_symlink():
-            raise PermissionError("Core Link binding directory cannot be a symlink")
-        if os.name != "nt" and self.path.parent.stat().st_mode & 0o077:
-            raise PermissionError("Core Link binding directory must not be group/world accessible")
+        ensure_owner_private_directory(self.path.parent)
 
     def load(self) -> CoreLinkStoreSnapshot:
         if not self.path.exists():
             return CoreLinkStoreSnapshot(0, None, ())
-        if self.path.is_symlink() or not self.path.is_file():
-            raise PermissionError("Core Link binding store must be a regular local file")
-        if os.name != "nt" and self.path.stat().st_mode & 0o077:
-            raise PermissionError("Core Link binding store must not be group/world accessible")
+        self._secure_parent()
+        assert_owner_private_path(self.path, directory=False)
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -279,9 +277,9 @@ class CoreLinkBindingStore:
             "selected_binding_id": snapshot.selected_binding_id,
             "bindings": [item.to_payload() for item in snapshot.bindings],
         }
-        atomic_write_text(self.path, json.dumps(payload, sort_keys=True) + "\n")
-        if os.name != "nt":
-            self.path.chmod(0o600)
+        atomic_write_private_text(
+            self.path, json.dumps(payload, sort_keys=True) + "\n"
+        )
 
     @staticmethod
     def _require_store_revision(

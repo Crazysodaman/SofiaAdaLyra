@@ -27,7 +27,11 @@ from sofia.platform.core_link import (
     PinnedCoreLinkClient,
 )
 from sofia.platform.run.process_lock import StateProcessLock
-from sofia.platform.state.atomic_file import atomic_write_text
+from sofia.platform.state.private_file import (
+    assert_owner_private_path,
+    atomic_write_private_text,
+    ensure_owner_private_directory,
+)
 from sofia.sdk.core_link import CoreLinkRequest, CoreLinkResponseStatus
 from sofia.modules.ui.process_lock import (
     DesktopAttentionMailbox,
@@ -110,10 +114,8 @@ class CoreLinkDesktopStateStore:
     def load(self) -> CoreLinkDesktopState:
         if not self.path.exists():
             return self._default()
-        if self.path.is_symlink() or not self.path.is_file():
-            raise PermissionError("Core Link Desktop state must be a regular file")
-        if os.name != "nt" and self.path.stat().st_mode & 0o077:
-            raise PermissionError("Core Link Desktop state permissions are unsafe")
+        ensure_owner_private_directory(self.path.parent)
+        assert_owner_private_path(self.path, directory=False)
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -165,9 +167,7 @@ class CoreLinkDesktopStateStore:
                 pending_idempotency_key=state.pending_idempotency_key,
                 pending_content=state.pending_content, updated_at=now,
             )
-            self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-            if self.path.parent.is_symlink():
-                raise PermissionError("Core Link client state directory is a symlink")
+            ensure_owner_private_directory(self.path.parent)
             payload = {
                 "schema": _STATE_SCHEMA,
                 "binding_id": updated.binding_id,
@@ -179,9 +179,9 @@ class CoreLinkDesktopStateStore:
                 "pending_content": updated.pending_content,
                 "updated_at": updated.updated_at.isoformat(),
             }
-            atomic_write_text(self.path, json.dumps(payload, sort_keys=True) + "\n")
-            if os.name != "nt":
-                self.path.chmod(0o600)
+            atomic_write_private_text(
+                self.path, json.dumps(payload, sort_keys=True) + "\n"
+            )
             return updated
 
 

@@ -14,6 +14,7 @@ from sofia.modules.ui.core_link_desktop import (
 )
 from sofia.modules.ui.core_link_settings import CoreLinkSettingsClient
 from sofia.platform.core_link import CoreLinkBinding, CoreLinkBindingState
+from sofia.platform.state.private_file import assert_owner_private_path
 from sofia.sdk import CoreLinkResponse, CoreLinkResponseStatus, ProtocolVersion
 
 
@@ -143,13 +144,27 @@ def test_client_state_is_profile_bound_private_json_not_canonical_sqlite(tmp_pat
     original = store.load()
     store.save(original)
     assert path.read_bytes().startswith(b"{")
-    assert path.stat().st_mode & 0o077 == 0
+    assert_owner_private_path(path, directory=False)
+    assert not any(item.suffix == ".db" for item in path.parent.iterdir())
     other = replace(
         selected, binding_id="binding:roland",
         remote_core_identity_id="core:roland",
     )
     with pytest.raises(PermissionError, match="another Core"):
         CoreLinkDesktopStateStore(path, other).load()
+
+
+def test_client_state_rejects_redirected_parent(tmp_path):
+    selected = binding()
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o700)
+    redirected = tmp_path / "redirected"
+    redirected.symlink_to(outside, target_is_directory=True)
+    store = CoreLinkDesktopStateStore(
+        (redirected / "remote-ui.json").absolute(), selected,
+    )
+    with pytest.raises(PermissionError, match="redirection"):
+        store.save(store.load())
 
 
 def test_tray_status_probe_does_not_create_a_conversation(tmp_path):

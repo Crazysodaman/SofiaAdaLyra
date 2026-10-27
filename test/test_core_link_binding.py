@@ -13,6 +13,7 @@ from sofia.platform import launcher
 from sofia.platform.core_link import (
     CoreLinkBinding, CoreLinkBindingState, CoreLinkBindingStore,
 )
+from sofia.platform.state.private_file import assert_owner_private_path
 from sofia.sdk.contracts import ProtocolVersion
 
 
@@ -75,7 +76,7 @@ def test_binding_store_is_core_free_json_not_sqlite_and_survives_restart(tmp_pat
     assert not any(path.suffix == ".db" for path in registry.path.parent.iterdir())
     restarted = CoreLinkBindingStore(registry.path).load()
     assert restarted == selected
-    assert os.stat(registry.path).st_mode & 0o077 == 0
+    assert_owner_private_path(registry.path, directory=False)
 
 
 def test_cas_prevents_concurrent_silent_overwrite(tmp_path):
@@ -165,7 +166,52 @@ def test_store_rejects_corruption_unknown_fields_and_symlink(tmp_path):
     target = registry.path.parent / "other.json"
     target.write_text("{}", encoding="utf-8")
     registry.path.symlink_to(target)
-    with pytest.raises(PermissionError, match="regular local file"):
+    with pytest.raises(PermissionError, match="redirection|regular"):
+        registry.load()
+
+
+def test_binding_store_rejects_redirected_parent(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o700)
+    redirected = tmp_path / "redirected"
+    redirected.symlink_to(outside, target_is_directory=True)
+    registry = CoreLinkBindingStore((redirected / "bindings.json").absolute())
+    with pytest.raises(PermissionError, match="redirection"):
+        registry.add_pending(binding(), expected_store_revision=0)
+
+    broken = tmp_path / "broken-redirect"
+    broken.symlink_to(tmp_path / "missing", target_is_directory=True)
+    broken_registry = CoreLinkBindingStore(
+        (broken / "bindings.json").absolute()
+    )
+    with pytest.raises(PermissionError, match="redirection"):
+        broken_registry.add_pending(binding(), expected_store_revision=0)
+
+
+def test_binding_store_rejects_unsafe_native_permissions(tmp_path):
+    registry = store(tmp_path)
+    registry.add_pending(binding(), expected_store_revision=0)
+    if os.name == "nt":
+        import win32con
+        import win32security
+
+        descriptor = win32security.GetFileSecurity(
+            str(registry.path), win32security.DACL_SECURITY_INFORMATION,
+        )
+        dacl = descriptor.GetSecurityDescriptorDacl()
+        assert dacl is not None
+        dacl.AddAccessAllowedAce(
+            win32security.ACL_REVISION, win32con.GENERIC_READ,
+            win32security.ConvertStringSidToSid("S-1-1-0"),
+        )
+        descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
+        win32security.SetFileSecurity(
+            str(registry.path), win32security.DACL_SECURITY_INFORMATION,
+            descriptor,
+        )
+    else:
+        registry.path.chmod(0o644)
+    with pytest.raises(PermissionError, match="ACL reader|group/world"):
         registry.load()
 
 
