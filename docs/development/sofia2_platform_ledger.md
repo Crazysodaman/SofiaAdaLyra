@@ -1309,3 +1309,32 @@ commit and the combined exact-revision focused batch passed **36 tests** after
 rebase. Local package evidence: `pkg_ui` **620 passed, 1 skipped**; `pkg_safe`
 **2,572 passed, 2 skipped, 23 subtests passed**. Real Windows DACL/junction
 execution and exact-revision CI remain required; Platform remains **BETA**.
+
+### Authoritative Ollama endpoint and availability diagnostics — 2026-10-26 UTC
+
+The local Ollama inference provider, model lifecycle adapter, capability
+tools, Settings controls and independently hosted provider workers now resolve
+the same validated `SOFIA_OLLAMA_URL` origin. The endpoint contract permits
+HTTP(S) origins, canonicalizes host/scheme, and rejects embedded credentials,
+paths, queries, fragments, invalid ports and control characters. This closes
+the production drift where lifecycle inventory could inspect a configured
+endpoint while inference silently used the Ollama SDK loopback default.
+
+`OllamaAdapter` now exposes bounded read-only diagnostics that distinguish
+STARTING, OFFLINE, ONLINE-with-failed-inventory, READY and FAILED. Results
+retain the endpoint, observation time, attempt count, last successful
+connection and sanitized failure kind. Desktop service control combines local
+service-manager state with API evidence; a user-mode Ollama process can prove
+itself ready even when no Windows/Linux service is installed. Remote targets
+must use the authenticated Fleet controller and never fall back to probing the
+local endpoint. Diagnostics do not load/install/switch models, and inference
+requests are never automatically replayed.
+
+Local Linux evidence: endpoint/diagnostic, provider, lifecycle, owner install,
+UI service control and composition coverage passed **81 tests**. The separate
+real-process Core-worker suite passed **27 tests** with authorized local IPC;
+the restricted sandbox had denied AF_UNIX socket creation before application
+code. Actual Ollama offline-to-online host operation, Windows service/tray
+integration, Fleet mTLS transport, genuine configured-model inference,
+matching-revision CI and independent review remain open. The inference
+integration remains **BETA**, not RELEASE CANDIDATE.

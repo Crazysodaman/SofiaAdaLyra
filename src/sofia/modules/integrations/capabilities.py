@@ -299,6 +299,8 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
 
     ollama_url=os.environ.get("SOFIA_OLLAMA_URL","http://127.0.0.1:11434").strip()
     if ollama_url:
+        # OllamaAdapter owns validation and uses the same endpoint resolver as
+        # the production inference provider.
         ollama=OllamaAdapter(ollama_url)
         tools.extend((
             _tool("ollama.models","List installed Ollama models. Read-only.",_object(),lambda p:ollama.models()),

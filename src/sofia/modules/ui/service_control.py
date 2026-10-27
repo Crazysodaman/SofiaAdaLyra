@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import Protocol
 
 from sofia.modules.integrations.local_maintenance import LocalMaintenanceAdapter
-from sofia.modules.integrations.ollama import OllamaAdapter
+from sofia.modules.integrations.ollama import (
+    OllamaAdapter,
+    OllamaConnectionDiagnostic,
+)
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 
 from .control_center import ServiceAction, ServiceKind, ServiceTarget
@@ -27,6 +30,10 @@ class ServiceControlResult:
 
 class RemoteServiceController(Protocol):
     def execute(self, target: ServiceTarget, action: ServiceAction) -> ServiceControlResult: ...
+
+    def diagnose_ollama(
+        self, target: ServiceTarget,
+    ) -> OllamaConnectionDiagnostic: ...
 
 
 class DesktopServiceController:
@@ -48,6 +55,31 @@ class DesktopServiceController:
         self.remote = remote
         self.ollama = ollama or OllamaAdapter()
         self.approval_verifier = approval_verifier
+
+    def diagnose_ollama(
+        self, target: ServiceTarget, *, attempts: int = 2,
+    ) -> OllamaConnectionDiagnostic:
+        """Combine supervisor and API evidence without changing service state."""
+        if not isinstance(target, ServiceTarget):
+            raise TypeError("ServiceTarget required")
+        if target.kind is not ServiceKind.LLM_ENGINE:
+            raise ValueError("only an LLM target has Ollama diagnostics")
+        if target.host_id != self.local_host_id:
+            if self.remote is None:
+                raise RemoteControlUnavailable(
+                    "remote Ollama diagnostics require an authenticated Fleet controller"
+                )
+            return self.remote.diagnose_ollama(target)
+        try:
+            service_state = self.local.service_status(target.service_name)
+        except Exception:
+            # A user-mode Ollama process need not be registered as an OS
+            # service. API evidence can still prove it ready; otherwise the
+            # service-manager state remains unknown.
+            service_state = "unknown"
+        return self.ollama.diagnose(
+            service_state=service_state, attempts=attempts,
+        )
 
     @staticmethod
     def approval_spec(

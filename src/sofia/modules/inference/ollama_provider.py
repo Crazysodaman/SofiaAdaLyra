@@ -30,6 +30,10 @@ from sofia.core.cognition.quality_repair import (
 )
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.core.cognition.strict_json import loads_strict_model_json
+from sofia.modules.inference.endpoint import (
+    configured_ollama_endpoint,
+    validate_ollama_endpoint,
+)
 
 
 # Provider-supplied JSON is not an authority grant. Bound resource use at the
@@ -89,9 +93,14 @@ class OllamaProvider(LLMProvider):
         client: Client | None = None,
         *,
         keep_alive: str | None = None,
+        endpoint: str | None = None,
     ):
         self.configuration = configuration
-        self.client = client if client is not None else Client()
+        self.endpoint = (
+            configured_ollama_endpoint()
+            if endpoint is None else validate_ollama_endpoint(endpoint)
+        )
+        self.client = client if client is not None else Client(host=self.endpoint)
         if keep_alive is not None and (
             not isinstance(keep_alive, str) or not keep_alive.strip()
         ):

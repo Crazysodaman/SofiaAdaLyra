@@ -6,6 +6,11 @@ from sofia.modules.ui.service_control import (
     RemoteControlUnavailable,
     ServiceControlResult,
 )
+from sofia.modules.integrations.ollama import (
+    OllamaConnectionDiagnostic,
+    OllamaConnectionState,
+)
+from datetime import datetime, timezone
 
 
 class Local:
@@ -15,6 +20,10 @@ class Local:
     def service(self,name,action):
         self.calls.append((name,action))
         return type("Result",(),{"stdout":"ok","stderr":""})()
+
+    def service_status(self,name):
+        self.calls.append((name,"status"))
+        return "running"
 
 
 class Approval:
@@ -54,6 +63,54 @@ class Ollama:
 
     def running(self):
         return {"models":[{"name": name} for name in self.resident]}
+
+    def diagnose(self, *, service_state, attempts):
+        return OllamaConnectionDiagnostic(
+            endpoint="http://127.0.0.1:11434",
+            state=(
+                OllamaConnectionState.READY
+                if service_state == "running" else OllamaConnectionState.OFFLINE
+            ),
+            observed_at=datetime.now(timezone.utc),
+            attempts=attempts,
+        )
+
+
+def test_local_ollama_diagnostic_combines_service_and_api_evidence():
+    local = Local()
+    controller = DesktopServiceController(
+        local_host_id="venus", local_maintenance=local, ollama=Ollama(),
+        approval_verifier=Approval(),
+    )
+    result = controller.diagnose_ollama(
+        ServiceTarget(ServiceKind.LLM_ENGINE, "venus", "Ollama"),
+        attempts=1,
+    )
+    assert result.state is OllamaConnectionState.READY
+    assert result.attempts == 1
+    assert local.calls == [("Ollama", "status")]
+
+
+def test_remote_ollama_diagnostic_never_probes_local_endpoint():
+    class Remote:
+        def execute(self, target, action):
+            raise AssertionError
+
+        def diagnose_ollama(self, target):
+            return OllamaConnectionDiagnostic(
+                endpoint="https://remote.example:11434",
+                state=OllamaConnectionState.READY,
+                observed_at=datetime.now(timezone.utc), attempts=1,
+            )
+
+    controller = DesktopServiceController(
+        local_host_id="venus", local_maintenance=Local(), remote=Remote(),
+        ollama=Ollama(), approval_verifier=Approval(),
+    )
+    result = controller.diagnose_ollama(
+        ServiceTarget(ServiceKind.LLM_ENGINE, "worker:gpu", "Ollama")
+    )
+    assert result.endpoint == "https://remote.example:11434"
 
 
 def test_local_runtime_service_action_uses_typed_maintenance():
