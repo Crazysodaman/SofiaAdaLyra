@@ -20,7 +20,7 @@ from sofia.platform.config.model_catalog import (
     RECOMMENDED_SECONDARY_CONTEXT_SIZE,
     RECOMMENDED_SECONDARY_MODEL,
 )
-from sofia.core.environment.model import LocationSubject
+from sofia.platform.config.environment import LocationSubject
 from sofia.platform.config.model import FleetCognitionConfiguration, FleetBootstrapConfiguration
 from sofia.platform.act.outreach import Policy
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard

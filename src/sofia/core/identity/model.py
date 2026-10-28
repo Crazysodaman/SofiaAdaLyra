@@ -1,11 +1,7 @@
 ﻿from dataclasses import dataclass, field
-from enum import Enum
 from uuid import UUID, uuid4
 
-
-class IdentityBootstrapMode(str, Enum):
-    FIRST_BOOTSTRAP = "first_bootstrap"
-    REQUIRE_EXISTING = "require_existing"
+from sofia.platform.config.identity_bootstrap import IdentityBootstrapMode
 
 
 @dataclass(frozen=True)

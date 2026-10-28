@@ -8,7 +8,7 @@ import sqlite3
 from threading import BoundedSemaphore, Lock, RLock
 from weakref import WeakValueDictionary
 
-from sofia.core.cognition.performance import record_sqlite
+from sofia.platform.state.performance import record_sqlite
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 

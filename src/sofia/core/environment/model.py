@@ -11,11 +11,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 import math
 
-
-class LocationSubject(str, Enum):
-    USER = "user"
-    SITE = "site"
-    HOST = "host"
+from sofia.platform.config.environment import LocationSubject
 
 
 class LocationEvidenceKind(str, Enum):

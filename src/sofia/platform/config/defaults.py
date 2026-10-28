@@ -12,7 +12,7 @@ from sofia.platform.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.core.environment.config import environment_configuration_from_environ
+from sofia.platform.config.environment import environment_configuration_from_environ
 from sofia.platform.config.layout import RuntimeStorageLayout
 from sofia.platform.config.user_settings import RuntimeUserSettingsStore
 from sofia.platform.config.inference_endpoint import configured_ollama_endpoint

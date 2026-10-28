@@ -6,8 +6,8 @@ from pathlib import Path
 CURRENT_CONFIGURATION_SCHEMA_VERSION = 1
 
 from sofia.platform.distributed.version import FleetProtocolVersion
-from sofia.core.environment.config import EnvironmentConfiguration
-from sofia.core.identity.model import IdentityBootstrapMode
+from sofia.platform.config.environment import EnvironmentConfiguration
+from sofia.platform.config.identity_bootstrap import IdentityBootstrapMode
 from sofia.platform.config.inference_endpoint import (
     DEFAULT_OLLAMA_ENDPOINT,
     validate_ollama_endpoint,

@@ -7,7 +7,7 @@ import shutil
 import stat
 import tempfile
 
-from sofia.core.identity.model import IdentityBootstrapMode
+from sofia.platform.config.identity_bootstrap import IdentityBootstrapMode
 from sofia.platform.state.canonical_sqlite import (
     bootstrap_canonical_sqlite,
     CanonicalStateUnavailable,

@@ -5,7 +5,7 @@ import json
 from math import isfinite
 from typing import Mapping
 
-from sofia.core.cognition.model import (
+from sofia.sdk.cognition_model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,

@@ -16,7 +16,7 @@ import re
 import sqlite3
 from pathlib import Path
 
-from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.sdk.principals import AudienceKind, PrincipalContext
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
