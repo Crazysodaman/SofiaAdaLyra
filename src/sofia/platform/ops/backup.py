@@ -32,17 +32,11 @@ from uuid import uuid4
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from sofia.platform.config.defaults import production_storage_layout
-from sofia.core.identity.model import IdentityBootstrapMode
-from sofia.core.identity.store import IdentityStore
 from sofia.platform.ops.recovery import BackupEvidence, RestoreVerification
 from sofia.platform.state.component_schema import verify_production_component_schemas
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.sqlite_uri import sqlite_file_uri
-from sofia.core.constitution.store import (
-    ConstitutionStore,
-    canonical_constitution_text,
-)
 
 
 _MAX_BACKUP_MANIFEST_BYTES = 16 * 1024 * 1024
@@ -781,6 +775,12 @@ class BackupEngine:
                 raise BackupError(
                     "restored SQLite failed foreign_key_check"
                 )
+            # Core-owned protected-state stores enter only here, lazily,
+            # so importing the backup engine never imports sofia.core.
+            from sofia.core.constitution.store import ConstitutionStore
+            from sofia.core.identity.model import IdentityBootstrapMode
+            from sofia.core.identity.store import IdentityStore
+
             protected_root = staging / "protected"
             constitution = protected_root / "constitution.md"
             identity = protected_root / "identity.json"

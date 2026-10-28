@@ -54,6 +54,7 @@ ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.platform.core_link.access",
     "sofia.platform.core_link.transport",
     "sofia.platform.launcher",
+    "sofia.platform.ops.backup",
 )
 
 _BLOCK_CORE = (
@@ -72,7 +73,14 @@ def _isolated_import_code() -> str:
     return (
         _BLOCK_CORE
         + imports
-        + "leaked = [name for name in sys.modules if name == 'sofia.core' "
+        + "from typing import get_type_hints\n"
+        "from sofia.platform.state.platform import StatePlatformService\n"
+        "from sofia.platform.ops.backup import BackupEngine, BackupManifest\n"
+        "init_hints = get_type_hints(StatePlatformService.__init__)\n"
+        "assert init_hints['backup_engine'].__args__[0] is BackupEngine\n"
+        "verify_hints = get_type_hints(StatePlatformService.verify_backup)\n"
+        "assert verify_hints['return'] is BackupManifest\n"
+        "leaked = [name for name in sys.modules if name == 'sofia.core' "
         "or name.startswith('sofia.core.')]\n"
         "assert not leaked, leaked\n"
         "print('ISOLATED-OK')\n"
@@ -148,3 +156,117 @@ def test_moved_contracts_keep_core_import_paths_compatible() -> None:
     assert core_principal is sdk_principal
     assert core_scope is sdk_scope
     assert core_social_scope is sdk_social_scope
+
+
+def test_legacy_core_environment_config_exports_location_subject() -> None:
+    from sofia.core.environment.config import LocationSubject as legacy_subject
+    from sofia.platform.config.environment import (
+        LocationSubject as platform_subject,
+    )
+
+    assert legacy_subject is platform_subject
+    assert legacy_subject.USER.value == "user"
+
+
+def _legacy_pickle_round_trip(obj, klass, legacy_module: str) -> object:
+    import pickle
+
+    original = klass.__module__
+    klass.__module__ = legacy_module
+    try:
+        blob = pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
+    finally:
+        klass.__module__ = original
+    restored = pickle.loads(blob)
+    assert type(restored) is klass
+    return restored
+
+
+def test_moved_contracts_survive_legacy_module_pickle_paths() -> None:
+    import pickle
+
+    from dataclasses import replace
+
+    from sofia.core.environment.config import (
+        environment_configuration_from_environ,
+    )
+    from sofia.core.environment.config import LocationSubject as legacy_subject
+    from sofia.core.identity.model import (
+        IdentityBootstrapMode as legacy_bootstrap_mode,
+    )
+    from sofia.core.social.model import PrincipalContext as legacy_principal
+    from sofia.sdk.cognition_model import (
+        CognitiveMessage,
+        CognitiveRole,
+    )
+    from sofia.platform.config.environment import EnvironmentConfiguration
+    from sofia.platform.config.environment import LocationSubject
+    from sofia.platform.config.identity_bootstrap import IdentityBootstrapMode
+    from sofia.sdk.principals import (
+        AudienceKind,
+        PrincipalContext,
+    )
+
+    message = CognitiveMessage(role=CognitiveRole.USER, content="state")
+    restored = _legacy_pickle_round_trip(
+        message, CognitiveMessage, "sofia.core.cognition.model",
+    )
+    assert restored == message
+    assert restored.role is CognitiveRole.USER
+
+    environment = environment_configuration_from_environ({})
+    restored_environment = _legacy_pickle_round_trip(
+        environment, EnvironmentConfiguration, "sofia.core.environment.config",
+    )
+    assert restored_environment == environment
+
+    principal = PrincipalContext(
+        principal_id="principal",
+        audience_id="audience-1",
+        audience_kind=AudienceKind.SHARED,
+    )
+    restored_principal = _legacy_pickle_round_trip(
+        principal, PrincipalContext, "sofia.core.social.model",
+    )
+    assert restored_principal == principal
+
+    subject = _legacy_pickle_round_trip(
+        legacy_subject.USER, LocationSubject, "sofia.core.environment.config",
+    )
+    assert subject is LocationSubject.USER
+    assert subject.value == "user"
+
+    mode = _legacy_pickle_round_trip(
+        legacy_bootstrap_mode.REQUIRE_EXISTING,
+        IdentityBootstrapMode,
+        "sofia.core.identity.model",
+    )
+    assert mode is IdentityBootstrapMode.REQUIRE_EXISTING
+
+    fresh = pickle.loads(pickle.dumps(replace(message, content="again")))
+    assert type(fresh) is CognitiveMessage
+    assert fresh.content == "again"
+
+
+def test_sdk_cognition_json_round_trip_is_module_path_free() -> None:
+    import json
+
+    from sofia.sdk.cognition import decode_request, encode_request
+    from sofia.sdk.cognition_model import (
+        CognitiveMessage,
+        CognitiveRequest,
+        CognitiveRole,
+    )
+
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(role=CognitiveRole.USER, content="json"),
+        ),
+        allow_tools=False,
+    )
+    payload = encode_request(request)
+    text = payload.decode("utf-8")
+    assert json.loads(text)["schema"] == "sofia.core.cognition.request.v1"
+    assert "sdk.cognition_model" not in text
+    restored = decode_request(payload)
+    assert restored == request

@@ -29,9 +29,10 @@ jobs:
   build:
     runs-on: windows-latest
     # The installed-wheel full gate currently exercises more than 6,000 tests.
-    # Windows runners have exceeded the former 30-minute ceiling without a
-    # test failure, which discarded the verification evidence mid-run.
-    timeout-minutes: 60
+    # Windows runners have exceeded the former 30- and 60-minute ceilings
+    # without a test failure, which discarded the verification evidence
+    # mid-run. GitHub-hosted runners allow up to 360 minutes per job.
+    timeout-minutes: 120
     permissions:
       contents: read
     steps:

@@ -9,16 +9,13 @@ import json
 from pathlib import Path
 import re
 import sqlite3
-from typing import TYPE_CHECKING
 
+from sofia.platform.ops.backup import BackupEngine, BackupManifest
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.platform.state.model import StateKey, StateRecord
 from sofia.platform.state.namespaces import StateNamespaceSpec
 from sofia.platform.state.plane import StateWrite
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
-
-if TYPE_CHECKING:
-    from sofia.platform.ops.backup import BackupEngine, BackupManifest
 
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
