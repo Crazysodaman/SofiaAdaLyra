@@ -1,0 +1,51 @@
+schema = "sofia.platform.components.manifest.v1"
+
+# G2-B component manifest (reviewed authority for component artifact builds).
+#
+# File ownership is exclusive: every path under src/sofia is packaged by
+# exactly one component below, or by the transitional integrated wheel
+# declared in pyproject.toml. Component artifacts are built from the same
+# reviewed source as the integrated wheel; no separate component source tree
+# is introduced in this checkpoint.
+
+[components.sdk]
+distribution = "sofia-sdk"
+packages = ["sofia.sdk"]
+# The SDK owns the top-level sofia package root so the three components
+# install into one site-packages without duplicate file ownership.
+extra_files = ["sofia/__init__.py"]
+dependencies = []
+package_data = {}
+entry_points = {}
+
+[components.platform]
+distribution = "sofia-platform"
+packages = ["sofia.platform"]
+dependencies = [
+    "sofia-sdk",
+    "cryptography",
+    "tzdata; sys_platform == 'win32'",
+]
+package_data = {}
+entry_points = { "companion-runtime" = "sofia.platform.launcher:main" }
+
+[components.core]
+distribution = "sofia-core"
+packages = ["sofia.core"]
+dependencies = [
+    "sofia-platform",
+    "sofia-sdk",
+    "cryptography",
+    "tzdata; sys_platform == 'win32'",
+]
+package_data = { "sofia.core.constitution" = [
+    "constitution.md",
+    "constitution.sha256",
+], "sofia.core.identity" = [
+    "identity.json",
+], "sofia.core.embodiment" = [
+    "avatar.json",
+], "sofia.core.personality" = [
+    "personality.json",
+] }
+entry_points = {}
