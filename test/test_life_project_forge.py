@@ -2031,10 +2031,16 @@ def test_life_subjective_preference_recovers_after_interrupted_write(
             evidence_refs=(str(job.result["evidence_ref"]),),
             preserve_for_research=False,
         )
+        # RUN receipts carry real-wall-clock observed_at written by the
+        # asynchronous worker. Evaluation times must be anchored to the real
+        # clock after the completed job, not to a synthetic fixed offset,
+        # or CI scheduling delays put the receipt "in the future" of the
+        # evaluation and the guard correctly rejects it.
+        evaluation_now = datetime.now(timezone.utc)
         with pytest.raises(OSError, match="interruption"):
             life.evaluate_artifact(
                 project.project_id, **evaluation_args,
-                now=now + timedelta(seconds=4),
+                now=evaluation_now,
             )
         assert len(life.store.evaluations(project.project_id)) == 1
         evaluation = life.store.evaluations(project.project_id)[0]
@@ -2048,7 +2054,7 @@ def test_life_subjective_preference_recovers_after_interrupted_write(
         )
         monkeypatch.setattr(life.preferences, "revise", original_revise)
         healed = life.learn_from_experiences(
-            now=now + timedelta(seconds=5),
+            now=evaluation_now + timedelta(seconds=1),
         )
         assert healed["applied"] == 1
         scope = dict(
@@ -2062,7 +2068,7 @@ def test_life_subjective_preference_recovers_after_interrupted_write(
         assert len(life.preferences.history(**scope)) == 1
         replay = life.evaluate_artifact(
             project.project_id, **evaluation_args,
-            now=now + timedelta(seconds=6),
+            now=evaluation_now + timedelta(seconds=2),
         )
         assert replay.evaluation_id == evaluation.evaluation_id
         assert len(life.preferences.history(**scope)) == 1
@@ -2084,6 +2090,7 @@ def test_old_life_critique_never_overwrites_later_preference(tmp_path, monkeypat
         def interrupted(**_kwargs):
             raise OSError("interrupted preference write")
         monkeypatch.setattr(life.preferences, "revise", interrupted)
+        evaluation_now = datetime.now(timezone.utc)
         with pytest.raises(OSError):
             life.evaluate_artifact(
                 project.project_id,
@@ -2094,7 +2101,7 @@ def test_old_life_critique_never_overwrites_later_preference(tmp_path, monkeypat
                 reason="Initial recorded opinion.",
                 evidence_refs=(str(job.result["evidence_ref"]),),
                 preserve_for_research=False,
-                now=now + timedelta(seconds=4),
+                now=evaluation_now,
             )
         monkeypatch.setattr(life.preferences, "revise", original)
         evaluation = life.store.evaluations(project.project_id)[0]
@@ -2108,10 +2115,10 @@ def test_old_life_critique_never_overwrites_later_preference(tmp_path, monkeypat
             strength=0.8, confidence=0.9,
             reason="Later separately evidenced correction.",
             evidence_ref=str(job.result["evidence_ref"]),
-            expected_revision=None, now=now + timedelta(seconds=10),
+            expected_revision=None, now=evaluation_now + timedelta(seconds=1),
         )
         learned = life.learn_from_experiences(
-            now=now + timedelta(seconds=11),
+            now=evaluation_now + timedelta(seconds=2),
         )
         assert learned["applied"] == 1
         assert life.preferences.current(**scope) == newer
