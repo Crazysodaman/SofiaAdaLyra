@@ -47,6 +47,7 @@ jobs:
         run: python -m pip install -e . pytest
       - name: Verify CA LIFE recovery, milestones and objective settlement
         if: matrix.cohort == 'life-recovery'
+        shell: bash
         run: >-
           python -m pytest -q
           test/test_v18_phase00_model_outage.py
@@ -56,9 +57,19 @@ jobs:
           test/test_life_strict_model_json.py
           test/test_life_goal_run_resume_fence.py
           test/test_life_no_placeholder_autonomous_authoring.py
-          --junitxml=stage3-life-recovery.xml
+          --junitxml=stage3-life-recovery.xml 2>&1
+          | tee "$RUNNER_TEMP/stage3-life-recovery-output.log"
+      - name: Publish Phase 3 LIFE cohort failure annotation
+        if: failure() && matrix.cohort == 'life-recovery'
+        shell: bash
+        run: |
+          tail -n 80 "$RUNNER_TEMP/stage3-life-recovery-output.log" \
+            | while IFS= read -r line; do
+                printf '%s\n' "::error title=stage3-life-recovery pytest failure::$line"
+              done
       - name: Verify ML/CA transport, memory provenance and safety
         if: matrix.cohort == 'distributed-memory'
+        shell: bash
         run: >-
           python -m pytest -q
           test/test_distributed_capability_lifecycle.py
@@ -67,7 +78,16 @@ jobs:
           test/test_remote_mtls_transport_acceptance.py
           test/test_evolve_training_holdout_separation.py
           test/test_v18_phase00_contracts.py
-          --junitxml=stage3-distributed-memory.xml
+          --junitxml=stage3-distributed-memory.xml 2>&1
+          | tee "$RUNNER_TEMP/stage3-distributed-memory-output.log"
+      - name: Publish Phase 3 distributed-memory cohort failure annotation
+        if: failure() && matrix.cohort == 'distributed-memory'
+        shell: bash
+        run: |
+          tail -n 80 "$RUNNER_TEMP/stage3-distributed-memory-output.log" \
+            | while IFS= read -r line; do
+                printf '%s\n' "::error title=stage3-distributed-memory pytest failure::$line"
+              done
       - name: Publish exact-revision JUnit receipt
         if: always()
         uses: actions/upload-artifact@v7

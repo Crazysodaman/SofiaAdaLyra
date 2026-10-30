@@ -395,7 +395,6 @@ def build_component(
                 "-m",
                 "pip",
                 "wheel",
-                "--no-build-isolation",
                 "--no-deps",
                 "--disable-pip-version-check",
                 "-w",
