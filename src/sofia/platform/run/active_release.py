@@ -15,7 +15,11 @@ import venv
 from sofia.platform.dev.release_store import ReleaseStateStore
 from sofia.platform.run.release import directory_sha256
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
-from sofia.platform.verify.component_artifacts import wheel_matches_identity
+from sofia.platform.verify.component_artifacts import (
+    ComponentArtifactError,
+    inspect_wheel,
+    wheel_matches_identity,
+)
 
 
 class ActiveReleaseError(RuntimeError):
@@ -347,27 +351,50 @@ class ReleaseEnvironmentManager:
                         str(release.wheel_path),
                     ]
                 )
-            # Separated releases install sofia-platform, not the legacy
-            # sofia-ada-lyra distribution. Verify the package actually
-            # installed in this environment against the manifest version.
-            distribution = (
-                "sofia-platform" if release.component_wheels else "sofia-ada-lyra"
-            )
-            observed_version = self._run(
-                [
-                    str(python_path),
-                    "-c",
-                    (
-                        "from importlib.metadata import version;"
-                        f"print(version({distribution!r}))"
-                    ),
-                ],
-                timeout=60,
-            )
-            if observed_version.strip() != release.application_version:
-                raise ActiveReleaseError(
-                    "prepared release environment application version mismatch"
+            # An installed component release contains three separate
+            # distributions. Check *each* installed version against the
+            # bytes actually selected by the verified release resolver.
+            if release.component_wheels:
+                expected_distributions: list[tuple[str, str]] = []
+                for wheel in release.component_wheels:
+                    name = wheel.name.split("-", 1)[0].replace("_", "-")
+                    if name not in {"sofia-sdk", "sofia-platform", "sofia-core"}:
+                        raise ActiveReleaseError(
+                            f"unexpected component wheel distribution: {wheel.name}"
+                        )
+                    try:
+                        metadata = inspect_wheel(wheel, name)
+                    except ComponentArtifactError as error:
+                        raise ActiveReleaseError(
+                            "component wheel metadata failed verification"
+                        ) from error
+                    expected_distributions.append((name, metadata.version))
+                if sorted(name for name, _ in expected_distributions) != [
+                    "sofia-core", "sofia-platform", "sofia-sdk"
+                ]:
+                    raise ActiveReleaseError(
+                        "release environment requires exactly one SDK, Platform and Core wheel"
+                    )
+            else:
+                expected_distributions = [
+                    ("sofia-ada-lyra", release.application_version)
+                ]
+            for distribution, expected_version in expected_distributions:
+                observed_version = self._run(
+                    [
+                        str(python_path),
+                        "-c",
+                        (
+                            "from importlib.metadata import version;"
+                            f"print(version({distribution!r}))"
+                        ),
+                    ],
+                    timeout=60,
                 )
+                if observed_version.strip() != expected_version:
+                    raise ActiveReleaseError(
+                        f"prepared release environment {distribution} version mismatch"
+                    )
             self._stamp_path(staging).write_text(
                 json.dumps(
                     self._stamp(release),
