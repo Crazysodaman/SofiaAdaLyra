@@ -183,6 +183,9 @@ def test_environment_manager_reuses_only_matching_stamped_environment(
     assert first.root == second.root
     assert first.python_path.is_file()
     assert len(calls) == count_after_first
+    version_calls = [call for call in calls if "-c" in call]
+    assert len(version_calls) == 1
+    assert "version('sofia-ada-lyra')" in version_calls[0][-1]
 
 
 def component_release_fixture(
