@@ -271,3 +271,291 @@ def test_offline_signer_matches_existing_release_verifier(tmp_path):
         signature=signature,
         signer_key_id="test-key",
     ) is True
+
+
+def test_component_release_construct_and_verify(tmp_path):
+    from sofia.platform.verify.component_artifacts import build_all_components
+
+    wheels = build_all_components(tmp_path / "components", repo=_repo_root())
+    lock = make_lock(tmp_path)
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "file.txt").write_text("source", encoding="utf-8")
+    verification = make_verification(tmp_path)
+    output = tmp_path / "release"
+
+    result = construct_release_evidence(
+        release_id="sofia-components-test",
+        git_revision=GIT,
+        application_version="0.1.0",
+        python_version="3.12.10",
+        dependency_lock_path=lock,
+        wheel_path=None,
+        source_dir=source,
+        verification_evidence_path=verification,
+        constitution_sha256=CONSTITUTION,
+        state_schema_min=1,
+        state_schema_max=1,
+        fleet_protocol_version="1.0",
+        fleet_agent_version="0.1.0",
+        configuration_schema_version=1,
+        output_dir=output,
+        created_at=NOW,
+        component_wheels={
+            "sdk": wheels["sdk"],
+            "platform": wheels["platform"],
+            "core": wheels["core"],
+        },
+    )
+
+    assert [component.component for component in result.manifest.components] == [
+        "core",
+        "platform",
+        "sdk",
+    ]
+    verified = verify_release_evidence(output)
+    assert verified.manifest_sha256 == result.manifest.manifest_sha256
+    artifact = output / "artifact"
+    assert len(list(artifact.glob("*.whl"))) == 3
+    assert result.manifest.artifact_sha256 == directory_sha256(artifact)
+
+
+def test_component_release_rejects_missing_component_wheel(tmp_path):
+    from sofia.platform.verify.component_artifacts import build_all_components
+
+    wheels = build_all_components(tmp_path / "components", repo=_repo_root())
+    lock = make_lock(tmp_path)
+    source = tmp_path / "source"
+    source.mkdir()
+    verification = make_verification(tmp_path)
+    with pytest.raises(ValueError, match="sdk, platform and core"):
+        construct_release_evidence(
+            release_id="sofia-components-bad",
+            git_revision=GIT,
+            application_version="0.1.0",
+            python_version="3.12.10",
+            dependency_lock_path=lock,
+            wheel_path=None,
+            source_dir=source,
+            verification_evidence_path=verification,
+            constitution_sha256=CONSTITUTION,
+            state_schema_min=1,
+            state_schema_max=1,
+            fleet_protocol_version="1.0",
+            fleet_agent_version="0.1.0",
+            configuration_schema_version=1,
+            output_dir=tmp_path / "release",
+            created_at=NOW,
+            component_wheels={
+                "sdk": wheels["sdk"],
+                "platform": wheels["platform"],
+            },
+        )
+
+
+def test_component_release_rejects_tampered_component_wheel(tmp_path):
+    from sofia.platform.verify.component_artifacts import build_all_components
+
+    wheels = build_all_components(tmp_path / "components", repo=_repo_root())
+    lock = make_lock(tmp_path)
+    source = tmp_path / "source"
+    source.mkdir()
+    verification = make_verification(tmp_path)
+    output = tmp_path / "release"
+    construct_release_evidence(
+        release_id="sofia-components-tamper",
+        git_revision=GIT,
+        application_version="0.1.0",
+        python_version="3.12.10",
+        dependency_lock_path=lock,
+        wheel_path=None,
+        source_dir=source,
+        verification_evidence_path=verification,
+        constitution_sha256=CONSTITUTION,
+        state_schema_min=1,
+        state_schema_max=1,
+        fleet_protocol_version="1.0",
+        fleet_agent_version="0.1.0",
+        configuration_schema_version=1,
+        output_dir=output,
+        created_at=NOW,
+        component_wheels={
+            "sdk": wheels["sdk"],
+            "platform": wheels["platform"],
+            "core": wheels["core"],
+        },
+    )
+    core_wheel = output / "artifact" / wheels["core"].name
+    core_wheel.write_bytes(wheels["core"].read_bytes() + b"\x00tamper")
+    with pytest.raises(ValueError, match="unbound|missing|exactly"):
+        verify_release_evidence(output)
+
+
+def test_manifest_components_round_trip_is_legacy_stable(tmp_path):
+    from sofia.platform.dev.release import ComponentArtifactIdentity, ReleaseManifest
+
+    legacy = ReleaseManifest(
+        release_id="release-legacy",
+        git_revision=GIT,
+        application_version="0.1.0",
+        python_version="3.12.10",
+        dependency_lock_sha256="1" * 64,
+        sbom_sha256="2" * 64,
+        provenance_sha256="3" * 64,
+        verification_evidence_sha256="5" * 64,
+        verification_phase="full",
+        state_schema_min=1,
+        state_schema_max=1,
+        fleet_protocol_version="1.0",
+        fleet_agent_version="0.1.0",
+        constitution_sha256="4" * 64,
+        configuration_schema_version=1,
+        created_at=NOW,
+        artifact_sha256="6" * 64,
+    )
+    restored_legacy = ReleaseManifest.from_canonical_bytes(
+        legacy.canonical_bytes()
+    )
+    assert restored_legacy.manifest_sha256 == legacy.manifest_sha256
+    assert restored_legacy.components == ()
+
+    components = (
+        ComponentArtifactIdentity(
+            component="sdk",
+            distribution="sofia-sdk",
+            version="0.1.0",
+            sha256="7" * 64,
+        ),
+        ComponentArtifactIdentity(
+            component="platform",
+            distribution="sofia-platform",
+            version="0.1.0",
+            sha256="8" * 64,
+        ),
+        ComponentArtifactIdentity(
+            component="core",
+            distribution="sofia-core",
+            version="0.1.0",
+            sha256="9" * 64,
+        ),
+    )
+    separated = ReleaseManifest(
+        release_id="release-separated",
+        git_revision=GIT,
+        application_version="0.1.0",
+        python_version="3.12.10",
+        dependency_lock_sha256="1" * 64,
+        sbom_sha256="2" * 64,
+        provenance_sha256="3" * 64,
+        verification_evidence_sha256="5" * 64,
+        verification_phase="full",
+        state_schema_min=1,
+        state_schema_max=1,
+        fleet_protocol_version="1.0",
+        fleet_agent_version="0.1.0",
+        constitution_sha256="4" * 64,
+        configuration_schema_version=1,
+        created_at=NOW,
+        artifact_sha256="6" * 64,
+        components=components,
+    )
+    restored = ReleaseManifest.from_canonical_bytes(separated.canonical_bytes())
+    assert restored.manifest_sha256 == separated.manifest_sha256
+    assert restored.components == tuple(
+        sorted(components, key=lambda component: component.component)
+    )
+    with pytest.raises(ValueError):
+        ReleaseManifest(
+            release_id="release-empty",
+            git_revision=GIT,
+            application_version="0.1.0",
+            python_version="3.12.10",
+            dependency_lock_sha256="1" * 64,
+            sbom_sha256="2" * 64,
+            provenance_sha256="3" * 64,
+            verification_evidence_sha256="5" * 64,
+            verification_phase="full",
+            state_schema_min=1,
+            state_schema_max=1,
+            fleet_protocol_version="1.0",
+            fleet_agent_version="0.1.0",
+            constitution_sha256="4" * 64,
+            configuration_schema_version=1,
+            created_at=NOW,
+        )
+
+
+def test_component_release_signature_binds_component_identities(tmp_path):
+    from sofia.platform.dev.release import ComponentArtifactIdentity, ReleaseManifest
+    from sofia.platform.verify.component_artifacts import build_all_components
+
+    wheels = build_all_components(tmp_path / "components", repo=_repo_root())
+    lock = make_lock(tmp_path)
+    source = tmp_path / "source"
+    source.mkdir()
+    verification = make_verification(tmp_path)
+    result = construct_release_evidence(
+        release_id="sofia-components-sign",
+        git_revision=GIT,
+        application_version="0.1.0",
+        python_version="3.12.10",
+        dependency_lock_path=lock,
+        wheel_path=None,
+        source_dir=source,
+        verification_evidence_path=verification,
+        constitution_sha256=CONSTITUTION,
+        state_schema_min=1,
+        state_schema_max=1,
+        fleet_protocol_version="1.0",
+        fleet_agent_version="0.1.0",
+        configuration_schema_version=1,
+        output_dir=tmp_path / "release",
+        created_at=NOW,
+        component_wheels={
+            "sdk": wheels["sdk"],
+            "platform": wheels["platform"],
+            "core": wheels["core"],
+        },
+    )
+    private = Ed25519PrivateKey.generate()
+    public_pem = private.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    signature = sign_manifest(result.manifest, private_key=private)
+    verifier = Ed25519ReleaseSignatureVerifier({"test-key": public_pem})
+    assert verifier.verify(
+        manifest=result.manifest,
+        signature=signature,
+        signer_key_id="test-key",
+    ) is True
+
+    swapped = result.manifest.components[0]
+    tampered_manifest = ReleaseManifest(
+        **{
+            **{
+                field: getattr(result.manifest, field)
+                for field in result.manifest.__dataclass_fields__
+            },
+            "components": (
+                ComponentArtifactIdentity(
+                    component=swapped.component,
+                    distribution=swapped.distribution,
+                    version=swapped.version,
+                    sha256="f" * 64,
+                ),
+            ),
+        }
+    )
+    assert (
+        verifier.verify(
+            manifest=tampered_manifest,
+            signature=signature,
+            signer_key_id="test-key",
+        )
+        is False
+    )
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[1]

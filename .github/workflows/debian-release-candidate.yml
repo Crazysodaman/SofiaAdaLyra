@@ -134,6 +134,45 @@ jobs:
             ${{ runner.temp }}/sofia-debian-source-provenance.json
           if-no-files-found: warn
 
+      - name: Construct and verify separated component artifacts
+        shell: bash
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          set -euo pipefail
+          PY="$SOFIA_RELEASE_VENV/bin/python"
+          APP_VERSION="$("$PY" -c "from sofia.core.package_metadata import application_version; print(application_version())")"
+          "$PY" -m sofia.platform.verify.component_artifacts \
+            --output "$RUNNER_TEMP/sofia-components" \
+            --repo "$GITHUB_WORKSPACE" \
+            --version "$APP_VERSION" 2>&1 | tee "$RUNNER_TEMP/sofia-components.log"
+          SDK_WHEEL="$(ls "$RUNNER_TEMP/sofia-components/sofia_sdk-"*.whl | head -n1)"
+          PLATFORM_WHEEL="$(ls "$RUNNER_TEMP/sofia-components/sofia_platform-"*.whl | head -n1)"
+          CORE_WHEEL="$(ls "$RUNNER_TEMP/sofia-components/sofia_core-"*.whl | head -n1)"
+          args=(
+            -m sofia.platform.dev.release_cli construct
+            --git-revision "${{ github.sha }}"
+            --lock requirements.lock.linux-py313.txt
+            --component-wheel "sdk=$SDK_WHEEL"
+            --component-wheel "platform=$PLATFORM_WHEEL"
+            --component-wheel "core=$CORE_WHEEL"
+            --source "$SOFIA_RELEASE_SOURCE"
+            --constitution-hash "$SOFIA_RELEASE_SOURCE/src/sofia/core/constitution/constitution.sha256"
+            --verification-evidence "$SOFIA_VERIFICATION_EVIDENCE"
+            --output release-evidence-components
+          )
+          if test -n "$RELEASE_ID"; then args+=(--release-id "$RELEASE_ID-components"); fi
+          "$PY" "${args[@]}"
+          "$PY" -m sofia.platform.dev.release_cli verify --release-dir release-evidence-components
+
+      - name: Upload separated component Linux release evidence (unsigned until approved promotion)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-candidate-components-debian-${{ github.sha }}
+          path: release-evidence-components
+          if-no-files-found: error
+
       - name: Construct and validate immutable Linux release evidence
         shell: bash
         env:

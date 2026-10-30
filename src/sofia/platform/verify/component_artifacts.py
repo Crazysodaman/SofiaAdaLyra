@@ -257,6 +257,23 @@ def inspect_wheel(wheel: Path, distribution: str) -> ComponentArtifactReport:
         )
 
 
+def wheel_matches_identity(wheel: Path, identity: Mapping[str, str]) -> bool:
+    """True when a wheel file binds exactly to a component identity.
+
+    identity keys: distribution, version, sha256. Non-raising: a wheel that
+    does not match the distribution is not an error, it is simply a miss.
+    """
+
+    try:
+        report = inspect_wheel(wheel, identity["distribution"])
+    except ComponentArtifactError:
+        return False
+    return (
+        report.version == identity["version"]
+        and report.sha256 == identity["sha256"]
+    )
+
+
 def _generate_pyproject(
     component: Mapping[str, object],
     version: str,
@@ -572,7 +589,7 @@ def build_all_components(
     """Build all three component wheels and return their paths."""
 
     components = load_component_manifest(repo)
-    return {
+    built = {
         distribution: build_component(
             distribution,
             output_dir,
@@ -582,6 +599,7 @@ def build_all_components(
         )
         for distribution in COMPONENT_DISTRIBUTIONS
     }
+    return built
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -594,11 +612,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="component to build; omit to build and verify all three",
     )
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--repo", type=Path, default=None)
     parser.add_argument("--version", default="0.1.0")
     args = parser.parse_args(argv)
     wheels: dict[str, Path]
     if args.dist is not None:
-        wheels = {args.dist: build_component(args.dist, args.output, version=args.version)}
+        wheels = {
+            args.dist: build_component(
+                args.dist, args.output, repo=args.repo, version=args.version
+            )
+        }
         report = inspect_wheel(wheels[args.dist], args.dist)
         print(
             json.dumps(
@@ -612,7 +635,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         return 0
-    wheels = build_all_components(args.output, version=args.version)
+    wheels = build_all_components(
+        args.output, repo=args.repo, version=args.version
+    )
     separation = verify_component_separation(wheels)
     verify_installed_imports(wheels)
     verify_integrated_parity(wheels)

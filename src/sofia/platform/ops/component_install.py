@@ -12,6 +12,7 @@ write Core-owned state in order to record its own installation decisions.
 
 from __future__ import annotations
 
+from hashlib import sha256
 import re
 import sqlite3
 from contextlib import closing
@@ -39,18 +40,93 @@ def _version(value: str) -> tuple[int, int, int]:
     return int(match.group(1)), int(match.group(2)), int(match.group(3))
 
 
+class ComponentSignatureVerifier:
+    """Trusted-verifier boundary for component artifact signatures.
+
+    Callers never supply boolean trust. A concrete verifier decides trust
+    from an explicit trusted keyring and fails closed: absent keys, wrong
+    signers, revoked keys and tampered artifacts are all rejections.
+    """
+
+    def verify(self, artifact: CoreComponentArtifact, wheel_path: Path) -> None:
+        raise NotImplementedError
+
+
+class Ed25519ComponentSignatureVerifier(ComponentSignatureVerifier):
+    """Verify component artifact digests against a trusted Ed25519 keyring.
+
+    The signed message is the lowercase hex SHA-256 digest of the wheel
+    file itself, so the signature binds the exact artifact bytes.
+    """
+
+    def __init__(self, trusted_keys: dict[str, Path | bytes]) -> None:
+        if not isinstance(trusted_keys, dict) or not trusted_keys:
+            raise ValueError("at least one trusted component key is required")
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+            Ed25519PublicKey,
+        )
+
+        loaded: dict[str, Ed25519PublicKey] = {}
+        for key_id, source in trusted_keys.items():
+            if not isinstance(key_id, str) or not key_id.strip():
+                raise ValueError("component signer key IDs must be nonempty")
+            if isinstance(source, Path):
+                raw = source.read_bytes()
+            elif isinstance(source, bytes):
+                raw = source
+            else:
+                raise TypeError(
+                    "trusted component keys must be Path or bytes values"
+                )
+            key = serialization.load_pem_public_key(raw)
+            if not isinstance(key, Ed25519PublicKey):
+                raise TypeError(
+                    f"trusted component key {key_id!r} is not Ed25519"
+                )
+            loaded[key_id] = key
+        self._keys = loaded
+
+    def verify(self, artifact: CoreComponentArtifact, wheel_path: Path) -> None:
+        import base64
+
+        from cryptography.exceptions import InvalidSignature
+
+        key = self._keys.get(artifact.signer_key_id)
+        if key is None:
+            raise CoreComponentInstallError(
+                f"component signer {artifact.signer_key_id!r} is not trusted"
+            )
+        try:
+            signature = base64.b64decode(artifact.signature_b64, validate=True)
+        except (ValueError, TypeError) as error:
+            raise CoreComponentInstallError(
+                "component signature is not valid base64"
+            ) from error
+        try:
+            key.verify(signature, artifact.sha256.encode("ascii"))
+        except InvalidSignature:
+            raise CoreComponentInstallError(
+                "component signature does not verify against the trusted keyring"
+            ) from None
+
+
 class CoreComponentInstallError(RuntimeError):
     """Raised when a Core component artifact or its authority is rejected."""
 
 
 @dataclass(frozen=True, slots=True)
 class CoreComponentArtifact:
-    """A reviewed Core component artifact candidate for installation."""
+    """A reviewed Core component artifact candidate for installation.
+
+    Trust is never expressed here: ``signature_b64`` is opaque evidence that
+    the configured trusted verifier must accept before any bytes move.
+    """
 
     artifact_id: str
     version: str
     sha256: str
-    signature_verified: bool
+    signature_b64: str
     signer_key_id: str
     source: str
 
@@ -63,10 +139,12 @@ class CoreComponentArtifact:
                 raise ValueError(f"{label} must be bounded text")
         if _SHA256.fullmatch(self.sha256) is None:
             raise ValueError("component artifact requires lowercase SHA-256")
-        if self.signature_verified is not True:
-            raise CoreComponentInstallError(
-                "Core component requires verified signature evidence before installation"
-            )
+        if (
+            not isinstance(self.signature_b64, str)
+            or not self.signature_b64.strip()
+            or len(self.signature_b64) > 2000
+        ):
+            raise ValueError("component artifact requires bounded signature evidence")
         _version(self.version)
 
 
@@ -202,8 +280,17 @@ def verify_core_component_content(wheel_path: Path) -> None:
 class CoreComponentInstaller:
     """Install or replace the Core component under explicit authority."""
 
-    def __init__(self, registry: CoreComponentRegistry) -> None:
+    def __init__(
+        self,
+        registry: CoreComponentRegistry,
+        signature_verifier: ComponentSignatureVerifier,
+    ) -> None:
+        if not isinstance(signature_verifier, ComponentSignatureVerifier):
+            raise TypeError(
+                "Core component installation requires a trusted signature verifier"
+            )
         self.registry = registry
+        self.signature_verifier = signature_verifier
 
     def execute(
         self,
@@ -234,6 +321,12 @@ class CoreComponentInstaller:
         wheel_path = Path(wheel_path)
         if not wheel_path.is_file() or wheel_path.is_symlink():
             raise FileNotFoundError(wheel_path)
+        observed_digest = sha256(wheel_path.read_bytes()).hexdigest()
+        if observed_digest != artifact.sha256:
+            raise CoreComponentInstallError(
+                "Core component artifact digest does not match the wheel file"
+            )
+        self.signature_verifier.verify(artifact, wheel_path)
         try:
             verify_core_component_content(wheel_path)
         except ComponentArtifactError as error:
@@ -252,7 +345,7 @@ class CoreComponentInstaller:
             approval_id=approval_id,
             health_verified=health_verified,
             installed_at=datetime.now(timezone.utc),
-            detail="verified content, compatibility and health",
+            detail="verified signature, content, compatibility and health",
         )
         self.registry.record(receipt)
         return receipt

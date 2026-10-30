@@ -36,13 +36,29 @@ def _construct(args) -> int:
     release_id = args.release_id or (
         f"sofia-{version}-{args.git_revision[:12]}"
     )
+    component_wheels: dict[str, Path] | None = None
+    if args.component_wheel:
+        component_wheels = {}
+        for spec in args.component_wheel:
+            component, separator, value = spec.partition("=")
+            if not separator or component not in {"sdk", "platform", "core"}:
+                raise ValueError(
+                    "--component-wheel must be sdk|platform|core=path"
+                )
+            if component in component_wheels:
+                raise ValueError(f"--component-wheel {component} given twice")
+            component_wheels[component] = Path(value)
+        if set(component_wheels) != {"sdk", "platform", "core"}:
+            raise ValueError(
+                "component releases require all three component wheels"
+            )
     result = construct_release_evidence(
         release_id=release_id,
         git_revision=args.git_revision,
         application_version=version,
         python_version=platform.python_version(),
         dependency_lock_path=Path(args.lock),
-        wheel_path=Path(args.wheel),
+        wheel_path=None if component_wheels else Path(args.wheel),
         source_dir=Path(args.source),
         verification_evidence_path=Path(args.verification_evidence),
         constitution_sha256=_read_digest(
@@ -61,6 +77,7 @@ def _construct(args) -> int:
         created_at=datetime.now(timezone.utc),
         parent_release_id=args.parent_release_id,
         parent_manifest_sha256=args.parent_manifest_sha256,
+        component_wheels=component_wheels,
     )
     print(
         f"release evidence created: {result.manifest.release_id} "
@@ -167,7 +184,13 @@ def main(argv: list[str] | None = None) -> int:
     construct = sub.add_parser("construct")
     construct.add_argument("--git-revision", required=True)
     construct.add_argument("--lock", required=True)
-    construct.add_argument("--wheel", required=True)
+    construct.add_argument("--wheel")
+    construct.add_argument(
+        "--component-wheel",
+        action="append",
+        metavar="COMPONENT=PATH",
+        help="sdk|platform|core wheel; three of them replace --wheel",
+    )
     construct.add_argument("--source", required=True)
     construct.add_argument("--constitution-hash", required=True)
     construct.add_argument("--verification-evidence", required=True)

@@ -9,12 +9,42 @@ import re
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _GIT_SHA = re.compile(r"^[0-9a-f]{40}$")
 _RELEASE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,119}$")
+_SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 
 
 def _digest(value: str, label: str) -> str:
     if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
         raise ValueError(f"{label} must be a lowercase SHA-256 digest")
     return value
+
+
+def _component_version(value: str) -> tuple[int, int, int]:
+    match = _SEMVER.fullmatch(value)
+    if match is None:
+        raise ValueError("component version must be semantic (major.minor.patch)")
+    return int(match.group(1)), int(match.group(2)), int(match.group(3))
+
+
+@dataclass(frozen=True, slots=True)
+class ComponentArtifactIdentity:
+    """Exact identity of one component artifact inside a release."""
+
+    component: str
+    distribution: str
+    version: str
+    sha256: str
+
+    def __post_init__(self) -> None:
+        if self.component not in {"sdk", "platform", "core"}:
+            raise ValueError("component must be sdk, platform or core")
+        if self.distribution != f"sofia-{self.component}":
+            raise ValueError(
+                "component distribution must be sofia-sdk, sofia-platform or sofia-core"
+            )
+        if not isinstance(self.version, str):
+            raise TypeError("component version must be a string")
+        _component_version(self.version)
+        _digest(self.sha256, f"component {self.component} sha256")
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +73,7 @@ class ReleaseManifest:
     model_id: str | None = None
     model_sha256: str | None = None
     asset_sha256: tuple[tuple[str, str], ...] = ()
+    components: tuple[ComponentArtifactIdentity, ...] = ()
 
     def __post_init__(self) -> None:
         if (
@@ -124,6 +155,24 @@ class ReleaseManifest:
                 raise ValueError("asset names must be unique")
             names.add(name)
             _digest(digest, f"asset {name}")
+        if not isinstance(self.components, tuple):
+            raise TypeError("components must be a tuple")
+        seen_components: set[str] = set()
+        for component in self.components:
+            if not isinstance(component, ComponentArtifactIdentity):
+                raise TypeError(
+                    "components must be ComponentArtifactIdentity entries"
+                )
+            if component.component in seen_components:
+                raise ValueError("component identities must be unique")
+            seen_components.add(component.component)
+        if (
+            not self.components
+            and self.artifact_sha256 is None
+        ):
+            raise ValueError(
+                "legacy release manifests require artifact_sha256"
+            )
 
     def canonical_bytes(self) -> bytes:
         payload = {
@@ -150,6 +199,19 @@ class ReleaseManifest:
             "model_sha256": self.model_sha256,
             "asset_sha256": sorted(self.asset_sha256),
         }
+        if self.components:
+            payload["components"] = [
+                {
+                    "component": component.component,
+                    "distribution": component.distribution,
+                    "version": component.version,
+                    "sha256": component.sha256,
+                }
+                for component in sorted(
+                    self.components,
+                    key=lambda component: component.component,
+                )
+            ]
         return json.dumps(
             payload,
             sort_keys=True,
@@ -168,6 +230,15 @@ class ReleaseManifest:
         data["asset_sha256"] = tuple(
             (str(name), str(digest))
             for name, digest in data.get("asset_sha256", ())
+        )
+        data["components"] = tuple(
+            ComponentArtifactIdentity(
+                component=str(entry["component"]),
+                distribution=str(entry["distribution"]),
+                version=str(entry["version"]),
+                sha256=str(entry["sha256"]),
+            )
+            for entry in data.get("components", ())
         )
         return cls(**data)
 

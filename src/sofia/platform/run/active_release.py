@@ -15,6 +15,7 @@ import venv
 from sofia.platform.dev.release_store import ReleaseStateStore
 from sofia.platform.run.release import directory_sha256
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.verify.component_artifacts import wheel_matches_identity
 
 
 class ActiveReleaseError(RuntimeError):
@@ -28,8 +29,9 @@ class ActiveRelease:
     artifact_sha256: str
     application_version: str
     artifact_path: Path
-    wheel_path: Path
+    wheel_path: Path | None
     dependency_lock_path: Path
+    component_wheels: tuple[Path, ...] = ()
 
 
 class ActiveReleaseResolver:
@@ -116,10 +118,6 @@ class ActiveReleaseResolver:
             raise ActiveReleaseError("active release artifact digest mismatch")
 
         wheels = tuple(target.glob("*.whl"))
-        if len(wheels) != 1:
-            raise ActiveReleaseError(
-                "active release artifact must contain exactly one Sofía wheel"
-            )
         dependency_lock = target / "requirements.lock"
         if not dependency_lock.is_file():
             raise ActiveReleaseError(
@@ -132,14 +130,66 @@ class ActiveReleaseResolver:
                 "active release dependency lock digest mismatch"
             )
 
+        component_wheels: tuple[Path, ...] = ()
+        if manifest.components:
+            if len(wheels) != len(manifest.components):
+                raise ActiveReleaseError(
+                    "active component release wheel count mismatch"
+                )
+            resolved: list[Path] = []
+            for component in sorted(
+                manifest.components,
+                key=lambda component: component.component,
+            ):
+                matches = [
+                    wheel
+                    for wheel in wheels
+                    if wheel_matches_identity(
+                        wheel,
+                        {
+                            "distribution": component.distribution,
+                            "version": component.version,
+                            "sha256": component.sha256,
+                        },
+                    )
+                ]
+                if len(matches) != 1:
+                    raise ActiveReleaseError(
+                        f"active component release wheel for "
+                        f"{component.distribution!r} is absent, duplicated or tampered"
+                    )
+                resolved.append(matches[0])
+            component_wheels = tuple(resolved)
+            platform_identity = next(
+                (
+                    component
+                    for component in manifest.components
+                    if component.component == "platform"
+                ),
+                None,
+            )
+            if (
+                platform_identity is None
+                or platform_identity.version != manifest.application_version
+            ):
+                raise ActiveReleaseError(
+                    "component release application version is not the platform version"
+                )
+        else:
+            if len(wheels) != 1:
+                raise ActiveReleaseError(
+                    "active release artifact must contain exactly one Sofía wheel"
+                )
+
         return ActiveRelease(
             release_id=release_id,
             manifest_sha256=manifest_digest,
             artifact_sha256=manifest.artifact_sha256,
             application_version=manifest.application_version,
             artifact_path=target,
-            wheel_path=wheels[0],
+            wheel_path=wheels[0] if len(wheels) == 1 and not component_wheels else None,
             dependency_lock_path=dependency_lock,
+            component_wheels=component_wheels,
         )
 
 
@@ -181,13 +231,19 @@ class ReleaseEnvironmentManager:
         return root / ".sofia-release.json"
 
     @staticmethod
-    def _stamp(release: ActiveRelease) -> dict[str, str]:
-        return {
+    def _stamp(release) -> dict[str, object]:
+        stamp: dict[str, object] = {
             "release_id": release.release_id,
             "manifest_sha256": release.manifest_sha256,
             "artifact_sha256": release.artifact_sha256,
             "application_version": release.application_version,
         }
+        component_wheels = getattr(release, "component_wheels", ())
+        if component_wheels:
+            stamp["component_wheels"] = sorted(
+                wheel.name for wheel in component_wheels
+            )
+        return stamp
 
     def _matches(self, root: Path, release: ActiveRelease) -> bool:
         python_path = self._python(root)
@@ -258,17 +314,39 @@ class ReleaseEnvironmentManager:
                     str(release.dependency_lock_path),
                 ]
             )
-            self._run(
-                [
-                    str(python_path),
-                    "-m",
-                    "pip",
-                    "install",
-                    "--disable-pip-version-check",
-                    "--no-deps",
-                    str(release.wheel_path),
-                ]
-            )
+            if release.component_wheels:
+                for wheel in release.component_wheels:
+                    self._run(
+                        [
+                            str(python_path),
+                            "-m",
+                            "pip",
+                            "install",
+                            "--disable-pip-version-check",
+                            "--no-deps",
+                            str(wheel),
+                        ]
+                    )
+                self._run(
+                    [str(python_path), "-m", "pip", "check"],
+                    timeout=120,
+                )
+            else:
+                if release.wheel_path is None:
+                    raise ActiveReleaseError(
+                        "active release has neither an integrated wheel nor components"
+                    )
+                self._run(
+                    [
+                        str(python_path),
+                        "-m",
+                        "pip",
+                        "install",
+                        "--disable-pip-version-check",
+                        "--no-deps",
+                        str(release.wheel_path),
+                    ]
+                )
             observed_version = self._run(
                 [
                     str(python_path),

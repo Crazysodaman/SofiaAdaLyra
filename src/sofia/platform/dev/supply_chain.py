@@ -16,13 +16,29 @@ import platform
 import re
 import zipfile
 
-from sofia.platform.dev.release import ReleaseManifest
-from sofia.platform.run.release import directory_sha256
+from collections.abc import Mapping
 
+from sofia.platform.verify.component_artifacts import (
+    inspect_wheel,
+    wheel_matches_identity,
+)
+from sofia.platform.dev.release import ComponentArtifactIdentity, ReleaseManifest
+from sofia.platform.run.release import directory_sha256
 
 _PIN = re.compile(
     r"^([A-Za-z0-9_.-]+)==([^\s;]+)(?:\s+--hash=sha256:([0-9a-f]{64}))?$"
 )
+
+
+def _wheel_matches(wheel: Path, component: ComponentArtifactIdentity) -> bool:
+    return wheel_matches_identity(
+        wheel,
+        {
+            "distribution": component.distribution,
+            "version": component.version,
+            "sha256": component.sha256,
+        },
+    )
 
 
 def sha256_file(path: Path) -> str:
@@ -271,7 +287,6 @@ def construct_release_evidence(
     application_version: str,
     python_version: str,
     dependency_lock_path: Path,
-    wheel_path: Path,
     source_dir: Path,
     verification_evidence_path: Path,
     constitution_sha256: str,
@@ -287,10 +302,22 @@ def construct_release_evidence(
     model_id: str | None = None,
     model_sha256: str | None = None,
     asset_sha256: tuple[tuple[str, str], ...] = (),
+    wheel_path: Path | None = None,
+    component_wheels: Mapping[str, Path] | None = None,
 ) -> SupplyChainArtifacts:
     if not isinstance(output_dir, Path):
         raise TypeError("output_dir must be a Path")
-    verify_wheel_identity(wheel_path)
+    if component_wheels is None:
+        if wheel_path is None:
+            raise ValueError(
+                "release requires an integrated wheel or component wheels"
+            )
+        verify_wheel_identity(wheel_path)
+    else:
+        if wheel_path is not None:
+            raise ValueError(
+                "integrated-wheel and component release formats are mutually exclusive"
+            )
     verification_evidence, verification_phase = verified_gate_evidence(
         verification_evidence_path,
         git_revision=git_revision,
@@ -307,10 +334,46 @@ def construct_release_evidence(
     output_dir.mkdir(parents=True, exist_ok=True)
     artifact_dir = output_dir / "artifact"
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    artifact_out = artifact_dir / wheel_path.name
-    artifact_out.write_bytes(wheel_path.read_bytes())
+    artifact_out = artifact_dir
+    if wheel_path is not None:
+        artifact_out = artifact_dir / wheel_path.name
+        artifact_out.write_bytes(wheel_path.read_bytes())
     artifact_lock = artifact_dir / "requirements.lock"
     artifact_lock.write_bytes(lock_bytes)
+    components: tuple[ComponentArtifactIdentity, ...] = ()
+    if component_wheels is not None:
+        expected = {"sdk", "platform", "core"}
+        if set(component_wheels) != expected:
+            raise ValueError(
+                "component releases require exactly sdk, platform and core wheels"
+            )
+        identities: list[ComponentArtifactIdentity] = []
+        for component, path in sorted(component_wheels.items()):
+            path = Path(path)
+            report = inspect_wheel(path, f"sofia-{component}")
+            staged = artifact_dir / path.name
+            staged.write_bytes(path.read_bytes())
+            identities.append(
+                ComponentArtifactIdentity(
+                    component=component,
+                    distribution=f"sofia-{component}",
+                    version=report.version,
+                    sha256=report.sha256,
+                )
+            )
+        components = tuple(identities)
+        platform_version = next(
+            (
+                component.version
+                for component in components
+                if component.component == "platform"
+            ),
+            None,
+        )
+        if platform_version != application_version:
+            raise ValueError(
+                "component release application version must be the platform version"
+            )
     artifact_digest = directory_sha256(artifact_dir)
     source_digest = directory_sha256(source_dir)
     provenance = generate_provenance(
@@ -346,6 +409,7 @@ def construct_release_evidence(
         model_id=model_id,
         model_sha256=model_sha256,
         asset_sha256=asset_sha256,
+        components=components,
     )
 
     lock_out = output_dir / "requirements.lock"
@@ -401,9 +465,36 @@ def verify_release_evidence(root: Path) -> ReleaseManifest:
     if not artifact_dir.is_dir():
         raise ValueError("release evidence artifact directory is missing")
     wheels = tuple(artifact_dir.glob("*.whl"))
-    if len(wheels) != 1:
-        raise ValueError("release artifact must contain exactly one wheel")
-    verify_wheel_identity(wheels[0])
+    if manifest.components:
+        if len(wheels) != len(manifest.components):
+            raise ValueError(
+                "component release artifact must contain exactly the bound component wheels"
+            )
+        bound: list[ComponentArtifactIdentity] = []
+        for wheel in wheels:
+            match = next(
+                (
+                    component
+                    for component in manifest.components
+                    if _wheel_matches(wheel, component)
+                ),
+                None,
+            )
+            if match is None:
+                raise ValueError(
+                    f"component release artifact contains an unbound wheel: {wheel.name}"
+                )
+            bound.append(match)
+        if sorted(c.component for c in bound) != sorted(
+            c.component for c in manifest.components
+        ):
+            raise ValueError(
+                "component release artifact is missing a bound component"
+            )
+    else:
+        if len(wheels) != 1:
+            raise ValueError("release artifact must contain exactly one wheel")
+        verify_wheel_identity(wheels[0])
     artifact_lock = artifact_dir / "requirements.lock"
     if not artifact_lock.is_file():
         raise ValueError("release artifact dependency lock is missing")

@@ -183,3 +183,208 @@ def test_environment_manager_reuses_only_matching_stamped_environment(
     assert first.root == second.root
     assert first.python_path.is_file()
     assert len(calls) == count_after_first
+
+
+def component_release_fixture(
+    tmp_path: Path,
+    wheels: dict[str, Path],
+    *,
+    mutate=None,
+):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    plane = SQLiteStatePlane(state)
+    store = ReleaseStateStore(plane)
+
+    release_root = tmp_path / "release-runtime"
+    artifact = release_root / "releases" / "release-c"
+    artifact.mkdir(parents=True)
+    for component in ("sdk", "platform", "core"):
+        (artifact / wheels[component].name).write_bytes(
+            wheels[component].read_bytes()
+        )
+    if mutate is not None:
+        mutate(artifact)
+    lock = b"cryptography==50.0.2 --hash=sha256:" + (b"b" * 64) + b"\n"
+    (artifact / "requirements.lock").write_bytes(lock)
+    artifact_digest = directory_sha256(artifact)
+
+    components = []
+    from sofia.platform.verify.component_artifacts import inspect_wheel
+
+    for component, wheel in sorted(wheels.items()):
+        report = inspect_wheel(wheel, f"sofia-{component}")
+        from sofia.platform.dev.release import ComponentArtifactIdentity
+
+        components.append(
+            ComponentArtifactIdentity(
+                component=component,
+                distribution=f"sofia-{component}",
+                version=report.version,
+                sha256=report.sha256,
+            )
+        )
+    from sofia.platform.dev.release import ComponentArtifactIdentity as _Identity
+
+    manifest = ReleaseManifest(
+        release_id="release-c",
+        git_revision="1" * 40,
+        application_version="0.1.0",
+        python_version="3.12.10",
+        dependency_lock_sha256=sha256(lock).hexdigest(),
+        sbom_sha256="2" * 64,
+        provenance_sha256="3" * 64,
+        verification_evidence_sha256="5" * 64,
+        verification_phase="full",
+        state_schema_min=1,
+        state_schema_max=1,
+        fleet_protocol_version="1.0",
+        fleet_agent_version="0.1.0",
+        constitution_sha256="4" * 64,
+        configuration_schema_version=1,
+        created_at=NOW,
+        artifact_sha256=artifact_digest,
+        components=tuple(sorted(components, key=lambda identity: identity.component)),
+    )
+    evidence = ReleaseActivationEvidence(
+        release_id=manifest.release_id,
+        manifest_sha256=manifest.manifest_sha256,
+        signer_key_id="test",
+        signature_verified=True,
+        lineage_verified=True,
+        anti_rollback_verified=True,
+        verified_at=NOW,
+    )
+    store.activate(manifest, evidence)
+    pointer = {
+        "release_id": manifest.release_id,
+        "manifest_sha256": manifest.manifest_sha256,
+        "path": str(artifact.resolve()),
+        "previous_release_id": None,
+        "verified_at": NOW.isoformat(),
+    }
+    (release_root / "active-release.json").write_text(
+        json.dumps(pointer),
+        encoding="utf-8",
+    )
+    return state, release_root, artifact, manifest
+
+
+@pytest.fixture(scope="module")
+def built_component_wheels(tmp_path_factory) -> dict[str, Path]:
+    from sofia.platform.verify.component_artifacts import build_all_components
+
+    return build_all_components(tmp_path_factory.mktemp("resolver-wheels"), repo=ROOT)
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_resolver_binds_component_release_wheels(
+    tmp_path, built_component_wheels
+):
+    state, release_root, artifact, manifest = component_release_fixture(
+        tmp_path, built_component_wheels
+    )
+    resolved = ActiveReleaseResolver(
+        state_path=state,
+        release_root=release_root,
+    ).resolve()
+    assert resolved is not None
+    assert resolved.wheel_path is None
+    assert [wheel.name for wheel in resolved.component_wheels] == sorted(
+        built_component_wheels[component].name
+        for component in ("sdk", "platform", "core")
+    )
+    assert resolved.artifact_sha256 == manifest.artifact_sha256
+
+
+def test_resolver_rejects_component_release_with_extra_wheel(
+    tmp_path, built_component_wheels
+):
+    def add_extra(artifact: Path) -> None:
+        (artifact / "extra-1.0-py3-none-any.whl").write_bytes(b"not a wheel")
+
+    state, release_root, artifact, _ = component_release_fixture(
+        tmp_path,
+        built_component_wheels,
+        mutate=add_extra,
+    )
+
+    with pytest.raises(ActiveReleaseError, match="wheel count mismatch"):
+        ActiveReleaseResolver(
+            state_path=state,
+            release_root=release_root,
+        ).resolve()
+
+
+def test_resolver_rejects_tampered_component_wheel(
+    tmp_path, built_component_wheels
+):
+    core_name = built_component_wheels["core"].name
+
+    def tamper(artifact: Path) -> None:
+        core_wheel = artifact / core_name
+        core_wheel.write_bytes(core_wheel.read_bytes() + b"\x00tamper")
+
+    state, release_root, artifact, _ = component_release_fixture(
+        tmp_path,
+        built_component_wheels,
+        mutate=tamper,
+    )
+
+    with pytest.raises(ActiveReleaseError, match="absent, duplicated or tampered"):
+        ActiveReleaseResolver(
+            state_path=state,
+            release_root=release_root,
+        ).resolve()
+
+
+def test_environment_manager_installs_component_wheels(
+    tmp_path,
+    monkeypatch,
+    built_component_wheels,
+):
+    state, release_root, _, _ = component_release_fixture(
+        tmp_path, built_component_wheels
+    )
+    release = ActiveReleaseResolver(
+        state_path=state,
+        release_root=release_root,
+    ).resolve()
+    assert release is not None
+
+    class FakeBuilder:
+        def __init__(self, **kwargs):
+            pass
+
+        def create(self, root):
+            python = ReleaseEnvironmentManager._python(Path(root))
+            python.parent.mkdir(parents=True, exist_ok=True)
+            python.write_bytes(b"python")
+
+    monkeypatch.setattr(
+        "sofia.platform.run.active_release.venv.EnvBuilder",
+        FakeBuilder,
+    )
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+    calls = []
+
+    def fake_run(argv, *, timeout=600):
+        calls.append(tuple(argv))
+        if "-c" in argv:
+            return release.application_version
+        return ""
+
+    monkeypatch.setattr(manager, "_run", fake_run)
+    prepared = manager.ensure(release)
+    install_calls = [
+        call for call in calls if "--no-deps" in call
+    ]
+    assert len(install_calls) == 3
+    assert [
+        Path(call[-1]).name for call in install_calls
+    ] == [
+        wheel.name for wheel in release.component_wheels
+    ]
+    assert any(call[-1] == "check" for call in calls)
+    assert prepared.python_path.is_file()

@@ -149,6 +149,53 @@ jobs:
             ${{ runner.temp }}/source-provenance.json
           if-no-files-found: warn
 
+      - name: Construct and verify separated component artifacts
+        shell: pwsh
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          $Py = "$env:SOFIA_RELEASE_VENV\Scripts\python.exe"
+          $AppVersion = & $Py -c "from sofia.core.package_metadata import application_version; print(application_version())"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $Py -m sofia.platform.verify.component_artifacts `
+            --output "$env:RUNNER_TEMP\sofia-components" `
+            --repo "$env:GITHUB_WORKSPACE" `
+            --version "$AppVersion" 2>&1 |
+            Tee-Object -FilePath "$env:RUNNER_TEMP\sofia-components.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $Sdk = (Get-ChildItem "$env:RUNNER_TEMP\sofia-components\sofia_sdk-*.whl" | Select-Object -First 1).FullName
+          $Platform = (Get-ChildItem "$env:RUNNER_TEMP\sofia-components\sofia_platform-*.whl" | Select-Object -First 1).FullName
+          $Core = (Get-ChildItem "$env:RUNNER_TEMP\sofia-components\sofia_core-*.whl" | Select-Object -First 1).FullName
+          $Args = @(
+            "-m","sofia.platform.dev.release_cli","construct",
+            "--git-revision","${{ github.sha }}",
+            "--lock","requirements.lock.windows-py312.txt",
+            "--component-wheel","sdk=$Sdk",
+            "--component-wheel","platform=$Platform",
+            "--component-wheel","core=$Core",
+            "--source",$env:SOFIA_RELEASE_SOURCE,
+            "--constitution-hash",(Join-Path $env:SOFIA_RELEASE_SOURCE "src\sofia\core\constitution\constitution.sha256"),
+            "--verification-evidence",$env:SOFIA_VERIFICATION_EVIDENCE,
+            "--output","release-evidence-components"
+          )
+          if ($env:RELEASE_ID) {
+            $Args += @("--release-id","$env:RELEASE_ID-components")
+          }
+          & $Py @Args
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $Py -m sofia.platform.dev.release_cli verify --release-dir release-evidence-components
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload separated component release candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-candidate-components-${{ github.sha }}
+          path: |
+            release-evidence-components
+            ${{ runner.temp }}/sofia-components.log
+          if-no-files-found: error
+
       - name: Construct and verify release evidence
         shell: pwsh
         env:

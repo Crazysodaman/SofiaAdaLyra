@@ -1,16 +1,18 @@
 """G2-B.3 authorized Core component installation tests.
 
-Covers the authority gate, signature evidence, content compatibility,
-downgrade rejection, platform-local receipt registry, and the overlay health
-probe against the live Platform.
+Covers the authority gate, trusted signature verification (forged, wrong
+signer, tampered), content compatibility, downgrade rejection, platform-local
+receipt registry, and the overlay health probe against the live Platform.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import base64
 from pathlib import Path
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from sofia.platform.ops.bootstrap import InstallAuthority
 from sofia.platform.ops.component_install import (
@@ -19,6 +21,7 @@ from sofia.platform.ops.component_install import (
     CoreComponentInstallError,
     CoreComponentInstaller,
     CoreComponentRegistry,
+    Ed25519ComponentSignatureVerifier,
     verify_core_component_content,
 )
 from sofia.platform.ops.platform_install import InstallOutcome
@@ -31,6 +34,8 @@ from sofia.platform.verify.component_artifacts import (
 
 ROOT = Path(__file__).resolve().parents[1]
 
+_SIGNER_KEY_ID = "release-signing-key"
+
 
 @pytest.fixture(scope="session")
 def component_wheels(tmp_path_factory) -> dict[str, Path]:
@@ -38,64 +43,142 @@ def component_wheels(tmp_path_factory) -> dict[str, Path]:
     return build_all_components(output_dir, repo=ROOT)
 
 
-def _artifact(wheel_path: Path, version: str = "0.1.0") -> CoreComponentArtifact:
-    import hashlib
+@pytest.fixture(scope="session")
+def signer() -> Ed25519PrivateKey:
+    return Ed25519PrivateKey.generate()
 
+
+@pytest.fixture(scope="session")
+def verifier(signer: Ed25519PrivateKey) -> Ed25519ComponentSignatureVerifier:
+    public_pem = signer.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    return Ed25519ComponentSignatureVerifier({_SIGNER_KEY_ID: public_pem})
+
+
+def _artifact(
+    wheel_path: Path,
+    signer: Ed25519PrivateKey,
+    *,
+    version: str = "0.1.0",
+    digest: str | None = None,
+    key_id: str = _SIGNER_KEY_ID,
+) -> CoreComponentArtifact:
+    observed = Path(wheel_path).read_bytes()
+    from hashlib import sha256
+
+    observed_digest = sha256(observed).hexdigest()
     return CoreComponentArtifact(
         artifact_id=CORE_DISTRIBUTION,
         version=version,
-        sha256=hashlib.sha256(wheel_path.read_bytes()).hexdigest(),
-        signature_verified=True,
-        signer_key_id="release-signing-key",
+        sha256=digest if digest is not None else observed_digest,
+        signature_b64=base64.b64encode(
+            signer.sign(observed_digest.encode("ascii"))
+        ).decode(),
+        signer_key_id=key_id,
         source="offline-cache",
     )
 
 
-def test_authorized_install_records_platform_local_receipt(tmp_path, component_wheels):
-    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
-    installer = CoreComponentInstaller(registry)
+def _installer(tmp_path, verifier) -> CoreComponentInstaller:
+    return CoreComponentInstaller(
+        CoreComponentRegistry(tmp_path / "core-components.sqlite"),
+        verifier,
+    )
+
+
+def test_authorized_install_records_platform_local_receipt(
+    tmp_path, component_wheels, signer, verifier
+):
+    installer = _installer(tmp_path, verifier)
     receipt = installer.execute(
-        _artifact(component_wheels["core"]),
+        _artifact(component_wheels["core"], signer),
         component_wheels["core"],
         authority=InstallAuthority.OPERATOR_APPROVED,
         approval_id="approval:core-1",
     )
     assert receipt.outcome is InstallOutcome.SUCCEEDED
     assert receipt.health_verified is True
-    recorded = registry.installed(CORE_DISTRIBUTION)
+    recorded = installer.registry.installed(CORE_DISTRIBUTION)
     assert recorded is not None
     assert recorded.version == "0.1.0"
     assert recorded.artifact_sha256 == receipt.artifact_sha256
 
 
-def test_install_requires_explicit_authority(tmp_path, component_wheels):
-    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
-    installer = CoreComponentInstaller(registry)
+def test_install_requires_explicit_authority(
+    tmp_path, component_wheels, signer, verifier
+):
+    installer = _installer(tmp_path, verifier)
     with pytest.raises(PermissionError):
         installer.execute(
-            _artifact(component_wheels["core"]),
+            _artifact(component_wheels["core"], signer),
             component_wheels["core"],
             authority=InstallAuthority.NONE,
         )
     with pytest.raises(PermissionError):
         installer.execute(
-            _artifact(component_wheels["core"]),
+            _artifact(component_wheels["core"], signer),
             component_wheels["core"],
             authority=InstallAuthority.OPERATOR_APPROVED,
         )
-    assert registry.installed(CORE_DISTRIBUTION) is None
+    assert installer.registry.installed(CORE_DISTRIBUTION) is None
 
 
-def test_unverified_signature_evidence_is_rejected(tmp_path):
-    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
-    with pytest.raises(CoreComponentInstallError):
-        CoreComponentArtifact(
-            artifact_id=CORE_DISTRIBUTION,
-            version="0.1.0",
-            sha256="0" * 64,
-            signature_verified=False,
-            signer_key_id="release-signing-key",
-            source="offline-cache",
+def test_forged_signature_is_rejected(tmp_path, component_wheels, signer, verifier):
+    installer = _installer(tmp_path, verifier)
+    forged = Ed25519PrivateKey.generate()
+    with pytest.raises(CoreComponentInstallError, match="does not verify"):
+        installer.execute(
+            _artifact(component_wheels["core"], forged),
+            component_wheels["core"],
+            authority=InstallAuthority.OPERATOR_APPROVED,
+            approval_id="approval:forged",
+        )
+
+
+def test_wrong_signer_key_is_rejected(tmp_path, component_wheels, signer, verifier):
+    installer = _installer(tmp_path, verifier)
+    with pytest.raises(CoreComponentInstallError, match="not trusted"):
+        installer.execute(
+            _artifact(component_wheels["core"], signer, key_id="untrusted-key"),
+            component_wheels["core"],
+            authority=InstallAuthority.OPERATOR_APPROVED,
+            approval_id="approval:untrusted",
+        )
+
+
+def test_tampered_wheel_is_rejected(tmp_path, component_wheels, signer, verifier):
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    tampered = tmp_path / "tampered-core.whl"
+    tampered.write_bytes(component_wheels["core"].read_bytes() + b"\x00tamper")
+    from hashlib import sha256
+
+    tampered_digest = sha256(tampered.read_bytes()).hexdigest()
+    with pytest.raises(CoreComponentInstallError, match="digest does not match"):
+        installer.execute(
+            artifact,
+            tampered,
+            authority=InstallAuthority.OPERATOR_APPROVED,
+            approval_id="approval:tampered",
+        )
+    stale_signature = base64.b64encode(
+        signer.sign(artifact.sha256.encode("ascii"))
+    ).decode()
+    with pytest.raises(CoreComponentInstallError, match="does not verify"):
+        installer.execute(
+            CoreComponentArtifact(
+                artifact_id=CORE_DISTRIBUTION,
+                version="0.1.0",
+                sha256=tampered_digest,
+                signature_b64=stale_signature,
+                signer_key_id=_SIGNER_KEY_ID,
+                source="offline-cache",
+            ),
+            tampered,
+            authority=InstallAuthority.OPERATOR_APPROVED,
+            approval_id="approval:tampered-2",
         )
 
 
@@ -130,22 +213,23 @@ def test_core_wheel_containing_platform_files_is_rejected(tmp_path):
         verify_core_component_content(wheel)
 
 
-def test_downgrade_requires_rollback_authority(tmp_path, component_wheels):
-    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
-    installer = CoreComponentInstaller(registry)
+def test_downgrade_requires_rollback_authority(
+    tmp_path, component_wheels, signer, verifier
+):
+    installer = _installer(tmp_path, verifier)
     newer_output = tmp_path / "newer"
     newer_output.mkdir()
     newer_wheel = build_component(
         "core", newer_output, repo=ROOT, version="0.2.0",
     )
     installer.execute(
-        _artifact(newer_wheel, version="0.2.0"),
+        _artifact(newer_wheel, signer, version="0.2.0"),
         newer_wheel,
         authority=InstallAuthority.STANDING_POLICY,
     )
     with pytest.raises(CoreComponentInstallError, match="downgrade"):
         installer.execute(
-            _artifact(component_wheels["core"], version="0.1.0"),
+            _artifact(component_wheels["core"], signer, version="0.1.0"),
             component_wheels["core"],
             authority=InstallAuthority.OPERATOR_APPROVED,
             approval_id="approval:core-2",
