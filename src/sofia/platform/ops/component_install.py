@@ -303,6 +303,10 @@ class CoreComponentInstaller:
     ) -> CoreComponentReceipt:
         if not isinstance(artifact, CoreComponentArtifact):
             raise TypeError("CoreComponentArtifact required")
+        if artifact.artifact_id != CORE_DISTRIBUTION:
+            raise CoreComponentInstallError(
+                "Core component artifact ID must be sofia-core"
+            )
         if authority is InstallAuthority.NONE:
             raise PermissionError("Core component installation requires explicit authority")
         if authority is InstallAuthority.OPERATOR_APPROVED and not approval_id:
@@ -329,8 +333,13 @@ class CoreComponentInstaller:
         self.signature_verifier.verify(artifact, wheel_path)
         try:
             verify_core_component_content(wheel_path)
+            wheel_metadata = inspect_wheel(wheel_path, CORE_DISTRIBUTION)
         except ComponentArtifactError as error:
             raise CoreComponentInstallError(str(error)) from error
+        if wheel_metadata.version != artifact.version:
+            raise CoreComponentInstallError(
+                "Core artifact declared version does not match signed wheel metadata"
+            )
         health_verified = self._verify_health(wheel_path)
         if not health_verified:
             raise CoreComponentInstallError("Core component failed the health probe")
