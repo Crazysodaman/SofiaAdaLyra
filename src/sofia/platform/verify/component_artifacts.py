@@ -456,10 +456,9 @@ def verify_component_separation(
     missing = set(COMPONENT_DISTRIBUTIONS) - set(wheels)
     if missing:
         raise ComponentArtifactError(f"missing component wheels: {sorted(missing)}")
-    components = load_component_manifest()
     reports = {
         distribution: inspect_wheel(
-            Path(wheel), str(components[distribution]["distribution"])
+            Path(wheel), f"sofia-{distribution}"
         )
         for distribution, wheel in wheels.items()
     }
