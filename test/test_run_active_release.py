@@ -543,4 +543,8 @@ def test_environment_manager_installs_component_wheels(
         wheel.name for wheel in release.component_wheels
     ]
     assert any(call[-1] == "check" for call in calls)
+    version_calls = [call for call in calls if "-c" in call]
+    assert len(version_calls) == 1
+    assert "version('sofia-platform')" in version_calls[0][-1]
+    assert "sofia-ada-lyra" not in version_calls[0][-1]
     assert prepared.python_path.is_file()
