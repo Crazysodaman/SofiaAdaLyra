@@ -347,13 +347,19 @@ class ReleaseEnvironmentManager:
                         str(release.wheel_path),
                     ]
                 )
+            # Separated releases install sofia-platform, not the legacy
+            # sofia-ada-lyra distribution. Verify the package actually
+            # installed in this environment against the manifest version.
+            distribution = (
+                "sofia-platform" if release.component_wheels else "sofia-ada-lyra"
+            )
             observed_version = self._run(
                 [
                     str(python_path),
                     "-c",
                     (
                         "from importlib.metadata import version;"
-                        "print(version('sofia-ada-lyra'))"
+                        f"print(version({distribution!r}))"
                     ),
                 ],
                 timeout=60,
