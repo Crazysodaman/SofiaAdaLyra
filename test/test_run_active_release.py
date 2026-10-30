@@ -555,3 +555,49 @@ def test_environment_manager_installs_component_wheels(
     } == {"sofia-sdk", "sofia-platform", "sofia-core"}
     assert all("sofia-ada-lyra" not in call[-1] for call in version_calls)
     assert prepared.python_path.is_file()
+
+
+
+def test_environment_manager_rejects_missing_installed_core_distribution(
+    tmp_path,
+    monkeypatch,
+    built_component_wheels,
+):
+    state, release_root, _, _ = component_release_fixture(
+        tmp_path, built_component_wheels
+    )
+    release = ActiveReleaseResolver(
+        state_path=state,
+        release_root=release_root,
+    ).resolve()
+    assert release is not None
+
+    class FakeBuilder:
+        def __init__(self, **kwargs):
+            pass
+
+        def create(self, root):
+            python = ReleaseEnvironmentManager._python(Path(root))
+            python.parent.mkdir(parents=True, exist_ok=True)
+            python.write_bytes(b"python")
+
+    monkeypatch.setattr(
+        "sofia.platform.run.active_release.venv.EnvBuilder",
+        FakeBuilder,
+    )
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+
+    def fake_run(argv, *, timeout=600):
+        if "-c" in argv:
+            if "version('sofia-core')" in argv[-1]:
+                raise ActiveReleaseError("Core distribution is not installed")
+            return release.application_version
+        return ""
+
+    monkeypatch.setattr(manager, "_run", fake_run)
+
+    with pytest.raises(ActiveReleaseError, match="Core distribution is not installed"):
+        manager.ensure(release)
+    assert not (
+        release_root / "environments" / release.release_id
+    ).exists()
