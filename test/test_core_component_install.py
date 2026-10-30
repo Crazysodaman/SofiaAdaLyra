@@ -182,6 +182,41 @@ def test_tampered_wheel_is_rejected(tmp_path, component_wheels, signer, verifier
         )
 
 
+def test_core_component_rejects_wrong_artifact_identity(
+    tmp_path, component_wheels, signer, verifier
+):
+    from dataclasses import replace
+
+    installer = _installer(tmp_path, verifier)
+    artifact = replace(
+        _artifact(component_wheels["core"], signer),
+        artifact_id="sofia-other",
+    )
+    with pytest.raises(CoreComponentInstallError, match="artifact ID"):
+        installer.execute(
+            artifact,
+            component_wheels["core"],
+            authority=InstallAuthority.STANDING_POLICY,
+        )
+    assert installer.registry.installed(CORE_DISTRIBUTION) is None
+
+
+def test_core_component_rejects_signed_version_mismatch(
+    tmp_path, component_wheels, signer, verifier
+):
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(
+        component_wheels["core"], signer, version="9.9.9",
+    )
+    with pytest.raises(CoreComponentInstallError, match="version.*wheel metadata"):
+        installer.execute(
+            artifact,
+            component_wheels["core"],
+            authority=InstallAuthority.STANDING_POLICY,
+        )
+    assert installer.registry.installed(CORE_DISTRIBUTION) is None
+
+
 def test_registry_rejects_canonical_state_database(tmp_path):
     with pytest.raises(ValueError):
         CoreComponentRegistry(tmp_path / "sofia.db")
