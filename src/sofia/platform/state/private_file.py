@@ -89,14 +89,11 @@ def assert_owner_private_path(path: Path, *, directory: bool) -> None:
         # separately witnessed Windows token effective-access audit.
         owner_read = False
         owner_write = False
-        read_bits = (
-            win32con.GENERIC_ALL | win32con.GENERIC_READ
-            | win32con.FILE_READ_DATA
-        )
-        write_bits = (
-            win32con.GENERIC_ALL | win32con.GENERIC_WRITE
-            | win32con.FILE_WRITE_DATA
-        )
+        # NT file access masks: FILE_READ_DATA/FILE_LIST_DIRECTORY = 0x1,
+        # FILE_WRITE_DATA/FILE_ADD_FILE = 0x2. pywin32's win32con does not
+        # export these FILE_* constants on every supported Windows wheel.
+        read_bits = win32con.GENERIC_ALL | win32con.GENERIC_READ | 0x0001
+        write_bits = win32con.GENERIC_ALL | win32con.GENERIC_WRITE | 0x0002
         for index in range(dacl.GetAceCount()):
             ace = dacl.GetAce(index)
             ace_type, ace_flags = ace[0]
