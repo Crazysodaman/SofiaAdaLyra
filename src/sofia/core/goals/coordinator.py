@@ -661,6 +661,7 @@ class GoalProductionCoordinator:
                         parent=goal, child_titles=steps, now=now,
                     )
             avoid_capabilities: tuple[str, ...] = ()
+            episode_ids: tuple[str, ...] = ()
             principal = self.principal_provider()
             if (
                 self.generalization is not None and principal is not None
@@ -675,26 +676,49 @@ class GoalProductionCoordinator:
                     )
                     episode_ids = tuple(advice["episode_ids"])
                     if episode_ids:
-                        self.generalization.record_planning_influence(
-                            principal=principal, goal_id=goal.id,
-                            episode_ids=episode_ids,
-                            reason="Scoped typed prior outcomes informed diagnostic selection",
-                            ablation="with_experience", now=now,
-                        )
-                        self.generalization.record_planning_influence(
-                            principal=principal, goal_id=goal.id, episode_ids=(),
-                            reason="Deterministic no-experience comparison",
-                            ablation="without_experience", now=now,
-                        )
                         avoid_capabilities = tuple(advice["avoid_capabilities"])
                 except (LookupError, PermissionError, ValueError):
                     # Missing/revoked learning permission cannot block canonical
                     # GOALS work; the deterministic no-learning planner remains.
                     avoid_capabilities = ()
-            plan = self.planner.plan(
-                goal, diagnostic_done=self._diagnostic_done(goal.id),
-                avoid_capabilities=avoid_capabilities,
+                    episode_ids = ()
+            diagnostic_done = self._diagnostic_done(goal.id)
+            baseline_plan = self.planner.plan(
+                goal, diagnostic_done=diagnostic_done,
             )
+            plan = (
+                self.planner.plan(
+                    goal, diagnostic_done=diagnostic_done,
+                    avoid_capabilities=avoid_capabilities,
+                )
+                if avoid_capabilities else baseline_plan
+            )
+            # Historical experience being available is not proof that it
+            # influenced a decision. Record the controlled ablation only when
+            # GOALS actually chooses differently from its deterministic plan.
+            if (
+                self.generalization is not None
+                and principal is not None
+                and episode_ids
+                and avoid_capabilities
+                and plan != baseline_plan
+            ):
+                try:
+                    self.generalization.record_planning_influence(
+                        principal=principal, goal_id=goal.id,
+                        episode_ids=episode_ids,
+                        reason="Verified experience changed the diagnostic choice",
+                        ablation="with_experience", now=now,
+                    )
+                    self.generalization.record_planning_influence(
+                        principal=principal, goal_id=goal.id, episode_ids=(),
+                        reason="Actual deterministic no-experience comparison",
+                        ablation="without_experience", now=now,
+                    )
+                except (LookupError, PermissionError, ValueError):
+                    # Revocation between advice retrieval and its validated
+                    # influence trace cannot leave a learned choice acting.
+                    plan = baseline_plan
             if plan is None:
                 self.goals.set_run_state(
                     goal=goal, run_state=GoalRunState.WAITING_EVIDENCE,
