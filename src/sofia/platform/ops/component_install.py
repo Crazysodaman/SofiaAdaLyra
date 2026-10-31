@@ -25,6 +25,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 from sofia.platform.ops.platform_install import InstallAuthority, InstallOperation, InstallOutcome
 from sofia.platform.verify.component_artifacts import (
@@ -283,6 +284,14 @@ def verify_core_component_content(wheel_path: Path) -> None:
         )
 
 
+# This verifier must be backed by the existing independently trusted owner
+# approval or signed standing-policy authority. An approval ID alone is never
+# permission, and this component is not an authorization database.
+CoreInstallAuthorizer = Callable[
+    [InstallAuthority, str | None, CoreComponentArtifact, InstallOperation], bool
+]
+
+
 class CoreComponentInstaller:
     """Install or replace the Core component under explicit authority."""
 
@@ -292,7 +301,10 @@ class CoreComponentInstaller:
         signature_verifier: ComponentSignatureVerifier,
         *,
         installation_root: Path | None = None,
+        authorization_check: CoreInstallAuthorizer | None = None,
     ) -> None:
+        if authorization_check is not None and not callable(authorization_check):
+            raise TypeError("authorization_check must be a trusted callable")
         if not isinstance(signature_verifier, ComponentSignatureVerifier):
             raise TypeError(
                 "Core component installation requires a trusted signature verifier"
@@ -300,6 +312,7 @@ class CoreComponentInstaller:
         self.registry = registry
         self.signature_verifier = signature_verifier
         self.installation_root = Path(installation_root).resolve() if installation_root else None
+        self.authorization_check = authorization_check
 
     def execute(
         self,
@@ -316,6 +329,10 @@ class CoreComponentInstaller:
             raise CoreComponentInstallError(
                 "Core component artifact ID must be sofia-core"
             )
+        if not isinstance(authority, InstallAuthority):
+            raise TypeError("InstallAuthority required")
+        if not isinstance(operation, InstallOperation):
+            raise TypeError("InstallOperation required")
         if authority is InstallAuthority.NONE:
             raise PermissionError("Core component installation requires explicit authority")
         if authority is InstallAuthority.OPERATOR_APPROVED and not approval_id:
@@ -353,6 +370,13 @@ class CoreComponentInstaller:
             raise CoreComponentInstallError(
                 "installation_root is required; a health probe is not a physical install"
             )
+        # Caller-supplied enum values and arbitrary approval IDs are not
+        # independent proof. Only a trusted approval/policy consumer can
+        # authorize this exact artifact and operation.
+        if self.authorization_check is None:
+            raise PermissionError("trusted Core installation authorizer is required")
+        if self.authorization_check(authority, approval_id, artifact, operation) is not True:
+            raise PermissionError("Core component installation authority denied")
         health_verified = self._verify_health(wheel_path)
         if not health_verified:
             raise CoreComponentInstallError("Core component failed the health probe")
