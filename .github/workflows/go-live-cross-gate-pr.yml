@@ -1,4 +1,4 @@
-name: GO LIVE Cross-Gate Regression (G1 G4 G6 G7-A)
+name: GO LIVE Cross-Gate Regression (G1 G3 G4 G6 G7-A)
 
 on:
   push:
@@ -11,6 +11,7 @@ on:
       - 'test/test_core_link_conversation.py'
       - 'test/test_platform_ui_launchers.py'
       - 'test/test_module_lifecycle_v1.py'
+      - 'test/test_state_operator_handoff_review.py'
       - 'test/test_cognition_v2_evidence.py'
       - '.github/workflows/go-live-cross-gate-pr.yml'
   pull_request:
@@ -23,6 +24,7 @@ on:
       - 'test/test_core_link_conversation.py'
       - 'test/test_platform_ui_launchers.py'
       - 'test/test_module_lifecycle_v1.py'
+      - 'test/test_state_operator_handoff_review.py'
       - 'test/test_cognition_v2_evidence.py'
       - '.github/workflows/go-live-cross-gate-pr.yml'
   workflow_dispatch:
@@ -68,6 +70,8 @@ jobs:
           python -m compileall -q src/sofia test
       - name: G1 and G4 TLS conversation and current-user launcher regressions
         run: python -m pytest -q test/test_core_link_conversation.py test/test_platform_ui_launchers.py
+      - name: G3 fenced state handoff and pending pointer binding regressions
+        run: python -m pytest -q test/test_state_operator_handoff_review.py
       - name: G6 independently governed module lifecycle regressions
         run: python -m pytest -q test/test_module_lifecycle_v1.py
       - name: G7-A cognitive evidence and truth regressions
