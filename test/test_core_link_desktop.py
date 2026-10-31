@@ -186,6 +186,57 @@ def test_remote_desktop_preserves_uncertain_turn_and_reconciles_after_restart(
     assert settled.draft == ""
 
 
+@pytest.mark.parametrize(
+    "history_change",
+    (
+        {"session_id": "session:another"},
+        {"messages": [{
+            "message_id": "m1", "role": "assistant", "content": "ok",
+            "created_at": "2026-10-25T20:00:00",
+        }]},
+        {"messages": [{
+            "message_id": "m1", "role": "assistant", "content": 123,
+            "created_at": NOW.isoformat(),
+        }]},
+        {"messages": [{
+            "message_id": "m1", "role": "assistant", "content": "ok",
+            "created_at": NOW.isoformat(),
+        }, {
+            "message_id": "m1", "role": "user", "content": "duplicate",
+            "created_at": NOW.isoformat(),
+        }]},
+        {"messages": [{
+            "message_id": "m1", "role": "assistant", "content": "ok",
+            "created_at": "not a timestamp",
+        }]},
+    ),
+)
+def test_remote_desktop_rejects_invalid_or_cross_session_history(
+    tmp_path, history_change,
+):
+    selected = binding()
+    history = {
+        "session_id": "session:remote", "messages": [],
+        "next_cursor": None,
+    }
+    history.update(history_change)
+    script = response_script_for_start()
+    script[-1] = (
+        "conversation.history", CoreLinkResponseStatus.COMPLETED, history,
+    )
+    transport = ScriptedTransport(script)
+    store = CoreLinkDesktopStateStore(
+        (tmp_path / "unsafe-history.json").resolve(), selected,
+    )
+    client = CoreLinkDesktopClient(
+        transport, selected, store, clock=lambda: NOW,
+    )
+    with pytest.raises(RuntimeError, match="history"):
+        client.start()
+    assert client.messages == ()
+    assert store.load().session_id == "session:remote"
+
+
 def test_client_state_is_profile_bound_private_json_not_canonical_sqlite(tmp_path):
     selected = binding()
     path = (tmp_path / "remote-ui.json").resolve()
