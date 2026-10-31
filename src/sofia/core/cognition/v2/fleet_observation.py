@@ -184,3 +184,22 @@ class FleetCognitiveEvidenceBridge:
                 )
                 revoked.append(atom.evidence_id)
         return tuple(revoked)
+
+    def revoke_node(
+        self, *, node_id: str, reason: str, source_ref: str, now: datetime,
+    ) -> tuple[str, ...]:
+        """Revoke every audience-scoped fact for one retired Fleet node."""
+        subject_id = f"fleet-node:{node_id}"
+        revoked = []
+        for atom in self.ledger.subject_atoms(subject_id):
+            if atom.acquisition_state is not AcquisitionState.CURRENT:
+                continue
+            self.ledger.record_status(
+                atom.evidence_id,
+                AcquisitionState.REVOKED,
+                reason=reason,
+                source_ref=source_ref,
+                changed_at=now,
+            )
+            revoked.append(atom.evidence_id)
+        return tuple(revoked)

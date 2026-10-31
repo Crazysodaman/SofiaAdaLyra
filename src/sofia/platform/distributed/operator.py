@@ -58,6 +58,10 @@ def retire_node(state_path:Path,node_id:UUID)->None:
         grants.revoke_node(node_id)
     finally:
         identities.close(); endpoints.close(); grants.close()
+    from sofia.platform.application.fleet_retirement import reconcile_retired_node
+    reconcile_retired_node(
+        state_path, node_id=node_id, now=datetime.now(timezone.utc),
+    )
 
 def fingerprint_certificate(path:Path)->str:
     return public_key_fingerprint_from_pem_certificate(path)

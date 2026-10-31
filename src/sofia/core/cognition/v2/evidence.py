@@ -370,6 +370,24 @@ class CognitiveEvidenceLedger:
                 for row in rows
             )
 
+    def subject_atoms(self, subject_id: str) -> tuple[EvidenceAtom, ...]:
+        """Return bounded durable evidence for one exact subject identity."""
+        if not isinstance(subject_id, str) or not subject_id.strip():
+            raise ValueError("subject_id must be nonempty")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM cognition_v2_evidence WHERE subject_id=? "
+                "ORDER BY observed_at,evidence_id LIMIT 4096",
+                (subject_id,),
+            ).fetchall()
+            return tuple(
+                self._row_to_atom(
+                    row,
+                    state=self._latest_state(db, row["evidence_id"]),
+                )
+                for row in rows
+            )
+
     def dependencies(self, evidence_id: str) -> tuple[str, ...]:
         with closing(self._connect()) as db:
             return tuple(
