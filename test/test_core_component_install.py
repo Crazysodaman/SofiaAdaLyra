@@ -364,6 +364,7 @@ def test_core_rollback_exact_signed_history_reuses_verified_artifact(
     tmp_path, component_wheels, signer, verifier, monkeypatch
 ):
     from dataclasses import replace
+    from hashlib import sha256
 
     installer = _installer(tmp_path, verifier)
     artifact = _artifact(component_wheels["core"], signer)
@@ -380,7 +381,7 @@ def test_core_rollback_exact_signed_history_reuses_verified_artifact(
     monkeypatch.setattr(installer, "_verify_health", lambda _wheel: True)
     monkeypatch.setattr(
         installer, "_stage_verified_install",
-        lambda wheel, item: observed.append((wheel, item)) or staged,
+        lambda wheel, item: observed.append((wheel.name, sha256(wheel.read_bytes()).hexdigest(), item)) or staged,
     )
     receipt = installer.execute(
         artifact,
@@ -388,7 +389,7 @@ def test_core_rollback_exact_signed_history_reuses_verified_artifact(
         authority=InstallAuthority.STANDING_POLICY,
         operation=InstallOperation.ROLLBACK,
     )
-    assert observed == [(component_wheels["core"], artifact)]
+    assert observed == [(component_wheels["core"].name, artifact.sha256, artifact)]
     assert receipt.operation is InstallOperation.ROLLBACK
     assert receipt.artifact_sha256 == old.artifact_sha256
     assert installer.registry.history() == (old, current, receipt)
@@ -751,21 +752,19 @@ def test_g2_install_rejects_changed_wheel_after_signed_review(
     artifact = _artifact(wheel, signer)
     installer = _installer(tmp_path, verifier)
 
-    def mutate_after_review(_wheel):
+    def mutate_after_review(_authority, _approval, _artifact, _operation):
         wheel.write_bytes(wheel.read_bytes() + b"changed after authorization")
         return True
 
-    monkeypatch.setattr(installer, "_verify_health", mutate_after_review)
+    installer.authorization_check = mutate_after_review
     with pytest.raises(
         CoreComponentInstallError, match="changed after signature verification"
     ):
         installer.execute(artifact, wheel, authority=InstallAuthority.STANDING_POLICY)
     assert installer.registry.installed() is None
     assert installer.registry.history() == ()
-    attempts = installer.registry.attempts()
-    assert len(attempts) == 1
-    assert attempts[0].outcome is InstallOutcome.FAILED
-    assert not list(installer.installation_root.glob("core-*"))
+    assert installer.registry.attempts() == ()
+    assert not installer.installation_root.exists()
 
 
 def test_g2_pip_installs_private_digest_pinned_snapshot(
@@ -829,3 +828,37 @@ def test_g2_rechecks_installation_parent_if_redirected_after_construction(
     assert list(target.iterdir()) == []
     assert registry.installed() is None
     assert registry.pending_attempts() == ()
+
+
+def test_g2_health_probe_never_imports_mutated_external_wheel(
+    tmp_path, component_wheels, signer, verifier, monkeypatch
+):
+    """A changed source after review cannot change the Core health candidate."""
+    import shutil
+    from hashlib import sha256
+
+    original = component_wheels["core"]
+    wheel = tmp_path / original.name
+    shutil.copyfile(original, wheel)
+    artifact = _artifact(wheel, signer)
+    installer = _installer(tmp_path, verifier)
+    health_inputs = []
+
+    def probe(reviewed):
+        assert reviewed != wheel
+        assert reviewed.is_file()
+        assert sha256(reviewed.read_bytes()).hexdigest() == artifact.sha256
+        health_inputs.append(reviewed.name)
+        wheel.write_bytes(wheel.read_bytes() + b"external source mutated")
+        return True
+
+    monkeypatch.setattr(installer, "_verify_health", probe)
+    receipt = installer.execute(
+        artifact, wheel, authority=InstallAuthority.STANDING_POLICY,
+    )
+    assert receipt.outcome is InstallOutcome.SUCCEEDED
+    assert health_inputs == [wheel.name]
+    assert installer.registry.installed() == receipt
+    # A later reconciliation must still reject the now-invalid source.
+    with pytest.raises(CoreComponentInstallError, match="artifact digest mismatch"):
+        installer.verify_installed(artifact, wheel)
