@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import stat
 import subprocess
@@ -61,8 +61,13 @@ def inspect_subject(path: Path, expected_digest: str, revision: str) -> dict:
         if sum(item.file_size for item in entries) > 1024 ** 3:
             raise ValueError("release archive exceeds inspection bound")
         for item in entries:
-            name = PurePosixPath(item.filename)
-            if (name.is_absolute() or ".." in name.parts or "\\" in item.filename
+            # ZipInfo normalizes backslashes on Windows and truncates NULs.
+            # Inspect the original header name before trusting its projection.
+            raw_name = item.orig_filename
+            name = PurePosixPath(raw_name)
+            if (raw_name != item.filename or name.is_absolute()
+                    or PureWindowsPath(raw_name).drive or ".." in name.parts
+                    or "\\" in raw_name or "\x00" in raw_name
                     or stat.S_ISLNK(item.external_attr >> 16)):
                 raise ValueError("unsafe release archive entry")
         manifests = [name for name in names if PurePosixPath(name).name == "release-manifest.json"]

@@ -40,7 +40,11 @@ def archive(tmp_path, name="integrated", *, revision=SHA, evidence_changes=None,
         for wheel in (("sdk", "platform", "core") if components else ("integrated",)):
             target.writestr(prefix + f"artifact/{wheel}.whl", b"synthetic test wheel")
         for key, value in (extra or {}).items():
-            target.writestr(key, value)
+            # A string filename is normalized by ZipInfo on Windows. Build
+            # the raw malicious header rather than accidentally a safe path.
+            entry = zipfile.ZipInfo()
+            entry.filename = key
+            target.writestr(entry, value)
     return path, hashlib.sha256(path.read_bytes()).hexdigest()
 
 
@@ -91,7 +95,9 @@ def test_tampered_download_is_rejected_before_archive_inspection(tmp_path):
         inspect_subject(path, digest, SHA)
 
 
-@pytest.mark.parametrize("name", ("../escape", "/absolute", "bad\\entry"))
+@pytest.mark.parametrize("name", (
+    "../escape", "/absolute", "bad\\entry", "C:/absolute", "bad\x00entry",
+))
 def test_archive_traversal_is_refused_without_extraction(tmp_path, name):
     path, digest = archive(tmp_path, extra={name: "untrusted"})
     with pytest.raises(ValueError, match="unsafe release archive"):
