@@ -276,6 +276,79 @@ def test_downgrade_requires_rollback_authority(
         )
 
 
+def test_core_rollback_rejects_never_installed_signed_artifact(
+    tmp_path, component_wheels, signer, verifier, monkeypatch
+):
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    monkeypatch.setattr(installer, "_verify_health", lambda _wheel: True)
+    with pytest.raises(CoreComponentInstallError, match="previously verified"):
+        installer.execute(
+            artifact,
+            component_wheels["core"],
+            authority=InstallAuthority.STANDING_POLICY,
+            operation=InstallOperation.ROLLBACK,
+        )
+    assert installer.registry.history() == ()
+    assert not installer.installation_root.exists()
+
+
+def test_core_rollback_rejects_history_matching_version_but_not_digest(
+    tmp_path, component_wheels, signer, verifier, monkeypatch
+):
+    from dataclasses import replace
+
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    prior = _synthetic_receipt("prior-other-digest", artifact.version)
+    installer.registry.record(replace(prior, artifact_sha256="b" * 64))
+    monkeypatch.setattr(installer, "_verify_health", lambda _wheel: True)
+    with pytest.raises(CoreComponentInstallError, match="previously verified"):
+        installer.execute(
+            artifact,
+            component_wheels["core"],
+            authority=InstallAuthority.STANDING_POLICY,
+            operation=InstallOperation.ROLLBACK,
+        )
+    assert installer.registry.history() == (replace(prior, artifact_sha256="b" * 64),)
+    assert not installer.installation_root.exists()
+
+
+def test_core_rollback_exact_signed_history_reuses_verified_artifact(
+    tmp_path, component_wheels, signer, verifier, monkeypatch
+):
+    from dataclasses import replace
+
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    old = replace(
+        _synthetic_receipt("prior-exact-wheel", artifact.version),
+        artifact_sha256=artifact.sha256,
+    )
+    current = _synthetic_receipt("current-newer", "0.2.0")
+    installer.registry.record(old)
+    installer.registry.record(current)
+
+    staged = tmp_path / "validated-core-environment"
+    observed = []
+    monkeypatch.setattr(installer, "_verify_health", lambda _wheel: True)
+    monkeypatch.setattr(
+        installer, "_stage_verified_install",
+        lambda wheel, item: observed.append((wheel, item)) or staged,
+    )
+    receipt = installer.execute(
+        artifact,
+        component_wheels["core"],
+        authority=InstallAuthority.STANDING_POLICY,
+        operation=InstallOperation.ROLLBACK,
+    )
+    assert observed == [(component_wheels["core"], artifact)]
+    assert receipt.operation is InstallOperation.ROLLBACK
+    assert receipt.artifact_sha256 == old.artifact_sha256
+    assert installer.registry.history() == (old, current, receipt)
+    assert installer.registry.installed() == receipt
+
+
 def test_core_install_requires_physical_target(tmp_path, component_wheels, signer, verifier):
     installer = CoreComponentInstaller(
         CoreComponentRegistry(tmp_path / "registry.sqlite"),
