@@ -181,6 +181,74 @@ def test_fleet_live_answer_rejects_other_canonical_ledger(tmp_path):
         )
 
 
+def test_fleet_live_graph_can_accept_reviewed_correction_without_reset(
+    tmp_path,
+):
+    observed = {
+        "request_id": "request-1", "node_id": str(ARTEMIS_NODE),
+        "outcome": "reported_success",
+        "message": '{"hardware":{"cpu":"Ryzen 9"}}',
+    }
+    coordinator, ledger = _coordinator(tmp_path, observed)
+    first = coordinator.answer(
+        plan=_plan(), focus=_focus(), principal=None,
+        allowed_capabilities=("remote.hardware.inspect",),
+    )
+    assert "Ryzen 9" in first.content
+    observed["message"] = '{"hardware":{"cpu":"Xeon"}}'
+    uncertain = coordinator.answer(
+        plan=replace(_plan(), turn_id="turn:cpu-unverified"),
+        focus=_focus(), principal=None,
+        allowed_capabilities=("remote.hardware.inspect",),
+    )
+    assert "remains unknown" in uncertain.content
+    previous = next(
+        atom for atom in ledger.matching(_plan().evidence_needs[0])
+        if atom.value_json == '"Ryzen 9"'
+    )
+    ledger.apply_correction(
+        correction_id="correction:cpu-reviewed",
+        need=_plan().evidence_needs[0],
+        target_ids=(previous.evidence_id,),
+        source_ref="review:verified-hardware-change",
+        reason="independently reviewed hardware replacement",
+        corrected_at=datetime.now(timezone.utc),
+    )
+    corrected = coordinator.answer(
+        plan=replace(_plan(), turn_id="turn:cpu-reviewed"),
+        focus=_focus(), principal=None,
+        allowed_capabilities=("remote.hardware.inspect",),
+    )
+    assert "Xeon" in corrected.content
+    assert "remains unknown" not in corrected.content
+
+
+def test_fleet_live_graph_does_not_freeze_changing_telemetry(tmp_path):
+    observed = {"cpu_percent": 37.5}
+    coordinator, ledger = _coordinator(
+        tmp_path, observed, capability_name="ops.telemetry.latest",
+        tool_name="inspect_fleet_telemetry", parameter_name="host_id",
+    )
+    need = EvidenceNeed(
+        "need:cpu-load", f"fleet-node:{ARTEMIS_NODE}", "ops.cpu_percent",
+        "principal:sparks", max_age_seconds=60, minimum_trust=0.8,
+    )
+    plan = replace(_plan(), evidence_needs=(need,))
+    first = coordinator.answer(
+        plan=plan, focus=_focus(), principal=None,
+        allowed_capabilities=("ops.telemetry.latest",),
+    )
+    assert "CPU utilization: 37.5%" in first.content
+    observed["cpu_percent"] = 68.5
+    second = coordinator.answer(
+        plan=replace(plan, turn_id="turn:load-updated"),
+        focus=_focus(), principal=None,
+        allowed_capabilities=("ops.telemetry.latest",),
+    )
+    assert "CPU utilization: 68.5%" in second.content
+    assert len(ledger.matching(need)) == 2
+
+
 def test_wrong_node_result_cannot_be_borrowed_for_artemis(tmp_path):
     coordinator, ledger = _coordinator(tmp_path, {
         "request_id": "request-1", "node_id": str(VENUS_NODE),
