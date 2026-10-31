@@ -797,6 +797,20 @@ class GoalProductionCoordinator:
                 parameters=parameters, requested_scope=None,
                 rationale=f"Bounded Level-1 diagnostic for goal {goal.id}",
             )
+            # Planning and approval checks can observe a changing lifecycle.
+            # Check the exact snapshot again immediately before dispatch.
+            # This does not replace the worker/lease fence needed for
+            # concurrent Core instances, but rejects locally stale plans.
+            before_dispatch = self.goals.store.get(
+                goal.id, principal_id=goal.scope_principal_id,
+                audience=goal.scope_audience,
+            )
+            if (
+                before_dispatch is None
+                or before_dispatch.status is not GoalStatus.ACTIVE
+                or before_dispatch.revision != goal.revision
+            ):
+                continue
             result = self.planner.gateway.execute(proposal.proposal)
             attempt_id = "goal-action:" + sha256(
                 f"{goal.id}\0{capability.name}\0{now.isoformat()}".encode()
