@@ -86,6 +86,7 @@ def _installer(tmp_path, verifier) -> CoreComponentInstaller:
         CoreComponentRegistry(tmp_path / "core-components.sqlite"),
         verifier,
         installation_root=tmp_path / "installed-components",
+        authorization_check=lambda authority, approval_id, artifact, operation: True,
     )
 
 
@@ -273,7 +274,11 @@ def test_downgrade_requires_rollback_authority(
 
 
 def test_core_install_requires_physical_target(tmp_path, component_wheels, signer, verifier):
-    installer = CoreComponentInstaller(CoreComponentRegistry(tmp_path / "registry.sqlite"), verifier)
+    installer = CoreComponentInstaller(
+        CoreComponentRegistry(tmp_path / "registry.sqlite"),
+        verifier,
+        authorization_check=lambda authority, approval_id, artifact, operation: True,
+    )
     with pytest.raises(CoreComponentInstallError, match="installation_root"):
         installer.execute(_artifact(component_wheels["core"], signer), component_wheels["core"], authority=InstallAuthority.STANDING_POLICY)
     assert installer.registry.installed() is None
@@ -304,3 +309,60 @@ def test_core_install_rejects_tampered_installed_bytes(tmp_path, component_wheel
     with pytest.raises(CoreComponentInstallError, match="installed Core bytes mismatch"):
         installer.execute(_artifact(component_wheels["core"], signer), component_wheels["core"], authority=InstallAuthority.STANDING_POLICY)
     assert installer.registry.installed() is None
+
+
+
+def test_core_install_without_trusted_authorizer_fails_closed(
+    tmp_path, component_wheels, signer, verifier
+):
+    installer = CoreComponentInstaller(
+        CoreComponentRegistry(tmp_path / "registry.sqlite"),
+        verifier,
+        installation_root=tmp_path / "installed-components",
+    )
+    with pytest.raises(PermissionError, match="trusted Core installation authorizer"):
+        installer.execute(
+            _artifact(component_wheels["core"], signer),
+            component_wheels["core"],
+            authority=InstallAuthority.OPERATOR_APPROVED,
+            approval_id="invented-but-nonempty",
+        )
+    assert installer.registry.installed() is None
+    assert not (tmp_path / "installed-components").exists()
+
+
+@pytest.mark.parametrize(
+    "authority,approval_id",
+    [
+        (InstallAuthority.OPERATOR_APPROVED, "fabricated-approval"),
+        (InstallAuthority.STANDING_POLICY, None),
+    ],
+)
+def test_core_install_requires_independent_approval_or_policy_proof(
+    tmp_path, component_wheels, signer, verifier, authority, approval_id
+):
+    observed = []
+
+    def deny(incoming_authority, incoming_approval_id, incoming_artifact, incoming_operation):
+        observed.append(
+            (incoming_authority, incoming_approval_id, incoming_artifact.sha256, incoming_operation)
+        )
+        return False
+
+    installer = CoreComponentInstaller(
+        CoreComponentRegistry(tmp_path / "registry.sqlite"),
+        verifier,
+        installation_root=tmp_path / "installed-components",
+        authorization_check=deny,
+    )
+    artifact = _artifact(component_wheels["core"], signer)
+    with pytest.raises(PermissionError, match="authority denied"):
+        installer.execute(
+            artifact, component_wheels["core"],
+            authority=authority, approval_id=approval_id,
+        )
+    assert observed == [
+        (authority, approval_id, artifact.sha256, InstallOperation.INSTALL)
+    ]
+    assert installer.registry.installed() is None
+    assert not (tmp_path / "installed-components").exists()
