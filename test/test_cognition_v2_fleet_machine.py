@@ -1,4 +1,5 @@
 from dataclasses import replace
+from dataclasses import replace
 from datetime import datetime, timezone
 import json
 from uuid import UUID
@@ -20,6 +21,7 @@ from sofia.core.cognition.v2 import (
     ConversationFocus,
     CognitiveEvidenceLedger,
     EvidenceAcquisitionCoordinator,
+    EvidenceGraph,
     EvidenceClaimPlanner,
     EvidenceClaimValidator,
     EvidenceAtom,
@@ -88,7 +90,8 @@ def _coordinator(
     )
     ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     return FleetMachineAnswerCoordinator(
-        dispatcher, EvidenceAcquisitionCoordinator(ledger)
+        dispatcher, EvidenceAcquisitionCoordinator(ledger),
+        evidence_graph=EvidenceGraph(ledger),
     ), ledger
 
 
@@ -110,6 +113,72 @@ def test_artemis_cpu_uses_authenticated_subject_bound_capability(tmp_path):
     atom = ledger.get(next(ref for ref in response.evidence_refs if ref.startswith("evidence:")))
     assert atom.subject_id == f"fleet-node:{ARTEMIS_NODE}"
     assert atom.predicate == "machine.cpu"
+
+
+def test_fleet_live_answer_rejects_conflicting_recent_hardware_observations(tmp_path):
+    """A changed CPU report requires reconciliation before a factual answer."""
+    observed = {
+        "request_id": "request-1", "node_id": str(ARTEMIS_NODE),
+        "outcome": "reported_success",
+        "message": '{"hardware":{"cpu":"Ryzen 9"}}',
+    }
+    coordinator, ledger = _coordinator(tmp_path, observed)
+    first = coordinator.answer(
+        plan=_plan(), focus=_focus(), principal=None,
+        allowed_capabilities=("remote.hardware.inspect",),
+    )
+    assert "Ryzen 9" in first.content
+    observed["message"] = '{"hardware":{"cpu":"Xeon"}}'
+    second = coordinator.answer(
+        plan=replace(_plan(), turn_id="turn:cpu-changed"),
+        focus=_focus(), principal=None,
+        allowed_capabilities=("remote.hardware.inspect",),
+    )
+    assert "remains unknown" in second.content
+    assert "Ryzen 9" not in second.content
+    assert "Xeon" not in second.content
+    assert len(ledger.matching(_plan().evidence_needs[0])) == 2
+    assert EvidenceGraph(ledger).resolve(
+        _plan().evidence_needs[0], now=datetime.now(timezone.utc),
+    ).acquisition_state.value == "contradicted"
+
+
+def test_fleet_live_answer_accepts_equivalent_repeated_hardware(tmp_path):
+    observed = {
+        "request_id": "request-1", "node_id": str(ARTEMIS_NODE),
+        "outcome": "reported_success",
+        "message": '{"hardware":{"cpu":"Ryzen 9"}}',
+    }
+    coordinator, ledger = _coordinator(tmp_path, observed)
+    first = coordinator.answer(
+        plan=_plan(), focus=_focus(), principal=None,
+        allowed_capabilities=("remote.hardware.inspect",),
+    )
+    second = coordinator.answer(
+        plan=replace(_plan(), turn_id="turn:cpu-confirmed"),
+        focus=_focus(), principal=None,
+        allowed_capabilities=("remote.hardware.inspect",),
+    )
+    assert "Ryzen 9" in first.content
+    assert "Ryzen 9" in second.content
+    assert len(ledger.matching(_plan().evidence_needs[0])) == 2
+
+
+def test_fleet_live_answer_rejects_other_canonical_ledger(tmp_path):
+    coordinator, ledger = _coordinator(tmp_path, {
+        "request_id": "request-1", "node_id": str(ARTEMIS_NODE),
+        "outcome": "reported_success",
+        "message": '{"hardware":{"cpu":"Ryzen 9"}}',
+    })
+    foreign = CognitiveEvidenceLedger(
+        bootstrap_canonical_sqlite(tmp_path / "foreign-sofia.db")
+    )
+    with pytest.raises(ValueError, match="share acquisition ledger"):
+        FleetMachineAnswerCoordinator(
+            coordinator.dispatcher,
+            EvidenceAcquisitionCoordinator(ledger),
+            evidence_graph=EvidenceGraph(foreign),
+        )
 
 
 def test_wrong_node_result_cannot_be_borrowed_for_artemis(tmp_path):

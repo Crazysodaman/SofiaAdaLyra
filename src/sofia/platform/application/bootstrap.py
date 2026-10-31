@@ -311,7 +311,8 @@ class SofiaApplication:
         if dispatcher is None:
             raise SofiaApplicationError("production cognitive tool dispatcher is required")
         self._fleet_machine_answers = FleetMachineAnswerCoordinator(
-            dispatcher, self._cognitive_evidence_acquisition
+            dispatcher, self._cognitive_evidence_acquisition,
+            evidence_graph=self._cognitive_evidence_graph,
         )
         self._knowledge_answers = KnowledgeEvidenceCoordinator(
             dispatcher, self._cognitive_evidence_acquisition
