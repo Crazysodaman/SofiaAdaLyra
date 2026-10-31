@@ -9,12 +9,18 @@ on:
       - 'src/sofia/core/**'
       - 'src/sofia/sdk/**'
       - 'test/test_core_link_conversation.py'
+      - 'test/test_core_link_binding.py'
+      - 'test/test_core_link_desktop.py'
       - 'test/test_platform_ui_launchers.py'
       - 'test/test_module_lifecycle_v1.py'
       - 'test/test_state_operator_handoff_review.py'
+      - 'test/test_state_relocation_atomic_publish.py'
       - 'test/test_backup_canonical_identity_fencing.py'
       - 'test/test_backup_restore_redirect_fencing.py'
       - 'test/test_cognition_v2_evidence.py'
+      - 'test/test_cognition_v2_turn_kernel.py'
+      - 'test/test_learning_foundation.py'
+      - 'test/test_generalization_advanced.py'
       - '.github/workflows/go-live-cross-gate-pr.yml'
   pull_request:
     branches:
@@ -24,12 +30,18 @@ on:
       - 'src/sofia/core/**'
       - 'src/sofia/sdk/**'
       - 'test/test_core_link_conversation.py'
+      - 'test/test_core_link_binding.py'
+      - 'test/test_core_link_desktop.py'
       - 'test/test_platform_ui_launchers.py'
       - 'test/test_module_lifecycle_v1.py'
       - 'test/test_state_operator_handoff_review.py'
+      - 'test/test_state_relocation_atomic_publish.py'
       - 'test/test_backup_canonical_identity_fencing.py'
       - 'test/test_backup_restore_redirect_fencing.py'
       - 'test/test_cognition_v2_evidence.py'
+      - 'test/test_cognition_v2_turn_kernel.py'
+      - 'test/test_learning_foundation.py'
+      - 'test/test_generalization_advanced.py'
       - '.github/workflows/go-live-cross-gate-pr.yml'
   workflow_dispatch:
 
@@ -74,14 +86,18 @@ jobs:
           python -m compileall -q src/sofia test
       - name: G1 and G4 TLS conversation and current-user launcher regressions
         run: python -m pytest -q test/test_core_link_conversation.py test/test_platform_ui_launchers.py
-      - name: G3 fenced state handoff and pending pointer binding regressions
-        run: python -m pytest -q test/test_state_operator_handoff_review.py
+      - name: G1 native ACL and G4 Core-free desktop state/reconnect regressions
+        run: python -m pytest -q test/test_core_link_binding.py test/test_core_link_desktop.py
+      - name: G3 fenced state handoff and non-replacing atomic publish
+        run: python -m pytest -q test/test_state_operator_handoff_review.py test/test_state_relocation_atomic_publish.py
       - name: G5 canonical backup ownership and restore redirect fencing
         run: python -m pytest -q test/test_backup_canonical_identity_fencing.py test/test_backup_restore_redirect_fencing.py
       - name: G6 independently governed module lifecycle regressions
         run: python -m pytest -q test/test_module_lifecycle_v1.py
-      - name: G7-A cognitive evidence and truth regressions
-        run: python -m pytest -q test/test_cognition_v2_evidence.py
+      - name: G7-A cognitive evidence and turn-kernel regressions
+        run: python -m pytest -q test/test_cognition_v2_evidence.py test/test_cognition_v2_turn_kernel.py
+      - name: G7-A learning and generalization regressions
+        run: python -m pytest -q test/test_learning_foundation.py test/test_generalization_advanced.py
 
 # Focused cross-gate contracts only. NOT an installed-wheel release certificate,
 # host migration rehearsal or full G7-A cognition-to-learning acceptance trace.
