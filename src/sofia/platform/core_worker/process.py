@@ -884,7 +884,15 @@ class CoreWorkerController:
         process = self._stage(release_digest, spec, now)
         try:
             health = process.start()
-        except Exception:
+        except BaseException as error:
+            # A failure in IPC parsing or an interrupted startup can occur
+            # after the OS child was spawned. Never mark its generation safe
+            # until process termination is independently verified.
+            stopped = process.terminate(force=True)
+            if not stopped:
+                raise CoreWorkerError(
+                    "Core startup exit unverified; manual reconciliation required"
+                ) from error
             self.generations.quarantine_staged(
                 process.endpoint, lease=self.lease, now=now,
                 reason="Core worker failed readiness",
@@ -1051,7 +1059,12 @@ class CoreWorkerController:
         candidate = self._stage(release_digest, spec, now)
         try:
             health = candidate.start()
-        except Exception:
+        except BaseException as error:
+            stopped = candidate.terminate(force=True)
+            if not stopped:
+                raise CoreWorkerError(
+                    "Core replacement startup exit unverified; manual reconciliation required"
+                ) from error
             self.generations.quarantine_staged(
                 candidate.endpoint, lease=self.lease, now=now,
                 reason="replacement failed readiness",
