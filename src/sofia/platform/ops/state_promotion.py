@@ -142,6 +142,15 @@ def review_operator_handoff(
         raise ValueError("complete external handoff evidence references required")
 
     blockers: list[str] = []
+    # A single purported witness artifact cannot simultaneously prove
+    # independent operator approval, host lease, privacy and effect review.
+    if len(set(refs)) != len(refs):
+        blockers.append("handoff_evidence_references_not_independent")
+    if (
+        evidence.authorization.source_writer_host_id
+        == evidence.authorization.writer_host_id
+    ):
+        blockers.append("source_and_target_writer_host_not_distinct")
     staged, pending, authorization = (
         evidence.staged, evidence.pending, evidence.authorization,
     )
