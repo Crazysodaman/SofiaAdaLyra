@@ -511,3 +511,6 @@ def test_application_composes_one_canonical_evidence_ledger(tmp_path):
     assert app.cognitive_evidence.path == Path(app._configuration.state_path)
     assert app.cognitive_evidence_graph.ledger is app.cognitive_evidence
     assert app.cognitive_evidence_acquisition.ledger is app.cognitive_evidence
+    # The real production Fleet answer handler consumes the already-composed
+    # graph, not a second ledger or an isolated test-only truth projector.
+    assert app._fleet_machine_answers.evidence_graph is app.cognitive_evidence_graph
