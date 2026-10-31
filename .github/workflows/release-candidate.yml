@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - chatgpt/go-live-release-env-version
   workflow_dispatch:
     inputs:
       release_id:

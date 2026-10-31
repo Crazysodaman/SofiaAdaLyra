@@ -2,7 +2,7 @@ name: Debian Release Candidate Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, chatgpt/go-live-release-env-version]
   workflow_dispatch:
     inputs:
       release_id:
@@ -25,7 +25,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Full installed-wheel verification may exceed the legacy 40-minute budget.
+    # Keep the evidence and verification checks intact, not sharded/waived.
+    timeout-minutes: 120
     permissions:
       contents: read
     steps:
