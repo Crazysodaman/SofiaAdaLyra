@@ -383,7 +383,7 @@ def test_windows_private_state_owner_ace_requires_read_and_write(tmp_path, owner
     win32security.SetFileSecurity(
         str(target), win32security.DACL_SECURITY_INFORMATION, descriptor,
     )
-    with pytest.raises(PermissionError, match="no read/write owner ACL"):
+    with pytest.raises(PermissionError, match="no owner ACL"):
         assert_owner_private_path(target, directory=False)
 
 
@@ -447,7 +447,7 @@ def test_windows_private_state_inherit_only_ace_not_effective_on_directory(tmp_p
     win32security.SetFileSecurity(
         str(directory), win32security.DACL_SECURITY_INFORMATION, descriptor,
     )
-    with pytest.raises(PermissionError, match="no read/write owner ACL"):
+    with pytest.raises(PermissionError, match="no owner ACL"):
         assert_owner_private_path(directory, directory=True)
 
 
