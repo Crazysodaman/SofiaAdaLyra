@@ -46,7 +46,7 @@ def _evidence(tmp_path: Path, *, kind=OperatorHandoffKind.FAILOVER):
     document["hmac_sha256"] = hmac.new(
         b"test-fixture-key-not-for-production", _DOMAIN + canonical, sha256,
     ).hexdigest()
-    pointer.write_text(json.dumps(document, sort_keys=True) + "\\n", encoding="utf-8")
+    pointer.write_text(json.dumps(document, sort_keys=True) + "\n", encoding="utf-8")
     authorization = RelocationAuthorization(
         source_state_path=tmp_path / "old" / "sofia.db",
         destination_root=destination,
