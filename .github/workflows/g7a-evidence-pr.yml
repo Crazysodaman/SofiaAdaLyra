@@ -1,0 +1,56 @@
+name: G7-A Evidence Truth CI
+
+on:
+  push:
+    branches:
+      - chatgpt/g7a-evidence-truth
+  pull_request:
+    paths:
+      - 'src/sofia/core/cognition/v2/evidence.py'
+      - 'src/sofia/core/cognition/v2/fleet_machine.py'
+      - 'src/sofia/platform/application/bootstrap.py'
+      - 'test/test_cognition_v2_evidence.py'
+      - 'test/test_cognition_v2_fleet_machine.py'
+      - '.github/workflows/g7a-evidence-pr.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g7a-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    name: G7-A truth (${{ matrix.os }}, Python 3.12)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    env:
+      SOFIA_STATE_ROOT: ${{ github.workspace }}/state/cloud-runtime
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Create isolated ignored runtime state
+        shell: bash
+        run: |
+          mkdir -p "$SOFIA_STATE_ROOT"
+          test -w "$SOFIA_STATE_ROOT"
+      - name: Install Python test environment
+        run: python -m pip install -e . pytest
+      - name: Check dependency and compile contracts
+        run: |
+          python -m pip check
+          python -m compileall -q src/sofia test
+      - name: Verify V2 evidence, Fleet truth and turn kernel
+        run: |
+          python -m pytest -q test/test_cognition_v2_evidence.py test/test_cognition_v2_fleet_machine.py test/test_cognition_v2_turn_kernel.py
