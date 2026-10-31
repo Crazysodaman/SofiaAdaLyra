@@ -269,6 +269,80 @@ def test_release_environment_interrupted_publication_needs_review(tmp_path):
     assert not (manager.environments_root / release.release_id).exists()
 
 
+def test_environment_manager_refuses_redirected_installed_release(
+    tmp_path,
+):
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+    manager.environments_root.mkdir(parents=True, exist_ok=True)
+    outside = tmp_path / "external-runtime"
+    outside.mkdir()
+    target = manager.environments_root / release.release_id
+    try:
+        target.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("test host cannot create directory symlink")
+    with pytest.raises(ActiveReleaseError, match="filesystem redirection"):
+        manager.ensure(release)
+    assert not list(outside.iterdir())
+
+
+def test_environment_manager_refuses_parent_redirect_added_after_construction(
+    tmp_path,
+):
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+    parent = tmp_path / "component-parent"
+    parent.mkdir()
+    outside = tmp_path / "external-parent"
+    outside.mkdir()
+    manager = ReleaseEnvironmentManager(
+        release_root=release_root,
+        environments_root=parent / "environments",
+    )
+    parent.rmdir()
+    try:
+        parent.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("test host cannot create directory symlink")
+    with pytest.raises(ActiveReleaseError, match="filesystem redirection"):
+        manager.ensure(release)
+    assert not list(outside.iterdir())
+
+
+def test_environment_manager_refuses_preexisting_staging_directory(
+    tmp_path, monkeypatch,
+):
+    from types import SimpleNamespace
+
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+    manager.environments_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(
+        "sofia.platform.run.active_release.uuid.uuid4",
+        lambda: SimpleNamespace(hex="known"),
+    )
+    stage = manager.environments_root / f".{release.release_id}.known"
+    stage.mkdir()
+    marker = stage / "do-not-delete"
+    marker.write_bytes(b"unreviewed stage")
+    with pytest.raises(ActiveReleaseError, match="staging path already exists"):
+        manager.ensure(release)
+    assert marker.read_bytes() == b"unreviewed stage"
+    assert not (manager.environments_root / release.release_id).exists()
+
+
 def component_release_fixture(
     tmp_path: Path,
     wheels: dict[str, Path],

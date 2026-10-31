@@ -15,6 +15,7 @@ import venv
 from sofia.platform.dev.release_store import ReleaseStateStore
 from sofia.platform.run.release import directory_sha256
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.private_file import assert_no_redirected_components
 from sofia.platform.verify.component_artifacts import (
     ComponentArtifactError,
     inspect_wheel,
@@ -216,11 +217,21 @@ class ReleaseEnvironmentManager:
         if not isinstance(release_root, Path):
             raise TypeError("release_root must be a Path")
         self.release_root = release_root.resolve()
-        self.environments_root = (
-            environments_root.resolve()
-            if environments_root is not None
-            else self.release_root / "environments"
-        )
+        if environments_root is not None:
+            candidate = environments_root.absolute()
+            self._require_direct_path(candidate)
+            self.environments_root = candidate.resolve()
+        else:
+            self.environments_root = self.release_root / "environments"
+
+    @staticmethod
+    def _require_direct_path(path: Path) -> None:
+        try:
+            assert_no_redirected_components(path, include_leaf=True)
+        except PermissionError as error:
+            raise ActiveReleaseError(
+                "release environment contains filesystem redirection"
+            ) from error
 
     @staticmethod
     def _python(root: Path) -> Path:
@@ -282,8 +293,11 @@ class ReleaseEnvironmentManager:
     ) -> PreparedReleaseEnvironment:
         if not isinstance(release, ActiveRelease):
             raise TypeError("release must be ActiveRelease")
+        self._require_direct_path(self.environments_root)
         self.environments_root.mkdir(parents=True, exist_ok=True)
+        self._require_direct_path(self.environments_root)
         target = self.environments_root / release.release_id
+        self._require_direct_path(target)
         # A crash during replacement can leave the prior runtime in a
         # reserved rollback path. Do not erase that evidence or auto-resume.
         if any(self.environments_root.glob(
@@ -302,8 +316,9 @@ class ReleaseEnvironmentManager:
         staging = self.environments_root / (
             f".{release.release_id}.{uuid.uuid4().hex}"
         )
+        self._require_direct_path(staging)
         if staging.exists():
-            shutil.rmtree(staging)
+            raise ActiveReleaseError("release staging path already exists")
         try:
             venv.EnvBuilder(
                 with_pip=True,
@@ -415,12 +430,9 @@ class ReleaseEnvironmentManager:
             # has actually been published. Do not delete the rollback copy
             # before a successful rename.
             previous: Path | None = None
-            if target.is_symlink() or getattr(
-                target, "is_junction", lambda: False
-            )():
-                raise ActiveReleaseError(
-                    "release environment target is redirected"
-                )
+            self._require_direct_path(self.environments_root)
+            self._require_direct_path(staging)
+            self._require_direct_path(target)
             if target.exists():
                 previous = self.environments_root / (
                     f".{release.release_id}.rollback-{uuid.uuid4().hex}"
