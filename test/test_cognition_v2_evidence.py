@@ -645,3 +645,27 @@ def test_application_composes_one_canonical_evidence_ledger(tmp_path):
     assert app.cognitive_evidence.path == Path(app._configuration.state_path)
     assert app.cognitive_evidence_graph.ledger is app.cognitive_evidence
     assert app.cognitive_evidence_acquisition.ledger is app.cognitive_evidence
+    # The real production Fleet answer handler consumes the already-composed
+    # graph, not a second ledger or an isolated test-only truth projector.
+    assert app._fleet_machine_answers.evidence_graph is app.cognitive_evidence_graph
+    # Production GOALS has the canonical SAFE owner-approval boundary, but
+    # cannot accept a locally invented host outcome. Neither a string label
+    # nor the existence of an approval may enable live reconciliation.
+    from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+    from sofia.core.social.principals import local_sparks_principal
+
+    goal_runner = app._goal_production
+    assert isinstance(
+        goal_runner.reconciliation_approval_verifier,
+        ExecutionApprovalVerifier,
+    )
+    assert goal_runner.reconciliation_approval_verifier.path == app._configuration.state_path
+    assert goal_runner.reconciliation_authorizer is None
+    assert goal_runner.independent_outcome_verifier is None
+    with pytest.raises(PermissionError, match="outcome verifier required"):
+        goal_runner.reconcile_dispatch(
+            goal_id="forged:goal", dispatch_id="goal-action:forged",
+            principal=local_sparks_principal(),
+            evidence_ref="goal-evidence:forged",
+            approval_id="invented-owner-approval", now=NOW,
+        )
