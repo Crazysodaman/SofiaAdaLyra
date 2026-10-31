@@ -25,6 +25,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 from typing import Callable
 
 from sofia.platform.ops.platform_install import InstallAuthority, InstallOperation, InstallOutcome
@@ -217,6 +218,37 @@ class CoreComponentRegistry:
                     detail TEXT NOT NULL
                 )
             """)
+            # Preserve all historical decisions; the single current receipt
+            # is a compatibility projection, not an audit log.
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS core_component_receipt_history (
+                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                    receipt_id TEXT NOT NULL UNIQUE,
+                    artifact_id TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    operation TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    artifact_sha256 TEXT NOT NULL,
+                    authority TEXT NOT NULL,
+                    approval_id TEXT,
+                    health_verified INTEGER NOT NULL,
+                    installed_at TEXT NOT NULL,
+                    detail TEXT NOT NULL
+                )
+            """)
+            # A previous release kept only the current row. Upgrade it once,
+            # without rewriting earlier history on subsequent startups.
+            db.execute("""
+                INSERT OR IGNORE INTO core_component_receipt_history(
+                    receipt_id, artifact_id, version, operation, outcome,
+                    artifact_sha256, authority, approval_id, health_verified,
+                    installed_at, detail
+                )
+                SELECT receipt_id, artifact_id, version, operation, outcome,
+                    artifact_sha256, authority, approval_id, health_verified,
+                    installed_at, detail
+                FROM core_component_receipt
+            """)
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
@@ -224,33 +256,8 @@ class CoreComponentRegistry:
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
-    def record(self, receipt: CoreComponentReceipt) -> None:
-        if not isinstance(receipt, CoreComponentReceipt):
-            raise TypeError("CoreComponentReceipt required")
-        with closing(self._connect()) as db, db:
-            db.execute("""
-                INSERT OR REPLACE INTO core_component_receipt(
-                    receipt_id, artifact_id, version, operation, outcome,
-                    artifact_sha256, authority, approval_id, health_verified,
-                    installed_at, detail
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
-            """, (
-                receipt.receipt_id, receipt.artifact_id, receipt.version,
-                receipt.operation.value, receipt.outcome.value,
-                receipt.artifact_sha256, receipt.authority.value,
-                receipt.approval_id, int(receipt.health_verified),
-                receipt.installed_at.astimezone(timezone.utc).isoformat(),
-                receipt.detail[:2000],
-            ))
-
-    def installed(self, artifact_id: str = CORE_DISTRIBUTION) -> CoreComponentReceipt | None:
-        with closing(self._connect()) as db:
-            row = db.execute(
-                "SELECT * FROM core_component_receipt WHERE artifact_id=?",
-                (artifact_id,),
-            ).fetchone()
-        if row is None:
-            return None
+    @staticmethod
+    def _receipt_from_row(row: sqlite3.Row) -> CoreComponentReceipt:
         return CoreComponentReceipt(
             receipt_id=row["receipt_id"], artifact_id=row["artifact_id"],
             version=row["version"], operation=InstallOperation(row["operation"]),
@@ -262,6 +269,68 @@ class CoreComponentRegistry:
             installed_at=datetime.fromisoformat(row["installed_at"]),
             detail=row["detail"],
         )
+
+    def record(self, receipt: CoreComponentReceipt) -> None:
+        if not isinstance(receipt, CoreComponentReceipt):
+            raise TypeError("CoreComponentReceipt required")
+        values = (
+            receipt.receipt_id, receipt.artifact_id, receipt.version,
+            receipt.operation.value, receipt.outcome.value,
+            receipt.artifact_sha256, receipt.authority.value,
+            receipt.approval_id, int(receipt.health_verified),
+            receipt.installed_at.astimezone(timezone.utc).isoformat(),
+            receipt.detail[:2000],
+        )
+        with closing(self._connect()) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                db.execute("""
+                    INSERT INTO core_component_receipt_history(
+                        receipt_id, artifact_id, version, operation, outcome,
+                        artifact_sha256, authority, approval_id, health_verified,
+                        installed_at, detail
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                """, values)
+                db.execute("""
+                    INSERT INTO core_component_receipt(
+                        receipt_id, artifact_id, version, operation, outcome,
+                        artifact_sha256, authority, approval_id, health_verified,
+                        installed_at, detail
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                    ON CONFLICT(artifact_id) DO UPDATE SET
+                        receipt_id=excluded.receipt_id,
+                        version=excluded.version,
+                        operation=excluded.operation,
+                        outcome=excluded.outcome,
+                        artifact_sha256=excluded.artifact_sha256,
+                        authority=excluded.authority,
+                        approval_id=excluded.approval_id,
+                        health_verified=excluded.health_verified,
+                        installed_at=excluded.installed_at,
+                        detail=excluded.detail
+                """, values)
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+
+    def installed(self, artifact_id: str = CORE_DISTRIBUTION) -> CoreComponentReceipt | None:
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT * FROM core_component_receipt WHERE artifact_id=?",
+                (artifact_id,),
+            ).fetchone()
+        return None if row is None else self._receipt_from_row(row)
+
+    def history(self, artifact_id: str = CORE_DISTRIBUTION) -> tuple[CoreComponentReceipt, ...]:
+        """Return immutable, insertion-ordered platform install evidence."""
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM core_component_receipt_history "
+                "WHERE artifact_id=? ORDER BY sequence",
+                (artifact_id,),
+            ).fetchall()
+        return tuple(self._receipt_from_row(row) for row in rows)
 
 
 def verify_core_component_content(wheel_path: Path) -> None:
@@ -382,7 +451,7 @@ class CoreComponentInstaller:
             raise CoreComponentInstallError("Core component failed the health probe")
         installed_path = self._stage_verified_install(wheel_path, artifact)
         receipt = CoreComponentReceipt(
-            receipt_id=f"core-component-install-{artifact.artifact_id}-{artifact.version}",
+            receipt_id=f"core-install-{artifact.version}-{uuid4().hex}",
             artifact_id=artifact.artifact_id,
             version=artifact.version,
             operation=operation,
