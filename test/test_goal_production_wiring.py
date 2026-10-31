@@ -776,7 +776,8 @@ def test_g7a_uncertain_gateway_result_never_auto_replays(
         lambda _request: {"status": "running"},
     )
     monkeypatch.setattr(restarted.planner.gateway, "execute", uncertain)
-    assert restarted.run_due(now=NOW + timedelta(hours=3)) == 0
+    # Past the six-hour scheduled retry, not just before it is eligible.
+    assert restarted.run_due(now=NOW + timedelta(hours=7)) == 0
     assert dispatches == ["service.inspect"]
     assert restarted.unresolved_dispatches(goal.id) == pending
 
