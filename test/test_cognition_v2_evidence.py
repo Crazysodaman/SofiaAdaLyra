@@ -296,6 +296,97 @@ def test_user_correction_invalidates_claim_and_dependent_conclusion(tmp_path):
     assert graph.resolve(_need(), now=NOW + timedelta(seconds=2)).atoms == ()
 
 
+def test_g7a_derived_claim_expires_when_verified_premise_expires(tmp_path):
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(path)
+    original = _atom(
+        "evidence:expiring-preset",
+        expires_at=NOW + timedelta(seconds=10),
+    )
+    derived = _atom(
+        "evidence:family-from-preset",
+        predicate="machine.cpu.family",
+        value="Zen",
+        source="inference:family",
+        epistemic=EpistemicState.INFERRED,
+    )
+    ledger.append(original)
+    ledger.append(derived, depends_on=(original.evidence_id,))
+    derived_need = _need(predicate="machine.cpu.family")
+    graph = EvidenceGraph(ledger)
+    assert graph.resolve(derived_need, now=NOW).atoms == (derived,)
+
+    stale = graph.resolve(derived_need, now=NOW + timedelta(seconds=11))
+    assert stale.acquisition_state is AcquisitionState.STALE
+    assert stale.atoms == ()
+    assert ledger.get(derived.evidence_id).acquisition_state is AcquisitionState.CURRENT
+
+    restarted = EvidenceGraph(CognitiveEvidenceLedger(path))
+    assert restarted.resolve(
+        derived_need, now=NOW + timedelta(seconds=11)
+    ).acquisition_state is AcquisitionState.STALE
+
+
+def test_g7a_direct_revocation_blocks_existing_and_new_inferences(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    source = _atom("evidence:revoked-source")
+    derived = _atom(
+        "evidence:prior-inference", predicate="machine.cpu.family",
+        value="Zen", source="inference:family",
+        epistemic=EpistemicState.INFERRED,
+    )
+    ledger.append(source)
+    ledger.append(derived, depends_on=(source.evidence_id,))
+    derived_need = _need(predicate="machine.cpu.family")
+    assert EvidenceGraph(ledger).resolve(derived_need, now=NOW).atoms == (derived,)
+
+    ledger.record_status(
+        source.evidence_id, AcquisitionState.REVOKED,
+        reason="authenticated device consent revoked",
+        source_ref="runtime:device-revocation",
+        changed_at=NOW + timedelta(seconds=1),
+    )
+    resolution = EvidenceGraph(ledger).resolve(
+        derived_need, now=NOW + timedelta(seconds=2)
+    )
+    assert resolution.acquisition_state is AcquisitionState.REVOKED
+    assert resolution.atoms == ()
+    with pytest.raises(ValueError, match="revoked or unavailable dependencies"):
+        ledger.append(
+            _atom(
+                "evidence:new-inference", predicate="machine.cpu.family",
+                value="Zen", source="inference:family",
+                epistemic=EpistemicState.INFERRED,
+            ),
+            depends_on=(source.evidence_id,),
+        )
+
+
+def test_g7a_new_inference_cannot_use_expired_or_future_evidence(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    expires = _atom(
+        "evidence:expired-premise",
+        observed_at=NOW - timedelta(minutes=5),
+        expires_at=NOW - timedelta(seconds=1),
+    )
+    future = _atom(
+        "evidence:future-premise",
+        observed_at=NOW + timedelta(minutes=1),
+    )
+    ledger.append(expires)
+    ledger.append(future)
+    inferred = _atom(
+        "evidence:proposed-derived", predicate="machine.cpu.family",
+        value="Zen", source="inference:family",
+        epistemic=EpistemicState.INFERRED,
+    )
+    with pytest.raises(ValueError, match="future or expired dependencies"):
+        ledger.append(inferred, depends_on=(expires.evidence_id,))
+    with pytest.raises(ValueError, match="future or expired dependencies"):
+        ledger.append(inferred, depends_on=(future.evidence_id,))
+    assert ledger.get(inferred.evidence_id) is None
+
+
 def test_derived_evidence_dependencies_cannot_cross_private_scopes(tmp_path):
     ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     private = _atom("evidence:private-source")
