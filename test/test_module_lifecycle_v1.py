@@ -124,6 +124,29 @@ def test_signed_package_stages_immutably_and_activates_reviewed_adapter(
     assert [item[0] for item in calls] == ["approve", "stage", "activate"]
 
 
+def test_g6_staged_health_fails_closed_on_artifact_tampering(
+    canonical_state_path, tmp_path,
+):
+    package = verified_package(tmp_path)
+    lifecycle, _ = manager(
+        canonical_state_path, tmp_path / "store",
+        CapabilitySystem(authorization_checker=lambda request: True),
+    )
+    staged = prepare(lifecycle, package)
+    assert staged.lifecycle is ModuleLifecycle.STAGED
+    assert lifecycle.health(staged.module_id).healthy is True
+    stored_artifact = (
+        tmp_path / "store" / package.package_digest / "module.py"
+    )
+    stored_artifact.write_text("MODULE = 'tampered'\n", encoding="utf-8")
+    health = lifecycle.health(staged.module_id)
+    assert health.lifecycle is ModuleLifecycle.STAGED
+    assert health.healthy is False
+    assert health.ready is False
+    assert "verification failed" in health.reason
+    assert lifecycle.describe(staged.module_id).revision == staged.revision
+
+
 def test_unauthorized_stage_creates_no_package_files(canonical_state_path, tmp_path):
     package = verified_package(tmp_path)
     system = CapabilitySystem(authorization_checker=lambda request: True)
