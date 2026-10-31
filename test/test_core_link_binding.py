@@ -282,6 +282,7 @@ def test_windows_owner_rights_dacl_is_owner_private(tmp_path):
 @pytest.mark.skipif(os.name != "nt", reason="Windows native DACL validation")
 def test_windows_accepts_token_owner_and_rejects_foreign_owner(tmp_path):
     import win32api
+    import win32con
     import win32security
 
     if not _windows_privilege_enabled("SeRestorePrivilege"):
@@ -312,6 +313,40 @@ def test_windows_accepts_token_owner_and_rejects_foreign_owner(tmp_path):
         assert_owner_private_path(target, directory=False)
 
     set_owner(win32security.GetTokenInformation(token, win32security.TokenOwner))
+    # Default ownership by itself does not grant data access. Use a
+    # deliberately read-only DACL to prove the private-state validator
+    # rejects the owner without a write grant, even if an admin owns it.
+    readonly = win32security.ACL()
+    readonly.AddAccessAllowedAce(
+        win32security.ACL_REVISION, win32con.GENERIC_READ, user_sid,
+    )
+    descriptor = win32security.GetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION,
+    )
+    descriptor.SetSecurityDescriptorDacl(1, readonly, 0)
+    win32security.SetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION, descriptor,
+    )
+    with pytest.raises(PermissionError, match="no owner ACL"):
+        assert_owner_private_path(target, directory=False)
+
+    # Only an explicit effective per-user read/write grant can make the
+    # token-default owner candidate owner-private.
+    private = win32security.ACL()
+    private.AddAccessAllowedAce(
+        win32security.ACL_REVISION, win32con.GENERIC_ALL, user_sid,
+    )
+    private.AddAccessAllowedAce(
+        win32security.ACL_REVISION, win32con.GENERIC_ALL,
+        win32security.ConvertStringSidToSid("S-1-5-18"),
+    )
+    descriptor = win32security.GetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION,
+    )
+    descriptor.SetSecurityDescriptorDacl(1, private, 0)
+    win32security.SetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION, descriptor,
+    )
     assert_owner_private_path(target, directory=False)
     set_owner(user_sid)
     assert_owner_private_path(target, directory=False)
