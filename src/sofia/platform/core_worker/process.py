@@ -25,7 +25,7 @@ from sofia.core.cognition.provider import LLMProvider, LLMProviderError
 from sofia.core.cognition.rules import RuleEngine
 from sofia.core.cognition.test_engine import TestCognitiveEngine
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.platform.run.generation import ComponentGenerationStore
+from sofia.platform.run.generation import ComponentGenerationStore, GenerationState
 from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
 from sofia.platform.run.components import (
     ComponentKind as SupervisedComponentKind,
@@ -1036,30 +1036,69 @@ class CoreWorkerController:
                 reason="replacement failed readiness",
             )
             raise
-        self.generations.begin_drain(
-            old.endpoint, lease=self.lease, now=now, reason="Core replacement",
-        )
-        drained = True
         try:
-            old.drain()
-        except Exception:
-            drained = False
-        if not old.terminate():
-            candidate.terminate(force=True)
-            self.generations.quarantine_staged(
-                candidate.endpoint, lease=self.lease, now=now,
-                reason="old Core termination unverified",
+            self.generations.begin_drain(
+                old.endpoint, lease=self.lease, now=now, reason="Core replacement",
             )
-            raise CoreWorkerError("old Core termination could not be verified")
-        self.generations.fence(
-            old.endpoint, lease=self.lease, now=now,
-            reason=("old Core process exited" if drained else "old Core drain interrupted"),
-            quarantine=not drained,
-        )
-        self.generations.activate(
-            candidate.endpoint, lease=self.lease, now=now,
-            reason="replacement readiness verified",
-        )
+            drained = True
+            try:
+                old.drain()
+            except Exception:
+                drained = False
+            if not old.terminate():
+                raise CoreWorkerError("old Core termination could not be verified")
+            self.generations.fence(
+                old.endpoint, lease=self.lease, now=now,
+                reason=(
+                    "old Core process exited" if drained
+                    else "old Core drain interrupted"
+                ),
+                quarantine=not drained,
+            )
+            # The old process is definitively gone; a subsequent activation
+            # failure must never expose its stale process as locally active.
+            self._active = None
+            self.generations.activate(
+                candidate.endpoint, lease=self.lease, now=now,
+                reason="replacement readiness verified",
+            )
+        except BaseException as error:
+            # The candidate was already spawned and checked for readiness.
+            # Every error after that point must terminate it and reconcile
+            # its generation; otherwise an orphan Core may survive failure.
+            stopped = candidate.terminate(force=True)
+            if not old.alive:
+                self._active = None
+            if not stopped:
+                raise CoreWorkerError(
+                    "Core replacement candidate exit unverified; no automatic retry"
+                ) from error
+            try:
+                state = self.generations.state(candidate.endpoint)
+                if state is GenerationState.STAGED:
+                    self.generations.quarantine_staged(
+                        candidate.endpoint, lease=self.lease, now=now,
+                        reason="Core replacement failed before activation",
+                    )
+                elif state is GenerationState.ACTIVE:
+                    self.generations.begin_drain(
+                        candidate.endpoint, lease=self.lease, now=now,
+                        reason="Core replacement activation outcome uncertain",
+                    )
+                    self.generations.fence(
+                        candidate.endpoint, lease=self.lease, now=now,
+                        reason="Core replacement candidate terminated",
+                        quarantine=True,
+                    )
+                elif state is not GenerationState.QUARANTINED:
+                    raise CoreWorkerError(
+                        "Core replacement candidate generation state is uncertain"
+                    )
+            except Exception as cleanup_error:
+                raise CoreWorkerError(
+                    "Core replacement candidate fencing uncertain; manual review required"
+                ) from cleanup_error
+            raise
         self._active = candidate
         return health
 
