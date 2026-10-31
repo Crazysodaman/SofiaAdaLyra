@@ -771,6 +771,20 @@ class ReplicatedStatePlane(StatePlane):
             ttl_seconds=self._ttl_seconds,
         )
 
+    def _require_read_lease(self) -> None:
+        """Do not private-serve canonical state after loss of writer authority.
+
+        Reads deliberately do not renew a lease. A stopped, expired or
+        replaced Core generation must not maintain access just by polling.
+        This local preflight is NOT a distributed storage/worker fence: the
+        source and target still need independently enforced handoff barriers.
+        """
+        self._witness.assert_writer_active(
+            self._lease,
+            now=datetime.now(timezone.utc),
+            action="canonical read",
+        )
+
     def _primary(self) -> StatePlane:
         target_id = self._witness.primary_target_id()
         try:
@@ -886,6 +900,7 @@ class ReplicatedStatePlane(StatePlane):
         return self._witness.health()
 
     def read(self, key: StateKey) -> StateRecord | None:
+        self._require_read_lease()
         return self._primary().read(key)
 
     def write(
@@ -943,6 +958,7 @@ class ReplicatedStatePlane(StatePlane):
         principal_id: str | None = None,
         audience: str | None = None,
     ) -> tuple[StateRecord, ...]:
+        self._require_read_lease()
         return self._primary().list_namespace(
             namespace,
             principal_id=principal_id,
@@ -950,4 +966,5 @@ class ReplicatedStatePlane(StatePlane):
         )
 
     def list_scopes(self, namespace: str) -> tuple[tuple[str | None, str | None], ...]:
+        self._require_read_lease()
         return self._primary().list_scopes(namespace)
