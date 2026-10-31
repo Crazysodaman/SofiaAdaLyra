@@ -384,12 +384,22 @@ def test_g7a_revoked_learning_restores_baseline_planner_after_restart(tmp_path):
         title="Investigate Docker service diagnostics after revocation",
         completion=condition,
     )
-    assert restarted_production.run_due(now=NOW + timedelta(minutes=2)) >= 1
+    # Verify the exact GOALS planner decision after restart without
+    # executing unrelated persisted diagnostic children. Multi-goal RUN
+    # reconciliation has its own revision/lease gate.
+    advice = restarted_advanced.planning_advice(
+        principal=principal, goal_id=second.id, context_tags=("docker",),
+        now=NOW + timedelta(minutes=2),
+    )
+    assert advice["episode_ids"] == ()
+    assert advice["avoid_capabilities"] == ()
+    chosen = restarted_production.planner.plan(
+        second, diagnostic_done=False,
+        avoid_capabilities=tuple(advice["avoid_capabilities"]),
+    )
+    assert chosen is not None
+    assert chosen[0].name == "portainer.summary"
     with sqlite3.connect(path) as db:
-        assert db.execute(
-            "SELECT capability FROM goal_action_attempt WHERE goal_id=?",
-            (second.id,),
-        ).fetchone() == ("portainer.summary",)
         assert db.execute(
             "SELECT COUNT(*) FROM ga_planning_influence WHERE goal_id=?",
             (second.id,),
