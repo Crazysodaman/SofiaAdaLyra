@@ -259,6 +259,10 @@ class SQLiteReplicationWitness:
                 raise StaleWriterError(
                     f"writer fenced by {current.owner_id} epoch {current.epoch}"
                 )
+            if moment < current.renewed_at:
+                raise StaleWriterError(
+                    "writer clock moved backwards; do not renew an uncertain lease"
+                )
             if moment >= current.expires_at:
                 raise StaleWriterError(
                     "writer lease expired; reacquire a new writer epoch"
@@ -309,6 +313,10 @@ class SQLiteReplicationWitness:
             raise StaleWriterError(
                 f"writer fenced by {current.owner_id} epoch {current.epoch} "
                 f"before {action}"
+            )
+        if moment < current.renewed_at:
+            raise StaleWriterError(
+                f"writer clock moved backwards before {action}"
             )
         if moment >= current.expires_at:
             raise StaleWriterError(
