@@ -40,6 +40,7 @@ from .evidence import (
     EvidenceGraph,
     EvidenceResolution,
 )
+from .fleet_observation import FleetCognitiveEvidenceBridge, FleetObservationRejected
 from .kernel import ProductionTurnKernel
 from .claims import EvidenceClaimPlanner, EvidenceClaimValidator
 from .fleet_machine import FleetMachineAnswerCoordinator
@@ -90,6 +91,8 @@ __all__ = [
     "EvidenceConflict",
     "EvidenceGraph",
     "EvidenceResolution",
+    "FleetCognitiveEvidenceBridge",
+    "FleetObservationRejected",
     "SQLiteConversationFocusStore",
     "ProductionTurnKernel",
     "EvidenceClaimPlanner",

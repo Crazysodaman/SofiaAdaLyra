@@ -123,6 +123,7 @@ from sofia.core.cognition.v2 import (
     EntityCandidate,
     EvidenceAcquisitionCoordinator,
     EvidenceGraph,
+    FleetCognitiveEvidenceBridge,
     FleetMachineAnswerCoordinator,
     merge_validated_drafts,
     PersonalityAfterTruthRenderer,
@@ -303,6 +304,9 @@ class SofiaApplication:
             configuration.state_path
         )
         self._cognitive_evidence_graph = EvidenceGraph(
+            self._cognitive_evidence
+        )
+        self._fleet_cognitive_evidence = FleetCognitiveEvidenceBridge(
             self._cognitive_evidence
         )
         self._cognitive_evidence_acquisition = EvidenceAcquisitionCoordinator(
