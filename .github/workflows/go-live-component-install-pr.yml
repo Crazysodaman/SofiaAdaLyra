@@ -1,6 +1,15 @@
 name: GO LIVE Component Install PR Verification
 
 on:
+  push:
+    branches:
+      - chatgpt/go-live-release-env-version
+    paths:
+      - 'src/sofia/platform/ops/component_install.py'
+      - 'src/sofia/platform/run/active_release.py'
+      - 'test/test_core_component_install.py'
+      - 'test/test_run_active_release.py'
+      - '.github/workflows/go-live-component-install-pr.yml'
   pull_request:
     paths:
       - 'src/sofia/platform/ops/component_install.py'
@@ -29,7 +38,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 70
     env:
-      SOFIA_STATE_ROOT: ${{ runner.temp }}/sofia-component-install-pr-state
+      SOFIA_STATE_ROOT: ${{ github.workspace }}/state/cloud-runtime
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - name: Checkout proposed exact revision
@@ -40,6 +49,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Initialize ignored state root
+        shell: bash
+        run: |
+          mkdir -p "$SOFIA_STATE_ROOT"
+          test -w "$SOFIA_STATE_ROOT"
       - name: Install test dependencies
         run: python -m pip install -e . pytest
       - name: Verify dependency resolution
