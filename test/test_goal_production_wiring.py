@@ -504,6 +504,55 @@ def test_g7a_owner_cancelled_goal_cannot_execute_from_stale_snapshot(
         ).fetchone() == (0,)
 
 
+def test_g7a_goal_revocation_after_planning_blocks_tool_dispatch(
+    tmp_path, monkeypatch
+):
+    """Even a previously proposed read-only action loses authority on cancel."""
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    dispatched = []
+    goals, production = coordinator(
+        path, neural=[snapshot("ops")], executions=dispatched,
+    )
+    principal = local_sparks_principal()
+    goal = create_user_goal(
+        goals, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-revoked-after-plan", title="Diagnose Docker containers",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner reviews diagnosis.",
+        ),
+    )
+    propose = goals.propose_action
+
+    def cancel_after_proposal(**kwargs):
+        approved_proposal = propose(**kwargs)
+        goals.transition(
+            goal_id=goal.id,
+            principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience,
+            expected_status=GoalStatus.ACTIVE,
+            next_status=GoalStatus.CANCELLED,
+            actor_principal_id=principal.principal_id,
+            authenticated_principal=principal,
+            now=NOW,
+            note="Owner cancellation while GOALS planned",
+        )
+        return approved_proposal
+
+    monkeypatch.setattr(goals, "propose_action", cancel_after_proposal)
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 0
+    assert dispatched == []
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM goal_action_attempt WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (0,)
+    assert goals.store.get(
+        goal.id, principal_id=goal.scope_principal_id,
+        audience=goal.scope_audience,
+    ).status is GoalStatus.CANCELLED
+
+
 def failed_workload(path):
     with sqlite3.connect(path) as db:
         db.execute("""
