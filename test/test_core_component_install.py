@@ -704,3 +704,36 @@ def test_core_attempt_receipt_mismatch_rolls_back_transaction(
     assert installer.registry.installed() is None
     assert installer.registry.history() == ()
     assert installer.registry.pending_attempts()[0].attempt_id == attempt
+
+
+def test_g2_rejects_symlinked_installation_root_before_side_effect(tmp_path, verifier):
+    target = tmp_path / "redirect-target"
+    target.mkdir()
+    redirected = tmp_path / "component-home"
+    try:
+        redirected.symlink_to(target, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("host cannot create symlink")
+    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
+    with pytest.raises(CoreComponentInstallError, match="root must not be redirected"):
+        CoreComponentInstaller(
+            registry, verifier, installation_root=redirected,
+            authorization_check=lambda *_: True,
+        )
+    assert list(target.iterdir()) == []
+
+
+def test_g2_rejects_symlinked_installation_parent(tmp_path, verifier):
+    target = tmp_path / "external"
+    target.mkdir()
+    parent = tmp_path / "redirect-parent"
+    try:
+        parent.symlink_to(target, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("host cannot create symlink")
+    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
+    with pytest.raises(CoreComponentInstallError, match="root must not be redirected"):
+        CoreComponentInstaller(
+            registry, verifier, installation_root=parent / "core",
+        )
+    assert list(target.iterdir()) == []
