@@ -519,6 +519,101 @@ def test_g7a_owner_cancelled_goal_cannot_execute_from_stale_snapshot(
         ).fetchone() == (0,)
 
 
+def test_g7a_atomic_reservation_rejects_revision_changed_after_final_check(
+    tmp_path, monkeypatch
+):
+    """Changing goal revision between final read and reserve cannot race RUN."""
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    calls = []
+    goals, production = coordinator(
+        path, neural=[snapshot("ops")], executions=calls,
+    )
+    principal = local_sparks_principal()
+    goal = create_user_goal(
+        goals, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-atomic-revision", title="Diagnose Docker container health",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner verifies diagnosis.",
+        ),
+    )
+    original_reserve = production._reserve_dispatch
+    crossed_boundary = []
+
+    def revise_before_reservation(**kwargs):
+        original_goal = kwargs["goal"]
+        goals.set_run_state(
+            goal=original_goal, run_state=GoalRunState.WAITING_EVIDENCE,
+            actor_principal_id="sofia:self", now=NOW,
+        )
+        crossed_boundary.append(original_goal.revision)
+        return original_reserve(**kwargs)
+
+    monkeypatch.setattr(production, "_reserve_dispatch", revise_before_reservation)
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 0
+    assert crossed_boundary
+    assert calls == []
+    assert production.unresolved_dispatches(goal.id) == ()
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM goal_action_dispatch WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (0,)
+
+
+def test_g7a_atomic_reservation_rejects_owner_cancellation_after_final_check(
+    tmp_path, monkeypatch
+):
+    """Owner cancel and action reservation serialize on canonical writer."""
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    calls = []
+    goals, production = coordinator(
+        path, neural=[snapshot("ops")], executions=calls,
+    )
+    principal = local_sparks_principal()
+    goal = create_user_goal(
+        goals, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-atomic-cancel", title="Diagnose Docker container health",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner verifies diagnosis.",
+        ),
+    )
+    cancel_ref = "message:g7a-cancel-during-reserve"
+    GoalEvidenceLedger(path).record(
+        evidence_ref=cancel_ref, kind="authenticated_user_message",
+        observed_at=NOW, source="test-owner-cancellation",
+        principal_id=principal.principal_id,
+        audience=audience_scope(principal),
+    )
+    original_reserve = production._reserve_dispatch
+
+    def cancel_before_reservation(**kwargs):
+        goals.transition(
+            goal_id=goal.id, principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience,
+            expected_status=GoalStatus.ACTIVE, next_status=GoalStatus.CANCELLED,
+            actor_principal_id=principal.principal_id,
+            authenticated_principal=principal, evidence_refs=(cancel_ref,),
+            now=NOW, note="Owner cancelled before atomic reservation",
+        )
+        return original_reserve(**kwargs)
+
+    monkeypatch.setattr(production, "_reserve_dispatch", cancel_before_reservation)
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 0
+    assert calls == []
+    assert production.unresolved_dispatches(goal.id) == ()
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM goal_action_dispatch WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (0,)
+    assert goals.store.get(
+        goal.id, principal_id=goal.scope_principal_id,
+        audience=goal.scope_audience,
+    ).status is GoalStatus.CANCELLED
+
+
 def test_g7a_goal_revocation_after_planning_blocks_tool_dispatch(
     tmp_path, monkeypatch
 ):
