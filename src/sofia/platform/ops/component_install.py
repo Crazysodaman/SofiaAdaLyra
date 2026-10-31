@@ -556,6 +556,15 @@ class CoreComponentInstaller:
             self.installation_root = None
         self.authorization_check = authorization_check
 
+    def _checked_installation_root(self) -> Path:
+        """Reject redirection created after the installer was constructed."""
+        if self.installation_root is None:
+            raise CoreComponentInstallError("Core installation root is not configured")
+        root = self.installation_root
+        if root.is_symlink() or any(parent.is_symlink() for parent in root.parents):
+            raise CoreComponentInstallError("Core installation root must not be redirected")
+        return root
+
     def execute(
         self,
         artifact: CoreComponentArtifact,
@@ -643,6 +652,7 @@ class CoreComponentInstaller:
             raise PermissionError("trusted Core installation authorizer is required")
         if self.authorization_check(authority, approval_id, artifact, operation) is not True:
             raise PermissionError("Core component installation authority denied")
+        self._checked_installation_root()
         health_verified = self._verify_health(wheel_path)
         if not health_verified:
             raise CoreComponentInstallError("Core component failed the health probe")
@@ -716,7 +726,7 @@ class CoreComponentInstaller:
             raise CoreComponentInstallError("Core install artifact version mismatch")
         if self.installation_root is None:
             raise CoreComponentInstallError("Core installation root is not configured")
-        destination = self.installation_root / f"core-{artifact.version}-{artifact.sha256}"
+        destination = self._checked_installation_root() / f"core-{artifact.version}-{artifact.sha256}"
         if destination.is_symlink() or not destination.is_dir():
             raise CoreComponentInstallError(
                 "previously recorded Core installation is absent or redirected"
@@ -732,38 +742,51 @@ class CoreComponentInstaller:
         This prepares immutable Core bytes only. A worker controller must
         separately authorize activation and canonical-state ownership.
         """
-        root = self.installation_root
-        assert root is not None
+        import shutil
+
+        root = self._checked_installation_root()
         root.mkdir(parents=True, exist_ok=True)
+        self._checked_installation_root()
         destination = root / f"core-{artifact.version}-{artifact.sha256}"
         if destination.is_symlink():
             raise CoreComponentInstallError("Core installation destination is a symlink")
         with tempfile.TemporaryDirectory(prefix=".core-stage-", dir=root) as temporary:
+            # The reviewed source path is mutable. Pip must consume a private,
+            # digest-rechecked copy, not a different wheel substituted after
+            # signature verification and approval.
+            snapshot = Path(temporary) / wheel_path.name
+            shutil.copyfile(wheel_path, snapshot)
+            if sha256(snapshot.read_bytes()).hexdigest() != artifact.sha256:
+                raise CoreComponentInstallError(
+                    "Core artifact changed after signature verification"
+                )
             staging = Path(temporary) / "environment"
             venv.EnvBuilder(with_pip=True).create(staging)
             python = staging / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
             try:
                 subprocess.run(
                     [str(python), "-m", "pip", "install", "--no-index", "--no-deps",
-                     "--disable-pip-version-check", str(wheel_path.resolve())],
+                     "--disable-pip-version-check", str(snapshot)],
                     check=True, capture_output=True, text=True, timeout=600,
                 )
-                self._verify_installed_bytes(staging, artifact, wheel_path)
+                self._verify_installed_bytes(staging, artifact, snapshot)
             except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
                 raise CoreComponentInstallError("physical Core installation failed") from exc
             # Stage publication: old environments remain available for rollback.
             # An already-published candidate is never silently overwritten.
+            self._checked_installation_root()
+            if destination.is_symlink():
+                raise CoreComponentInstallError("Core installation destination is a symlink")
             if destination.exists():
-                self._verify_installed_bytes(destination, artifact, wheel_path)
+                self._verify_installed_bytes(destination, artifact, snapshot)
                 return destination
             os.replace(staging, destination)
-        try:
-            self._verify_installed_bytes(destination, artifact, wheel_path)
-        except Exception:
-            # Do not retain or attest a partially published environment.
-            import shutil
-            shutil.rmtree(destination, ignore_errors=True)
-            raise
+            try:
+                self._verify_installed_bytes(destination, artifact, snapshot)
+            except Exception:
+                # Do not retain or attest a partially published environment.
+                shutil.rmtree(destination, ignore_errors=True)
+                raise
         return destination
 
     @staticmethod
