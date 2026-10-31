@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import base64
 from pathlib import Path
+from datetime import datetime, timezone
+import sqlite3
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -21,6 +23,7 @@ from sofia.platform.ops.component_install import (
     CoreComponentInstallError,
     CoreComponentInstaller,
     CoreComponentRegistry,
+    CoreComponentReceipt,
     Ed25519ComponentSignatureVerifier,
     verify_core_component_content,
 )
@@ -375,3 +378,69 @@ def test_core_install_requires_independent_approval_or_policy_proof(
     ]
     assert installer.registry.installed() is None
     assert not (tmp_path / "installed-components").exists()
+
+
+def _synthetic_receipt(receipt_id: str, version: str) -> CoreComponentReceipt:
+    """Storage-only fixture: does not represent authorization or an installed wheel."""
+    return CoreComponentReceipt(
+        receipt_id=receipt_id,
+        artifact_id=CORE_DISTRIBUTION,
+        version=version,
+        operation=InstallOperation.INSTALL,
+        outcome=InstallOutcome.SUCCEEDED,
+        artifact_sha256="a" * 64,
+        authority=InstallAuthority.STANDING_POLICY,
+        approval_id=None,
+        health_verified=True,
+        installed_at=datetime(2026, 10, 30, tzinfo=timezone.utc),
+        detail="storage test fixture",
+    )
+
+
+def test_core_registry_preserves_append_only_install_history_across_restart(tmp_path):
+    path = tmp_path / "core-components.sqlite"
+    registry = CoreComponentRegistry(path)
+    first = _synthetic_receipt("install-first", "0.1.0")
+    second = _synthetic_receipt("install-second", "0.2.0")
+    registry.record(first)
+    registry.record(second)
+
+    assert registry.installed() == second
+    assert registry.history() == (first, second)
+
+    restarted = CoreComponentRegistry(path)
+    assert restarted.installed() == second
+    assert restarted.history() == (first, second)
+
+    # Replaying an already-recorded event cannot overwrite the current
+    # projection or its evidence. Both inserts live in one transaction.
+    with pytest.raises(sqlite3.IntegrityError):
+        restarted.record(first)
+    assert restarted.installed() == second
+    assert restarted.history() == (first, second)
+
+
+def test_core_registry_upgrades_legacy_single_receipt_without_duplication(tmp_path):
+    path = tmp_path / "core-components.sqlite"
+    registry = CoreComponentRegistry(path)
+    previous = _synthetic_receipt("install-legacy", "0.1.0")
+    registry.record(previous)
+    # Simulate the existing pre-history schema by removing its historical row.
+    with sqlite3.connect(path) as db:
+        db.execute("DELETE FROM core_component_receipt_history")
+    upgraded = CoreComponentRegistry(path)
+    assert upgraded.history() == (previous,)
+    assert upgraded.installed() == previous
+
+    upgraded_again = CoreComponentRegistry(path)
+    assert upgraded_again.history() == (previous,)
+
+
+def test_core_registry_records_distinct_attempts_of_same_version(tmp_path):
+    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
+    first = _synthetic_receipt("install-attempt-one", "0.1.0")
+    second = _synthetic_receipt("install-attempt-two", "0.1.0")
+    registry.record(first)
+    registry.record(second)
+    assert registry.history() == (first, second)
+    assert registry.installed() == second
