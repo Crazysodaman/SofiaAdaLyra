@@ -62,6 +62,10 @@ class ActiveReleaseResolver:
     def resolve(self) -> ActiveRelease | None:
         store = ReleaseStateStore(SQLiteStatePlane(self.state_path))
         active = store.active()
+        # A symlink/junction may redirect the authoritative release pointer
+        # outside the operator-owned release root even when bytes look valid.
+        if self.pointer_path.is_symlink():
+            raise ActiveReleaseError("active-release pointer must not be redirected")
         pointer_exists = self.pointer_path.is_file()
 
         if active is None:
@@ -109,7 +113,10 @@ class ActiveReleaseResolver:
                 "active-release pointer manifest digest mismatch"
             )
 
-        target = (self.releases_dir / release_id).resolve()
+        candidate_target = self.releases_dir / release_id
+        if candidate_target.is_symlink() or self.releases_dir.is_symlink():
+            raise ActiveReleaseError("active release directory must not be redirected")
+        target = candidate_target.resolve()
         if target.parent != self.releases_dir.resolve():
             raise ActiveReleaseError("active release path escaped releases directory")
         pointer_path = pointer.get("path")
