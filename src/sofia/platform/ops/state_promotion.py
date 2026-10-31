@@ -188,12 +188,45 @@ def review_operator_handoff(
         blockers.append("signed_pending_pointer_unavailable")
     else:
         try:
-            pointer_digest = sha256(pending.pending_path.read_bytes()).hexdigest()
-        except OSError:
+            # This is a bounded, read-only schema/identity cross-check, NOT
+            # HMAC authentication. The privileged broker remains responsible
+            # for validating the signed pointer with its external trust key.
+            with pending.pending_path.open("rb") as source:
+                pointer_bytes = source.read(16_385)
+            if len(pointer_bytes) > 16_384:
+                blockers.append("signed_pending_pointer_exceeds_size_policy")
+            else:
+                pointer_digest = sha256(pointer_bytes).hexdigest()
+                if not hmac.compare_digest(pointer_digest, pending.pointer_sha256):
+                    blockers.append("signed_pending_pointer_digest_mismatch")
+                try:
+                    document = json.loads(pointer_bytes.decode("utf-8"))
+                except (UnicodeError, ValueError):
+                    blockers.append("signed_pending_pointer_payload_mismatch")
+                else:
+                    expected_keys = {
+                        "schema", "state_root", "writer_host_id",
+                        "epoch", "operator_approval_ref", "hmac_sha256",
+                    }
+                    if (
+                        not isinstance(document, dict)
+                        or set(document) != expected_keys
+                        or document["schema"] != _SCHEMA
+                        or document["state_root"] != str(
+                            staged.destination_state_path.parent.resolve(strict=True)
+                        )
+                        or document["writer_host_id"] != authorization.writer_host_id
+                        or type(document["epoch"]) is not int
+                        or document["epoch"] != authorization.next_writer_epoch
+                        or document["operator_approval_ref"]
+                        != authorization.operator_approval_ref
+                        or not isinstance(document["hmac_sha256"], str)
+                        or len(document["hmac_sha256"]) != 64
+                        or any(c not in "0123456789abcdef" for c in document["hmac_sha256"])
+                    ):
+                        blockers.append("signed_pending_pointer_payload_mismatch")
+        except (OSError, RuntimeError, ValueError):
             blockers.append("signed_pending_pointer_unreadable")
-        else:
-            if not hmac.compare_digest(pointer_digest, pending.pointer_sha256):
-                blockers.append("signed_pending_pointer_digest_mismatch")
     if not evidence.old_writer_fenced:
         blockers.append("old_writer_not_fenced")
     if not evidence.old_runtime_stopped:
