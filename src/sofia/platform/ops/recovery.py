@@ -70,7 +70,23 @@ class RestoreVerification:
         if not self.verifier.strip(): raise ValueError("restore verifier required")
 
 class RecoveryGuard:
-    def require(self,backup:BackupEvidence,restore:RestoreVerification,*,target_failure_domain:str)->None:
-        if backup.backup_id!=restore.backup_id: raise RecoveryDenied("restore evidence is for another backup")
-        if not restore.succeeded: raise RecoveryDenied("backup has not passed independent restore verification")
-        if backup.failure_domain==target_failure_domain: raise RecoveryDenied("backup is not isolated from target failure domain")
+    def require(
+        self, backup: BackupEvidence, restore: RestoreVerification, *,
+        target_failure_domain: str,
+    ) -> None:
+        if not isinstance(backup, BackupEvidence) or not isinstance(
+            restore, RestoreVerification
+        ):
+            raise TypeError("typed backup and restore evidence required")
+        if not isinstance(target_failure_domain, str) or not target_failure_domain.strip():
+            raise ValueError("target failure domain must be nonempty")
+        if backup.backup_id != restore.backup_id:
+            raise RecoveryDenied("restore evidence is for another backup")
+        if type(restore.succeeded) is not bool or not restore.succeeded:
+            raise RecoveryDenied("backup has not passed independent restore verification")
+        # An earlier restore does not verify a newer backup just because its
+        # ID and verifier label match. Compare aware instants, not strings.
+        if restore.verified_at < backup.created_at:
+            raise RecoveryDenied("restore verification predates the backup")
+        if backup.failure_domain == target_failure_domain:
+            raise RecoveryDenied("backup is not isolated from target failure domain")
