@@ -13,14 +13,11 @@ write Core-owned state in order to record its own installation decisions.
 from __future__ import annotations
 
 from hashlib import sha256
-import csv
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
 import venv
-import json
 from importlib.metadata import PathDistribution
 import re
 import sqlite3
@@ -403,12 +400,19 @@ class CoreComponentInstaller:
                 self._verify_installed_bytes(staging, artifact, wheel_path)
             except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
                 raise CoreComponentInstallError("physical Core installation failed") from exc
-            # Atomic publication: old environments remain available for rollback.
+            # Stage publication: old environments remain available for rollback.
             # An already-published candidate is never silently overwritten.
             if destination.exists():
                 self._verify_installed_bytes(destination, artifact, wheel_path)
                 return destination
             os.replace(staging, destination)
+        try:
+            self._verify_installed_bytes(destination, artifact, wheel_path)
+        except Exception:
+            # Do not retain or attest a partially published environment.
+            import shutil
+            shutil.rmtree(destination, ignore_errors=True)
+            raise
         return destination
 
     @staticmethod
