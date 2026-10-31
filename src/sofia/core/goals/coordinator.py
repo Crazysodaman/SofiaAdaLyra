@@ -17,6 +17,9 @@ from sofia.modules.neuro.model import NeuralActivation, NeuroStateSnapshot, Neur
 from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.core.social.model import PrincipalContext
+from sofia.sdk.principals import audience_scope
+
+from .evidence import GoalEvidence, GoalEvidenceIndex
 
 from .evidence import GoalEvidenceLedger
 from .model import (
@@ -147,6 +150,12 @@ class GoalProductionCoordinator:
         notify_review: Callable[[Goal, datetime], None] | None = None,
         wake_recorder: Callable[..., None] | None = None,
         generalization=None,
+        reconciliation_authorizer: Callable[
+            [PrincipalContext, Goal, str, GoalEvidence], bool
+        ] | None = None,
+        independent_outcome_verifier: Callable[
+            [str, GoalEvidence], bool
+        ] | None = None,
     ) -> None:
         self.goals = goals
         self.path = Path(state_path)
@@ -159,6 +168,14 @@ class GoalProductionCoordinator:
         self.notify_review = notify_review
         self.wake_recorder = wake_recorder
         self.generalization = generalization
+        if reconciliation_authorizer is not None and not callable(reconciliation_authorizer):
+            raise TypeError("reconciliation_authorizer must be a trusted callable")
+        if independent_outcome_verifier is not None and not callable(
+            independent_outcome_verifier
+        ):
+            raise TypeError("independent_outcome_verifier must be a trusted callable")
+        self.reconciliation_authorizer = reconciliation_authorizer
+        self.independent_outcome_verifier = independent_outcome_verifier
         with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS goal_candidate_decision (
@@ -192,6 +209,20 @@ class GoalProductionCoordinator:
                 );
                 CREATE UNIQUE INDEX IF NOT EXISTS goal_one_unresolved_dispatch
                 ON goal_action_dispatch(goal_id) WHERE status='unresolved';
+                -- Immutable outcome reconciliation. A review is not an
+                -- authorization to repeat an action: only a separately
+                -- approved GOALS continuation may allow future work.
+                CREATE TABLE IF NOT EXISTS goal_action_reconciliation (
+                    dispatch_id TEXT PRIMARY KEY,
+                    goal_id TEXT NOT NULL,
+                    capability TEXT NOT NULL,
+                    evidence_ref TEXT NOT NULL UNIQUE,
+                    outcome TEXT NOT NULL CHECK(
+                        outcome IN ('effect_verified','no_effect_verified')
+                    ),
+                    reviewer_principal_id TEXT NOT NULL,
+                    reviewed_at TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS goal_priority_evaluation (
                     goal_id TEXT NOT NULL,
                     principal_id TEXT NOT NULL,
@@ -569,6 +600,130 @@ class GoalProductionCoordinator:
             ).fetchall()
         return tuple((row[0], row[1]) for row in rows)
 
+    def reconciliations(
+        self, goal_id: str
+    ) -> tuple[tuple[str, str, str], ...]:
+        """Read-only, immutable reconciliation proofs for a goal."""
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            rows = db.execute(
+                "SELECT dispatch_id,outcome,evidence_ref "
+                "FROM goal_action_reconciliation WHERE goal_id=? "
+                "ORDER BY reviewed_at,dispatch_id",
+                (goal_id,),
+            ).fetchall()
+        return tuple((row[0], row[1], row[2]) for row in rows)
+
+    def _requires_dispatch_review(self, goal_id: str) -> bool:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            return db.execute(
+                "SELECT 1 FROM goal_action_dispatch "
+                "WHERE goal_id=? AND status='unresolved' "
+                "UNION SELECT 1 FROM goal_action_reconciliation "
+                "WHERE goal_id=? LIMIT 1",
+                (goal_id, goal_id),
+            ).fetchone() is not None
+
+    def reconcile_dispatch(
+        self, *, goal_id: str, dispatch_id: str,
+        principal: PrincipalContext, evidence_ref: str, now: datetime,
+    ) -> str:
+        """Record independently verified outcome without granting a retry.
+
+        Caller must supply an authenticated principal from the real identity
+        boundary and both trusted platform-authority and independent-effect
+        verifiers at composition. Arbitrary owner strings, a gateway result,
+        or a newly inserted Core-owned receipt are never sufficient.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("reconciliation time must be timezone-aware")
+        if not isinstance(dispatch_id, str) or not dispatch_id.strip():
+            raise ValueError("exact dispatch ID required")
+        if not isinstance(evidence_ref, str) or not evidence_ref.strip():
+            raise ValueError("exact independent evidence reference required")
+        if (
+            self.reconciliation_authorizer is None
+            or self.independent_outcome_verifier is None
+        ):
+            raise PermissionError(
+                "trusted reconciliation authority and outcome verifier required"
+            )
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            pending = db.execute(
+                "SELECT goal_id,capability,reserved_at FROM goal_action_dispatch "
+                "WHERE dispatch_id=? AND goal_id=? AND status='unresolved'",
+                (dispatch_id, goal_id),
+            ).fetchone()
+        if pending is None:
+            raise ValueError("unresolved exact GOALS dispatch required")
+        goal = self.goals.store.get(
+            goal_id, principal_id=principal.principal_id,
+            audience=audience_scope(principal),
+        )
+        if (
+            goal is None
+            or goal.scope_principal_id != principal.principal_id
+            or goal.scope_audience != audience_scope(principal)
+            or goal.owner_principal_id != principal.principal_id
+        ):
+            raise PermissionError(
+                "GOALS dispatch owner and audience must match authenticated principal"
+            )
+        evidence = GoalEvidenceIndex(self.path).lookup(evidence_ref)
+        if (
+            evidence is None
+            or evidence.kind != "operation_receipt"
+            or evidence.source in (None, "goal-action")
+            or evidence.goal_id != goal_id
+            or evidence.action_id != dispatch_id
+            or evidence.assertion != pending[1]
+            or evidence.successful is None
+            or evidence.principal_id != principal.principal_id
+            or evidence.audience != audience_scope(principal)
+            or not (
+                datetime.fromisoformat(pending[2])
+                <= evidence.observed_at <= now
+            )
+        ):
+            raise ValueError(
+                "independent outcome must match exact dispatch, time and audience"
+            )
+        if self.reconciliation_authorizer(
+            principal, goal, dispatch_id, evidence
+        ) is not True:
+            raise PermissionError("reconciliation is not independently authorized")
+        if self.independent_outcome_verifier(dispatch_id, evidence) is not True:
+            raise ValueError("independent effect verification rejected the receipt")
+        outcome = (
+            "effect_verified" if evidence.successful else "no_effect_verified"
+        )
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                changed = db.execute(
+                    "UPDATE goal_action_dispatch SET status='recorded',"
+                    "finished_at=?,evidence_ref=? "
+                    "WHERE dispatch_id=? AND goal_id=? AND status='unresolved'",
+                    (now.isoformat(), evidence.evidence_ref, dispatch_id, goal_id),
+                )
+                if changed.rowcount != 1:
+                    raise ValueError(
+                        "dispatch changed before exact reconciliation could commit"
+                    )
+                db.execute(
+                    "INSERT INTO goal_action_reconciliation("
+                    "dispatch_id,goal_id,capability,evidence_ref,outcome,"
+                    "reviewer_principal_id,reviewed_at) VALUES(?,?,?,?,?,?,?)",
+                    (dispatch_id, goal_id, pending[1], evidence.evidence_ref,
+                     outcome, principal.principal_id, now.isoformat()),
+                )
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+        return outcome
+
     def _reserve_dispatch(
         self, *, dispatch_id: str, goal: Goal, capability: str, now: datetime,
     ) -> bool:
@@ -697,9 +852,10 @@ class GoalProductionCoordinator:
             )
             if not eligible:
                 continue
-            if self.unresolved_dispatches(goal.id):
-                # Do not replay an UNKNOWN external effect after a crash,
-                # even when the usual retry interval has elapsed.
+            if self._requires_dispatch_review(goal.id):
+                # Do not replay UNKNOWN effects, or automatically resume even
+                # after reconciliation. A fresh authorized continuation must
+                # separately decide what happens after the verified outcome.
                 self.goals.set_run_state(
                     goal=goal, run_state=GoalRunState.WAITING_EVIDENCE,
                     actor_principal_id=SOFIA_GOAL_OWNER_ID, now=now,
