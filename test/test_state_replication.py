@@ -226,3 +226,82 @@ def test_stale_writer_cannot_ack_or_commit_after_takeover(tmp_path):
             target_ids=("primary", "secondary"),
             now=NOW + timedelta(seconds=31),
         )
+
+
+def test_g3_previous_writer_cannot_private_serve_after_epoch_takeover(tmp_path):
+    """Old Core must stop read/list access after a successor takes the lease."""
+    plane, primary, secondary, witness = make_plane(tmp_path)
+    key = StateKey(
+        "private", "autobiography", principal_id="owner",
+        audience="private:owner",
+    )
+    private_record = record(key, 1, b"protected owner context")
+    assert plane.write(private_record, expected_revision=None) == private_record
+    assert plane.read(key) == private_record
+    assert plane.list_namespace(
+        "private", principal_id="owner", audience="private:owner",
+    ) == (private_record,)
+    assert plane.list_scopes("private") == (("owner", "private:owner"),)
+
+    prior = plane.writer_lease
+    successor = witness.acquire_writer(
+        "writer-on-artemis",
+        now=prior.expires_at + timedelta(seconds=1),
+        ttl_seconds=30,
+    )
+    assert successor.epoch == prior.epoch + 1
+
+    with pytest.raises(StaleWriterError, match="fenced"):
+        plane.read(key)
+    with pytest.raises(StaleWriterError, match="fenced"):
+        plane.list_namespace(
+            "private", principal_id="owner", audience="private:owner",
+        )
+    with pytest.raises(StaleWriterError, match="fenced"):
+        plane.list_scopes("private")
+    # The old Core cannot renew read authority or mutate the shared state.
+    with pytest.raises(StaleWriterError, match="fenced"):
+        plane.write(record(key, 2, b"stale source must never change me"),
+                    expected_revision=1)
+    assert primary.read(key) == secondary.read(key) == private_record
+    assert witness.current_writer() == successor
+
+
+def test_g3_expired_core_cannot_read_even_before_takeover(tmp_path):
+    """Lost witness contact/expired authority never implies read permission."""
+    plane, _, _, witness = make_plane(tmp_path, now=NOW)
+    current = witness.current_writer()
+    assert current is not None
+    assert current.expires_at < datetime.now(timezone.utc)
+    key = StateKey("private", "state")
+    with pytest.raises(StaleWriterError, match="expired"):
+        plane.read(key)
+    with pytest.raises(StaleWriterError, match="expired"):
+        plane.list_namespace("private")
+    with pytest.raises(StaleWriterError, match="expired"):
+        plane.list_scopes("private")
+    # Read requests deliberately do not renew or reacquire authority.
+    assert witness.current_writer() == current
+
+
+def test_g3_fencing_precedes_call_to_backing_storage(tmp_path, monkeypatch):
+    """A fenced Core cannot even reach its legacy private backing plane."""
+    plane, primary, _, witness = make_plane(tmp_path)
+    owner = plane.writer_lease
+    witness.acquire_writer(
+        "successor", now=owner.expires_at + timedelta(seconds=1),
+    )
+    accesses = []
+    def forbidden(*args, **kwargs):
+        accesses.append((args, kwargs))
+        raise AssertionError("stale Core accessed private storage")
+    monkeypatch.setattr(primary, "read", forbidden)
+    monkeypatch.setattr(primary, "list_namespace", forbidden)
+    monkeypatch.setattr(primary, "list_scopes", forbidden)
+    with pytest.raises(StaleWriterError):
+        plane.read(StateKey("private", "memory"))
+    with pytest.raises(StaleWriterError):
+        plane.list_namespace("private")
+    with pytest.raises(StaleWriterError):
+        plane.list_scopes("private")
+    assert accesses == []
