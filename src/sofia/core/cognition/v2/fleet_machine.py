@@ -19,7 +19,7 @@ from .contracts import (
     ActionRequirement, AcquisitionState, AnswerPlan, ConversationFocus,
     EvidenceAtom, EvidenceNeed, TurnPlan,
 )
-from .evidence import CapabilityEvidencePayload, EvidenceAcquisitionCoordinator
+from .evidence import CapabilityEvidencePayload, EvidenceAcquisitionCoordinator, EvidenceGraph
 from .rendering import ValidatedAnswerDraft
 
 
@@ -47,13 +47,22 @@ def _plain(value: Any) -> Any:
 class FleetMachineAnswerCoordinator:
     """Answer bounded hardware comparisons without giving models truth authority."""
 
-    def __init__(self, dispatcher, acquisition) -> None:
+    def __init__(
+        self, dispatcher, acquisition,
+        evidence_graph: EvidenceGraph | None = None,
+    ) -> None:
         if not isinstance(dispatcher, CognitiveToolDispatcher):
             raise TypeError("dispatcher must be CognitiveToolDispatcher")
         if not isinstance(acquisition, EvidenceAcquisitionCoordinator):
             raise TypeError("acquisition must be EvidenceAcquisitionCoordinator")
+        if evidence_graph is not None and (
+            not isinstance(evidence_graph, EvidenceGraph)
+            or evidence_graph.ledger is not acquisition.ledger
+        ):
+            raise ValueError("Fleet answer evidence graph must share acquisition ledger")
         self.dispatcher = dispatcher
         self.acquisition = acquisition
+        self.evidence_graph = evidence_graph
         self.claim_planner = EvidenceClaimPlanner()
         self.claim_validator = EvidenceClaimValidator()
 
@@ -195,6 +204,26 @@ class FleetMachineAnswerCoordinator:
                     )
             if operation_has_current_evidence:
                 capability_refs.append(f"capability:{capability}")
+
+        # Check the canonical graph after acquisition and before promoting
+        # stable hardware facts to claims. Operational metrics fluctuate by
+        # design and are intentionally excluded from this conflict gate.
+        if self.evidence_graph is not None:
+            rejected: set[tuple[str, str, str]] = set()
+            observed_at = datetime.now(timezone.utc)
+            for need in needs:
+                if need.predicate.startswith("ops."):
+                    continue
+                resolution = self.evidence_graph.resolve(need, now=observed_at)
+                if resolution.acquisition_state is not AcquisitionState.CURRENT:
+                    rejected.add((need.subject_id, need.predicate, need.scope_id))
+                    failure_reasons[need.need_id] = (
+                        resolution.reason or "no consistent current evidence"
+                    )
+            atoms = [
+                atom for atom in atoms
+                if (atom.subject_id, atom.predicate, atom.scope_id) not in rejected
+            ]
 
         answer = self.claim_validator.validate(
             self.claim_planner.build(plan, tuple(atoms)), tuple(atoms),

@@ -2,7 +2,7 @@ name: Debian Release Candidate Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, chatgpt/go-live-release-env-version]
   workflow_dispatch:
     inputs:
       release_id:
@@ -20,12 +20,16 @@ on:
 
 concurrency:
   group: debian-release-candidate-${{ github.ref }}
-  cancel-in-progress: false
+  # Cancel superseded GO LIVE development pushes only. Main release history
+  # and explicit release dispatches keep their independent evidence.
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/go-live-release-env-version' }}
 
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Full installed-wheel verification may exceed the legacy 40-minute budget.
+    # Keep the evidence and verification checks intact, not sharded/waived.
+    timeout-minutes: 120
     permissions:
       contents: read
     steps:

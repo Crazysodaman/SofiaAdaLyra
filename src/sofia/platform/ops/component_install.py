@@ -13,14 +13,23 @@ write Core-owned state in order to record its own installation decisions.
 from __future__ import annotations
 
 from hashlib import sha256
+import os
+import subprocess
+import sys
+import tempfile
+import venv
+from importlib.metadata import PathDistribution
 import re
 import sqlite3
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
+from typing import Callable
 
 from sofia.platform.ops.platform_install import InstallAuthority, InstallOperation, InstallOutcome
+from sofia.platform.state.private_file import assert_no_redirected_components
 from sofia.platform.verify.component_artifacts import (
     CORE_ASSET_FILES,
     ComponentArtifactError,
@@ -182,6 +191,23 @@ class CoreComponentReceipt:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class CoreComponentInstallAttempt:
+    """Durable record of an attempted stage, including interrupted attempts."""
+
+    attempt_id: str
+    artifact_id: str
+    version: str
+    artifact_sha256: str
+    operation: InstallOperation
+    authority: InstallAuthority
+    approval_id: str | None
+    started_at: datetime
+    outcome: InstallOutcome | None
+    completed_at: datetime | None
+    detail: str
+
+
 class CoreComponentRegistry:
     """Platform-local record of installed Core components.
 
@@ -210,6 +236,61 @@ class CoreComponentRegistry:
                     detail TEXT NOT NULL
                 )
             """)
+            # Preserve all historical decisions; the single current receipt
+            # is a compatibility projection, not an audit log.
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS core_component_receipt_history (
+                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                    receipt_id TEXT NOT NULL UNIQUE,
+                    artifact_id TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    operation TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    artifact_sha256 TEXT NOT NULL,
+                    authority TEXT NOT NULL,
+                    approval_id TEXT,
+                    health_verified INTEGER NOT NULL,
+                    installed_at TEXT NOT NULL,
+                    detail TEXT NOT NULL
+                )
+            """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS core_component_install_attempt (
+                    attempt_id TEXT PRIMARY KEY,
+                    artifact_id TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    artifact_sha256 TEXT NOT NULL,
+                    operation TEXT NOT NULL,
+                    authority TEXT NOT NULL,
+                    approval_id TEXT,
+                    started_at TEXT NOT NULL,
+                    outcome TEXT,
+                    completed_at TEXT,
+                    detail TEXT NOT NULL DEFAULT ''
+                )
+            """)
+            # Only one unresolved physical stage per identity is permitted.
+            # A crash leaves a pending record that requires review, not an
+            # implicit retry which may race an installation in progress.
+            db.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS
+                    core_component_one_unresolved_stage
+                ON core_component_install_attempt(artifact_id)
+                WHERE outcome IS NULL
+            """)
+            # A previous release kept only the current row. Upgrade it once,
+            # without rewriting earlier history on subsequent startups.
+            db.execute("""
+                INSERT OR IGNORE INTO core_component_receipt_history(
+                    receipt_id, artifact_id, version, operation, outcome,
+                    artifact_sha256, authority, approval_id, health_verified,
+                    installed_at, detail
+                )
+                SELECT receipt_id, artifact_id, version, operation, outcome,
+                    artifact_sha256, authority, approval_id, health_verified,
+                    installed_at, detail
+                FROM core_component_receipt
+            """)
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
@@ -217,33 +298,8 @@ class CoreComponentRegistry:
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
-    def record(self, receipt: CoreComponentReceipt) -> None:
-        if not isinstance(receipt, CoreComponentReceipt):
-            raise TypeError("CoreComponentReceipt required")
-        with closing(self._connect()) as db, db:
-            db.execute("""
-                INSERT OR REPLACE INTO core_component_receipt(
-                    receipt_id, artifact_id, version, operation, outcome,
-                    artifact_sha256, authority, approval_id, health_verified,
-                    installed_at, detail
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
-            """, (
-                receipt.receipt_id, receipt.artifact_id, receipt.version,
-                receipt.operation.value, receipt.outcome.value,
-                receipt.artifact_sha256, receipt.authority.value,
-                receipt.approval_id, int(receipt.health_verified),
-                receipt.installed_at.astimezone(timezone.utc).isoformat(),
-                receipt.detail[:2000],
-            ))
-
-    def installed(self, artifact_id: str = CORE_DISTRIBUTION) -> CoreComponentReceipt | None:
-        with closing(self._connect()) as db:
-            row = db.execute(
-                "SELECT * FROM core_component_receipt WHERE artifact_id=?",
-                (artifact_id,),
-            ).fetchone()
-        if row is None:
-            return None
+    @staticmethod
+    def _receipt_from_row(row: sqlite3.Row) -> CoreComponentReceipt:
         return CoreComponentReceipt(
             receipt_id=row["receipt_id"], artifact_id=row["artifact_id"],
             version=row["version"], operation=InstallOperation(row["operation"]),
@@ -255,6 +311,190 @@ class CoreComponentRegistry:
             installed_at=datetime.fromisoformat(row["installed_at"]),
             detail=row["detail"],
         )
+
+    def begin_attempt(
+        self,
+        artifact: CoreComponentArtifact,
+        operation: InstallOperation,
+        authority: InstallAuthority,
+        approval_id: str | None,
+    ) -> str:
+        """Durably reserve a stage before the first installation side effect."""
+        attempt_id = f"core-attempt-{uuid4().hex}"
+        with closing(self._connect()) as db:
+            try:
+                db.execute("BEGIN IMMEDIATE")
+                db.execute("""
+                    INSERT INTO core_component_install_attempt(
+                        attempt_id, artifact_id, version, artifact_sha256,
+                        operation, authority, approval_id, started_at
+                    ) VALUES (?,?,?,?,?,?,?,?)
+                """, (
+                    attempt_id, artifact.artifact_id, artifact.version,
+                    artifact.sha256, operation.value, authority.value,
+                    approval_id, datetime.now(timezone.utc).isoformat(),
+                ))
+                db.commit()
+            except sqlite3.IntegrityError as error:
+                db.rollback()
+                raise CoreComponentInstallError(
+                    "unresolved Core installation attempt requires reconciliation"
+                ) from error
+        return attempt_id
+
+    def pending_attempts(
+        self, artifact_id: str = CORE_DISTRIBUTION
+    ) -> tuple[CoreComponentInstallAttempt, ...]:
+        """Read-only inspection of interrupted or concurrently staged work."""
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM core_component_install_attempt "
+                "WHERE artifact_id=? AND outcome IS NULL ORDER BY started_at, attempt_id",
+                (artifact_id,),
+            ).fetchall()
+        return tuple(self._attempt_from_row(row) for row in rows)
+
+    @staticmethod
+    def _attempt_from_row(row: sqlite3.Row) -> CoreComponentInstallAttempt:
+        return CoreComponentInstallAttempt(
+            attempt_id=row["attempt_id"], artifact_id=row["artifact_id"],
+            version=row["version"], artifact_sha256=row["artifact_sha256"],
+            operation=InstallOperation(row["operation"]),
+            authority=InstallAuthority(row["authority"]),
+            approval_id=row["approval_id"],
+            started_at=datetime.fromisoformat(row["started_at"]),
+            outcome=InstallOutcome(row["outcome"]) if row["outcome"] else None,
+            completed_at=(
+                datetime.fromisoformat(row["completed_at"])
+                if row["completed_at"] else None
+            ),
+            detail=row["detail"],
+        )
+
+    def attempts(
+        self, artifact_id: str = CORE_DISTRIBUTION
+    ) -> tuple[CoreComponentInstallAttempt, ...]:
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM core_component_install_attempt "
+                "WHERE artifact_id=? ORDER BY started_at, attempt_id",
+                (artifact_id,),
+            ).fetchall()
+        return tuple(self._attempt_from_row(row) for row in rows)
+
+    def finish_failed_attempt(self, attempt_id: str, detail: str) -> None:
+        """Record a handled failure; unknown/crashed attempts remain pending."""
+        with closing(self._connect()) as db, db:
+            changed = db.execute(
+                "UPDATE core_component_install_attempt "
+                "SET outcome=?, completed_at=?, detail=? "
+                "WHERE attempt_id=? AND outcome IS NULL",
+                (
+                    InstallOutcome.FAILED.value,
+                    datetime.now(timezone.utc).isoformat(),
+                    str(detail)[:2000], attempt_id,
+                ),
+            )
+            if changed.rowcount != 1:
+                raise CoreComponentInstallError(
+                    "Core installation attempt is not pending"
+                )
+
+    def record(self, receipt: CoreComponentReceipt, *, attempt_id: str | None = None) -> None:
+        if not isinstance(receipt, CoreComponentReceipt):
+            raise TypeError("CoreComponentReceipt required")
+        values = (
+            receipt.receipt_id, receipt.artifact_id, receipt.version,
+            receipt.operation.value, receipt.outcome.value,
+            receipt.artifact_sha256, receipt.authority.value,
+            receipt.approval_id, int(receipt.health_verified),
+            receipt.installed_at.astimezone(timezone.utc).isoformat(),
+            receipt.detail[:2000],
+        )
+        with closing(self._connect()) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                if attempt_id is not None:
+                    pending = db.execute(
+                        "SELECT * FROM core_component_install_attempt "
+                        "WHERE attempt_id=? AND outcome IS NULL",
+                        (attempt_id,),
+                    ).fetchone()
+                    if (
+                        pending is None
+                        or pending["artifact_id"] != receipt.artifact_id
+                        or pending["version"] != receipt.version
+                        or pending["artifact_sha256"] != receipt.artifact_sha256
+                        or pending["operation"] != receipt.operation.value
+                        or pending["authority"] != receipt.authority.value
+                        or pending["approval_id"] != receipt.approval_id
+                        or receipt.outcome is not InstallOutcome.SUCCEEDED
+                    ):
+                        raise CoreComponentInstallError(
+                            "Core install receipt does not match pending stage"
+                        )
+                db.execute("""
+                    INSERT INTO core_component_receipt_history(
+                        receipt_id, artifact_id, version, operation, outcome,
+                        artifact_sha256, authority, approval_id, health_verified,
+                        installed_at, detail
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                """, values)
+                db.execute("""
+                    INSERT INTO core_component_receipt(
+                        receipt_id, artifact_id, version, operation, outcome,
+                        artifact_sha256, authority, approval_id, health_verified,
+                        installed_at, detail
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                    ON CONFLICT(artifact_id) DO UPDATE SET
+                        receipt_id=excluded.receipt_id,
+                        version=excluded.version,
+                        operation=excluded.operation,
+                        outcome=excluded.outcome,
+                        artifact_sha256=excluded.artifact_sha256,
+                        authority=excluded.authority,
+                        approval_id=excluded.approval_id,
+                        health_verified=excluded.health_verified,
+                        installed_at=excluded.installed_at,
+                        detail=excluded.detail
+                """, values)
+                if attempt_id is not None:
+                    changed = db.execute(
+                        "UPDATE core_component_install_attempt "
+                        "SET outcome=?, completed_at=?, detail=? "
+                        "WHERE attempt_id=? AND outcome IS NULL",
+                        (
+                            InstallOutcome.SUCCEEDED.value,
+                            receipt.installed_at.astimezone(timezone.utc).isoformat(),
+                            receipt.detail[:2000], attempt_id,
+                        ),
+                    )
+                    if changed.rowcount != 1:
+                        raise CoreComponentInstallError(
+                            "Core install stage changed before receipt commit"
+                        )
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+
+    def installed(self, artifact_id: str = CORE_DISTRIBUTION) -> CoreComponentReceipt | None:
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT * FROM core_component_receipt WHERE artifact_id=?",
+                (artifact_id,),
+            ).fetchone()
+        return None if row is None else self._receipt_from_row(row)
+
+    def history(self, artifact_id: str = CORE_DISTRIBUTION) -> tuple[CoreComponentReceipt, ...]:
+        """Return immutable, insertion-ordered platform install evidence."""
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM core_component_receipt_history "
+                "WHERE artifact_id=? ORDER BY sequence",
+                (artifact_id,),
+            ).fetchall()
+        return tuple(self._receipt_from_row(row) for row in rows)
 
 
 def verify_core_component_content(wheel_path: Path) -> None:
@@ -277,6 +517,14 @@ def verify_core_component_content(wheel_path: Path) -> None:
         )
 
 
+# This verifier must be backed by the existing independently trusted owner
+# approval or signed standing-policy authority. An approval ID alone is never
+# permission, and this component is not an authorization database.
+CoreInstallAuthorizer = Callable[
+    [InstallAuthority, str | None, CoreComponentArtifact, InstallOperation], bool
+]
+
+
 class CoreComponentInstaller:
     """Install or replace the Core component under explicit authority."""
 
@@ -284,13 +532,43 @@ class CoreComponentInstaller:
         self,
         registry: CoreComponentRegistry,
         signature_verifier: ComponentSignatureVerifier,
+        *,
+        installation_root: Path | None = None,
+        authorization_check: CoreInstallAuthorizer | None = None,
     ) -> None:
+        if authorization_check is not None and not callable(authorization_check):
+            raise TypeError("authorization_check must be a trusted callable")
         if not isinstance(signature_verifier, ComponentSignatureVerifier):
             raise TypeError(
                 "Core component installation requires a trusted signature verifier"
             )
         self.registry = registry
         self.signature_verifier = signature_verifier
+        if installation_root is not None:
+            configured = Path(installation_root).absolute()
+            try:
+                assert_no_redirected_components(configured, include_leaf=True)
+            except PermissionError as error:
+                raise CoreComponentInstallError(
+                    "Core installation root must not be redirected"
+                ) from error
+            self.installation_root = configured.resolve()
+        else:
+            self.installation_root = None
+        self.authorization_check = authorization_check
+
+    def _checked_installation_root(self) -> Path:
+        """Reject redirection created after the installer was constructed."""
+        if self.installation_root is None:
+            raise CoreComponentInstallError("Core installation root is not configured")
+        root = self.installation_root
+        try:
+            assert_no_redirected_components(root, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "Core installation root must not be redirected"
+            ) from error
+        return root
 
     def execute(
         self,
@@ -303,6 +581,14 @@ class CoreComponentInstaller:
     ) -> CoreComponentReceipt:
         if not isinstance(artifact, CoreComponentArtifact):
             raise TypeError("CoreComponentArtifact required")
+        if artifact.artifact_id != CORE_DISTRIBUTION:
+            raise CoreComponentInstallError(
+                "Core component artifact ID must be sofia-core"
+            )
+        if not isinstance(authority, InstallAuthority):
+            raise TypeError("InstallAuthority required")
+        if not isinstance(operation, InstallOperation):
+            raise TypeError("InstallOperation required")
         if authority is InstallAuthority.NONE:
             raise PermissionError("Core component installation requires explicit authority")
         if authority is InstallAuthority.OPERATOR_APPROVED and not approval_id:
@@ -329,26 +615,251 @@ class CoreComponentInstaller:
         self.signature_verifier.verify(artifact, wheel_path)
         try:
             verify_core_component_content(wheel_path)
+            wheel_metadata = inspect_wheel(wheel_path, CORE_DISTRIBUTION)
         except ComponentArtifactError as error:
             raise CoreComponentInstallError(str(error)) from error
-        health_verified = self._verify_health(wheel_path)
-        if not health_verified:
-            raise CoreComponentInstallError("Core component failed the health probe")
-        receipt = CoreComponentReceipt(
-            receipt_id=f"core-component-install-{artifact.artifact_id}-{artifact.version}",
-            artifact_id=artifact.artifact_id,
-            version=artifact.version,
-            operation=operation,
-            outcome=InstallOutcome.SUCCEEDED,
-            artifact_sha256=artifact.sha256,
-            authority=authority,
-            approval_id=approval_id,
-            health_verified=health_verified,
-            installed_at=datetime.now(timezone.utc),
-            detail="verified signature, content, compatibility and health",
-        )
-        self.registry.record(receipt)
+        if wheel_metadata.version != artifact.version:
+            raise CoreComponentInstallError(
+                "Core artifact declared version does not match signed wheel metadata"
+            )
+        if operation is InstallOperation.ROLLBACK:
+            # Downgrade authority is not permission to install an unrelated
+            # older wheel. A rollback target must be exact previously
+            # attested bytes from this Platform's own install history.
+            history = self.registry.history(artifact.artifact_id)
+            if not any(
+                entry.outcome is InstallOutcome.SUCCEEDED
+                and entry.version == artifact.version
+                and entry.artifact_sha256 == artifact.sha256
+                and entry.operation in (
+                    InstallOperation.INSTALL,
+                    InstallOperation.UPDATE,
+                    InstallOperation.REPAIR,
+                    InstallOperation.ROLLBACK,
+                )
+                for entry in history
+            ):
+                raise CoreComponentInstallError(
+                    "rollback requires a previously verified Core artifact"
+                )
+            if existing is None or existing.outcome is not InstallOutcome.SUCCEEDED:
+                raise CoreComponentInstallError(
+                    "rollback requires a currently recorded Core installation"
+                )
+        if self.installation_root is None:
+            raise CoreComponentInstallError(
+                "installation_root is required; a health probe is not a physical install"
+            )
+        # Caller-supplied enum values and arbitrary approval IDs are not
+        # independent proof. Only a trusted approval/policy consumer can
+        # authorize this exact artifact and operation.
+        if self.authorization_check is None:
+            raise PermissionError("trusted Core installation authorizer is required")
+        if self.authorization_check(authority, approval_id, artifact, operation) is not True:
+            raise PermissionError("Core component installation authority denied")
+        self._checked_installation_root()
+        # A signature check on the external path does not pin bytes for a
+        # later Python import. Recheck an isolated candidate before *either*
+        # the health subprocess or pip reads it.
+        import shutil
+
+        with tempfile.TemporaryDirectory(prefix="sofia-core-reviewed-") as temporary:
+            reviewed_wheel = Path(temporary) / wheel_path.name
+            shutil.copyfile(wheel_path, reviewed_wheel)
+            if sha256(reviewed_wheel.read_bytes()).hexdigest() != artifact.sha256:
+                raise CoreComponentInstallError(
+                    "Core artifact changed after signature verification"
+                )
+            health_verified = self._verify_health(reviewed_wheel)
+            if not health_verified:
+                raise CoreComponentInstallError("Core component failed the health probe")
+            attempt_id = self.registry.begin_attempt(
+                artifact, operation, authority, approval_id
+            )
+            try:
+                installed_path = self._stage_verified_install(reviewed_wheel, artifact)
+            except Exception as error:
+                # Python/SystemExit or a process crash leaves a pending row for
+                # explicit restart reconciliation instead of a false success.
+                self.registry.finish_failed_attempt(attempt_id, str(error))
+                raise
+            receipt = CoreComponentReceipt(
+                receipt_id=f"core-install-{artifact.version}-{uuid4().hex}",
+                artifact_id=artifact.artifact_id,
+                version=artifact.version,
+                operation=operation,
+                outcome=InstallOutcome.SUCCEEDED,
+                artifact_sha256=artifact.sha256,
+                authority=authority,
+                approval_id=approval_id,
+                health_verified=health_verified,
+                installed_at=datetime.now(timezone.utc),
+                detail=f"physically installed and independently verified in {installed_path.name}",
+            )
+            self.registry.record(receipt, attempt_id=attempt_id)
+            return receipt
+
+    def verify_installed(
+        self,
+        artifact: CoreComponentArtifact,
+        wheel_path: Path,
+    ) -> CoreComponentReceipt:
+        """Reconcile a previous success receipt with current signed disk bytes.
+
+        This is read-only and never authorizes activation. Call it after
+        restart or before handing a staged Core path to the worker controller.
+        An old successful receipt cannot stand in for missing or modified files.
+        """
+        if not isinstance(artifact, CoreComponentArtifact):
+            raise TypeError("CoreComponentArtifact required")
+        if artifact.artifact_id != CORE_DISTRIBUTION:
+            raise CoreComponentInstallError("Core component artifact ID must be sofia-core")
+        if self.registry.pending_attempts(artifact.artifact_id):
+            raise CoreComponentInstallError(
+                "Core install reconciliation required: unresolved staging attempt"
+            )
+        receipt = self.registry.installed(artifact.artifact_id)
+        if (
+            receipt is None
+            or receipt.outcome is not InstallOutcome.SUCCEEDED
+            or receipt.version != artifact.version
+            or receipt.artifact_sha256 != artifact.sha256
+        ):
+            raise CoreComponentInstallError(
+                "current Core receipt does not match the requested installed artifact"
+            )
+        wheel_path = Path(wheel_path)
+        if not wheel_path.is_file() or wheel_path.is_symlink():
+            raise FileNotFoundError(wheel_path)
+        if sha256(wheel_path.read_bytes()).hexdigest() != artifact.sha256:
+            raise CoreComponentInstallError("Core install artifact digest mismatch")
+        self.signature_verifier.verify(artifact, wheel_path)
+        try:
+            wheel_metadata = inspect_wheel(wheel_path, CORE_DISTRIBUTION)
+            verify_core_component_content(wheel_path)
+        except ComponentArtifactError as error:
+            raise CoreComponentInstallError(str(error)) from error
+        if wheel_metadata.version != artifact.version:
+            raise CoreComponentInstallError("Core install artifact version mismatch")
+        if self.installation_root is None:
+            raise CoreComponentInstallError("Core installation root is not configured")
+        destination = self._checked_installation_root() / f"core-{artifact.version}-{artifact.sha256}"
+        try:
+            assert_no_redirected_components(destination, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "previously recorded Core installation is absent or redirected"
+            ) from error
+        if not destination.is_dir():
+            raise CoreComponentInstallError(
+                "previously recorded Core installation is absent or redirected"
+            )
+        self._verify_installed_bytes(destination, artifact, wheel_path)
         return receipt
+
+    def _stage_verified_install(
+        self, wheel_path: Path, artifact: CoreComponentArtifact
+    ) -> Path:
+        """Install into a quarantined venv, verify RECORD bytes, then publish.
+
+        This prepares immutable Core bytes only. A worker controller must
+        separately authorize activation and canonical-state ownership.
+        """
+        import shutil
+
+        root = self._checked_installation_root()
+        root.mkdir(parents=True, exist_ok=True)
+        self._checked_installation_root()
+        destination = root / f"core-{artifact.version}-{artifact.sha256}"
+        try:
+            assert_no_redirected_components(destination, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "Core installation destination is redirected"
+            ) from error
+        with tempfile.TemporaryDirectory(prefix=".core-stage-", dir=root) as temporary:
+            # The reviewed source path is mutable. Pip must consume a private,
+            # digest-rechecked copy, not a different wheel substituted after
+            # signature verification and approval.
+            snapshot = Path(temporary) / wheel_path.name
+            shutil.copyfile(wheel_path, snapshot)
+            if sha256(snapshot.read_bytes()).hexdigest() != artifact.sha256:
+                raise CoreComponentInstallError(
+                    "Core artifact changed after signature verification"
+                )
+            staging = Path(temporary) / "environment"
+            venv.EnvBuilder(with_pip=True).create(staging)
+            python = staging / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+            try:
+                subprocess.run(
+                    [str(python), "-m", "pip", "install", "--no-index", "--no-deps",
+                     "--disable-pip-version-check", str(snapshot)],
+                    check=True, capture_output=True, text=True, timeout=600,
+                )
+                self._verify_installed_bytes(staging, artifact, snapshot)
+            except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                raise CoreComponentInstallError("physical Core installation failed") from exc
+            # Stage publication: old environments remain available for rollback.
+            # An already-published candidate is never silently overwritten.
+            self._checked_installation_root()
+            try:
+                assert_no_redirected_components(destination, include_leaf=True)
+            except PermissionError as error:
+                raise CoreComponentInstallError(
+                    "Core installation destination is redirected"
+                ) from error
+            if destination.exists():
+                self._verify_installed_bytes(destination, artifact, snapshot)
+                return destination
+            os.replace(staging, destination)
+            try:
+                self._verify_installed_bytes(destination, artifact, snapshot)
+            except Exception:
+                # Do not retain or attest a partially published environment.
+                shutil.rmtree(destination, ignore_errors=True)
+                raise
+        return destination
+
+    @staticmethod
+    def _verify_installed_bytes(root: Path, artifact: CoreComponentArtifact, wheel: Path) -> None:
+        """Check installed dist metadata and every wheel-owned regular file."""
+        import zipfile
+        site = root / "Lib/site-packages" if sys.platform == "win32" else next(
+            (root / "lib").glob("python*/site-packages"), None
+        )
+        if site is None:
+            raise CoreComponentInstallError("installed Core site-packages is missing")
+        try:
+            assert_no_redirected_components(site, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "installed Core site-packages is redirected"
+            ) from error
+        with zipfile.ZipFile(wheel) as archive:
+            entries = {name: archive.read(name) for name in archive.namelist()
+                       if not name.endswith("/") and not name.endswith(".dist-info/RECORD")}
+        matching = list(site.glob("sofia_core-*.dist-info"))
+        if len(matching) != 1:
+            raise CoreComponentInstallError("installed Core distribution metadata missing or ambiguous")
+        try:
+            assert_no_redirected_components(matching[0], include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "installed Core distribution metadata is redirected"
+            ) from error
+        metadata = PathDistribution(matching[0]).metadata
+        if metadata.get("Name", "").lower().replace("_", "-") != CORE_DISTRIBUTION or metadata.get("Version") != artifact.version:
+            raise CoreComponentInstallError("installed Core distribution identity/version mismatch")
+        for name, expected in entries.items():
+            location = site / name
+            try:
+                assert_no_redirected_components(location, include_leaf=True)
+            except PermissionError as error:
+                raise CoreComponentInstallError(
+                    f"installed Core bytes redirected: {name}"
+                ) from error
+            if not location.is_file() or sha256(location.read_bytes()).digest() != sha256(expected).digest():
+                raise CoreComponentInstallError(f"installed Core bytes mismatch: {name}")
 
     def _verify_health(self, wheel_path: Path) -> bool:
         """Import the candidate Core surface against the live Platform.

@@ -258,6 +258,15 @@ class CoreLinkDesktopClient:
                 != self.binding.remote_core_generation
             ):
                 raise PermissionError("Core Link status identity changed")
+            if status.get("remote_platform_id") != self.binding.remote_platform_id:
+                raise PermissionError("Core Link status platform changed")
+            if status.get("protocol") != str(self.binding.protocol_version):
+                raise PermissionError("Core Link status protocol changed")
+            if (
+                status.get("state") != "ready"
+                or status.get("operator_stop_active") is not False
+            ):
+                raise PermissionError("Core Link remote Core is stopped or not ready")
             if self._state.session_id is None:
                 payload = self._require_completed(
                     self._request(
@@ -288,9 +297,14 @@ class CoreLinkDesktopClient:
             {"session_id": self._state.session_id, "after": None, "limit": 100},
         ), "conversation.history")
         raw = payload.get("messages")
-        if not isinstance(raw, list):
+        if (
+            payload.get("session_id") != self._state.session_id
+            or not isinstance(raw, list)
+            or len(raw) > 100
+        ):
             raise RuntimeError("Core Link history payload is invalid")
         messages: list[RemoteUITextMessage] = []
+        seen_ids: set[str] = set()
         for item in raw:
             if not isinstance(item, dict) or set(item) != {
                 "message_id", "role", "content", "created_at",
@@ -299,12 +313,29 @@ class CoreLinkDesktopClient:
             role = item["role"]
             if role not in {"user", "assistant"}:
                 raise RuntimeError("Core Link history role is invalid")
+            identifier = item["message_id"]
+            content = item["content"]
+            stamp = item["created_at"]
+            if (
+                not isinstance(identifier, str) or not identifier.strip()
+                or len(identifier) > 256 or identifier in seen_ids
+                or not isinstance(content, str) or len(content) > 64_000
+                or not isinstance(stamp, str) or len(stamp) > 80
+            ):
+                raise RuntimeError("Core Link history item is invalid")
+            try:
+                created_at = datetime.fromisoformat(stamp)
+            except ValueError as exc:
+                raise RuntimeError("Core Link history timestamp is invalid") from exc
+            if created_at.tzinfo is None or created_at.utcoffset() is None:
+                raise RuntimeError("Core Link history timestamp must have a timezone")
+            seen_ids.add(identifier)
             messages.append(RemoteUITextMessage(
-                message_id=str(item["message_id"]),
+                message_id=identifier,
                 session_id=self._state.session_id,
                 actor="user" if role == "user" else "sofia",
-                content=str(item["content"]),
-                created_at=datetime.fromisoformat(str(item["created_at"])),
+                content=content,
+                created_at=created_at,
             ))
         self._messages = tuple(messages)
         return self._messages

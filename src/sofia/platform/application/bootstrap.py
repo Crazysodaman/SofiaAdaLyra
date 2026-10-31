@@ -168,6 +168,7 @@ from sofia.core.goals import (
 )
 from sofia.core.goals.conversation import GoalConversationResolver
 from sofia.core.goals.coordinator import GoalProductionCoordinator
+from sofia.platform.run.host_effect_attestation import HostEffectAttestationLedger
 from sofia.platform.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
@@ -311,7 +312,8 @@ class SofiaApplication:
         if dispatcher is None:
             raise SofiaApplicationError("production cognitive tool dispatcher is required")
         self._fleet_machine_answers = FleetMachineAnswerCoordinator(
-            dispatcher, self._cognitive_evidence_acquisition
+            dispatcher, self._cognitive_evidence_acquisition,
+            evidence_graph=self._cognitive_evidence_graph,
         )
         self._knowledge_answers = KnowledgeEvidenceCoordinator(
             dispatcher, self._cognitive_evidence_acquisition
@@ -628,6 +630,17 @@ class SofiaApplication:
             workshop=self._workshop_requests,
             autonomous_work=self._autonomous_work,
         )
+        # Independent host effect ledger: the overseeing host seals its own
+        # observation of each effectful dispatch outside the cognitive core.
+        try:
+            self._host_effect_attestation: HostEffectAttestationLedger | None = (
+                HostEffectAttestationLedger(
+                    Path(configuration.state_path).parent
+                )
+            )
+        except OSError:
+            # Fail closed: reconciliation must stay unavailable without it.
+            self._host_effect_attestation = None
         self._goal_production = GoalProductionCoordinator(
             goals=self._goals,
             state_path=configuration.state_path,
@@ -637,6 +650,17 @@ class SofiaApplication:
             notify_review=self._notify_goal_review,
             wake_recorder=self._neuro.record_wake_outcome,
             generalization=self._generalization.advanced,
+            # Bind GOALS to canonical one-use FIDO2-backed owner approval plus
+            # an independently trusted host outcome verifier; reconciliation
+            # stays unavailable when either trust boundary is uncomposable.
+            reconciliation_approval_verifier=ExecutionApprovalVerifier(
+                configuration.state_path
+            ),
+            independent_outcome_verifier=(
+                None
+                if self._host_effect_attestation is None
+                else self._host_effect_attestation.verify_dispatch_outcome
+            ),
         )
         self._life = SelfDirectedLifeCoordinator(
             state_path=configuration.state_path,

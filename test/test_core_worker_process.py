@@ -114,6 +114,51 @@ class _PlatformPidProvider(LLMProvider):
         return CognitiveResponse(f"provider-pid:{os.getpid()}")
 
 
+def test_failed_core_spawn_closes_authenticated_listener_and_quarantines(
+    canonical_state_path, tmp_path, monkeypatch,
+):
+    """Unstarted OS children must not leave sockets or false active generations."""
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    staged = []
+    original_stage = controller._stage
+
+    def capture(*args, **kwargs):
+        worker = original_stage(*args, **kwargs)
+        staged.append(worker)
+        return worker
+
+    class UnstartedChild:
+        pid = None
+
+        def start(self):
+            raise OSError("injected spawn failure")
+
+    class FailingSpawnContext:
+        def Process(self, **kwargs):
+            return UnstartedChild()
+
+    monkeypatch.setattr(controller, "_stage", capture)
+    monkeypatch.setattr(
+        "sofia.platform.core_worker.process.multiprocessing.get_context",
+        lambda name: FailingSpawnContext(),
+    )
+    with pytest.raises(OSError, match="injected spawn failure"):
+        controller.start(
+            release_digest=sha256(b"unstarted-child").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"),
+            now=now,
+        )
+    assert len(staged) == 1
+    worker = staged[0]
+    assert worker._process is None
+    assert worker._listener is None
+    if worker._family == "AF_UNIX":
+        assert not worker._socket_path.exists()
+    assert generations.state(worker.endpoint) is GenerationState.QUARANTINED
+    assert generations.active_for_core_identity("core:sofia") is None
+    assert controller.pid is None
+
+
 def test_provider_executes_in_platform_not_core_process(
     canonical_state_path, tmp_path,
 ):
@@ -484,6 +529,105 @@ def test_worker_spec_must_match_both_configured_model_roles(
     controller.shutdown(now=now + timedelta(seconds=1))
 
 
+def test_activation_denial_never_quarantines_unverified_child_exit(
+    canonical_state_path, tmp_path, monkeypatch,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    staged = []
+    original_stage = controller._stage
+
+    def capture(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        staged.append(candidate)
+        return candidate
+
+    def deny(*args, **kwargs):
+        raise PermissionError("injected admission denial")
+
+    monkeypatch.setattr(controller, "_stage", capture)
+    monkeypatch.setattr(generations, "activate", deny)
+    from sofia.platform.core_worker.process import _CoreWorkerProcess
+    original_terminate = _CoreWorkerProcess.terminate
+
+    def report_uncertain_exit(self, *args, **kwargs):
+        # Kill the test child to avoid leaked CI processes, but emulate a
+        # platform observation that cannot certify exit to the controller.
+        original_terminate(self, *args, **kwargs)
+        return False
+
+    monkeypatch.setattr(
+        _CoreWorkerProcess, "terminate", report_uncertain_exit,
+    )
+    with pytest.raises(CoreWorkerError, match="exit unverified"):
+        controller.start(
+            release_digest=sha256(b"unverified-exit").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now,
+        )
+    assert staged and not staged[0].alive
+    assert generations.state(staged[0].endpoint) is GenerationState.STAGED
+    assert controller.pid is None
+
+
+def test_activation_denial_quarantines_after_verified_child_exit(
+    canonical_state_path, tmp_path, monkeypatch,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    staged = []
+    original_stage = controller._stage
+
+    def capture(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        staged.append(candidate)
+        return candidate
+
+    def deny(*args, **kwargs):
+        raise PermissionError("injected admission denial")
+
+    monkeypatch.setattr(controller, "_stage", capture)
+    monkeypatch.setattr(generations, "activate", deny)
+    with pytest.raises(PermissionError, match="injected admission denial"):
+        controller.start(
+            release_digest=sha256(b"verified-exit").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now,
+        )
+    assert staged and not staged[0].alive
+    assert generations.state(staged[0].endpoint) is GenerationState.QUARANTINED
+    assert controller.pid is None
+
+
+def test_shutdown_unverified_exit_keeps_draining_generation_and_worker(
+    canonical_state_path, tmp_path, monkeypatch,
+):
+    from sofia.platform.core_worker.process import _CoreWorkerProcess
+
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    health = controller.start(
+        release_digest=sha256(b"shutdown-no-exit-proof").hexdigest(),
+        spec=CoreEngineProcessSpec("rule"), now=now,
+    )
+    process = controller._active
+    assert process is not None
+    terminate = _CoreWorkerProcess.terminate
+
+    def unverified_exit(self, *args, **kwargs):
+        # Actually terminate the disposable test child to prevent a leak,
+        # but make the Platform receive an unverified OS exit report.
+        assert terminate(self, *args, **kwargs)
+        return False
+
+    monkeypatch.setattr(_CoreWorkerProcess, "terminate", unverified_exit)
+    with pytest.raises(CoreWorkerError, match="shutdown exit unverified"):
+        controller.shutdown(now=now + timedelta(seconds=1))
+    assert controller._active is process
+    assert generations.state(health.endpoint) is GenerationState.DRAINING
+    assert generations.active_for_core_identity("core:sofia") is None
+    with pytest.raises(RuntimeError, match="already active"):
+        controller.start(
+            release_digest=sha256(b"must-not-restart").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now + timedelta(seconds=2),
+        )
+
+
 def test_real_process_replacement_keeps_platform_and_continuity(canonical_state_path, tmp_path):
     now, generations, controller = build(canonical_state_path, tmp_path)
     platform_pid = os.getpid()
@@ -529,6 +673,131 @@ def test_real_process_replacement_keeps_platform_and_continuity(canonical_state_
     assert runtime.cognitive_system.engine.respond(request()).content == "I am Sofía Ada Lyra."
     runtime._close_runtime_resources()
     controller.shutdown(now=now + timedelta(seconds=2))
+
+
+@pytest.mark.parametrize("failure_point", ("activate", "fence"))
+def test_replacement_post_readiness_failure_quarantines_candidate(
+    canonical_state_path, tmp_path, monkeypatch, failure_point,
+):
+    """A spawned candidate must not survive a rejected handoff or admission."""
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    previous = controller.start(
+        release_digest=sha256(b"release-before-reject").hexdigest(),
+        spec=CoreEngineProcessSpec("rule"), now=now,
+    )
+    old_process = controller._active
+    assert old_process is not None
+    staged = []
+    original_stage = controller._stage
+
+    def stage_and_capture(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        staged.append(candidate)
+        return candidate
+
+    def reject(*args, **kwargs):
+        raise RuntimeError("injected replacement admission denial")
+
+    monkeypatch.setattr(controller, "_stage", stage_and_capture)
+    monkeypatch.setattr(generations, failure_point, reject)
+    with pytest.raises(RuntimeError, match="injected replacement admission denial"):
+        controller.replace(
+            release_digest=sha256(b"release-after-reject").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"),
+            now=now + timedelta(seconds=1),
+        )
+
+    assert len(staged) == 1
+    candidate = staged[0]
+    assert candidate.alive is False
+    assert old_process.alive is False
+    assert controller.pid is None
+    assert generations.state(candidate.endpoint) is GenerationState.QUARANTINED
+    assert not generations.is_active(previous.endpoint)
+    assert not generations.is_active(candidate.endpoint)
+    assert generations.active_for_core_identity("core:sofia") is None
+    if failure_point == "activate":
+        assert generations.state(previous.endpoint) is GenerationState.RETIRED
+    else:
+        # Old process is stopped, but its journal must retain an unresolved
+        # draining state until an independently witnessed recovery.
+        assert generations.state(previous.endpoint) is GenerationState.DRAINING
+
+
+@pytest.mark.parametrize("operation", ("start", "replace"))
+def test_failed_worker_readiness_requires_verified_exit_before_quarantine(
+    canonical_state_path, tmp_path, monkeypatch, operation,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    old = None
+    if operation == "replace":
+        old = controller.start(
+            release_digest=sha256(b"established-core").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now,
+        )
+    candidates = []
+    original_stage = controller._stage
+
+    def staged(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        candidates.append(candidate)
+        def failed_ready():
+            raise RuntimeError("injected failure after process staging")
+        candidate.start = failed_ready
+        return candidate
+
+    monkeypatch.setattr(controller, "_stage", staged)
+    with pytest.raises(RuntimeError, match="injected failure"):
+        getattr(controller, operation)(
+            release_digest=sha256(b"failed-new-core").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"),
+            now=now + timedelta(seconds=1),
+        )
+    candidate = candidates[0]
+    assert candidate.alive is False
+    assert generations.state(candidate.endpoint) is GenerationState.QUARANTINED
+    assert controller.pid == (old.pid if old is not None else None)
+    if old is not None:
+        assert generations.is_active(old.endpoint)
+        controller.shutdown(now=now + timedelta(seconds=2))
+
+
+@pytest.mark.parametrize("operation", ("start", "replace"))
+def test_uncertain_worker_start_exit_refuses_false_quarantine(
+    canonical_state_path, tmp_path, monkeypatch, operation,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    old = None
+    if operation == "replace":
+        old = controller.start(
+            release_digest=sha256(b"previous-worker").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now,
+        )
+    staged_process = []
+    original_stage = controller._stage
+
+    def staged(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        staged_process.append(candidate)
+        def failed_ready():
+            raise RuntimeError("simulated IPC bootstrap failure")
+        candidate.start = failed_ready
+        candidate.terminate = lambda **_kwargs: False
+        return candidate
+
+    monkeypatch.setattr(controller, "_stage", staged)
+    with pytest.raises(CoreWorkerError, match="exit unverified"):
+        getattr(controller, operation)(
+            release_digest=sha256(b"uncertain-candidate").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"),
+            now=now + timedelta(seconds=1),
+        )
+    assert generations.state(staged_process[0].endpoint) is GenerationState.STAGED
+    assert not generations.is_active(staged_process[0].endpoint)
+    assert controller.pid == (old.pid if old is not None else None)
+    if old is not None:
+        assert generations.is_active(old.endpoint)
+        controller.shutdown(now=now + timedelta(seconds=2))
 
 
 def test_duplicate_core_identity_with_different_component_id_is_denied(canonical_state_path, tmp_path):
@@ -951,7 +1220,10 @@ def test_installed_release_digest_rejects_symlinked_package_input(tmp_path):
     package = tmp_path / "package"
     package.mkdir()
     (package / "core.py").write_text("value = 1\n", encoding="utf-8")
-    (package / "redirect.py").symlink_to(package / "core.py")
+    try:
+        (package / "redirect.py").symlink_to(package / "core.py")
+    except (OSError, NotImplementedError):
+        pytest.skip("host denies unprivileged symlinks")
 
     with pytest.raises(CoreWorkerError, match="symlink"):
         installed_core_release_digest(package)
