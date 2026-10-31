@@ -1,3 +1,7 @@
+# Legacy Windows-only Artemis Fleet canary. This does not install, enroll,
+# promote, or migrate the Debian Sofia VM and is not a GO LIVE certificate.
+# All production host enrollment and canonical writer changes require
+# independent owner authorization and release acceptance.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
@@ -52,7 +56,7 @@ function Get-Fingerprint {
     param([string]$CertificatePath)
 
     $value = Invoke-PythonCapture -Arguments @(
-        "-m", "sofia.distributed.pki",
+        "-m", "sofia.platform.distributed.pki",
         "fingerprint",
         $CertificatePath
     )
@@ -128,7 +132,7 @@ function Prepare-OnVenus {
         Write-Host "Creating new Fleet PKI at:"
         Write-Host "  $FleetRoot"
 
-        & python -m sofia.distributed.pki bootstrap-pair `
+        & python -m sofia.platform.distributed.pki bootstrap-pair `
             --output-dir "$FleetRoot" `
             --server-name "$ArtemisHost" `
             --server-dns "$ArtemisHost" `
@@ -202,7 +206,7 @@ function Prepare-OnVenus {
         Set-Content (Join-Path $bundle "agent.json") -Encoding UTF8
 
     Write-Step "Validate Artemis configuration"
-    & python -m sofia.distributed.agent_main `
+    & python -m sofia.platform.distributed.agent_main `
         --config (Join-Path $bundle "agent.json") `
         --check-config
 
@@ -507,7 +511,7 @@ function Start-OnArtemis {
     }
 
     Write-Step "Validate copied agent configuration"
-    & $agentPython -m sofia.distributed.agent_main `
+    & $agentPython -m sofia.platform.distributed.agent_main `
         --config $agentJson `
         --check-config
 
@@ -547,7 +551,7 @@ function Start-OnArtemis {
             -RemoteAddress $ControllerIp `
             -Profile Private | Out-Null
         Write-Step "Start exact-controller foreground Fleet agent"
-        & $agentPython -m sofia.distributed.agent_main --config $agentJson
+        & $agentPython -m sofia.platform.distributed.agent_main --config $agentJson
     } finally {
         Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue |
             Remove-NetFirewallRule -ErrorAction SilentlyContinue
@@ -582,7 +586,7 @@ function Verify-FromVenus {
     }
 
     Write-Step "Read-only pinned-mTLS discovery canary"
-    & python -m sofia.ops.discovery_canary `
+    & python -m sofia.platform.ops.discovery_canary `
         --host "$ArtemisHost" `
         --port $Port `
         --ca-file (Join-Path $FleetRoot "ca\fleet-ca.pem") `

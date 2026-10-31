@@ -14,6 +14,8 @@ on:
       - 'test/test_platform_ui_launchers.py'
       - 'test/test_module_lifecycle_v1.py'
       - 'test/test_state_operator_handoff_review.py'
+      - 'Setup-SofiaFleetArtemis.ps1'
+      - 'test/test_fleet_windows_setup_entrypoints.py'
       - 'test/test_state_relocation_atomic_publish.py'
       - 'test/test_backup_canonical_identity_fencing.py'
       - 'test/test_backup_restore_redirect_fencing.py'
@@ -36,6 +38,8 @@ on:
       - 'test/test_platform_ui_launchers.py'
       - 'test/test_module_lifecycle_v1.py'
       - 'test/test_state_operator_handoff_review.py'
+      - 'Setup-SofiaFleetArtemis.ps1'
+      - 'test/test_fleet_windows_setup_entrypoints.py'
       - 'test/test_state_relocation_atomic_publish.py'
       - 'test/test_backup_canonical_identity_fencing.py'
       - 'test/test_backup_restore_redirect_fencing.py'
@@ -91,7 +95,7 @@ jobs:
       - name: G1 native ACL and G4 Core-free desktop state/reconnect regressions
         run: python -m pytest -q test/test_core_link_binding.py test/test_core_link_desktop.py
       - name: G3 fenced state handoff and non-replacing atomic publish
-        run: python -m pytest -q test/test_state_operator_handoff_review.py test/test_state_relocation_atomic_publish.py
+        run: python -m pytest -q test/test_state_operator_handoff_review.py test/test_state_relocation_atomic_publish.py test/test_fleet_windows_setup_entrypoints.py
       - name: G5 canonical backup ownership and restore redirect fencing
         run: python -m pytest -q test/test_backup_canonical_identity_fencing.py test/test_backup_restore_redirect_fencing.py
       - name: G6 independently governed module lifecycle regressions
