@@ -552,9 +552,19 @@ class ModuleLifecycleManager:
             ModuleLifecycle.STAGED, ModuleLifecycle.INSTALLED_DISABLED,
             ModuleLifecycle.ACTIVE, ModuleLifecycle.PAUSED,
         }
+        reason = current.reason
+        # Lifecycle labels are historical records, not proof the immutable
+        # signed package still exists or has the original bytes. Do not
+        # certify a tampered staged bundle as healthy after a restart.
+        if current.lifecycle is ModuleLifecycle.STAGED:
+            try:
+                self.reopen_staged_package(module_id)
+            except (OSError, UnicodeError, ValueError, RuntimeError, LookupError) as error:
+                healthy = False
+                reason = f"staged package verification failed: {type(error).__name__}"
         return ModuleLifecycleHealth(
             module_id, current.lifecycle, healthy,
-            current.lifecycle is ModuleLifecycle.ACTIVE, current.reason,
+            current.lifecycle is ModuleLifecycle.ACTIVE and healthy, reason,
             current.revision,
         )
 
