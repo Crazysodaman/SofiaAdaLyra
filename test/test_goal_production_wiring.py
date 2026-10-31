@@ -155,6 +155,93 @@ def test_scoped_failed_experience_changes_diagnostic_choice_and_records_ablation
         ).fetchall() == [("with_experience",), ("without_experience",)]
 
 
+def test_g7a_verified_learning_changes_actual_goals_decision_vs_ablation(tmp_path):
+    """The counterfactual must run GOALS, not merely label an audit trace."""
+    learned_path = tmp_path / "learned.db"
+    bootstrap_canonical_sqlite(learned_path)
+    learned_goals, learned_production = coordinator(
+        learned_path, neural=[snapshot("ops")],
+    )
+    advanced = AdvancedGeneralizationStore(
+        learned_path, goals=learned_goals,
+        admission=lambda: ExplorationAdmission(),
+        learning=_GeneralizationLearningGrant(),
+    )
+    learned_production.generalization = advanced
+    principal = local_sparks_principal()
+    learned_ledger = GoalEvidenceLedger(learned_path)
+    refs = []
+    for index, kind in enumerate((
+        "reviewed_evidence", "external_observation", "reviewed_evidence",
+        "operation_receipt", "operation_receipt",
+    )):
+        ref = f"g7a-ablation-evidence:{index}"
+        learned_ledger.record(
+            evidence_ref=ref, kind=kind, observed_at=NOW,
+            source="ops:g7a-ablation",
+            assertion="portainer.summary" if index == 3 else None,
+            successful=False if index == 4 else None,
+            principal_id=principal.principal_id,
+            audience=principal.audience_id,
+        )
+        refs.append(ref)
+    advanced.record_episode(
+        principal=principal,
+        subject_id="service:docker",
+        context_tags=("docker", "container"),
+        phases=tuple(
+            EpisodePhase(kind, f"Verified {kind}", (refs[index],))
+            for index, kind in enumerate((
+                "intent", "observation", "hypothesis", "action", "outcome",
+            ))
+        ),
+        occurred_at=NOW, retention_until=NOW + timedelta(days=10), now=NOW,
+    )
+    condition = GoalCompletionCondition(
+        CompletionKind.USER_DEFINED, "Owner confirms diagnosis.",
+    )
+    learned_goal = create_user_goal(
+        learned_goals, learned_ledger, principal=principal,
+        ref="message:g7a-learned", title="Investigate Docker failures",
+        completion=condition,
+    )
+    assert learned_production.run_due(now=NOW + timedelta(seconds=1)) == 1
+    with sqlite3.connect(learned_path) as db:
+        learned_choice = db.execute(
+            "SELECT capability FROM goal_action_attempt WHERE goal_id=?",
+            (learned_goal.id,),
+        ).fetchone()[0]
+        traces = db.execute(
+            "SELECT ablation FROM ga_planning_influence WHERE goal_id=? "
+            "ORDER BY ablation",
+            (learned_goal.id,),
+        ).fetchall()
+    assert learned_choice == "system.inspect"
+    assert traces == [("with_experience",), ("without_experience",)]
+
+    # No-learning control gets the SAME authenticated goal, clock, scope and
+    # capability set but no learned failure. Its real selected action differs.
+    baseline_path = tmp_path / "without-learning.db"
+    bootstrap_canonical_sqlite(baseline_path)
+    baseline_goals, baseline_production = coordinator(
+        baseline_path, neural=[snapshot("ops")],
+    )
+    baseline_ledger = GoalEvidenceLedger(baseline_path)
+    baseline_goal = create_user_goal(
+        baseline_goals, baseline_ledger, principal=principal,
+        ref="message:g7a-baseline", title="Investigate Docker failures",
+        completion=condition,
+    )
+    assert baseline_production.run_due(now=NOW + timedelta(seconds=1)) == 1
+    with sqlite3.connect(baseline_path) as db:
+        baseline_choice = db.execute(
+            "SELECT capability FROM goal_action_attempt WHERE goal_id=?",
+            (baseline_goal.id,),
+        ).fetchone()[0]
+    assert baseline_choice == "portainer.summary"
+    assert learned_choice != baseline_choice
+
+
 def failed_workload(path):
     with sqlite3.connect(path) as db:
         db.execute("""
