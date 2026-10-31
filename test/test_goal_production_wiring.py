@@ -406,6 +406,104 @@ def test_g7a_revoked_learning_restores_baseline_planner_after_restart(tmp_path):
         ).fetchone() == (0,)
 
 
+def test_g7a_run_due_skips_stale_goal_snapshot_before_tool_dispatch(
+    tmp_path, monkeypatch
+):
+    """A sibling/owner update after enumeration cannot authorize an old plan."""
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    dispatched = []
+    goals, production = coordinator(
+        path, neural=[snapshot("ops")], executions=dispatched,
+    )
+    principal = local_sparks_principal()
+    goal = create_user_goal(
+        goals, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-cas-snapshot", title="Diagnose Docker containers",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner reviews diagnosis.",
+        ),
+    )
+    enumerate_live = goals.store.list_all_internal
+
+    def competing_evidence_update():
+        candidates = enumerate_live()
+        current = next(item for item in candidates if item.id == goal.id)
+        goals.set_run_state(
+            goal=current, run_state=GoalRunState.PENDING_INSPECTION,
+            actor_principal_id="sofia:self", now=NOW,
+        )
+        return candidates  # the original snapshot is now stale
+
+    monkeypatch.setattr(goals.store, "list_all_internal", competing_evidence_update)
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 0
+    assert dispatched == []
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM goal_action_attempt WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (0,)
+
+    monkeypatch.setattr(goals.store, "list_all_internal", enumerate_live)
+    assert production.run_due(now=NOW + timedelta(seconds=2)) == 1
+    assert dispatched == ["portainer"]
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT capability FROM goal_action_attempt WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == ("portainer.summary",)
+
+
+def test_g7a_owner_cancelled_goal_cannot_execute_from_stale_snapshot(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    dispatched = []
+    goals, production = coordinator(
+        path, neural=[snapshot("ops")], executions=dispatched,
+    )
+    principal = local_sparks_principal()
+    goal = create_user_goal(
+        goals, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-cancelled-snapshot", title="Diagnose Docker containers",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner reviews diagnosis.",
+        ),
+    )
+    enumerate_live = goals.store.list_all_internal
+
+    def owner_cancels_after_enumeration():
+        candidates = enumerate_live()
+        goals.transition(
+            goal_id=goal.id,
+            principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience,
+            expected_status=GoalStatus.ACTIVE,
+            next_status=GoalStatus.CANCELLED,
+            actor_principal_id=principal.principal_id,
+            authenticated_principal=principal,
+            now=NOW,
+            note="Owner cancelled before tool dispatch",
+        )
+        return candidates
+
+    monkeypatch.setattr(
+        goals.store, "list_all_internal", owner_cancels_after_enumeration,
+    )
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 0
+    assert dispatched == []
+    assert goals.store.get(
+        goal.id, principal_id=goal.scope_principal_id,
+        audience=goal.scope_audience,
+    ).status is GoalStatus.CANCELLED
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM goal_action_attempt WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (0,)
+
+
 def failed_workload(path):
     with sqlite3.connect(path) as db:
         db.execute("""
