@@ -620,6 +620,42 @@ def test_core_install_crash_retains_unresolved_attempt_and_blocks_retry(
     assert restarted.pending_attempts() == attempts
 
 
+def test_core_restart_refuses_stale_success_during_unresolved_stage(
+    tmp_path, component_wheels, signer, verifier, monkeypatch
+):
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    receipt = installer.execute(
+        artifact, component_wheels["core"],
+        authority=InstallAuthority.STANDING_POLICY,
+    )
+    assert installer.verify_installed(artifact, component_wheels["core"]) == receipt
+
+    # A second staging attempt crashes after reserving a pending operation.
+    # A previous success receipt alone must not green-light the same Core
+    # for a new worker while stage reconciliation is unresolved.
+    monkeypatch.setattr(installer, "_verify_health", lambda _wheel: True)
+
+    def crash(_wheel, _artifact):
+        raise SystemExit("simulated interrupted re-install")
+
+    monkeypatch.setattr(installer, "_stage_verified_install", crash)
+    with pytest.raises(SystemExit):
+        installer.execute(
+            artifact, component_wheels["core"],
+            authority=InstallAuthority.STANDING_POLICY,
+        )
+    restarted = CoreComponentInstaller(
+        CoreComponentRegistry(installer.registry.path),
+        verifier,
+        installation_root=installer.installation_root,
+    )
+    assert restarted.registry.installed() == receipt
+    assert len(restarted.registry.pending_attempts()) == 1
+    with pytest.raises(CoreComponentInstallError, match="reconciliation required"):
+        restarted.verify_installed(artifact, component_wheels["core"])
+
+
 def test_core_install_handled_failure_logged_without_success_receipt(
     tmp_path, component_wheels, signer, verifier, monkeypatch
 ):
