@@ -653,34 +653,46 @@ class CoreComponentInstaller:
         if self.authorization_check(authority, approval_id, artifact, operation) is not True:
             raise PermissionError("Core component installation authority denied")
         self._checked_installation_root()
-        health_verified = self._verify_health(wheel_path)
-        if not health_verified:
-            raise CoreComponentInstallError("Core component failed the health probe")
-        attempt_id = self.registry.begin_attempt(
-            artifact, operation, authority, approval_id
-        )
-        try:
-            installed_path = self._stage_verified_install(wheel_path, artifact)
-        except Exception as error:
-            # Python/SystemExit or a process crash leaves a pending row for
-            # explicit restart reconciliation instead of a false success.
-            self.registry.finish_failed_attempt(attempt_id, str(error))
-            raise
-        receipt = CoreComponentReceipt(
-            receipt_id=f"core-install-{artifact.version}-{uuid4().hex}",
-            artifact_id=artifact.artifact_id,
-            version=artifact.version,
-            operation=operation,
-            outcome=InstallOutcome.SUCCEEDED,
-            artifact_sha256=artifact.sha256,
-            authority=authority,
-            approval_id=approval_id,
-            health_verified=health_verified,
-            installed_at=datetime.now(timezone.utc),
-            detail=f"physically installed and independently verified in {installed_path.name}",
-        )
-        self.registry.record(receipt, attempt_id=attempt_id)
-        return receipt
+        # A signature check on the external path does not pin bytes for a
+        # later Python import. Recheck an isolated candidate before *either*
+        # the health subprocess or pip reads it.
+        import shutil
+
+        with tempfile.TemporaryDirectory(prefix="sofia-core-reviewed-") as temporary:
+            reviewed_wheel = Path(temporary) / wheel_path.name
+            shutil.copyfile(wheel_path, reviewed_wheel)
+            if sha256(reviewed_wheel.read_bytes()).hexdigest() != artifact.sha256:
+                raise CoreComponentInstallError(
+                    "Core artifact changed after signature verification"
+                )
+            health_verified = self._verify_health(reviewed_wheel)
+            if not health_verified:
+                raise CoreComponentInstallError("Core component failed the health probe")
+            attempt_id = self.registry.begin_attempt(
+                artifact, operation, authority, approval_id
+            )
+            try:
+                installed_path = self._stage_verified_install(reviewed_wheel, artifact)
+            except Exception as error:
+                # Python/SystemExit or a process crash leaves a pending row for
+                # explicit restart reconciliation instead of a false success.
+                self.registry.finish_failed_attempt(attempt_id, str(error))
+                raise
+            receipt = CoreComponentReceipt(
+                receipt_id=f"core-install-{artifact.version}-{uuid4().hex}",
+                artifact_id=artifact.artifact_id,
+                version=artifact.version,
+                operation=operation,
+                outcome=InstallOutcome.SUCCEEDED,
+                artifact_sha256=artifact.sha256,
+                authority=authority,
+                approval_id=approval_id,
+                health_verified=health_verified,
+                installed_at=datetime.now(timezone.utc),
+                detail=f"physically installed and independently verified in {installed_path.name}",
+            )
+            self.registry.record(receipt, attempt_id=attempt_id)
+            return receipt
 
     def verify_installed(
         self,
