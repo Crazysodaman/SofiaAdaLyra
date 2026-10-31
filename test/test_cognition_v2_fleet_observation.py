@@ -17,7 +17,7 @@ from sofia.core.social.principals import local_sparks_principal
 from sofia.core.goals.evidence import GoalEvidenceIndex, GoalEvidenceLedger
 
 
-NOW = datetime(2026, 10, 31, 20, 0, tzinfo=timezone.utc)
+NOW = datetime.now(timezone.utc).replace(microsecond=0)
 NODE = "11111111-2222-3333-4444-555555555555"
 SCOPE = "local:text"
 
@@ -26,7 +26,7 @@ def _fact(value="linux", *, verified=True, observed_at=NOW, expires_at=None):
     return CapabilityFact(
         "os.family", value, None, "artemis", "host:artemis",
         EvidenceClass.OBSERVED, "fleet-discovery:mtls-agent-discovery",
-        observed_at, expires_at or observed_at + timedelta(minutes=2), verified,
+        observed_at, expires_at or observed_at + timedelta(hours=1), verified,
     )
 
 
@@ -121,16 +121,16 @@ def test_invalid_or_revoked_fleet_identity_is_rejected(tmp_path, host):
 
 def test_conflicting_authenticated_observations_remain_contradicted(tmp_path):
     _, ledger, bridge = _bridge(tmp_path)
-    bridge.ingest(
+    first = bridge.ingest(
         _supply(_fact("linux")), host=_host(),
         principal=local_sparks_principal(), now=NOW,
-    )
-    bridge.ingest(
+    )[0]
+    second = bridge.ingest(
         _supply(_fact("windows", observed_at=NOW + timedelta(seconds=1)), revision=2),
         host=_host(),
         principal=local_sparks_principal(),
         now=NOW + timedelta(seconds=1),
-    )
+    )[0]
 
     resolution = EvidenceGraph(ledger).resolve(
         _need(), now=NOW + timedelta(seconds=1)
@@ -138,6 +138,13 @@ def test_conflicting_authenticated_observations_remain_contradicted(tmp_path):
     assert resolution.acquisition_state is AcquisitionState.CONTRADICTED
     assert resolution.atoms == ()
     assert len(ledger.matching(_need())) == 2
+    index = GoalEvidenceIndex(ledger.path)
+    assert index.lookup(
+        first.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
+    ) is None
+    assert index.lookup(
+        second.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
+    ) is None
 
 
 def test_revoked_enrollment_invalidates_evidence_across_restart(tmp_path):
@@ -161,6 +168,9 @@ def test_revoked_enrollment_invalidates_evidence_across_restart(tmp_path):
     assert resolution.acquisition_state is AcquisitionState.REVOKED
     assert resolution.atoms == ()
     assert restarted.get(atom.evidence_id).acquisition_state is AcquisitionState.REVOKED
+    assert GoalEvidenceIndex(path).lookup(
+        atom.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
+    ) is None
 
 
 def test_duplicate_observation_is_idempotent(tmp_path):
@@ -173,3 +183,18 @@ def test_duplicate_observation_is_idempotent(tmp_path):
     )
     assert second == first
     assert ledger.matching(_need()) == first
+
+
+def test_expired_cognitive_atom_invalidates_goals_projection(tmp_path):
+    path, _ledger, bridge = _bridge(tmp_path)
+    observed = NOW - timedelta(seconds=1)
+    atom = bridge.ingest(
+        _supply(_fact(
+            observed_at=observed,
+            expires_at=observed + timedelta(milliseconds=500),
+        )),
+        host=_host(), principal=local_sparks_principal(), now=observed,
+    )[0]
+    assert GoalEvidenceIndex(path).lookup(
+        atom.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
+    ) is None

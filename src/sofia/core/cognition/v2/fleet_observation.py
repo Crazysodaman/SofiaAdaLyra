@@ -12,7 +12,7 @@ from sofia.core.goals.service import audience_scope
 from sofia.core.social.model import PrincipalContext
 
 from .contracts import AcquisitionState, EpistemicState, EvidenceAtom, EvidenceNeed
-from .evidence import CognitiveEvidenceLedger
+from .evidence import CognitiveEvidenceLedger, EvidenceGraph
 
 
 _PREDICATES = {
@@ -93,6 +93,7 @@ class FleetCognitiveEvidenceBridge:
         scope_id = principal.audience_id
         subject_id = f"fleet-node:{node_id}"
         atoms = []
+        documents = {}
         for fact in supply.facts:
             predicate = _PREDICATES.get(fact.key)
             if predicate is None:
@@ -138,16 +139,47 @@ class FleetCognitiveEvidenceBridge:
                 acquisition_state=AcquisitionState.CURRENT,
             )
             atoms.append(self.ledger.append(atom))
-            if self.goal_evidence is not None:
+            documents[atom.evidence_id] = (digest, value)
+        eligible = []
+        for atom in atoms:
+            need = EvidenceNeed(
+                need_id=f"need:fleet:{atom.evidence_id.rsplit(':', 1)[-1]}",
+                subject_id=atom.subject_id,
+                predicate=atom.predicate,
+                scope_id=atom.scope_id,
+                minimum_trust=atom.trust,
+            )
+            resolution = EvidenceGraph(self.ledger).resolve(need, now=moment)
+            if resolution.acquisition_state is AcquisitionState.CURRENT:
+                eligible.append(atom)
+                continue
+            if resolution.acquisition_state is AcquisitionState.CONTRADICTED:
+                for conflicting in self.ledger.matching(need):
+                    if conflicting.acquisition_state is AcquisitionState.CURRENT:
+                        self.ledger.record_status(
+                            conflicting.evidence_id,
+                            AcquisitionState.CONTRADICTED,
+                            reason="conflicting authenticated Fleet observations",
+                            source_ref="fleet-observation:conflict",
+                            changed_at=moment,
+                        )
+        if self.goal_evidence is not None:
+            for atom in eligible:
+                digest, value = documents[atom.evidence_id]
+                goal_ref = f"goal-evidence:fleet:{digest}"
                 self.goal_evidence.record(
-                    evidence_ref=f"goal-evidence:fleet:{digest}",
+                    evidence_ref=goal_ref,
                     kind="external_observation",
-                    observed_at=fact.observed_at,
+                    observed_at=atom.observed_at,
                     source=f"fleet-observation:{digest[:24]}",
                     assertion=predicate,
                     payload=value,
                     principal_id=principal.principal_id,
                     audience=audience_scope(principal),
+                )
+                self.goal_evidence.link_cognitive_evidence(
+                    goal_evidence_ref=goal_ref,
+                    cognitive_evidence_id=atom.evidence_id,
                 )
         if not atoms:
             raise FleetObservationRejected("no fresh verified Fleet facts were available")
