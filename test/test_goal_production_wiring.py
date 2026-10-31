@@ -21,6 +21,7 @@ from sofia.core.goals.model import GoalRunState
 from sofia.modules.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 from sofia.core.social.principals import local_sparks_principal
 from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.sdk.principals import audience_scope
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
@@ -52,7 +53,10 @@ def snapshot(kind: str, *, pressure: float = 0.1) -> NeuroStateSnapshot:
     )
 
 
-def coordinator(path, *, neural, notify=None, executions=None, mutations=None):
+def coordinator(
+    path, *, neural, notify=None, executions=None, mutations=None,
+    reconciliation_authorizer=None, independent_outcome_verifier=None,
+):
     plane = SQLiteStatePlane(path)
     goals = GoalService(
         GoalStore(plane), evidence_verifier=GoalEvidenceIndex(path),
@@ -86,6 +90,8 @@ def coordinator(path, *, neural, notify=None, executions=None, mutations=None):
         principal_provider=local_sparks_principal,
         neuro_provider=lambda: neural[0],
         notify_review=notify,
+        reconciliation_authorizer=reconciliation_authorizer,
+        independent_outcome_verifier=independent_outcome_verifier,
     )
     return goals, result
 
@@ -780,6 +786,170 @@ def test_g7a_uncertain_gateway_result_never_auto_replays(
     assert restarted.run_due(now=NOW + timedelta(hours=7)) == 0
     assert dispatches == ["service.inspect"]
     assert restarted.unresolved_dispatches(goal.id) == pending
+
+
+
+def _g7a_unresolved_reconciliation_fixture(
+    path, *, reconciliation_authorizer=None, independent_outcome_verifier=None,
+):
+    bootstrap_canonical_sqlite(path)
+    goals, production = coordinator(
+        path, neural=[snapshot("ops")],
+        reconciliation_authorizer=reconciliation_authorizer,
+        independent_outcome_verifier=independent_outcome_verifier,
+    )
+    principal = local_sparks_principal()
+    goal = create_user_goal(
+        goals, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-reconcile-goal", title="Inspect Docker health",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner reviews inspection.",
+        ),
+    )
+    dispatch_id = "goal-action:g7a-review-case"
+    assert production._reserve_dispatch(
+        dispatch_id=dispatch_id, goal=goal,
+        capability="portainer.summary", now=NOW,
+    )
+    return goal, production, principal, dispatch_id
+
+
+def _g7a_independent_outcome(path, goal, principal, dispatch_id, *,
+                            source="ops-maintenance", action_id=None,
+                            audience=None, successful=True):
+    return GoalEvidenceLedger(path).record(
+        evidence_ref="goal-evidence:external-verification-" + source,
+        kind="operation_receipt", observed_at=NOW + timedelta(minutes=1),
+        source=source, successful=successful,
+        goal_id=goal.id,
+        action_id=dispatch_id if action_id is None else action_id,
+        assertion="portainer.summary", principal_id=principal.principal_id,
+        audience=audience_scope(principal) if audience is None else audience,
+    )
+
+
+def test_g7a_reconciliation_requires_trusted_authority_and_effect_verifier(tmp_path):
+    path = tmp_path / "sofia.db"
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(path)
+    evidence = _g7a_independent_outcome(path, goal, principal, dispatch_id)
+    with pytest.raises(PermissionError, match="trusted reconciliation"):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id,
+            principal=principal, evidence_ref=evidence.evidence_ref,
+            now=NOW + timedelta(minutes=2),
+        )
+    assert production.unresolved_dispatches(goal.id) == (
+        (dispatch_id, "portainer.summary"),
+    )
+
+    _, denied = coordinator(
+        path, neural=[snapshot("ops")],
+        reconciliation_authorizer=lambda *_: False,
+        independent_outcome_verifier=lambda *_: True,
+    )
+    with pytest.raises(PermissionError, match="not independently authorized"):
+        denied.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=evidence.evidence_ref, now=NOW + timedelta(minutes=2),
+        )
+    _, unverified = coordinator(
+        path, neural=[snapshot("ops")],
+        reconciliation_authorizer=lambda *_: True,
+        independent_outcome_verifier=lambda *_: False,
+    )
+    with pytest.raises(ValueError, match="effect verification rejected"):
+        unverified.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=evidence.evidence_ref, now=NOW + timedelta(minutes=2),
+        )
+    assert unverified.reconciliations(goal.id) == ()
+    assert unverified.unresolved_dispatches(goal.id) == (
+        (dispatch_id, "portainer.summary"),
+    )
+
+
+@pytest.mark.parametrize("bad_field", ["self_receipt", "wrong_action", "wrong_audience", "future"])
+def test_g7a_reconciliation_rejects_self_attested_or_wrong_scoped_evidence(
+    tmp_path, bad_field
+):
+    path = tmp_path / "sofia.db"
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path, reconciliation_authorizer=lambda *_: True,
+        independent_outcome_verifier=lambda *_: True,
+    )
+    data = dict(
+        kind="operation_receipt", observed_at=NOW + timedelta(minutes=1),
+        source="ops-maintenance", successful=True, goal_id=goal.id,
+        action_id=dispatch_id, assertion="portainer.summary",
+        principal_id=principal.principal_id, audience=audience_scope(principal),
+    )
+    if bad_field == "self_receipt":
+        data["source"] = "goal-action"
+    if bad_field == "wrong_action":
+        data["action_id"] = "goal-action:another-dispatch"
+    if bad_field == "wrong_audience":
+        data["audience"] = "private:other-owner"
+    if bad_field == "future":
+        data["observed_at"] = NOW + timedelta(days=2)
+    receipt = GoalEvidenceLedger(path).record(**data)
+    with pytest.raises(ValueError, match="independent outcome must match"):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=receipt.evidence_ref,
+            now=NOW + timedelta(minutes=2),
+        )
+    assert production.reconciliations(goal.id) == ()
+    assert len(production.unresolved_dispatches(goal.id)) == 1
+
+
+@pytest.mark.parametrize("successful,expected", [
+    (True, "effect_verified"), (False, "no_effect_verified"),
+])
+def test_g7a_independent_reconciliation_is_durable_and_never_auto_replays(
+    tmp_path, successful, expected
+):
+    path = tmp_path / "sofia.db"
+    checks = []
+    def authorize(principal, goal, dispatch, evidence):
+        checks.append(("authorization", dispatch, evidence.evidence_ref))
+        return principal.principal_id == goal.owner_principal_id
+    def verify(dispatch, evidence):
+        checks.append(("effect", dispatch, evidence.evidence_ref))
+        return evidence.source == "ops-maintenance"
+
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path, reconciliation_authorizer=authorize,
+        independent_outcome_verifier=verify,
+    )
+    evidence = _g7a_independent_outcome(
+        path, goal, principal, dispatch_id, successful=successful,
+    )
+    assert production.reconcile_dispatch(
+        goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+        evidence_ref=evidence.evidence_ref, now=NOW + timedelta(minutes=2),
+    ) == expected
+    assert [item[0] for item in checks] == ["authorization", "effect"]
+    assert production.unresolved_dispatches(goal.id) == ()
+    assert production.reconciliations(goal.id) == (
+        (dispatch_id, expected, evidence.evidence_ref),
+    )
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT status,evidence_ref FROM goal_action_dispatch WHERE dispatch_id=?",
+            (dispatch_id,),
+        ).fetchone() == ("recorded", evidence.evidence_ref)
+
+    # Reconciliation is an immutable audit, not permission to replay the goal.
+    _, restarted = coordinator(path, neural=[snapshot("ops")])
+    assert restarted.run_due(now=NOW + timedelta(hours=8)) == 0
+    assert restarted.reconciliations(goal.id) == (
+        (dispatch_id, expected, evidence.evidence_ref),
+    )
+    with pytest.raises(ValueError, match="unresolved exact"):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=evidence.evidence_ref, now=NOW + timedelta(hours=9),
+        )
 
 
 def failed_workload(path):
