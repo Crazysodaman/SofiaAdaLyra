@@ -1226,6 +1226,37 @@ def test_g7a_production_safe_verifier_still_rejects_unverified_host_outcome(tmp_
     assert production.unresolved_dispatches(goal.id)
 
 
+def test_g7a_external_verifier_exception_keeps_dispatch_unknown(tmp_path):
+    """A disconnected witness cannot be treated as a successful review."""
+    path = tmp_path / "sofia.db"
+
+    def disconnected(_dispatch, _evidence):
+        raise OSError("host observer is unreachable")
+
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path,
+        reconciliation_authorizer=lambda *_: True,
+        independent_outcome_verifier=disconnected,
+    )
+    receipt = _g7a_independent_outcome(path, goal, principal, dispatch_id)
+    with pytest.raises(OSError, match="unreachable"):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id,
+            principal=principal, evidence_ref=receipt.evidence_ref,
+            now=NOW + timedelta(minutes=2),
+        )
+    assert production.unresolved_dispatches(goal.id) == (
+        (dispatch_id, "portainer.summary"),
+    )
+    assert production.reconciliations(goal.id) == ()
+    # Losing the verifier cannot authorize another attempt after restart.
+    _, restarted = coordinator(path, neural=[snapshot("ops")])
+    assert restarted.run_due(now=NOW + timedelta(hours=8)) == 0
+    assert restarted.unresolved_dispatches(goal.id) == (
+        (dispatch_id, "portainer.summary"),
+    )
+
+
 def failed_workload(path):
     with sqlite3.connect(path) as db:
         db.execute("""
