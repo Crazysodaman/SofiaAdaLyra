@@ -288,11 +288,20 @@ def test_core_install_interrupted_records_no_success(tmp_path, component_wheels,
     import subprocess
     installer = _installer(tmp_path, verifier)
     monkeypatch.setattr(installer, "_verify_health", lambda wheel: True)
+    real_run = subprocess.run
+    observed_install = []
+
     def interrupted(*args, **kwargs):
-        raise subprocess.CalledProcessError(1, args[0])
+        command = args[0]
+        if "-m" in command and "pip" in command and "install" in command:
+            observed_install.append(command)
+            raise subprocess.CalledProcessError(1, command)
+        return real_run(*args, **kwargs)
+
     monkeypatch.setattr(subprocess, "run", interrupted)
     with pytest.raises(CoreComponentInstallError, match="physical Core installation failed"):
         installer.execute(_artifact(component_wheels["core"], signer), component_wheels["core"], authority=InstallAuthority.STANDING_POLICY)
+    assert observed_install, "pip installation must be reached before interruption"
     assert installer.registry.installed() is None
 
 
