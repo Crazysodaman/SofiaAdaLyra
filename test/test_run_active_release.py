@@ -448,6 +448,19 @@ def test_legacy_then_component_migration_preserves_release_history(
     assert active["release_id"] == "release-next"
     assert active["previous_release_id"] == "release-legacy"
     assert store.accepted("release-legacy")
+    # Release activation and the filesystem projection must agree.
+    # Resolver intentionally fails closed when either half is absent.
+    release_root.mkdir(parents=True, exist_ok=True)
+    (release_root / "active-release.json").write_text(
+        json.dumps({
+            "release_id": separated_manifest.release_id,
+            "manifest_sha256": separated_manifest.manifest_sha256,
+            "path": str(separated.resolve()),
+            "previous_release_id": legacy_manifest.release_id,
+            "verified_at": NOW.isoformat(),
+        }),
+        encoding="utf-8",
+    )
     resolved = ActiveReleaseResolver(
         state_path=state,
         release_root=release_root,
