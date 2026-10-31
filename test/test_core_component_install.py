@@ -85,6 +85,7 @@ def _installer(tmp_path, verifier) -> CoreComponentInstaller:
     return CoreComponentInstaller(
         CoreComponentRegistry(tmp_path / "core-components.sqlite"),
         verifier,
+        installation_root=tmp_path / "installed-components",
     )
 
 
@@ -269,3 +270,37 @@ def test_downgrade_requires_rollback_authority(
             authority=InstallAuthority.OPERATOR_APPROVED,
             approval_id="approval:core-2",
         )
+
+
+def test_core_install_requires_physical_target(tmp_path, component_wheels, signer, verifier):
+    installer = CoreComponentInstaller(CoreComponentRegistry(tmp_path / "registry.sqlite"), verifier)
+    with pytest.raises(CoreComponentInstallError, match="installation_root"):
+        installer.execute(_artifact(component_wheels["core"], signer), component_wheels["core"], authority=InstallAuthority.STANDING_POLICY)
+    assert installer.registry.installed() is None
+
+
+def test_core_install_interrupted_records_no_success(tmp_path, component_wheels, signer, verifier, monkeypatch):
+    import subprocess
+    installer = _installer(tmp_path, verifier)
+    monkeypatch.setattr(installer, "_verify_health", lambda wheel: True)
+    def interrupted(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, args[0])
+    monkeypatch.setattr(subprocess, "run", interrupted)
+    with pytest.raises(CoreComponentInstallError, match="physical Core installation failed"):
+        installer.execute(_artifact(component_wheels["core"], signer), component_wheels["core"], authority=InstallAuthority.STANDING_POLICY)
+    assert installer.registry.installed() is None
+
+
+def test_core_install_rejects_tampered_installed_bytes(tmp_path, component_wheels, signer, verifier, monkeypatch):
+    installer = _installer(tmp_path, verifier)
+    monkeypatch.setattr(installer, "_verify_health", lambda wheel: True)
+    original = installer._verify_installed_bytes
+    def corrupt(root, artifact, wheel):
+        original(root, artifact, wheel)
+        core = next(root.rglob("sofia/core/constitution/constitution.md"))
+        core.write_bytes(b"tampered")
+        original(root, artifact, wheel)
+    monkeypatch.setattr(installer, "_verify_installed_bytes", corrupt)
+    with pytest.raises(CoreComponentInstallError, match="installed Core bytes mismatch"):
+        installer.execute(_artifact(component_wheels["core"], signer), component_wheels["core"], authority=InstallAuthority.STANDING_POLICY)
+    assert installer.registry.installed() is None
