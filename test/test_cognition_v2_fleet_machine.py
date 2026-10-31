@@ -18,6 +18,10 @@ from sofia.core.cognition.v2 import (
     ConversationFocus,
     CognitiveEvidenceLedger,
     EvidenceAcquisitionCoordinator,
+    EvidenceAtom,
+    EvidenceGraph,
+    EpistemicState,
+    AcquisitionState,
     EvidenceClaimPlanner,
     EvidenceClaimValidator,
     EvidenceNeed,
@@ -83,7 +87,8 @@ def _coordinator(
     )
     ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     return FleetMachineAnswerCoordinator(
-        dispatcher, EvidenceAcquisitionCoordinator(ledger)
+        dispatcher, EvidenceAcquisitionCoordinator(ledger),
+        evidence_graph=EvidenceGraph(ledger),
     ), ledger
 
 
@@ -310,3 +315,50 @@ def test_multi_machine_multi_property_answer_keeps_values_on_exact_hosts(tmp_pat
         for reference in references
         for predicate in ("machine.cpu", "machine.memory_bytes")
     }
+
+
+
+def test_g7a_fleet_answer_refuses_co_temporal_conflicting_host_evidence(
+    tmp_path, monkeypatch
+):
+    import json
+    import sofia.core.cognition.v2.fleet_machine as fleet_module
+
+    coordinator, ledger = _coordinator(tmp_path, {
+        "request_id": "request-new", "node_id": str(ARTEMIS_NODE),
+        "outcome": "reported_success",
+        "message": '{"hardware":{"cpu":"Ryzen 9"}}',
+    })
+    fixed = datetime(2026, 10, 9, 18, 0, tzinfo=timezone.utc)
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed
+
+    monkeypatch.setattr(fleet_module, "datetime", FixedDatetime)
+    ledger.append(EvidenceAtom(
+        evidence_id="evidence:prior-opposing-host-report",
+        subject_id=f"fleet-node:{ARTEMIS_NODE}",
+        predicate="machine.cpu",
+        value_json=json.dumps("Xeon"),
+        source_id="capability:remote.hardware.inspect",
+        observed_at=fixed,
+        expires_at=None,
+        scope_id="principal:sparks",
+        trust=0.95,
+        epistemic_state=EpistemicState.OBSERVED,
+        acquisition_state=AcquisitionState.CURRENT,
+    ))
+    result = coordinator.answer(
+        plan=_plan(), focus=_focus(), principal=None,
+        allowed_capabilities=("remote.hardware.inspect",),
+    )
+    assert result is not None
+    assert "remains unknown" in result.content
+    assert "Ryzen 9" not in result.content
+    assert "Xeon" not in result.content
+    assert not any(ref.startswith("evidence:") for ref in result.evidence_refs)
+    assert coordinator.evidence_graph.resolve(
+        _plan().evidence_needs[0], now=fixed,
+    ).acquisition_state is AcquisitionState.CONTRADICTED

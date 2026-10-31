@@ -96,6 +96,73 @@ def test_evidence_is_scope_isolated_and_restart_durable(tmp_path):
     assert other.acquisition_state is AcquisitionState.NOT_SAMPLED
 
 
+def test_g7a_conflicting_same_instant_observations_are_unknown(tmp_path):
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(path)
+    first = _atom("evidence:conflict-ryzen", value="Ryzen")
+    second = _atom("evidence:conflict-xeon", value="Xeon")
+    ledger.append(first)
+    ledger.append(second)
+
+    resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    assert resolution.acquisition_state is AcquisitionState.CONTRADICTED
+    assert resolution.atoms == ()
+    assert "conflicting" in resolution.reason
+
+    restarted = EvidenceGraph(CognitiveEvidenceLedger(path))
+    assert restarted.resolve(_need(), now=NOW).acquisition_state is AcquisitionState.CONTRADICTED
+
+
+def test_g7a_consistent_duplicate_observations_are_eligible(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    first = _atom("evidence:sensor-a", value={"cpu": "Ryzen", "cores": 8})
+    second = _atom("evidence:sensor-b", value={"cores": 8, "cpu": "Ryzen"})
+    ledger.append(first)
+    ledger.append(second)
+    resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    assert resolution.acquisition_state is AcquisitionState.CURRENT
+    assert {atom.evidence_id for atom in resolution.atoms} == {
+        first.evidence_id, second.evidence_id,
+    }
+
+
+def test_g7a_newer_observation_replaces_older_current_sample(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    earlier = _atom(
+        "evidence:older-cpu", value="Xeon",
+        observed_at=NOW - timedelta(seconds=30),
+    )
+    latest = _atom("evidence:newer-cpu", value="Ryzen")
+    ledger.append(earlier)
+    ledger.append(latest)
+    resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    assert resolution.acquisition_state is AcquisitionState.CURRENT
+    assert resolution.atoms == (latest,)
+
+
+def test_g7a_correction_removes_conflicting_source_without_erasing_history(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    original = _atom("evidence:wrong-cpu", value="Xeon")
+    valid = _atom("evidence:verified-cpu", value="Ryzen")
+    ledger.append(original)
+    ledger.append(valid)
+    graph = EvidenceGraph(ledger)
+    assert graph.resolve(_need(), now=NOW).acquisition_state is AcquisitionState.CONTRADICTED
+
+    graph.correct(
+        correction_id="correction:cpu-conflict",
+        need=_need(),
+        target_ids=(original.evidence_id,),
+        source_ref="user-report:verified-correction",
+        reason="Incorrect host CPU reading",
+        corrected_at=NOW + timedelta(seconds=1),
+    )
+    resolved = graph.resolve(_need(), now=NOW + timedelta(seconds=2))
+    assert resolved.acquisition_state is AcquisitionState.CURRENT
+    assert resolved.atoms == (valid,)
+    assert ledger.get(original.evidence_id).acquisition_state is AcquisitionState.CONTRADICTED
+
+
 def test_evidence_id_cannot_be_reused_for_different_fact(tmp_path):
     ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     ledger.append(_atom("evidence:stable-id"))
@@ -241,6 +308,154 @@ def test_user_correction_invalidates_claim_and_dependent_conclusion(tmp_path):
     assert ledger.get("evidence:original").acquisition_state is AcquisitionState.CONTRADICTED
     assert ledger.get("evidence:derived").acquisition_state is AcquisitionState.REVOKED
     assert graph.resolve(_need(), now=NOW + timedelta(seconds=2)).atoms == ()
+
+
+def test_g7a_derived_claim_expires_when_verified_premise_expires(tmp_path):
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(path)
+    original = _atom(
+        "evidence:expiring-preset",
+        expires_at=NOW + timedelta(seconds=10),
+    )
+    derived = _atom(
+        "evidence:family-from-preset",
+        predicate="machine.cpu.family",
+        value="Zen",
+        source="inference:family",
+        epistemic=EpistemicState.INFERRED,
+    )
+    ledger.append(original)
+    ledger.append(derived, depends_on=(original.evidence_id,))
+    derived_need = _need(predicate="machine.cpu.family")
+    graph = EvidenceGraph(ledger)
+    assert graph.resolve(derived_need, now=NOW).atoms == (derived,)
+
+    stale = graph.resolve(derived_need, now=NOW + timedelta(seconds=11))
+    assert stale.acquisition_state is AcquisitionState.STALE
+    assert stale.atoms == ()
+    assert ledger.get(derived.evidence_id).acquisition_state is AcquisitionState.CURRENT
+
+    restarted = EvidenceGraph(CognitiveEvidenceLedger(path))
+    assert restarted.resolve(
+        derived_need, now=NOW + timedelta(seconds=11)
+    ).acquisition_state is AcquisitionState.STALE
+
+
+def test_g7a_direct_revocation_blocks_existing_and_new_inferences(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    source = _atom("evidence:revoked-source")
+    derived = _atom(
+        "evidence:prior-inference", predicate="machine.cpu.family",
+        value="Zen", source="inference:family",
+        epistemic=EpistemicState.INFERRED,
+    )
+    ledger.append(source)
+    ledger.append(derived, depends_on=(source.evidence_id,))
+    derived_need = _need(predicate="machine.cpu.family")
+    assert EvidenceGraph(ledger).resolve(derived_need, now=NOW).atoms == (derived,)
+
+    ledger.record_status(
+        source.evidence_id, AcquisitionState.REVOKED,
+        reason="authenticated device consent revoked",
+        source_ref="runtime:device-revocation",
+        changed_at=NOW + timedelta(seconds=1),
+    )
+    resolution = EvidenceGraph(ledger).resolve(
+        derived_need, now=NOW + timedelta(seconds=2)
+    )
+    assert resolution.acquisition_state is AcquisitionState.REVOKED
+    assert resolution.atoms == ()
+    with pytest.raises(ValueError, match="revoked or unavailable dependencies"):
+        ledger.append(
+            _atom(
+                "evidence:new-inference", predicate="machine.cpu.family",
+                value="Zen", source="inference:family",
+                epistemic=EpistemicState.INFERRED,
+            ),
+            depends_on=(source.evidence_id,),
+        )
+
+
+def test_g7a_inference_cannot_upgrade_low_trust_premise(tmp_path):
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(path)
+    weak = _atom("evidence:weak-premise", trust=0.2)
+    inferred = _atom(
+        "evidence:unjustified-confidence",
+        predicate="machine.cpu.family",
+        value="Zen", source="inference:cpu-family",
+        epistemic=EpistemicState.INFERRED,
+        trust=0.99,
+    )
+    ledger.append(weak)
+    ledger.append(inferred, depends_on=(weak.evidence_id,))
+    need = _need(predicate="machine.cpu.family", minimum_trust=0.8)
+
+    assert EvidenceGraph(ledger).resolve(
+        need, now=NOW
+    ).acquisition_state is AcquisitionState.NOT_SAMPLED
+    assert EvidenceGraph(ledger).resolve(need, now=NOW).atoms == ()
+
+    # A less demanding consumer can inspect the same unchanged provenance.
+    low_threshold = _need(predicate="machine.cpu.family", minimum_trust=0.1)
+    assert EvidenceGraph(ledger).resolve(low_threshold, now=NOW).atoms == (inferred,)
+    restarted = EvidenceGraph(CognitiveEvidenceLedger(path))
+    assert restarted.resolve(need, now=NOW).atoms == ()
+
+
+def test_g7a_transitive_revocation_invalidates_multi_step_inference(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    observation = _atom("evidence:base")
+    middle = _atom(
+        "evidence:intermediate", predicate="machine.cpu.family",
+        value="Zen", source="inference:family",
+        epistemic=EpistemicState.INFERRED,
+    )
+    conclusion = _atom(
+        "evidence:conclusion", predicate="machine.cpu.platform",
+        value="AM5", source="inference:platform",
+        epistemic=EpistemicState.INFERRED,
+    )
+    ledger.append(observation)
+    ledger.append(middle, depends_on=(observation.evidence_id,))
+    ledger.append(conclusion, depends_on=(middle.evidence_id,))
+    need = _need(predicate="machine.cpu.platform")
+    graph = EvidenceGraph(ledger)
+    assert graph.resolve(need, now=NOW).atoms == (conclusion,)
+
+    ledger.record_status(
+        observation.evidence_id, AcquisitionState.REVOKED,
+        reason="source revocation", source_ref="runtime:revocation",
+        changed_at=NOW + timedelta(seconds=1),
+    )
+    result = graph.resolve(need, now=NOW + timedelta(seconds=2))
+    assert result.atoms == ()
+    assert result.acquisition_state is AcquisitionState.REVOKED
+
+
+def test_g7a_new_inference_cannot_use_expired_or_future_evidence(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    expires = _atom(
+        "evidence:expired-premise",
+        observed_at=NOW - timedelta(minutes=5),
+        expires_at=NOW - timedelta(seconds=1),
+    )
+    future = _atom(
+        "evidence:future-premise",
+        observed_at=NOW + timedelta(minutes=1),
+    )
+    ledger.append(expires)
+    ledger.append(future)
+    inferred = _atom(
+        "evidence:proposed-derived", predicate="machine.cpu.family",
+        value="Zen", source="inference:family",
+        epistemic=EpistemicState.INFERRED,
+    )
+    with pytest.raises(ValueError, match="future or expired dependencies"):
+        ledger.append(inferred, depends_on=(expires.evidence_id,))
+    with pytest.raises(ValueError, match="future or expired dependencies"):
+        ledger.append(inferred, depends_on=(future.evidence_id,))
+    assert ledger.get(inferred.evidence_id) is None
 
 
 def test_derived_evidence_dependencies_cannot_cross_private_scopes(tmp_path):
@@ -444,3 +659,27 @@ def test_application_composes_one_canonical_evidence_ledger(tmp_path):
     assert app.cognitive_evidence.path == Path(app._configuration.state_path)
     assert app.cognitive_evidence_graph.ledger is app.cognitive_evidence
     assert app.cognitive_evidence_acquisition.ledger is app.cognitive_evidence
+    # The real production Fleet answer handler consumes the already-composed
+    # graph, not a second ledger or an isolated test-only truth projector.
+    assert app._fleet_machine_answers.evidence_graph is app.cognitive_evidence_graph
+    # Production GOALS has the canonical SAFE owner-approval boundary, but
+    # cannot accept a locally invented host outcome. Neither a string label
+    # nor the existence of an approval may enable live reconciliation.
+    from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+    from sofia.core.social.principals import local_sparks_principal
+
+    goal_runner = app._goal_production
+    assert isinstance(
+        goal_runner.reconciliation_approval_verifier,
+        ExecutionApprovalVerifier,
+    )
+    assert goal_runner.reconciliation_approval_verifier.path == app._configuration.state_path
+    assert goal_runner.reconciliation_authorizer is None
+    assert goal_runner.independent_outcome_verifier is None
+    with pytest.raises(PermissionError, match="outcome verifier required"):
+        goal_runner.reconcile_dispatch(
+            goal_id="forged:goal", dispatch_id="goal-action:forged",
+            principal=local_sparks_principal(),
+            evidence_ref="goal-evidence:forged",
+            approval_id="invented-owner-approval", now=NOW,
+        )

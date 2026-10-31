@@ -17,6 +17,10 @@ from sofia.modules.neuro.model import NeuralActivation, NeuroStateSnapshot, Neur
 from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.core.social.model import PrincipalContext
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from .service import audience_scope
+
+from .evidence import GoalEvidence, GoalEvidenceIndex
 
 from .evidence import GoalEvidenceLedger
 from .model import (
@@ -134,6 +138,22 @@ class GoalActionPlanner:
         return self.gateway.capability_system.resolve(capability), {}
 
 
+def goal_reconciliation_approval_parameters(
+    *, goal: Goal, dispatch_id: str, capability: str,
+    evidence: GoalEvidence,
+) -> dict[str, str]:
+    """Exact immutable reconciliation fingerprint, including outcome and scope."""
+    return {
+        "goal_id": goal.id,
+        "dispatch_id": dispatch_id,
+        "capability": capability,
+        "evidence_ref": evidence.evidence_ref,
+        "outcome": "effect_verified" if evidence.successful else "no_effect_verified",
+        "principal_id": goal.scope_principal_id or "",
+        "audience": goal.scope_audience or "",
+    }
+
+
 class GoalProductionCoordinator:
     """Conservative production loop. Attention triggers; typed evidence grounds."""
     def __init__(
@@ -147,6 +167,13 @@ class GoalProductionCoordinator:
         notify_review: Callable[[Goal, datetime], None] | None = None,
         wake_recorder: Callable[..., None] | None = None,
         generalization=None,
+        reconciliation_authorizer: Callable[
+            [PrincipalContext, Goal, str, GoalEvidence], bool
+        ] | None = None,
+        independent_outcome_verifier: Callable[
+            [str, GoalEvidence], bool
+        ] | None = None,
+        reconciliation_approval_verifier: ExecutionApprovalVerifier | None = None,
     ) -> None:
         self.goals = goals
         self.path = Path(state_path)
@@ -159,6 +186,24 @@ class GoalProductionCoordinator:
         self.notify_review = notify_review
         self.wake_recorder = wake_recorder
         self.generalization = generalization
+        if reconciliation_authorizer is not None and not callable(reconciliation_authorizer):
+            raise TypeError("reconciliation_authorizer must be a trusted callable")
+        if independent_outcome_verifier is not None and not callable(
+            independent_outcome_verifier
+        ):
+            raise TypeError("independent_outcome_verifier must be a trusted callable")
+        if (
+            reconciliation_approval_verifier is not None
+            and not isinstance(
+                reconciliation_approval_verifier, ExecutionApprovalVerifier
+            )
+        ):
+            raise TypeError(
+                "reconciliation_approval_verifier must be a canonical SAFE verifier"
+            )
+        self.reconciliation_authorizer = reconciliation_authorizer
+        self.independent_outcome_verifier = independent_outcome_verifier
+        self.reconciliation_approval_verifier = reconciliation_approval_verifier
         with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS goal_candidate_decision (
@@ -175,6 +220,36 @@ class GoalProductionCoordinator:
                     result_kind TEXT NOT NULL,
                     evidence_ref TEXT NOT NULL,
                     attempted_at TEXT NOT NULL
+                );
+                -- An action may have taken effect before the outcome receipt
+                -- can be saved. Reserve a durable dispatch ID *before* RUN.
+                -- Only an independently reconciled operator path can clear
+                -- an interrupted dispatch; a restart must not blindly retry.
+                CREATE TABLE IF NOT EXISTS goal_action_dispatch (
+                    dispatch_id TEXT PRIMARY KEY,
+                    goal_id TEXT NOT NULL,
+                    capability TEXT NOT NULL,
+                    goal_revision INTEGER NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('unresolved','recorded')),
+                    reserved_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    evidence_ref TEXT
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS goal_one_unresolved_dispatch
+                ON goal_action_dispatch(goal_id) WHERE status='unresolved';
+                -- Immutable outcome reconciliation. A review is not an
+                -- authorization to repeat an action: only a separately
+                -- approved GOALS continuation may allow future work.
+                CREATE TABLE IF NOT EXISTS goal_action_reconciliation (
+                    dispatch_id TEXT PRIMARY KEY,
+                    goal_id TEXT NOT NULL,
+                    capability TEXT NOT NULL,
+                    evidence_ref TEXT NOT NULL UNIQUE,
+                    outcome TEXT NOT NULL CHECK(
+                        outcome IN ('effect_verified','no_effect_verified')
+                    ),
+                    reviewer_principal_id TEXT NOT NULL,
+                    reviewed_at TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS goal_priority_evaluation (
                     goal_id TEXT NOT NULL,
@@ -543,6 +618,213 @@ class GoalProductionCoordinator:
                         pass
         return changed
 
+    def unresolved_dispatches(self, goal_id: str) -> tuple[tuple[str, str], ...]:
+        """Inspect unresolved dispatches; never infer effect success from intent."""
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            rows = db.execute(
+                "SELECT dispatch_id,capability FROM goal_action_dispatch "
+                "WHERE goal_id=? AND status='unresolved' ORDER BY reserved_at",
+                (goal_id,),
+            ).fetchall()
+        return tuple((row[0], row[1]) for row in rows)
+
+    def reconciliations(
+        self, goal_id: str
+    ) -> tuple[tuple[str, str, str], ...]:
+        """Read-only, immutable reconciliation proofs for a goal."""
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            rows = db.execute(
+                "SELECT dispatch_id,outcome,evidence_ref "
+                "FROM goal_action_reconciliation WHERE goal_id=? "
+                "ORDER BY reviewed_at,dispatch_id",
+                (goal_id,),
+            ).fetchall()
+        return tuple((row[0], row[1], row[2]) for row in rows)
+
+    def _requires_dispatch_review(self, goal_id: str) -> bool:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            return db.execute(
+                "SELECT 1 FROM goal_action_dispatch "
+                "WHERE goal_id=? AND status='unresolved' "
+                "UNION SELECT 1 FROM goal_action_reconciliation "
+                "WHERE goal_id=? LIMIT 1",
+                (goal_id, goal_id),
+            ).fetchone() is not None
+
+    def reconcile_dispatch(
+        self, *, goal_id: str, dispatch_id: str,
+        principal: PrincipalContext, evidence_ref: str, now: datetime,
+        approval_id: str | None = None,
+    ) -> str:
+        """Record independently verified outcome without granting a retry.
+
+        Caller must supply an authenticated principal from the real identity
+        boundary and both trusted platform-authority and independent-effect
+        verifiers at composition. Arbitrary owner strings, a gateway result,
+        or a newly inserted Core-owned receipt are never sufficient.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("reconciliation time must be timezone-aware")
+        if not isinstance(dispatch_id, str) or not dispatch_id.strip():
+            raise ValueError("exact dispatch ID required")
+        if not isinstance(evidence_ref, str) or not evidence_ref.strip():
+            raise ValueError("exact independent evidence reference required")
+        if (
+            (self.reconciliation_authorizer is None
+             and self.reconciliation_approval_verifier is None)
+            or self.independent_outcome_verifier is None
+        ):
+            raise PermissionError(
+                "trusted reconciliation authority and outcome verifier required"
+            )
+        if (
+            self.reconciliation_approval_verifier is not None
+            and (not isinstance(approval_id, str) or not approval_id.strip())
+        ):
+            raise PermissionError("exact owner SAFE reconciliation approval required")
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            pending = db.execute(
+                "SELECT goal_id,capability,reserved_at FROM goal_action_dispatch "
+                "WHERE dispatch_id=? AND goal_id=? AND status='unresolved'",
+                (dispatch_id, goal_id),
+            ).fetchone()
+        if pending is None:
+            raise ValueError("unresolved exact GOALS dispatch required")
+        goal = self.goals.store.get(
+            goal_id, principal_id=principal.principal_id,
+            audience=audience_scope(principal),
+        )
+        if (
+            goal is None
+            or goal.scope_principal_id != principal.principal_id
+            or goal.scope_audience != audience_scope(principal)
+            or goal.owner_principal_id != principal.principal_id
+        ):
+            raise PermissionError(
+                "GOALS dispatch owner and audience must match authenticated principal"
+            )
+        evidence = GoalEvidenceIndex(self.path).lookup(evidence_ref)
+        if (
+            evidence is None
+            or evidence.kind != "operation_receipt"
+            or evidence.source in (None, "goal-action")
+            or evidence.goal_id != goal_id
+            or evidence.action_id != dispatch_id
+            or evidence.assertion != pending[1]
+            or evidence.successful is None
+            or evidence.principal_id != principal.principal_id
+            or evidence.audience != audience_scope(principal)
+            or not (
+                datetime.fromisoformat(pending[2])
+                <= evidence.observed_at <= now
+            )
+        ):
+            raise ValueError(
+                "independent outcome must match exact dispatch, time and audience"
+            )
+        # Production SAFE authority is consumed below in the same write
+        # transaction as the journal update. Legacy callback mode remains
+        # for explicitly injected test/adapter callers only.
+        if (
+            self.reconciliation_approval_verifier is None
+            and self.reconciliation_authorizer(
+                principal, goal, dispatch_id, evidence
+            ) is not True
+        ):
+            raise PermissionError("reconciliation is not independently authorized")
+        if self.independent_outcome_verifier(dispatch_id, evidence) is not True:
+            raise ValueError("independent effect verification rejected the receipt")
+        outcome = (
+            "effect_verified" if evidence.successful else "no_effect_verified"
+        )
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                if self.reconciliation_approval_verifier is not None:
+                    self.reconciliation_approval_verifier.consume(
+                        approval_id=approval_id,
+                        capability="goals.dispatch.reconcile",
+                        parameters=goal_reconciliation_approval_parameters(
+                            goal=goal, dispatch_id=dispatch_id,
+                            capability=pending[1], evidence=evidence,
+                        ),
+                        now=now, _transaction_db=db,
+                    )
+                changed = db.execute(
+                    "UPDATE goal_action_dispatch SET status='recorded',"
+                    "finished_at=?,evidence_ref=? "
+                    "WHERE dispatch_id=? AND goal_id=? AND status='unresolved'",
+                    (now.isoformat(), evidence.evidence_ref, dispatch_id, goal_id),
+                )
+                if changed.rowcount != 1:
+                    raise ValueError(
+                        "dispatch changed before exact reconciliation could commit"
+                    )
+                db.execute(
+                    "INSERT INTO goal_action_reconciliation("
+                    "dispatch_id,goal_id,capability,evidence_ref,outcome,"
+                    "reviewer_principal_id,reviewed_at) VALUES(?,?,?,?,?,?,?)",
+                    (dispatch_id, goal_id, pending[1], evidence.evidence_ref,
+                     outcome, principal.principal_id, now.isoformat()),
+                )
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+        return outcome
+
+    def _reserve_dispatch(
+        self, *, dispatch_id: str, goal: Goal, capability: str, now: datetime,
+    ) -> bool:
+        """Persist the intent before the first potentially effective call."""
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                # Exact canonical State Plane CAS under the SAME SQLite
+                # writer transaction as the dispatch reservation. Without
+                # this, cancellation or revision changes can race between
+                # the earlier read and the external-effect reservation.
+                state = db.execute(
+                    "SELECT revision,value FROM state_plane_record "
+                    "WHERE namespace='goals-v1' AND record_key=? "
+                    "AND principal_id=? AND audience=?",
+                    (
+                        goal.id, goal.scope_principal_id or "",
+                        goal.scope_audience or "",
+                    ),
+                ).fetchone()
+                if state is None or int(state[0]) != goal.revision:
+                    db.rollback()
+                    return False
+                current = json.loads(bytes(state[1]))
+                if (
+                    current.get("status") != GoalStatus.ACTIVE.value
+                    or current.get("revision") != goal.revision
+                ):
+                    db.rollback()
+                    return False
+                if db.execute(
+                    "SELECT 1 FROM goal_action_dispatch "
+                    "WHERE goal_id=? AND status='unresolved'",
+                    (goal.id,),
+                ).fetchone() is not None:
+                    db.rollback()
+                    return False
+                db.execute(
+                    "INSERT INTO goal_action_dispatch("
+                    "dispatch_id,goal_id,capability,goal_revision,"
+                    "status,reserved_at) VALUES(?,?,?,?,'unresolved',?)",
+                    (dispatch_id, goal.id, capability, goal.revision,
+                     now.isoformat()),
+                )
+                db.commit()
+                return True
+            except sqlite3.IntegrityError:
+                db.rollback()
+                return False
+
     def _recently_attempted(
         self, goal_id: str, capability: str, *, now: datetime,
     ) -> bool:
@@ -617,9 +899,20 @@ class GoalProductionCoordinator:
     def run_due(self, *, now: datetime) -> int:
         attempted = 0
         due = set(self.schedule.due(now))
-        for goal in self.goals.store.list_all_internal():
+        for snapshot in self.goals.store.list_all_internal():
             if attempted >= 8:
                 break
+            # GOALS may revise a child while decomposing another queued
+            # parent. Never execute from the stale list snapshot: a fresh
+            # compare-and-swap revision is required before a new action.
+            goal = self.goals.store.get(
+                snapshot.id, principal_id=snapshot.scope_principal_id,
+                audience=snapshot.scope_audience,
+            )
+            if goal is None or goal.revision != snapshot.revision:
+                # A newer owner decision or a sibling's evidence merge
+                # deserves a new planning tick, not a guessed replay.
+                continue
             key = (goal.id, goal.scope_principal_id, goal.scope_audience)
             if goal.status in TERMINAL_GOAL_STATUSES:
                 self.schedule.cancel(goal, now=now)
@@ -632,6 +925,15 @@ class GoalProductionCoordinator:
                 )
             )
             if not eligible:
+                continue
+            if self._requires_dispatch_review(goal.id):
+                # Do not replay UNKNOWN effects, or automatically resume even
+                # after reconciliation. A fresh authorized continuation must
+                # separately decide what happens after the verified outcome.
+                self.goals.set_run_state(
+                    goal=goal, run_state=GoalRunState.WAITING_EVIDENCE,
+                    actor_principal_id=SOFIA_GOAL_OWNER_ID, now=now,
+                )
                 continue
             text = f"{goal.title} {goal.reason}".casefold()
             existing_children = tuple(
@@ -661,6 +963,7 @@ class GoalProductionCoordinator:
                         parent=goal, child_titles=steps, now=now,
                     )
             avoid_capabilities: tuple[str, ...] = ()
+            episode_ids: tuple[str, ...] = ()
             principal = self.principal_provider()
             if (
                 self.generalization is not None and principal is not None
@@ -675,26 +978,49 @@ class GoalProductionCoordinator:
                     )
                     episode_ids = tuple(advice["episode_ids"])
                     if episode_ids:
-                        self.generalization.record_planning_influence(
-                            principal=principal, goal_id=goal.id,
-                            episode_ids=episode_ids,
-                            reason="Scoped typed prior outcomes informed diagnostic selection",
-                            ablation="with_experience", now=now,
-                        )
-                        self.generalization.record_planning_influence(
-                            principal=principal, goal_id=goal.id, episode_ids=(),
-                            reason="Deterministic no-experience comparison",
-                            ablation="without_experience", now=now,
-                        )
                         avoid_capabilities = tuple(advice["avoid_capabilities"])
                 except (LookupError, PermissionError, ValueError):
                     # Missing/revoked learning permission cannot block canonical
                     # GOALS work; the deterministic no-learning planner remains.
                     avoid_capabilities = ()
-            plan = self.planner.plan(
-                goal, diagnostic_done=self._diagnostic_done(goal.id),
-                avoid_capabilities=avoid_capabilities,
+                    episode_ids = ()
+            diagnostic_done = self._diagnostic_done(goal.id)
+            baseline_plan = self.planner.plan(
+                goal, diagnostic_done=diagnostic_done,
             )
+            plan = (
+                self.planner.plan(
+                    goal, diagnostic_done=diagnostic_done,
+                    avoid_capabilities=avoid_capabilities,
+                )
+                if avoid_capabilities else baseline_plan
+            )
+            # Historical experience being available is not proof that it
+            # influenced a decision. Record the controlled ablation only when
+            # GOALS actually chooses differently from its deterministic plan.
+            if (
+                self.generalization is not None
+                and principal is not None
+                and episode_ids
+                and avoid_capabilities
+                and plan != baseline_plan
+            ):
+                try:
+                    self.generalization.record_planning_influence(
+                        principal=principal, goal_id=goal.id,
+                        episode_ids=episode_ids,
+                        reason="Verified experience changed the diagnostic choice",
+                        ablation="with_experience", now=now,
+                    )
+                    self.generalization.record_planning_influence(
+                        principal=principal, goal_id=goal.id, episode_ids=(),
+                        reason="Actual deterministic no-experience comparison",
+                        ablation="without_experience", now=now,
+                    )
+                except (LookupError, PermissionError, ValueError):
+                    # Revocation between advice retrieval and its validated
+                    # influence trace cannot leave a learned choice acting.
+                    plan = baseline_plan
             if plan is None:
                 self.goals.set_run_state(
                     goal=goal, run_state=GoalRunState.WAITING_EVIDENCE,
@@ -762,10 +1088,31 @@ class GoalProductionCoordinator:
                 parameters=parameters, requested_scope=None,
                 rationale=f"Bounded Level-1 diagnostic for goal {goal.id}",
             )
-            result = self.planner.gateway.execute(proposal.proposal)
+            # Planning and approval checks can observe a changing lifecycle.
+            # Check the exact snapshot again immediately before dispatch.
+            # This does not replace the worker/lease fence needed for
+            # concurrent Core instances, but rejects locally stale plans.
+            before_dispatch = self.goals.store.get(
+                goal.id, principal_id=goal.scope_principal_id,
+                audience=goal.scope_audience,
+            )
+            if (
+                before_dispatch is None
+                or before_dispatch.status is not GoalStatus.ACTIVE
+                or before_dispatch.revision != goal.revision
+            ):
+                continue
             attempt_id = "goal-action:" + sha256(
                 f"{goal.id}\0{capability.name}\0{now.isoformat()}".encode()
             ).hexdigest()[:24]
+            if not self._reserve_dispatch(
+                dispatch_id=attempt_id, goal=goal,
+                capability=capability.name, now=now,
+            ):
+                continue
+            # A process exit or UNKNOWN gateway outcome leaves this durable
+            # reservation unresolved. Never auto-retry without reconciliation.
+            result = self.planner.gateway.execute(proposal.proposal)
             evidence = self.ledger.record(
                 kind="operation_receipt", observed_at=now,
                 source="goal-action", successful=result.kind is CapabilityResultKind.SUCCESS,
@@ -782,6 +1129,26 @@ class GoalProductionCoordinator:
                     attempt_id, goal.id, capability.name, result.kind.value,
                     evidence.evidence_ref, now.isoformat(),
                 ))
+                # A gateway failure or lost remote capability may have
+                # partially executed before returning. Save its typed
+                # observation but leave the dispatch unresolved until an
+                # independent outcome/reconciliation proves the effect.
+                # UNAUTHORIZED and DENIED are policy refusals, not attempts
+                # to operate; SUCCESS is a recorded gateway result, not yet
+                # independent external-state verification.
+                if result.kind not in {
+                    CapabilityResultKind.FAILED,
+                    CapabilityResultKind.UNAVAILABLE,
+                }:
+                    if db.execute(
+                        "UPDATE goal_action_dispatch SET status='recorded',"
+                        "finished_at=?,evidence_ref=? "
+                        "WHERE dispatch_id=? AND goal_id=? AND status='unresolved'",
+                        (now.isoformat(), evidence.evidence_ref, attempt_id, goal.id),
+                    ).rowcount != 1:
+                        raise RuntimeError(
+                            "GOALS dispatch reservation changed before outcome recording"
+                        )
             refreshed = self.goals.add_evidence(
                 goal=goal, evidence_refs=(evidence.evidence_ref,), now=now,
                 note=f"RUN diagnostic {capability.name}: {result.kind.value}",
