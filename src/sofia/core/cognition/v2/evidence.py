@@ -552,6 +552,10 @@ class EvidenceGraph:
                 return AcquisitionState.UNAVAILABLE
             if dependency.acquisition_state is not AcquisitionState.CURRENT:
                 return dependency.acquisition_state
+            # A derived claim cannot launder a low-trust premise into a
+            # higher-trust answer just by carrying its own confidence.
+            if dependency.trust < need.minimum_trust:
+                return AcquisitionState.NOT_SAMPLED
             if dependency.epistemic_state in {
                 EpistemicState.HYPOTHESIS, EpistemicState.UNKNOWN,
             }:
@@ -631,7 +635,7 @@ class EvidenceGraph:
             state = AcquisitionState.CONTRADICTED
         elif AcquisitionState.REVOKED in states:
             state = AcquisitionState.REVOKED
-        elif any(
+        elif AcquisitionState.STALE in states or any(
             atom.expires_at is not None and atom.expires_at <= now
             or (
                 need.max_age_seconds is not None
