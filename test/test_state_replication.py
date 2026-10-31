@@ -305,3 +305,42 @@ def test_g3_fencing_precedes_call_to_backing_storage(tmp_path, monkeypatch):
     with pytest.raises(StaleWriterError):
         plane.list_scopes("private")
     assert accesses == []
+
+
+def test_g3_backwards_clock_cannot_renew_live_writer_or_extend_authority(tmp_path):
+    """NTP rollback must never create a younger-looking writer lease."""
+    _, _, _, witness = make_plane(tmp_path, writer="writer-a", now=NOW)
+    original = witness.current_writer()
+    assert original is not None
+    renewed = witness.renew_writer(
+        original, now=NOW + timedelta(seconds=10),
+        ttl_seconds=30,
+    )
+    with pytest.raises(StaleWriterError, match="clock moved backwards"):
+        witness.renew_writer(
+            renewed, now=NOW + timedelta(seconds=5),
+            ttl_seconds=30,
+        )
+    assert witness.current_writer() == renewed
+
+    # Once wall-clock uncertainty exists, do not allow stale-time reads,
+    # operation preparation, or an epoch-advancing write to be justified.
+    with pytest.raises(StaleWriterError, match="clock moved backwards"):
+        witness.assert_writer_active(
+            renewed, now=NOW + timedelta(seconds=5),
+            action="canonical read",
+        )
+    with pytest.raises(StaleWriterError, match="clock moved backwards"):
+        witness.prepare(
+            lease=renewed,
+            operation_kind="write",
+            key=StateKey("private", "owner"),
+            expected_revision=None,
+            record=record(StateKey("private", "owner"), 1, b"private"),
+            now=NOW + timedelta(seconds=5),
+        )
+    assert witness.pending_sequences() == ()
+    assert witness.assert_writer_active(
+        renewed, now=NOW + timedelta(seconds=11),
+        action="canonical read",
+    ) == renewed
