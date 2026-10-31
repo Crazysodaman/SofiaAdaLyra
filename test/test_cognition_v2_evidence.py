@@ -648,10 +648,14 @@ def test_application_composes_one_canonical_evidence_ledger(tmp_path):
     # The real production Fleet answer handler consumes the already-composed
     # graph, not a second ledger or an isolated test-only truth projector.
     assert app._fleet_machine_answers.evidence_graph is app.cognitive_evidence_graph
-    # Production GOALS has the canonical SAFE owner-approval boundary, but
-    # cannot accept a locally invented host outcome. Neither a string label
-    # nor the existence of an approval may enable live reconciliation.
+    # Production GOALS has the canonical SAFE owner-approval boundary, plus
+    # a real independently-scoped host effect ledger; a locally invented host
+    # outcome, a string label, or the existence of an approval may never
+    # enable live reconciliation by itself.
     from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+    from sofia.platform.run.host_effect_attestation import (
+        HostEffectAttestationLedger,
+    )
     from sofia.core.social.principals import local_sparks_principal
 
     goal_runner = app._goal_production
@@ -661,11 +665,26 @@ def test_application_composes_one_canonical_evidence_ledger(tmp_path):
     )
     assert goal_runner.reconciliation_approval_verifier.path == app._configuration.state_path
     assert goal_runner.reconciliation_authorizer is None
-    assert goal_runner.independent_outcome_verifier is None
-    with pytest.raises(PermissionError, match="outcome verifier required"):
+    assert isinstance(app._host_effect_attestation, HostEffectAttestationLedger)
+    assert goal_runner.independent_outcome_verifier.__self__ is (
+        app._host_effect_attestation
+    )
+    assert goal_runner.independent_outcome_verifier.__name__ == (
+        "verify_dispatch_outcome"
+    )
+    assert app._host_effect_attestation.store_path == (
+        Path(app._configuration.state_path).parent
+        / "platform-host-effects"
+        / "host-effect-attestations.jsonl"
+    )
+    # Bound protocol: only a canonical one-use owner SAFE approval may enter
+    # reconciliation, and even then only for an exact unresolved dispatch.
+    with pytest.raises(
+        PermissionError, match="exact owner SAFE reconciliation approval required",
+    ):
         goal_runner.reconcile_dispatch(
             goal_id="forged:goal", dispatch_id="goal-action:forged",
             principal=local_sparks_principal(),
             evidence_ref="goal-evidence:forged",
-            approval_id="invented-owner-approval", now=NOW,
+            approval_id=None, now=NOW,
         )

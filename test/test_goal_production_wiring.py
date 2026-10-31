@@ -28,6 +28,9 @@ from sofia.core.social.principals import local_sparks_principal
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.goals.service import audience_scope
 from sofia.platform.safe.permissions import PermissionStore
+from sofia.platform.run.host_effect_attestation import (
+    HostEffectAttestationError, HostEffectAttestationLedger,
+)
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
 
@@ -968,6 +971,117 @@ def test_g7a_reconciliation_requires_trusted_authority_and_effect_verifier(tmp_p
         )
     assert unverified.reconciliations(goal.id) == ()
     assert unverified.unresolved_dispatches(goal.id) == (
+        (dispatch_id, "portainer.summary"),
+    )
+
+
+def test_g7a_real_host_attestation_ledger_controls_reconciliation(tmp_path):
+    path = tmp_path / "sofia.db"
+    host_root = tmp_path / "host-ops"
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path, reconciliation_authorizer=lambda *_: True,
+        independent_outcome_verifier=(
+            HostEffectAttestationLedger(host_root).verify_dispatch_outcome
+        ),
+    )
+    evidence = _g7a_independent_outcome(path, goal, principal, dispatch_id)
+
+    # Without a sealed host observation, the core receipt must not verify.
+    with pytest.raises(ValueError, match="effect verification rejected"):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=evidence.evidence_ref, now=NOW + timedelta(minutes=2),
+        )
+    assert production.reconciliations(goal.id) == ()
+    assert production.unresolved_dispatches(goal.id) == (
+        (dispatch_id, "portainer.summary"),
+    )
+
+    # The overseeing host independently observes and seals the exact effect.
+    ledger = HostEffectAttestationLedger(host_root)
+    ledger.attest_effect(
+        dispatch_id=dispatch_id, goal_id=goal.id,
+        capability="portainer.summary", outcome="performed",
+        attested_by="artemis-local-host", now=NOW,
+    )
+    _, restarted = coordinator(
+        path, neural=[snapshot("ops")],
+        reconciliation_authorizer=lambda *_: True,
+        independent_outcome_verifier=(
+            HostEffectAttestationLedger(host_root).verify_dispatch_outcome
+        ),
+    )
+    assert restarted.reconcile_dispatch(
+        goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+        evidence_ref=evidence.evidence_ref, now=NOW + timedelta(minutes=2),
+    ) == "effect_verified"
+    assert restarted.reconciliations(goal.id) == (
+        (dispatch_id, "effect_verified", evidence.evidence_ref),
+    )
+
+
+def test_g7a_host_attestation_never_endorses_mismatched_receipt(tmp_path):
+    path = tmp_path / "sofia.db"
+    host_root = tmp_path / "host-ops"
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path, reconciliation_authorizer=lambda *_: True,
+        independent_outcome_verifier=(
+            HostEffectAttestationLedger(host_root).verify_dispatch_outcome
+        ),
+    )
+    HostEffectAttestationLedger(host_root).attest_effect(
+        dispatch_id=dispatch_id, goal_id=goal.id,
+        capability="portainer.summary", outcome="absent",
+        attested_by="artemis-local-host", now=NOW,
+    )
+    forged = _g7a_independent_outcome(path, goal, principal, dispatch_id)
+    with pytest.raises(ValueError, match="effect verification rejected"):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=forged.evidence_ref, now=NOW + timedelta(minutes=2),
+        )
+    assert production.unresolved_dispatches(goal.id) == (
+        (dispatch_id, "portainer.summary"),
+    )
+    confirmed = _g7a_independent_outcome(
+        path, goal, principal, dispatch_id,
+        source="fleet-health-agent", successful=False,
+    )
+    assert production.reconcile_dispatch(
+        goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+        evidence_ref=confirmed.evidence_ref, now=NOW + timedelta(minutes=3),
+    ) == "no_effect_verified"
+
+
+def test_g7a_tampered_host_attestation_journal_keeps_dispatch_unresolved(tmp_path):
+    path = tmp_path / "sofia.db"
+    host_root = tmp_path / "host-ops"
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path, reconciliation_authorizer=lambda *_: True,
+        independent_outcome_verifier=(
+            HostEffectAttestationLedger(host_root).verify_dispatch_outcome
+        ),
+    )
+    ledger = HostEffectAttestationLedger(host_root)
+    ledger.attest_effect(
+        dispatch_id=dispatch_id, goal_id=goal.id,
+        capability="portainer.summary", outcome="performed",
+        attested_by="artemis-local-host", now=NOW,
+    )
+    raw = ledger.store_path.read_text(encoding="utf-8-sig")
+    assert '"outcome":"performed"' in raw
+    ledger.store_path.write_text(
+        raw.replace('"outcome":"performed"', '"outcome":"absent"'),
+        encoding="utf-8-sig",
+    )
+    evidence = _g7a_independent_outcome(path, goal, principal, dispatch_id)
+    with pytest.raises(HostEffectAttestationError, match="tampered"):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=evidence.evidence_ref, now=NOW + timedelta(minutes=2),
+        )
+    assert production.reconciliations(goal.id) == ()
+    assert production.unresolved_dispatches(goal.id) == (
         (dispatch_id, "portainer.summary"),
     )
 
