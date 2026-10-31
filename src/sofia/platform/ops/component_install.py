@@ -543,7 +543,17 @@ class CoreComponentInstaller:
             )
         self.registry = registry
         self.signature_verifier = signature_verifier
-        self.installation_root = Path(installation_root).resolve() if installation_root else None
+        if installation_root is not None:
+            configured = Path(installation_root).absolute()
+            if configured.is_symlink() or any(
+                parent.is_symlink() for parent in configured.parents
+            ):
+                raise CoreComponentInstallError(
+                    "Core installation root must not be redirected"
+                )
+            self.installation_root = configured.resolve()
+        else:
+            self.installation_root = None
         self.authorization_check = authorization_check
 
     def execute(
