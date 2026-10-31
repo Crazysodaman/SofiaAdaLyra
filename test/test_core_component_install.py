@@ -24,7 +24,7 @@ from sofia.platform.ops.component_install import (
     Ed25519ComponentSignatureVerifier,
     verify_core_component_content,
 )
-from sofia.platform.ops.platform_install import InstallOutcome
+from sofia.platform.ops.platform_install import InstallOperation, InstallOutcome
 from sofia.platform.verify.component_artifacts import (
     build_all_components,
     build_component,
