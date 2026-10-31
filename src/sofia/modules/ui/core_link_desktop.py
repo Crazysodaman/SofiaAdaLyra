@@ -258,6 +258,15 @@ class CoreLinkDesktopClient:
                 != self.binding.remote_core_generation
             ):
                 raise PermissionError("Core Link status identity changed")
+            if status.get("remote_platform_id") != self.binding.remote_platform_id:
+                raise PermissionError("Core Link status platform changed")
+            if status.get("protocol") != str(self.binding.protocol_version):
+                raise PermissionError("Core Link status protocol changed")
+            if (
+                status.get("state") != "ready"
+                or status.get("operator_stop_active") is not False
+            ):
+                raise PermissionError("Core Link remote Core is stopped or not ready")
             if self._state.session_id is None:
                 payload = self._require_completed(
                     self._request(
