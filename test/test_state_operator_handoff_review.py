@@ -215,3 +215,35 @@ def test_handoff_pointer_oversized_even_with_matching_receipt_digest(tmp_path):
     )
     assert "signed_pending_pointer_exceeds_size_policy" in review.blockers
     assert not review.ready_for_privileged_broker
+
+
+def test_g7_handoff_cannot_reuse_single_evidence_ref_for_independent_checks(tmp_path):
+    evidence = _evidence(tmp_path)
+    aliased = replace(
+        evidence,
+        promoted_writer_lease_ref=evidence.authorization.writer_fence_ref,
+    )
+    review = review_operator_handoff(
+        aliased, now=NOW + timedelta(minutes=1),
+        independently_verify_evidence=lambda _value: True,
+    )
+    assert "handoff_evidence_references_not_independent" in review.blockers
+    assert review.ready_for_privileged_broker is False
+    assert review.may_activate_writer is False
+
+
+def test_g7_handoff_cannot_promote_source_onto_same_writer_host(tmp_path):
+    evidence = _evidence(tmp_path)
+    same = replace(
+        evidence, authorization=replace(
+            evidence.authorization,
+            source_writer_host_id=evidence.authorization.writer_host_id,
+        ),
+    )
+    review = review_operator_handoff(
+        same, now=NOW + timedelta(minutes=1),
+        independently_verify_evidence=lambda _value: True,
+    )
+    assert "source_and_target_writer_host_not_distinct" in review.blockers
+    assert review.ready_for_privileged_broker is False
+    assert review.may_activate_writer is False
