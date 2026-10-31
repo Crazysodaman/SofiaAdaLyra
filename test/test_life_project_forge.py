@@ -1632,6 +1632,15 @@ def test_invented_life_artifact_failures_cannot_trigger_revisions(
         life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         finished = wait_for_job(life, life.store.jobs(project.project_id)[0])
         assert finished.status is WorkStatus.COMPLETED
+        # A real asynchronous RUN receipt may arrive after the synthetic
+        # tick's +4s timestamp on a loaded Windows CI runner. Bind the
+        # evaluation to its canonical completion proof, not guessed timing.
+        receipt = life.evidence_index.lookup(str(finished.result["evidence_ref"]))
+        assert receipt is not None and receipt.successful is True
+        evaluated_at = max(
+            now + timedelta(seconds=4),
+            receipt.observed_at + timedelta(microseconds=1),
+        )
         with pytest.raises(ValueError, match="independent"):
             life.evaluate_artifact(
                 project.project_id,
@@ -1642,7 +1651,7 @@ def test_invented_life_artifact_failures_cannot_trigger_revisions(
                 reason="A false report cannot authorize another draft.",
                 evidence_refs=(str(finished.result["evidence_ref"]),),
                 preserve_for_research=False,
-                now=now + timedelta(seconds=4),
+                now=evaluated_at,
             )
         assert life.store.evaluations(project.project_id) == ()
         assert life.store.jobs(project.project_id) == (finished.job_id,)
