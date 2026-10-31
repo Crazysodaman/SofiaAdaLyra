@@ -792,6 +792,12 @@ class ReplicatedStatePlane(StatePlane):
             now=datetime.now(timezone.utc),
             action="canonical read",
         )
+        if self._witness.pending_sequences():
+            # A primary replica may contain a write not yet committed on
+            # every target. Serving it as canonical state is a false read.
+            raise ReplicationPartialCommitError(
+                "canonical read blocked until partial replication is repaired"
+            )
 
     def _primary(self) -> StatePlane:
         target_id = self._witness.primary_target_id()
