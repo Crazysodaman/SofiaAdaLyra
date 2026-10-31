@@ -17,8 +17,10 @@ import json
 import secrets
 from pathlib import Path
 
+from sofia.platform.run.process_lock import StateProcessLock
 from sofia.platform.state.private_file import (
     assert_no_redirected_components,
+    assert_owner_private_path,
     atomic_write_private_text,
     ensure_owner_private_directory,
 )
@@ -73,7 +75,9 @@ class HostEffectAttestationLedger:
         return self._store_file or self._root / "host-effect-journal.tip"
 
     def _key(self) -> bytes:
+        assert_no_redirected_components(self._key_path, include_leaf=True)
         if self._key_path.exists():
+            assert_owner_private_path(self._key_path, directory=False)
             material = self._key_path.read_text(encoding="utf-8-sig").strip()
             try:
                 key = bytes.fromhex(material)
@@ -84,6 +88,10 @@ class HostEffectAttestationLedger:
             if len(key) != _KEY_BYTES:
                 raise HostEffectAttestationError("host attestation key is invalid")
             return key
+        if self.store_path.exists() or self.tip_path.exists():
+            raise HostEffectAttestationError(
+                "host attestation key is missing for existing evidence"
+            )
         assert_no_redirected_components(self._key_path, include_leaf=True)
         atomic_write_private_text(self._key_path, secrets.token_hex(_KEY_BYTES))
         return self._key()
@@ -95,6 +103,25 @@ class HostEffectAttestationLedger:
         outcome: str, attested_by: str, now: datetime,
     ) -> str:
         """Seal one host observation for the exact dispatch; returns row digest."""
+        with self._transaction_lock():
+            return self._attest_effect(
+                dispatch_id=dispatch_id, goal_id=goal_id, capability=capability,
+                outcome=outcome, attested_by=attested_by, now=now,
+            )
+
+    def _transaction_lock(self) -> StateProcessLock:
+        # One lock covers key creation, chain validation, publication and tip
+        # sealing across ledger instances/processes. Contention fails closed;
+        # callers must retain UNKNOWN rather than reconcile partial evidence.
+        return StateProcessLock(
+            self._root, resource="host-effect-attestation",
+            duplicate_error=HostEffectAttestationError,
+        )
+
+    def _attest_effect(
+        self, *, dispatch_id: str, goal_id: str, capability: str,
+        outcome: str, attested_by: str, now: datetime,
+    ) -> str:
         if not isinstance(dispatch_id, str) or not dispatch_id.strip():
             raise ValueError("exact dispatch id required")
         if not isinstance(goal_id, str) or not goal_id.strip():
@@ -107,6 +134,10 @@ class HostEffectAttestationLedger:
             raise ValueError("attesting host identity required")
         now = _aware(now, label="observation time")
         rows, last_digest = self._journal(self.store_path)
+        if len(rows) >= _MAX_ROWS:
+            raise HostEffectAttestationError(
+                "host attestation journal exceeded integrity bound"
+            )
         if any(row["dispatch_id"] == dispatch_id for row in rows):
             raise ValueError(
                 "dispatch already independently attested; one-seal per dispatch"
@@ -127,9 +158,16 @@ class HostEffectAttestationLedger:
             {"payload": entry, "entry_digest": payload_digest, "tag": tag},
             separators=(",", ":"), ensure_ascii=False,
         )
-        assert_no_redirected_components(self.store_path, include_leaf=False)
-        with self.store_path.open("a", encoding="utf-8-sig") as sink:
-            sink.write(f"{line}\n")
+        # Publish through the shared private-file primitive so a permissive
+        # umask cannot expose evidence and existing unsafe files are refused.
+        # The journal remains bounded by _MAX_ROWS and its sealed tip.
+        previous = (
+            self.store_path.read_text(encoding="utf-8-sig")
+            if self.store_path.exists() else ""
+        )
+        atomic_write_private_text(
+            self.store_path, f"{previous}{line}\n", encoding="utf-8-sig",
+        )
         self._seal_tip(len(rows) + 1, payload_digest)
         return payload_digest
 
@@ -152,6 +190,10 @@ class HostEffectAttestationLedger:
         exact dispatch, goal, capability and outcome mapping of the claimed
         core receipt. Structural failures raise; they must surface loudly.
         """
+        with self._transaction_lock():
+            return self._verify_dispatch_outcome(dispatch_id, evidence)
+
+    def _verify_dispatch_outcome(self, dispatch_id: str, evidence) -> bool:
         if not isinstance(dispatch_id, str) or not dispatch_id.strip():
             return False
         rows, _digest = self._journal(self.store_path)
@@ -195,9 +237,15 @@ class HostEffectAttestationLedger:
 
     def _journal(self, path: Path) -> tuple[list[dict], str]:
         """Walk the sealed journal; returns payloads and the anchored tip."""
+        assert_no_redirected_components(path, include_leaf=True)
+        assert_no_redirected_components(self.tip_path, include_leaf=True)
         if not path.exists():
+            if self.tip_path.exists():
+                raise HostEffectAttestationError(
+                    "host attestation journal is missing but its anchor exists"
+                )
             return [], _GENESIS_DIGEST
-        assert_no_redirected_components(path, include_leaf=False)
+        assert_owner_private_path(path, directory=False)
         rows: list[dict] = []
         key = self._key()
         expected_prev = _GENESIS_DIGEST
@@ -253,6 +301,7 @@ class HostEffectAttestationLedger:
             raise HostEffectAttestationError(
                 "host attestation journal tip anchor is missing"
             )
+        assert_owner_private_path(self.tip_path, directory=False)
         text = self.tip_path.read_text(encoding="utf-8-sig").strip()
         try:
             sealed = json.loads(text)

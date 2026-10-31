@@ -46,6 +46,12 @@ OLLAMA_MODEL = os.getenv(
 )
 
 
+@pytest.fixture(autouse=True)
+def _disposable_canonical_state(canonical_state_path):
+    """Provision only this test's fresh canonical DB before composition."""
+    return canonical_state_path
+
+
 @pytest.mark.integration
 def test_real_ollama_cognitive_path(tmp_path):
     identity_path = tmp_path / "identity.json"

@@ -51,6 +51,12 @@ OLLAMA_MODEL = os.getenv(
 
 REPEATED_GENERATION_COUNT = 10
 
+@pytest.fixture(autouse=True)
+def _disposable_canonical_state(canonical_state_path):
+    """Provision only this test's fresh canonical DB before composition."""
+    return canonical_state_path
+
+
 CANONICAL_MEASUREMENTS = {
     "height": "67 in",
     "weight": "135 lb",

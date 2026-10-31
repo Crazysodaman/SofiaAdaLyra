@@ -1,6 +1,7 @@
 """Independent host-owned GOALS effect attestation ledger contracts."""
 
 from datetime import datetime, timedelta, timezone
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -360,7 +361,7 @@ def test_ledger_rejects_redirected_store(tmp_path):
 
     ledger = HostEffectAttestationLedger(tmp_path / "host-ops")
     ledger._store_file = link
-    with pytest.raises(RuntimeError):
+    with pytest.raises(PermissionError, match="redirection"):
         ledger.attest_effect(
             dispatch_id="goal-action:13",
             goal_id="goal:13",
@@ -369,3 +370,137 @@ def test_ledger_rejects_redirected_store(tmp_path):
             attested_by="artemis",
             now=OBSERVED_AT,
         )
+
+
+def _seal_sample(ledger):
+    return ledger.attest_effect(
+        dispatch_id="goal-action:private", goal_id="goal:private",
+        capability="cap.private", outcome="performed",
+        attested_by="isolated-host", now=OBSERVED_AT,
+    )
+
+
+@pytest.mark.parametrize("artifact", ("key", "journal", "tip"))
+def test_redirected_host_evidence_is_rejected_before_read(ledger, tmp_path, artifact):
+    _seal_sample(ledger)
+    path = {
+        "key": ledger._key_path, "journal": ledger.store_path,
+        "tip": ledger.tip_path,
+    }[artifact]
+    outside = tmp_path / f"outside-{artifact}"
+    outside.write_bytes(path.read_bytes())
+    path.unlink()
+    try:
+        path.symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("host denies unprivileged symlinks")
+    with pytest.raises(PermissionError, match="redirection"):
+        ledger._journal(ledger.store_path)
+
+
+def test_deleted_journal_cannot_reset_anchored_history(ledger):
+    _seal_sample(ledger)
+    ledger.store_path.unlink()
+    with pytest.raises(HostEffectAttestationError, match="journal.*missing"):
+        ledger._journal(ledger.store_path)
+    with pytest.raises(HostEffectAttestationError, match="journal.*missing"):
+        _seal_sample(ledger)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX mode contract")
+def test_host_artifacts_are_private_even_with_permissive_umask(ledger):
+    previous = os.umask(0)
+    try:
+        _seal_sample(ledger)
+    finally:
+        os.umask(previous)
+    for path in (ledger._key_path, ledger.store_path, ledger.tip_path):
+        assert path.stat().st_mode & 0o077 == 0
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX mode contract")
+@pytest.mark.parametrize("artifact", ("key", "journal", "tip"))
+def test_broadened_host_artifact_is_denied_without_repair(ledger, artifact):
+    _seal_sample(ledger)
+    path = {
+        "key": ledger._key_path, "journal": ledger.store_path,
+        "tip": ledger.tip_path,
+    }[artifact]
+    path.chmod(0o644)
+    with pytest.raises(PermissionError, match="too broad"):
+        ledger._journal(ledger.store_path)
+    assert path.stat().st_mode & 0o777 == 0o644
+
+
+def test_host_attestation_survives_restart_and_accepts_next_dispatch(ledger):
+    _seal_sample(ledger)
+    reopened = HostEffectAttestationLedger(ledger._root.parent)
+    reopened.attest_effect(
+        dispatch_id="goal-action:next", goal_id="goal:next",
+        capability="cap.next", outcome="absent",
+        attested_by="isolated-host", now=_after(OBSERVED_AT, 2),
+    )
+    rows, _ = reopened._journal(reopened.store_path)
+    assert [row["dispatch_id"] for row in rows] == [
+        "goal-action:private", "goal-action:next",
+    ]
+
+
+def test_contending_ledger_cannot_overwrite_or_read_partial_transaction(ledger):
+    _seal_sample(ledger)
+    reopened = HostEffectAttestationLedger(ledger._root.parent)
+    before = ledger.store_path.read_bytes()
+    with ledger._transaction_lock():
+        with pytest.raises(HostEffectAttestationError, match="another live"):
+            _seal_sample(reopened)
+        with pytest.raises(HostEffectAttestationError, match="another live"):
+            reopened.verify_dispatch_outcome("goal-action:private", object())
+    assert ledger.store_path.read_bytes() == before
+    with pytest.raises(ValueError, match="already independently attested"):
+        _seal_sample(reopened)
+
+
+def test_interrupted_tip_publication_stays_denied_after_restart(ledger, monkeypatch):
+    _seal_sample(ledger)
+
+    def crash_before_tip(*args):
+        raise OSError("injected host crash before tip publication")
+
+    monkeypatch.setattr(ledger, "_seal_tip", crash_before_tip)
+    with pytest.raises(OSError, match="injected host crash"):
+        ledger.attest_effect(
+            dispatch_id="goal-action:interrupted", goal_id="goal:interrupted",
+            capability="cap.interrupted", outcome="performed",
+            attested_by="isolated-host", now=_after(OBSERVED_AT, 1),
+        )
+    reopened = HostEffectAttestationLedger(ledger._root.parent)
+    with pytest.raises(HostEffectAttestationError, match="sealed tip"):
+        reopened.verify_dispatch_outcome("goal-action:interrupted", object())
+    with pytest.raises(HostEffectAttestationError, match="sealed tip"):
+        _seal_sample(reopened)
+
+
+def test_missing_key_is_not_replaced_for_existing_evidence(ledger):
+    _seal_sample(ledger)
+    ledger._key_path.unlink()
+    before = ledger.store_path.read_bytes()
+    with pytest.raises(HostEffectAttestationError, match="key is missing"):
+        ledger.verify_dispatch_outcome("goal-action:private", object())
+    assert not ledger._key_path.exists()
+    assert ledger.store_path.read_bytes() == before
+
+
+def test_full_journal_rejects_append_without_poisoning_history(ledger, monkeypatch):
+    from sofia.platform.run import host_effect_attestation
+
+    monkeypatch.setattr(host_effect_attestation, "_MAX_ROWS", 1)
+    _seal_sample(ledger)
+    before = ledger.store_path.read_bytes(), ledger.tip_path.read_bytes()
+    with pytest.raises(HostEffectAttestationError, match="integrity bound"):
+        ledger.attest_effect(
+            dispatch_id="goal-action:overflow", goal_id="goal:overflow",
+            capability="cap.overflow", outcome="performed",
+            attested_by="isolated-host", now=_after(OBSERVED_AT, 1),
+        )
+    assert (ledger.store_path.read_bytes(), ledger.tip_path.read_bytes()) == before
+    assert len(ledger._journal(ledger.store_path)[0]) == 1

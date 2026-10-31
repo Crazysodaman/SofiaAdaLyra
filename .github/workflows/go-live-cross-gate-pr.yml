@@ -25,6 +25,8 @@ on:
       - 'test/test_cognition_v2_turn_kernel.py'
       - 'test/test_learning_foundation.py'
       - 'test/test_generalization_advanced.py'
+      - 'test/test_host_effect_attestation.py'
+      - 'test/test_goal_production_wiring.py'
       - '.github/workflows/go-live-cross-gate-pr.yml'
   pull_request:
     branches:
@@ -50,6 +52,8 @@ on:
       - 'test/test_cognition_v2_turn_kernel.py'
       - 'test/test_learning_foundation.py'
       - 'test/test_generalization_advanced.py'
+      - 'test/test_host_effect_attestation.py'
+      - 'test/test_goal_production_wiring.py'
       - '.github/workflows/go-live-cross-gate-pr.yml'
   workflow_dispatch:
 
@@ -106,6 +110,8 @@ jobs:
         run: python -m pytest -q test/test_cognition_v2_evidence.py test/test_cognition_v2_turn_kernel.py test/test_cognition_v2_fleet_machine.py
       - name: G7-A learning and generalization regressions
         run: python -m pytest -q test/test_learning_foundation.py test/test_generalization_advanced.py
+      - name: G7-A independent host attestation and production SAFE reconciliation
+        run: python -m pytest -q test/test_host_effect_attestation.py test/test_goal_production_wiring.py
 
 # Focused cross-gate contracts only. NOT an installed-wheel release certificate,
 # host migration rehearsal or full G7-A cognition-to-learning acceptance trace.
