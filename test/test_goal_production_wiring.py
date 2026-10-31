@@ -6,6 +6,7 @@ import json
 import sqlite3
 
 from sofia.platform.capability import Capability, CapabilitySystem
+from sofia.platform.capability.model import CapabilityResult, CapabilityResultKind
 from sofia.platform.capability.gateway import CapabilityGateway
 from sofia.core.goals import (
     CompletionKind, GoalCompletionCondition, GoalEvidenceIndex,
@@ -718,6 +719,66 @@ def test_g7a_crash_before_receipt_leaves_no_false_success_or_replay(
             "SELECT COUNT(*) FROM goal_action_attempt WHERE goal_id=?",
             (goal.id,),
         ).fetchone() == (0,)
+
+
+@pytest.mark.parametrize(
+    "failure_kind",
+    [CapabilityResultKind.FAILED, CapabilityResultKind.UNAVAILABLE],
+)
+def test_g7a_uncertain_gateway_result_never_auto_replays(
+    tmp_path, monkeypatch, failure_kind
+):
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    dispatches = []
+    goals, production = coordinator(path, neural=[snapshot("ops")])
+    production.planner.gateway.capability_system.register(
+        Capability("service.inspect", "Read exact service status."),
+        lambda _request: {"status": "running"},
+    )
+    principal = local_sparks_principal()
+    goal = create_user_goal(
+        goals, GoalEvidenceLedger(path), principal=principal,
+        ref=f"message:g7a-uncertain-{failure_kind.value}",
+        title="Inspect local service status",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner verifies service state.",
+        ),
+    )
+
+    def uncertain(proposal):
+        dispatches.append(proposal.capability_name)
+        return CapabilityResult(
+            capability=proposal.capability_name, kind=failure_kind,
+            error="upstream response cannot prove any external effect",
+        )
+
+    monkeypatch.setattr(production.planner.gateway, "execute", uncertain)
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 1
+    assert dispatches == ["service.inspect"]
+    pending = production.unresolved_dispatches(goal.id)
+    assert len(pending) == 1
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT result_kind FROM goal_action_attempt WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (failure_kind.value,)
+        assert db.execute(
+            "SELECT status FROM goal_action_dispatch WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == ("unresolved",)
+
+    # A failed or unavailable gateway result is not independent evidence
+    # of no effect, so even a due schedule cannot issue a second attempt.
+    _, restarted = coordinator(path, neural=[snapshot("ops")])
+    restarted.planner.gateway.capability_system.register(
+        Capability("service.inspect", "Read exact service status."),
+        lambda _request: {"status": "running"},
+    )
+    monkeypatch.setattr(restarted.planner.gateway, "execute", uncertain)
+    assert restarted.run_due(now=NOW + timedelta(hours=3)) == 0
+    assert dispatches == ["service.inspect"]
+    assert restarted.unresolved_dispatches(goal.id) == pending
 
 
 def failed_workload(path):
