@@ -435,6 +435,30 @@ class CoreComponentInstaller:
             raise CoreComponentInstallError(
                 "Core artifact declared version does not match signed wheel metadata"
             )
+        if operation is InstallOperation.ROLLBACK:
+            # Downgrade authority is not permission to install an unrelated
+            # older wheel. A rollback target must be exact previously
+            # attested bytes from this Platform's own install history.
+            history = self.registry.history(artifact.artifact_id)
+            if not any(
+                entry.outcome is InstallOutcome.SUCCEEDED
+                and entry.version == artifact.version
+                and entry.artifact_sha256 == artifact.sha256
+                and entry.operation in (
+                    InstallOperation.INSTALL,
+                    InstallOperation.UPDATE,
+                    InstallOperation.REPAIR,
+                    InstallOperation.ROLLBACK,
+                )
+                for entry in history
+            ):
+                raise CoreComponentInstallError(
+                    "rollback requires a previously verified Core artifact"
+                )
+            if existing is None or existing.outcome is not InstallOutcome.SUCCEEDED:
+                raise CoreComponentInstallError(
+                    "rollback requires a currently recorded Core installation"
+                )
         if self.installation_root is None:
             raise CoreComponentInstallError(
                 "installation_root is required; a health probe is not a physical install"
