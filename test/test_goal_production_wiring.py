@@ -1,4 +1,4 @@
-from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner
+from test.owner_auth_fixture import (grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner, record_verified_owner_approval)
 from datetime import datetime, timedelta, timezone
 import pytest
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
@@ -12,7 +12,12 @@ from sofia.core.goals import (
     CompletionKind, GoalCompletionCondition, GoalEvidenceIndex,
     GoalEvidenceLedger, GoalService, GoalStatus, GoalStore,
 )
-from sofia.core.goals.coordinator import GoalProductionCoordinator
+from sofia.core.goals.coordinator import (
+    GoalProductionCoordinator, goal_reconciliation_approval_parameters,
+)
+from sofia.platform.safe.execution_approval import (
+    ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
+)
 from sofia.core.generalization.advanced import AdvancedGeneralizationStore, EpisodePhase
 from sofia.core.generalization.contracts import ExplorationAdmission
 from sofia.core.learning.contracts import DataUseGrant
@@ -56,6 +61,7 @@ def snapshot(kind: str, *, pressure: float = 0.1) -> NeuroStateSnapshot:
 def coordinator(
     path, *, neural, notify=None, executions=None, mutations=None,
     reconciliation_authorizer=None, independent_outcome_verifier=None,
+    reconciliation_approval_verifier=None,
 ):
     plane = SQLiteStatePlane(path)
     goals = GoalService(
@@ -92,6 +98,7 @@ def coordinator(
         notify_review=notify,
         reconciliation_authorizer=reconciliation_authorizer,
         independent_outcome_verifier=independent_outcome_verifier,
+        reconciliation_approval_verifier=reconciliation_approval_verifier,
     )
     return goals, result
 
@@ -886,12 +893,14 @@ def test_g7a_uncertain_gateway_result_never_auto_replays(
 
 def _g7a_unresolved_reconciliation_fixture(
     path, *, reconciliation_authorizer=None, independent_outcome_verifier=None,
+    reconciliation_approval_verifier=None,
 ):
     bootstrap_canonical_sqlite(path)
     goals, production = coordinator(
         path, neural=[snapshot("ops")],
         reconciliation_authorizer=reconciliation_authorizer,
         independent_outcome_verifier=independent_outcome_verifier,
+        reconciliation_approval_verifier=reconciliation_approval_verifier,
     )
     principal = local_sparks_principal()
     goal = create_user_goal(
@@ -1045,6 +1054,176 @@ def test_g7a_independent_reconciliation_is_durable_and_never_auto_replays(
             goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
             evidence_ref=evidence.evidence_ref, now=NOW + timedelta(hours=9),
         )
+
+
+
+def _g7a_owner_signed_reconciliation_approval(
+    path, goal, dispatch_id, evidence, *, capability="portainer.summary",
+    now=NOW,
+):
+    verifier = ExecutionApprovalVerifier(path)
+    params = goal_reconciliation_approval_parameters(
+        goal=goal, dispatch_id=dispatch_id,
+        capability=capability, evidence=evidence,
+    )
+    approval = ExecutionApproval(
+        approval_id="g7a-reconciliation-approval",
+        capability="goals.dispatch.reconcile",
+        request_fingerprint=execution_fingerprint(
+            "goals.dispatch.reconcile", params,
+        ),
+        approved_by="Sparks",
+        approved_at=now,
+        expires_at=now + timedelta(minutes=5),
+    )
+    record_verified_owner_approval(verifier, approval)
+    return verifier, approval.approval_id
+
+
+def test_g7a_real_safe_webauthn_approval_consumed_atomically_on_reconciliation(tmp_path):
+    path = tmp_path / "sofia.db"
+    verifier = ExecutionApprovalVerifier(bootstrap_canonical_sqlite(path))
+    goal, _, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path, reconciliation_approval_verifier=verifier,
+        independent_outcome_verifier=lambda _, evidence: (
+            evidence.source == "ops-maintenance"
+        ),
+    )
+    evidence = _g7a_independent_outcome(path, goal, principal, dispatch_id)
+    verifier, approval_id = _g7a_owner_signed_reconciliation_approval(
+        path, goal, dispatch_id, evidence,
+    )
+    _, production = coordinator(
+        path, neural=[snapshot("ops")],
+        reconciliation_approval_verifier=verifier,
+        independent_outcome_verifier=lambda _, evidence: (
+            evidence.source == "ops-maintenance"
+        ),
+    )
+    # Cryptographic SAFE verification, owner proof, request fingerprint,
+    # one-use approval consumption and journal reconciliation share a writer
+    # transaction. No bypass via submitted owner labels.
+    assert production.reconcile_dispatch(
+        goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+        evidence_ref=evidence.evidence_ref,
+        now=NOW + timedelta(minutes=2), approval_id=approval_id,
+    ) == "effect_verified"
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT consumed_at FROM safe_execution_approval WHERE approval_id=?",
+            (approval_id,),
+        ).fetchone()[0] is not None
+        assert db.execute(
+            "SELECT status,evidence_ref FROM goal_action_dispatch "
+            "WHERE dispatch_id=?",
+            (dispatch_id,),
+        ).fetchone() == ("recorded", evidence.evidence_ref)
+    assert production.reconciliations(goal.id) == (
+        (dispatch_id, "effect_verified", evidence.evidence_ref),
+    )
+
+
+def test_g7a_safe_approval_rejects_wrong_fingerprint_without_consumption(tmp_path):
+    path = tmp_path / "sofia.db"
+    verifier = ExecutionApprovalVerifier(bootstrap_canonical_sqlite(path))
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path, reconciliation_approval_verifier=verifier,
+        independent_outcome_verifier=lambda *_: True,
+    )
+    evidence = _g7a_independent_outcome(path, goal, principal, dispatch_id)
+    verifier, approval_id = _g7a_owner_signed_reconciliation_approval(
+        path, goal, dispatch_id, evidence, capability="system.inspect",
+    )
+    with pytest.raises(PermissionError, match="parameters do not match"):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=evidence.evidence_ref,
+            now=NOW + timedelta(minutes=2), approval_id=approval_id,
+        )
+    assert production.unresolved_dispatches(goal.id) == (
+        (dispatch_id, "portainer.summary"),
+    )
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT consumed_at FROM safe_execution_approval WHERE approval_id=?",
+            (approval_id,),
+        ).fetchone() == (None,)
+
+
+def test_g7a_safe_approval_and_reconciliation_rollback_together_on_conflict(tmp_path):
+    path = tmp_path / "sofia.db"
+    verifier = ExecutionApprovalVerifier(bootstrap_canonical_sqlite(path))
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path, reconciliation_approval_verifier=verifier,
+        independent_outcome_verifier=lambda *_: True,
+    )
+    evidence = _g7a_independent_outcome(path, goal, principal, dispatch_id)
+    verifier, approval_id = _g7a_owner_signed_reconciliation_approval(
+        path, goal, dispatch_id, evidence,
+    )
+    # A different existing audit entry already claims the evidence ref.
+    # The uniqueness conflict must roll back owner SAFE consumption as well
+    # as the attempted dispatch update, not half-commit the action.
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "INSERT INTO goal_action_reconciliation("
+            "dispatch_id,goal_id,capability,evidence_ref,outcome,"
+            "reviewer_principal_id,reviewed_at) VALUES(?,?,?,?,?,?,?)",
+            (
+                "goal-action:conflicting-old-proof", goal.id,
+                "portainer.summary", evidence.evidence_ref,
+                "effect_verified", principal.principal_id,
+                NOW.isoformat(),
+            ),
+        )
+    with pytest.raises(sqlite3.IntegrityError):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=evidence.evidence_ref,
+            now=NOW + timedelta(minutes=2), approval_id=approval_id,
+        )
+    assert production.unresolved_dispatches(goal.id) == (
+        (dispatch_id, "portainer.summary"),
+    )
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT consumed_at FROM safe_execution_approval WHERE approval_id=?",
+            (approval_id,),
+        ).fetchone() == (None,)
+        db.execute(
+            "DELETE FROM goal_action_reconciliation "
+            "WHERE dispatch_id='goal-action:conflicting-old-proof'"
+        )
+    assert production.reconcile_dispatch(
+        goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+        evidence_ref=evidence.evidence_ref,
+        now=NOW + timedelta(minutes=2), approval_id=approval_id,
+    ) == "effect_verified"
+
+
+def test_g7a_production_safe_verifier_still_rejects_unverified_host_outcome(tmp_path):
+    path = tmp_path / "sofia.db"
+    verifier = ExecutionApprovalVerifier(bootstrap_canonical_sqlite(path))
+    goal, production, principal, dispatch_id = _g7a_unresolved_reconciliation_fixture(
+        path, reconciliation_approval_verifier=verifier,
+        independent_outcome_verifier=lambda *_: False,
+    )
+    evidence = _g7a_independent_outcome(path, goal, principal, dispatch_id)
+    verifier, approval_id = _g7a_owner_signed_reconciliation_approval(
+        path, goal, dispatch_id, evidence,
+    )
+    with pytest.raises(ValueError, match="effect verification rejected"):
+        production.reconcile_dispatch(
+            goal_id=goal.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=evidence.evidence_ref,
+            now=NOW + timedelta(minutes=2), approval_id=approval_id,
+        )
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT consumed_at FROM safe_execution_approval WHERE approval_id=?",
+            (approval_id,),
+        ).fetchone() == (None,)
+    assert production.unresolved_dispatches(goal.id)
 
 
 def failed_workload(path):
