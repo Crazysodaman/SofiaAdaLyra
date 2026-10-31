@@ -553,6 +553,62 @@ def test_g7a_goal_revocation_after_planning_blocks_tool_dispatch(
     ).status is GoalStatus.CANCELLED
 
 
+def test_g7a_multiple_docker_goals_recover_without_stale_child_writes(tmp_path):
+    """Restarted child plans cannot use snapshots revised by sibling merges."""
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    principal = local_sparks_principal()
+    dispatched = []
+    goals, first_runner = coordinator(
+        path, neural=[snapshot("ops")], executions=dispatched,
+    )
+    ledger = GoalEvidenceLedger(path)
+    first = create_user_goal(
+        goals, ledger, principal=principal,
+        ref="message:g7a-first-docker", title="Investigate Docker failures",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner confirms the diagnosis.",
+        ),
+    )
+    assert first_runner.run_due(now=NOW + timedelta(seconds=1)) == 1
+    assert dispatched == ["portainer"]
+    assert goals.store.get(
+        first.id, principal_id=first.scope_principal_id,
+        audience=first.scope_audience,
+    ).status is GoalStatus.ACTIVE
+
+    # Existing diagnostic children persist across restart, while a second
+    # distinct user request can decompose into overlapping child titles.
+    reopened, second_runner = coordinator(
+        path, neural=[snapshot("ops")], executions=dispatched,
+    )
+    followup = create_user_goal(
+        reopened, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-docker-followup",
+        title="Investigate Docker container connectivity after reboot",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner verifies the follow-up.",
+        ),
+    )
+    assert second_runner.run_due(now=NOW + timedelta(minutes=2)) >= 1
+    with sqlite3.connect(path) as db:
+        first_count = db.execute(
+            "SELECT COUNT(*) FROM goal_action_attempt WHERE goal_id=?",
+            (first.id,),
+        ).fetchone()[0]
+        second_count = db.execute(
+            "SELECT COUNT(*) FROM goal_action_attempt WHERE goal_id=?",
+            (followup.id,),
+        ).fetchone()[0]
+        repeated = db.execute(
+            "SELECT COUNT(*) FROM (SELECT attempt_id FROM goal_action_attempt "
+            "GROUP BY attempt_id HAVING COUNT(*)>1)"
+        ).fetchone()[0]
+    assert first_count == 1
+    assert second_count <= 1
+    assert repeated == 0
+
+
 def failed_workload(path):
     with sqlite3.connect(path) as db:
         db.execute("""
