@@ -18,6 +18,7 @@ on:
       - 'test/test_fleet_windows_setup_entrypoints.py'
       - 'test/test_state_relocation_atomic_publish.py'
       - 'test/test_backup_canonical_identity_fencing.py'
+      - 'test/test_canonical_sqlite_protection.py'
       - 'test/test_backup_restore_redirect_fencing.py'
       - 'test/test_cognition_v2_evidence.py'
       - 'test/test_cognition_v2_fleet_machine.py'
@@ -42,6 +43,7 @@ on:
       - 'test/test_fleet_windows_setup_entrypoints.py'
       - 'test/test_state_relocation_atomic_publish.py'
       - 'test/test_backup_canonical_identity_fencing.py'
+      - 'test/test_canonical_sqlite_protection.py'
       - 'test/test_backup_restore_redirect_fencing.py'
       - 'test/test_cognition_v2_evidence.py'
       - 'test/test_cognition_v2_fleet_machine.py'
@@ -97,7 +99,7 @@ jobs:
       - name: G3 fenced state handoff and non-replacing atomic publish
         run: python -m pytest -q test/test_state_operator_handoff_review.py test/test_state_relocation_atomic_publish.py test/test_fleet_windows_setup_entrypoints.py
       - name: G5 canonical backup ownership and restore redirect fencing
-        run: python -m pytest -q test/test_backup_canonical_identity_fencing.py test/test_backup_restore_redirect_fencing.py
+        run: python -m pytest -q test/test_backup_canonical_identity_fencing.py test/test_backup_restore_redirect_fencing.py test/test_canonical_sqlite_protection.py
       - name: G6 independently governed module lifecycle regressions
         run: python -m pytest -q test/test_module_lifecycle_v1.py
       - name: G7-A cognitive evidence and turn-kernel regressions
