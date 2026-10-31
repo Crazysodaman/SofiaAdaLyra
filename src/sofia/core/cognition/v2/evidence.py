@@ -275,9 +275,25 @@ class CognitiveEvidenceLedger:
                 ).fetchone()
                 if row is None:
                     raise ValueError("evidence dependency does not exist")
-                dependency = self._row_to_atom(row)
+                dependency = self._row_to_atom(
+                    row, state=self._latest_state(db, dependency_id),
+                )
                 if dependency.scope_id != atom.scope_id:
                     raise ValueError("evidence dependencies cannot cross scopes")
+                if dependency.acquisition_state is not AcquisitionState.CURRENT:
+                    raise ValueError(
+                        "derived evidence cannot rely on revoked or unavailable dependencies"
+                    )
+                if (
+                    dependency.observed_at > atom.observed_at
+                    or (
+                        dependency.expires_at is not None
+                        and dependency.expires_at <= atom.observed_at
+                    )
+                ):
+                    raise ValueError(
+                        "derived evidence cannot rely on future or expired dependencies"
+                    )
                 dependencies.append(dependency)
             db.execute(
                 """
@@ -513,6 +529,47 @@ class EvidenceGraph:
             raise TypeError("ledger must be CognitiveEvidenceLedger")
         self.ledger = ledger
 
+    def _dependency_blocker(
+        self, evidence_id: str, *, need: EvidenceNeed, now: datetime
+    ) -> AcquisitionState | None:
+        """Recheck every premise, not just a conclusion's saved status.
+
+        Explicit corrections already cascade into dependents, but natural
+        expiry and individually revoked premises must also invalidate a
+        derived claim at answer time without rewriting historical evidence.
+        """
+        pending = list(self.ledger.dependencies(evidence_id))
+        inspected = set()
+        while pending:
+            dependency_id = pending.pop()
+            if dependency_id in inspected:
+                continue
+            if len(inspected) >= 256:
+                return AcquisitionState.UNAVAILABLE
+            inspected.add(dependency_id)
+            dependency = self.ledger.get(dependency_id)
+            if dependency is None:
+                return AcquisitionState.UNAVAILABLE
+            if dependency.acquisition_state is not AcquisitionState.CURRENT:
+                return dependency.acquisition_state
+            if dependency.epistemic_state in {
+                EpistemicState.HYPOTHESIS, EpistemicState.UNKNOWN,
+            }:
+                return AcquisitionState.NOT_SAMPLED
+            if dependency.observed_at > now:
+                return AcquisitionState.NOT_SAMPLED
+            if (
+                (dependency.expires_at is not None and dependency.expires_at <= now)
+                or (
+                    need.max_age_seconds is not None
+                    and (now - dependency.observed_at).total_seconds()
+                    > need.max_age_seconds
+                )
+            ):
+                return AcquisitionState.STALE
+            pending.extend(self.ledger.dependencies(dependency_id))
+        return None
+
     def resolve(self, need: EvidenceNeed, *, now: datetime) -> EvidenceResolution:
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
@@ -522,21 +579,31 @@ class EvidenceGraph:
                 need, AcquisitionState.NOT_SAMPLED, reason="no exact scoped evidence"
             )
         states = {atom.acquisition_state for atom in matching}
-        current = tuple(
-            atom for atom in matching
-            if atom.acquisition_state is AcquisitionState.CURRENT
-            and atom.observed_at <= now
-            and atom.epistemic_state not in {
-                EpistemicState.HYPOTHESIS,
-                EpistemicState.UNKNOWN,
-            }
-            and (atom.expires_at is None or atom.expires_at > now)
-            and (
-                need.max_age_seconds is None
-                or (now - atom.observed_at).total_seconds() <= need.max_age_seconds
+        current = []
+        for atom in matching:
+            if not (
+                atom.acquisition_state is AcquisitionState.CURRENT
+                and atom.observed_at <= now
+                and atom.epistemic_state not in {
+                    EpistemicState.HYPOTHESIS,
+                    EpistemicState.UNKNOWN,
+                }
+                and (atom.expires_at is None or atom.expires_at > now)
+                and (
+                    need.max_age_seconds is None
+                    or (now - atom.observed_at).total_seconds() <= need.max_age_seconds
+                )
+                and atom.trust >= need.minimum_trust
+            ):
+                continue
+            blocker = self._dependency_blocker(
+                atom.evidence_id, need=need, now=now,
             )
-            and atom.trust >= need.minimum_trust
-        )
+            if blocker is None:
+                current.append(atom)
+            else:
+                states.add(blocker)
+        current = tuple(current)
         if current:
             # A fact may have multiple historical samples inside its freshness
             # window. Only the newest observed instant can describe its
