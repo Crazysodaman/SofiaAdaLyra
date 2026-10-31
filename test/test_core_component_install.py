@@ -563,3 +563,108 @@ def test_core_registry_records_distinct_attempts_of_same_version(tmp_path):
     registry.record(second)
     assert registry.history() == (first, second)
     assert registry.installed() == second
+
+
+
+def test_core_install_success_joins_durable_attempt_to_receipt(
+    tmp_path, component_wheels, signer, verifier
+):
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    receipt = installer.execute(
+        artifact, component_wheels["core"],
+        authority=InstallAuthority.STANDING_POLICY,
+    )
+    attempts = installer.registry.attempts()
+    assert len(attempts) == 1
+    assert attempts[0].artifact_sha256 == artifact.sha256
+    assert attempts[0].outcome is InstallOutcome.SUCCEEDED
+    assert attempts[0].completed_at is not None
+    assert installer.registry.pending_attempts() == ()
+    assert installer.registry.history() == (receipt,)
+
+    restarted = CoreComponentRegistry(installer.registry.path)
+    assert restarted.attempts() == attempts
+    assert restarted.installed() == receipt
+
+
+def test_core_install_crash_retains_unresolved_attempt_and_blocks_retry(
+    tmp_path, component_wheels, signer, verifier, monkeypatch
+):
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    monkeypatch.setattr(installer, "_verify_health", lambda _wheel: True)
+
+    def crash(_wheel, _artifact):
+        raise SystemExit("simulated process termination after reservation")
+
+    monkeypatch.setattr(installer, "_stage_verified_install", crash)
+    with pytest.raises(SystemExit, match="simulated process termination"):
+        installer.execute(
+            artifact, component_wheels["core"],
+            authority=InstallAuthority.STANDING_POLICY,
+        )
+    restarted = CoreComponentRegistry(installer.registry.path)
+    attempts = restarted.pending_attempts()
+    assert len(attempts) == 1
+    assert attempts[0].outcome is None
+    assert attempts[0].artifact_sha256 == artifact.sha256
+    assert restarted.installed() is None
+    assert restarted.history() == ()
+
+    with pytest.raises(CoreComponentInstallError, match="unresolved"):
+        installer.execute(
+            artifact, component_wheels["core"],
+            authority=InstallAuthority.STANDING_POLICY,
+        )
+    assert restarted.pending_attempts() == attempts
+
+
+def test_core_install_handled_failure_logged_without_success_receipt(
+    tmp_path, component_wheels, signer, verifier, monkeypatch
+):
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    monkeypatch.setattr(installer, "_verify_health", lambda _wheel: True)
+
+    def fail(_wheel, _artifact):
+        raise OSError("simulated staging I/O failure")
+
+    monkeypatch.setattr(installer, "_stage_verified_install", fail)
+    with pytest.raises(OSError, match="simulated staging I/O failure"):
+        installer.execute(
+            artifact, component_wheels["core"],
+            authority=InstallAuthority.STANDING_POLICY,
+        )
+    attempts = installer.registry.attempts()
+    assert len(attempts) == 1
+    assert attempts[0].outcome is InstallOutcome.FAILED
+    assert "staging I/O failure" in attempts[0].detail
+    assert attempts[0].completed_at is not None
+    assert installer.registry.pending_attempts() == ()
+    assert installer.registry.installed() is None
+
+    # A handled failure should not permanently block an authorized retry.
+    retry = installer.registry.begin_attempt(
+        artifact, InstallOperation.INSTALL, InstallAuthority.STANDING_POLICY, None
+    )
+    installer.registry.finish_failed_attempt(retry, "operator cancelled retry")
+    assert [a.outcome for a in installer.registry.attempts()] == [
+        InstallOutcome.FAILED, InstallOutcome.FAILED,
+    ]
+
+
+def test_core_attempt_receipt_mismatch_rolls_back_transaction(
+    tmp_path, component_wheels, signer, verifier
+):
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    attempt = installer.registry.begin_attempt(
+        artifact, InstallOperation.INSTALL, InstallAuthority.STANDING_POLICY, None
+    )
+    wrong = _synthetic_receipt("wrong-version", "9.9.9")
+    with pytest.raises(CoreComponentInstallError, match="does not match pending"):
+        installer.registry.record(wrong, attempt_id=attempt)
+    assert installer.registry.installed() is None
+    assert installer.registry.history() == ()
+    assert installer.registry.pending_attempts()[0].attempt_id == attempt
