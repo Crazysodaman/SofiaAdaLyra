@@ -617,9 +617,20 @@ class GoalProductionCoordinator:
     def run_due(self, *, now: datetime) -> int:
         attempted = 0
         due = set(self.schedule.due(now))
-        for goal in self.goals.store.list_all_internal():
+        for snapshot in self.goals.store.list_all_internal():
             if attempted >= 8:
                 break
+            # GOALS may revise a child while decomposing another queued
+            # parent. Never execute from the stale list snapshot: a fresh
+            # compare-and-swap revision is required before a new action.
+            goal = self.goals.store.get(
+                snapshot.id, principal_id=snapshot.scope_principal_id,
+                audience=snapshot.scope_audience,
+            )
+            if goal is None or goal.revision != snapshot.revision:
+                # A newer owner decision or a sibling's evidence merge
+                # deserves a new planning tick, not a guessed replay.
+                continue
             key = (goal.id, goal.scope_principal_id, goal.scope_audience)
             if goal.status in TERMINAL_GOAL_STATUSES:
                 self.schedule.cancel(goal, now=now)
