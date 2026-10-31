@@ -109,6 +109,52 @@ def test_authorized_install_records_platform_local_receipt(
     assert recorded is not None
     assert recorded.version == "0.1.0"
     assert recorded.artifact_sha256 == receipt.artifact_sha256
+    assert installer.verify_installed(
+        _artifact(component_wheels["core"], signer), component_wheels["core"]
+    ) == receipt
+
+
+def test_core_restart_verification_rejects_missing_or_tampered_install(
+    tmp_path, component_wheels, signer, verifier
+):
+    import shutil
+
+    installer = _installer(tmp_path, verifier)
+    artifact = _artifact(component_wheels["core"], signer)
+    receipt = installer.execute(
+        artifact, component_wheels["core"],
+        authority=InstallAuthority.STANDING_POLICY,
+    )
+    registry = CoreComponentRegistry(installer.registry.path)
+    restarted = CoreComponentInstaller(
+        registry, verifier, installation_root=installer.installation_root,
+    )
+    assert restarted.verify_installed(artifact, component_wheels["core"]) == receipt
+
+    installation = installer.installation_root / (
+        f"core-{artifact.version}-{artifact.sha256}"
+    )
+    core_asset = next(installation.rglob("sofia/core/constitution/constitution.md"))
+    core_asset.write_bytes(b"tampered after receipt")
+    with pytest.raises(CoreComponentInstallError, match="installed Core bytes mismatch"):
+        restarted.verify_installed(artifact, component_wheels["core"])
+    # Neither the verifier nor the stored receipt can erase tampering evidence.
+    assert registry.installed() == receipt
+
+    shutil.rmtree(installation)
+    with pytest.raises(CoreComponentInstallError, match="absent or redirected"):
+        restarted.verify_installed(artifact, component_wheels["core"])
+    assert registry.installed() == receipt
+
+
+def test_core_restart_verification_rejects_stale_receipt(
+    tmp_path, component_wheels, signer, verifier
+):
+    installer = _installer(tmp_path, verifier)
+    with pytest.raises(CoreComponentInstallError, match="current Core receipt"):
+        installer.verify_installed(
+            _artifact(component_wheels["core"], signer), component_wheels["core"]
+        )
 
 
 def test_install_requires_explicit_authority(
