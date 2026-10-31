@@ -13,11 +13,13 @@ from sofia.core.cognition.v2 import (
 from sofia.platform.resources import CapabilityFact, EvidenceClass, ResourceSupply
 from sofia.platform.ops.model import FleetHost, HostLifecycle
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.core.social.principals import local_sparks_principal
+from sofia.core.goals.evidence import GoalEvidenceIndex, GoalEvidenceLedger
 
 
 NOW = datetime(2026, 10, 31, 20, 0, tzinfo=timezone.utc)
 NODE = "11111111-2222-3333-4444-555555555555"
-SCOPE = "private:sparks"
+SCOPE = "local:text"
 
 
 def _fact(value="linux", *, verified=True, observed_at=NOW, expires_at=None):
@@ -53,12 +55,16 @@ def _need():
 def _bridge(tmp_path):
     path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     ledger = CognitiveEvidenceLedger(path)
-    return path, ledger, FleetCognitiveEvidenceBridge(ledger)
+    return path, ledger, FleetCognitiveEvidenceBridge(
+        ledger, goal_evidence=GoalEvidenceLedger(path)
+    )
 
 
 def test_authenticated_fleet_observation_becomes_scoped_core_evidence(tmp_path):
     _, ledger, bridge = _bridge(tmp_path)
-    atoms = bridge.ingest(_supply(), host=_host(), scope_id=SCOPE, now=NOW)
+    atoms = bridge.ingest(
+        _supply(), host=_host(), principal=local_sparks_principal(), now=NOW
+    )
 
     assert len(atoms) == 1
     atom = atoms[0]
@@ -66,6 +72,13 @@ def test_authenticated_fleet_observation_becomes_scoped_core_evidence(tmp_path):
     assert atom.source_id.startswith("capability:fleet:")
     assert '"source_ref":"fleet-discovery:mtls-agent-discovery"' in atom.value_json
     assert EvidenceGraph(ledger).resolve(_need(), now=NOW).atoms == atoms
+    goal_record = GoalEvidenceIndex(ledger.path).lookup(
+        atom.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
+    )
+    assert goal_record is not None
+    assert goal_record.kind == "external_observation"
+    assert goal_record.principal_id == "person:sparks"
+    assert goal_record.audience == "private:local:text"
 
 
 @pytest.mark.parametrize(
@@ -82,7 +95,9 @@ def test_unauthorized_unverified_and_stale_observations_are_rejected(
 ):
     _, ledger, bridge = _bridge(tmp_path)
     with pytest.raises(FleetObservationRejected, match=message):
-        bridge.ingest(supply, host=_host(), scope_id=SCOPE, now=NOW)
+        bridge.ingest(
+            supply, host=_host(), principal=local_sparks_principal(), now=NOW
+        )
     assert ledger.matching(_need()) == ()
 
 
@@ -98,17 +113,22 @@ def test_unauthorized_unverified_and_stale_observations_are_rejected(
 def test_invalid_or_revoked_fleet_identity_is_rejected(tmp_path, host):
     _, ledger, bridge = _bridge(tmp_path)
     with pytest.raises(FleetObservationRejected):
-        bridge.ingest(_supply(), host=host, scope_id=SCOPE, now=NOW)
+        bridge.ingest(
+            _supply(), host=host, principal=local_sparks_principal(), now=NOW
+        )
     assert ledger.matching(_need()) == ()
 
 
 def test_conflicting_authenticated_observations_remain_contradicted(tmp_path):
     _, ledger, bridge = _bridge(tmp_path)
-    bridge.ingest(_supply(_fact("linux")), host=_host(), scope_id=SCOPE, now=NOW)
+    bridge.ingest(
+        _supply(_fact("linux")), host=_host(),
+        principal=local_sparks_principal(), now=NOW,
+    )
     bridge.ingest(
         _supply(_fact("windows", observed_at=NOW + timedelta(seconds=1)), revision=2),
         host=_host(),
-        scope_id=SCOPE,
+        principal=local_sparks_principal(),
         now=NOW + timedelta(seconds=1),
     )
 
@@ -123,7 +143,7 @@ def test_conflicting_authenticated_observations_remain_contradicted(tmp_path):
 def test_revoked_enrollment_invalidates_evidence_across_restart(tmp_path):
     path, ledger, bridge = _bridge(tmp_path)
     atom = bridge.ingest(
-        _supply(), host=_host(), scope_id=SCOPE, now=NOW
+        _supply(), host=_host(), principal=local_sparks_principal(), now=NOW
     )[0]
 
     assert bridge.revoke(
@@ -145,7 +165,11 @@ def test_revoked_enrollment_invalidates_evidence_across_restart(tmp_path):
 
 def test_duplicate_observation_is_idempotent(tmp_path):
     _, ledger, bridge = _bridge(tmp_path)
-    first = bridge.ingest(_supply(), host=_host(), scope_id=SCOPE, now=NOW)
-    second = bridge.ingest(_supply(), host=_host(), scope_id=SCOPE, now=NOW)
+    first = bridge.ingest(
+        _supply(), host=_host(), principal=local_sparks_principal(), now=NOW
+    )
+    second = bridge.ingest(
+        _supply(), host=_host(), principal=local_sparks_principal(), now=NOW
+    )
     assert second == first
     assert ledger.matching(_need()) == first

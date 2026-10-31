@@ -1020,6 +1020,137 @@ def test_g7a_real_host_attestation_ledger_controls_reconciliation(tmp_path):
     )
 
 
+def test_g7a_verified_host_outcome_becomes_durable_learning_after_crash(
+    tmp_path, monkeypatch
+):
+    """Reconciliation must feed the existing learner and survive interruption."""
+    path = tmp_path / "sofia.db"
+    host_root = tmp_path / "host-ops"
+    bootstrap_canonical_sqlite(path)
+    principal = local_sparks_principal()
+    goals, production = coordinator(
+        path,
+        neural=[snapshot("ops")],
+        reconciliation_authorizer=lambda *_: True,
+        independent_outcome_verifier=(
+            HostEffectAttestationLedger(host_root).verify_dispatch_outcome
+        ),
+    )
+    advanced = AdvancedGeneralizationStore(
+        path, goals=goals, admission=lambda: ExplorationAdmission(),
+        learning=_GeneralizationLearningGrant(),
+    )
+    production.generalization = advanced
+    ledger = GoalEvidenceLedger(path)
+    observation = ledger.record(
+        evidence_ref="goal-evidence:fleet:authenticated-docker-observation",
+        kind="external_observation", observed_at=NOW,
+        source="fleet-observation:authenticated-artemis",
+        assertion="machine.os", principal_id=principal.principal_id,
+        audience=audience_scope(principal),
+    )
+    first = goals.create_user_goal(
+        principal=principal,
+        title="Investigate Docker failure from Artemis",
+        reason="Authenticated Fleet observation requires diagnosis.",
+        base_priority=0.7, confidence=1.0,
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner confirms diagnosis.",
+        ),
+        evidence_refs=(observation.evidence_ref,), now=NOW,
+    )
+    original_execute = production.planner.gateway.execute
+    monkeypatch.setattr(
+        production.planner.gateway,
+        "execute",
+        lambda _proposal: CapabilityResult(
+            "portainer.summary", CapabilityResultKind.FAILED,
+            error="authenticated provider returned an uncertain failure",
+        ),
+    )
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 1
+    dispatch_id, capability = production.unresolved_dispatches(first.id)[0]
+    assert capability == "portainer.summary"
+    HostEffectAttestationLedger(host_root).attest_effect(
+        dispatch_id=dispatch_id, goal_id=first.id, capability=capability,
+        outcome="absent", attested_by="artemis-local-host", now=NOW,
+    )
+    outcome = ledger.record(
+        evidence_ref="goal-evidence:fleet:verified-no-effect",
+        kind="operation_receipt", observed_at=NOW + timedelta(minutes=1),
+        source="fleet-health-agent", successful=False, goal_id=first.id,
+        action_id=dispatch_id, assertion=capability,
+        principal_id=principal.principal_id,
+        audience=audience_scope(principal),
+    )
+
+    # Simulate Core termination after the reconciliation transaction commits
+    # but before the derived learning episode is published.
+    original_record = advanced.record_episode
+    monkeypatch.setattr(
+        advanced, "record_episode",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            SystemExit("crash before learning publication")
+        ),
+    )
+    with pytest.raises(SystemExit, match="learning publication"):
+        production.reconcile_dispatch(
+            goal_id=first.id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=outcome.evidence_ref,
+            now=NOW + timedelta(minutes=2),
+        )
+    assert production.reconciliations(first.id) == (
+        (dispatch_id, "no_effect_verified", outcome.evidence_ref),
+    )
+    monkeypatch.setattr(advanced, "record_episode", original_record)
+
+    restarted_goals, restarted = coordinator(
+        path, neural=[snapshot("ops")],
+        reconciliation_authorizer=lambda *_: True,
+        independent_outcome_verifier=(
+            HostEffectAttestationLedger(host_root).verify_dispatch_outcome
+        ),
+    )
+    restarted_advanced = AdvancedGeneralizationStore(
+        path, goals=restarted_goals, admission=lambda: ExplorationAdmission(),
+        learning=_GeneralizationLearningGrant(),
+    )
+    restarted.generalization = restarted_advanced
+    assert restarted.reconcile_startup(
+        now=NOW + timedelta(minutes=3)
+    )["outcome_learning_reconciled"] == 1
+    experiences = restarted_advanced.retrieve_experiences(
+        principal=principal, tags=("docker",),
+        now=NOW + timedelta(minutes=3),
+    )
+    assert len(experiences) == 1
+    assert experiences[0]["phases"][-1]["evidence_refs"] == [
+        outcome.evidence_ref,
+    ]
+
+    # The later real GOALS selection changes; the identical baseline without
+    # learning remains covered separately and chooses portainer.summary.
+    monkeypatch.setattr(restarted.planner.gateway, "execute", original_execute)
+    later = create_user_goal(
+        restarted_goals, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-after-verified-outcome",
+        title="Investigate Docker diagnostics after verified failure",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner confirms diagnosis.",
+        ),
+    )
+    assert restarted.run_due(now=NOW + timedelta(minutes=4)) >= 1
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT capability FROM goal_action_attempt WHERE goal_id=?",
+            (later.id,),
+        ).fetchone() == ("system.inspect",)
+        assert db.execute(
+            "SELECT ablation FROM ga_planning_influence WHERE goal_id=? "
+            "ORDER BY ablation", (later.id,),
+        ).fetchall() == [("with_experience",), ("without_experience",)]
+
+
 def test_g7a_host_attestation_never_endorses_mismatched_receipt(tmp_path):
     path = tmp_path / "sofia.db"
     host_root = tmp_path / "host-ops"

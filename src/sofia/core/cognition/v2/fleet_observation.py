@@ -7,6 +7,9 @@ import json
 
 from sofia.platform.resources import ResourceSupply
 from sofia.platform.ops.model import FleetHost, HostLifecycle
+from sofia.core.goals.evidence import GoalEvidenceLedger
+from sofia.core.goals.service import audience_scope
+from sofia.core.social.model import PrincipalContext
 
 from .contracts import AcquisitionState, EpistemicState, EvidenceAtom, EvidenceNeed
 from .evidence import CognitiveEvidenceLedger
@@ -39,17 +42,27 @@ class FleetCognitiveEvidenceBridge:
     writes through the existing canonical V2 ledger.
     """
 
-    def __init__(self, ledger: CognitiveEvidenceLedger) -> None:
+    def __init__(
+        self,
+        ledger: CognitiveEvidenceLedger,
+        *,
+        goal_evidence: GoalEvidenceLedger | None = None,
+    ) -> None:
         if not isinstance(ledger, CognitiveEvidenceLedger):
             raise TypeError("ledger must be CognitiveEvidenceLedger")
         self.ledger = ledger
+        if goal_evidence is not None and not isinstance(
+            goal_evidence, GoalEvidenceLedger
+        ):
+            raise TypeError("goal_evidence must be GoalEvidenceLedger or None")
+        self.goal_evidence = goal_evidence
 
     def ingest(
         self,
         supply: ResourceSupply,
         *,
         host: FleetHost,
-        scope_id: str,
+        principal: PrincipalContext,
         now: datetime,
     ) -> tuple[EvidenceAtom, ...]:
         if not isinstance(supply, ResourceSupply):
@@ -71,12 +84,13 @@ class FleetCognitiveEvidenceBridge:
             }
         ):
             raise FleetObservationRejected("Fleet host is not actively enrolled and trusted")
-        if not isinstance(scope_id, str) or not scope_id.strip():
-            raise ValueError("scope_id is required")
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated principal is required")
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
         moment = now.astimezone(timezone.utc)
         node_id = str(host.node_id)
+        scope_id = principal.audience_id
         subject_id = f"fleet-node:{node_id}"
         atoms = []
         for fact in supply.facts:
@@ -124,6 +138,17 @@ class FleetCognitiveEvidenceBridge:
                 acquisition_state=AcquisitionState.CURRENT,
             )
             atoms.append(self.ledger.append(atom))
+            if self.goal_evidence is not None:
+                self.goal_evidence.record(
+                    evidence_ref=f"goal-evidence:fleet:{digest}",
+                    kind="external_observation",
+                    observed_at=fact.observed_at,
+                    source=f"fleet-observation:{digest[:24]}",
+                    assertion=predicate,
+                    payload=value,
+                    principal_id=principal.principal_id,
+                    audience=audience_scope(principal),
+                )
         if not atoms:
             raise FleetObservationRejected("no fresh verified Fleet facts were available")
         return tuple(atoms)

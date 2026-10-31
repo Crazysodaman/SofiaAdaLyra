@@ -162,7 +162,7 @@ from sofia.platform.ops.local_telemetry import collect_local_telemetry
 from sofia.core.habits.pattern_store import HabitPatternStore
 from sofia.core.rel.store import RelationshipStore
 from sofia.core.goals import (
-    GoalEvidenceIndex,
+    GoalEvidenceIndex, GoalEvidenceLedger,
     GoalService,
     GoalStatus,
     GoalStore,
@@ -307,7 +307,8 @@ class SofiaApplication:
             self._cognitive_evidence
         )
         self._fleet_cognitive_evidence = FleetCognitiveEvidenceBridge(
-            self._cognitive_evidence
+            self._cognitive_evidence,
+            goal_evidence=GoalEvidenceLedger(configuration.state_path),
         )
         self._cognitive_evidence_acquisition = EvidenceAcquisitionCoordinator(
             self._cognitive_evidence

@@ -251,6 +251,11 @@ class GoalProductionCoordinator:
                     reviewer_principal_id TEXT NOT NULL,
                     reviewed_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS goal_reconciliation_learning (
+                    dispatch_id TEXT PRIMARY KEY,
+                    episode_id TEXT NOT NULL UNIQUE,
+                    recorded_at TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS goal_priority_evaluation (
                     goal_id TEXT NOT NULL,
                     principal_id TEXT NOT NULL,
@@ -773,7 +778,96 @@ class GoalProductionCoordinator:
             except BaseException:
                 db.rollback()
                 raise
+        self._record_reconciled_experience(
+            goal=goal,
+            principal=principal,
+            dispatch_id=dispatch_id,
+            capability=pending[1],
+            outcome_evidence=evidence,
+            reserved_at=datetime.fromisoformat(pending[2]),
+            now=now,
+        )
         return outcome
+
+    def _record_reconciled_experience(
+        self, *, goal: Goal, principal: PrincipalContext, dispatch_id: str,
+        capability: str, outcome_evidence: GoalEvidence,
+        reserved_at: datetime, now: datetime,
+    ) -> str | None:
+        """Project a verified dispatch outcome into the existing learner.
+
+        Reconciliation remains committed even when learning is not consented,
+        has expired, or loses a race with revocation. Learning carries no RUN
+        authority and is rebuilt idempotently after a Core restart.
+        """
+        if self.generalization is None:
+            return None
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            prior = db.execute(
+                "SELECT episode_id FROM goal_reconciliation_learning "
+                "WHERE dispatch_id=?", (dispatch_id,),
+            ).fetchone()
+            if prior is not None:
+                return prior[0]
+            attempt = db.execute(
+                "SELECT evidence_ref FROM goal_action_attempt "
+                "WHERE attempt_id=? AND goal_id=? AND capability=?",
+                (dispatch_id, goal.id, capability),
+            ).fetchone()
+        if attempt is None:
+            return None
+        action_evidence = GoalEvidenceIndex(self.path).lookup(attempt[0])
+        candidates = tuple(
+            record for record in (
+                GoalEvidenceIndex(self.path).lookup(ref)
+                for ref in goal.evidence_refs
+            )
+            if record is not None
+            and record.source != "goal-action"
+            and record.principal_id == principal.principal_id
+            and record.audience == audience_scope(principal)
+        )
+        observation = next(
+            (record for record in candidates if record.kind == "external_observation"),
+            None,
+        )
+        if (
+            observation is None
+            or action_evidence is None
+            or action_evidence.kind != "operation_receipt"
+            or action_evidence.assertion != capability
+            or action_evidence.principal_id != principal.principal_id
+            or action_evidence.audience != audience_scope(principal)
+        ):
+            return None
+        from sofia.core.generalization.advanced import EpisodePhase
+        phases = (
+            EpisodePhase("intent", f"Pursue goal {goal.id}", (observation.evidence_ref,)),
+            EpisodePhase("observation", "Use authenticated scoped host evidence", (observation.evidence_ref,)),
+            EpisodePhase("hypothesis", f"Capability {capability} may advance the goal", (observation.evidence_ref,)),
+            EpisodePhase("action", f"Dispatch {capability}", (action_evidence.evidence_ref,)),
+            EpisodePhase("outcome", "Independent host outcome reconciliation", (outcome_evidence.evidence_ref,)),
+        )
+        tags = tuple(sorted(self._tags(f"{goal.title} {goal.reason}"))) or ("goal",)
+        try:
+            episode_id = self.generalization.record_episode(
+                principal=principal,
+                subject_id=goal.id,
+                context_tags=tags,
+                phases=phases,
+                occurred_at=reserved_at,
+                retention_until=now + timedelta(days=7),
+                now=now,
+            )
+        except (LookupError, PermissionError, ValueError):
+            return None
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+            db.execute(
+                "INSERT OR IGNORE INTO goal_reconciliation_learning "
+                "(dispatch_id,episode_id,recorded_at) VALUES(?,?,?)",
+                (dispatch_id, episode_id, now.isoformat()),
+            )
+        return episode_id
 
     def _reserve_dispatch(
         self, *, dispatch_id: str, goal: Goal, capability: str, now: datetime,
@@ -1119,6 +1213,8 @@ class GoalProductionCoordinator:
                 goal_id=goal.id, action_id=attempt_id,
                 assertion=capability.name,
                 payload={"result_kind": result.kind.value},
+                principal_id=goal.scope_principal_id,
+                audience=goal.scope_audience,
             )
             with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
                 db.execute("""
@@ -1217,8 +1313,50 @@ class GoalProductionCoordinator:
 
     def reconcile_startup(self, *, now: datetime) -> dict[str, int]:
         expired = len(self.goals.expire_due(now=now))
+        learned = self._reconcile_outcome_learning(now=now)
         cleaned = self.cleanup_terminal(now=now)
-        return {"expired": expired, "terminal_schedules_cleaned": cleaned}
+        return {
+            "expired": expired,
+            "outcome_learning_reconciled": learned,
+            "terminal_schedules_cleaned": cleaned,
+        }
+
+    def _reconcile_outcome_learning(self, *, now: datetime) -> int:
+        if self.generalization is None:
+            return 0
+        principal = self.principal_provider()
+        if principal is None:
+            return 0
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            rows = db.execute(
+                "SELECT r.dispatch_id,r.goal_id,r.capability,r.evidence_ref,"
+                "d.reserved_at FROM goal_action_reconciliation r "
+                "JOIN goal_action_dispatch d ON d.dispatch_id=r.dispatch_id "
+                "LEFT JOIN goal_reconciliation_learning l "
+                "ON l.dispatch_id=r.dispatch_id WHERE l.dispatch_id IS NULL "
+                "ORDER BY r.reviewed_at,r.dispatch_id LIMIT 128"
+            ).fetchall()
+        changed = 0
+        for dispatch_id, goal_id, capability, evidence_ref, reserved_at in rows:
+            goal = self.goals.store.get(
+                goal_id,
+                principal_id=principal.principal_id,
+                audience=audience_scope(principal),
+            )
+            evidence = GoalEvidenceIndex(self.path).lookup(evidence_ref)
+            if goal is None or evidence is None:
+                continue
+            episode = self._record_reconciled_experience(
+                goal=goal,
+                principal=principal,
+                dispatch_id=dispatch_id,
+                capability=capability,
+                outcome_evidence=evidence,
+                reserved_at=datetime.fromisoformat(reserved_at),
+                now=now,
+            )
+            changed += int(episode is not None)
+        return changed
 
     def cleanup_terminal(self, *, now: datetime) -> int:
         cleaned = 0

@@ -893,7 +893,7 @@ def create_background_coordinator(
                     application._fleet_cognitive_evidence.ingest(
                         supply,
                         host=host,
-                        scope_id=principal.audience_id,
+                        principal=principal,
                         now=now,
                     )
                 except FleetObservationRejected:

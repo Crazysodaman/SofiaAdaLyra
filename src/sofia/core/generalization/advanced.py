@@ -20,7 +20,7 @@ from uuid import uuid4
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from sofia.core.goals.evidence import GoalEvidenceIndex
-from sofia.core.goals.service import GoalService
+from sofia.core.goals.service import GoalService, audience_scope
 from sofia.core.learning.contracts import DataUse
 from sofia.platform.run.work import DurableWorkStore, WorkStatus
 from sofia.core.social.model import AudienceKind, PrincipalContext
@@ -66,6 +66,16 @@ def _revoked_sources(db: sqlite3.Connection) -> set[str]:
     if exists is None:
         return set()
     return {row[0] for row in db.execute("SELECT source_ref FROM ml_source_revocation")}
+
+
+def _evidence_audiences(principal: PrincipalContext) -> frozenset[str]:
+    """Exact accepted encodings for the same authenticated audience.
+
+    Cognition evidence stores the channel audience ID while GOALS evidence
+    stores its audience-kind-qualified form. Both remain bound to the same
+    authenticated principal and neither broadens visibility.
+    """
+    return frozenset((principal.audience_id, audience_scope(principal)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,7 +224,7 @@ class AdvancedGeneralizationStore:
         if not values or len(values) > 32 or len(set(values)) != len(values):
             raise ValueError("nonempty unique bounded evidence refs required")
         records = tuple(self._evidence.lookup(ref) for ref in values)
-        if any(record is None or record.principal_id != principal.principal_id or record.audience != principal.audience_id for record in records):
+        if any(record is None or record.principal_id != principal.principal_id or record.audience not in _evidence_audiences(principal) for record in records):
             raise PermissionError("evidence principal/audience scope mismatch")
         return records
 
@@ -456,7 +466,7 @@ class AdvancedGeneralizationStore:
                 record = self._evidence.lookup(ref)
                 if (
                     record is None or record.principal_id != principal.principal_id
-                    or record.audience != principal.audience_id
+                    or record.audience not in _evidence_audiences(principal)
                     or record.kind not in {"operation_receipt", "reviewed_evidence"}
                     or not isinstance(record.assertion, str)
                     or _ID.fullmatch(record.assertion) is None
