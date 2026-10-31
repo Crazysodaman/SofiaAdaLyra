@@ -124,7 +124,7 @@ def assert_owner_private_path(path: Path, *, directory: bool) -> None:
                     owner_read |= bool(mask & read_bits)
                     owner_write |= bool(mask & write_bits)
         if not (owner_read and owner_write):
-            raise PermissionError("private Windows state has no read/write owner ACL")
+            raise PermissionError("private Windows state has no owner ACL (read/write access required)")
     except ImportError as exc:
         raise PermissionError("Windows ACL inspection dependency unavailable") from exc
     except PermissionError:
