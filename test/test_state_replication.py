@@ -344,3 +344,33 @@ def test_g3_backwards_clock_cannot_renew_live_writer_or_extend_authority(tmp_pat
         renewed, now=NOW + timedelta(seconds=11),
         action="canonical read",
     ) == renewed
+
+
+def test_g3_uncommitted_primary_does_not_expose_unreplicated_private_state(tmp_path):
+    replica = FlakyPlane(_bootstrapped_plane(tmp_path / "secondary.db"))
+    plane, primary, _, witness = make_plane(tmp_path, replica=replica)
+    key = StateKey(
+        "private", "owner-memory", principal_id="owner",
+        audience="private:owner",
+    )
+    replica.fail = True
+    with pytest.raises(ReplicationPartialCommitError):
+        plane.write(record(key, 1, b"not committed yet"), expected_revision=None)
+    assert primary.read(key) is not None
+    assert witness.health().pending_operations == 1
+
+    with pytest.raises(ReplicationPartialCommitError, match="read blocked"):
+        plane.read(key)
+    with pytest.raises(ReplicationPartialCommitError, match="read blocked"):
+        plane.list_namespace(
+            "private", principal_id="owner", audience="private:owner",
+        )
+    with pytest.raises(ReplicationPartialCommitError, match="read blocked"):
+        plane.list_scopes("private")
+
+    replica.fail = False
+    assert plane.repair_pending() == 1
+    assert plane.read(key) == primary.read(key)
+    assert plane.list_namespace(
+        "private", principal_id="owner", audience="private:owner",
+    ) == (primary.read(key),)
