@@ -96,6 +96,59 @@ def test_evidence_is_scope_isolated_and_restart_durable(tmp_path):
     assert other.acquisition_state is AcquisitionState.NOT_SAMPLED
 
 
+def test_conflicting_fresh_scoped_evidence_fails_closed(tmp_path):
+    """Two independently current incompatible facts are not one known fact."""
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    ledger.append(_atom(
+        "evidence:cpu-source-one", value="Ryzen",
+        source="capability:local.cpu.inspect",
+    ))
+    ledger.append(_atom(
+        "evidence:cpu-source-two", value="Xeon",
+        source="capability:remote.cpu.inspect",
+    ))
+
+    decision = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+
+    assert decision.acquisition_state is AcquisitionState.CONTRADICTED
+    assert decision.atoms == ()
+    assert "conflicting" in decision.reason
+    # Restart cannot turn a contradiction into a positive cached fact.
+    assert EvidenceGraph(
+        CognitiveEvidenceLedger(ledger.path)
+    ).resolve(_need(), now=NOW).acquisition_state is AcquisitionState.CONTRADICTED
+
+
+def test_equal_values_from_independent_sources_are_not_conflicted(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    first = ledger.append(_atom(
+        "evidence:same-a", value={"model": "Ryzen", "cores": 8},
+        source="capability:local.cpu.inspect",
+    ))
+    second = ledger.append(_atom(
+        "evidence:same-b", value={"cores": 8, "model": "Ryzen"},
+        source="capability:remote.cpu.inspect",
+    ))
+    decision = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    assert decision.acquisition_state is AcquisitionState.CURRENT
+    assert set(decision.atoms) == {first, second}
+
+
+def test_stale_or_low_trust_conflict_cannot_override_current_fact(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    current = ledger.append(_atom("evidence:trusted-current", value="Ryzen"))
+    ledger.append(_atom(
+        "evidence:stale-other", value="Xeon",
+        observed_at=NOW - timedelta(hours=2),
+    ))
+    ledger.append(_atom(
+        "evidence:untrusted-other", value="EPYC", trust=0.1,
+    ))
+    decision = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    assert decision.acquisition_state is AcquisitionState.CURRENT
+    assert decision.atoms == (current,)
+
+
 def test_evidence_id_cannot_be_reused_for_different_fact(tmp_path):
     ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     ledger.append(_atom("evidence:stable-id"))
