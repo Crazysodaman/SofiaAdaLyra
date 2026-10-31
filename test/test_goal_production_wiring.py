@@ -471,6 +471,13 @@ def test_g7a_owner_cancelled_goal_cannot_execute_from_stale_snapshot(
             CompletionKind.USER_DEFINED, "Owner reviews diagnosis.",
         ),
     )
+    cancel_ref = "message:g7a-owner-cancel-before-dispatch"
+    GoalEvidenceLedger(path).record(
+        evidence_ref=cancel_ref, kind="authenticated_user_message",
+        observed_at=NOW, source="test-owner-cancellation",
+        principal_id=principal.principal_id,
+        audience=f"private:{principal.audience_id}",
+    )
     enumerate_live = goals.store.list_all_internal
 
     def owner_cancels_after_enumeration():
@@ -483,6 +490,7 @@ def test_g7a_owner_cancelled_goal_cannot_execute_from_stale_snapshot(
             next_status=GoalStatus.CANCELLED,
             actor_principal_id=principal.principal_id,
             authenticated_principal=principal,
+            evidence_refs=(cancel_ref,),
             now=NOW,
             note="Owner cancelled before tool dispatch",
         )
@@ -522,6 +530,13 @@ def test_g7a_goal_revocation_after_planning_blocks_tool_dispatch(
             CompletionKind.USER_DEFINED, "Owner reviews diagnosis.",
         ),
     )
+    cancel_ref = "message:g7a-owner-cancel-after-plan"
+    GoalEvidenceLedger(path).record(
+        evidence_ref=cancel_ref, kind="authenticated_user_message",
+        observed_at=NOW, source="test-owner-cancellation",
+        principal_id=principal.principal_id,
+        audience=f"private:{principal.audience_id}",
+    )
     propose = goals.propose_action
 
     def cancel_after_proposal(**kwargs):
@@ -534,6 +549,7 @@ def test_g7a_goal_revocation_after_planning_blocks_tool_dispatch(
             next_status=GoalStatus.CANCELLED,
             actor_principal_id=principal.principal_id,
             authenticated_principal=principal,
+            evidence_refs=(cancel_ref,),
             now=NOW,
             note="Owner cancellation while GOALS planned",
         )
