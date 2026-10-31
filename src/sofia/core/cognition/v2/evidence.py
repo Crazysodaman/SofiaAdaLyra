@@ -538,6 +538,22 @@ class EvidenceGraph:
             and atom.trust >= need.minimum_trust
         )
         if current:
+            # Independent eligible sources can disagree about an exact
+            # subject/predicate/scope. Never silently promote whichever
+            # observation happened to be inserted or timestamped last.
+            # Canonical JSON equality avoids false conflicts from formatting.
+            values = {
+                json.dumps(
+                    json.loads(atom.value_json),
+                    sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                )
+                for atom in current
+            }
+            if len(values) > 1:
+                return EvidenceResolution(
+                    need, AcquisitionState.CONTRADICTED,
+                    reason="conflicting eligible current evidence values",
+                )
             return EvidenceResolution(
                 need, AcquisitionState.CURRENT, current, "exact current evidence"
             )
