@@ -903,12 +903,24 @@ class CoreWorkerController:
                 process.endpoint, lease=self.lease, now=now,
                 reason="authenticated readiness verified",
             )
-        except Exception:
-            process.terminate(force=True)
-            self.generations.quarantine_staged(
-                process.endpoint, lease=self.lease, now=now,
-                reason="activation admission denied",
-            )
+        except BaseException as error:
+            # Readiness does not prove the child exited after admission denial.
+            # Preserve staged uncertainty when the OS cannot verify shutdown.
+            if not process.terminate(force=True):
+                raise CoreWorkerError(
+                    "Core worker activation denied; process exit unverified; "
+                    "manual reconciliation required"
+                ) from error
+            try:
+                self.generations.quarantine_staged(
+                    process.endpoint, lease=self.lease, now=now,
+                    reason="activation denied after verified child exit",
+                )
+            except Exception as quarantine_error:
+                raise CoreWorkerError(
+                    "Core worker exited but generation admission is uncertain; "
+                    "manual reconciliation required"
+                ) from quarantine_error
             raise
         self._active = process
         return health
