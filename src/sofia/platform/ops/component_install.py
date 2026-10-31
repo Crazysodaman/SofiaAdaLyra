@@ -29,6 +29,7 @@ from uuid import uuid4
 from typing import Callable
 
 from sofia.platform.ops.platform_install import InstallAuthority, InstallOperation, InstallOutcome
+from sofia.platform.state.private_file import assert_no_redirected_components
 from sofia.platform.verify.component_artifacts import (
     CORE_ASSET_FILES,
     ComponentArtifactError,
@@ -545,12 +546,12 @@ class CoreComponentInstaller:
         self.signature_verifier = signature_verifier
         if installation_root is not None:
             configured = Path(installation_root).absolute()
-            if configured.is_symlink() or any(
-                parent.is_symlink() for parent in configured.parents
-            ):
+            try:
+                assert_no_redirected_components(configured, include_leaf=True)
+            except PermissionError as error:
                 raise CoreComponentInstallError(
                     "Core installation root must not be redirected"
-                )
+                ) from error
             self.installation_root = configured.resolve()
         else:
             self.installation_root = None
@@ -561,8 +562,12 @@ class CoreComponentInstaller:
         if self.installation_root is None:
             raise CoreComponentInstallError("Core installation root is not configured")
         root = self.installation_root
-        if root.is_symlink() or any(parent.is_symlink() for parent in root.parents):
-            raise CoreComponentInstallError("Core installation root must not be redirected")
+        try:
+            assert_no_redirected_components(root, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "Core installation root must not be redirected"
+            ) from error
         return root
 
     def execute(
@@ -739,7 +744,13 @@ class CoreComponentInstaller:
         if self.installation_root is None:
             raise CoreComponentInstallError("Core installation root is not configured")
         destination = self._checked_installation_root() / f"core-{artifact.version}-{artifact.sha256}"
-        if destination.is_symlink() or not destination.is_dir():
+        try:
+            assert_no_redirected_components(destination, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "previously recorded Core installation is absent or redirected"
+            ) from error
+        if not destination.is_dir():
             raise CoreComponentInstallError(
                 "previously recorded Core installation is absent or redirected"
             )
@@ -760,8 +771,12 @@ class CoreComponentInstaller:
         root.mkdir(parents=True, exist_ok=True)
         self._checked_installation_root()
         destination = root / f"core-{artifact.version}-{artifact.sha256}"
-        if destination.is_symlink():
-            raise CoreComponentInstallError("Core installation destination is a symlink")
+        try:
+            assert_no_redirected_components(destination, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "Core installation destination is redirected"
+            ) from error
         with tempfile.TemporaryDirectory(prefix=".core-stage-", dir=root) as temporary:
             # The reviewed source path is mutable. Pip must consume a private,
             # digest-rechecked copy, not a different wheel substituted after
@@ -787,8 +802,12 @@ class CoreComponentInstaller:
             # Stage publication: old environments remain available for rollback.
             # An already-published candidate is never silently overwritten.
             self._checked_installation_root()
-            if destination.is_symlink():
-                raise CoreComponentInstallError("Core installation destination is a symlink")
+            try:
+                assert_no_redirected_components(destination, include_leaf=True)
+            except PermissionError as error:
+                raise CoreComponentInstallError(
+                    "Core installation destination is redirected"
+                ) from error
             if destination.exists():
                 self._verify_installed_bytes(destination, artifact, snapshot)
                 return destination
@@ -810,18 +829,36 @@ class CoreComponentInstaller:
         )
         if site is None:
             raise CoreComponentInstallError("installed Core site-packages is missing")
+        try:
+            assert_no_redirected_components(site, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "installed Core site-packages is redirected"
+            ) from error
         with zipfile.ZipFile(wheel) as archive:
             entries = {name: archive.read(name) for name in archive.namelist()
                        if not name.endswith("/") and not name.endswith(".dist-info/RECORD")}
         matching = list(site.glob("sofia_core-*.dist-info"))
         if len(matching) != 1:
             raise CoreComponentInstallError("installed Core distribution metadata missing or ambiguous")
+        try:
+            assert_no_redirected_components(matching[0], include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "installed Core distribution metadata is redirected"
+            ) from error
         metadata = PathDistribution(matching[0]).metadata
         if metadata.get("Name", "").lower().replace("_", "-") != CORE_DISTRIBUTION or metadata.get("Version") != artifact.version:
             raise CoreComponentInstallError("installed Core distribution identity/version mismatch")
         for name, expected in entries.items():
             location = site / name
-            if location.is_symlink() or not location.is_file() or sha256(location.read_bytes()).digest() != sha256(expected).digest():
+            try:
+                assert_no_redirected_components(location, include_leaf=True)
+            except PermissionError as error:
+                raise CoreComponentInstallError(
+                    f"installed Core bytes redirected: {name}"
+                ) from error
+            if not location.is_file() or sha256(location.read_bytes()).digest() != sha256(expected).digest():
                 raise CoreComponentInstallError(f"installed Core bytes mismatch: {name}")
 
     def _verify_health(self, wheel_path: Path) -> bool:
