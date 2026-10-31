@@ -8,6 +8,8 @@ receipt registry, and the overlay health probe against the live Platform.
 from __future__ import annotations
 
 import base64
+import os
+import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 import sqlite3
@@ -738,6 +740,84 @@ def test_g2_rejects_symlinked_installation_parent(tmp_path, verifier):
             registry, verifier, installation_root=parent / "core",
         )
     assert list(target.iterdir()) == []
+
+
+def _windows_test_junction(source: Path, target: Path) -> None:
+    """Only create a local scratch junction, never link production paths."""
+    try:
+        subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(source), str(target)],
+            check=True, capture_output=True, text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as error:
+        pytest.skip(f"Windows junction creation unavailable: {error}")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows directory junction behavior")
+def test_g2_rejects_windows_junction_installation_root(tmp_path, verifier):
+    target = tmp_path / "external"
+    target.mkdir()
+    junction = tmp_path / "component-home"
+    _windows_test_junction(junction, target)
+    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
+    with pytest.raises(CoreComponentInstallError, match="root must not be redirected"):
+        CoreComponentInstaller(
+            registry, verifier, installation_root=junction,
+            authorization_check=lambda *_: True,
+        )
+    assert list(target.iterdir()) == []
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows directory junction behavior")
+def test_g2_refuses_junction_parent_installed_after_constructor(
+    tmp_path, component_wheels, signer, verifier,
+):
+    parent = tmp_path / "component-home"
+    parent.mkdir()
+    target = tmp_path / "external"
+    target.mkdir()
+    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
+    installer = CoreComponentInstaller(
+        registry, verifier, installation_root=parent / "installed",
+        authorization_check=lambda *_: True,
+    )
+    parent.rmdir()
+    _windows_test_junction(parent, target)
+    wheel = component_wheels["core"]
+    with pytest.raises(CoreComponentInstallError, match="root must not be redirected"):
+        installer.execute(
+            _artifact(wheel, signer), wheel,
+            authority=InstallAuthority.STANDING_POLICY,
+        )
+    assert list(target.iterdir()) == []
+    assert registry.installed() is None
+    assert registry.pending_attempts() == ()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows directory junction behavior")
+def test_g2_refuses_junction_at_signed_core_destination(
+    tmp_path, component_wheels, signer, verifier, monkeypatch,
+):
+    wheel = component_wheels["core"]
+    artifact = _artifact(wheel, signer)
+    installer = _installer(tmp_path, verifier)
+    root = installer.installation_root
+    root.mkdir()
+    external = tmp_path / "external"
+    external.mkdir()
+    destination = root / f"core-{artifact.version}-{artifact.sha256}"
+    _windows_test_junction(destination, external)
+    # A valid signature and approved candidate must not cause pip to
+    # operate on a destination redirected after root setup.
+    monkeypatch.setattr(installer, "_verify_health", lambda _wheel: True)
+    with pytest.raises(CoreComponentInstallError, match="destination is redirected"):
+        installer.execute(
+            artifact, wheel, authority=InstallAuthority.STANDING_POLICY,
+        )
+    assert list(external.iterdir()) == []
+    assert installer.registry.installed() is None
+    assert len(installer.registry.attempts()) == 1
+    assert installer.registry.attempts()[0].outcome is InstallOutcome.FAILED
 
 
 def test_g2_install_rejects_changed_wheel_after_signed_review(
