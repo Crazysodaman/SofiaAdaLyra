@@ -625,6 +625,82 @@ def test_replacement_post_readiness_failure_quarantines_candidate(
         assert generations.state(previous.endpoint) is GenerationState.DRAINING
 
 
+@pytest.mark.parametrize("operation", ("start", "replace"))
+def test_failed_worker_readiness_requires_verified_exit_before_quarantine(
+    canonical_state_path, tmp_path, monkeypatch, operation,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    old = None
+    if operation == "replace":
+        old = controller.start(
+            release_digest=sha256(b"established-core").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now,
+        )
+    candidates = []
+    original_stage = controller._stage
+
+    def staged(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        candidates.append(candidate)
+        def failed_ready():
+            raise RuntimeError("injected failure after process staging")
+        candidate.start = failed_ready
+        return candidate
+
+    monkeypatch.setattr(controller, "_stage", staged)
+    with pytest.raises(RuntimeError, match="injected failure"):
+        getattr(controller, operation)(
+            release_digest=sha256(b"failed-new-core").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"),
+            now=now + timedelta(seconds=1),
+        )
+    candidate = candidates[0]
+    assert candidate.alive is False
+    assert generations.state(candidate.endpoint) is GenerationState.QUARANTINED
+    assert controller.pid == (old.pid if old is not None else None)
+    if old is not None:
+        assert generations.is_active(old.endpoint)
+        controller.shutdown(now=now + timedelta(seconds=2))
+
+
+@pytest.mark.parametrize("operation", ("start", "replace"))
+def test_uncertain_worker_start_exit_refuses_false_quarantine(
+    canonical_state_path, tmp_path, monkeypatch, operation,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    old = None
+    if operation == "replace":
+        old = controller.start(
+            release_digest=sha256(b"previous-worker").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now,
+        )
+    staged_process = []
+    original_stage = controller._stage
+
+    def staged(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        staged_process.append(candidate)
+        def failed_ready():
+            raise RuntimeError("simulated IPC bootstrap failure")
+        candidate.start = failed_ready
+        candidate.terminate = lambda **_kwargs: False
+        return candidate
+
+    monkeypatch.setattr(controller, "_stage", staged)
+    with pytest.raises(CoreWorkerError, match="exit unverified"):
+        getattr(controller, operation)(
+            release_digest=sha256(b"uncertain-candidate").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"),
+            now=now + timedelta(seconds=1),
+        )
+    assert generations.state(staged_process[0].endpoint) is GenerationState.STAGED
+    assert not generations.is_active(staged_process[0].endpoint)
+    assert controller.pid == (old.pid if old is not None else None)
+    if old is not None:
+        assert generations.is_active(old.endpoint)
+        controller.shutdown(now=now + timedelta(seconds=2))
+
+
 def test_duplicate_core_identity_with_different_component_id_is_denied(canonical_state_path, tmp_path):
     now, generations, first = build(canonical_state_path, tmp_path, "core.sofia")
     first.start(
