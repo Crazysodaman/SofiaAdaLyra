@@ -737,3 +737,95 @@ def test_g2_rejects_symlinked_installation_parent(tmp_path, verifier):
             registry, verifier, installation_root=parent / "core",
         )
     assert list(target.iterdir()) == []
+
+
+def test_g2_install_rejects_changed_wheel_after_signed_review(
+    tmp_path, component_wheels, signer, verifier, monkeypatch
+):
+    """An approved digest must still match the bytes pip will consume."""
+    import shutil
+
+    original = component_wheels["core"]
+    wheel = tmp_path / original.name
+    shutil.copyfile(original, wheel)
+    artifact = _artifact(wheel, signer)
+    installer = _installer(tmp_path, verifier)
+
+    def mutate_after_review(_wheel):
+        wheel.write_bytes(wheel.read_bytes() + b"changed after authorization")
+        return True
+
+    monkeypatch.setattr(installer, "_verify_health", mutate_after_review)
+    with pytest.raises(
+        CoreComponentInstallError, match="changed after signature verification"
+    ):
+        installer.execute(artifact, wheel, authority=InstallAuthority.STANDING_POLICY)
+    assert installer.registry.installed() is None
+    assert installer.registry.history() == ()
+    attempts = installer.registry.attempts()
+    assert len(attempts) == 1
+    assert attempts[0].outcome is InstallOutcome.FAILED
+    assert not list(installer.installation_root.glob("core-*"))
+
+
+def test_g2_pip_installs_private_digest_pinned_snapshot(
+    tmp_path, component_wheels, signer, verifier, monkeypatch
+):
+    """The pip argument cannot be the mutable externally supplied wheel."""
+    import subprocess
+    from hashlib import sha256
+
+    installer = _installer(tmp_path, verifier)
+    wheel = component_wheels["core"]
+    artifact = _artifact(wheel, signer)
+    real_run = subprocess.run
+    observed_snapshots = []
+
+    def inspect_pip(*args, **kwargs):
+        command = args[0]
+        if "-m" in command and "pip" in command and "install" in command:
+            snapshot = Path(command[-1])
+            assert snapshot != wheel.resolve()
+            assert snapshot.is_file()
+            assert sha256(snapshot.read_bytes()).hexdigest() == artifact.sha256
+            observed_snapshots.append(snapshot)
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", inspect_pip)
+    receipt = installer.execute(
+        artifact, wheel, authority=InstallAuthority.STANDING_POLICY
+    )
+    assert receipt.outcome is InstallOutcome.SUCCEEDED
+    assert len(observed_snapshots) == 1
+    assert installer.verify_installed(artifact, wheel) == receipt
+
+
+def test_g2_rechecks_installation_parent_if_redirected_after_construction(
+    tmp_path, component_wheels, signer, verifier
+):
+    """A safe constructor check cannot authorize a later symlink swap."""
+    parent = tmp_path / "component-home"
+    parent.mkdir()
+    target = tmp_path / "external"
+    target.mkdir()
+    registry = CoreComponentRegistry(tmp_path / "core-components.sqlite")
+    installer = CoreComponentInstaller(
+        registry,
+        verifier,
+        installation_root=parent / "installed",
+        authorization_check=lambda *_: True,
+    )
+    parent.rmdir()
+    try:
+        parent.symlink_to(target, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("host cannot create symlink")
+    wheel = component_wheels["core"]
+    with pytest.raises(CoreComponentInstallError, match="root must not be redirected"):
+        installer.execute(
+            _artifact(wheel, signer), wheel,
+            authority=InstallAuthority.STANDING_POLICY,
+        )
+    assert list(target.iterdir()) == []
+    assert registry.installed() is None
+    assert registry.pending_attempts() == ()
