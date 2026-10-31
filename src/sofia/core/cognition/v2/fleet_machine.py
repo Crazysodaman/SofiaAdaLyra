@@ -19,7 +19,9 @@ from .contracts import (
     ActionRequirement, AcquisitionState, AnswerPlan, ConversationFocus,
     EvidenceAtom, EvidenceNeed, TurnPlan,
 )
-from .evidence import CapabilityEvidencePayload, EvidenceAcquisitionCoordinator
+from .evidence import (
+    CapabilityEvidencePayload, EvidenceAcquisitionCoordinator, EvidenceGraph,
+)
 from .rendering import ValidatedAnswerDraft
 
 
@@ -47,13 +49,18 @@ def _plain(value: Any) -> Any:
 class FleetMachineAnswerCoordinator:
     """Answer bounded hardware comparisons without giving models truth authority."""
 
-    def __init__(self, dispatcher, acquisition) -> None:
+    def __init__(self, dispatcher, acquisition, *, evidence_graph: EvidenceGraph | None = None) -> None:
+        if evidence_graph is not None and not isinstance(evidence_graph, EvidenceGraph):
+            raise TypeError("evidence_graph must be EvidenceGraph or None")
+        if evidence_graph is not None and evidence_graph.ledger is not acquisition.ledger:
+            raise ValueError("Fleet evidence graph must use the acquisition ledger")
         if not isinstance(dispatcher, CognitiveToolDispatcher):
             raise TypeError("dispatcher must be CognitiveToolDispatcher")
         if not isinstance(acquisition, EvidenceAcquisitionCoordinator):
             raise TypeError("acquisition must be EvidenceAcquisitionCoordinator")
         self.dispatcher = dispatcher
         self.acquisition = acquisition
+        self.evidence_graph = evidence_graph
         self.claim_planner = EvidenceClaimPlanner()
         self.claim_validator = EvidenceClaimValidator()
 
@@ -196,6 +203,24 @@ class FleetMachineAnswerCoordinator:
             if operation_has_current_evidence:
                 capability_refs.append(f"capability:{capability}")
 
+        # Production answers must resolve the *same* observed ledger facts
+        # through V2 trust, freshness, scope and contradiction maintenance.
+        # A raw successful tool result is not by itself a current truth claim.
+        if self.evidence_graph is not None:
+            eligible_ids = set()
+            for need in needs:
+                resolution = self.evidence_graph.resolve(
+                    need, now=datetime.now(timezone.utc),
+                )
+                if resolution.acquisition_state is AcquisitionState.CURRENT:
+                    eligible_ids.update(atom.evidence_id for atom in resolution.atoms)
+                else:
+                    failure_reasons[need.need_id] = (
+                        f"evidence {resolution.acquisition_state.value}: {resolution.reason}"
+                    )
+            atoms = [atom for atom in atoms if atom.evidence_id in eligible_ids]
+            if not atoms:
+                capability_refs.clear()
         answer = self.claim_validator.validate(
             self.claim_planner.build(plan, tuple(atoms)), tuple(atoms),
         )
