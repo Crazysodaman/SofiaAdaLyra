@@ -322,7 +322,9 @@ def test_g7a_revoked_learning_restores_baseline_planner_after_restart(tmp_path):
     second = create_user_goal(
         restarted_goals, GoalEvidenceLedger(path), principal=principal,
         ref="message:g7a-after-revocation",
-        title="Investigate Docker failures", completion=condition,
+        # Distinct real follow-up goal: duplicate live goals remain forbidden.
+        title="Investigate Docker service diagnostics after revocation",
+        completion=condition,
     )
     assert restarted_production.run_due(now=NOW + timedelta(minutes=2)) >= 1
     with sqlite3.connect(path) as db:
