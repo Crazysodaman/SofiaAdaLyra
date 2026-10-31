@@ -1,4 +1,6 @@
+from dataclasses import replace
 from datetime import datetime, timezone
+import json
 from uuid import UUID
 
 import pytest
@@ -20,6 +22,9 @@ from sofia.core.cognition.v2 import (
     EvidenceAcquisitionCoordinator,
     EvidenceClaimPlanner,
     EvidenceClaimValidator,
+    EvidenceAtom,
+    EpistemicState,
+    AcquisitionState,
     EvidenceNeed,
     FleetMachineAnswerCoordinator,
     FocusReference,
@@ -199,6 +204,77 @@ def test_cpu_load_uses_durable_fleet_telemetry(tmp_path):
     atom = ledger.get(next(ref for ref in response.evidence_refs if ref.startswith("evidence:")))
     assert atom.predicate == "ops.cpu_percent"
     assert atom.value_json == "37.5"
+
+
+def _claim_evidence(
+    evidence_id: str, value, *,
+    trust: float = 0.95,
+    epistemic: EpistemicState = EpistemicState.OBSERVED,
+    source_id: str = "capability:remote.hardware.inspect",
+):
+    need = _plan().evidence_needs[0]
+    return EvidenceAtom(
+        evidence_id=evidence_id,
+        subject_id=need.subject_id,
+        predicate=need.predicate,
+        value_json=json.dumps(value),
+        source_id=source_id,
+        observed_at=NOW,
+        scope_id=need.scope_id,
+        trust=trust,
+        epistemic_state=epistemic,
+        acquisition_state=AcquisitionState.CURRENT,
+    )
+
+
+def test_claim_planner_does_not_choose_latest_conflicting_machine_fact():
+    plan = _plan()
+    a = _claim_evidence("evidence:artemis-cpu-one", "Ryzen 9")
+    b = _claim_evidence(
+        "evidence:artemis-cpu-two", "Xeon",
+        source_id="capability:local.hardware.inspect",
+    )
+    result = EvidenceClaimPlanner().build(plan, (a, b))
+    assert result.claims == ()
+    assert result.unknown_need_ids == (plan.evidence_needs[0].need_id,)
+
+
+def test_claim_planner_accepts_semantically_equal_independent_json_facts():
+    plan = _plan()
+    a = _claim_evidence("evidence:cpu-a", {"model": "Ryzen", "cores": 8})
+    b = _claim_evidence(
+        "evidence:cpu-b", {"cores": 8, "model": "Ryzen"},
+        source_id="capability:local.hardware.inspect",
+    )
+    result = EvidenceClaimPlanner().build(plan, (a, b))
+    assert len(result.claims) == 1
+    assert result.unknown_need_ids == ()
+    assert EvidenceClaimValidator().validate(result, (a, b)) == result
+
+
+def test_claim_planner_never_promotes_weak_or_hypothetical_machine_fact():
+    plan = _plan()
+    weak = _claim_evidence("evidence:weak", "Invented CPU", trust=0.1)
+    hypothesis = _claim_evidence(
+        "evidence:hypothesis", "Guessed CPU",
+        epistemic=EpistemicState.HYPOTHESIS,
+    )
+    result = EvidenceClaimPlanner().build(plan, (weak, hypothesis))
+    assert result.claims == ()
+    assert result.unknown_need_ids == (plan.evidence_needs[0].need_id,)
+
+
+def test_claim_validator_rejects_altered_value_with_valid_evidence_reference():
+    plan = _plan()
+    atom = _claim_evidence("evidence:actual-cpu", "Ryzen 9")
+    answer = EvidenceClaimPlanner().build(plan, (atom,))
+    assert EvidenceClaimValidator().validate(answer, (atom,)) == answer
+    corrupted = replace(
+        answer,
+        claims=(replace(answer.claims[0], rendered_value="Xeon"),),
+    )
+    with pytest.raises(ValueError, match="does not match exact"):
+        EvidenceClaimValidator().validate(corrupted, (atom,))
 
 
 def test_claim_validator_rejects_cross_subject_evidence(tmp_path):
