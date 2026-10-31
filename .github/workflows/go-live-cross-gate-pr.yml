@@ -18,6 +18,7 @@ on:
       - 'test/test_backup_canonical_identity_fencing.py'
       - 'test/test_backup_restore_redirect_fencing.py'
       - 'test/test_cognition_v2_evidence.py'
+      - 'test/test_cognition_v2_fleet_machine.py'
       - 'test/test_cognition_v2_turn_kernel.py'
       - 'test/test_learning_foundation.py'
       - 'test/test_generalization_advanced.py'
@@ -39,6 +40,7 @@ on:
       - 'test/test_backup_canonical_identity_fencing.py'
       - 'test/test_backup_restore_redirect_fencing.py'
       - 'test/test_cognition_v2_evidence.py'
+      - 'test/test_cognition_v2_fleet_machine.py'
       - 'test/test_cognition_v2_turn_kernel.py'
       - 'test/test_learning_foundation.py'
       - 'test/test_generalization_advanced.py'
@@ -95,7 +97,7 @@ jobs:
       - name: G6 independently governed module lifecycle regressions
         run: python -m pytest -q test/test_module_lifecycle_v1.py
       - name: G7-A cognitive evidence and turn-kernel regressions
-        run: python -m pytest -q test/test_cognition_v2_evidence.py test/test_cognition_v2_turn_kernel.py
+        run: python -m pytest -q test/test_cognition_v2_evidence.py test/test_cognition_v2_turn_kernel.py test/test_cognition_v2_fleet_machine.py
       - name: G7-A learning and generalization regressions
         run: python -m pytest -q test/test_learning_foundation.py test/test_generalization_advanced.py
 
