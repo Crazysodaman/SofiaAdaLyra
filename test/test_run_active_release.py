@@ -138,6 +138,38 @@ def test_resolver_rejects_pointer_to_another_path(tmp_path):
         ).resolve()
 
 
+@pytest.mark.parametrize("entry", ["pointer", "release_directory"])
+def test_g0_g1_rejects_redirected_release_authority(tmp_path, entry):
+    state, release_root, artifact, manifest = active_release_fixture(tmp_path)
+    if entry == "pointer":
+        pointer = release_root / "active-release.json"
+        original = pointer.read_bytes()
+        pointer.unlink()
+        target = tmp_path / "redirected-pointer.json"
+        target.write_bytes(original)
+        try:
+            pointer.symlink_to(target)
+        except (OSError, NotImplementedError):
+            pytest.skip("host cannot create test symlink")
+        expected = "pointer must not be redirected"
+    else:
+        # The exact same previously verified artifact content must not be
+        # accepted if it is now selected through a redirected directory.
+        original = artifact
+        relocated = tmp_path / "redirected-release"
+        original.rename(relocated)
+        try:
+            original.symlink_to(relocated, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("host cannot create test directory symlink")
+        expected = "directory must not be redirected"
+
+    with pytest.raises(ActiveReleaseError, match=expected):
+        ActiveReleaseResolver(
+            state_path=state, release_root=release_root,
+        ).resolve()
+
+
 def test_environment_manager_reuses_only_matching_stamped_environment(
     tmp_path,
     monkeypatch,
@@ -440,6 +472,19 @@ def test_legacy_then_component_migration_preserves_release_history(
         verified_at=NOW,
     )
     store.activate(separated_manifest, next_evidence)
+    # ReleaseStateStore owns canonical state, but the resolver intentionally
+    # rejects missing filesystem projections. The migration fixture must
+    # publish its exact non-authoritative pointer to model a completed handoff.
+    (release_root / "active-release.json").write_text(
+        json.dumps({
+            "release_id": separated_manifest.release_id,
+            "manifest_sha256": separated_manifest.manifest_sha256,
+            "path": str(separated.resolve()),
+            "previous_release_id": legacy_manifest.release_id,
+            "verified_at": NOW.isoformat(),
+        }),
+        encoding="utf-8",
+    )
 
     active = store.active()
     assert active["release_id"] == "release-next"
