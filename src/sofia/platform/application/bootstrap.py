@@ -638,6 +638,12 @@ class SofiaApplication:
             notify_review=self._notify_goal_review,
             wake_recorder=self._neuro.record_wake_outcome,
             generalization=self._generalization.advanced,
+            # Bind GOALS to canonical one-use FIDO2-backed owner approval.
+            # Reconciliation remains unavailable until an independently
+            # trusted host outcome verifier is also composed.
+            reconciliation_approval_verifier=ExecutionApprovalVerifier(
+                configuration.state_path
+            ),
         )
         self._life = SelfDirectedLifeCoordinator(
             state_path=configuration.state_path,
