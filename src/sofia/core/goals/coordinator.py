@@ -731,6 +731,29 @@ class GoalProductionCoordinator:
         with closing(sqlite3.connect(self.path, timeout=10)) as db:
             db.execute("BEGIN IMMEDIATE")
             try:
+                # Exact canonical State Plane CAS under the SAME SQLite
+                # writer transaction as the dispatch reservation. Without
+                # this, cancellation or revision changes can race between
+                # the earlier read and the external-effect reservation.
+                state = db.execute(
+                    "SELECT revision,value FROM state_plane_record "
+                    "WHERE namespace='goals-v1' AND record_key=? "
+                    "AND principal_id=? AND audience=?",
+                    (
+                        goal.id, goal.scope_principal_id or "",
+                        goal.scope_audience or "",
+                    ),
+                ).fetchone()
+                if state is None or int(state[0]) != goal.revision:
+                    db.rollback()
+                    return False
+                current = json.loads(bytes(state[1]))
+                if (
+                    current.get("status") != GoalStatus.ACTIVE.value
+                    or current.get("revision") != goal.revision
+                ):
+                    db.rollback()
+                    return False
                 if db.execute(
                     "SELECT 1 FROM goal_action_dispatch "
                     "WHERE goal_id=? AND status='unresolved'",
