@@ -243,6 +243,64 @@ def test_g7a_verified_learning_changes_actual_goals_decision_vs_ablation(tmp_pat
     assert learned_choice != baseline_choice
 
 
+def test_g7a_successful_prior_episode_does_not_forge_planning_influence(tmp_path):
+    """Relevant experience alone is not proof that the planner changed."""
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    goals, production = coordinator(path, neural=[snapshot("ops")])
+    advanced = AdvancedGeneralizationStore(
+        path, goals=goals,
+        admission=lambda: ExplorationAdmission(),
+        learning=_GeneralizationLearningGrant(),
+    )
+    production.generalization = advanced
+    principal = local_sparks_principal()
+    ledger = GoalEvidenceLedger(path)
+    refs = []
+    kinds = (
+        "reviewed_evidence", "external_observation", "reviewed_evidence",
+        "operation_receipt", "operation_receipt",
+    )
+    for index, kind in enumerate(kinds):
+        ref = f"g7a-no-change:{index}"
+        ledger.record(
+            evidence_ref=ref, kind=kind, observed_at=NOW,
+            source="ops:g7a-no-change",
+            assertion="portainer.summary" if index == 3 else None,
+            successful=True if index == 4 else None,
+            principal_id=principal.principal_id, audience=principal.audience_id,
+        )
+        refs.append(ref)
+    advanced.record_episode(
+        principal=principal, subject_id="service:docker",
+        context_tags=("docker", "container"),
+        phases=tuple(
+            EpisodePhase(kind, f"Verified {kind}", (refs[index],))
+            for index, kind in enumerate((
+                "intent", "observation", "hypothesis", "action", "outcome",
+            ))
+        ),
+        occurred_at=NOW, retention_until=NOW + timedelta(days=10), now=NOW,
+    )
+    goal = create_user_goal(
+        goals, ledger, principal=principal,
+        ref="message:g7a-no-change", title="Investigate Docker containers",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner verifies inspection.",
+        ),
+    )
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 1
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT capability FROM goal_action_attempt WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == ("portainer.summary",)
+        assert db.execute(
+            "SELECT COUNT(*) FROM ga_planning_influence WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (0,)
+
+
 def test_g7a_revoked_learning_restores_baseline_planner_after_restart(tmp_path):
     """A revoked outcome cannot keep steering GOALS after a Core restart."""
     path = tmp_path / "sofia.db"
