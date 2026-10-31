@@ -107,7 +107,10 @@ def prepare_subjects(inputs: list[tuple[Path, str]], revision: str, output: Path
         raise ValueError("both integrated and separated release archives are required")
     rows = []
     for directory, digest in inputs:
-        archives = list(directory.glob("*.zip"))
+        # The artifact client's raw download fallback is named 'artifact',
+        # without an extension. ZIP structure and digest, not filename suffix,
+        # establish the subject's identity.
+        archives = [item for item in directory.iterdir() if item.is_file() or item.is_symlink()]
         if len(archives) != 1:
             raise ValueError("each immutable artifact must download as one ZIP archive")
         rows.append(inspect_subject(archives[0], digest, revision))

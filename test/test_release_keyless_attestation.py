@@ -63,6 +63,16 @@ def test_real_upload_layouts_prepare_exact_archive_digests(subjects):
         ).read_text()
 
 
+def test_raw_client_filename_without_zip_extension_is_supported(tmp_path):
+    first, first_digest = archive(tmp_path)
+    second, second_digest = archive(tmp_path, "components")
+    first.rename(first.parent / "artifact")
+    second.rename(second.parent / "artifact")
+    output = tmp_path / "policy"
+    prepare_subjects([(first.parent, first_digest), (second.parent, second_digest)], SHA, output)
+    assert len(json.loads((output / "subjects.json").read_text())) == 2
+
+
 @pytest.mark.parametrize("change", [
     {"accepted": False}, {"tracked_tree_clean": False}, {"phase": "static"},
     {"git_revision": "b" * 40}, {"commands": []},
