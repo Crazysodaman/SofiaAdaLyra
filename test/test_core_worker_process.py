@@ -531,6 +531,55 @@ def test_real_process_replacement_keeps_platform_and_continuity(canonical_state_
     controller.shutdown(now=now + timedelta(seconds=2))
 
 
+@pytest.mark.parametrize("failure_point", ("activate", "fence"))
+def test_replacement_post_readiness_failure_quarantines_candidate(
+    canonical_state_path, tmp_path, monkeypatch, failure_point,
+):
+    """A spawned candidate must not survive a rejected handoff or admission."""
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    previous = controller.start(
+        release_digest=sha256(b"release-before-reject").hexdigest(),
+        spec=CoreEngineProcessSpec("rule"), now=now,
+    )
+    old_process = controller._active
+    assert old_process is not None
+    staged = []
+    original_stage = controller._stage
+
+    def stage_and_capture(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        staged.append(candidate)
+        return candidate
+
+    def reject(*args, **kwargs):
+        raise RuntimeError("injected replacement admission denial")
+
+    monkeypatch.setattr(controller, "_stage", stage_and_capture)
+    monkeypatch.setattr(generations, failure_point, reject)
+    with pytest.raises(RuntimeError, match="injected replacement admission denial"):
+        controller.replace(
+            release_digest=sha256(b"release-after-reject").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"),
+            now=now + timedelta(seconds=1),
+        )
+
+    assert len(staged) == 1
+    candidate = staged[0]
+    assert candidate.alive is False
+    assert old_process.alive is False
+    assert controller.pid is None
+    assert generations.state(candidate.endpoint) is GenerationState.QUARANTINED
+    assert not generations.is_active(previous.endpoint)
+    assert not generations.is_active(candidate.endpoint)
+    assert generations.active_for_core_identity("core:sofia") is None
+    if failure_point == "activate":
+        assert generations.state(previous.endpoint) is GenerationState.RETIRED
+    else:
+        # Old process is stopped, but its journal must retain an unresolved
+        # draining state until an independently witnessed recovery.
+        assert generations.state(previous.endpoint) is GenerationState.DRAINING
+
+
 def test_duplicate_core_identity_with_different_component_id_is_denied(canonical_state_path, tmp_path):
     now, generations, first = build(canonical_state_path, tmp_path, "core.sofia")
     first.start(
