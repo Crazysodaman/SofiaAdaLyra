@@ -630,6 +630,19 @@ def test_legacy_then_component_migration_preserves_release_history(
         verified_at=NOW,
     )
     store.activate(separated_manifest, next_evidence)
+    # ReleaseStateStore owns canonical state, but the resolver intentionally
+    # rejects missing filesystem projections. The migration fixture must
+    # publish its exact non-authoritative pointer to model a completed handoff.
+    (release_root / "active-release.json").write_text(
+        json.dumps({
+            "release_id": separated_manifest.release_id,
+            "manifest_sha256": separated_manifest.manifest_sha256,
+            "path": str(separated.resolve()),
+            "previous_release_id": legacy_manifest.release_id,
+            "verified_at": NOW.isoformat(),
+        }),
+        encoding="utf-8",
+    )
 
     active = store.active()
     assert active["release_id"] == "release-next"
