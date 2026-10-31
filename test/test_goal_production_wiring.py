@@ -625,6 +625,101 @@ def test_g7a_multiple_docker_goals_recover_without_stale_child_writes(tmp_path):
     assert repeated == 0
 
 
+def test_g7a_dispatch_receipt_is_atomically_linked_to_reserved_intent(tmp_path):
+    """Only a recorded outcome may release the unresolved dispatch fence."""
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    goals, production = coordinator(path, neural=[snapshot("ops")])
+    principal = local_sparks_principal()
+    goal = create_user_goal(
+        goals, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-journal-success",
+        title="Investigate Docker diagnostics",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner reviews result.",
+        ),
+    )
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 1
+    assert production.unresolved_dispatches(goal.id) == ()
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT d.status,d.evidence_ref,a.evidence_ref "
+            "FROM goal_action_dispatch d JOIN goal_action_attempt a "
+            "ON a.attempt_id=d.dispatch_id WHERE d.goal_id=?",
+            (goal.id,),
+        ).fetchone() == db.execute(
+            "SELECT 'recorded',evidence_ref,evidence_ref "
+            "FROM goal_action_attempt WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone()
+    # Recreating GOALS must preserve the journal; an acknowledged outcome
+    # is never mistaken for an interrupted, unacknowledged dispatch.
+    _, restarted = coordinator(path, neural=[snapshot("ops")])
+    assert restarted.unresolved_dispatches(goal.id) == ()
+
+
+def test_g7a_crash_before_receipt_leaves_no_false_success_or_replay(
+    tmp_path, monkeypatch
+):
+    """A crash between capability dispatch and receipt makes the effect UNKNOWN."""
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    calls = []
+    goals, production = coordinator(
+        path, neural=[snapshot("ops")], executions=calls,
+    )
+    production.planner.gateway.capability_system.register(
+        Capability("service.inspect", "Read local service evidence."),
+        lambda _request: calls.append("service") or {"status": "running"},
+    )
+    principal = local_sparks_principal()
+    goal = create_user_goal(
+        goals, GoalEvidenceLedger(path), principal=principal,
+        ref="message:g7a-unknown-service-effect",
+        title="Inspect local service status",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner reviews service status.",
+        ),
+    )
+    def crash_after_dispatch(proposal):
+        calls.append("started")
+        raise SystemExit("simulated Core crash after intent reservation")
+
+    monkeypatch.setattr(production.planner.gateway, "execute", crash_after_dispatch)
+    with pytest.raises(SystemExit, match="Core crash"):
+        production.run_due(now=NOW + timedelta(seconds=1))
+    unresolved = production.unresolved_dispatches(goal.id)
+    assert len(unresolved) == 1
+    assert unresolved[0][1] == "service.inspect"
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM goal_action_attempt WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (0,)
+        assert db.execute(
+            "SELECT status FROM goal_action_dispatch WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == ("unresolved",)
+
+    # An independent Core process using the same canonical DB must not
+    # replay the operation, even when the ordinary retry window has elapsed.
+    _, restarted = coordinator(
+        path, neural=[snapshot("ops")], executions=calls,
+    )
+    restarted.planner.gateway.capability_system.register(
+        Capability("service.inspect", "Read local service evidence."),
+        lambda _request: calls.append("replayed") or {"status": "running"},
+    )
+    assert restarted.run_due(now=NOW + timedelta(hours=2)) == 0
+    assert "replayed" not in calls
+    assert restarted.unresolved_dispatches(goal.id) == unresolved
+    with sqlite3.connect(path) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM goal_action_attempt WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (0,)
+
+
 def failed_workload(path):
     with sqlite3.connect(path) as db:
         db.execute("""
