@@ -17,6 +17,7 @@ from sofia.modules.neuro.model import NeuralActivation, NeuroStateSnapshot, Neur
 from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.core.social.model import PrincipalContext
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from .service import audience_scope
 
 from .evidence import GoalEvidence, GoalEvidenceIndex
@@ -137,6 +138,22 @@ class GoalActionPlanner:
         return self.gateway.capability_system.resolve(capability), {}
 
 
+def goal_reconciliation_approval_parameters(
+    *, goal: Goal, dispatch_id: str, capability: str,
+    evidence: GoalEvidence,
+) -> dict[str, str]:
+    """Exact immutable reconciliation fingerprint, including outcome and scope."""
+    return {
+        "goal_id": goal.id,
+        "dispatch_id": dispatch_id,
+        "capability": capability,
+        "evidence_ref": evidence.evidence_ref,
+        "outcome": "effect_verified" if evidence.successful else "no_effect_verified",
+        "principal_id": goal.scope_principal_id or "",
+        "audience": goal.scope_audience or "",
+    }
+
+
 class GoalProductionCoordinator:
     """Conservative production loop. Attention triggers; typed evidence grounds."""
     def __init__(
@@ -156,6 +173,7 @@ class GoalProductionCoordinator:
         independent_outcome_verifier: Callable[
             [str, GoalEvidence], bool
         ] | None = None,
+        reconciliation_approval_verifier: ExecutionApprovalVerifier | None = None,
     ) -> None:
         self.goals = goals
         self.path = Path(state_path)
@@ -174,8 +192,18 @@ class GoalProductionCoordinator:
             independent_outcome_verifier
         ):
             raise TypeError("independent_outcome_verifier must be a trusted callable")
+        if (
+            reconciliation_approval_verifier is not None
+            and not isinstance(
+                reconciliation_approval_verifier, ExecutionApprovalVerifier
+            )
+        ):
+            raise TypeError(
+                "reconciliation_approval_verifier must be a canonical SAFE verifier"
+            )
         self.reconciliation_authorizer = reconciliation_authorizer
         self.independent_outcome_verifier = independent_outcome_verifier
+        self.reconciliation_approval_verifier = reconciliation_approval_verifier
         with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS goal_candidate_decision (
@@ -626,6 +654,7 @@ class GoalProductionCoordinator:
     def reconcile_dispatch(
         self, *, goal_id: str, dispatch_id: str,
         principal: PrincipalContext, evidence_ref: str, now: datetime,
+        approval_id: str | None = None,
     ) -> str:
         """Record independently verified outcome without granting a retry.
 
@@ -643,12 +672,18 @@ class GoalProductionCoordinator:
         if not isinstance(evidence_ref, str) or not evidence_ref.strip():
             raise ValueError("exact independent evidence reference required")
         if (
-            self.reconciliation_authorizer is None
+            (self.reconciliation_authorizer is None
+             and self.reconciliation_approval_verifier is None)
             or self.independent_outcome_verifier is None
         ):
             raise PermissionError(
                 "trusted reconciliation authority and outcome verifier required"
             )
+        if (
+            self.reconciliation_approval_verifier is not None
+            and (not isinstance(approval_id, str) or not approval_id.strip())
+        ):
+            raise PermissionError("exact owner SAFE reconciliation approval required")
         with closing(sqlite3.connect(self.path, timeout=10)) as db:
             pending = db.execute(
                 "SELECT goal_id,capability,reserved_at FROM goal_action_dispatch "
@@ -689,9 +724,15 @@ class GoalProductionCoordinator:
             raise ValueError(
                 "independent outcome must match exact dispatch, time and audience"
             )
-        if self.reconciliation_authorizer(
-            principal, goal, dispatch_id, evidence
-        ) is not True:
+        # Production SAFE authority is consumed below in the same write
+        # transaction as the journal update. Legacy callback mode remains
+        # for explicitly injected test/adapter callers only.
+        if (
+            self.reconciliation_approval_verifier is None
+            and self.reconciliation_authorizer(
+                principal, goal, dispatch_id, evidence
+            ) is not True
+        ):
             raise PermissionError("reconciliation is not independently authorized")
         if self.independent_outcome_verifier(dispatch_id, evidence) is not True:
             raise ValueError("independent effect verification rejected the receipt")
@@ -701,6 +742,16 @@ class GoalProductionCoordinator:
         with closing(sqlite3.connect(self.path, timeout=10)) as db:
             db.execute("BEGIN IMMEDIATE")
             try:
+                if self.reconciliation_approval_verifier is not None:
+                    self.reconciliation_approval_verifier.consume(
+                        approval_id=approval_id,
+                        capability="goals.dispatch.reconcile",
+                        parameters=goal_reconciliation_approval_parameters(
+                            goal=goal, dispatch_id=dispatch_id,
+                            capability=pending[1], evidence=evidence,
+                        ),
+                        now=now, _transaction_db=db,
+                    )
                 changed = db.execute(
                     "UPDATE goal_action_dispatch SET status='recorded',"
                     "finished_at=?,evidence_ref=? "
