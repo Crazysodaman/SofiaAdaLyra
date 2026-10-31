@@ -284,6 +284,14 @@ class ReleaseEnvironmentManager:
             raise TypeError("release must be ActiveRelease")
         self.environments_root.mkdir(parents=True, exist_ok=True)
         target = self.environments_root / release.release_id
+        # A crash during replacement can leave the prior runtime in a
+        # reserved rollback path. Do not erase that evidence or auto-resume.
+        if any(self.environments_root.glob(
+            f".{release.release_id}.rollback-*"
+        )):
+            raise ActiveReleaseError(
+                "unfinished release environment publication requires reconciliation"
+            )
         if self._matches(target, release):
             return PreparedReleaseEnvironment(
                 release,
@@ -403,9 +411,40 @@ class ReleaseEnvironmentManager:
                 ),
                 encoding="utf-8",
             )
+            # Keep the old release intact until the new staging environment
+            # has actually been published. Do not delete the rollback copy
+            # before a successful rename.
+            previous: Path | None = None
+            if target.is_symlink() or getattr(
+                target, "is_junction", lambda: False
+            )():
+                raise ActiveReleaseError(
+                    "release environment target is redirected"
+                )
             if target.exists():
-                shutil.rmtree(target)
-            os.replace(staging, target)
+                previous = self.environments_root / (
+                    f".{release.release_id}.rollback-{uuid.uuid4().hex}"
+                )
+                os.replace(target, previous)
+            try:
+                os.replace(staging, target)
+            except BaseException:
+                if previous is not None:
+                    try:
+                        os.replace(previous, target)
+                    except OSError as error:
+                        raise ActiveReleaseError(
+                            "release environment rollback failed; "
+                            "manual reconciliation required"
+                        ) from error
+                raise
+            if previous is not None:
+                try:
+                    shutil.rmtree(previous)
+                except OSError:
+                    # A surviving rollback marker blocks later automatic
+                    # replacement pending manual reconciliation.
+                    pass
         except Exception:
             shutil.rmtree(staging, ignore_errors=True)
             raise

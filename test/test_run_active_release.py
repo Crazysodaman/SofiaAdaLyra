@@ -188,6 +188,87 @@ def test_environment_manager_reuses_only_matching_stamped_environment(
     assert "version('sofia-ada-lyra')" in version_calls[0][-1]
 
 
+def test_release_environment_failed_publish_restores_existing_runtime(
+    tmp_path, monkeypatch,
+):
+    """A failed rename cannot erase the previously installed environment."""
+    import os
+
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+
+    class FakeBuilder:
+        def __init__(self, **kwargs):
+            pass
+
+        def create(self, root):
+            python = ReleaseEnvironmentManager._python(Path(root))
+            python.parent.mkdir(parents=True, exist_ok=True)
+            python.write_bytes(b"python")
+
+    monkeypatch.setattr(
+        "sofia.platform.run.active_release.venv.EnvBuilder", FakeBuilder,
+    )
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+    monkeypatch.setattr(
+        manager, "_run",
+        lambda argv, timeout=600: release.application_version
+        if "-c" in argv else "",
+    )
+    installed = manager.ensure(release)
+    marker = installed.root / "preserve-me"
+    marker.write_bytes(b"last-known-good")
+    manager._stamp_path(installed.root).write_text("{}", encoding="utf-8")
+    originals = set(installed.root.iterdir())
+    real_replace = os.replace
+
+    def injected_replace(source, destination):
+        source = Path(source)
+        if (
+            Path(destination) == installed.root
+            and source.name.startswith(f".{release.release_id}.")
+            and ".rollback-" not in source.name
+        ):
+            raise OSError("injected candidate publication failure")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(
+        "sofia.platform.run.active_release.os.replace",
+        injected_replace,
+    )
+    with pytest.raises(OSError, match="injected candidate publication"):
+        manager.ensure(release)
+    assert installed.root.is_dir()
+    assert marker.read_bytes() == b"last-known-good"
+    assert set(installed.root.iterdir()) == originals
+    assert not list(manager.environments_root.glob(
+        f".{release.release_id}.rollback-*"
+    ))
+    assert set(manager.environments_root.iterdir()) == {installed.root}
+
+
+def test_release_environment_interrupted_publication_needs_review(tmp_path):
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+    manager.environments_root.mkdir(parents=True, exist_ok=True)
+    saved = manager.environments_root / (
+        f".{release.release_id}.rollback-interrupted"
+    )
+    saved.mkdir()
+    (saved / "old-identity").write_bytes(b"unreviewed")
+    with pytest.raises(ActiveReleaseError, match="requires reconciliation"):
+        manager.ensure(release)
+    assert (saved / "old-identity").read_bytes() == b"unreviewed"
+    assert not (manager.environments_root / release.release_id).exists()
+
+
 def component_release_fixture(
     tmp_path: Path,
     wheels: dict[str, Path],
