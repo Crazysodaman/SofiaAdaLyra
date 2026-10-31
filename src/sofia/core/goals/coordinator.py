@@ -17,7 +17,7 @@ from sofia.modules.neuro.model import NeuralActivation, NeuroStateSnapshot, Neur
 from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.core.social.model import PrincipalContext
-from sofia.sdk.principals import audience_scope
+from .service import audience_scope
 
 from .evidence import GoalEvidence, GoalEvidenceIndex
 
