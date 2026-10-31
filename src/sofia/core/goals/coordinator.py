@@ -899,15 +899,26 @@ class GoalProductionCoordinator:
                     attempt_id, goal.id, capability.name, result.kind.value,
                     evidence.evidence_ref, now.isoformat(),
                 ))
-                if db.execute(
-                    "UPDATE goal_action_dispatch SET status='recorded',"
-                    "finished_at=?,evidence_ref=? "
-                    "WHERE dispatch_id=? AND goal_id=? AND status='unresolved'",
-                    (now.isoformat(), evidence.evidence_ref, attempt_id, goal.id),
-                ).rowcount != 1:
-                    raise RuntimeError(
-                        "GOALS dispatch reservation changed before outcome recording"
-                    )
+                # A gateway failure or lost remote capability may have
+                # partially executed before returning. Save its typed
+                # observation but leave the dispatch unresolved until an
+                # independent outcome/reconciliation proves the effect.
+                # UNAUTHORIZED and DENIED are policy refusals, not attempts
+                # to operate; SUCCESS is a recorded gateway result, not yet
+                # independent external-state verification.
+                if result.kind not in {
+                    CapabilityResultKind.FAILED,
+                    CapabilityResultKind.UNAVAILABLE,
+                }:
+                    if db.execute(
+                        "UPDATE goal_action_dispatch SET status='recorded',"
+                        "finished_at=?,evidence_ref=? "
+                        "WHERE dispatch_id=? AND goal_id=? AND status='unresolved'",
+                        (now.isoformat(), evidence.evidence_ref, attempt_id, goal.id),
+                    ).rowcount != 1:
+                        raise RuntimeError(
+                            "GOALS dispatch reservation changed before outcome recording"
+                        )
             refreshed = self.goals.add_evidence(
                 goal=goal, evidence_refs=(evidence.evidence_ref,), now=now,
                 note=f"RUN diagnostic {capability.name}: {result.kind.value}",
