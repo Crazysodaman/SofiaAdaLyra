@@ -176,6 +176,22 @@ class GoalProductionCoordinator:
                     evidence_ref TEXT NOT NULL,
                     attempted_at TEXT NOT NULL
                 );
+                -- An action may have taken effect before the outcome receipt
+                -- can be saved. Reserve a durable dispatch ID *before* RUN.
+                -- Only an independently reconciled operator path can clear
+                -- an interrupted dispatch; a restart must not blindly retry.
+                CREATE TABLE IF NOT EXISTS goal_action_dispatch (
+                    dispatch_id TEXT PRIMARY KEY,
+                    goal_id TEXT NOT NULL,
+                    capability TEXT NOT NULL,
+                    goal_revision INTEGER NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('unresolved','recorded')),
+                    reserved_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    evidence_ref TEXT
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS goal_one_unresolved_dispatch
+                ON goal_action_dispatch(goal_id) WHERE status='unresolved';
                 CREATE TABLE IF NOT EXISTS goal_priority_evaluation (
                     goal_id TEXT NOT NULL,
                     principal_id TEXT NOT NULL,
@@ -543,6 +559,43 @@ class GoalProductionCoordinator:
                         pass
         return changed
 
+    def unresolved_dispatches(self, goal_id: str) -> tuple[tuple[str, str], ...]:
+        """Inspect unresolved dispatches; never infer effect success from intent."""
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            rows = db.execute(
+                "SELECT dispatch_id,capability FROM goal_action_dispatch "
+                "WHERE goal_id=? AND status='unresolved' ORDER BY reserved_at",
+                (goal_id,),
+            ).fetchall()
+        return tuple((row[0], row[1]) for row in rows)
+
+    def _reserve_dispatch(
+        self, *, dispatch_id: str, goal: Goal, capability: str, now: datetime,
+    ) -> bool:
+        """Persist the intent before the first potentially effective call."""
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                if db.execute(
+                    "SELECT 1 FROM goal_action_dispatch "
+                    "WHERE goal_id=? AND status='unresolved'",
+                    (goal.id,),
+                ).fetchone() is not None:
+                    db.rollback()
+                    return False
+                db.execute(
+                    "INSERT INTO goal_action_dispatch("
+                    "dispatch_id,goal_id,capability,goal_revision,"
+                    "status,reserved_at) VALUES(?,?,?,?,'unresolved',?)",
+                    (dispatch_id, goal.id, capability, goal.revision,
+                     now.isoformat()),
+                )
+                db.commit()
+                return True
+            except sqlite3.IntegrityError:
+                db.rollback()
+                return False
+
     def _recently_attempted(
         self, goal_id: str, capability: str, *, now: datetime,
     ) -> bool:
@@ -643,6 +696,14 @@ class GoalProductionCoordinator:
                 )
             )
             if not eligible:
+                continue
+            if self.unresolved_dispatches(goal.id):
+                # Do not replay an UNKNOWN external effect after a crash,
+                # even when the usual retry interval has elapsed.
+                self.goals.set_run_state(
+                    goal=goal, run_state=GoalRunState.WAITING_EVIDENCE,
+                    actor_principal_id=SOFIA_GOAL_OWNER_ID, now=now,
+                )
                 continue
             text = f"{goal.title} {goal.reason}".casefold()
             existing_children = tuple(
@@ -811,10 +872,17 @@ class GoalProductionCoordinator:
                 or before_dispatch.revision != goal.revision
             ):
                 continue
-            result = self.planner.gateway.execute(proposal.proposal)
             attempt_id = "goal-action:" + sha256(
                 f"{goal.id}\0{capability.name}\0{now.isoformat()}".encode()
             ).hexdigest()[:24]
+            if not self._reserve_dispatch(
+                dispatch_id=attempt_id, goal=goal,
+                capability=capability.name, now=now,
+            ):
+                continue
+            # A process exit or UNKNOWN gateway outcome leaves this durable
+            # reservation unresolved. Never auto-retry without reconciliation.
+            result = self.planner.gateway.execute(proposal.proposal)
             evidence = self.ledger.record(
                 kind="operation_receipt", observed_at=now,
                 source="goal-action", successful=result.kind is CapabilityResultKind.SUCCESS,
@@ -831,6 +899,15 @@ class GoalProductionCoordinator:
                     attempt_id, goal.id, capability.name, result.kind.value,
                     evidence.evidence_ref, now.isoformat(),
                 ))
+                if db.execute(
+                    "UPDATE goal_action_dispatch SET status='recorded',"
+                    "finished_at=?,evidence_ref=? "
+                    "WHERE dispatch_id=? AND goal_id=? AND status='unresolved'",
+                    (now.isoformat(), evidence.evidence_ref, attempt_id, goal.id),
+                ).rowcount != 1:
+                    raise RuntimeError(
+                        "GOALS dispatch reservation changed before outcome recording"
+                    )
             refreshed = self.goals.add_evidence(
                 goal=goal, evidence_refs=(evidence.evidence_ref,), now=now,
                 note=f"RUN diagnostic {capability.name}: {result.kind.value}",
