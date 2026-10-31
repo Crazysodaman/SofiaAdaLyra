@@ -677,6 +677,10 @@ class CoreComponentInstaller:
             raise TypeError("CoreComponentArtifact required")
         if artifact.artifact_id != CORE_DISTRIBUTION:
             raise CoreComponentInstallError("Core component artifact ID must be sofia-core")
+        if self.registry.pending_attempts(artifact.artifact_id):
+            raise CoreComponentInstallError(
+                "Core install reconciliation required: unresolved staging attempt"
+            )
         receipt = self.registry.installed(artifact.artifact_id)
         if (
             receipt is None
