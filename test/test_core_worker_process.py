@@ -595,6 +595,39 @@ def test_activation_denial_quarantines_after_verified_child_exit(
     assert controller.pid is None
 
 
+def test_shutdown_unverified_exit_keeps_draining_generation_and_worker(
+    canonical_state_path, tmp_path, monkeypatch,
+):
+    from sofia.platform.core_worker.process import _CoreWorkerProcess
+
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    health = controller.start(
+        release_digest=sha256(b"shutdown-no-exit-proof").hexdigest(),
+        spec=CoreEngineProcessSpec("rule"), now=now,
+    )
+    process = controller._active
+    assert process is not None
+    terminate = _CoreWorkerProcess.terminate
+
+    def unverified_exit(self, *args, **kwargs):
+        # Actually terminate the disposable test child to prevent a leak,
+        # but make the Platform receive an unverified OS exit report.
+        assert terminate(self, *args, **kwargs)
+        return False
+
+    monkeypatch.setattr(_CoreWorkerProcess, "terminate", unverified_exit)
+    with pytest.raises(CoreWorkerError, match="shutdown exit unverified"):
+        controller.shutdown(now=now + timedelta(seconds=1))
+    assert controller._active is process
+    assert generations.state(health.endpoint) is GenerationState.DRAINING
+    assert generations.active_for_core_identity("core:sofia") is None
+    with pytest.raises(RuntimeError, match="already active"):
+        controller.start(
+            release_digest=sha256(b"must-not-restart").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now + timedelta(seconds=2),
+        )
+
+
 def test_real_process_replacement_keeps_platform_and_continuity(canonical_state_path, tmp_path):
     now, generations, controller = build(canonical_state_path, tmp_path)
     platform_pid = os.getpid()

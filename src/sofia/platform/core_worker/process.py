@@ -1160,11 +1160,17 @@ class CoreWorkerController:
         except Exception:
             pass
         stopped = process.terminate()
-        if stopped:
-            self.generations.fence(
-                process.endpoint, lease=self.lease, now=now,
-                reason="Core worker stopped",
+        if not stopped:
+            # Keep the unresolved child attached to this controller and the
+            # generation DRAINING. Clearing it here could admit a new worker
+            # without proving the old OS process has exited.
+            raise CoreWorkerError(
+                "Core shutdown exit unverified; manual reconciliation required"
             )
+        self.generations.fence(
+            process.endpoint, lease=self.lease, now=now,
+            reason="Core worker stopped",
+        )
         self._active = None
 
 
