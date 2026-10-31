@@ -1220,7 +1220,10 @@ def test_installed_release_digest_rejects_symlinked_package_input(tmp_path):
     package = tmp_path / "package"
     package.mkdir()
     (package / "core.py").write_text("value = 1\n", encoding="utf-8")
-    (package / "redirect.py").symlink_to(package / "core.py")
+    try:
+        (package / "redirect.py").symlink_to(package / "core.py")
+    except (OSError, NotImplementedError):
+        pytest.skip("host denies unprivileged symlinks")
 
     with pytest.raises(CoreWorkerError, match="symlink"):
         installed_core_release_digest(package)
