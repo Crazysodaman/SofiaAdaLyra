@@ -1,0 +1,77 @@
+name: GO LIVE Cross-Gate Regression (G1 G4 G6 G7-A)
+
+on:
+  push:
+    branches:
+      - chatgpt/go-live-release-env-version
+    paths:
+      - 'src/sofia/platform/**'
+      - 'src/sofia/core/**'
+      - 'src/sofia/sdk/**'
+      - 'test/test_core_link_conversation.py'
+      - 'test/test_platform_ui_launchers.py'
+      - 'test/test_module_lifecycle_v1.py'
+      - 'test/test_cognition_v2_evidence.py'
+      - '.github/workflows/go-live-cross-gate-pr.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/sofia/platform/**'
+      - 'src/sofia/core/**'
+      - 'src/sofia/sdk/**'
+      - 'test/test_core_link_conversation.py'
+      - 'test/test_platform_ui_launchers.py'
+      - 'test/test_module_lifecycle_v1.py'
+      - 'test/test_cognition_v2_evidence.py'
+      - '.github/workflows/go-live-cross-gate-pr.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-live-cross-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable-regressions:
+    name: Cross-gate (${{ matrix.os }}, Python 3.12)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    env:
+      SOFIA_STATE_ROOT: ${{ github.workspace }}/state/cloud-runtime
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout exact proposed revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Initialize disposable state root
+        shell: bash
+        run: |
+          mkdir -p "$SOFIA_STATE_ROOT"
+          test -w "$SOFIA_STATE_ROOT"
+      - name: Install test dependencies
+        run: python -m pip install -e . pytest
+      - name: Verify dependency resolution and syntax
+        run: |
+          python -m pip check
+          python -m compileall -q src/sofia test
+      - name: G1 and G4 TLS conversation and current-user launcher regressions
+        run: python -m pytest -q test/test_core_link_conversation.py test/test_platform_ui_launchers.py
+      - name: G6 independently governed module lifecycle regressions
+        run: python -m pytest -q test/test_module_lifecycle_v1.py
+      - name: G7-A cognitive evidence and truth regressions
+        run: python -m pytest -q test/test_cognition_v2_evidence.py
+
+# Focused cross-gate contracts only. NOT an installed-wheel release certificate,
+# host migration rehearsal or full G7-A cognition-to-learning acceptance trace.
