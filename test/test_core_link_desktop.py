@@ -81,6 +81,46 @@ def response_script_for_start(*, session_id="session:remote"):
     ]
 
 
+@pytest.mark.parametrize(
+    ("status_changes", "message"),
+    (
+        ({"remote_core_identity_id": "core:impostor"}, "identity changed"),
+        ({"remote_core_generation": 8}, "identity changed"),
+        ({"remote_platform_id": "platform:untrusted"}, "platform changed"),
+        ({"protocol": "2.0"}, "protocol changed"),
+        ({"state": "starting"}, "stopped or not ready"),
+        ({"operator_stop_active": True}, "stopped or not ready"),
+        ({"operator_stop_active": None}, "stopped or not ready"),
+    ),
+)
+def test_desktop_start_refuses_unbound_or_stopped_remote_status(
+    tmp_path, status_changes, message,
+):
+    selected = binding()
+    payload = {
+        "remote_platform_id": "platform:canonical",
+        "remote_core_identity_id": "core:sofia",
+        "remote_core_generation": 9,
+        "protocol": "1.0",
+        "state": "ready",
+        "operator_stop_active": False,
+    }
+    payload.update(status_changes)
+    transport = ScriptedTransport([
+        ("status", CoreLinkResponseStatus.COMPLETED, payload),
+    ])
+    path = (tmp_path / "status-negative.json").resolve()
+    store = CoreLinkDesktopStateStore(path, selected)
+    client = CoreLinkDesktopClient(
+        transport, selected, store, clock=lambda: NOW,
+    )
+    with pytest.raises(PermissionError, match=message):
+        client.start()
+    assert [request.operation for request in transport.requests] == ["status"]
+    assert store.load().session_id is None
+    assert client.messages == ()
+
+
 def test_remote_desktop_preserves_uncertain_turn_and_reconciles_after_restart(
     tmp_path: Path,
 ):
