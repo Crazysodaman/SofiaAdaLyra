@@ -11,6 +11,7 @@ on:
       - 'src/sofia/platform/application/bootstrap.py'
       - 'test/test_cognition_v2_evidence.py'
       - 'test/test_cognition_v2_fleet_machine.py'
+      - 'test/test_goal_production_wiring.py'
       - '.github/workflows/g7a-evidence-pr.yml'
   workflow_dispatch:
 
@@ -53,4 +54,4 @@ jobs:
           python -m compileall -q src/sofia test
       - name: Verify V2 evidence, Fleet truth and turn kernel
         run: |
-          python -m pytest -q test/test_cognition_v2_evidence.py test/test_cognition_v2_fleet_machine.py test/test_cognition_v2_turn_kernel.py
+          python -m pytest -q test/test_cognition_v2_evidence.py test/test_cognition_v2_fleet_machine.py test/test_cognition_v2_turn_kernel.py test/test_goal_production_wiring.py
