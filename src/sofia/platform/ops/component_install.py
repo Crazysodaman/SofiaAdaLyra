@@ -490,6 +490,54 @@ class CoreComponentInstaller:
         self.registry.record(receipt)
         return receipt
 
+    def verify_installed(
+        self,
+        artifact: CoreComponentArtifact,
+        wheel_path: Path,
+    ) -> CoreComponentReceipt:
+        """Reconcile a previous success receipt with current signed disk bytes.
+
+        This is read-only and never authorizes activation. Call it after
+        restart or before handing a staged Core path to the worker controller.
+        An old successful receipt cannot stand in for missing or modified files.
+        """
+        if not isinstance(artifact, CoreComponentArtifact):
+            raise TypeError("CoreComponentArtifact required")
+        if artifact.artifact_id != CORE_DISTRIBUTION:
+            raise CoreComponentInstallError("Core component artifact ID must be sofia-core")
+        receipt = self.registry.installed(artifact.artifact_id)
+        if (
+            receipt is None
+            or receipt.outcome is not InstallOutcome.SUCCEEDED
+            or receipt.version != artifact.version
+            or receipt.artifact_sha256 != artifact.sha256
+        ):
+            raise CoreComponentInstallError(
+                "current Core receipt does not match the requested installed artifact"
+            )
+        wheel_path = Path(wheel_path)
+        if not wheel_path.is_file() or wheel_path.is_symlink():
+            raise FileNotFoundError(wheel_path)
+        if sha256(wheel_path.read_bytes()).hexdigest() != artifact.sha256:
+            raise CoreComponentInstallError("Core install artifact digest mismatch")
+        self.signature_verifier.verify(artifact, wheel_path)
+        try:
+            wheel_metadata = inspect_wheel(wheel_path, CORE_DISTRIBUTION)
+            verify_core_component_content(wheel_path)
+        except ComponentArtifactError as error:
+            raise CoreComponentInstallError(str(error)) from error
+        if wheel_metadata.version != artifact.version:
+            raise CoreComponentInstallError("Core install artifact version mismatch")
+        if self.installation_root is None:
+            raise CoreComponentInstallError("Core installation root is not configured")
+        destination = self.installation_root / f"core-{artifact.version}-{artifact.sha256}"
+        if destination.is_symlink() or not destination.is_dir():
+            raise CoreComponentInstallError(
+                "previously recorded Core installation is absent or redirected"
+            )
+        self._verify_installed_bytes(destination, artifact, wheel_path)
+        return receipt
+
     def _stage_verified_install(
         self, wheel_path: Path, artifact: CoreComponentArtifact
     ) -> Path:
