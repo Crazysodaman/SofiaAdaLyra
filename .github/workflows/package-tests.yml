@@ -13,7 +13,9 @@ concurrency:
   group: package-tests-${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
   # Keep a started revision alive for exact-SHA evidence even when main
   # receives subsequent commits. GitHub may still replace pending runs.
-  cancel-in-progress: false
+  # Cancel superseded GO LIVE development pushes only. Main release history
+  # and explicit release dispatches keep their independent evidence.
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/go-live-release-env-version' }}
 
 jobs:
   package:

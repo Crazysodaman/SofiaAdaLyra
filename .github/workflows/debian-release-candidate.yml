@@ -20,7 +20,9 @@ on:
 
 concurrency:
   group: debian-release-candidate-${{ github.ref }}
-  cancel-in-progress: false
+  # Cancel superseded GO LIVE development pushes only. Main release history
+  # and explicit release dispatches keep their independent evidence.
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/go-live-release-env-version' }}
 
 jobs:
   build:

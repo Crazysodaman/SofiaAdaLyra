@@ -24,7 +24,9 @@ concurrency:
   # Explicit Gate-4 dispatches are SHA-specific and never displaced by
   # unrelated rapid main pushes. Automatic push runs still coalesce by ref.
   group: release-candidate-${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
-  cancel-in-progress: false
+  # Cancel superseded GO LIVE development pushes only. Main release history
+  # and explicit release dispatches keep their independent evidence.
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/go-live-release-env-version' }}
 
 jobs:
   build:
