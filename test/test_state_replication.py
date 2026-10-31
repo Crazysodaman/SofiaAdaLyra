@@ -226,3 +226,151 @@ def test_stale_writer_cannot_ack_or_commit_after_takeover(tmp_path):
             target_ids=("primary", "secondary"),
             now=NOW + timedelta(seconds=31),
         )
+
+
+def test_g3_previous_writer_cannot_private_serve_after_epoch_takeover(tmp_path):
+    """Old Core must stop read/list access after a successor takes the lease."""
+    plane, primary, secondary, witness = make_plane(tmp_path)
+    key = StateKey(
+        "private", "autobiography", principal_id="owner",
+        audience="private:owner",
+    )
+    private_record = record(key, 1, b"protected owner context")
+    assert plane.write(private_record, expected_revision=None) == private_record
+    assert plane.read(key) == private_record
+    assert plane.list_namespace(
+        "private", principal_id="owner", audience="private:owner",
+    ) == (private_record,)
+    assert plane.list_scopes("private") == (("owner", "private:owner"),)
+
+    prior = plane.writer_lease
+    successor = witness.acquire_writer(
+        "writer-on-artemis",
+        now=prior.expires_at + timedelta(seconds=1),
+        ttl_seconds=30,
+    )
+    assert successor.epoch == prior.epoch + 1
+
+    with pytest.raises(StaleWriterError, match="fenced"):
+        plane.read(key)
+    with pytest.raises(StaleWriterError, match="fenced"):
+        plane.list_namespace(
+            "private", principal_id="owner", audience="private:owner",
+        )
+    with pytest.raises(StaleWriterError, match="fenced"):
+        plane.list_scopes("private")
+    # The old Core cannot renew read authority or mutate the shared state.
+    with pytest.raises(StaleWriterError, match="fenced"):
+        plane.write(record(key, 2, b"stale source must never change me"),
+                    expected_revision=1)
+    assert primary.read(key) == secondary.read(key) == private_record
+    assert witness.current_writer() == successor
+
+
+def test_g3_expired_core_cannot_read_even_before_takeover(tmp_path):
+    """Lost witness contact/expired authority never implies read permission."""
+    plane, _, _, witness = make_plane(tmp_path, now=NOW)
+    current = witness.current_writer()
+    assert current is not None
+    assert current.expires_at < datetime.now(timezone.utc)
+    key = StateKey("private", "state")
+    with pytest.raises(StaleWriterError, match="expired"):
+        plane.read(key)
+    with pytest.raises(StaleWriterError, match="expired"):
+        plane.list_namespace("private")
+    with pytest.raises(StaleWriterError, match="expired"):
+        plane.list_scopes("private")
+    # Read requests deliberately do not renew or reacquire authority.
+    assert witness.current_writer() == current
+
+
+def test_g3_fencing_precedes_call_to_backing_storage(tmp_path, monkeypatch):
+    """A fenced Core cannot even reach its legacy private backing plane."""
+    plane, primary, _, witness = make_plane(tmp_path)
+    owner = plane.writer_lease
+    witness.acquire_writer(
+        "successor", now=owner.expires_at + timedelta(seconds=1),
+    )
+    accesses = []
+    def forbidden(*args, **kwargs):
+        accesses.append((args, kwargs))
+        raise AssertionError("stale Core accessed private storage")
+    monkeypatch.setattr(primary, "read", forbidden)
+    monkeypatch.setattr(primary, "list_namespace", forbidden)
+    monkeypatch.setattr(primary, "list_scopes", forbidden)
+    with pytest.raises(StaleWriterError):
+        plane.read(StateKey("private", "memory"))
+    with pytest.raises(StaleWriterError):
+        plane.list_namespace("private")
+    with pytest.raises(StaleWriterError):
+        plane.list_scopes("private")
+    assert accesses == []
+
+
+def test_g3_backwards_clock_cannot_renew_live_writer_or_extend_authority(tmp_path):
+    """NTP rollback must never create a younger-looking writer lease."""
+    _, _, _, witness = make_plane(tmp_path, writer="writer-a", now=NOW)
+    original = witness.current_writer()
+    assert original is not None
+    renewed = witness.renew_writer(
+        original, now=NOW + timedelta(seconds=10),
+        ttl_seconds=30,
+    )
+    with pytest.raises(StaleWriterError, match="clock moved backwards"):
+        witness.renew_writer(
+            renewed, now=NOW + timedelta(seconds=5),
+            ttl_seconds=30,
+        )
+    assert witness.current_writer() == renewed
+
+    # Once wall-clock uncertainty exists, do not allow stale-time reads,
+    # operation preparation, or an epoch-advancing write to be justified.
+    with pytest.raises(StaleWriterError, match="clock moved backwards"):
+        witness.assert_writer_active(
+            renewed, now=NOW + timedelta(seconds=5),
+            action="canonical read",
+        )
+    with pytest.raises(StaleWriterError, match="clock moved backwards"):
+        witness.prepare(
+            lease=renewed,
+            operation_kind="write",
+            key=StateKey("private", "owner"),
+            expected_revision=None,
+            record=record(StateKey("private", "owner"), 1, b"private"),
+            now=NOW + timedelta(seconds=5),
+        )
+    assert witness.pending_sequences() == ()
+    assert witness.assert_writer_active(
+        renewed, now=NOW + timedelta(seconds=11),
+        action="canonical read",
+    ) == renewed
+
+
+def test_g3_uncommitted_primary_does_not_expose_unreplicated_private_state(tmp_path):
+    replica = FlakyPlane(_bootstrapped_plane(tmp_path / "secondary.db"))
+    plane, primary, _, witness = make_plane(tmp_path, replica=replica)
+    key = StateKey(
+        "private", "owner-memory", principal_id="owner",
+        audience="private:owner",
+    )
+    replica.fail = True
+    with pytest.raises(ReplicationPartialCommitError):
+        plane.write(record(key, 1, b"not committed yet"), expected_revision=None)
+    assert primary.read(key) is not None
+    assert witness.health().pending_operations == 1
+
+    with pytest.raises(ReplicationPartialCommitError, match="read blocked"):
+        plane.read(key)
+    with pytest.raises(ReplicationPartialCommitError, match="read blocked"):
+        plane.list_namespace(
+            "private", principal_id="owner", audience="private:owner",
+        )
+    with pytest.raises(ReplicationPartialCommitError, match="read blocked"):
+        plane.list_scopes("private")
+
+    replica.fail = False
+    assert plane.repair_pending() == 1
+    assert plane.read(key) == primary.read(key)
+    assert plane.list_namespace(
+        "private", principal_id="owner", audience="private:owner",
+    ) == (primary.read(key),)
