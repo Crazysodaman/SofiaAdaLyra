@@ -21,7 +21,7 @@ from sofia.core.goals.model import GoalRunState
 from sofia.modules.neuro import HomeostaticState, NeuralActivation, NeuroStateSnapshot
 from sofia.core.social.principals import local_sparks_principal
 from sofia.core.social.model import AudienceKind, PrincipalContext
-from sofia.sdk.principals import audience_scope
+from sofia.core.goals.service import audience_scope
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
