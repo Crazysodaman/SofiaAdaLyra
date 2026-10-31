@@ -190,6 +190,23 @@ class CoreComponentReceipt:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class CoreComponentInstallAttempt:
+    """Durable record of an attempted stage, including interrupted attempts."""
+
+    attempt_id: str
+    artifact_id: str
+    version: str
+    artifact_sha256: str
+    operation: InstallOperation
+    authority: InstallAuthority
+    approval_id: str | None
+    started_at: datetime
+    outcome: InstallOutcome | None
+    completed_at: datetime | None
+    detail: str
+
+
 class CoreComponentRegistry:
     """Platform-local record of installed Core components.
 
@@ -236,6 +253,30 @@ class CoreComponentRegistry:
                     detail TEXT NOT NULL
                 )
             """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS core_component_install_attempt (
+                    attempt_id TEXT PRIMARY KEY,
+                    artifact_id TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    artifact_sha256 TEXT NOT NULL,
+                    operation TEXT NOT NULL,
+                    authority TEXT NOT NULL,
+                    approval_id TEXT,
+                    started_at TEXT NOT NULL,
+                    outcome TEXT,
+                    completed_at TEXT,
+                    detail TEXT NOT NULL DEFAULT ''
+                )
+            """)
+            # Only one unresolved physical stage per identity is permitted.
+            # A crash leaves a pending record that requires review, not an
+            # implicit retry which may race an installation in progress.
+            db.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS
+                    core_component_one_unresolved_stage
+                ON core_component_install_attempt(artifact_id)
+                WHERE outcome IS NULL
+            """)
             # A previous release kept only the current row. Upgrade it once,
             # without rewriting earlier history on subsequent startups.
             db.execute("""
@@ -270,7 +311,95 @@ class CoreComponentRegistry:
             detail=row["detail"],
         )
 
-    def record(self, receipt: CoreComponentReceipt) -> None:
+    def begin_attempt(
+        self,
+        artifact: CoreComponentArtifact,
+        operation: InstallOperation,
+        authority: InstallAuthority,
+        approval_id: str | None,
+    ) -> str:
+        """Durably reserve a stage before the first installation side effect."""
+        attempt_id = f"core-attempt-{uuid4().hex}"
+        with closing(self._connect()) as db:
+            try:
+                db.execute("BEGIN IMMEDIATE")
+                db.execute("""
+                    INSERT INTO core_component_install_attempt(
+                        attempt_id, artifact_id, version, artifact_sha256,
+                        operation, authority, approval_id, started_at
+                    ) VALUES (?,?,?,?,?,?,?,?)
+                """, (
+                    attempt_id, artifact.artifact_id, artifact.version,
+                    artifact.sha256, operation.value, authority.value,
+                    approval_id, datetime.now(timezone.utc).isoformat(),
+                ))
+                db.commit()
+            except sqlite3.IntegrityError as error:
+                db.rollback()
+                raise CoreComponentInstallError(
+                    "unresolved Core installation attempt requires reconciliation"
+                ) from error
+        return attempt_id
+
+    def pending_attempts(
+        self, artifact_id: str = CORE_DISTRIBUTION
+    ) -> tuple[CoreComponentInstallAttempt, ...]:
+        """Read-only inspection of interrupted or concurrently staged work."""
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM core_component_install_attempt "
+                "WHERE artifact_id=? AND outcome IS NULL ORDER BY started_at, attempt_id",
+                (artifact_id,),
+            ).fetchall()
+        return tuple(self._attempt_from_row(row) for row in rows)
+
+    @staticmethod
+    def _attempt_from_row(row: sqlite3.Row) -> CoreComponentInstallAttempt:
+        return CoreComponentInstallAttempt(
+            attempt_id=row["attempt_id"], artifact_id=row["artifact_id"],
+            version=row["version"], artifact_sha256=row["artifact_sha256"],
+            operation=InstallOperation(row["operation"]),
+            authority=InstallAuthority(row["authority"]),
+            approval_id=row["approval_id"],
+            started_at=datetime.fromisoformat(row["started_at"]),
+            outcome=InstallOutcome(row["outcome"]) if row["outcome"] else None,
+            completed_at=(
+                datetime.fromisoformat(row["completed_at"])
+                if row["completed_at"] else None
+            ),
+            detail=row["detail"],
+        )
+
+    def attempts(
+        self, artifact_id: str = CORE_DISTRIBUTION
+    ) -> tuple[CoreComponentInstallAttempt, ...]:
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM core_component_install_attempt "
+                "WHERE artifact_id=? ORDER BY started_at, attempt_id",
+                (artifact_id,),
+            ).fetchall()
+        return tuple(self._attempt_from_row(row) for row in rows)
+
+    def finish_failed_attempt(self, attempt_id: str, detail: str) -> None:
+        """Record a handled failure; unknown/crashed attempts remain pending."""
+        with closing(self._connect()) as db, db:
+            changed = db.execute(
+                "UPDATE core_component_install_attempt "
+                "SET outcome=?, completed_at=?, detail=? "
+                "WHERE attempt_id=? AND outcome IS NULL",
+                (
+                    InstallOutcome.FAILED.value,
+                    datetime.now(timezone.utc).isoformat(),
+                    str(detail)[:2000], attempt_id,
+                ),
+            )
+            if changed.rowcount != 1:
+                raise CoreComponentInstallError(
+                    "Core installation attempt is not pending"
+                )
+
+    def record(self, receipt: CoreComponentReceipt, *, attempt_id: str | None = None) -> None:
         if not isinstance(receipt, CoreComponentReceipt):
             raise TypeError("CoreComponentReceipt required")
         values = (
@@ -284,6 +413,25 @@ class CoreComponentRegistry:
         with closing(self._connect()) as db:
             db.execute("BEGIN IMMEDIATE")
             try:
+                if attempt_id is not None:
+                    pending = db.execute(
+                        "SELECT * FROM core_component_install_attempt "
+                        "WHERE attempt_id=? AND outcome IS NULL",
+                        (attempt_id,),
+                    ).fetchone()
+                    if (
+                        pending is None
+                        or pending["artifact_id"] != receipt.artifact_id
+                        or pending["version"] != receipt.version
+                        or pending["artifact_sha256"] != receipt.artifact_sha256
+                        or pending["operation"] != receipt.operation.value
+                        or pending["authority"] != receipt.authority.value
+                        or pending["approval_id"] != receipt.approval_id
+                        or receipt.outcome is not InstallOutcome.SUCCEEDED
+                    ):
+                        raise CoreComponentInstallError(
+                            "Core install receipt does not match pending stage"
+                        )
                 db.execute("""
                     INSERT INTO core_component_receipt_history(
                         receipt_id, artifact_id, version, operation, outcome,
@@ -309,6 +457,21 @@ class CoreComponentRegistry:
                         installed_at=excluded.installed_at,
                         detail=excluded.detail
                 """, values)
+                if attempt_id is not None:
+                    changed = db.execute(
+                        "UPDATE core_component_install_attempt "
+                        "SET outcome=?, completed_at=?, detail=? "
+                        "WHERE attempt_id=? AND outcome IS NULL",
+                        (
+                            InstallOutcome.SUCCEEDED.value,
+                            receipt.installed_at.astimezone(timezone.utc).isoformat(),
+                            receipt.detail[:2000], attempt_id,
+                        ),
+                    )
+                    if changed.rowcount != 1:
+                        raise CoreComponentInstallError(
+                            "Core install stage changed before receipt commit"
+                        )
                 db.commit()
             except BaseException:
                 db.rollback()
@@ -473,7 +636,16 @@ class CoreComponentInstaller:
         health_verified = self._verify_health(wheel_path)
         if not health_verified:
             raise CoreComponentInstallError("Core component failed the health probe")
-        installed_path = self._stage_verified_install(wheel_path, artifact)
+        attempt_id = self.registry.begin_attempt(
+            artifact, operation, authority, approval_id
+        )
+        try:
+            installed_path = self._stage_verified_install(wheel_path, artifact)
+        except Exception as error:
+            # Python/SystemExit or a process crash leaves a pending row for
+            # explicit restart reconciliation instead of a false success.
+            self.registry.finish_failed_attempt(attempt_id, str(error))
+            raise
         receipt = CoreComponentReceipt(
             receipt_id=f"core-install-{artifact.version}-{uuid4().hex}",
             artifact_id=artifact.artifact_id,
@@ -487,7 +659,7 @@ class CoreComponentInstaller:
             installed_at=datetime.now(timezone.utc),
             detail=f"physically installed and independently verified in {installed_path.name}",
         )
-        self.registry.record(receipt)
+        self.registry.record(receipt, attempt_id=attempt_id)
         return receipt
 
     def verify_installed(
