@@ -13,6 +13,15 @@ write Core-owned state in order to record its own installation decisions.
 from __future__ import annotations
 
 from hashlib import sha256
+import csv
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import venv
+import json
+from importlib.metadata import PathDistribution
 import re
 import sqlite3
 from contextlib import closing
@@ -284,6 +293,8 @@ class CoreComponentInstaller:
         self,
         registry: CoreComponentRegistry,
         signature_verifier: ComponentSignatureVerifier,
+        *,
+        installation_root: Path | None = None,
     ) -> None:
         if not isinstance(signature_verifier, ComponentSignatureVerifier):
             raise TypeError(
@@ -291,6 +302,7 @@ class CoreComponentInstaller:
             )
         self.registry = registry
         self.signature_verifier = signature_verifier
+        self.installation_root = Path(installation_root).resolve() if installation_root else None
 
     def execute(
         self,
@@ -340,9 +352,14 @@ class CoreComponentInstaller:
             raise CoreComponentInstallError(
                 "Core artifact declared version does not match signed wheel metadata"
             )
+        if self.installation_root is None:
+            raise CoreComponentInstallError(
+                "installation_root is required; a health probe is not a physical install"
+            )
         health_verified = self._verify_health(wheel_path)
         if not health_verified:
             raise CoreComponentInstallError("Core component failed the health probe")
+        installed_path = self._stage_verified_install(wheel_path, artifact)
         receipt = CoreComponentReceipt(
             receipt_id=f"core-component-install-{artifact.artifact_id}-{artifact.version}",
             artifact_id=artifact.artifact_id,
@@ -354,10 +371,68 @@ class CoreComponentInstaller:
             approval_id=approval_id,
             health_verified=health_verified,
             installed_at=datetime.now(timezone.utc),
-            detail="verified signature, content, compatibility and health",
+            detail=f"physically installed and independently verified in {installed_path.name}",
         )
         self.registry.record(receipt)
         return receipt
+
+    def _stage_verified_install(
+        self, wheel_path: Path, artifact: CoreComponentArtifact
+    ) -> Path:
+        """Install into a quarantined venv, verify RECORD bytes, then publish.
+
+        This prepares immutable Core bytes only. A worker controller must
+        separately authorize activation and canonical-state ownership.
+        """
+        root = self.installation_root
+        assert root is not None
+        root.mkdir(parents=True, exist_ok=True)
+        destination = root / f"core-{artifact.version}-{artifact.sha256}"
+        if destination.is_symlink():
+            raise CoreComponentInstallError("Core installation destination is a symlink")
+        with tempfile.TemporaryDirectory(prefix=".core-stage-", dir=root) as temporary:
+            staging = Path(temporary) / "environment"
+            venv.EnvBuilder(with_pip=True).create(staging)
+            python = staging / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+            try:
+                subprocess.run(
+                    [str(python), "-m", "pip", "install", "--no-index", "--no-deps",
+                     "--disable-pip-version-check", str(wheel_path.resolve())],
+                    check=True, capture_output=True, text=True, timeout=600,
+                )
+                self._verify_installed_bytes(staging, artifact, wheel_path)
+            except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                raise CoreComponentInstallError("physical Core installation failed") from exc
+            # Atomic publication: old environments remain available for rollback.
+            # An already-published candidate is never silently overwritten.
+            if destination.exists():
+                self._verify_installed_bytes(destination, artifact, wheel_path)
+                return destination
+            os.replace(staging, destination)
+        return destination
+
+    @staticmethod
+    def _verify_installed_bytes(root: Path, artifact: CoreComponentArtifact, wheel: Path) -> None:
+        """Check installed dist metadata and every wheel-owned regular file."""
+        import zipfile
+        site = root / "Lib/site-packages" if sys.platform == "win32" else next(
+            (root / "lib").glob("python*/site-packages"), None
+        )
+        if site is None:
+            raise CoreComponentInstallError("installed Core site-packages is missing")
+        with zipfile.ZipFile(wheel) as archive:
+            entries = {name: archive.read(name) for name in archive.namelist()
+                       if not name.endswith("/") and not name.endswith(".dist-info/RECORD")}
+        matching = list(site.glob("sofia_core-*.dist-info"))
+        if len(matching) != 1:
+            raise CoreComponentInstallError("installed Core distribution metadata missing or ambiguous")
+        metadata = PathDistribution(matching[0]).metadata
+        if metadata.get("Name", "").lower().replace("_", "-") != CORE_DISTRIBUTION or metadata.get("Version") != artifact.version:
+            raise CoreComponentInstallError("installed Core distribution identity/version mismatch")
+        for name, expected in entries.items():
+            location = site / name
+            if location.is_symlink() or not location.is_file() or sha256(location.read_bytes()).digest() != sha256(expected).digest():
+                raise CoreComponentInstallError(f"installed Core bytes mismatch: {name}")
 
     def _verify_health(self, wheel_path: Path) -> bool:
         """Import the candidate Core surface against the live Platform.
