@@ -529,6 +529,72 @@ def test_worker_spec_must_match_both_configured_model_roles(
     controller.shutdown(now=now + timedelta(seconds=1))
 
 
+def test_activation_denial_never_quarantines_unverified_child_exit(
+    canonical_state_path, tmp_path, monkeypatch,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    staged = []
+    original_stage = controller._stage
+
+    def capture(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        staged.append(candidate)
+        return candidate
+
+    def deny(*args, **kwargs):
+        raise PermissionError("injected admission denial")
+
+    monkeypatch.setattr(controller, "_stage", capture)
+    monkeypatch.setattr(generations, "activate", deny)
+    from sofia.platform.core_worker.process import _CoreWorkerProcess
+    original_terminate = _CoreWorkerProcess.terminate
+
+    def report_uncertain_exit(self, *args, **kwargs):
+        # Kill the test child to avoid leaked CI processes, but emulate a
+        # platform observation that cannot certify exit to the controller.
+        original_terminate(self, *args, **kwargs)
+        return False
+
+    monkeypatch.setattr(
+        _CoreWorkerProcess, "terminate", report_uncertain_exit,
+    )
+    with pytest.raises(CoreWorkerError, match="exit unverified"):
+        controller.start(
+            release_digest=sha256(b"unverified-exit").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now,
+        )
+    assert staged and not staged[0].alive
+    assert generations.state(staged[0].endpoint) is GenerationState.STAGED
+    assert controller.pid is None
+
+
+def test_activation_denial_quarantines_after_verified_child_exit(
+    canonical_state_path, tmp_path, monkeypatch,
+):
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    staged = []
+    original_stage = controller._stage
+
+    def capture(*args, **kwargs):
+        candidate = original_stage(*args, **kwargs)
+        staged.append(candidate)
+        return candidate
+
+    def deny(*args, **kwargs):
+        raise PermissionError("injected admission denial")
+
+    monkeypatch.setattr(controller, "_stage", capture)
+    monkeypatch.setattr(generations, "activate", deny)
+    with pytest.raises(PermissionError, match="injected admission denial"):
+        controller.start(
+            release_digest=sha256(b"verified-exit").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"), now=now,
+        )
+    assert staged and not staged[0].alive
+    assert generations.state(staged[0].endpoint) is GenerationState.QUARANTINED
+    assert controller.pid is None
+
+
 def test_real_process_replacement_keeps_platform_and_continuity(canonical_state_path, tmp_path):
     now, generations, controller = build(canonical_state_path, tmp_path)
     platform_pid = os.getpid()
