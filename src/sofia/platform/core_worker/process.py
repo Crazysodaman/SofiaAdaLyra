@@ -557,14 +557,35 @@ class _CoreWorkerProcess:
                 queue.put(exc)
         thread = Thread(target=accept, daemon=True)
         thread.start()
-        context = multiprocessing.get_context("spawn")
-        self._process = context.Process(
-            target=_worker_main,
-            args=(self._address, self._family, authkey, self.endpoint.to_payload(),
-                  self.spec.to_payload(), str(self._lifetime_lock_path)),
-            name=f"sofia-core-{self.endpoint.generation}", daemon=False,
-        )
-        self._process.start()
+        try:
+            context = multiprocessing.get_context("spawn")
+            self._process = context.Process(
+                target=_worker_main,
+                args=(self._address, self._family, authkey, self.endpoint.to_payload(),
+                      self.spec.to_payload(), str(self._lifetime_lock_path)),
+                name=f"sofia-core-{self.endpoint.generation}", daemon=False,
+            )
+            self._process.start()
+        except BaseException:
+            # A failed spawn must not strand its authenticated listener or
+            # local socket. On Windows a Process can fail before pid exists;
+            # calling join() on an unstarted child raises AssertionError.
+            child = self._process
+            if child is not None and child.pid is not None:
+                if not self.terminate(force=True):
+                    raise CoreWorkerError(
+                        "Core worker spawn outcome is uncertain; manual review required"
+                    )
+            else:
+                self._process = None
+                if self._listener is not None:
+                    self._listener.close()
+                    self._listener = None
+                if self._family == "AF_UNIX" and (
+                    self._socket_path.exists() or self._socket_path.is_symlink()
+                ):
+                    self._socket_path.unlink()
+            raise
         deadline = time.monotonic() + self.startup_timeout
         while queue.empty() and self._process.is_alive():
             remaining = deadline - time.monotonic()

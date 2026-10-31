@@ -114,6 +114,51 @@ class _PlatformPidProvider(LLMProvider):
         return CognitiveResponse(f"provider-pid:{os.getpid()}")
 
 
+def test_failed_core_spawn_closes_authenticated_listener_and_quarantines(
+    canonical_state_path, tmp_path, monkeypatch,
+):
+    """Unstarted OS children must not leave sockets or false active generations."""
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    staged = []
+    original_stage = controller._stage
+
+    def capture(*args, **kwargs):
+        worker = original_stage(*args, **kwargs)
+        staged.append(worker)
+        return worker
+
+    class UnstartedChild:
+        pid = None
+
+        def start(self):
+            raise OSError("injected spawn failure")
+
+    class FailingSpawnContext:
+        def Process(self, **kwargs):
+            return UnstartedChild()
+
+    monkeypatch.setattr(controller, "_stage", capture)
+    monkeypatch.setattr(
+        "sofia.platform.core_worker.process.multiprocessing.get_context",
+        lambda name: FailingSpawnContext(),
+    )
+    with pytest.raises(OSError, match="injected spawn failure"):
+        controller.start(
+            release_digest=sha256(b"unstarted-child").hexdigest(),
+            spec=CoreEngineProcessSpec("rule"),
+            now=now,
+        )
+    assert len(staged) == 1
+    worker = staged[0]
+    assert worker._process is None
+    assert worker._listener is None
+    if worker._family == "AF_UNIX":
+        assert not worker._socket_path.exists()
+    assert generations.state(worker.endpoint) is GenerationState.QUARANTINED
+    assert generations.active_for_core_identity("core:sofia") is None
+    assert controller.pid is None
+
+
 def test_provider_executes_in_platform_not_core_process(
     canonical_state_path, tmp_path,
 ):
