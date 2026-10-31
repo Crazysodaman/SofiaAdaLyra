@@ -538,8 +538,27 @@ class EvidenceGraph:
             and atom.trust >= need.minimum_trust
         )
         if current:
+            # A fact may have multiple historical samples inside its freshness
+            # window. Only the newest observed instant can describe its
+            # current value. Disagreeing observations at that SAME instant
+            # cannot be resolved by insertion order, trust tie-breaks, or an
+            # LLM choosing the most convenient answer.
+            newest = max(atom.observed_at for atom in current)
+            latest = tuple(atom for atom in current if atom.observed_at == newest)
+            values = {
+                json.dumps(
+                    json.loads(atom.value_json),
+                    sort_keys=True, separators=(",", ":"), allow_nan=False,
+                )
+                for atom in latest
+            }
+            if len(values) > 1:
+                return EvidenceResolution(
+                    need, AcquisitionState.CONTRADICTED,
+                    reason="conflicting co-temporal current evidence",
+                )
             return EvidenceResolution(
-                need, AcquisitionState.CURRENT, current, "exact current evidence"
+                need, AcquisitionState.CURRENT, latest, "latest exact current evidence"
             )
         if AcquisitionState.CONTRADICTED in states:
             state = AcquisitionState.CONTRADICTED
