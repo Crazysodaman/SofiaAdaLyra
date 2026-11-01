@@ -226,6 +226,30 @@ def test_production_multi_question_combines_environment_and_avatar_evidence(tmp_
         app.shutdown()
 
 
+def test_run2_owner_natural_utterances_reach_authoritative_production_resolvers(tmp_path):
+    """Replay the actual user phrases through application turn coordination."""
+    app = SofiaApplication(_configuration(tmp_path))
+    app.start()
+    try:
+        clock = app.conversation.respond("what time and date is it rn")
+        assert "current date and time" in clock.content
+        assert "I think" not in clock.content
+
+        outfit = app.conversation.respond("So what is your outfit rn?")
+        assert "I'm in my " in outfit.content
+        assert "outfit" in outfit.content
+        assert "floral" not in outfit.content.casefold()
+
+        observed = app.conversation.respond(
+            "tell me anything you see observe i mean"
+        )
+        assert "From my runtime clock" in observed.content
+        assert "no verified visual/room observation" in observed.content
+        assert "airflow" in observed.content
+    finally:
+        app.shutdown()
+
+
 def test_reviewed_memory_absence_is_v2_unknown_not_model_invention(tmp_path):
     app = SofiaApplication(_configuration(tmp_path))
     app.start()
