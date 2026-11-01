@@ -395,9 +395,11 @@ def test_goals_safe_reconciles_real_mtls_host_observation_after_lost_response(tm
         assert production.run_due(now=now)==1
         dispatch_id,capability=production.unresolved_dispatches(goal.id)[0]
         assert capability=="remote.container.summary"
+        verification_now=datetime.now(timezone.utc)
         outcome=service.observe_goal_dispatch(
-            dispatch_id,principal=principal,now=now+timedelta(seconds=2),
+            dispatch_id,principal=principal,now=verification_now,
         )
+        approval_now=datetime.now(timezone.utc)
         approval=ExecutionApproval(
             approval_id="approval:mtls-closed-loop",
             capability="goals.dispatch.reconcile",
@@ -407,14 +409,14 @@ def test_goals_safe_reconciles_real_mtls_host_observation_after_lost_response(tm
                     goal=goal,dispatch_id=dispatch_id,capability=capability,
                     evidence=outcome,
                 ),
-            ),approved_by="Sparks",approved_at=now+timedelta(seconds=3),
-            expires_at=now+timedelta(minutes=5),
+            ),approved_by="Sparks",approved_at=approval_now,
+            expires_at=approval_now+timedelta(minutes=5),
         )
         record_verified_owner_approval(safe,approval)
         assert production.reconcile_dispatch(
             goal_id=goal.id,dispatch_id=dispatch_id,principal=principal,
             evidence_ref=outcome.evidence_ref,approval_id=approval.approval_id,
-            now=now+timedelta(seconds=4),
+            now=datetime.now(timezone.utc),
         )=="effect_verified"
         assert production.reconciliations(goal.id)==(
             (dispatch_id,"effect_verified",outcome.evidence_ref),
