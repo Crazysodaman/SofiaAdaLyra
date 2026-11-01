@@ -248,6 +248,10 @@ class AvatarSelfFactResolver:
         rather than guessed by the model. Future, hypothetical, and opinion
         questions retain normal cognitive handling.
         """
+        # Explicit public-safe self-fact requests must never be answered from
+        # a private (possibly unclothed) presentation projection.
+        if normalized in cls._PUBLIC_PRESENTATION_FORMS:
+            return False
         if normalized in cls._CURRENT_OUTFIT_FORMS:
             return True
         if re.search(
@@ -265,6 +269,15 @@ class AvatarSelfFactResolver:
             return False
         if re.match(r"^(?:why|when|where|how)\b", normalized):
             return False
+        # Conversational "what have you got on today?" is a present
+        # wardrobe self-fact; "what have you got going on today?" is not.
+        if re.fullmatch(
+            r"(?:what(?:'ve| have)? you|what (?:have|do) you|"
+            r"what(?:'s| is) it)\s+(?:got\s+on|wearing)"
+            r"(?:\s+(?:today|now|rn|right now))?",
+            normalized,
+        ):
+            return True
         if re.search(r"\b(?:what|which|describe|tell|show)\b", normalized) is None:
             return False
         if re.search(r"\b(?:you|your|you're)\b", normalized) is None:
