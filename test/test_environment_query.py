@@ -66,6 +66,92 @@ def test_direct_day_query_includes_weekday_and_iso_date():
     assert "America/Chicago" in answer.content
 
 
+@pytest.mark.parametrize("query", (
+    "what time and date is it rn",
+    "what's the date and time right now?",
+    "Can you tell me today's local date and time please?",
+    "Give me the current day and time.",
+))
+def test_natural_combined_clock_queries_use_authoritative_snapshot(query):
+    snapshot = EnvironmentService(config()).snapshot(now=NOW)
+    resolver = EnvironmentQueryResolver()
+
+    assert resolver.might_match(query)
+    result = resolver.resolve(query, snapshot=snapshot)
+    assert result.recognized
+    assert "current date and time" in result.content
+    assert "2026-09-25" in result.content
+    assert "America/Chicago" in result.content
+    assert "September 25" in result.content
+
+
+@pytest.mark.parametrize("query", (
+    "what time and date did your last runtime start",
+    "what time is sunrise",
+    "tell me the time and date format for a log",
+    "change the date and time setting",
+))
+def test_temporal_parser_does_not_reinterpret_unrelated_queries(query):
+    assert not EnvironmentQueryResolver.might_match(query)
+
+
+@pytest.mark.parametrize("query", (
+    "tell me anything you see observe i mean",
+    "What do you actually observe around you right now?",
+    "Can you tell me something you notice?",
+))
+def test_natural_observation_reads_are_grounded_not_model_improvisation(query):
+    resolver = EnvironmentQueryResolver()
+    snapshot = EnvironmentService(config()).snapshot(now=NOW)
+
+    assert resolver.is_general_observation_query(query)
+    assert resolver.might_match(query)
+    answer = resolver.resolve(query, snapshot=snapshot)
+    assert answer.recognized
+    assert "2026-09-25" in answer.content
+    assert "no verified visual/room observation" in answer.content
+    assert "won't invent lighting, noises, airflow" in answer.content
+
+
+@pytest.mark.parametrize("query", (
+    "I see what you mean.",
+    "What can you see on my screen?",
+    "Observe the screenshot I sent.",
+    "Tell me if this image is clear.",
+))
+def test_observation_parser_leaves_other_conversation_and_vision_paths_alone(query):
+    assert not EnvironmentQueryResolver.is_general_observation_query(query)
+
+
+def test_observation_reports_fresh_telemetry_not_stale_or_fabricated_readings():
+    snapshot = EnvironmentService(
+        config(),
+        providers=(Provider(EnvironmentProviderObservation(
+            indoor=IndoorEnvironmentObservation(
+                observed_at=NOW - timedelta(minutes=1),
+                expires_at=NOW + timedelta(minutes=5),
+                source_id="trusted.indoor",
+                temperature_c=21.0,
+            ),
+            weather=WeatherObservation(
+                condition="Cloudy",
+                observed_at=NOW - timedelta(minutes=1),
+                expires_at=NOW + timedelta(minutes=5),
+                source_id="trusted.weather",
+            ),
+        )),),
+    ).snapshot(now=NOW)
+    result = EnvironmentQueryResolver().resolve(
+        "what do you observe right now",
+        snapshot=snapshot,
+    )
+    assert "trusted.indoor" in result.content
+    assert "70 °F" in result.content
+    assert "trusted.weather" in result.content
+    assert "Cloudy" in result.content
+    assert "airflow" in result.content
+
+
 def test_direct_location_distinguishes_configured_from_current():
     snapshot = EnvironmentService(config()).snapshot(now=NOW)
     answer = EnvironmentQueryResolver().resolve(
