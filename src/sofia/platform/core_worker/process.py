@@ -939,9 +939,41 @@ class CoreWorkerController:
             raise TypeError("observe_running must be callable")
         if self._active is not None:
             raise RuntimeError("startup reconciliation requires no local worker")
+        reconciled = 0
+        for endpoint, state in self.generations.unsettled_for_core_identity(
+            self.core_identity_id
+        ):
+            observation = observe_running(endpoint)
+            if observation is None:
+                raise CoreWorkerError(
+                    "prior unsettled Core process outcome is unknown"
+                )
+            if observation is True:
+                raise CoreWorkerError(
+                    "prior unsettled Core process is still running"
+                )
+            if observation is not False:
+                raise TypeError("process observation must be bool or None")
+            if state is GenerationState.STAGED:
+                self.generations.quarantine_staged(
+                    endpoint, lease=self.lease, now=now,
+                    reason="startup verified abandoned staged Core stopped",
+                )
+            elif state is GenerationState.DRAINING:
+                self.generations.fence(
+                    endpoint, lease=self.lease, now=now,
+                    reason="startup verified draining Core stopped",
+                    quarantine=True,
+                )
+            else:
+                raise CoreWorkerError("unsupported unsettled Core generation state")
+            reconciled += 1
         active = self.generations.active_for_core_identity(self.core_identity_id)
         if active is None:
-            return "no_prior_active_generation"
+            return (
+                "unsettled_stopped_generations_quarantined"
+                if reconciled else "no_prior_active_generation"
+            )
         observation = observe_running(active)
         if observation is None:
             raise CoreWorkerError("prior Core process outcome is unknown")
@@ -959,7 +991,10 @@ class CoreWorkerController:
             active, lease=self.lease, now=now,
             reason="startup recovery fenced stopped Core", quarantine=True,
         )
-        return "prior_stopped_generation_quarantined"
+        return (
+            "prior_and_unsettled_stopped_generations_quarantined"
+            if reconciled else "prior_stopped_generation_quarantined"
+        )
 
     def observe_prior_generation(self, endpoint: ComponentEndpoint) -> bool | None:
         """Use process-owned lifetime evidence without trusting a stale PID."""

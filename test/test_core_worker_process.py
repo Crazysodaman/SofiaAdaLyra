@@ -1178,6 +1178,60 @@ def test_missing_lifetime_evidence_blocks_automatic_restart(canonical_state_path
     assert generations.is_active(endpoint)
 
 
+@pytest.mark.parametrize("state", (GenerationState.STAGED, GenerationState.DRAINING))
+def test_startup_reconciliation_quarantines_verified_stopped_replacement(
+    canonical_state_path, tmp_path, state,
+):
+    now, generations, controller = build(
+        canonical_state_path, tmp_path, f"core.unsettled-{state.value}"
+    )
+    endpoint = generations.stage(
+        component_id=controller.component_id, kind=ComponentKind.CORE,
+        release_digest=sha256(state.value.encode()).hexdigest(),
+        platform_instance_id=controller.platform_instance_id,
+        core_identity_id=controller.core_identity_id,
+        lease=controller.lease, now=now, reason="interrupted replacement",
+    )
+    if state is GenerationState.DRAINING:
+        generations.activate(
+            endpoint, lease=controller.lease, now=now,
+            reason="candidate became active before crash",
+        )
+        generations.begin_drain(
+            endpoint, lease=controller.lease, now=now,
+            reason="replacement interrupted during drain",
+        )
+
+    result = controller.reconcile_startup(
+        observe_running=lambda observed: False if observed == endpoint else None,
+        now=now,
+    )
+    assert result == "unsettled_stopped_generations_quarantined"
+    assert generations.state(endpoint) is GenerationState.QUARANTINED
+
+
+@pytest.mark.parametrize("observation", (True, None))
+def test_startup_reconciliation_blocks_unresolved_staged_process(
+    canonical_state_path, tmp_path, observation,
+):
+    now, generations, controller = build(
+        canonical_state_path, tmp_path, "core.unsettled-unknown"
+    )
+    endpoint = generations.stage(
+        component_id=controller.component_id, kind=ComponentKind.CORE,
+        release_digest=sha256(b"unsettled").hexdigest(),
+        platform_instance_id=controller.platform_instance_id,
+        core_identity_id=controller.core_identity_id,
+        lease=controller.lease, now=now, reason="interrupted candidate startup",
+    )
+
+    with pytest.raises(CoreWorkerError, match="unsettled Core process"):
+        controller.reconcile_startup(
+            observe_running=lambda _endpoint: observation, now=now,
+        )
+    assert generations.state(endpoint) is GenerationState.STAGED
+
+
 def test_application_owner_rejects_forged_release_identity_before_spawn(
     canonical_state_path, tmp_path,
 ):

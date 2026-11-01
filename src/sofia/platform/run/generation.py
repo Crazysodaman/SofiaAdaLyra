@@ -267,6 +267,30 @@ class ComponentGenerationStore:
             row["platform_instance_id"], row["core_identity_id"],
         )
 
+    def unsettled_for_core_identity(
+        self, core_identity_id: str,
+    ) -> tuple[tuple[ComponentEndpoint, GenerationState], ...]:
+        """Return replacement generations whose OS outcome needs proof."""
+        if not isinstance(core_identity_id, str) or not core_identity_id.strip():
+            raise ValueError("core_identity_id required")
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                """SELECT component_id,kind,release_digest,generation,
+                platform_instance_id,core_identity_id,state
+                FROM run_component_generation
+                WHERE core_identity_id=? AND state IN ('staged','draining')
+                ORDER BY generation""",
+                (core_identity_id,),
+            ).fetchall()
+        return tuple((
+            ComponentEndpoint(
+                row["component_id"], ComponentKind(row["kind"]),
+                row["release_digest"], int(row["generation"]),
+                row["platform_instance_id"], row["core_identity_id"],
+            ),
+            GenerationState(row["state"]),
+        ) for row in rows)
+
     def active_for_component(
         self, component_id: str,
     ) -> ComponentEndpoint | None:
