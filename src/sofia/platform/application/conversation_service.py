@@ -55,6 +55,7 @@ from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.store import SocialSessionStore
 from sofia.core.rel.store import RelationshipStore
 from sofia.modules.neuro import NeuroRuntime, NeuroStateSnapshot, NeuroWakeMode
+from sofia.platform.config.cognitive_models import CognitiveModelSelection
 from sofia.core.cognition.v2 import (
     CoordinatedTurn,
     ProductionTurnKernel,
@@ -642,6 +643,25 @@ class ConversationService(ConversationMatrixMixin):
             content=answer.content,
             evidence_refs=("deterministic:environment-query",),
         )
+
+    def _grounded_previous_runtime_turn(
+        self, *, message: ConversationMessage,
+    ) -> CognitiveResponse | None:
+        """Answer previous runtime status from the canonical continuity record."""
+        resolver = self._runtime._operational_status_query_resolver
+        if (
+            not resolver.is_previous_runtime_query(message.content)
+            or len(split_multi_question(message.content)) != 1
+        ):
+            return None
+        answer = resolver.resolve(
+            message.content,
+            selection=CognitiveModelSelection.from_configuration(
+                self._runtime.configuration
+            ),
+            continuity=self._runtime.runtime_continuity,
+        )
+        return CognitiveResponse(content=answer.content) if answer.recognized else None
 
     def set_clothing_action_handler(self, handler) -> None:
         """Install the host-owned AVATAR wardrobe state-action boundary."""
@@ -1815,6 +1835,16 @@ class ConversationService(ConversationMatrixMixin):
             )
             self._persist_response(grounded_environment)
             return grounded_environment
+
+        grounded_runtime = self._grounded_previous_runtime_turn(
+            message=user_message,
+        )
+        if grounded_runtime is not None:
+            grounded_runtime = self._matrix_finalize_deterministic_response(
+                grounded_runtime
+            )
+            self._persist_response(grounded_runtime)
+            return grounded_runtime
 
         v2_handler = self._v2_answer_handler
         if v2_handler is not None and self.cognitive_plan is not None:
