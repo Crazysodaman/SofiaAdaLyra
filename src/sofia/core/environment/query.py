@@ -69,6 +69,23 @@ def _combined_current_clock_query(normalized: str) -> bool:
     )
 
 
+def _weather_refresh_read(normalized: str) -> bool:
+    # A new read is permitted, but phrases about changing weather, editing
+    # settings, or debugging a sensor are not rewritten as a forecast query.
+    words = set(re.findall(r"[a-z]+", normalized))
+    return (
+        bool(words & {"weather", "forecast"})
+        and bool(words & {"check", "refresh", "recheck", "retry", "try", "look"})
+        and words <= {
+            "check", "refresh", "recheck", "retry", "try", "look", "up",
+            "weather", "forecast", "again", "now", "today", "please",
+            "can", "could", "would", "you", "me", "for", "the",
+            "so", "hey", "info", "current", "latest", "get", "an",
+            "updated", "update",
+        }
+    )
+
+
 def _general_observation_query(normalized: str) -> bool:
     # "I see what you mean" is ordinary discourse, not a sensor request.
     if re.match(r"^(?:i|we)\s+(?:can\s+)?see\b", normalized):
@@ -188,12 +205,18 @@ class EnvironmentQueryResolver:
         if not isinstance(query, str):
             return False
         normalized = _normalize(query)
-        return normalized in (
+        return cls.is_weather_refresh_query(query) or normalized in (
             forms._WEATHER_FORMS
             | forms._FORECAST_FORMS
             | forms._TOMORROW_WEATHER_FORMS
             | forms._WEEKLY_FORECAST_FORMS
         )
+
+    @classmethod
+    def is_weather_refresh_query(cls, query: str) -> bool:
+        if not isinstance(query, str):
+            return False
+        return _weather_refresh_read(_normalize(query))
 
     @classmethod
     def is_combined_current_clock_query(cls, query: str) -> bool:
@@ -222,7 +245,11 @@ class EnvironmentQueryResolver:
         normalized = _normalize(query)
         if cls.is_user_reported_local_time(query):
             return True
-        if _combined_current_clock_query(normalized) or _general_observation_query(normalized):
+        if (
+            _combined_current_clock_query(normalized)
+            or _general_observation_query(normalized)
+            or _weather_refresh_read(normalized)
+        ):
             return True
         return normalized in (
             forms._TIME_FORMS
@@ -258,6 +285,12 @@ class EnvironmentQueryResolver:
             )
 
         normalized = _normalize(query)
+        if _weather_refresh_read(normalized):
+            normalized = (
+                "what's the forecast"
+                if "forecast" in set(re.findall(r"[a-z]+", normalized))
+                else "what's the weather"
+            )
         if _combined_current_clock_query(normalized):
             local = snapshot.user_local_time or snapshot.host_local_time
             zone = (
