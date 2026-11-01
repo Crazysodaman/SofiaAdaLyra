@@ -80,6 +80,68 @@ def _format_exception_chain(
     return "\nCaused by: ".join(lines)
 
 
+
+def _inference_failure_message(error: BaseException) -> str | None:
+    """Return a safe, actionable Ollama outage message, never model output.
+
+    The Core preserves typed provider failures through exception chaining.
+    Do not expose the provider's raw response, local paths, or prompt content
+    in the desktop dialog. A failed generation must remain a failed turn.
+    """
+    if not isinstance(error, BaseException):
+        raise TypeError("error must be an exception")
+
+    from sofia.core.cognition.provider import LLMProviderError
+
+    causes: list[BaseException] = []
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        causes.append(current)
+        current = current.__cause__ if current.__cause__ is not None else current.__context__
+
+    if not any(isinstance(cause, LLMProviderError) for cause in causes):
+        return None
+
+    details = " ".join(str(cause).casefold() for cause in causes)
+    if "llama-server binary not found" in details:
+        return (
+            "Ollama is reachable, but its model runner is missing. "
+            "Quit Ollama and repair its Windows installation using "
+            "https://ollama.com/download/windows. Keep your downloaded models. "
+            "Then confirm an installed model responds to 'ollama run' before "
+            "retrying this message. Sofía did not generate a reply."
+        )
+    if (
+        any(type(cause).__name__ in {
+            "ConnectError", "ConnectTimeout", "ConnectionError",
+            "NewConnectionError", "NetworkError",
+        } for cause in causes)
+        or any(marker in details for marker in (
+            "connection refused", "all connection attempts failed",
+            "winerror 10061", "failed to establish a new connection",
+        ))
+    ):
+        return (
+            "Sofía cannot reach Ollama. Start or repair the Ollama server, "
+            "check its configured endpoint, and retry this message. "
+            "Sofía did not generate a reply."
+        )
+    if "model" in details and any(marker in details for marker in (
+        "not found", "does not exist", "pull model",
+    )):
+        return (
+            "The configured Ollama model is not installed or available. "
+            "Check 'ollama list' and the selected model in Sofía settings. "
+            "Sofía did not generate a reply."
+        )
+    return (
+        "Ollama could not generate a response. Check the Ollama service "
+        "and its server log, then retry. Sofía did not generate a reply."
+    )
+
+
 def _chamfer_points(
     width: int,
     height: int,
@@ -980,19 +1042,26 @@ class _TkDesktopWorkbench:
             elif kind == "send_error":
                 self._busy = False
                 self._set_enabled(True)
-                self._status.set(
-                    f"Response failed: {type(payload).__name__}"
-                )
-                detail = _format_exception_chain(payload)
-                traceback.print_exception(
-                    type(payload),
-                    payload,
-                    payload.__traceback__,
-                )
-                self._show_error(
-                    "Response failed",
-                    detail,
-                )
+                inference_detail = _inference_failure_message(payload)
+                if inference_detail is not None:
+                    # Expected dependency outages are not Python crashes.
+                    # Leave the unsent composer intact so it can be retried.
+                    self._status.set("Ollama inference unavailable")
+                    self._show_error(
+                        "Ollama inference unavailable",
+                        inference_detail,
+                    )
+                else:
+                    self._status.set(
+                        f"Response failed: {type(payload).__name__}"
+                    )
+                    detail = _format_exception_chain(payload)
+                    traceback.print_exception(
+                        type(payload),
+                        payload,
+                        payload.__traceback__,
+                    )
+                    self._show_error("Response failed", detail)
                 self._input.focus_set()
                 if self._close_requested:
                     self._begin_shutdown()
