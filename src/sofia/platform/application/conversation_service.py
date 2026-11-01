@@ -620,7 +620,8 @@ class ConversationService(ConversationMatrixMixin):
         query = message.content
         combined_clock = resolver.is_combined_current_clock_query(query)
         observation = resolver.is_general_observation_query(query)
-        if not (combined_clock or observation):
+        refresh_weather = resolver.is_weather_refresh_query(query)
+        if not (combined_clock or observation or refresh_weather):
             return None
         if len(split_multi_question(query)) != 1:
             return None
@@ -635,7 +636,9 @@ class ConversationService(ConversationMatrixMixin):
                     "available for that request, so I won't guess."
                 )
             )
-        snapshot = service.snapshot(refresh_providers=observation)
+        snapshot = service.snapshot(
+            refresh_providers=(observation or refresh_weather)
+        )
         answer = resolver.resolve(query, snapshot=snapshot)
         if not answer.recognized:
             return None
