@@ -86,6 +86,23 @@ def grounded_quality_fallback(
             "permission, and I can say yes, no, or change my mind in the moment."
         ))
 
+    if issue == "unnecessarily_adversarial_trust_reply":
+        previous = next(
+            (msg.content for msg in reversed(request.messages[:-1])
+             if msg.role is CognitiveRole.USER),
+            "",
+        )
+        if re.search(r"\b(?:time|date|clock)\b", previous, re.IGNORECASE):
+            return CognitiveResponse(content=(
+                "I take your reported time seriously. I should check the "
+                "actual clock before contradicting it, rather than turning "
+                "your question into a lecture."
+            ))
+        return CognitiveResponse(content=(
+            "I take what you're saying seriously. I can question an external "
+            "fact without accusing you of lying or dismissing your account."
+        ))
+
     if issue == "user_directed_contempt":
         if "TRUSTED OUTFIT CHOICE FOLLOW-UP" in system_context:
             # The outfit was actually described in eligible dialogue, but
@@ -438,6 +455,18 @@ def build_rephrase_request(
             "The user is leaving or saying good night. Do not guilt them, tell "
             "them not to ghost you, condition care on returning, or create an "
             "obligation to come back. Respond warmly and let the departure stand."
+        )
+    elif issue == "unnecessarily_adversarial_trust_reply":
+        detail = (
+            "The user asked a short trust question in an ongoing conversation. "
+            "Use the immediately preceding eligible exchange to understand the "
+            "specific claim instead of debating the abstract meaning of belief. "
+            "Respond directly, naturally, and briefly. Do not accuse them of "
+            "dishonesty, call their question dangerous, or imply they must supply "
+            "evidence for every personal report. A user-reported clock value is "
+            "not independently verified, but should be taken seriously; consult "
+            "trusted clock evidence when available rather than inventing a time. "
+            "Keep reasoned skepticism and independence without a lecture."
         )
     elif issue == "user_directed_contempt":
         detail = (
