@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.platform.operational.model import ContinuityEvidenceStatus, RuntimeContinuity
+from sofia.platform.operational.model import ContinuityEvidenceStatus, OperationalState, RuntimeContinuity
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.operational.status_queries import OperationalStatusQueryResolver
@@ -149,3 +149,82 @@ def test_missing_previous_runtime_is_unknown_not_claimed_never_existed():
 ))
 def test_runtime_history_semantics_do_not_take_unsafe_or_incomplete_actions(query):
     assert not OperationalStatusQueryResolver.is_previous_runtime_query(query)
+
+
+def _current_operational_state():
+    return OperationalState(
+        runtime_id=uuid4(),
+        started_at=datetime(2026, 11, 1, 15, 20, tzinfo=timezone.utc),
+        lifecycle_state="ready",
+        application_name="Sofía",
+        application_version="1.0",
+        provider="ollama",
+        model="qwen3.5:9b",
+    )
+
+
+@pytest.mark.parametrize("query", (
+    "current runtime",
+    "current runtime?",
+    "YOUR process ID",
+    "your process ID",
+    "what is your PID?",
+    "Wrong answer I am looking for the current runtime start time/date along with process ID",
+))
+def test_current_runtime_intent_uses_real_host_pid_and_runtime_timestamp(query):
+    state = _current_operational_state()
+    resolver = OperationalStatusQueryResolver()
+    assert resolver.is_current_runtime_query(query)
+    answer = resolver.resolve(
+        query, selection=SELECTION, current_runtime=state, process_id=9876,
+    )
+    assert answer.recognized
+    assert state.started_at.isoformat() in answer.content
+    assert str(state.runtime_id) in answer.content
+    assert "PID 9876" in answer.content
+    assert "not a remote Core worker PID" in answer.content
+    assert "not by itself establish the operating system process creation time" in answer.content
+    assert "no malware" not in answer.content.casefold()
+
+
+def test_mixed_current_and_previous_runtime_reports_both_without_guessing():
+    state = _current_operational_state()
+    prior = state.started_at - timedelta(hours=1)
+    continuity = RuntimeContinuity(
+        evidence_status=ContinuityEvidenceStatus.OBSERVED,
+        current_runtime_id=state.runtime_id,
+        current_started_at=state.started_at,
+        previous_runtime_id=uuid4(),
+        previous_started_at=prior,
+        previous_stopped_at=prior + timedelta(minutes=20),
+        previous_lifecycle_state="stopped",
+    )
+    answer = OperationalStatusQueryResolver().resolve(
+        "Current runtime? last runtime?",
+        selection=SELECTION, current_runtime=state,
+        continuity=continuity, process_id=1234,
+    )
+    assert answer.recognized
+    assert "PID 1234" in answer.content
+    assert prior.isoformat() in answer.content
+    assert state.started_at.isoformat() in answer.content
+
+
+def test_current_runtime_without_authoritative_state_cannot_invent_pid():
+    answer = OperationalStatusQueryResolver().resolve(
+        "current runtime", selection=SELECTION,
+    )
+    assert answer.recognized
+    assert "don't have a verified current Core runtime state" in answer.content
+    assert "PID" not in answer.content
+
+
+@pytest.mark.parametrize("query", (
+    "Restart your process",
+    "Kill your PID",
+    "What does process ID mean in Windows?",
+    "Check the running process list for malware",
+    "How do I set the current runtime configuration?",
+))
+def test_runtime_pid_router_does_not_intercept_mutations_or_unrelated_tasks(query):
+    assert not OperationalStatusQueryResolver.is_current_runtime_query(query)
