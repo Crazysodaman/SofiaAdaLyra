@@ -4,6 +4,7 @@ from hashlib import sha256
 from pathlib import Path
 import json
 import logging
+import os
 import re
 import sqlite3
 from threading import RLock
@@ -642,22 +643,32 @@ class ConversationService(ConversationMatrixMixin):
             evidence_refs=("deterministic:environment-query",),
         )
 
-    def _grounded_previous_runtime_turn(
+    def _grounded_runtime_status_turn(
         self, *, message: ConversationMessage,
     ) -> CognitiveResponse | None:
-        """Answer previous runtime status from the canonical continuity record."""
+        """Answer current/previous runtime and local PID from trusted state.
+
+        A local OS PID is not evidence for any remotely hosted Core process.
+        Never infer process creation time from the Core runtime started_at.
+        """
         resolver = self._runtime._operational_status_query_resolver
         if (
-            not resolver.is_previous_runtime_query(message.content)
+            not (
+                resolver.is_previous_runtime_query(message.content)
+                or resolver.is_current_runtime_query(message.content)
+            )
             or len(split_multi_question(message.content)) != 1
         ):
             return None
+        state = self._runtime.operational_state
         answer = resolver.resolve(
             message.content,
             selection=CognitiveModelSelection.from_configuration(
                 self._runtime.configuration
             ),
             continuity=self._runtime.runtime_continuity,
+            current_runtime=state,
+            process_id=os.getpid() if state is not None else None,
         )
         return CognitiveResponse(content=answer.content) if answer.recognized else None
 
@@ -1834,7 +1845,7 @@ class ConversationService(ConversationMatrixMixin):
             self._persist_response(grounded_environment)
             return grounded_environment
 
-        grounded_runtime = self._grounded_previous_runtime_turn(
+        grounded_runtime = self._grounded_runtime_status_turn(
             message=user_message,
         )
         if grounded_runtime is not None:
