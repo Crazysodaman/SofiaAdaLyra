@@ -51,6 +51,45 @@ def test_remaining_domains_are_planned_by_v2(content, domain, intent):
     assert plan.intent == intent
 
 
+@pytest.mark.parametrize("query", (
+    "tell me anything you see observe i mean",
+    "What do you actually observe around you?",
+    "Can you tell me something you notice?",
+))
+def test_matrix_v2_routes_general_observation_queries_to_grounded_environment(query):
+    plan = MatrixV2Planner().plan(
+        _turn(query),
+        ConversationFocus("session:domain", "private:sparks", 1),
+    )
+    assert plan.intent == "environment_query"
+    assert "environment" in plan.domains
+    assert any(need.predicate == "environment.current" for need in plan.evidence_needs)
+    assert plan.action_requires_authority is False
+
+
+def test_matrix_v2_does_not_turn_casual_i_see_into_a_sensor_request():
+    plan = MatrixV2Planner().plan(
+        _turn("I see what you mean"),
+        ConversationFocus("session:domain", "private:sparks", 1),
+    )
+    assert "environment" not in plan.domains
+
+
+@pytest.mark.parametrize(("query", "expected_domain"), (
+    ("what time and date is it rn", "environment"),
+    ("So what is your outfit rn?", "avatar"),
+    ("What do you actually observe?", "environment"),
+))
+def test_run2_natural_questions_have_the_expected_cognitive_domain(
+    query, expected_domain,
+):
+    plan = MatrixV2Planner().plan(
+        _turn(query),
+        ConversationFocus("session:domain", "private:sparks", 1),
+    )
+    assert expected_domain in plan.domains
+
+
 def _modulation() -> ExpressionModulation:
     return ExpressionModulation(
         banter_intensity=0.5,
