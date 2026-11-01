@@ -279,6 +279,11 @@ def test_run2_current_runtime_and_pid_are_grounded_in_process_and_core_state(tmp
             assert f"PID {os.getpid()}" in answer.content, (query, answer)
             assert "no malware" not in answer.content.casefold(), (query, answer)
 
+        why = app.conversation.respond("why")
+        assert "Core lifecycle" in why.content
+        assert "local PID" in why.content
+        assert "metaphysics" not in why.content
+
         both = app.conversation.respond("Current runtime? last runtime?")
         assert current.started_at.isoformat() in both.content
         assert f"PID {os.getpid()}" in both.content
