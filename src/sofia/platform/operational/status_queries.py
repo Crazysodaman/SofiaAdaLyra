@@ -133,10 +133,20 @@ def _current_runtime_answer(
 def _is_previous_runtime_read(query: str) -> bool:
     normalized = _normalize(query)
     words = set(re.findall(r"[a-z]+", normalized))
+    compact_runtime_history = re.fullmatch(
+        r"(?:(?:current|this)\s+runtime\s*\?\s*)?"
+        r"(?:last|previous|prior)\s+(?:runtime|session)\s*\??",
+        normalized,
+    ) is not None
     return (
-        (_PREVIOUS_RUNTIME_QUESTION.search(normalized) is not None
-         and bool(words & {"what", "when", "tell", "show", "how"})
-         or _RUNTIME_HISTORY_FOLLOWUP.search(normalized) is not None)
+        (
+            (
+                _PREVIOUS_RUNTIME_QUESTION.search(normalized) is not None
+                and bool(words & {"what", "when", "tell", "show", "how"})
+            )
+            or compact_runtime_history
+            or _RUNTIME_HISTORY_FOLLOWUP.search(normalized) is not None
+        )
         and _RUNTIME_MUTATION.match(normalized) is None
         and _RUNTIME_UNRELATED.search(normalized) is None
     )
