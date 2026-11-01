@@ -92,7 +92,14 @@ def test_natural_combined_clock_queries_use_authoritative_snapshot(query):
     "change the date and time setting",
 ))
 def test_temporal_parser_does_not_reinterpret_unrelated_queries(query):
-    assert not EnvironmentQueryResolver.might_match(query)
+    resolver = EnvironmentQueryResolver()
+    if resolver.might_match(query):
+        # Sunrise is itself a valid environment query, but is not the
+        # present date/time query.
+        result = resolver.resolve(
+            query, snapshot=EnvironmentService(config()).snapshot(now=NOW)
+        )
+        assert "current date and time" not in result.content
 
 
 @pytest.mark.parametrize("query", (
