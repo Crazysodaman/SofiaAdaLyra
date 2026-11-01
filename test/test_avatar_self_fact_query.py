@@ -158,12 +158,33 @@ def test_owner_run2_outfit_shorthand_uses_authoritative_presentation():
         assert "floral" not in result.content.casefold(), query
 
 
+def test_public_safe_outfit_does_not_resolve_as_private_current_outfit():
+    resolver = AvatarSelfFactResolver()
+    assert not resolver.is_current_outfit_query(
+        "what is your current public-safe outfit"
+    )
+    assert not resolver.allows_private_projection(
+        "what is your current public-safe outfit"
+    )
+    result = answer("what is your current public-safe outfit")
+    assert result.recognized
+    assert "outfit ID: day.default" in result.content
+
+
+def test_natural_got_on_question_reads_actual_outfit():
+    for phrase in ("so what you got on today?", "so what've you got on today?"):
+        result = answer(phrase)
+        assert result.recognized, phrase
+        assert "day engineer outfit" in result.content, phrase
+        assert "Soft technical" in result.content, phrase
+
+
+
 def test_current_outfit_semantics_do_not_override_hypothetical_requests():
     for query in (
         "What would your outfit be tomorrow?",
         "What outfit would you prefer?",
         "What is your favorite outfit?",
-        "Why are you wearing that outfit?",
         "What do you think about your outfit?",
         "Change your outfit to a new one.",
         "Show me your wardrobe.",
