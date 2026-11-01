@@ -1,6 +1,7 @@
 """Batch 11 production domain and personality-after-truth contracts."""
 from datetime import datetime, timezone
 from pathlib import Path
+import os
 
 import pytest
 
@@ -255,6 +256,56 @@ def test_run2_owner_natural_utterances_reach_authoritative_production_resolvers(
         retry = app.conversation.respond("Check weather again")
         assert "weather" in retry.content.casefold()
         assert "influence my delivery" not in retry.content.casefold()
+    finally:
+        app.shutdown()
+
+
+def test_run2_current_runtime_and_pid_are_grounded_in_process_and_core_state(tmp_path):
+    app = SofiaApplication(_configuration(tmp_path))
+    app.start()
+    try:
+        current = app.runtime.operational_state
+        assert current is not None
+
+        for query in (
+            "current runtime",
+            "YOUR process ID",
+            "Wrong answer I am looking for the current runtime start time/date along with process ID",
+        ):
+            answer = app.conversation.respond(query)
+            assert current.started_at.isoformat() in answer.content, (query, answer)
+            assert str(current.runtime_id) in answer.content, (query, answer)
+            assert f"PID {os.getpid()}" in answer.content, (query, answer)
+            assert "no malware" not in answer.content.casefold(), (query, answer)
+
+        both = app.conversation.respond("Current runtime? last runtime?")
+        assert current.started_at.isoformat() in both.content
+        assert f"PID {os.getpid()}" in both.content
+        assert "previous" in both.content.casefold()
+
+        prior = app.conversation.respond("when were you running before?")
+        assert "previous runtime" in prior.content.casefold()
+        assert "always here" not in prior.content.casefold()
+    finally:
+        app.shutdown()
+
+
+def test_run2_followup_outfit_paraphrases_preserve_canonical_evidence(tmp_path):
+    app = SofiaApplication(_configuration(tmp_path))
+    app.start()
+    try:
+        for query in ("so what you got on today?", "so what've you got on today?"):
+            answer = app.conversation.respond(query)
+            assert "outfit" in answer.content.casefold(), (query, answer)
+            assert "floral" not in answer.content.casefold(), (query, answer)
+            assert any(ref.startswith("evidence:") for ref in answer.evidence_refs), (
+                query, answer,
+            )
+
+        answer = app.conversation.respond("What time is it and the day")
+        assert "2025" not in answer.content
+        assert "September" not in answer.content
+        assert "2026" in answer.content
     finally:
         app.shutdown()
 
