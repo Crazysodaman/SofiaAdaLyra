@@ -891,14 +891,6 @@ def response_quality_issue(
     ):
         return "unsupported_shared_history"
     if (
-        _UNVERIFIED_OFFLINE_PRESENCE.search(content) is not None
-        and not any(marker in system_context for marker in (
-            "TRUSTED OFFLINE ACTIVITY EVIDENCE",
-            "TRUSTED REFLECTION EXECUTION RECEIPT",
-        ))
-    ):
-        return "unverified_offline_presence_claim"
-    if (
         _CORRECTION_QUESTION.search(user) is not None
         and _UNGROUNDED_BLAME.search(content) is not None
         and not host_tool_result_present
@@ -982,6 +974,17 @@ def response_quality_issue(
             return "ungrounded_waiting_claim"
         if _ROLE_REVERSED_REUNION.search(content) and not grounded_missing:
             return "role_reversed_reunion"
+
+    # Preserve the existing, more specific reunion-quality decisions.
+    # Generic offline-presence screening is only a fallback for other contexts.
+    if (
+        _UNVERIFIED_OFFLINE_PRESENCE.search(content) is not None
+        and not any(marker in system_context for marker in (
+            "TRUSTED OFFLINE ACTIVITY EVIDENCE",
+            "TRUSTED REFLECTION EXECUTION RECEIPT",
+        ))
+    ):
+        return "unverified_offline_presence_claim"
 
     interaction_grounded = any(marker in system_context for marker in (
         "TRUSTED INTERACTION INTERPRETATION",
