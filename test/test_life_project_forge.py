@@ -2814,8 +2814,21 @@ def test_unknown_original_objective_pauses_project_without_revisions(tmp_path):
         assert initial["scheduled"] == 1
         job = wait_for_job(life, life.store.jobs(project.project_id)[0])
         assert job.status is WorkStatus.COMPLETED
+        # The executor records the linked artifact and operation receipt
+        # before publishing COMPLETED. On a loaded Windows runner that real
+        # receipt can be later than this test's synthetic +4s clock. Settle
+        # only after the canonical proof is observable; never backdate the
+        # verifier or treat COMPLETED alone as proof.
+        receipt = life.evidence_index.lookup(str(job.result["evidence_ref"]))
+        assert receipt is not None
+        assert receipt.successful is True
+        assert receipt.action_id == job.job_id
+        settled_at = max(
+            now + timedelta(seconds=4),
+            receipt.observed_at + timedelta(microseconds=1),
+        )
         settled = life.tick(
-            now=now + timedelta(seconds=4),
+            now=settled_at,
             generate=authored_foxfire_text,
         )
         assert settled["follow_through"] == "needs_independent_objective_review"
@@ -2835,7 +2848,7 @@ def test_unknown_original_objective_pauses_project_without_revisions(tmp_path):
             for item in life.pending_work_review()
         )
         later = life.tick(
-            now=now + timedelta(seconds=5),
+            now=settled_at + timedelta(seconds=1),
             generate=authored_foxfire_text,
         )
         assert later["scheduled"] == 0
