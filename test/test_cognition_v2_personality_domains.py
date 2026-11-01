@@ -20,6 +20,7 @@ from sofia.core.cognition.v2 import (
 from sofia.platform.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.core.personality.modulation import ExpressionModulation
+from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -309,6 +310,23 @@ def test_run2_followup_outfit_paraphrases_preserve_canonical_evidence(tmp_path):
         local_date = (observed.user_local_time or observed.host_local_time).date()
         assert "current date and time" in answer.content
         assert local_date.isoformat() in answer.content
+    finally:
+        app.shutdown()
+
+
+def test_runtime_pid_not_exposed_to_other_authenticated_principals(tmp_path):
+    app = SofiaApplication(_configuration(tmp_path))
+    app.start()
+    try:
+        unrelated = PrincipalContext(
+            "person:other", "private:other", AudienceKind.PRIVATE,
+        )
+        result = app.conversation.respond(
+            "YOUR process ID", principal=unrelated,
+        )
+        assert "This Sofía runtime started at" in result.content
+        assert "PID " not in result.content
+        assert "no verified local process PID" in result.content
     finally:
         app.shutdown()
 
