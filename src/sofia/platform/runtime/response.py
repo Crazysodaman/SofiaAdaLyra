@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from dataclasses import replace
 import json
+import os
 from sofia.core.cognition.context import CognitiveContext
 from sofia.core.cognition.matrix import ContextPlan, MatrixDomain, PrivacyProjectionPlan
 from sofia.core.cognition.matrix.multi_question import split_multi_question
@@ -200,6 +201,10 @@ def respond_with_runtime_context(
             capability_names=runtime._capability_system.capability_names(),
             authority=runtime.current_authority(),
             continuity=runtime.runtime_continuity,
+            current_runtime=runtime.operational_state,
+            process_id=(
+                os.getpid() if runtime.operational_state is not None else None
+            ),
         )
         if status_answer.recognized:
             return CognitiveResponse(content=status_answer.content)
