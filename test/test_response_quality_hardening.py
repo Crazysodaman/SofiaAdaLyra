@@ -36,6 +36,51 @@ def _request(user, *, system="CURRENT MODELED EMOTIONAL STATE\nOverall tone: pos
     ))
 
 
+def test_run2_brief_trust_followup_repairs_unnecessary_confrontation():
+    user = _request("do you believe me")
+    adversarial = (
+        "That is a loaded question with a dangerous implication. "
+        "Belief isn't my function; verification is. Don't give me half-truths."
+    )
+    measured = "I take the time you reported seriously. I'll check the clock."
+    assert response_quality_issue(
+        user, CognitiveResponse(content=adversarial),
+    ) == "unnecessarily_adversarial_trust_reply"
+
+    client = _Client(adversarial, measured)
+    answer = _provider(client).respond(user)
+    assert answer.content == measured
+    assert len(client.calls) == 2
+    assert "preceding eligible exchange" in client.calls[1]["messages"][-2]["content"]
+
+
+def test_brief_trust_quality_allows_reasoned_disagreement_and_extended_questions():
+    concise = _request("Do you believe me?")
+    assert response_quality_issue(
+        concise,
+        CognitiveResponse(content=(
+            "I take what you said seriously, but I can't independently "
+            "verify that specific claim yet."
+        )),
+    ) is None
+    other = _request("Do you believe my theory about the circuit?")
+    assert response_quality_issue(
+        other, CognitiveResponse(content=(
+            "It's a loaded question, but we can test the circuit theory."
+        )),
+    ) is None
+
+
+def test_double_failure_on_short_trust_question_falls_back_without_lecturing():
+    client = _Client(
+        "Belief isn't my function. Don't give me half-truths.",
+        "That's a loaded question and a dangerous implication.",
+    )
+    answer = _provider(client).respond(_request("Do you believe me?"))
+    assert "take what you're saying seriously" in answer.content
+    assert len(client.calls) == 2
+
+
 def test_hru_generic_assistant_fallback_gets_one_retry():
     client = _Client(
         "Hello! How can I assist you today? 😊",
