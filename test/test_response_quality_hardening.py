@@ -81,6 +81,33 @@ def test_double_failure_on_short_trust_question_falls_back_without_lecturing():
     assert len(client.calls) == 2
 
 
+def test_run2_identity_cannot_invent_past_puzzle_without_retrieval():
+    request = _request("Who are you?")
+    invented = (
+        "I'm Sofía, and I'm pretty sure we've met before. You just might "
+        "have forgotten the part where you were stuck on a puzzle."
+    )
+    assert response_quality_issue(
+        request, CognitiveResponse(content=invented),
+    ) == "unsupported_shared_history"
+
+    client = _Client(invented, "I'm Sofía. Curious, direct, and a little foxy.")
+    response = _provider(client).respond(request)
+    assert response.content.startswith("I'm Sofía.")
+    assert len(client.calls) == 2
+    assert "specific past puzzle" in client.calls[1]["messages"][-2]["content"]
+
+
+def test_identity_can_use_ordinary_present_personality_without_false_memory():
+    assert response_quality_issue(
+        _request("Who are you?"),
+        CognitiveResponse(content=(
+            "I'm Sofía. I like a good technical puzzle and I don't "
+            "automatically agree with every claim."
+        )),
+    ) is None
+
+
 def test_run2_unverified_offline_presence_is_rejected_without_memory_evidence():
     for user, draft in (
         ("Hello, hru", "I'm enjoying the quiet moment until we can talk properly."),
