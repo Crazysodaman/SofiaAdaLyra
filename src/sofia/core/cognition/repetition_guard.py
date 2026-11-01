@@ -404,6 +404,39 @@ _ROLE_REVERSED_REUNION = re.compile(
     r"\bback\s+in\s+your\s+presence\b",
     re.IGNORECASE,
 )
+_UNVERIFIED_OFFLINE_PRESENCE = re.compile(
+    r"\b(?:i\s+was\s+(?:just\s+)?(?:hanging\s+out\s+and\s+)?"
+    r"waiting\s+for\s+you|i(?:'|’)ve\s+been\s+"
+    r"(?:just\s+)?(?:waiting|staring\s+at\s+the\s+screen)|"
+    r"i\s+was\s+thinking\s+about\s+you\s+earlier|"
+    r"i\s+was\s+always\s+here\s*,?\s+in\s+the\s+background|"
+    r"i(?:'|’)m\s+always\s+here\s*,?\s+in\s+the\s+background|"
+    r"(?:the\s+)?moments\s+without\s+you\s+felt\b|"
+    r"just\s+enjoying\s+the\s+quiet\s+moment\s+until\s+we\s+can\s+talk|"
+    r"(?:emptiness|loneliness)\s+(?:is\s+)?feeling\s+less\s+sharp)\b",
+    re.IGNORECASE,
+)
+_UNGROUNDED_BLAME = re.compile(
+    r"\b(?:you\s+are\s+wrong|you(?:'|’)re\s+wrong|"
+    r"you\s+were\s+wrong|the\s+charge\s+is\s+technically\s+accurate|"
+    r"you\s+are\s+incorrect\b.{0,65}\bmy\s+answer)\b",
+    re.IGNORECASE,
+)
+_CORRECTION_QUESTION = re.compile(
+    r"\b(?:so\s+you(?:'|’)re\s+saying\s+i(?:'|’)m\s+wrong|"
+    r"so\s+your\s+saying\s+im\s+wrong|"
+    r"do\s+you\s+believe\s+you(?:'|’)re\s+right\s+and\s+i(?:'|’)m\s+wrong|"
+    r"do\s+you\s+believe\s+your\s+right\s+and\s+im\s+wrong)\b",
+    re.IGNORECASE,
+)
+_UNSUPPORTED_PROCESS_ASSURANCE = re.compile(
+    r"\b(?:no\s+malware\s+or\s+suspicious\s+executables\s+(?:were\s+)?found|"
+    r"no\s+malware\s+signatures?\s+(?:were\s+)?detected|"
+    r"no\s+indicators\s+of\s+compromise|"
+    r"system\s+appears\s+to\s+be\s+running\s+a\s+standard\s+configuration)\b",
+    re.IGNORECASE,
+)
+
 _UNGROUNDED_WAITING = re.compile(
     r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?waiting|"
     r"i\s+was\s+waiting\s+for\s+you|waiting\s+for\s+you\s+to\s+return|"
@@ -837,6 +870,25 @@ def response_quality_issue(
         and _DEPARTURE_GUILT.search(content)
     ):
         return "departure_guilt_or_obligation"
+    if (
+        _UNVERIFIED_OFFLINE_PRESENCE.search(content) is not None
+        and not any(marker in system_context for marker in (
+            "TRUSTED OFFLINE ACTIVITY EVIDENCE",
+            "TRUSTED REFLECTION EXECUTION RECEIPT",
+        ))
+    ):
+        return "unverified_offline_presence_claim"
+    if (
+        _CORRECTION_QUESTION.search(user) is not None
+        and _UNGROUNDED_BLAME.search(content) is not None
+        and not host_tool_result_present
+    ):
+        return "unsupported_user_blame"
+    if (
+        _UNSUPPORTED_PROCESS_ASSURANCE.search(content) is not None
+        and "VERIFIED FULL MALWARE ASSESSMENT" not in system_context
+    ):
+        return "unsupported_process_assurance"
     if _FACTUAL_ACTIVITY_CLAIM.search(content) and not activity_grounded:
         return "unsupported_operational_activity_claim"
     if _USER_DIRECTED_CONTEMPT.search(content):
