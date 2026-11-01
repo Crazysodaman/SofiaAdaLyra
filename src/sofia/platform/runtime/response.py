@@ -203,7 +203,16 @@ def respond_with_runtime_context(
             continuity=runtime.runtime_continuity,
             current_runtime=runtime.operational_state,
             process_id=(
-                os.getpid() if runtime.operational_state is not None else None
+                os.getpid()
+                if runtime.operational_state is not None
+                and (
+                    principal is None
+                    or (
+                        principal.principal_id == SPARKS_PRINCIPAL_ID
+                        and principal.audience_kind.value == "private"
+                    )
+                )
+                else None
             ),
         )
         if status_answer.recognized:
