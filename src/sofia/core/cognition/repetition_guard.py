@@ -31,6 +31,20 @@ _STANDALONE_SOCIAL_CHECKIN = re.compile(
     r"^\s*(?:hru|how\s+(?:are|r)\s+(?:you|u)|how(?:'|’)re\s+you)\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
+_BRIEF_TRUST_USER = re.compile(
+    r"^\s*(?:so\s+)?(?:do\s+you\s+believe\s+me|"
+    r"you\s+believe\s+me|can\s+you\s+believe\s+me|"
+    r"do\s+you\s+trust\s+what\s+i\s+(?:just\s+)?said)\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
+_ADVERSARIAL_TRUST_REPLY = re.compile(
+    r"\b(?:loaded\s+question|dangerous\s+implication|"
+    r"belief\s+isn(?:'|’)t\s+my\s+function|blind\s+faith|"
+    r"don(?:'|’)t\s+give\s+me\s+half[- ]truths|"
+    r"let(?:'|’)s\s+unpack\s+it)\b",
+    re.IGNORECASE,
+)
+
 _SHORT_SOCIAL_CUE = re.compile(
     r"^\s*(?:hey|hi|hello|yo)(?:\s+(?:sof[ií]a|nerd))?\s*[?!.]*\s*$|"
     r"^\s*(?:\*?\s*)?(?:waves?|wave)(?:\s+at\s+(?:you|u))?(?:\s*\*?)?\s*[?!.]*\s*$",
@@ -666,6 +680,16 @@ def response_quality_issue(
 
     user = request.messages[-1].content
     content = response.content
+    if (
+        _BRIEF_TRUST_USER.fullmatch(user.strip()) is not None
+        and (
+            _ADVERSARIAL_TRUST_REPLY.search(content) is not None
+            or len(_normalized(content).split()) > 95
+        )
+    ):
+        # Disagreement remains legitimate, but a short contextual trust
+        # question is not grounds for an uninvited adversarial lecture.
+        return "unnecessarily_adversarial_trust_reply"
     if len(_normalized(content)) >= 20 and _INCOMPLETE_TAIL.search(content.strip()):
         return "incomplete_generation"
     concise_turn = (
