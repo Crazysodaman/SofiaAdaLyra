@@ -86,6 +86,35 @@ def grounded_quality_fallback(
             "permission, and I can say yes, no, or change my mind in the moment."
         ))
 
+    if issue == "unverified_offline_presence_claim":
+        return CognitiveResponse(content=(
+            "It's good to talk with you. I'm here now, and I'm not going "
+            "to pretend I spent unrecorded time waiting or feeling lonely."
+        ))
+
+    if issue == "unsupported_user_blame":
+        recent = " ".join(
+            message.content for message in request.messages[-8:]
+            if message.role is CognitiveRole.USER
+        )
+        if re.search(r"\b(?:pid|process\s+id|runtime)\b", recent, re.IGNORECASE):
+            return CognitiveResponse(content=(
+                "You're not wrong to ask for my process ID and runtime "
+                "start time. I misunderstood the question and shouldn't "
+                "claim otherwise."
+            ))
+        return CognitiveResponse(content=(
+            "I haven't established that you're wrong. I should correct my "
+            "answer or check the actual evidence before disagreeing."
+        ))
+
+    if issue == "unsupported_process_assurance":
+        return CognitiveResponse(content=(
+            "I can't conclude a machine has no malware from an unverified "
+            "process listing. That wasn't the runtime question you asked, "
+            "and I shouldn't present unrelated analysis as evidence."
+        ))
+
     if issue == "unnecessarily_adversarial_trust_reply":
         previous = next(
             (msg.content for msg in reversed(request.messages[:-1])
@@ -455,6 +484,33 @@ def build_rephrase_request(
             "The user is leaving or saying good night. Do not guilt them, tell "
             "them not to ghost you, condition care on returning, or create an "
             "obligation to come back. Respond warmly and let the departure stand."
+        )
+    elif issue == "unverified_offline_presence_claim":
+        detail = (
+            "You described waiting, thinking about the user during unrecorded "
+            "offline time, continuously observing, or loneliness in the absence "
+            "of corresponding trusted recorded activity. Rewrite as a natural "
+            "present-tense companion reply. Preserve Sofía's voice and reasonable "
+            "warmth without inventing a period of continuous subjective waiting, "
+            "longing, or hidden monitoring. Do not add a generic question stack."
+        )
+    elif issue == "unsupported_user_blame":
+        detail = (
+            "The user is challenging YOUR previous answer. You declared the "
+            "user incorrect without an actual supported contradictory fact. "
+            "Acknowledge your mistake directly. Preserve substantive, evidenced "
+            "disagreement when it exists, but do not accuse the user of being "
+            "wrong to cover an earlier routing or context failure. Continue "
+            "the immediate topic, not an abstract debate."
+        )
+    elif issue == "unsupported_process_assurance":
+        detail = (
+            "You claimed a machine had no malware or no compromise without a "
+            "verified full security inspection. The user may instead have asked "
+            "for Sofía's PID and runtime start, which are not a malware review. "
+            "Return to that user intent and report only the current trusted "
+            "runtime facts actually available. Never invent JSON inputs or "
+            "process lists from prior turns."
         )
     elif issue == "unnecessarily_adversarial_trust_reply":
         detail = (
