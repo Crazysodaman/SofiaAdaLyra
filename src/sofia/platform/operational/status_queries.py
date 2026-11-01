@@ -10,7 +10,7 @@ import re
 
 from sofia.platform.authority.model import Authority
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
-from sofia.platform.operational.model import RuntimeContinuity
+from sofia.platform.operational.model import OperationalState, RuntimeContinuity
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,17 +63,81 @@ _PREVIOUS_RUNTIME_QUESTION = re.compile(
 )
 
 
+# These are strictly read-only self-state requests. "PID" means the OS
+# process executing the local conversation, not an invented remote worker.
+_CURRENT_RUNTIME_READ = re.compile(
+    r"\b(?:current|this|active|running|present)\s+(?:sofia\s+)?runtime\b"
+    r"|\b(?:runtime|process)\s+(?:start(?:ed)?\s+)?(?:time|date|pid|id)\b"
+    r"|\b(?:your|sofia(?:'s)?)\s+(?:own\s+)?(?:process\s+id|pid)\b"
+    r"|\bprocess\s+id\b"
+    r"|\b(?:when\s+(?:did|was)\s+you\s+(?:start|started|run))\b",
+    re.IGNORECASE,
+)
+_RUNTIME_HISTORY_FOLLOWUP = re.compile(
+    r"\bwhen\s+(?:were|did)\s+you\s+(?:running|run)\s+before\b"
+    r"|\bwhen\s+did\s+you\s+last\s+(?:run|start)\b",
+    re.IGNORECASE,
+)
+_RUNTIME_MUTATION = re.compile(
+    r"^\s*(?:please\s+)?(?:start|stop|restart|kill|terminate|"
+    r"change|remove|delete|shutdown)\b",
+    re.IGNORECASE,
+)
+_RUNTIME_UNRELATED = re.compile(
+    r"\b(?:error|fault|crash|logs?|malware|virus|suspicious|security|"
+    r"all\s+processes|process\s+list|service\s+status)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_current_runtime_read(query: str) -> bool:
+    normalized = _normalize(query)
+    if _RUNTIME_MUTATION.match(normalized) or _RUNTIME_UNRELATED.search(normalized):
+        return False
+    return _CURRENT_RUNTIME_READ.search(normalized) is not None
+
+
+def _current_runtime_answer(
+    state: OperationalState | None, *,
+    process_id: int | None,
+    continuity: RuntimeContinuity | None,
+    include_previous: bool,
+) -> str:
+    if state is None:
+        content = (
+            "I don't have a verified current Core runtime state in this "
+            "conversation. I won't invent its start time."
+        )
+    else:
+        content = (
+            "This Sofía runtime started at "
+            f"{state.started_at.isoformat()} (UTC offset included), "
+            f"runtime ID {state.runtime_id}, "
+            f"lifecycle state {state.lifecycle_state}."
+        )
+    if process_id is not None:
+        content += (
+            f" The local Python process handling this conversation has "
+            f"PID {process_id}. This is a host OS process identifier, not a "
+            "remote Core worker PID; it does not by itself establish the "
+            "operating system process creation time."
+        )
+    elif state is not None:
+        content += " This interface has no verified local process PID."
+    if include_previous:
+        content += " " + _runtime_history_answer(continuity)
+    return content
+
+
 def _is_previous_runtime_read(query: str) -> bool:
     normalized = _normalize(query)
     words = set(re.findall(r"[a-z]+", normalized))
     return (
-        _PREVIOUS_RUNTIME_QUESTION.search(normalized) is not None
-        and bool(words & {"what", "when", "tell", "show", "how"})
-        and not bool(words & {"log", "error", "crash", "reason", "diagnosis"})
-        and re.match(
-            r"^(?:start|stop|restart|delete|change|remove)\b",
-            normalized,
-        ) is None
+        (_PREVIOUS_RUNTIME_QUESTION.search(normalized) is not None
+         and bool(words & {"what", "when", "tell", "show", "how"})
+         or _RUNTIME_HISTORY_FOLLOWUP.search(normalized) is not None)
+        and _RUNTIME_MUTATION.match(normalized) is None
+        and _RUNTIME_UNRELATED.search(normalized) is None
     )
 
 
@@ -106,6 +170,10 @@ def _runtime_history_answer(continuity: RuntimeContinuity | None) -> str:
 
 class OperationalStatusQueryResolver:
     @classmethod
+    def is_current_runtime_query(cls, query: str) -> bool:
+        return isinstance(query, str) and _is_current_runtime_read(query)
+
+    @classmethod
     def is_previous_runtime_query(cls, query: str) -> bool:
         return isinstance(query, str) and _is_previous_runtime_read(query)
 
@@ -117,6 +185,8 @@ class OperationalStatusQueryResolver:
         capability_names: tuple[str, ...] = (),
         authority: Authority | None = None,
         continuity: RuntimeContinuity | None = None,
+        current_runtime: OperationalState | None = None,
+        process_id: int | None = None,
     ) -> OperationalStatusAnswer:
         if not isinstance(query, str):
             raise TypeError("query must be str")
@@ -133,7 +203,21 @@ class OperationalStatusQueryResolver:
             raise TypeError("authority must be Authority or None")
         if continuity is not None and not isinstance(continuity, RuntimeContinuity):
             raise TypeError("continuity must be RuntimeContinuity or None")
-        if self.is_previous_runtime_query(query):
+        if current_runtime is not None and not isinstance(current_runtime, OperationalState):
+            raise TypeError("current_runtime must be OperationalState or None")
+        if process_id is not None and (type(process_id) is not int or process_id <= 0):
+            raise ValueError("process_id must be a positive integer or None")
+        current_query = self.is_current_runtime_query(query)
+        previous_query = self.is_previous_runtime_query(query)
+        if current_query:
+            return OperationalStatusAnswer(
+                True,
+                _current_runtime_answer(
+                    current_runtime, process_id=process_id,
+                    continuity=continuity, include_previous=previous_query,
+                ),
+            )
+        if previous_query:
             return OperationalStatusAnswer(
                 True,
                 _runtime_history_answer(continuity),
