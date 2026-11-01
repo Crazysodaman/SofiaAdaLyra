@@ -100,6 +100,8 @@ def test_dev_self_capability_query_fails_closed_without_registered_dev_tools():
     "what was your last runtime",
     "When was your previous runtime?",
     "Tell me about your last session.",
+    "What time did the last runtime start?",
+    "When did the previous session stop?",
 ))
 def test_prior_runtime_questions_use_actual_canonical_continuity(query):
     now = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
@@ -143,7 +145,7 @@ def test_missing_previous_runtime_is_unknown_not_claimed_never_existed():
 @pytest.mark.parametrize("query", (
     "What was the last runtime error?",
     "Restart the previous runtime.",
-    "What time did the last runtime start?",
+    "Delete the previous runtime history.",
 ))
 def test_runtime_history_semantics_do_not_take_unsafe_or_incomplete_actions(query):
     assert not OperationalStatusQueryResolver.is_previous_runtime_query(query)
