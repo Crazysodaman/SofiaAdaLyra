@@ -5,6 +5,7 @@ from sofia.modules.ui.desktop import (
     _TkDesktopWorkbench,
     _chamfer_points,
     _format_exception_chain,
+    _inference_failure_message,
     main,
     settings_window_command,
 )
@@ -50,6 +51,95 @@ def test_exception_chain_rejects_non_exception():
 
     with pytest.raises(TypeError):
         _format_exception_chain("not an exception")
+
+
+def _ollama_failure(cause: Exception):
+    from sofia.core.cognition.engine import CognitiveEngineError
+    from sofia.core.cognition.provider import LLMProviderError
+
+    provider_error = LLMProviderError("Ollama failed to process the cognitive request.")
+    provider_error.__cause__ = cause
+    cognitive_error = CognitiveEngineError("LLM provider failed to process the cognitive request.")
+    cognitive_error.__cause__ = provider_error
+    return cognitive_error
+
+
+def test_inference_failure_identifies_missing_runner_without_exposing_paths():
+    error = _ollama_failure(
+        RuntimeError("error starting llama-server: llama-server binary not found "
+                     "(checked: C:\\secret\\personal\\runner.exe)")
+    )
+    detail = _inference_failure_message(error)
+
+    assert "model runner is missing" in detail
+    assert "ollama.com/download/windows" in detail
+    assert "C:\\secret" not in detail
+    assert "did not generate a reply" in detail
+
+
+def test_inference_failure_distinguishes_offline_model_missing_and_unknown():
+    offline = _inference_failure_message(
+        _ollama_failure(ConnectionRefusedError("connection refused"))
+    )
+    missing_model = _inference_failure_message(
+        _ollama_failure(RuntimeError("model 'qwen' not found"))
+    )
+    unknown = _inference_failure_message(
+        _ollama_failure(RuntimeError("private provider diagnostic"))
+    )
+
+    assert "cannot reach Ollama" in offline
+    assert "model is not installed" in missing_model
+    assert "could not generate a response" in unknown
+    assert "private provider diagnostic" not in unknown
+
+
+def test_inference_failure_does_not_misclassify_unrelated_errors():
+    assert _inference_failure_message(RuntimeError("llama-server binary not found")) is None
+
+
+def test_desktop_inference_error_is_actionable_without_traceback(monkeypatch):
+    from queue import Queue
+    from types import SimpleNamespace
+
+    events = Queue()
+    events.put((
+        "send_error",
+        _ollama_failure(RuntimeError("llama-server binary not found")),
+    ))
+    statuses = []
+    dialogs = []
+    focus = []
+    enabled = []
+    callbacks = []
+    fake = SimpleNamespace(
+        _events=events,
+        _busy=True,
+        _close_requested=False,
+        _status=SimpleNamespace(set=statuses.append),
+        _set_enabled=enabled.append,
+        _show_error=lambda title, detail: dialogs.append((title, detail)),
+        _input=SimpleNamespace(focus_set=lambda: focus.append(True)),
+        _root=SimpleNamespace(after=lambda ms, callback: callbacks.append((ms, callback))),
+        _poll_events=lambda: None,
+    )
+
+    def fail_if_traceback(*args, **kwargs):
+        raise AssertionError("expected inference outages must not dump a traceback")
+
+    monkeypatch.setattr(
+        "sofia.modules.ui.desktop.traceback.print_exception",
+        fail_if_traceback,
+    )
+    _TkDesktopWorkbench._poll_events(fake)
+
+    assert fake._busy is False
+    assert enabled == [True]
+    assert statuses == ["Ollama inference unavailable"]
+    assert dialogs[0][0] == "Ollama inference unavailable"
+    assert "model runner is missing" in dialogs[0][1]
+    assert focus == [True]
+    assert callbacks == [(80, fake._poll_events)]
 
 
 def test_chamfer_points_use_shallow_45_degree_cuts():
