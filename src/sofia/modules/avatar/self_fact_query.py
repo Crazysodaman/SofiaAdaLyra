@@ -236,16 +236,33 @@ class AvatarSelfFactResolver:
 
     @classmethod
     def _is_current_outfit_query(cls, normalized: str) -> bool:
+        """Interpret a present-state wardrobe question, not a clothing action.
+
+        Everyday paraphrases are routed to the authoritative presentation
+        rather than guessed by the model. Future, hypothetical, and opinion
+        questions retain normal cognitive handling.
+        """
         if normalized in cls._CURRENT_OUTFIT_FORMS:
             return True
+        if re.search(
+            r"\b(?:would|should|could|want|wanna|prefer|favorite|favourite|"
+            r"choose|pick|change|changing|tomorrow|tonight|yesterday|"
+            r"design|make|buy|think|recommend)\b",
+            normalized,
+        ):
+            return False
+        if re.match(r"^(?:why|when|where|how)\b", normalized):
+            return False
+        if re.search(r"\b(?:what|which|describe|tell|show)\b", normalized) is None:
+            return False
+        if re.search(r"\b(?:you|your|you're)\b", normalized) is None:
+            return False
         return (
             re.search(
-                r"\b(?:what\s+are\s+you|what\s+are\s+u|what\s+r\s+u)"
-                r"\s+wearing\b",
+                r"\b(?:outfit|clothes|clothing|garments|wearing|dressed)\b",
                 normalized,
-                re.IGNORECASE,
-            )
-            is not None
+            ) is not None
+            or re.search(r"\b(?:have|got)\s+on\b", normalized) is not None
         )
 
     @classmethod
