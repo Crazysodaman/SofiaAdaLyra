@@ -6,6 +6,7 @@ must not override typed freshness/location evidence.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from datetime import timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -42,6 +43,89 @@ def _normalize(query: str) -> str:
     while normalized.startswith("so "):
         normalized = normalized[3:].lstrip()
     return normalized
+
+
+
+# Bounded semantic read recognition. These forms interpret only read-only
+# questions about the current clock/observations; no text can grant authority,
+# perform a tool action, or become an observation by matching these concepts.
+_CLOCK_WORDS = frozenset({
+    "what", "whats", "s", "the", "is", "it", "are", "you", "your", "my",
+    "me", "tell", "give", "can", "could", "please", "hey", "sofia",
+    "time", "and", "date", "day", "today", "right", "now", "rn",
+    "current", "local", "exact", "both", "for", "here", "at", "this",
+    "moment", "of", "would", "like", "know", "to", "i", "do",
+})
+
+
+def _combined_current_clock_query(normalized: str) -> bool:
+    tokens = re.findall(r"[a-z]+", normalized)
+    words = set(tokens)
+    return (
+        "time" in words
+        and bool(words & {"date", "day"})
+        and bool(words & {"what", "whats", "tell", "give", "current", "today"})
+        and words <= _CLOCK_WORDS
+    )
+
+
+def _general_observation_query(normalized: str) -> bool:
+    words = set(re.findall(r"[a-z]+", normalized))
+    if words & {
+        "screen", "screenshot", "picture", "photo", "image", "document",
+        "file", "code", "webpage", "camera",
+    }:
+        # Explicit visual/file requests belong to their authorization-aware
+        # perception tools, not an unrelated environment snapshot.
+        return False
+    return (
+        bool(words & {
+            "see", "seeing", "observe", "observing", "observations",
+            "sense", "sensing", "notice", "detect", "perceive",
+        })
+        and bool(words & {"what", "anything", "something", "tell", "describe", "report", "can"})
+        and bool(words & {"you", "your", "sofia"})
+    )
+
+
+def _observations_answer(snapshot: EnvironmentSnapshot) -> str:
+    local = snapshot.user_local_time or snapshot.host_local_time
+    zone = snapshot.timezone if snapshot.user_local_time is not None else snapshot.host_timezone_label
+    parts = [
+        "From my runtime clock, the current date and time is "
+        f"{local.strftime('%Y-%m-%d %H:%M:%S %Z')} ({zone})."
+    ]
+    if (
+        snapshot.weather is not None
+        and snapshot.weather_freshness is EnvironmentFreshness.CURRENT
+    ):
+        weather = snapshot.weather
+        parts.append(
+            "Current external weather evidence from "
+            f"{weather.source_id} (observed {weather.observed_at.isoformat()}): "
+            f"{weather.condition}."
+        )
+    if (
+        snapshot.indoor is not None
+        and snapshot.indoor_freshness is EnvironmentFreshness.CURRENT
+    ):
+        indoor = snapshot.indoor
+        readings = []
+        if indoor.temperature_c is not None:
+            readings.append(f"{_fahrenheit(indoor.temperature_c):.0f} °F")
+        if indoor.humidity_percent is not None:
+            readings.append(f"{indoor.humidity_percent:.0f}% humidity")
+        if readings:
+            parts.append(
+                "Current indoor telemetry from "
+                f"{indoor.source_id} (observed {indoor.observed_at.isoformat()}): "
+                + ", ".join(readings) + "."
+            )
+    parts.append(
+        "I have no verified visual/room observation in this answer. "
+        "I won't invent lighting, noises, airflow, or system-health readings."
+    )
+    return " ".join(parts)
 
 
 def _fahrenheit(celsius: float) -> float:
@@ -109,6 +193,12 @@ class EnvironmentQueryResolver:
         )
 
     @classmethod
+    def is_general_observation_query(cls, query: str) -> bool:
+        if not isinstance(query, str):
+            return False
+        return _general_observation_query(_normalize(query))
+
+    @classmethod
     def is_user_reported_local_time(cls, query: str) -> bool:
         if not isinstance(query, str):
             return False
@@ -122,6 +212,8 @@ class EnvironmentQueryResolver:
             return False
         normalized = _normalize(query)
         if cls.is_user_reported_local_time(query):
+            return True
+        if _combined_current_clock_query(normalized) or _general_observation_query(normalized):
             return True
         return normalized in (
             forms._TIME_FORMS
@@ -157,6 +249,28 @@ class EnvironmentQueryResolver:
             )
 
         normalized = _normalize(query)
+        if _combined_current_clock_query(normalized):
+            local = snapshot.user_local_time or snapshot.host_local_time
+            zone = (
+                snapshot.timezone
+                if snapshot.user_local_time is not None
+                else snapshot.host_timezone_label
+            )
+            scope = (
+                "configured site/user timezone"
+                if snapshot.user_local_time is not None
+                else "host machine (not proof of your timezone)"
+            )
+            return EnvironmentQueryAnswer(
+                True,
+                "The current date and time in the "
+                f"{scope} ({zone}) is "
+                f"{local.strftime('%A, %B')} {local.day}, {local.year}, "
+                f"{local.strftime('%H:%M:%S %Z')} "
+                f"({local.date().isoformat()}).",
+            )
+        if _general_observation_query(normalized):
+            return EnvironmentQueryAnswer(True, _observations_answer(snapshot))
         reported_time = forms._USER_REPORTED_LOCAL_TIME_RE.search(
             normalized
         )
