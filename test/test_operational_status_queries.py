@@ -1,6 +1,10 @@
 """Direct operational questions must not invent live measurements or model use."""
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
+
 import pytest
 
+from sofia.platform.operational.model import ContinuityEvidenceStatus, RuntimeContinuity
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.operational.status_queries import OperationalStatusQueryResolver
@@ -90,3 +94,56 @@ def test_dev_self_capability_query_fails_closed_without_registered_dev_tools():
 
     assert answer.recognized
     assert "don't have registered DEV capabilities" in answer.content
+
+
+@pytest.mark.parametrize("query", (
+    "what was your last runtime",
+    "When was your previous runtime?",
+    "Tell me about your last session.",
+))
+def test_prior_runtime_questions_use_actual_canonical_continuity(query):
+    now = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
+    prior = now - timedelta(hours=2)
+    continuity = RuntimeContinuity(
+        evidence_status=ContinuityEvidenceStatus.OBSERVED,
+        current_runtime_id=uuid4(),
+        current_started_at=now,
+        previous_runtime_id=uuid4(),
+        previous_started_at=prior,
+        previous_stopped_at=prior + timedelta(minutes=25),
+        previous_lifecycle_state="stopped",
+    )
+    resolver = OperationalStatusQueryResolver()
+    assert resolver.is_previous_runtime_query(query)
+    answer = resolver.resolve(query, selection=SELECTION, continuity=continuity)
+
+    assert answer.recognized
+    assert "previous recorded runtime started" in answer.content
+    assert prior.isoformat() in answer.content
+    assert (prior + timedelta(minutes=25)).isoformat() in answer.content
+    assert now.isoformat() in answer.content
+
+
+def test_missing_previous_runtime_is_unknown_not_claimed_never_existed():
+    now = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
+    continuity = RuntimeContinuity(
+        evidence_status=ContinuityEvidenceStatus.UNKNOWN,
+        current_runtime_id=uuid4(),
+        current_started_at=now,
+    )
+    resolver = OperationalStatusQueryResolver()
+    answer = resolver.resolve(
+        "what was your last runtime", selection=SELECTION, continuity=continuity
+    )
+    assert "no verified previous runtime timestamp" in answer.content
+    assert "does not prove no previous runtime existed" in answer.content
+    assert "no clock" not in answer.content
+
+
+@pytest.mark.parametrize("query", (
+    "What was the last runtime error?",
+    "Restart the previous runtime.",
+    "What time did the last runtime start?",
+))
+def test_runtime_history_semantics_do_not_take_unsafe_or_incomplete_actions(query):
+    assert not OperationalStatusQueryResolver.is_previous_runtime_query(query)
