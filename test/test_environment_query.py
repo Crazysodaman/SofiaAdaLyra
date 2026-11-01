@@ -151,6 +151,9 @@ def test_natural_observation_reads_are_grounded_not_model_improvisation(query):
     "What can you see on my screen?",
     "Observe the screenshot I sent.",
     "Tell me if this image is clear.",
+    "Can you physically sense my hand through an actual sensor?",
+    "What can you observe from the room camera?",
+    "Tell me what a physical hand sensor detects.",
 ))
 def test_observation_parser_leaves_other_conversation_and_vision_paths_alone(query):
     assert not EnvironmentQueryResolver.is_general_observation_query(query)
