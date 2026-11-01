@@ -471,9 +471,7 @@ def test_second_live_interaction_sermon_is_rejected():
 def test_missed_you_waiting_uses_specific_reunion_guard_before_generic_offline_check():
     # Regression: the broader offline-presence guard must not steal the
     # established emotionally contextualized missed-you repair.
-    unsupported = (
-        "I've been here, waiting and ready to connect whenever you're ready."
-    )
+    unsupported = "I've been waiting for you to return."
     missing = _request(
         "I missed you",
         system=(
