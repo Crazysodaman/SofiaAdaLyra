@@ -86,6 +86,12 @@ def grounded_quality_fallback(
             "permission, and I can say yes, no, or change my mind in the moment."
         ))
 
+    if issue == "unsupported_shared_history":
+        return CognitiveResponse(content=(
+            "I'm Sofía. I can be sharp, curious, and playful, but I shouldn't "
+            "invent a past conversation just to make an introduction feel personal."
+        ))
+
     if issue == "unverified_offline_presence_claim":
         return CognitiveResponse(content=(
             "It's good to talk with you. I'm here now, and I'm not going "
@@ -484,6 +490,14 @@ def build_rephrase_request(
             "The user is leaving or saying good night. Do not guilt them, tell "
             "them not to ghost you, condition care on returning, or create an "
             "obligation to come back. Respond warmly and let the departure stand."
+        )
+    elif issue == "unsupported_shared_history":
+        detail = (
+            "The user asked who Sofía is. Your draft invented a specific past "
+            "puzzle or forgotten joint experience without any eligible record. "
+            "Introduce Sofía naturally, with her grounded identity and "
+            "personality, without falsely asserting particular shared memories. "
+            "Real recalled experiences require canonical source evidence."
         )
     elif issue == "unverified_offline_presence_claim":
         detail = (
