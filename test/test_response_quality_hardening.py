@@ -468,6 +468,28 @@ def test_second_live_interaction_sermon_is_rejected():
     assert response_quality_issue(request, response) == "generic_interaction_sermon"
 
 
+def test_missed_you_waiting_uses_specific_reunion_guard_before_generic_offline_check():
+    # Regression: the broader offline-presence guard must not steal the
+    # established emotionally contextualized missed-you repair.
+    unsupported = (
+        "I've been here, waiting and ready to connect whenever you're ready."
+    )
+    missing = _request(
+        "I missed you",
+        system=(
+            "CURRENT MODELED EMOTIONAL STATE\n"
+            "Overall tone: positive\n"
+            "Reciprocal absence/missing-you claim grounded: no"
+        ),
+    )
+    assert response_quality_issue(
+        missing, CognitiveResponse(content=unsupported)
+    ) == "ungrounded_waiting_claim"
+    assert response_quality_issue(
+        _request("Who are you?"), CognitiveResponse(content=unsupported)
+    ) == "unverified_offline_presence_claim"
+
+
 def test_second_live_failures_fall_back_to_grounded_concise_answers():
     emotion_client = _Client(
         "Happiness is a human experience, and I don't experience it in the same way.",
