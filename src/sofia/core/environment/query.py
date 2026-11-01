@@ -93,7 +93,9 @@ def _general_observation_query(normalized: str) -> bool:
     words = set(re.findall(r"[a-z]+", normalized))
     if words & {
         "screen", "screenshot", "picture", "photo", "image", "document",
-        "file", "code", "webpage", "camera",
+        "file", "code", "webpage", "camera", "sensor", "sensors",
+        "physically", "physical", "hand", "hands", "touch",
+        "touching", "touched", "hardware",
     }:
         # Explicit visual/file requests belong to their authorization-aware
         # perception tools, not an unrelated environment snapshot.
